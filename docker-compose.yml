@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  backend:
+    image: franklioxygen/mytube:backend-latest
+    pull_policy: always
+    container_name: mytube-backend
+    ports:
+      - "5551:5551"
+    volumes:
+      - /share/CACHEDEV2_DATA/Medias/MyTube/uploads:/app/uploads
+      - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
+    environment:
+      - PORT=5551
+    restart: unless-stopped
+    networks:
+      - mytube-network
+
+  frontend:
+    image: franklioxygen/mytube:frontend-latest
+    pull_policy: always
+    container_name: mytube-frontend
+    ports:
+      - "5556:5556"
+    environment:
+      - VITE_API_URL=http://192.168.1.105:5551/api
+      - VITE_BACKEND_URL=http://192.168.1.105:5551
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - mytube-network
+
+volumes:
+  backend-data:
+    driver: local
+
+networks:
+  mytube-network:
+    driver: bridge 
