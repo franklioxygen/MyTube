@@ -6,6 +6,14 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 
 ![Mar-08-2025 22-51-31](https://github.com/user-attachments/assets/1ca764ce-2787-4611-a5b6-a5f70413ea52)
 
+![Screenshot 2025-03-08 at 11 12 54 PM](https://github.com/user-attachments/assets/434adbdf-4b08-4641-86e3-c43c1592aea6)
+![Screenshot 2025-03-08 at 11 13 01 PM](https://github.com/user-attachments/assets/2b38a711-da32-4fc5-baa5-be66e3b8dcfa)
+![Screenshot 2025-03-08 at 11 13 16 PM](https://github.com/user-attachments/assets/7d010b67-6dac-45db-82d2-b9620915e2e2)
+
+
+
+
+
 ## Features
 
 - Download YouTube videos with a simple URL input
