@@ -49,9 +49,9 @@ function isBilibiliUrl(url) {
 // Helper function to trim Bilibili URL by removing query parameters
 function trimBilibiliUrl(url) {
   try {
-    // Extract the base URL and video ID
+    // Extract the base URL and video ID - support both desktop and mobile URLs
     const regex =
-      /(https?:\/\/(?:www\.)?bilibili\.com\/video\/(?:BV[\w]+|av\d+))/i;
+      /(https?:\/\/(?:www\.|m\.)?bilibili\.com\/video\/(?:BV[\w]+|av\d+))/i;
     const match = url.match(regex);
 
     if (match && match[1]) {
