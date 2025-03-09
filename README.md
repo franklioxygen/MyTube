@@ -2,6 +2,10 @@
 
 A YouTube/Bilibili video downloader and player application that allows you to download and save YouTube/Bilibili videos locally, along with their thumbnails. Organize your videos into collections for easy access and management.
 
+
+
+![Mar-08-2025 22-51-31](https://github.com/user-attachments/assets/1ca764ce-2787-4611-a5b6-a5f70413ea52)
+
 ## Features
 
 - Download YouTube videos with a simple URL input
