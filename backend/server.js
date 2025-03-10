@@ -52,7 +52,42 @@ function isValidUrl(string) {
 
 // Helper function to check if a URL is from Bilibili
 function isBilibiliUrl(url) {
-  return url.includes("bilibili.com");
+  return url.includes("bilibili.com") || url.includes("b23.tv");
+}
+
+// Helper function to extract URL from text that might contain a title and URL
+function extractUrlFromText(text) {
+  // Regular expression to find URLs in text
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = text.match(urlRegex);
+
+  if (matches && matches.length > 0) {
+    return matches[0];
+  }
+
+  return text; // Return original text if no URL found
+}
+
+// Helper function to resolve shortened URLs (like b23.tv)
+async function resolveShortUrl(url) {
+  try {
+    console.log(`Resolving shortened URL: ${url}`);
+
+    // Make a HEAD request to follow redirects
+    const response = await axios.head(url, {
+      maxRedirects: 5,
+      validateStatus: null,
+    });
+
+    // Get the final URL after redirects
+    const resolvedUrl = response.request.res.responseUrl || url;
+    console.log(`Resolved to: ${resolvedUrl}`);
+
+    return resolvedUrl;
+  } catch (error) {
+    console.error(`Error resolving shortened URL: ${error.message}`);
+    return url; // Return original URL if resolution fails
+  }
 }
 
 // Helper function to trim Bilibili URL by removing query parameters
@@ -310,7 +345,11 @@ app.post("/api/download", async (req, res) => {
       return res.status(400).json({ error: "Video URL is required" });
     }
 
-    console.log("Processing download request for URL:", videoUrl);
+    console.log("Processing download request for input:", videoUrl);
+
+    // Extract URL if the input contains text with a URL
+    videoUrl = extractUrlFromText(videoUrl);
+    console.log("Extracted URL:", videoUrl);
 
     // Check if the input is a valid URL
     if (!isValidUrl(videoUrl)) {
@@ -320,6 +359,12 @@ app.post("/api/download", async (req, res) => {
         isSearchTerm: true,
         searchTerm: videoUrl,
       });
+    }
+
+    // Resolve shortened URLs (like b23.tv)
+    if (videoUrl.includes("b23.tv")) {
+      videoUrl = await resolveShortUrl(videoUrl);
+      console.log("Resolved shortened URL to:", videoUrl);
     }
 
     // Trim Bilibili URL if needed
