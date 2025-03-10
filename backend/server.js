@@ -675,9 +675,18 @@ app.delete("/api/videos/:id", (req, res) => {
 // Collections API endpoints
 app.get("/api/collections", (req, res) => {
   try {
-    // Collections are stored client-side in localStorage
-    // This endpoint is just a placeholder for future server-side implementation
-    res.json({ success: true, message: "Collections are managed client-side" });
+    // Read collections from the JSON file
+    const collectionsDataPath = path.join(dataDir, "collections.json");
+
+    if (!fs.existsSync(collectionsDataPath)) {
+      // If the file doesn't exist yet, return an empty array
+      return res.json([]);
+    }
+
+    const collections = JSON.parse(
+      fs.readFileSync(collectionsDataPath, "utf8")
+    );
+    res.json(collections);
   } catch (error) {
     console.error("Error getting collections:", error);
     res
@@ -688,9 +697,37 @@ app.get("/api/collections", (req, res) => {
 
 app.post("/api/collections", (req, res) => {
   try {
-    // Collections are stored client-side in localStorage
-    // This endpoint is just a placeholder for future server-side implementation
-    res.json({ success: true, message: "Collection created (client-side)" });
+    const { name, videoId } = req.body;
+
+    if (!name) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Collection name is required" });
+    }
+
+    // Read existing collections
+    const collectionsDataPath = path.join(dataDir, "collections.json");
+    let collections = [];
+
+    if (fs.existsSync(collectionsDataPath)) {
+      collections = JSON.parse(fs.readFileSync(collectionsDataPath, "utf8"));
+    }
+
+    // Create a new collection
+    const newCollection = {
+      id: Date.now().toString(),
+      name,
+      videos: videoId ? [videoId] : [],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Add the new collection
+    collections.push(newCollection);
+
+    // Save the updated collections
+    fs.writeFileSync(collectionsDataPath, JSON.stringify(collections, null, 2));
+
+    res.status(201).json(newCollection);
   } catch (error) {
     console.error("Error creating collection:", error);
     res
@@ -701,9 +738,58 @@ app.post("/api/collections", (req, res) => {
 
 app.put("/api/collections/:id", (req, res) => {
   try {
-    // Collections are stored client-side in localStorage
-    // This endpoint is just a placeholder for future server-side implementation
-    res.json({ success: true, message: "Collection updated (client-side)" });
+    const { id } = req.params;
+    const { name, videoId, action } = req.body;
+
+    // Read existing collections
+    const collectionsDataPath = path.join(dataDir, "collections.json");
+
+    if (!fs.existsSync(collectionsDataPath)) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Collections not found" });
+    }
+
+    let collections = JSON.parse(fs.readFileSync(collectionsDataPath, "utf8"));
+
+    // Find the collection to update
+    const collectionIndex = collections.findIndex((c) => c.id === id);
+
+    if (collectionIndex === -1) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Collection not found" });
+    }
+
+    const collection = collections[collectionIndex];
+
+    // Update the collection
+    if (name) {
+      collection.name = name;
+    }
+
+    // Add or remove a video
+    if (videoId) {
+      if (action === "add") {
+        // Add the video if it's not already in the collection
+        if (!collection.videos.includes(videoId)) {
+          collection.videos.push(videoId);
+        }
+      } else if (action === "remove") {
+        // Remove the video
+        collection.videos = collection.videos.filter((v) => v !== videoId);
+      }
+    }
+
+    collection.updatedAt = new Date().toISOString();
+
+    // Update the collection in the array
+    collections[collectionIndex] = collection;
+
+    // Save the updated collections
+    fs.writeFileSync(collectionsDataPath, JSON.stringify(collections, null, 2));
+
+    res.json(collection);
   } catch (error) {
     console.error("Error updating collection:", error);
     res
@@ -714,9 +800,36 @@ app.put("/api/collections/:id", (req, res) => {
 
 app.delete("/api/collections/:id", (req, res) => {
   try {
-    // Collections are stored client-side in localStorage
-    // This endpoint is just a placeholder for future server-side implementation
-    res.json({ success: true, message: "Collection deleted (client-side)" });
+    const { id } = req.params;
+
+    // Read existing collections
+    const collectionsDataPath = path.join(dataDir, "collections.json");
+
+    if (!fs.existsSync(collectionsDataPath)) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Collections not found" });
+    }
+
+    let collections = JSON.parse(fs.readFileSync(collectionsDataPath, "utf8"));
+
+    // Filter out the collection to delete
+    const updatedCollections = collections.filter((c) => c.id !== id);
+
+    // If the length is the same, the collection wasn't found
+    if (updatedCollections.length === collections.length) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Collection not found" });
+    }
+
+    // Save the updated collections
+    fs.writeFileSync(
+      collectionsDataPath,
+      JSON.stringify(updatedCollections, null, 2)
+    );
+
+    res.json({ success: true, message: "Collection deleted successfully" });
   } catch (error) {
     console.error("Error deleting collection:", error);
     res

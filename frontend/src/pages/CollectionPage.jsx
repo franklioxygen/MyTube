@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 
-const CollectionPage = ({ collections, videos, onDeleteVideo }) => {
+const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [collection, setCollection] = useState(null);
@@ -35,6 +35,13 @@ const CollectionPage = ({ collections, videos, onDeleteVideo }) => {
     navigate(-1);
   };
 
+  const handleDelete = async () => {
+    if (await onDeleteCollection(id)) {
+      // If deletion was successful, navigate back to home
+      navigate('/');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading collection...</div>;
   }
@@ -53,6 +60,9 @@ const CollectionPage = ({ collections, videos, onDeleteVideo }) => {
           <h2 className="collection-title">Collection: {collection.name}</h2>
           <span className="video-count">{collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}</span>
         </div>
+        <button className="delete-collection-button" onClick={handleDelete}>
+          Delete Collection
+        </button>
       </div>
       
       {collectionVideos.length === 0 ? (

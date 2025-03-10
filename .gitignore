@@ -45,4 +45,5 @@ backend/uploads/images/*
 !backend/uploads/videos/.gitkeep
 !backend/uploads/images/.gitkeep
 # Ignore the videos database
-backend/videos.json 
+backend/data/videos.json
+backend/data/collections.json

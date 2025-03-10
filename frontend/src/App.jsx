@@ -36,20 +36,6 @@ const getStoredDownloadStatus = () => {
   }
 };
 
-// Helper function to get collections from localStorage
-const getStoredCollections = () => {
-  try {
-    const savedCollections = localStorage.getItem(COLLECTIONS_KEY);
-    if (!savedCollections) return [];
-    
-    return JSON.parse(savedCollections);
-  } catch (error) {
-    console.error('Error parsing collections from localStorage:', error);
-    localStorage.removeItem(COLLECTIONS_KEY);
-    return [];
-  }
-};
-
 function App() {
   const [videos, setVideos] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -59,7 +45,7 @@ function App() {
   const [error, setError] = useState(null);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [collections, setCollections] = useState(getStoredCollections());
+  const [collections, setCollections] = useState([]);
   
   // Reference to the current search request's abort controller
   const searchAbortController = useRef(null);
@@ -70,10 +56,20 @@ function App() {
     initialStatus ? initialStatus.title || '' : ''
   );
 
-  // Save collections to localStorage whenever they change
+  // Fetch collections from the server
+  const fetchCollections = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/collections`);
+      setCollections(response.data);
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+    }
+  };
+
+  // Fetch collections on component mount
   useEffect(() => {
-    localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
-  }, [collections]);
+    fetchCollections();
+  }, []);
 
   // Fetch videos on component mount
   useEffect(() => {
@@ -115,13 +111,6 @@ function App() {
           setDownloadingTitle(newStatus.title || '');
         } catch (error) {
           console.error('Error handling storage change:', error);
-        }
-      } else if (e.key === COLLECTIONS_KEY) {
-        try {
-          const newCollections = e.newValue ? JSON.parse(e.newValue) : [];
-          setCollections(newCollections);
-        } catch (error) {
-          console.error('Error handling collections storage change:', error);
         }
       }
     };
@@ -315,32 +304,25 @@ function App() {
     }
   };
 
+  // Delete a video
   const handleDeleteVideo = async (id) => {
     try {
-      const response = await axios.delete(`${API_URL}/videos/${id}`);
+      setLoading(true);
       
-      if (response.data.success) {
-        // Remove the video from the videos array
-        setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
-        
-        // Also remove the video from all collections
-        setCollections(prevCollections => 
-          prevCollections.map(collection => ({
-            ...collection,
-            videos: collection.videos.filter(videoId => videoId !== id)
-          })).filter(collection => collection.videos.length > 0)
-        );
-        
-        return { success: true };
-      } else {
-        return { success: false, error: response.data.error || 'Failed to delete video' };
-      }
+      // First, remove the video from any collections
+      await handleRemoveFromCollection(id);
+      
+      // Then delete the video
+      await axios.delete(`${API_URL}/videos/${id}`);
+      
+      // Update the videos state
+      setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
+      
+      setLoading(false);
     } catch (error) {
       console.error('Error deleting video:', error);
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'An error occurred while deleting the video' 
-      };
+      setError('Failed to delete video');
+      setLoading(false);
     }
   };
 
@@ -395,60 +377,95 @@ function App() {
     setYoutubeLoading(false);
   };
 
-  // Collection management functions
+  // Create a new collection
   const handleCreateCollection = async (name, videoId = null) => {
-    // If videoId is provided, remove it from any other collections first
-    if (videoId) {
-      setCollections(prevCollections => 
-        prevCollections.map(collection => ({
-          ...collection,
-          videos: collection.videos.filter(id => id !== videoId)
-        })).filter(collection => collection.videos.length > 0 || collection.id === 'temp')
-      );
-    }
-
-    const newCollection = {
-      id: Date.now().toString(),
-      name,
-      videos: videoId ? [videoId] : []
-    };
-
-    setCollections(prevCollections => [...prevCollections, newCollection]);
-    return newCollection;
-  };
-
-  const handleAddToCollection = async (collectionId, videoId) => {
-    // First, remove the video from any other collections
-    setCollections(prevCollections => {
-      // Step 1: Remove the video from all collections
-      const collectionsWithoutVideo = prevCollections.map(collection => ({
-        ...collection,
-        videos: collection.id === collectionId 
-          ? collection.videos // Keep videos in the target collection
-          : collection.videos.filter(id => id !== videoId) // Remove from others
-      }));
+    try {
+      const response = await axios.post(`${API_URL}/collections`, {
+        name,
+        videoId
+      });
       
-      // Step 2: Add the video to the selected collection if not already there
-      return collectionsWithoutVideo.map(collection => {
-        if (collection.id === collectionId && !collection.videos.includes(videoId)) {
-          return {
-            ...collection,
-            videos: [...collection.videos, videoId]
-          };
-        }
-        return collection;
-      }).filter(collection => collection.videos.length > 0); // Remove empty collections
-    });
+      // Update the collections state with the new collection from the server
+      setCollections(prevCollections => [...prevCollections, response.data]);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      return null;
+    }
   };
 
+  // Add a video to a collection
+  const handleAddToCollection = async (collectionId, videoId) => {
+    try {
+      // If videoId is provided, remove it from any other collections first
+      // This is handled on the server side now
+      
+      // Add the video to the selected collection
+      const response = await axios.put(`${API_URL}/collections/${collectionId}`, {
+        videoId,
+        action: 'add'
+      });
+      
+      // Update the collections state with the updated collection
+      setCollections(prevCollections =>
+        prevCollections.map(collection =>
+          collection.id === collectionId ? response.data : collection
+        )
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error adding video to collection:', error);
+      return false;
+    }
+  };
+
+  // Remove a video from its collection
   const handleRemoveFromCollection = async (videoId) => {
-    // Remove the video from all collections
-    setCollections(prevCollections => 
-      prevCollections.map(collection => ({
-        ...collection,
-        videos: collection.videos.filter(id => id !== videoId)
-      })).filter(collection => collection.videos.length > 0) // Remove empty collections
-    );
+    try {
+      // Find all collections that contain this video
+      const collectionsWithVideo = collections.filter(collection =>
+        collection.videos.includes(videoId)
+      );
+      
+      // Remove the video from each collection
+      for (const collection of collectionsWithVideo) {
+        await axios.put(`${API_URL}/collections/${collection.id}`, {
+          videoId,
+          action: 'remove'
+        });
+      }
+      
+      // Refresh collections from the server
+      fetchCollections();
+      
+      return true;
+    } catch (error) {
+      console.error('Error removing video from collection:', error);
+      return false;
+    }
+  };
+
+  // Delete a collection
+  const handleDeleteCollection = async (collectionId) => {
+    try {
+      // Confirm deletion
+      if (!window.confirm('Are you sure you want to delete this collection?')) {
+        return false;
+      }
+      
+      // Delete the collection
+      await axios.delete(`${API_URL}/collections/${collectionId}`);
+      
+      // Refresh collections from the server
+      fetchCollections();
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      return false;
+    }
   };
 
   return (
@@ -507,6 +524,7 @@ function App() {
                   collections={collections}
                   videos={videos}
                   onDeleteVideo={handleDeleteVideo}
+                  onDeleteCollection={handleDeleteCollection}
                 />
               } 
             />
