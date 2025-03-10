@@ -9,6 +9,10 @@ const fs = require("fs-extra");
 const youtubedl = require("youtube-dl-exec");
 const axios = require("axios");
 const { downloadByVedioPath } = require("bilibili-save-nodejs");
+const VERSION = require("./version");
+
+// Display version information
+VERSION.displayVersion();
 
 const app = express();
 const PORT = process.env.PORT || 5551;
@@ -22,10 +26,15 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsDir = path.join(__dirname, "uploads");
 const videosDir = path.join(uploadsDir, "videos");
 const imagesDir = path.join(uploadsDir, "images");
+const dataDir = path.join(__dirname, "data");
 
 fs.ensureDirSync(uploadsDir);
 fs.ensureDirSync(videosDir);
 fs.ensureDirSync(imagesDir);
+fs.ensureDirSync(dataDir);
+
+// Define path for videos.json in the data directory for persistence
+const videosDataPath = path.join(dataDir, "videos.json");
 
 // Serve static files from the uploads directory
 app.use("/videos", express.static(videosDir));
@@ -49,21 +58,31 @@ function isBilibiliUrl(url) {
 // Helper function to trim Bilibili URL by removing query parameters
 function trimBilibiliUrl(url) {
   try {
-    // Extract the base URL and video ID - support both desktop and mobile URLs
-    const regex =
-      /(https?:\/\/(?:www\.|m\.)?bilibili\.com\/video\/(?:BV[\w]+|av\d+))/i;
-    const match = url.match(regex);
+    // First, extract the video ID (BV or av format)
+    const videoIdMatch = url.match(/\/video\/(BV[\w]+|av\d+)/i);
 
-    if (match && match[1]) {
-      console.log(`Trimmed Bilibili URL from "${url}" to "${match[1]}"`);
-      return match[1];
+    if (videoIdMatch && videoIdMatch[1]) {
+      const videoId = videoIdMatch[1];
+      // Construct a clean URL with just the video ID
+      const cleanUrl = videoId.startsWith("BV")
+        ? `https://www.bilibili.com/video/${videoId}`
+        : `https://www.bilibili.com/video/${videoId}`;
+
+      console.log(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
+      return cleanUrl;
     }
 
-    // If regex doesn't match, just remove query parameters
-    const urlObj = new URL(url);
-    const cleanUrl = `${urlObj.origin}${urlObj.pathname}`;
-    console.log(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
-    return cleanUrl;
+    // If we couldn't extract the video ID using the regex above,
+    // try to clean the URL by removing query parameters
+    try {
+      const urlObj = new URL(url);
+      const cleanUrl = `${urlObj.origin}${urlObj.pathname}`;
+      console.log(`Trimmed Bilibili URL from "${url}" to "${cleanUrl}"`);
+      return cleanUrl;
+    } catch (urlError) {
+      console.error("Error parsing URL:", urlError);
+      return url;
+    }
   } catch (error) {
     console.error("Error trimming Bilibili URL:", error);
     return url; // Return original URL if there's an error
@@ -72,16 +91,16 @@ function trimBilibiliUrl(url) {
 
 // Helper function to extract video ID from Bilibili URL
 function extractBilibiliVideoId(url) {
-  // Extract BV ID from URL
-  const bvMatch = url.match(/BV\w+/);
-  if (bvMatch) {
-    return bvMatch[0];
+  // Extract BV ID from URL - works for both desktop and mobile URLs
+  const bvMatch = url.match(/\/video\/(BV[\w]+)/i);
+  if (bvMatch && bvMatch[1]) {
+    return bvMatch[1];
   }
 
   // Extract av ID from URL
-  const avMatch = url.match(/av(\d+)/);
-  if (avMatch) {
-    return `av${avMatch[1]}`;
+  const avMatch = url.match(/\/video\/(av\d+)/i);
+  if (avMatch && avMatch[1]) {
+    return avMatch[1];
   }
 
   return null;
@@ -496,8 +515,6 @@ app.post("/api/download", async (req, res) => {
 
     // Read existing videos data
     let videos = [];
-    const videosDataPath = path.join(__dirname, "videos.json");
-
     if (fs.existsSync(videosDataPath)) {
       videos = JSON.parse(fs.readFileSync(videosDataPath, "utf8"));
     }
@@ -522,8 +539,6 @@ app.post("/api/download", async (req, res) => {
 // API endpoint to get all videos
 app.get("/api/videos", (req, res) => {
   try {
-    const videosDataPath = path.join(__dirname, "videos.json");
-
     if (!fs.existsSync(videosDataPath)) {
       return res.status(200).json([]);
     }
@@ -540,7 +555,6 @@ app.get("/api/videos", (req, res) => {
 app.get("/api/videos/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const videosDataPath = path.join(__dirname, "videos.json");
 
     if (!fs.existsSync(videosDataPath)) {
       return res.status(404).json({ error: "Video not found" });
@@ -564,7 +578,6 @@ app.get("/api/videos/:id", (req, res) => {
 app.delete("/api/videos/:id", (req, res) => {
   try {
     const { id } = req.params;
-    const videosDataPath = path.join(__dirname, "videos.json");
 
     if (!fs.existsSync(videosDataPath)) {
       return res.status(404).json({ error: "Video not found" });
