@@ -16,9 +16,8 @@ COPY . .
 # Set environment variables
 ENV PORT=5551
 
-# Create uploads directory
-RUN mkdir -p uploads
-RUN mkdir -p data
+# Create necessary directories
+RUN mkdir -p uploads/videos uploads/images data
 
 EXPOSE 5551
 
