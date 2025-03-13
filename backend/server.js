@@ -35,6 +35,31 @@ fs.ensureDirSync(dataDir);
 
 // Define path for videos.json in the data directory for persistence
 const videosDataPath = path.join(dataDir, "videos.json");
+// Define path for status.json to track download status
+const statusDataPath = path.join(dataDir, "status.json");
+
+// Initialize status.json if it doesn't exist
+if (!fs.existsSync(statusDataPath)) {
+  fs.writeFileSync(
+    statusDataPath,
+    JSON.stringify({ isDownloading: false, title: "" }, null, 2)
+  );
+}
+
+// Helper function to update download status
+function updateDownloadStatus(isDownloading, title = "") {
+  try {
+    fs.writeFileSync(
+      statusDataPath,
+      JSON.stringify({ isDownloading, title, timestamp: Date.now() }, null, 2)
+    );
+    console.log(
+      `Download status updated: isDownloading=${isDownloading}, title=${title}`
+    );
+  } catch (error) {
+    console.error("Error updating download status:", error);
+  }
+}
 
 // Serve static files from the uploads directory
 app.use("/videos", express.static(videosDir));
@@ -361,6 +386,18 @@ app.post("/api/download", async (req, res) => {
       });
     }
 
+    // Set download status to true with initial title
+    let initialTitle = "Downloading video...";
+    if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+      initialTitle = "Downloading YouTube video...";
+    } else if (
+      videoUrl.includes("bilibili.com") ||
+      videoUrl.includes("b23.tv")
+    ) {
+      initialTitle = "Downloading Bilibili video...";
+    }
+    updateDownloadStatus(true, initialTitle);
+
     // Resolve shortened URLs (like b23.tv)
     if (videoUrl.includes("b23.tv")) {
       videoUrl = await resolveShortUrl(videoUrl);
@@ -392,6 +429,7 @@ app.post("/api/download", async (req, res) => {
     // Check if it's a Bilibili URL
     if (isBilibiliUrl(videoUrl)) {
       console.log("Detected Bilibili URL");
+      updateDownloadStatus(true, "Downloading Bilibili video...");
 
       try {
         // Download Bilibili video
@@ -414,6 +452,9 @@ app.post("/api/download", async (req, res) => {
           new Date().toISOString().slice(0, 10).replace(/-/g, "");
         thumbnailUrl = bilibiliInfo.thumbnailUrl;
         thumbnailSaved = bilibiliInfo.thumbnailSaved;
+
+        // Update download status with actual title
+        updateDownloadStatus(true, `Downloading: ${videoTitle}`);
 
         // Update the safe base filename with the actual title
         const newSafeBaseFilename = `${sanitizeFilename(
@@ -441,6 +482,8 @@ app.post("/api/download", async (req, res) => {
         }
       } catch (bilibiliError) {
         console.error("Error in Bilibili download process:", bilibiliError);
+        // Set download status to false on error
+        updateDownloadStatus(false);
         return res.status(500).json({
           error: "Failed to download Bilibili video",
           details: bilibiliError.message,
@@ -448,6 +491,7 @@ app.post("/api/download", async (req, res) => {
       }
     } else {
       console.log("Detected YouTube URL");
+      updateDownloadStatus(true, "Downloading YouTube video...");
 
       try {
         // Get YouTube video info first
@@ -471,6 +515,9 @@ app.post("/api/download", async (req, res) => {
           info.upload_date ||
           new Date().toISOString().slice(0, 10).replace(/-/g, "");
         thumbnailUrl = info.thumbnail;
+
+        // Update download status with actual title
+        updateDownloadStatus(true, `Downloading: ${videoTitle}`);
 
         // Update the safe base filename with the actual title
         const newSafeBaseFilename = `${sanitizeFilename(
@@ -530,6 +577,8 @@ app.post("/api/download", async (req, res) => {
         }
       } catch (youtubeError) {
         console.error("Error in YouTube download process:", youtubeError);
+        // Set download status to false on error
+        updateDownloadStatus(false);
         return res.status(500).json({
           error: "Failed to download YouTube video",
           details: youtubeError.message,
@@ -572,9 +621,14 @@ app.post("/api/download", async (req, res) => {
 
     console.log("Video added to database");
 
+    // Set download status to false when complete
+    updateDownloadStatus(false);
+
     res.status(200).json({ success: true, video: videoData });
   } catch (error) {
     console.error("Error downloading video:", error);
+    // Set download status to false on error
+    updateDownloadStatus(false);
     res
       .status(500)
       .json({ error: "Failed to download video", details: error.message });
@@ -835,6 +889,31 @@ app.delete("/api/collections/:id", (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to delete collection" });
+  }
+});
+
+// API endpoint to get download status
+app.get("/api/download-status", (req, res) => {
+  try {
+    if (!fs.existsSync(statusDataPath)) {
+      updateDownloadStatus(false);
+      return res.status(200).json({ isDownloading: false, title: "" });
+    }
+
+    const status = JSON.parse(fs.readFileSync(statusDataPath, "utf8"));
+
+    // Check if the status is stale (older than 5 minutes)
+    const now = Date.now();
+    if (status.timestamp && now - status.timestamp > 5 * 60 * 1000) {
+      console.log("Download status is stale, resetting to false");
+      updateDownloadStatus(false);
+      return res.status(200).json({ isDownloading: false, title: "" });
+    }
+
+    res.status(200).json(status);
+  } catch (error) {
+    console.error("Error fetching download status:", error);
+    res.status(500).json({ error: "Failed to fetch download status" });
   }
 });
 
