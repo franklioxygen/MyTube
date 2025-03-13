@@ -42,7 +42,7 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
           const searchResult = await onSearch(videoUrl);
           if (searchResult.success) {
             setVideoUrl('');
-            navigate('/');  // Navigate to home which will show search results
+            navigate('/'); // Stay on homepage to show search results
           } else {
             setError(searchResult.error);
           }
@@ -55,7 +55,7 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
         
         if (result.success) {
           setVideoUrl('');
-          // Stay on home page which will show search results
+          // Stay on homepage to show search results
           navigate('/');
         } else {
           setError(result.error);
