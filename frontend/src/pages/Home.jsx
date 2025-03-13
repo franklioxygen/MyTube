@@ -2,7 +2,7 @@ import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
 import VideoCard from '../components/VideoCard';
 
-const Home = ({ videos = [], loading, error, onDeleteVideo, collections }) => {
+const Home = ({ videos = [], loading, error, onDeleteVideo, collections = [] }) => {
   // Add default empty array to ensure videos is always an array
   const videoArray = Array.isArray(videos) ? videos : [];
 
@@ -13,6 +13,26 @@ const Home = ({ videos = [], loading, error, onDeleteVideo, collections }) => {
   if (error && videoArray.length === 0) {
     return <div className="error">{error}</div>;
   }
+
+  // Filter videos to only show the first video from each collection
+  const filteredVideos = videoArray.filter(video => {
+    // If the video is not in any collection, show it
+    const videoCollections = collections.filter(collection => 
+      collection.videos.includes(video.id)
+    );
+    
+    if (videoCollections.length === 0) {
+      return true;
+    }
+    
+    // For each collection this video is in, check if it's the first video
+    return videoCollections.some(collection => {
+      // Get the first video ID in this collection
+      const firstVideoId = collection.videos[0];
+      // Show this video if it's the first in at least one collection
+      return video.id === firstVideoId;
+    });
+  });
 
   return (
     <div className="home-container">
@@ -33,12 +53,13 @@ const Home = ({ videos = [], loading, error, onDeleteVideo, collections }) => {
           
           {/* Videos grid */}
           <div className="videos-grid">
-            {videoArray.map(video => (
+            {filteredVideos.map(video => (
               <VideoCard 
                 key={video.id} 
                 video={video} 
                 onDeleteVideo={onDeleteVideo}
                 showDeleteButton={true}
+                collections={collections}
               />
             ))}
           </div>

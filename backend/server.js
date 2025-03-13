@@ -310,6 +310,235 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
   }
 }
 
+// Helper function to check if a Bilibili video has multiple parts
+async function checkBilibiliVideoParts(videoId) {
+  try {
+    // Try to get video info from Bilibili API
+    const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+    console.log("Fetching video info from API to check parts:", apiUrl);
+
+    const response = await axios.get(apiUrl);
+
+    if (response.data && response.data.data) {
+      const videoInfo = response.data.data;
+      const videosNumber = videoInfo.videos || 1;
+
+      console.log(`Bilibili video has ${videosNumber} parts`);
+
+      return {
+        success: true,
+        videosNumber,
+        title: videoInfo.title || "Bilibili Video",
+      };
+    }
+
+    return { success: false, videosNumber: 1 };
+  } catch (error) {
+    console.error("Error checking Bilibili video parts:", error);
+    return { success: false, videosNumber: 1 };
+  }
+}
+
+// Helper function to download a single Bilibili part
+async function downloadSingleBilibiliPart(
+  url,
+  partNumber,
+  totalParts,
+  seriesTitle
+) {
+  try {
+    console.log(
+      `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
+    );
+
+    // Create a safe base filename (without extension)
+    const timestamp = Date.now();
+    const safeBaseFilename = `video_${timestamp}`;
+
+    // Add extensions for video and thumbnail
+    const videoFilename = `${safeBaseFilename}.mp4`;
+    const thumbnailFilename = `${safeBaseFilename}.jpg`;
+
+    // Set full paths for video and thumbnail
+    const videoPath = path.join(videosDir, videoFilename);
+    const thumbnailPath = path.join(imagesDir, thumbnailFilename);
+
+    let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
+    let finalVideoFilename = videoFilename;
+    let finalThumbnailFilename = thumbnailFilename;
+
+    // Download Bilibili video
+    const bilibiliInfo = await downloadBilibiliVideo(
+      url,
+      videoPath,
+      thumbnailPath
+    );
+
+    if (!bilibiliInfo) {
+      throw new Error("Failed to get Bilibili video info");
+    }
+
+    console.log("Bilibili download info:", bilibiliInfo);
+
+    // For multi-part videos, include the part number in the title
+    videoTitle =
+      totalParts > 1
+        ? `${seriesTitle} - Part ${partNumber}/${totalParts}`
+        : bilibiliInfo.title || "Bilibili Video";
+
+    videoAuthor = bilibiliInfo.author || "Bilibili User";
+    videoDate =
+      bilibiliInfo.date ||
+      new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    thumbnailUrl = bilibiliInfo.thumbnailUrl;
+    thumbnailSaved = bilibiliInfo.thumbnailSaved;
+
+    // Update the safe base filename with the actual title
+    const newSafeBaseFilename = `${sanitizeFilename(videoTitle)}_${timestamp}`;
+    const newVideoFilename = `${newSafeBaseFilename}.mp4`;
+    const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
+
+    // Rename the files
+    const newVideoPath = path.join(videosDir, newVideoFilename);
+    const newThumbnailPath = path.join(imagesDir, newThumbnailFilename);
+
+    if (fs.existsSync(videoPath)) {
+      fs.renameSync(videoPath, newVideoPath);
+      console.log("Renamed video file to:", newVideoFilename);
+      finalVideoFilename = newVideoFilename;
+    } else {
+      console.log("Video file not found at:", videoPath);
+    }
+
+    if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
+      fs.renameSync(thumbnailPath, newThumbnailPath);
+      console.log("Renamed thumbnail file to:", newThumbnailFilename);
+      finalThumbnailFilename = newThumbnailFilename;
+    }
+
+    // Create metadata for the video
+    const videoData = {
+      id: timestamp.toString(),
+      title: videoTitle,
+      author: videoAuthor,
+      date: videoDate,
+      source: "bilibili",
+      sourceUrl: url,
+      videoFilename: finalVideoFilename,
+      thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
+      thumbnailUrl: thumbnailUrl,
+      videoPath: `/videos/${finalVideoFilename}`,
+      thumbnailPath: thumbnailSaved
+        ? `/images/${finalThumbnailFilename}`
+        : null,
+      addedAt: new Date().toISOString(),
+      partNumber: partNumber,
+      totalParts: totalParts,
+      seriesTitle: seriesTitle,
+    };
+
+    // Read existing videos data
+    let videos = [];
+    if (fs.existsSync(videosDataPath)) {
+      videos = JSON.parse(fs.readFileSync(videosDataPath, "utf8"));
+    }
+
+    // Add new video to the list
+    videos.unshift(videoData);
+
+    // Save updated videos data
+    fs.writeFileSync(videosDataPath, JSON.stringify(videos, null, 2));
+
+    console.log(`Part ${partNumber}/${totalParts} added to database`);
+
+    return { success: true, videoData };
+  } catch (error) {
+    console.error(
+      `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
+      error
+    );
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper function to download remaining Bilibili parts in sequence
+async function downloadRemainingBilibiliParts(
+  baseUrl,
+  startPart,
+  totalParts,
+  seriesTitle,
+  collectionId
+) {
+  try {
+    for (let part = startPart; part <= totalParts; part++) {
+      // Update status to show which part is being downloaded
+      updateDownloadStatus(
+        true,
+        `Downloading part ${part}/${totalParts}: ${seriesTitle}`
+      );
+
+      // Construct URL for this part
+      const partUrl = `${baseUrl}?p=${part}`;
+
+      // Download this part
+      const result = await downloadSingleBilibiliPart(
+        partUrl,
+        part,
+        totalParts,
+        seriesTitle
+      );
+
+      // If download was successful and we have a collection ID, add to collection
+      if (result.success && collectionId && result.videoData) {
+        try {
+          // Read existing collections
+          const collectionsDataPath = path.join(dataDir, "collections.json");
+          let collections = JSON.parse(
+            fs.readFileSync(collectionsDataPath, "utf8")
+          );
+
+          // Find the collection
+          const collectionIndex = collections.findIndex(
+            (c) => c.id === collectionId
+          );
+
+          if (collectionIndex !== -1) {
+            // Add video to collection
+            collections[collectionIndex].videos.push(result.videoData.id);
+
+            // Save updated collections
+            fs.writeFileSync(
+              collectionsDataPath,
+              JSON.stringify(collections, null, 2)
+            );
+
+            console.log(
+              `Added part ${part}/${totalParts} to collection ${collectionId}`
+            );
+          }
+        } catch (collectionError) {
+          console.error(
+            `Error adding part ${part}/${totalParts} to collection:`,
+            collectionError
+          );
+        }
+      }
+
+      // Small delay between downloads to avoid overwhelming the server
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // All parts downloaded, update status
+    updateDownloadStatus(false);
+    console.log(
+      `All ${totalParts} parts of "${seriesTitle}" downloaded successfully`
+    );
+  } catch (error) {
+    console.error("Error downloading remaining Bilibili parts:", error);
+    updateDownloadStatus(false);
+  }
+}
+
 // API endpoint to search for videos on YouTube
 app.get("/api/search", async (req, res) => {
   try {
@@ -363,7 +592,7 @@ app.get("/api/search", async (req, res) => {
 // API endpoint to download a video (YouTube or Bilibili)
 app.post("/api/download", async (req, res) => {
   try {
-    const { youtubeUrl } = req.body;
+    const { youtubeUrl, downloadAllParts, collectionName } = req.body;
     let videoUrl = youtubeUrl; // Keep the parameter name for backward compatibility
 
     if (!videoUrl) {
@@ -408,90 +637,266 @@ app.post("/api/download", async (req, res) => {
     if (isBilibiliUrl(videoUrl)) {
       videoUrl = trimBilibiliUrl(videoUrl);
       console.log("Using trimmed Bilibili URL:", videoUrl);
-    }
 
-    // Create a safe base filename (without extension)
-    const timestamp = Date.now();
-    const safeBaseFilename = `video_${timestamp}`;
+      // If downloadAllParts is true, handle multi-part download
+      if (downloadAllParts) {
+        const videoId = extractBilibiliVideoId(videoUrl);
+        if (!videoId) {
+          updateDownloadStatus(false);
+          return res
+            .status(400)
+            .json({ error: "Could not extract Bilibili video ID" });
+        }
 
-    // Add extensions for video and thumbnail
-    const videoFilename = `${safeBaseFilename}.mp4`;
-    const thumbnailFilename = `${safeBaseFilename}.jpg`;
+        // Get video info to determine number of parts
+        const partsInfo = await checkBilibiliVideoParts(videoId);
 
-    // Set full paths for video and thumbnail
-    const videoPath = path.join(videosDir, videoFilename);
-    const thumbnailPath = path.join(imagesDir, thumbnailFilename);
+        if (!partsInfo.success) {
+          updateDownloadStatus(false);
+          return res
+            .status(500)
+            .json({ error: "Failed to get video parts information" });
+        }
 
-    let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
-    let finalVideoFilename = videoFilename;
-    let finalThumbnailFilename = thumbnailFilename;
+        const { videosNumber, title } = partsInfo;
 
-    // Check if it's a Bilibili URL
-    if (isBilibiliUrl(videoUrl)) {
-      console.log("Detected Bilibili URL");
-      updateDownloadStatus(true, "Downloading Bilibili video...");
+        // Create a collection for the multi-part video if collectionName is provided
+        let collectionId = null;
+        if (collectionName) {
+          // Read existing collections
+          const collectionsDataPath = path.join(dataDir, "collections.json");
+          let collections = [];
 
-      try {
-        // Download Bilibili video
-        const bilibiliInfo = await downloadBilibiliVideo(
-          videoUrl,
-          videoPath,
-          thumbnailPath
+          if (fs.existsSync(collectionsDataPath)) {
+            collections = JSON.parse(
+              fs.readFileSync(collectionsDataPath, "utf8")
+            );
+          }
+
+          // Create a new collection
+          const newCollection = {
+            id: Date.now().toString(),
+            name: collectionName,
+            videos: [],
+            createdAt: new Date().toISOString(),
+          };
+
+          // Add the new collection
+          collections.push(newCollection);
+
+          // Save the updated collections
+          fs.writeFileSync(
+            collectionsDataPath,
+            JSON.stringify(collections, null, 2)
+          );
+
+          collectionId = newCollection.id;
+        }
+
+        // Start downloading the first part
+        const baseUrl = videoUrl.split("?")[0];
+        const firstPartUrl = `${baseUrl}?p=1`;
+
+        updateDownloadStatus(
+          true,
+          `Downloading part 1/${videosNumber}: ${title}`
         );
 
-        if (!bilibiliInfo) {
-          throw new Error("Failed to get Bilibili video info");
+        // Download the first part
+        const firstPartResult = await downloadSingleBilibiliPart(
+          firstPartUrl,
+          1,
+          videosNumber,
+          title
+        );
+
+        // Add to collection if needed
+        if (collectionId && firstPartResult.videoData) {
+          // Read existing collections
+          const collectionsDataPath = path.join(dataDir, "collections.json");
+          let collections = JSON.parse(
+            fs.readFileSync(collectionsDataPath, "utf8")
+          );
+
+          // Find the collection
+          const collectionIndex = collections.findIndex(
+            (c) => c.id === collectionId
+          );
+
+          if (collectionIndex !== -1) {
+            // Add video to collection
+            collections[collectionIndex].videos.push(
+              firstPartResult.videoData.id
+            );
+
+            // Save updated collections
+            fs.writeFileSync(
+              collectionsDataPath,
+              JSON.stringify(collections, null, 2)
+            );
+          }
         }
 
-        console.log("Bilibili download info:", bilibiliInfo);
-
-        videoTitle = bilibiliInfo.title || "Bilibili Video";
-        videoAuthor = bilibiliInfo.author || "Bilibili User";
-        videoDate =
-          bilibiliInfo.date ||
-          new Date().toISOString().slice(0, 10).replace(/-/g, "");
-        thumbnailUrl = bilibiliInfo.thumbnailUrl;
-        thumbnailSaved = bilibiliInfo.thumbnailSaved;
-
-        // Update download status with actual title
-        updateDownloadStatus(true, `Downloading: ${videoTitle}`);
-
-        // Update the safe base filename with the actual title
-        const newSafeBaseFilename = `${sanitizeFilename(
-          videoTitle
-        )}_${timestamp}`;
-        const newVideoFilename = `${newSafeBaseFilename}.mp4`;
-        const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
-
-        // Rename the files
-        const newVideoPath = path.join(videosDir, newVideoFilename);
-        const newThumbnailPath = path.join(imagesDir, newThumbnailFilename);
-
-        if (fs.existsSync(videoPath)) {
-          fs.renameSync(videoPath, newVideoPath);
-          console.log("Renamed video file to:", newVideoFilename);
-          finalVideoFilename = newVideoFilename;
+        // Set up background download for remaining parts
+        if (videosNumber > 1) {
+          // We'll handle the remaining parts in the background
+          // The client will poll the download status endpoint to check progress
+          downloadRemainingBilibiliParts(
+            baseUrl,
+            2,
+            videosNumber,
+            title,
+            collectionId
+          );
         } else {
-          console.log("Video file not found at:", videoPath);
+          // Only one part, we're done
+          updateDownloadStatus(false);
         }
 
-        if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
-          fs.renameSync(thumbnailPath, newThumbnailPath);
-          console.log("Renamed thumbnail file to:", newThumbnailFilename);
-          finalThumbnailFilename = newThumbnailFilename;
-        }
-      } catch (bilibiliError) {
-        console.error("Error in Bilibili download process:", bilibiliError);
-        // Set download status to false on error
-        updateDownloadStatus(false);
-        return res.status(500).json({
-          error: "Failed to download Bilibili video",
-          details: bilibiliError.message,
+        return res.status(200).json({
+          success: true,
+          video: firstPartResult.videoData,
+          isMultiPart: true,
+          totalParts: videosNumber,
+          collectionId,
         });
+      } else {
+        // Regular single video download for Bilibili
+        console.log("Downloading single Bilibili video part");
+
+        // Create a safe base filename (without extension)
+        const timestamp = Date.now();
+        const safeBaseFilename = `video_${timestamp}`;
+
+        // Add extensions for video and thumbnail
+        const videoFilename = `${safeBaseFilename}.mp4`;
+        const thumbnailFilename = `${safeBaseFilename}.jpg`;
+
+        // Set full paths for video and thumbnail
+        const videoPath = path.join(videosDir, videoFilename);
+        const thumbnailPath = path.join(imagesDir, thumbnailFilename);
+
+        let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
+        let finalVideoFilename = videoFilename;
+        let finalThumbnailFilename = thumbnailFilename;
+
+        updateDownloadStatus(true, "Downloading Bilibili video...");
+
+        try {
+          // Download Bilibili video
+          const bilibiliInfo = await downloadBilibiliVideo(
+            videoUrl,
+            videoPath,
+            thumbnailPath
+          );
+
+          if (!bilibiliInfo) {
+            throw new Error("Failed to get Bilibili video info");
+          }
+
+          console.log("Bilibili download info:", bilibiliInfo);
+
+          videoTitle = bilibiliInfo.title || "Bilibili Video";
+          videoAuthor = bilibiliInfo.author || "Bilibili User";
+          videoDate =
+            bilibiliInfo.date ||
+            new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          thumbnailUrl = bilibiliInfo.thumbnailUrl;
+          thumbnailSaved = bilibiliInfo.thumbnailSaved;
+
+          // Update download status with actual title
+          updateDownloadStatus(true, `Downloading: ${videoTitle}`);
+
+          // Update the safe base filename with the actual title
+          const newSafeBaseFilename = `${sanitizeFilename(
+            videoTitle
+          )}_${timestamp}`;
+          const newVideoFilename = `${newSafeBaseFilename}.mp4`;
+          const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
+
+          // Rename the files
+          const newVideoPath = path.join(videosDir, newVideoFilename);
+          const newThumbnailPath = path.join(imagesDir, newThumbnailFilename);
+
+          if (fs.existsSync(videoPath)) {
+            fs.renameSync(videoPath, newVideoPath);
+            console.log("Renamed video file to:", newVideoFilename);
+            finalVideoFilename = newVideoFilename;
+          } else {
+            console.log("Video file not found at:", videoPath);
+          }
+
+          if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
+            fs.renameSync(thumbnailPath, newThumbnailPath);
+            console.log("Renamed thumbnail file to:", newThumbnailFilename);
+            finalThumbnailFilename = newThumbnailFilename;
+          }
+        } catch (bilibiliError) {
+          console.error("Error in Bilibili download process:", bilibiliError);
+          // Set download status to false on error
+          updateDownloadStatus(false);
+          return res.status(500).json({
+            error: "Failed to download Bilibili video",
+            details: bilibiliError.message,
+          });
+        }
+
+        // Create metadata for the video
+        const videoData = {
+          id: timestamp.toString(),
+          title: videoTitle || "Video",
+          author: videoAuthor || "Unknown",
+          date:
+            videoDate ||
+            new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+          source: "bilibili",
+          sourceUrl: videoUrl,
+          videoFilename: finalVideoFilename,
+          thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
+          thumbnailUrl: thumbnailUrl,
+          videoPath: `/videos/${finalVideoFilename}`,
+          thumbnailPath: thumbnailSaved
+            ? `/images/${finalThumbnailFilename}`
+            : null,
+          addedAt: new Date().toISOString(),
+        };
+
+        // Read existing videos data
+        let videos = [];
+        if (fs.existsSync(videosDataPath)) {
+          videos = JSON.parse(fs.readFileSync(videosDataPath, "utf8"));
+        }
+
+        // Add new video to the list
+        videos.unshift(videoData);
+
+        // Save updated videos data
+        fs.writeFileSync(videosDataPath, JSON.stringify(videos, null, 2));
+
+        // Set download status to false when complete
+        updateDownloadStatus(false);
+
+        return res.status(200).json({ success: true, video: videoData });
       }
     } else {
       console.log("Detected YouTube URL");
       updateDownloadStatus(true, "Downloading YouTube video...");
+
+      // Create a safe base filename (without extension)
+      const timestamp = Date.now();
+      const safeBaseFilename = `video_${timestamp}`;
+
+      // Add extensions for video and thumbnail
+      const videoFilename = `${safeBaseFilename}.mp4`;
+      const thumbnailFilename = `${safeBaseFilename}.jpg`;
+
+      // Set full paths for video and thumbnail
+      const videoPath = path.join(videosDir, videoFilename);
+      const thumbnailPath = path.join(imagesDir, thumbnailFilename);
+
+      let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
+      let finalVideoFilename = videoFilename;
+      let finalThumbnailFilename = thumbnailFilename;
 
       try {
         // Get YouTube video info first
@@ -584,47 +989,47 @@ app.post("/api/download", async (req, res) => {
           details: youtubeError.message,
         });
       }
+
+      // Create metadata for the video
+      const videoData = {
+        id: timestamp.toString(),
+        title: videoTitle || "Video",
+        author: videoAuthor || "Unknown",
+        date:
+          videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+        source: "youtube",
+        sourceUrl: videoUrl,
+        videoFilename: finalVideoFilename,
+        thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
+        thumbnailUrl: thumbnailUrl,
+        videoPath: `/videos/${finalVideoFilename}`,
+        thumbnailPath: thumbnailSaved
+          ? `/images/${finalThumbnailFilename}`
+          : null,
+        addedAt: new Date().toISOString(),
+      };
+
+      console.log("Video metadata:", videoData);
+
+      // Read existing videos data
+      let videos = [];
+      if (fs.existsSync(videosDataPath)) {
+        videos = JSON.parse(fs.readFileSync(videosDataPath, "utf8"));
+      }
+
+      // Add new video to the list
+      videos.unshift(videoData);
+
+      // Save updated videos data
+      fs.writeFileSync(videosDataPath, JSON.stringify(videos, null, 2));
+
+      console.log("Video added to database");
+
+      // Set download status to false when complete
+      updateDownloadStatus(false);
+
+      return res.status(200).json({ success: true, video: videoData });
     }
-
-    // Create metadata for the video
-    const videoData = {
-      id: timestamp.toString(),
-      title: videoTitle || "Video",
-      author: videoAuthor || "Unknown",
-      date:
-        videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-      source: isBilibiliUrl(videoUrl) ? "bilibili" : "youtube",
-      sourceUrl: videoUrl,
-      videoFilename: finalVideoFilename,
-      thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
-      thumbnailUrl: thumbnailUrl,
-      videoPath: `/videos/${finalVideoFilename}`,
-      thumbnailPath: thumbnailSaved
-        ? `/images/${finalThumbnailFilename}`
-        : null,
-      addedAt: new Date().toISOString(),
-    };
-
-    console.log("Video metadata:", videoData);
-
-    // Read existing videos data
-    let videos = [];
-    if (fs.existsSync(videosDataPath)) {
-      videos = JSON.parse(fs.readFileSync(videosDataPath, "utf8"));
-    }
-
-    // Add new video to the list
-    videos.unshift(videoData);
-
-    // Save updated videos data
-    fs.writeFileSync(videosDataPath, JSON.stringify(videos, null, 2));
-
-    console.log("Video added to database");
-
-    // Set download status to false when complete
-    updateDownloadStatus(false);
-
-    res.status(200).json({ success: true, video: videoData });
   } catch (error) {
     console.error("Error downloading video:", error);
     // Set download status to false on error
@@ -914,6 +1319,50 @@ app.get("/api/download-status", (req, res) => {
   } catch (error) {
     console.error("Error fetching download status:", error);
     res.status(500).json({ error: "Failed to fetch download status" });
+  }
+});
+
+// API endpoint to check if a Bilibili video has multiple parts
+app.get("/api/check-bilibili-parts", async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    if (!isBilibiliUrl(url)) {
+      return res.status(400).json({ error: "Not a valid Bilibili URL" });
+    }
+
+    // Resolve shortened URLs (like b23.tv)
+    let videoUrl = url;
+    if (videoUrl.includes("b23.tv")) {
+      videoUrl = await resolveShortUrl(videoUrl);
+      console.log("Resolved shortened URL to:", videoUrl);
+    }
+
+    // Trim Bilibili URL if needed
+    videoUrl = trimBilibiliUrl(videoUrl);
+
+    // Extract video ID
+    const videoId = extractBilibiliVideoId(videoUrl);
+
+    if (!videoId) {
+      return res
+        .status(400)
+        .json({ error: "Could not extract Bilibili video ID" });
+    }
+
+    const result = await checkBilibiliVideoParts(videoId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error checking Bilibili video parts:", error);
+    res.status(500).json({
+      error: "Failed to check Bilibili video parts",
+      details: error.message,
+    });
   }
 });
 

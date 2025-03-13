@@ -2,6 +2,7 @@ import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
+import BilibiliPartsModal from './components/BilibiliPartsModal';
 import Header from './components/Header';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
@@ -46,6 +47,15 @@ function App() {
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [collections, setCollections] = useState([]);
+  
+  // Bilibili multi-part video state
+  const [showBilibiliPartsModal, setShowBilibiliPartsModal] = useState(false);
+  const [bilibiliPartsInfo, setBilibiliPartsInfo] = useState({
+    videosNumber: 0,
+    title: '',
+    url: ''
+  });
+  const [isCheckingParts, setIsCheckingParts] = useState(false);
   
   // Reference to the current search request's abort controller
   const searchAbortController = useRef(null);
@@ -197,6 +207,35 @@ function App() {
 
   const handleVideoSubmit = async (videoUrl) => {
     try {
+      // Check if it's a Bilibili URL
+      if (videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv')) {
+        // Check if it has multiple parts
+        setIsCheckingParts(true);
+        try {
+          const response = await axios.get(`${API_URL}/check-bilibili-parts`, {
+            params: { url: videoUrl }
+          });
+          
+          if (response.data.success && response.data.videosNumber > 1) {
+            // Show modal to ask user if they want to download all parts
+            setBilibiliPartsInfo({
+              videosNumber: response.data.videosNumber,
+              title: response.data.title,
+              url: videoUrl
+            });
+            setShowBilibiliPartsModal(true);
+            setIsCheckingParts(false);
+            return { success: true };
+          }
+        } catch (err) {
+          console.error('Error checking Bilibili parts:', err);
+          // Continue with normal download if check fails
+        } finally {
+          setIsCheckingParts(false);
+        }
+      }
+      
+      // Normal download flow
       setLoading(true);
       // Extract title from URL for display during download
       let displayTitle = videoUrl;
@@ -449,11 +488,14 @@ function App() {
       // This is handled on the server side now
       
       // Add the video to the selected collection
-      const response = await axios.put(`${API_URL}/collections/${collectionId}/videos/${videoId}`);
+      const response = await axios.put(`${API_URL}/collections/${collectionId}`, {
+        videoId,
+        action: "add"
+      });
       
-      // Update the collections state with the new video
+      // Update the collections state with the updated collection from the server
       setCollections(prevCollections => prevCollections.map(collection =>
-        collection.id === collectionId ? { ...collection, videos: [...collection.videos, response.data] } : collection
+        collection.id === collectionId ? response.data : collection
       ));
       
       return response.data;
@@ -493,8 +535,23 @@ function App() {
   };
 
   // Delete a collection
-  const handleDeleteCollection = async (collectionId) => {
+  const handleDeleteCollection = async (collectionId, deleteVideos = false) => {
     try {
+      // Get the collection before deleting it
+      const collection = collections.find(c => c.id === collectionId);
+      
+      if (!collection) {
+        return { success: false, error: 'Collection not found' };
+      }
+      
+      // If deleteVideos is true, delete all videos in the collection
+      if (deleteVideos && collection.videos.length > 0) {
+        for (const videoId of collection.videos) {
+          await handleDeleteVideo(videoId);
+        }
+      }
+      
+      // Delete the collection
       await axios.delete(`${API_URL}/collections/${collectionId}`);
       
       // Update the collections state
@@ -509,6 +566,57 @@ function App() {
     }
   };
 
+  // Handle downloading all parts of a Bilibili video
+  const handleDownloadAllBilibiliParts = async (collectionName) => {
+    try {
+      setLoading(true);
+      setShowBilibiliPartsModal(false);
+      
+      // Set download status before making the API call
+      setDownloadingTitle(`Downloading ${bilibiliPartsInfo.title}...`);
+      
+      const response = await axios.post(`${API_URL}/download`, { 
+        youtubeUrl: bilibiliPartsInfo.url,
+        downloadAllParts: true,
+        collectionName
+      });
+      
+      // Add the first video to the list
+      setVideos(prevVideos => [response.data.video, ...prevVideos]);
+      
+      // If a collection was created, refresh collections
+      if (response.data.collectionId) {
+        await fetchCollections();
+      }
+      
+      setIsSearchMode(false);
+      
+      // Note: We don't clear download status here because the backend will continue
+      // downloading parts in the background. The status will be updated via polling.
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Error downloading Bilibili parts:', err);
+      
+      // Clear download status on error
+      setDownloadingTitle('');
+      localStorage.removeItem(DOWNLOAD_STATUS_KEY);
+      
+      return { 
+        success: false, 
+        error: err.response?.data?.error || 'Failed to download video parts. Please try again.' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle downloading only the current part of a Bilibili video
+  const handleDownloadCurrentBilibiliPart = async () => {
+    setShowBilibiliPartsModal(false);
+    return await handleVideoSubmit(bilibiliPartsInfo.url);
+  };
+
   return (
     <Router>
       <div className="app">
@@ -520,6 +628,17 @@ function App() {
           isSearchMode={isSearchMode}
           searchTerm={searchTerm}
           onResetSearch={resetSearch}
+        />
+        
+        {/* Bilibili Parts Modal */}
+        <BilibiliPartsModal
+          isOpen={showBilibiliPartsModal}
+          onClose={() => setShowBilibiliPartsModal(false)}
+          videosNumber={bilibiliPartsInfo.videosNumber}
+          videoTitle={bilibiliPartsInfo.title}
+          onDownloadAll={handleDownloadAllBilibiliParts}
+          onDownloadCurrent={handleDownloadCurrentBilibiliPart}
+          isLoading={loading || isCheckingParts}
         />
         
         <main className="main-content">
@@ -555,6 +674,7 @@ function App() {
                 <AuthorVideos 
                   videos={videos}
                   onDeleteVideo={handleDeleteVideo}
+                  collections={collections}
                 />
               } 
             />
@@ -578,6 +698,9 @@ function App() {
                   loading={youtubeLoading}
                   searchTerm={searchTerm}
                   onDownload={handleDownloadFromSearch}
+                  onDeleteVideo={handleDeleteVideo}
+                  onResetSearch={resetSearch}
+                  collections={collections}
                 />
               } 
             />
