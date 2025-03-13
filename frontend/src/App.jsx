@@ -319,10 +319,12 @@ function App() {
       setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
       
       setLoading(false);
+      return { success: true };
     } catch (error) {
       console.error('Error deleting video:', error);
       setError('Failed to delete video');
       setLoading(false);
+      return { success: false, error: 'Failed to delete video' };
     }
   };
 
@@ -448,11 +450,29 @@ function App() {
   };
 
   // Delete a collection
-  const handleDeleteCollection = async (collectionId) => {
+  const handleDeleteCollection = async (collectionId, deleteVideos = false) => {
     try {
-      // Confirm deletion
-      if (!window.confirm('Are you sure you want to delete this collection?')) {
+      // Get the collection to be deleted
+      const collectionToDelete = collections.find(c => c.id === collectionId);
+      
+      if (!collectionToDelete) {
+        console.error('Collection not found');
         return false;
+      }
+      
+      // If deleteVideos is true, delete all videos in the collection
+      if (deleteVideos && collectionToDelete.videos.length > 0) {
+        // Delete each video in the collection
+        for (const videoId of collectionToDelete.videos) {
+          try {
+            await axios.delete(`${API_URL}/videos/${videoId}`);
+            // Update the videos state
+            setVideos(prevVideos => prevVideos.filter(video => video.id !== videoId));
+          } catch (videoError) {
+            console.error(`Error deleting video ${videoId}:`, videoError);
+            // Continue with other videos even if one fails
+          }
+        }
       }
       
       // Delete the collection

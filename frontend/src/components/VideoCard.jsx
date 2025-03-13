@@ -5,7 +5,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const VideoCard = ({ video }) => {
   const navigate = useNavigate();
 
-
   // Format the date (assuming format YYYYMMDD from youtube-dl)
   const formatDate = (dateString) => {
     if (!dateString || dateString.length !== 8) {
