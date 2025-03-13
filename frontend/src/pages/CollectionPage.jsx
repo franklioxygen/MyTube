@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import VideoCard from '../components/VideoCard';
 
 const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection }) => {
@@ -8,6 +9,7 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
   const [collection, setCollection] = useState(null);
   const [collectionVideos, setCollectionVideos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (collections && collections.length > 0) {
@@ -35,11 +37,28 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
     navigate(-1);
   };
 
-  const handleDelete = async () => {
-    if (await onDeleteCollection(id)) {
-      // If deletion was successful, navigate back to home
+  const handleShowDeleteModal = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteCollectionOnly = async () => {
+    const success = await onDeleteCollection(id, false);
+    if (success) {
       navigate('/');
     }
+    setShowDeleteModal(false);
+  };
+
+  const handleDeleteCollectionAndVideos = async () => {
+    const success = await onDeleteCollection(id, true);
+    if (success) {
+      navigate('/');
+    }
+    setShowDeleteModal(false);
   };
 
   if (loading) {
@@ -60,7 +79,7 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
           <h2 className="collection-title">Collection: {collection.name}</h2>
           <span className="video-count">{collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}</span>
         </div>
-        <button className="delete-collection-button" onClick={handleDelete}>
+        <button className="delete-collection-button" onClick={handleShowDeleteModal}>
           Delete Collection
         </button>
       </div>
@@ -81,6 +100,15 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
           ))}
         </div>
       )}
+
+      <DeleteCollectionModal
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        onDeleteCollectionOnly={handleDeleteCollectionOnly}
+        onDeleteCollectionAndVideos={handleDeleteCollectionAndVideos}
+        collectionName={collection?.name || ''}
+        videoCount={collectionVideos.length}
+      />
     </div>
   );
 };

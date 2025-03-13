@@ -1413,3 +1413,57 @@ body {
 .remove-from-collection:hover {
   background-color: var(--primary-hover) !important;
 }
+
+/* Delete Collection Modal */
+.modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-button {
+  padding: 10px 15px;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.modal-button.delete-collection-only {
+  background-color: #4a4a4a;
+  color: white;
+}
+
+.modal-button.delete-collection-only:hover {
+  background-color: #5a5a5a;
+}
+
+.modal-button.delete-all {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.modal-button.delete-all:hover {
+  background-color: #f44336;
+}
+
+.modal-button.cancel {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.modal-button.cancel:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal-button.danger {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.modal-button.danger:hover {
+  background-color: #f44336;
+}

@@ -103,10 +103,15 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
       
       if (result.success) {
         setIsDeleted(true);
-        // Navigate immediately to prevent further API calls
-        navigate('/', { replace: true });
+        
+        // Navigate to the previous page if available, otherwise go to home
+        if (window.history.length > 1) {
+          navigate(-1); // Go back to the previous page
+        } else {
+          navigate('/', { replace: true });
+        }
       } else {
-        setDeleteError(result.error);
+        setDeleteError(result.error || 'Failed to delete video');
         setIsDeleting(false);
       }
     } catch (err) {
