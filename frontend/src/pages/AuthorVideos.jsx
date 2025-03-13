@@ -5,7 +5,7 @@ import VideoCard from '../components/VideoCard';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const AuthorVideos = ({ videos: allVideos, onDeleteVideo }) => {
+const AuthorVideos = ({ videos: allVideos, onDeleteVideo, collections = [] }) => {
   const { author } = useParams();
   const navigate = useNavigate();
   const [authorVideos, setAuthorVideos] = useState([]);
@@ -56,6 +56,26 @@ const AuthorVideos = ({ videos: allVideos, onDeleteVideo }) => {
     return <div className="error">{error}</div>;
   }
 
+  // Filter videos to only show the first video from each collection
+  const filteredVideos = authorVideos.filter(video => {
+    // If the video is not in any collection, show it
+    const videoCollections = collections.filter(collection => 
+      collection.videos.includes(video.id)
+    );
+    
+    if (videoCollections.length === 0) {
+      return true;
+    }
+    
+    // For each collection this video is in, check if it's the first video
+    return videoCollections.some(collection => {
+      // Get the first video ID in this collection
+      const firstVideoId = collection.videos[0];
+      // Show this video if it's the first in at least one collection
+      return video.id === firstVideoId;
+    });
+  });
+
   return (
     <div className="author-videos-container">
       <div className="author-header">
@@ -72,12 +92,13 @@ const AuthorVideos = ({ videos: allVideos, onDeleteVideo }) => {
         <div className="no-videos">No videos found for this author.</div>
       ) : (
         <div className="videos-grid">
-          {authorVideos.map(video => (
+          {filteredVideos.map(video => (
             <VideoCard 
               key={video.id} 
               video={video} 
               onDeleteVideo={onDeleteVideo}
               showDeleteButton={true}
+              collections={collections}
             />
           ))}
         </div>

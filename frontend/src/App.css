@@ -143,6 +143,7 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--spacing-lg);
   width: 100%;
+  align-items: start; /* Align items to the start of the grid cell */
 }
 
 /* Home Container */
@@ -183,7 +184,8 @@ body {
   box-shadow: var(--shadow);
   transition: box-shadow 0.2s;
   color: inherit;
-  height: 100%;
+  height: 330px;
+  /* max-height: 400px; */
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
@@ -199,6 +201,7 @@ body {
   padding-top: 56.25%; /* 16:9 aspect ratio */
   overflow: hidden;
   background-color: var(--background-darker);
+  flex: 0 0 auto;
 }
 
 .thumbnail {
@@ -212,9 +215,10 @@ body {
 
 .video-info {
   padding: var(--spacing-md);
-  flex-grow: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* Clickable elements */
@@ -239,6 +243,7 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   color: var(--text-color);
+  max-height: 42px; /* Approximately 2 lines of text with line-height 1.3 */
 }
 
 .video-title.clickable:hover {
@@ -1121,75 +1126,131 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 20px;
 }
 
 .modal-content {
-  background-color: var(--background-lighter);
-  border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
-  width: 90%;
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  width: 100%;
   max-width: 500px;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  animation: modalFadeIn 0.3s ease-out;
+  padding: 20px;
 }
 
 .modal-content h2 {
-  margin-top: 0;
-  color: var(--text-color);
+  margin: 0 0 20px 0;
   font-size: 1.5rem;
-  margin-bottom: var(--spacing-md);
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 15px;
 }
 
 .modal-content h3 {
+  margin: 15px 0 10px 0;
   font-size: 1.1rem;
-  margin: var(--spacing-md) 0 var(--spacing-sm);
-  color: var(--text-secondary);
+  color: var(--text-color);
 }
 
-.existing-collections,
-.new-collection {
-  margin-bottom: var(--spacing-lg);
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.existing-collections select,
-.new-collection input {
+/* Existing collections section */
+.existing-collections {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.existing-collections select {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 10px;
+  background-color: var(--background-darker);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  font-size: 1rem;
-  margin-bottom: var(--spacing-sm);
-  background-color: var(--background-dark);
   color: var(--text-color);
+  font-size: 1rem;
+  margin-bottom: 10px;
 }
 
-.modal-content button {
+.existing-collections select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.existing-collections button,
+.new-collection button {
   background-color: var(--primary-color);
-  color: var(--text-color);
+  color: white;
   border: none;
   border-radius: var(--border-radius);
-  padding: var(--spacing-sm) var(--spacing-md);
-  cursor: pointer;
+  padding: 10px 15px;
   font-size: 0.9rem;
+  cursor: pointer;
   transition: background-color 0.2s;
+  width: 100%;
+  margin-top: 10px;
 }
 
-.modal-content button:hover {
+.existing-collections button:hover,
+.new-collection button:hover {
   background-color: var(--primary-hover);
 }
 
-.modal-content button:disabled {
+.existing-collections button:disabled,
+.new-collection button:disabled {
   background-color: var(--secondary-color);
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
+/* New collection section */
+.new-collection {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.new-collection input {
+  width: 100%;
+  padding: 10px;
+  background-color: var(--background-darker);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-color);
+  font-size: 1rem;
+}
+
+.new-collection input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* Close modal button */
 .close-modal {
-  background-color: var(--secondary-color) !important;
-  margin-top: var(--spacing-sm);
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 10px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  width: 100%;
 }
 
 .close-modal:hover {
-  background-color: var(--hover-color) !important;
+  background-color: var(--hover-color);
 }
 
 /* Video collections info */
@@ -1379,39 +1440,38 @@ body {
 
 /* Current collection in modal */
 .current-collection {
-  margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-md);
+  margin-bottom: 20px;
+  padding: 15px;
   background-color: rgba(255, 62, 62, 0.05);
   border-left: 3px solid var(--primary-color);
   border-radius: var(--border-radius);
 }
 
 .collection-note {
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: 10px;
   color: var(--text-color);
 }
 
 .collection-warning {
-  margin: 0 0 var(--spacing-md) 0;
+  margin: 0 0 15px 0;
   color: var(--text-secondary);
   font-style: italic;
 }
 
 .remove-from-collection {
-  background-color: var(--primary-color) !important;
+  background-color: var(--primary-color);
   color: var(--text-color);
   border: none;
   border-radius: var(--border-radius);
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 10px 15px;
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s;
-  margin-top: var(--spacing-sm);
   width: 100%;
 }
 
 .remove-from-collection:hover {
-  background-color: var(--primary-hover) !important;
+  background-color: var(--primary-hover);
 }
 
 /* Delete Collection Modal */
@@ -1466,4 +1526,138 @@ body {
 
 .modal-button.danger:hover {
   background-color: #f44336;
+}
+
+/* Part badge for multi-part videos */
+.part-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* Video collections in video card */
+.video-card .video-collections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.video-card .video-collection-tag {
+  display: inline-block;
+  background-color: var(--background-lighter);
+  color: var(--primary-color);
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px solid var(--primary-color);
+}
+
+.video-card .video-collection-tag:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Collection badge for videos that are first in a collection */
+.collection-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 1rem;
+  z-index: 2;
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.collection-icon {
+  display: inline-block;
+}
+
+/* Style for collection tags that are first in collection */
+.video-collection-tag.first-in-collection {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: bold;
+}
+
+.first-badge {
+  display: inline-block;
+  margin-left: 3px;
+  font-weight: bold;
+}
+
+/* Collection title styling */
+.collection-title-prefix {
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 0.85em;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.more-collections {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-left: 5px;
+}
+
+/* Make collection-first cards more prominent */
+.video-card.collection-first {
+  position: relative;
+  overflow: hidden;
+}
+
+.video-card.collection-first::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: var(--primary-color);
+  z-index: 1;
+}
+
+/* Improve collection badge visibility */
+.collection-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 1rem;
+  z-index: 2;
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.collection-icon {
+  display: inline-block;
+}
+
+/* Style for collection tags that are first in collection */
+.video-collection-tag.first-in-collection {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: bold;
+}
+
+.first-badge {
+  display: inline-block;
+  margin-left: 3px;
+  font-weight: bold;
 }

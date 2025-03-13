@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import VideoCard from '../components/VideoCard';
 
 // Define the API base URL
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
@@ -12,7 +13,8 @@ const SearchResults = ({
   youtubeLoading, 
   onDownload, 
   onDeleteVideo,
-  onResetSearch 
+  onResetSearch,
+  collections = []
 }) => {
   const navigate = useNavigate();
 
@@ -30,14 +32,6 @@ const SearchResults = ({
       await onDownload(videoUrl, title);
     } catch (error) {
       console.error('Error downloading from search results:', error);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      await onDeleteVideo(id);
-    } catch (error) {
-      console.error('Error deleting video:', error);
     }
   };
 
@@ -99,49 +93,13 @@ const SearchResults = ({
           <h3 className="section-title">From Your Library</h3>
           <div className="search-results-grid">
             {localResults.map((video) => (
-              <div key={video.id} className="search-result-card local-result">
-                <Link to={`/video/${video.id}`} className="video-link">
-                  <div className="search-result-thumbnail">
-                    {video.thumbnailPath ? (
-                      <img 
-                        src={`${API_BASE_URL}${video.thumbnailPath}`} 
-                        alt={video.title}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
-                        }}
-                      />
-                    ) : (
-                      <div className="thumbnail-placeholder">No Thumbnail</div>
-                    )}
-                  </div>
-                </Link>
-                <div className="search-result-info">
-                  <Link to={`/video/${video.id}`} className="video-link">
-                    <h3 className="search-result-title">{video.title}</h3>
-                  </Link>
-                  <Link to={`/author/${encodeURIComponent(video.author)}`} className="author-link">
-                    <p className="search-result-author">{video.author}</p>
-                  </Link>
-                  <div className="search-result-meta">
-                    <span className="search-result-date">{formatDate(video.date)}</span>
-                    <span className={`source-badge ${video.source}`}>
-                      {video.source}
-                    </span>
-                  </div>
-                  <div className="search-result-actions">
-                    <Link to={`/video/${video.id}`} className="play-btn">
-                      Play
-                    </Link>
-                    <button 
-                      className="delete-btn"
-                      onClick={() => handleDelete(video.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <VideoCard
+                key={video.id}
+                video={video}
+                onDeleteVideo={onDeleteVideo}
+                showDeleteButton={true}
+                collections={collections}
+              />
             ))}
           </div>
         </div>
@@ -229,22 +187,6 @@ const formatViewCount = (count) => {
   if (count < 1000) return count.toString();
   if (count < 1000000) return `${(count / 1000).toFixed(1)}K`;
   return `${(count / 1000000).toFixed(1)}M`;
-};
-
-// Helper function to format date
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  
-  // Handle YYYYMMDD format
-  if (dateStr.length === 8) {
-    const year = dateStr.substring(0, 4);
-    const month = dateStr.substring(4, 6);
-    const day = dateStr.substring(6, 8);
-    return `${year}-${month}-${day}`;
-  }
-  
-  // Return as is if it's already formatted
-  return dateStr;
 };
 
 export default SearchResults; 
