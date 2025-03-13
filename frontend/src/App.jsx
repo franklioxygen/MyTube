@@ -363,6 +363,7 @@ function App() {
           error: 'Failed to search. Please try again.'
         };
       }
+      return { success: false, error: 'Search was cancelled' };
     } finally {
       // Only update loading state if the request wasn't aborted
       if (searchAbortController.current && !searchAbortController.current.signal.aborted) {
@@ -652,6 +653,12 @@ function App() {
                   error={error}
                   onDeleteVideo={handleDeleteVideo}
                   collections={collections}
+                  isSearchMode={isSearchMode}
+                  searchTerm={searchTerm}
+                  localSearchResults={localSearchResults}
+                  youtubeLoading={youtubeLoading}
+                  searchResults={searchResults}
+                  onDownload={handleDownloadFromSearch}
                 />
               } 
             />
