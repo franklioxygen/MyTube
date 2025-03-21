@@ -184,8 +184,7 @@ body {
   box-shadow: var(--shadow);
   transition: box-shadow 0.2s;
   color: inherit;
-  height: 330px;
-  /* max-height: 400px; */
+  min-height: 290px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
