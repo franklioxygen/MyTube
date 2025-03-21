@@ -6,6 +6,10 @@ USERNAME="franklioxygen"
 BACKEND_IMAGE="$USERNAME/mytube:backend-latest"
 FRONTEND_IMAGE="$USERNAME/mytube:frontend-latest"
 
+# Default build arguments (can be overridden by environment variables)
+VITE_API_URL=${VITE_API_URL:-"http://localhost:5551/api"}
+VITE_BACKEND_URL=${VITE_BACKEND_URL:-"http://localhost:5551"}
+
 # Ensure Docker is running
 echo "🔍 Checking if Docker is running..."
 $DOCKER_PATH ps > /dev/null 2>&1 || { echo "❌ Docker is not running. Please start Docker and try again."; exit 1; }
@@ -18,9 +22,12 @@ $DOCKER_PATH build --no-cache --platform linux/amd64 -t $BACKEND_IMAGE .
 cd ..
 
 # Build frontend image with no-cache to force rebuild
-echo "🏗️ Building frontend image..."
+echo "🏗️ Building frontend image with default localhost configuration..."
 cd frontend
-$DOCKER_PATH build --no-cache --platform linux/amd64 -t $FRONTEND_IMAGE .
+$DOCKER_PATH build --no-cache --platform linux/amd64 \
+  --build-arg VITE_API_URL="$VITE_API_URL" \
+  --build-arg VITE_BACKEND_URL="$VITE_BACKEND_URL" \
+  -t $FRONTEND_IMAGE .
 cd ..
 
 # Push images to Docker Hub
