@@ -23,9 +23,14 @@ services:
     ports:
       - "5556:5556"
     environment:
-      # Update these values with your actual server IP/hostname and ports
-      - VITE_API_URL=${API_URL:-http://localhost:5551/api}
-      - VITE_BACKEND_URL=${BACKEND_URL:-http://localhost:5551}
+      # For internal container communication, use the service name
+      # These will be replaced at runtime by the entrypoint script
+      - VITE_API_URL=http://backend:5551/api
+      - VITE_BACKEND_URL=http://backend:5551
+      # For QNAP or other environments where service discovery doesn't work,
+      # you can override these values using a .env file with:
+      # - API_HOST=your-ip-or-hostname
+      # - API_PORT=5551
     depends_on:
       - backend
     restart: unless-stopped
