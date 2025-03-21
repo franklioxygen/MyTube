@@ -18,12 +18,9 @@ $DOCKER_PATH build --no-cache --platform linux/amd64 -t $BACKEND_IMAGE .
 cd ..
 
 # Build frontend image with no-cache to force rebuild
-echo "🏗️ Building frontend image with correct environment variables..."
+echo "🏗️ Building frontend image..."
 cd frontend
-$DOCKER_PATH build --no-cache --platform linux/amd64 \
-  --build-arg VITE_API_URL=http://192.168.1.105:5551/api \
-  --build-arg VITE_BACKEND_URL=http://192.168.1.105:5551 \
-  -t $FRONTEND_IMAGE .
+$DOCKER_PATH build --no-cache --platform linux/amd64 -t $FRONTEND_IMAGE .
 cd ..
 
 # Push images to Docker Hub
@@ -35,7 +32,10 @@ echo "✅ Successfully built and pushed images to Docker Hub!"
 echo "Backend image: $BACKEND_IMAGE"
 echo "Frontend image: $FRONTEND_IMAGE"
 echo ""
-echo "To deploy to your QNAP Container Station at 192.168.1.105:"
-echo "1. Upload the docker-compose.yml file to your QNAP"
-echo "2. Use Container Station to deploy the stack using this compose file"
-echo "3. Access your application at http://192.168.1.105:5556" 
+echo "To deploy to your server or QNAP Container Station:"
+echo "1. Upload the docker-compose.yml file to your server"
+echo "2. Set environment variables in your docker-compose.yml file:"
+echo "   - VITE_API_URL=http://your-server-ip:port/api"
+echo "   - VITE_BACKEND_URL=http://your-server-ip:port"
+echo "3. Use Container Station or Docker to deploy the stack using this compose file"
+echo "4. Access your application at the configured port" 

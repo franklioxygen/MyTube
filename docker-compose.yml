@@ -23,8 +23,9 @@ services:
     ports:
       - "5556:5556"
     environment:
-      - VITE_API_URL=http://192.168.1.105:5551/api
-      - VITE_BACKEND_URL=http://192.168.1.105:5551
+      # Update these values with your actual server IP/hostname and ports
+      - VITE_API_URL=${API_URL:-http://localhost:5551/api}
+      - VITE_BACKEND_URL=${BACKEND_URL:-http://localhost:5551}
     depends_on:
       - backend
     restart: unless-stopped
