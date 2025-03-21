@@ -82,8 +82,8 @@ npm run build     # Build the frontend for production
 
 ### Accessing the Application
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- Frontend: http://localhost:5556
+- Backend API: http://localhost:5551
 
 ## API Endpoints
 
@@ -125,15 +125,15 @@ The application uses environment variables for configuration. Here's how to set 
 ### Frontend (.env file in frontend directory)
 
 ```
-VITE_API_URL=http://localhost:5000/api
-VITE_BACKEND_URL=http://localhost:5000
-VITE_APP_PORT=3000
+VITE_API_URL=http://localhost:5551/api
+VITE_BACKEND_URL=http://localhost:5551
+VITE_APP_PORT=5556
 ```
 
 ### Backend (.env file in backend directory)
 
 ```
-PORT=5000
+PORT=5551
 UPLOAD_DIR=uploads
 VIDEO_DIR=uploads/videos
 IMAGE_DIR=uploads/images

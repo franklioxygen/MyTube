@@ -82,8 +82,8 @@ npm run build     # 为生产环境构建前端
 
 ### 访问应用
 
-- 前端：http://localhost:3000
-- 后端 API：http://localhost:5000
+- 前端：http://localhost:5556
+- 后端 API：http://localhost:5551
 
 ## API 端点
 
@@ -125,15 +125,15 @@ MyTube 允许您将视频整理到收藏夹中：
 ### 前端（frontend 目录中的 .env 文件）
 
 ```
-VITE_API_URL=http://localhost:5000/api
-VITE_BACKEND_URL=http://localhost:5000
-VITE_APP_PORT=3000
+VITE_API_URL=http://localhost:5551/api
+VITE_BACKEND_URL=http://localhost:5551
+VITE_APP_PORT=5556
 ```
 
 ### 后端（backend 目录中的 .env 文件）
 
 ```
-PORT=5000
+PORT=5551
 UPLOAD_DIR=uploads
 VIDEO_DIR=uploads/videos
 IMAGE_DIR=uploads/images
