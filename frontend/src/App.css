@@ -963,6 +963,26 @@ body {
   line-height: 1;
 }
 
+.back-to-home-btn {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.back-to-home-btn:hover {
+  background-color: var(--primary-color);
+  transform: translateX(-3px);
+}
+
 .search-results-section {
   margin-bottom: 40px;
 }
