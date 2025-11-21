@@ -302,83 +302,117 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
       {showCollectionModal && (
         <div className="modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Add to Collection</h2>
-
-            {videoCollections.length > 0 && (
-              <div className="current-collection" style={{
-                marginBottom: '1.5rem',
-                padding: '1rem',
-                backgroundColor: 'rgba(62, 166, 255, 0.1)',
-                borderRadius: '8px',
-                border: '1px solid rgba(62, 166, 255, 0.3)'
-              }}>
-                <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>
-                  Currently in: <strong>{videoCollections[0].name}</strong>
-                </p>
-                <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Adding to a different collection will remove it from the current one.
-                </p>
-                <button
-                  className="modal-btn danger-btn"
-                  style={{ width: '100%' }}
-                  onClick={handleRemoveFromCollection}
-                >
-                  Remove from Collection
-                </button>
-              </div>
-            )}
-
-            {collections && collections.length > 0 && (
-              <div className="existing-collections" style={{ marginBottom: '1.5rem' }}>
-                <h3>Add to existing collection:</h3>
-                <select
-                  value={selectedCollection}
-                  onChange={(e) => setSelectedCollection(e.target.value)}
-                >
-                  <option value="">Select a collection</option>
-                  {collections.map(collection => (
-                    <option
-                      key={collection.id}
-                      value={collection.id}
-                      disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
-                    >
-                      {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="modal-btn primary-btn"
-                  style={{ width: '100%', marginTop: '0.5rem' }}
-                  onClick={handleAddToExistingCollection}
-                  disabled={!selectedCollection}
-                >
-                  Add to Collection
-                </button>
-              </div>
-            )}
-
-            <div className="new-collection" style={{ marginBottom: '1.5rem' }}>
-              <h3>Create new collection:</h3>
-              <input
-                type="text"
-                placeholder="Collection name"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
-              />
-              <button
-                className="modal-btn primary-btn"
-                style={{ width: '100%', marginTop: '0.5rem' }}
-                onClick={handleCreateCollection}
-                disabled={!newCollectionName.trim()}
-              >
-                Create Collection
-              </button>
+            <div className="modal-header">
+              <h2>Add to Collection</h2>
+              <button className="close-btn" onClick={handleCloseModal}>×</button>
             </div>
 
-            <button className="modal-btn cancel-btn" style={{ width: '100%' }} onClick={handleCloseModal}>
-              Cancel
-            </button>
+            <div className="modal-body">
+              {videoCollections.length > 0 && (
+                <div className="current-collection" style={{
+                  marginBottom: '1.5rem',
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, rgba(62, 166, 255, 0.1) 0%, rgba(62, 166, 255, 0.05) 100%)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(62, 166, 255, 0.3)'
+                }}>
+                  <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)', fontWeight: '500' }}>
+                    📁 Currently in: <strong>{videoCollections[0].name}</strong>
+                  </p>
+                  <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Adding to a different collection will remove it from the current one.
+                  </p>
+                  <button
+                    className="modal-btn danger-btn"
+                    style={{ width: '100%' }}
+                    onClick={handleRemoveFromCollection}
+                  >
+                    Remove from Collection
+                  </button>
+                </div>
+              )}
+
+              {collections && collections.length > 0 && (
+                <div className="existing-collections" style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '600', color: 'var(--text-color)' }}>
+                    Add to existing collection:
+                  </h3>
+                  <select
+                    value={selectedCollection}
+                    onChange={(e) => setSelectedCollection(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: 'var(--text-color)',
+                      fontSize: '1rem',
+                      marginBottom: '0.5rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">Select a collection</option>
+                    {collections.map(collection => (
+                      <option
+                        key={collection.id}
+                        value={collection.id}
+                        disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
+                      >
+                        {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="modal-btn primary-btn"
+                    style={{ width: '100%' }}
+                    onClick={handleAddToExistingCollection}
+                    disabled={!selectedCollection}
+                  >
+                    Add to Collection
+                  </button>
+                </div>
+              )}
+
+              <div className="new-collection">
+                <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '600', color: 'var(--text-color)' }}>
+                  Create new collection:
+                </h3>
+                <input
+                  type="text"
+                  className="collection-input"
+                  placeholder="Collection name"
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: 'var(--text-color)',
+                    fontSize: '1rem',
+                    marginBottom: '0.5rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                />
+                <button
+                  className="modal-btn primary-btn"
+                  style={{ width: '100%' }}
+                  onClick={handleCreateCollection}
+                  disabled={!newCollectionName.trim()}
+                >
+                  Create Collection
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn secondary-btn" onClick={handleCloseModal}>
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

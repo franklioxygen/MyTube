@@ -36,7 +36,7 @@ const downloadManager = require("../services/downloadManager");
 // Download video
 const downloadVideo = async (req, res) => {
   try {
-    const { youtubeUrl, downloadAllParts, collectionName } = req.body;
+    const { youtubeUrl, downloadAllParts, collectionName, downloadCollection, collectionInfo } = req.body;
     let videoUrl = youtubeUrl;
 
     if (!videoUrl) {
@@ -82,6 +82,28 @@ const downloadVideo = async (req, res) => {
       if (isBilibiliUrl(videoUrl)) {
         videoUrl = trimBilibiliUrl(videoUrl);
         console.log("Using trimmed Bilibili URL:", videoUrl);
+
+        // If downloadCollection is true, handle collection/series download
+        if (downloadCollection && collectionInfo) {
+          console.log("Downloading Bilibili collection/series");
+          
+          const result = await downloadService.downloadBilibiliCollection(
+            collectionInfo,
+            collectionName,
+            downloadId
+          );
+
+          if (result.success) {
+            return {
+              success: true,
+              collectionId: result.collectionId,
+              videosDownloaded: result.videosDownloaded,
+              isCollection: true
+            };
+          } else {
+            throw new Error(result.error || "Failed to download collection/series");
+          }
+        }
 
         // If downloadAllParts is true, handle multi-part download
         if (downloadAllParts) {
@@ -310,6 +332,51 @@ const checkBilibiliParts = async (req, res) => {
   }
 };
 
+// Check if Bilibili URL is a collection or series
+const checkBilibiliCollection = async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url) {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    if (!isBilibiliUrl(url)) {
+      return res.status(400).json({ error: "Not a valid Bilibili URL" });
+    }
+
+    // Resolve shortened URLs (like b23.tv)
+    let videoUrl = url;
+    if (videoUrl.includes("b23.tv")) {
+      videoUrl = await resolveShortUrl(videoUrl);
+      console.log("Resolved shortened URL to:", videoUrl);
+    }
+
+    // Trim Bilibili URL if needed
+    videoUrl = trimBilibiliUrl(videoUrl);
+
+    // Extract video ID
+    const videoId = extractBilibiliVideoId(videoUrl);
+
+    if (!videoId) {
+      return res
+        .status(400)
+        .json({ error: "Could not extract Bilibili video ID" });
+    }
+
+    // Check if it's a collection or series
+    const result = await downloadService.checkBilibiliCollectionOrSeries(videoId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error checking Bilibili collection/series:", error);
+    res.status(500).json({
+      error: "Failed to check Bilibili collection/series",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   searchVideos,
   downloadVideo,
@@ -318,4 +385,5 @@ module.exports = {
   deleteVideo,
   getDownloadStatus,
   checkBilibiliParts,
+  checkBilibiliCollection,
 };

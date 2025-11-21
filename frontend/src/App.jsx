@@ -54,7 +54,9 @@ function App() {
   const [bilibiliPartsInfo, setBilibiliPartsInfo] = useState({
     videosNumber: 0,
     title: '',
-    url: ''
+    url: '',
+    type: 'parts', // 'parts', 'collection', or 'series'
+    collectionInfo: null // For collection/series, stores the API response
   });
   const [isCheckingParts, setIsCheckingParts] = useState(false);
 
@@ -207,30 +209,58 @@ function App() {
     }
   };
 
-  const handleVideoSubmit = async (videoUrl) => {
+  const handleVideoSubmit = async (videoUrl, skipCollectionCheck = false) => {
     try {
       // Check if it's a Bilibili URL
       if (videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv')) {
-        // Check if it has multiple parts
         setIsCheckingParts(true);
         try {
-          const response = await axios.get(`${API_URL}/check-bilibili-parts`, {
+          // Only check for collection/series if not explicitly skipped
+          if (!skipCollectionCheck) {
+            // First, check if it's a collection or series
+            const collectionResponse = await axios.get(`${API_URL}/check-bilibili-collection`, {
+              params: { url: videoUrl }
+            });
+
+            if (collectionResponse.data.success && collectionResponse.data.type !== 'none') {
+              // It's a collection or series
+              const { type, title, count, id, mid } = collectionResponse.data;
+
+              console.log(`Detected Bilibili ${type}:`, title, `with ${count} videos`);
+
+              setBilibiliPartsInfo({
+                videosNumber: count,
+                title: title,
+                url: videoUrl,
+                type: type,
+                collectionInfo: { type, id, mid, title, count }
+              });
+              setShowBilibiliPartsModal(true);
+              setIsCheckingParts(false);
+              return { success: true };
+            }
+          }
+
+          // If not a collection/series (or check was skipped), check if it has multiple parts
+          const partsResponse = await axios.get(`${API_URL}/check-bilibili-parts`, {
             params: { url: videoUrl }
           });
 
-          if (response.data.success && response.data.videosNumber > 1) {
+          if (partsResponse.data.success && partsResponse.data.videosNumber > 1) {
             // Show modal to ask user if they want to download all parts
             setBilibiliPartsInfo({
-              videosNumber: response.data.videosNumber,
-              title: response.data.title,
-              url: videoUrl
+              videosNumber: partsResponse.data.videosNumber,
+              title: partsResponse.data.title,
+              url: videoUrl,
+              type: 'parts',
+              collectionInfo: null
             });
             setShowBilibiliPartsModal(true);
             setIsCheckingParts(false);
             return { success: true };
           }
         } catch (err) {
-          console.error('Error checking Bilibili parts:', err);
+          console.error('Error checking Bilibili parts/collection:', err);
           // Continue with normal download if check fails
         } finally {
           setIsCheckingParts(false);
@@ -542,15 +572,19 @@ function App() {
     }
   };
 
-  // Handle downloading all parts of a Bilibili video
+  // Handle downloading all parts of a Bilibili video OR all videos from a collection/series
   const handleDownloadAllBilibiliParts = async (collectionName) => {
     try {
       setLoading(true);
       setShowBilibiliPartsModal(false);
 
+      const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
+
       const response = await axios.post(`${API_URL}/download`, {
         youtubeUrl: bilibiliPartsInfo.url,
-        downloadAllParts: true,
+        downloadAllParts: !isCollection, // Only set this for multi-part videos
+        downloadCollection: isCollection, // Set this for collections/series
+        collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : null,
         collectionName
       });
 
@@ -566,11 +600,11 @@ function App() {
 
       return { success: true };
     } catch (err) {
-      console.error('Error downloading Bilibili parts:', err);
+      console.error('Error downloading Bilibili parts/collection:', err);
 
       return {
         success: false,
-        error: err.response?.data?.error || 'Failed to download video parts. Please try again.'
+        error: err.response?.data?.error || 'Failed to download. Please try again.'
       };
     } finally {
       setLoading(false);
@@ -580,7 +614,8 @@ function App() {
   // Handle downloading only the current part of a Bilibili video
   const handleDownloadCurrentBilibiliPart = async () => {
     setShowBilibiliPartsModal(false);
-    return await handleVideoSubmit(bilibiliPartsInfo.url);
+    // Pass true to skip collection/series check since we already know about it
+    return await handleVideoSubmit(bilibiliPartsInfo.url, true);
   };
 
   return (
@@ -604,6 +639,7 @@ function App() {
           onDownloadAll={handleDownloadAllBilibiliParts}
           onDownloadCurrent={handleDownloadCurrentBilibiliPart}
           isLoading={loading || isCheckingParts}
+          type={bilibiliPartsInfo.type}
         />
 
         <main className="main-content">
