@@ -175,6 +175,169 @@ async function checkBilibiliVideoParts(videoId) {
   }
 }
 
+// Helper function to check if a Bilibili video belongs to a collection or series
+async function checkBilibiliCollectionOrSeries(videoId) {
+  try {
+    const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+    console.log("Checking if video belongs to collection/series:", apiUrl);
+
+    const response = await axios.get(apiUrl, {
+      headers: {
+        'Referer': 'https://www.bilibili.com',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+      }
+    });
+
+    if (response.data && response.data.data) {
+      const videoInfo = response.data.data;
+      const mid = videoInfo.owner?.mid;
+
+      // Check for collection (ugc_season)
+      if (videoInfo.ugc_season) {
+        const season = videoInfo.ugc_season;
+        console.log(`Video belongs to collection: ${season.title}`);
+        return {
+          success: true,
+          type: 'collection',
+          id: season.id,
+          title: season.title,
+          count: season.ep_count || 0,
+          mid: mid
+        };
+      }
+
+      // If no collection found, return none
+      return { success: true, type: 'none' };
+    }
+
+    return { success: false, type: 'none' };
+  } catch (error) {
+    console.error("Error checking collection/series:", error);
+    return { success: false, type: 'none' };
+  }
+}
+
+// Helper function to get all videos from a Bilibili collection
+async function getBilibiliCollectionVideos(mid, seasonId) {
+  try {
+    const allVideos = [];
+    let pageNum = 1;
+    const pageSize = 30;
+    let hasMore = true;
+
+    console.log(`Fetching collection videos for mid=${mid}, season_id=${seasonId}`);
+
+    while (hasMore) {
+      const apiUrl = `https://api.bilibili.com/x/polymer/web-space/seasons_archives_list`;
+      const params = {
+        mid: mid,
+        season_id: seasonId,
+        page_num: pageNum,
+        page_size: pageSize,
+        sort_reverse: false
+      };
+
+      console.log(`Fetching page ${pageNum} of collection...`);
+
+      const response = await axios.get(apiUrl, {
+        params,
+        headers: {
+          'Referer': 'https://www.bilibili.com',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+      });
+
+      if (response.data && response.data.data) {
+        const data = response.data.data;
+        const archives = data.archives || [];
+        
+        console.log(`Got ${archives.length} videos from page ${pageNum}`);
+
+        archives.forEach(video => {
+          allVideos.push({
+            bvid: video.bvid,
+            title: video.title,
+            aid: video.aid
+          });
+        });
+
+        // Check if there are more pages
+        const total = data.page?.total || 0;
+        hasMore = allVideos.length < total;
+        pageNum++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    console.log(`Total videos in collection: ${allVideos.length}`);
+    return { success: true, videos: allVideos };
+  } catch (error) {
+    console.error("Error fetching collection videos:", error);
+    return { success: false, videos: [] };
+  }
+}
+
+// Helper function to get all videos from a Bilibili series
+async function getBilibiliSeriesVideos(mid, seriesId) {
+  try {
+    const allVideos = [];
+    let pageNum = 1;
+    const pageSize = 30;
+    let hasMore = true;
+
+    console.log(`Fetching series videos for mid=${mid}, series_id=${seriesId}`);
+
+    while (hasMore) {
+      const apiUrl = `https://api.bilibili.com/x/series/archives`;
+      const params = {
+        mid: mid,
+        series_id: seriesId,
+        pn: pageNum,
+        ps: pageSize
+      };
+
+      console.log(`Fetching page ${pageNum} of series...`);
+
+      const response = await axios.get(apiUrl, {
+        params,
+        headers: {
+          'Referer': 'https://www.bilibili.com',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+        }
+      });
+
+      if (response.data && response.data.data) {
+        const data = response.data.data;
+        const archives = data.archives || [];
+        
+        console.log(`Got ${archives.length} videos from page ${pageNum}`);
+
+        archives.forEach(video => {
+          allVideos.push({
+            bvid: video.bvid,
+            title: video.title,
+            aid: video.aid
+          });
+        });
+
+        // Check if there are more pages
+        const page = data.page || {};
+        hasMore = archives.length === pageSize && allVideos.length < (page.total || 0);
+        pageNum++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    console.log(`Total videos in series: ${allVideos.length}`);
+    return { success: true, videos: allVideos };
+  } catch (error) {
+    console.error("Error fetching series videos:", error);
+    return { success: false, videos: [] };
+  }
+}
+
 // Helper function to download a single Bilibili part
 async function downloadSingleBilibiliPart(
   url,
@@ -285,6 +448,125 @@ async function downloadSingleBilibiliPart(
       error
     );
     return { success: false, error: error.message };
+  }
+}
+
+// Helper function to download all videos from a Bilibili collection or series
+async function downloadBilibiliCollection(
+  collectionInfo,
+  collectionName,
+  downloadId
+) {
+  try {
+    const { type, id, mid, title, count } = collectionInfo;
+    
+    console.log(`Starting download of ${type}: ${title} (${count} videos)`);
+
+    // Add to active downloads
+    if (downloadId) {
+      storageService.addActiveDownload(
+        downloadId,
+        `Downloading ${type}: ${title}`
+      );
+    }
+
+    // Fetch all videos from the collection/series
+    let videosResult;
+    if (type === 'collection') {
+      videosResult = await getBilibiliCollectionVideos(mid, id);
+    } else if (type === 'series') {
+      videosResult = await getBilibiliSeriesVideos(mid, id);
+    } else {
+      throw new Error(`Unknown type: ${type}`);
+    }
+
+    if (!videosResult.success || videosResult.videos.length === 0) {
+      throw new Error(`Failed to fetch videos from ${type}`);
+    }
+
+    const videos = videosResult.videos;
+    console.log(`Found ${videos.length} videos to download`);
+
+    // Create a MyTube collection for these videos
+    const mytubeCollection = {
+      id: Date.now().toString(),
+      name: collectionName || title,
+      videos: [],
+      createdAt: new Date().toISOString(),
+    };
+    storageService.saveCollection(mytubeCollection);
+    const mytubeCollectionId = mytubeCollection.id;
+
+    console.log(`Created MyTube collection: ${mytubeCollection.name}`);
+
+    // Download each video sequentially
+    for (let i = 0; i < videos.length; i++) {
+      const video = videos[i];
+      const videoNumber = i + 1;
+
+      // Update status
+      if (downloadId) {
+        storageService.addActiveDownload(
+          downloadId,
+          `Downloading ${videoNumber}/${videos.length}: ${video.title}`
+        );
+      }
+
+      console.log(`Downloading video ${videoNumber}/${videos.length}: ${video.title}`);
+
+      // Construct video URL
+      const videoUrl = `https://www.bilibili.com/video/${video.bvid}`;
+
+      try {
+        // Download this video
+        const result = await downloadSingleBilibiliPart(
+          videoUrl,
+          videoNumber,
+          videos.length,
+          title
+        );
+
+        // If download was successful, add to collection
+        if (result.success && result.videoData) {
+          storageService.atomicUpdateCollection(mytubeCollectionId, (collection) => {
+            collection.videos.push(result.videoData.id);
+            return collection;
+          });
+
+          console.log(`Added video ${videoNumber}/${videos.length} to collection`);
+        } else {
+          console.error(`Failed to download video ${videoNumber}/${videos.length}: ${video.title}`);
+        }
+      } catch (videoError) {
+        console.error(`Error downloading video ${videoNumber}/${videos.length}:`, videoError);
+        // Continue with next video even if one fails
+      }
+
+      // Small delay between downloads to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    // All videos downloaded, remove from active downloads
+    if (downloadId) {
+      storageService.removeActiveDownload(downloadId);
+    }
+
+    console.log(`Finished downloading ${type}: ${title}`);
+
+    return {
+      success: true,
+      collectionId: mytubeCollectionId,
+      videosDownloaded: videos.length
+    };
+  } catch (error) {
+    console.error(`Error downloading ${collectionInfo.type}:`, error);
+    if (downloadId) {
+      storageService.removeActiveDownload(downloadId);
+    }
+    return {
+      success: false,
+      error: error.message
+    };
   }
 }
 
@@ -540,6 +822,10 @@ async function downloadYouTubeVideo(videoUrl) {
 module.exports = {
   downloadBilibiliVideo,
   checkBilibiliVideoParts,
+  checkBilibiliCollectionOrSeries,
+  getBilibiliCollectionVideos,
+  getBilibiliSeriesVideos,
+  downloadBilibiliCollection,
   downloadSingleBilibiliPart,
   downloadRemainingBilibiliParts,
   searchYouTube,

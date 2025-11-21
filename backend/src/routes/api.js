@@ -11,6 +11,7 @@ router.get("/videos/:id", videoController.getVideoById);
 router.delete("/videos/:id", videoController.deleteVideo);
 router.get("/download-status", videoController.getDownloadStatus);
 router.get("/check-bilibili-parts", videoController.checkBilibiliParts);
+router.get("/check-bilibili-collection", videoController.checkBilibiliCollection);
 
 // Collection routes
 router.get("/collections", collectionController.getCollections);

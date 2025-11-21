@@ -53,30 +53,53 @@ const ManagePage = ({ videos, onDeleteVideo, collections = [], onDeleteCollectio
             {collectionToDelete && (
                 <div className="modal-overlay" onClick={() => !isDeletingCollection && setCollectionToDelete(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h2>Delete Collection</h2>
-                        <p style={{ marginBottom: '0.5rem' }}>
-                            You are about to delete the collection <strong>"{collectionToDelete.name}"</strong>.
-                        </p>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                            This collection contains {collectionToDelete.videos.length} video{collectionToDelete.videos.length !== 1 ? 's' : ''}.
-                        </p>
-                        <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div className="modal-header">
+                            <h2>Delete Collection</h2>
                             <button
-                                className="modal-btn secondary-btn"
-                                onClick={() => handleCollectionDelete(false)}
+                                className="close-btn"
+                                onClick={() => setCollectionToDelete(null)}
                                 disabled={isDeletingCollection}
                             >
-                                {isDeletingCollection ? 'Deleting...' : 'Delete Collection Only'}
+                                ×
                             </button>
+                        </div>
+
+                        <div className="modal-body">
+                            <p style={{ marginBottom: '12px', fontSize: '0.95rem' }}>
+                                You are about to delete the collection <strong>"{collectionToDelete.name}"</strong>.
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                                This collection contains <strong>{collectionToDelete.videos.length}</strong> video{collectionToDelete.videos.length !== 1 ? 's' : ''}.
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <button
+                                    className="btn secondary-btn"
+                                    onClick={() => handleCollectionDelete(false)}
+                                    disabled={isDeletingCollection}
+                                    style={{ width: '100%' }}
+                                >
+                                    {isDeletingCollection ? 'Deleting...' : 'Delete Collection Only'}
+                                </button>
+                                {collectionToDelete.videos.length > 0 && (
+                                    <button
+                                        className="btn primary-btn"
+                                        onClick={() => handleCollectionDelete(true)}
+                                        disabled={isDeletingCollection}
+                                        style={{
+                                            width: '100%',
+                                            background: 'linear-gradient(135deg, #ff3e3e 0%, #ff6b6b 100%)'
+                                        }}
+                                    >
+                                        {isDeletingCollection ? 'Deleting...' : '⚠️ Delete Collection & Videos'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
                             <button
-                                className="modal-btn danger-btn"
-                                onClick={() => handleCollectionDelete(true)}
-                                disabled={isDeletingCollection}
-                            >
-                                {isDeletingCollection ? 'Deleting...' : 'Delete Collection & Videos'}
-                            </button>
-                            <button
-                                className="modal-btn cancel-btn"
+                                className="btn secondary-btn"
                                 onClick={() => setCollectionToDelete(null)}
                                 disabled={isDeletingCollection}
                             >
