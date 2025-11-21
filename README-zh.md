@@ -161,6 +161,10 @@ MAX_FILE_SIZE=500000000
 
 有关如何使用 Docker 或在 QNAP Container Station 上部署 MyTube 的详细说明，请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)
+
 ## 许可证
 
 MIT
