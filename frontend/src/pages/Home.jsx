@@ -14,7 +14,8 @@ const Home = ({
   localSearchResults = [],
   youtubeLoading = false,
   searchResults = [],
-  onDownload
+  onDownload,
+  onResetSearch
 }) => {
   // Add default empty array to ensure videos is always an array
   const videoArray = Array.isArray(videos) ? videos : [];
@@ -56,6 +57,11 @@ const Home = ({
       <div className="search-results">
         <div className="search-header">
           <h2>Search Results for "{searchTerm}"</h2>
+          {onResetSearch && (
+            <button className="back-to-home-btn" onClick={onResetSearch}>
+              ← Back to Home
+            </button>
+          )}
         </div>
 
         {/* Local Video Results */}

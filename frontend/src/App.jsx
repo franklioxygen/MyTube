@@ -623,6 +623,7 @@ function App() {
                   youtubeLoading={youtubeLoading}
                   searchResults={searchResults}
                   onDownload={handleDownloadFromSearch}
+                  onResetSearch={resetSearch}
                 />
               }
             />
