@@ -50,44 +50,39 @@ const updateCollection = (req, res) => {
     const { id } = req.params;
     const { name, videoId, action } = req.body;
 
-    const collection = storageService.getCollectionById(id);
+    // Update the collection atomically
+    const updatedCollection = storageService.atomicUpdateCollection(
+      id,
+      (collection) => {
+        // Update the collection
+        if (name) {
+          collection.name = name;
+        }
 
-    if (!collection) {
+        // Add or remove a video
+        if (videoId) {
+          if (action === "add") {
+            // Add the video if it's not already in the collection
+            if (!collection.videos.includes(videoId)) {
+              collection.videos.push(videoId);
+            }
+          } else if (action === "remove") {
+            // Remove the video
+            collection.videos = collection.videos.filter((v) => v !== videoId);
+          }
+        }
+
+        return collection;
+      }
+    );
+
+    if (!updatedCollection) {
       return res
         .status(404)
-        .json({ success: false, error: "Collection not found" });
+        .json({ success: false, error: "Collection not found or update failed" });
     }
 
-    // Update the collection
-    if (name) {
-      collection.name = name;
-    }
-
-    // Add or remove a video
-    if (videoId) {
-      if (action === "add") {
-        // Add the video if it's not already in the collection
-        if (!collection.videos.includes(videoId)) {
-          collection.videos.push(videoId);
-        }
-      } else if (action === "remove") {
-        // Remove the video
-        collection.videos = collection.videos.filter((v) => v !== videoId);
-      }
-    }
-
-    collection.updatedAt = new Date().toISOString();
-
-    // Save the updated collection
-    const success = storageService.updateCollection(collection);
-
-    if (!success) {
-      return res
-        .status(500)
-        .json({ success: false, error: "Failed to update collection" });
-    }
-
-    res.json(collection);
+    res.json(updatedCollection);
   } catch (error) {
     console.error("Error updating collection:", error);
     res

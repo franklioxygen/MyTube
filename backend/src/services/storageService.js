@@ -142,18 +142,36 @@ function saveCollection(collection) {
   return collection;
 }
 
-// Update a collection
-function updateCollection(updatedCollection) {
+// Atomic update for a collection
+function atomicUpdateCollection(id, updateFn) {
   let collections = getCollections();
-  const index = collections.findIndex((c) => c.id === updatedCollection.id);
+  const index = collections.findIndex((c) => c.id === id);
 
   if (index === -1) {
-    return false;
+    return null;
   }
 
+  // Create a deep copy of the collection to avoid reference issues
+  const originalCollection = collections[index];
+  const collectionCopy = JSON.parse(JSON.stringify(originalCollection));
+
+  // Apply the update function
+  const updatedCollection = updateFn(collectionCopy);
+
+  // If the update function returned null or undefined, abort the update
+  if (!updatedCollection) {
+    return null;
+  }
+
+  updatedCollection.updatedAt = new Date().toISOString();
+
+  // Update the collection in the array
   collections[index] = updatedCollection;
+
+  // Write back to file synchronously
   fs.writeFileSync(COLLECTIONS_DATA_PATH, JSON.stringify(collections, null, 2));
-  return true;
+
+  return updatedCollection;
 }
 
 // Delete a collection
@@ -183,6 +201,6 @@ module.exports = {
   getCollections,
   getCollectionById,
   saveCollection,
-  updateCollection,
+  atomicUpdateCollection,
   deleteCollection,
 };

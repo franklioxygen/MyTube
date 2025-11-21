@@ -129,11 +129,10 @@ const downloadVideo = async (req, res) => {
 
         // Add to collection if needed
         if (collectionId && firstPartResult.videoData) {
-          const collection = storageService.getCollectionById(collectionId);
-          if (collection) {
+          storageService.atomicUpdateCollection(collectionId, (collection) => {
             collection.videos.push(firstPartResult.videoData.id);
-            storageService.updateCollection(collection);
-          }
+            return collection;
+          });
         }
 
         // Set up background download for remaining parts
