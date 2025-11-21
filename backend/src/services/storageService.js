@@ -17,48 +17,89 @@ function initializeStorage() {
   fs.ensureDirSync(IMAGES_DIR);
   fs.ensureDirSync(DATA_DIR);
 
-  // Initialize status.json if it doesn't exist
+// Initialize status.json if it doesn't exist
   if (!fs.existsSync(STATUS_DATA_PATH)) {
     fs.writeFileSync(
       STATUS_DATA_PATH,
-      JSON.stringify({ isDownloading: false, title: "" }, null, 2)
+      JSON.stringify({ activeDownloads: [] }, null, 2)
     );
   }
 }
 
-// Update download status
-function updateDownloadStatus(isDownloading, title = "") {
+// Add an active download
+function addActiveDownload(id, title) {
   try {
-    fs.writeFileSync(
-      STATUS_DATA_PATH,
-      JSON.stringify({ isDownloading, title, timestamp: Date.now() }, null, 2)
-    );
-    console.log(
-      `Download status updated: isDownloading=${isDownloading}, title=${title}`
-    );
+    const status = getDownloadStatus();
+    const existingIndex = status.activeDownloads.findIndex(d => d.id === id);
+    
+    const downloadInfo = { 
+      id, 
+      title, 
+      timestamp: Date.now() 
+    };
+
+    if (existingIndex >= 0) {
+      status.activeDownloads[existingIndex] = downloadInfo;
+    } else {
+      status.activeDownloads.push(downloadInfo);
+    }
+
+    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+    console.log(`Added/Updated active download: ${title} (${id})`);
   } catch (error) {
-    console.error("Error updating download status:", error);
+    console.error("Error adding active download:", error);
+  }
+}
+
+// Remove an active download
+function removeActiveDownload(id) {
+  try {
+    const status = getDownloadStatus();
+    const initialLength = status.activeDownloads.length;
+    status.activeDownloads = status.activeDownloads.filter(d => d.id !== id);
+
+    if (status.activeDownloads.length !== initialLength) {
+      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+      console.log(`Removed active download: ${id}`);
+    }
+  } catch (error) {
+    console.error("Error removing active download:", error);
   }
 }
 
 // Get download status
 function getDownloadStatus() {
   if (!fs.existsSync(STATUS_DATA_PATH)) {
-    updateDownloadStatus(false);
-    return { isDownloading: false, title: "" };
+    const initialStatus = { activeDownloads: [] };
+    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(initialStatus, null, 2));
+    return initialStatus;
   }
 
-  const status = JSON.parse(fs.readFileSync(STATUS_DATA_PATH, "utf8"));
+  try {
+    const status = JSON.parse(fs.readFileSync(STATUS_DATA_PATH, "utf8"));
+    
+    // Ensure activeDownloads exists
+    if (!status.activeDownloads) {
+      status.activeDownloads = [];
+    }
 
-  // Check if the status is stale (older than 5 minutes)
-  const now = Date.now();
-  if (status.timestamp && now - status.timestamp > 5 * 60 * 1000) {
-    console.log("Download status is stale, resetting to false");
-    updateDownloadStatus(false);
-    return { isDownloading: false, title: "" };
+    // Check for stale downloads (older than 30 minutes)
+    const now = Date.now();
+    const validDownloads = status.activeDownloads.filter(d => {
+      return d.timestamp && (now - d.timestamp < 30 * 60 * 1000);
+    });
+
+    if (validDownloads.length !== status.activeDownloads.length) {
+      console.log("Removed stale downloads");
+      status.activeDownloads = validDownloads;
+      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+    }
+
+    return status;
+  } catch (error) {
+    console.error("Error reading download status:", error);
+    return { activeDownloads: [] };
   }
-
-  return status;
 }
 
 // Get all videos
@@ -192,7 +233,8 @@ function deleteCollection(id) {
 
 module.exports = {
   initializeStorage,
-  updateDownloadStatus,
+  addActiveDownload,
+  removeActiveDownload,
   getDownloadStatus,
   getVideos,
   getVideoById,

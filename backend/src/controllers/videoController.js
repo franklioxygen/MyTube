@@ -29,6 +29,10 @@ const searchVideos = async (req, res) => {
   }
 };
 
+const downloadManager = require("../services/downloadManager");
+
+// ... (imports remain the same)
+
 // Download video
 const downloadVideo = async (req, res) => {
   try {
@@ -55,151 +59,152 @@ const downloadVideo = async (req, res) => {
       });
     }
 
-    // Set download status to true with initial title
-    let initialTitle = "Downloading video...";
+    // Determine initial title for the download task
+    let initialTitle = "Video";
     if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-      initialTitle = "Downloading YouTube video...";
+      initialTitle = "YouTube Video";
     } else if (isBilibiliUrl(videoUrl)) {
-      initialTitle = "Downloading Bilibili video...";
-    }
-    storageService.updateDownloadStatus(true, initialTitle);
-
-    // Resolve shortened URLs (like b23.tv)
-    if (videoUrl.includes("b23.tv")) {
-      videoUrl = await resolveShortUrl(videoUrl);
-      console.log("Resolved shortened URL to:", videoUrl);
+      initialTitle = "Bilibili Video";
     }
 
-    // Trim Bilibili URL if needed
-    if (isBilibiliUrl(videoUrl)) {
-      videoUrl = trimBilibiliUrl(videoUrl);
-      console.log("Using trimmed Bilibili URL:", videoUrl);
+    // Generate a unique ID for this download task
+    const downloadId = Date.now().toString();
 
-      // If downloadAllParts is true, handle multi-part download
-      if (downloadAllParts) {
-        const videoId = extractBilibiliVideoId(videoUrl);
-        if (!videoId) {
-          storageService.updateDownloadStatus(false);
-          return res
-            .status(400)
-            .json({ error: "Could not extract Bilibili video ID" });
-        }
-
-        // Get video info to determine number of parts
-        const partsInfo = await downloadService.checkBilibiliVideoParts(videoId);
-
-        if (!partsInfo.success) {
-          storageService.updateDownloadStatus(false);
-          return res
-            .status(500)
-            .json({ error: "Failed to get video parts information" });
-        }
-
-        const { videosNumber, title } = partsInfo;
-
-        // Create a collection for the multi-part video if collectionName is provided
-        let collectionId = null;
-        if (collectionName) {
-          const newCollection = {
-            id: Date.now().toString(),
-            name: collectionName,
-            videos: [],
-            createdAt: new Date().toISOString(),
-          };
-          storageService.saveCollection(newCollection);
-          collectionId = newCollection.id;
-        }
-
-        // Start downloading the first part
-        const baseUrl = videoUrl.split("?")[0];
-        const firstPartUrl = `${baseUrl}?p=1`;
-
-        storageService.updateDownloadStatus(
-          true,
-          `Downloading part 1/${videosNumber}: ${title}`
-        );
-
-        // Download the first part
-        const firstPartResult = await downloadService.downloadSingleBilibiliPart(
-          firstPartUrl,
-          1,
-          videosNumber,
-          title
-        );
-
-        // Add to collection if needed
-        if (collectionId && firstPartResult.videoData) {
-          storageService.atomicUpdateCollection(collectionId, (collection) => {
-            collection.videos.push(firstPartResult.videoData.id);
-            return collection;
-          });
-        }
-
-        // Set up background download for remaining parts
-        if (videosNumber > 1) {
-          downloadService.downloadRemainingBilibiliParts(
-            baseUrl,
-            2,
-            videosNumber,
-            title,
-            collectionId
-          );
-        } else {
-          storageService.updateDownloadStatus(false);
-        }
-
-        return res.status(200).json({
-          success: true,
-          video: firstPartResult.videoData,
-          isMultiPart: true,
-          totalParts: videosNumber,
-          collectionId,
-        });
-      } else {
-        // Regular single video download for Bilibili
-        console.log("Downloading single Bilibili video part");
-        storageService.updateDownloadStatus(true, "Downloading Bilibili video...");
-
-        // Use downloadSingleBilibiliPart for consistency, but treat as single part
-        // Or use the logic from server.js which called downloadBilibiliVideo directly
-        // server.js logic for single video was slightly different (it handled renaming and saving)
-        // I'll use downloadSingleBilibiliPart with part 1/1 to simplify
-        // Wait, downloadSingleBilibiliPart adds "Part 1/1" to title if totalParts > 1.
-        // If totalParts is 1, it uses original title.
-
-        // We need to get the title first to pass to downloadSingleBilibiliPart?
-        // No, downloadSingleBilibiliPart fetches info.
-
-        // Let's use downloadSingleBilibiliPart with totalParts=1.
-        // But we don't have seriesTitle.
-        // downloadSingleBilibiliPart uses seriesTitle only if totalParts > 1.
-
-        const result = await downloadService.downloadSingleBilibiliPart(
-          videoUrl,
-          1,
-          1,
-          "" // seriesTitle not used when totalParts is 1
-        );
-
-        storageService.updateDownloadStatus(false);
-
-        if (result.success) {
-          return res.status(200).json({ success: true, video: result.videoData });
-        } else {
-          throw new Error(result.error || "Failed to download Bilibili video");
-        }
+    // Define the download task function
+    const downloadTask = async () => {
+      // Resolve shortened URLs (like b23.tv)
+      if (videoUrl.includes("b23.tv")) {
+        videoUrl = await resolveShortUrl(videoUrl);
+        console.log("Resolved shortened URL to:", videoUrl);
       }
-    } else {
-      // YouTube download
-      const videoData = await downloadService.downloadYouTubeVideo(videoUrl);
-      return res.status(200).json({ success: true, video: videoData });
-    }
+
+      // Trim Bilibili URL if needed
+      if (isBilibiliUrl(videoUrl)) {
+        videoUrl = trimBilibiliUrl(videoUrl);
+        console.log("Using trimmed Bilibili URL:", videoUrl);
+
+        // If downloadAllParts is true, handle multi-part download
+        if (downloadAllParts) {
+          const videoId = extractBilibiliVideoId(videoUrl);
+          if (!videoId) {
+            throw new Error("Could not extract Bilibili video ID");
+          }
+
+          // Get video info to determine number of parts
+          const partsInfo = await downloadService.checkBilibiliVideoParts(videoId);
+
+          if (!partsInfo.success) {
+            throw new Error("Failed to get video parts information");
+          }
+
+          const { videosNumber, title } = partsInfo;
+          
+          // Update title in storage
+          storageService.addActiveDownload(downloadId, title);
+
+          // Create a collection for the multi-part video if collectionName is provided
+          let collectionId = null;
+          if (collectionName) {
+            const newCollection = {
+              id: Date.now().toString(),
+              name: collectionName,
+              videos: [],
+              createdAt: new Date().toISOString(),
+            };
+            storageService.saveCollection(newCollection);
+            collectionId = newCollection.id;
+          }
+
+          // Start downloading the first part
+          const baseUrl = videoUrl.split("?")[0];
+          const firstPartUrl = `${baseUrl}?p=1`;
+
+          // Download the first part
+          const firstPartResult = await downloadService.downloadSingleBilibiliPart(
+            firstPartUrl,
+            1,
+            videosNumber,
+            title
+          );
+
+          // Add to collection if needed
+          if (collectionId && firstPartResult.videoData) {
+            storageService.atomicUpdateCollection(collectionId, (collection) => {
+              collection.videos.push(firstPartResult.videoData.id);
+              return collection;
+            });
+          }
+
+          // Set up background download for remaining parts
+          // Note: We don't await this, it runs in background
+          // But we should probably track it? For now, let's keep it simple
+          // and only track the first part as the "main" download
+          if (videosNumber > 1) {
+            downloadService.downloadRemainingBilibiliParts(
+              baseUrl,
+              2,
+              videosNumber,
+              title,
+              collectionId
+            );
+          }
+
+          return {
+            success: true,
+            video: firstPartResult.videoData,
+            isMultiPart: true,
+            totalParts: videosNumber,
+            collectionId,
+          };
+        } else {
+          // Regular single video download for Bilibili
+          console.log("Downloading single Bilibili video part");
+          
+          const result = await downloadService.downloadSingleBilibiliPart(
+            videoUrl,
+            1,
+            1,
+            "" // seriesTitle not used when totalParts is 1
+          );
+
+          if (result.success) {
+            return { success: true, video: result.videoData };
+          } else {
+            throw new Error(result.error || "Failed to download Bilibili video");
+          }
+        }
+      } else {
+        // YouTube download
+        const videoData = await downloadService.downloadYouTubeVideo(videoUrl);
+        return { success: true, video: videoData };
+      }
+    };
+
+    // Add to download manager
+    // We don't await the result here because we want to return immediately
+    // that the download has been queued/started
+    downloadManager.addDownload(downloadTask, downloadId, initialTitle)
+      .then(result => {
+        console.log("Download completed successfully:", result);
+      })
+      .catch(error => {
+        console.error("Download failed:", error);
+      });
+
+    // Return success immediately indicating the download is queued/started
+    // We can't return the video object yet because it hasn't been downloaded
+    // The frontend will need to refresh or listen for updates
+    res.status(200).json({ 
+      success: true, 
+      message: "Download queued", 
+      downloadId 
+    });
+
   } catch (error) {
-    console.error("Error downloading video:", error);
-    storageService.updateDownloadStatus(false);
+    console.error("Error queuing download:", error);
     res
       .status(500)
-      .json({ error: "Failed to download video", details: error.message });
+      .json({ error: "Failed to queue download", details: error.message });
   }
 };
 

@@ -294,15 +294,23 @@ async function downloadRemainingBilibiliParts(
   startPart,
   totalParts,
   seriesTitle,
-  collectionId
+  collectionId,
+  downloadId
 ) {
   try {
+    // Add to active downloads if ID is provided
+    if (downloadId) {
+      storageService.addActiveDownload(downloadId, `Downloading ${seriesTitle}`);
+    }
+
     for (let part = startPart; part <= totalParts; part++) {
       // Update status to show which part is being downloaded
-      storageService.updateDownloadStatus(
-        true,
-        `Downloading part ${part}/${totalParts}: ${seriesTitle}`
-      );
+      if (downloadId) {
+        storageService.addActiveDownload(
+          downloadId,
+          `Downloading part ${part}/${totalParts}: ${seriesTitle}`
+        );
+      }
 
       // Construct URL for this part
       const partUrl = `${baseUrl}?p=${part}`;
@@ -338,14 +346,18 @@ async function downloadRemainingBilibiliParts(
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // All parts downloaded, update status
-    storageService.updateDownloadStatus(false);
+    // All parts downloaded, remove from active downloads
+    if (downloadId) {
+      storageService.removeActiveDownload(downloadId);
+    }
     console.log(
       `All ${totalParts} parts of "${seriesTitle}" downloaded successfully`
     );
   } catch (error) {
     console.error("Error downloading remaining Bilibili parts:", error);
-    storageService.updateDownloadStatus(false);
+    if (downloadId) {
+      storageService.removeActiveDownload(downloadId);
+    }
   }
 }
 
@@ -388,7 +400,7 @@ async function searchYouTube(query) {
 // Download YouTube video
 async function downloadYouTubeVideo(videoUrl) {
   console.log("Detected YouTube URL");
-  storageService.updateDownloadStatus(true, "Downloading YouTube video...");
+  // storageService.updateDownloadStatus(true, "Downloading YouTube video..."); // Removed
 
   // Create a safe base filename (without extension)
   const timestamp = Date.now();
@@ -430,7 +442,7 @@ async function downloadYouTubeVideo(videoUrl) {
     thumbnailUrl = info.thumbnail;
 
     // Update download status with actual title
-    storageService.updateDownloadStatus(true, `Downloading: ${videoTitle}`);
+    // storageService.updateDownloadStatus(true, `Downloading: ${videoTitle}`); // Removed
 
     // Update the safe base filename with the actual title
     const newSafeBaseFilename = `${sanitizeFilename(
@@ -491,7 +503,7 @@ async function downloadYouTubeVideo(videoUrl) {
   } catch (youtubeError) {
     console.error("Error in YouTube download process:", youtubeError);
     // Set download status to false on error
-    storageService.updateDownloadStatus(false);
+    // storageService.updateDownloadStatus(false); // Removed
     throw youtubeError;
   }
 
@@ -520,7 +532,7 @@ async function downloadYouTubeVideo(videoUrl) {
   console.log("Video added to database");
 
   // Set download status to false when complete
-  storageService.updateDownloadStatus(false);
+  // storageService.updateDownloadStatus(false); // Removed
 
   return videoData;
 }

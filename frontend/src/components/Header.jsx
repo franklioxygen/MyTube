@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
+const Header = ({ onSubmit, onSearch, activeDownloads = [] }) => {
   const [videoUrl, setVideoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [showDownloads, setShowDownloads] = useState(false);
   const navigate = useNavigate();
-  
+
+  const isDownloading = activeDownloads.length > 0;
+
   // Log props for debugging
   useEffect(() => {
-    console.log('Header props:', { downloadingTitle, isDownloading });
-  }, [downloadingTitle, isDownloading]);
+    console.log('Header props:', { activeDownloads });
+  }, [activeDownloads]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!videoUrl.trim()) {
       setError('Please enter a video URL or search term');
       return;
@@ -23,10 +26,10 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
     // Simple validation for YouTube or Bilibili URL
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
     const bilibiliRegex = /^(https?:\/\/)?(www\.)?(bilibili\.com|b23\.tv)\/.+$/;
-    
+
     // Check if input is a URL
     const isUrl = youtubeRegex.test(videoUrl) || bilibiliRegex.test(videoUrl);
-    
+
     setError('');
     setIsSubmitting(true);
 
@@ -34,7 +37,7 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
       if (isUrl) {
         // Handle as URL for download
         const result = await onSubmit(videoUrl);
-        
+
         if (result.success) {
           setVideoUrl('');
         } else if (result.isSearchTerm) {
@@ -52,7 +55,7 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
       } else {
         // Handle as search term
         const result = await onSearch(videoUrl);
-        
+
         if (result.success) {
           setVideoUrl('');
           // Stay on homepage to show search results
@@ -69,14 +72,6 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
     }
   };
 
-  // Determine the input placeholder text based on download status
-  const getPlaceholderText = () => {
-    if (isDownloading && downloadingTitle) {
-      return `Downloading: ${downloadingTitle}...`;
-    }
-    return "Enter YouTube/Bilibili URL or search term";
-  };
-
   return (
     <header className="header">
       <div className="header-content">
@@ -84,24 +79,24 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
           <span style={{ color: '#ff3e3e' }}>My</span>
           <span style={{ color: '#f0f0f0' }}>Tube</span>
         </Link>
-        
+
         <form className="url-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <input
               type="text"
-              className={`url-input ${isDownloading ? 'downloading' : ''}`}
-              placeholder={getPlaceholderText()}
-              value={isDownloading ? '' : videoUrl}
+              className="url-input"
+              placeholder="Enter YouTube/Bilibili URL or search term"
+              value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
-              disabled={isSubmitting || isDownloading}
+              disabled={isSubmitting}
               aria-label="Video URL or search term"
             />
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="submit-btn"
-              disabled={isSubmitting || isDownloading}
+              disabled={isSubmitting}
             >
-              {isSubmitting ? 'Processing...' : isDownloading ? 'Downloading...' : 'Submit'}
+              {isSubmitting ? 'Processing...' : 'Submit'}
             </button>
           </div>
           {error && (
@@ -109,9 +104,33 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
               {error}
             </div>
           )}
+
+          {/* Active Downloads Indicator */}
           {isDownloading && (
-            <div className="download-status">
-              Downloading: {downloadingTitle}...
+            <div className="downloads-indicator-container">
+              <div
+                className="downloads-summary"
+                onClick={() => setShowDownloads(!showDownloads)}
+              >
+                <span className="download-icon">⬇️</span>
+                <span className="download-count">
+                  {activeDownloads.length} Downloading
+                </span>
+                <span className="download-arrow">{showDownloads ? '▲' : '▼'}</span>
+              </div>
+
+              {showDownloads && (
+                <div className="downloads-dropdown">
+                  {activeDownloads.map((download) => (
+                    <div key={download.id} className="download-item">
+                      <div className="download-spinner"></div>
+                      <div className="download-title" title={download.title}>
+                        {download.title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </form>
@@ -120,4 +139,4 @@ const Header = ({ onSubmit, onSearch, downloadingTitle, isDownloading }) => {
   );
 };
 
-export default Header; 
+export default Header;
