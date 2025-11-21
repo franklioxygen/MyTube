@@ -25,17 +25,28 @@
 ```
 mytube/
 ├── backend/             # Express.js 后端
+│   ├── src/             # 源代码
+│   │   ├── config/      # 配置文件
+│   │   ├── controllers/ # 路由控制器
+│   │   ├── routes/      # API 路由
+│   │   ├── services/    # 业务逻辑服务
+│   │   └── utils/       # 工具函数
 │   ├── uploads/         # 上传文件目录
 │   │   ├── videos/      # 下载的视频
 │   │   └── images/      # 下载的缩略图
 │   └── server.js        # 主服务器文件
 ├── frontend/            # React.js 前端
+│   ├── public/          # 静态资源
 │   ├── src/             # 源代码
+│   │   ├── assets/      # 图片和样式
 │   │   ├── components/  # React 组件
 │   │   └── pages/       # 页面组件
 │   └── index.html       # HTML 入口点
 ├── start.sh             # Unix/Mac 启动脚本
 ├── start.bat            # Windows 启动脚本
+├── build-and-push.sh    # Docker 构建脚本
+├── docker-compose.yml   # Docker Compose 配置
+├── DEPLOYMENT.md        # 部署指南
 └── package.json         # 运行两个应用的根 package.json
 ```
 
@@ -45,6 +56,7 @@ mytube/
 
 - Node.js (v14 或更高版本)
 - npm (v6 或更高版本)
+- Docker (可选，用于容器化部署)
 
 ### 安装
 
@@ -57,13 +69,19 @@ mytube/
 
 2. 安装依赖：
 
+   您可以使用一条命令安装根目录、前端和后端的所有依赖：
+
+   ```
+   npm run install:all
+   ```
+
+   或者手动安装：
+
    ```
    npm install
    cd frontend && npm install
    cd ../backend && npm install
    ```
-
-   这将为根项目、前端和后端安装依赖。
 
 #### 使用 npm 脚本
 
@@ -141,6 +159,10 @@ MAX_FILE_SIZE=500000000
 ```
 
 将前端和后端目录中的 `.env.example` 文件复制以创建自己的 `.env` 文件，并用所需的值替换占位符。
+
+## 部署
+
+有关如何使用 Docker 或在 QNAP Container Station 上部署 MyTube 的详细说明，请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
 ## 许可证
 
