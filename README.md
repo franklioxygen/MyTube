@@ -25,17 +25,28 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 ```
 mytube/
 ├── backend/             # Express.js backend
+│   ├── src/             # Source code
+│   │   ├── config/      # Configuration files
+│   │   ├── controllers/ # Route controllers
+│   │   ├── routes/      # API routes
+│   │   ├── services/    # Business logic services
+│   │   └── utils/       # Utility functions
 │   ├── uploads/         # Uploaded files directory
 │   │   ├── videos/      # Downloaded videos
 │   │   └── images/      # Downloaded thumbnails
 │   └── server.js        # Main server file
 ├── frontend/            # React.js frontend
+│   ├── public/          # Static assets
 │   ├── src/             # Source code
+│   │   ├── assets/      # Images and styles
 │   │   ├── components/  # React components
 │   │   └── pages/       # Page components
 │   └── index.html       # HTML entry point
 ├── start.sh             # Unix/Mac startup script
 ├── start.bat            # Windows startup script
+├── build-and-push.sh    # Docker build script
+├── docker-compose.yml   # Docker Compose configuration
+├── DEPLOYMENT.md        # Deployment guide
 └── package.json         # Root package.json for running both apps
 ```
 
@@ -45,6 +56,7 @@ mytube/
 
 - Node.js (v14 or higher)
 - npm (v6 or higher)
+- Docker (optional, for containerized deployment)
 
 ### Installation
 
@@ -57,13 +69,19 @@ mytube/
 
 2. Install dependencies:
 
+   You can install all dependencies for the root, frontend, and backend with a single command:
+
+   ```
+   npm run install:all
+   ```
+
+   Or manually:
+
    ```
    npm install
    cd frontend && npm install
    cd ../backend && npm install
    ```
-
-   This will install dependencies for the root project, frontend, and backend.
 
 #### Using npm Scripts
 
@@ -141,6 +159,10 @@ MAX_FILE_SIZE=500000000
 ```
 
 Copy the `.env.example` files in both frontend and backend directories to create your own `.env` files and replace the placeholders with your desired values.
+
+## Deployment
+
+For detailed instructions on how to deploy MyTube using Docker or on QNAP Container Station, please refer to [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## License
 
