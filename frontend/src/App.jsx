@@ -520,27 +520,20 @@ function App() {
   // Delete a collection
   const handleDeleteCollection = async (collectionId, deleteVideos = false) => {
     try {
-      // Get the collection before deleting it
-      const collection = collections.find(c => c.id === collectionId);
-
-      if (!collection) {
-        return { success: false, error: 'Collection not found' };
-      }
-
-      // If deleteVideos is true, delete all videos in the collection
-      if (deleteVideos && collection.videos.length > 0) {
-        for (const videoId of collection.videos) {
-          await handleDeleteVideo(videoId);
-        }
-      }
-
-      // Delete the collection
-      await axios.delete(`${API_URL}/collections/${collectionId}`);
+      // Delete the collection with optional video deletion
+      await axios.delete(`${API_URL}/collections/${collectionId}`, {
+        params: { deleteVideos: deleteVideos ? 'true' : 'false' }
+      });
 
       // Update the collections state
       setCollections(prevCollections =>
         prevCollections.filter(collection => collection.id !== collectionId)
       );
+
+      // If videos were deleted, refresh the videos list
+      if (deleteVideos) {
+        await fetchVideos();
+      }
 
       return { success: true };
     } catch (error) {
@@ -688,6 +681,8 @@ function App() {
                 <ManagePage
                   videos={videos}
                   onDeleteVideo={handleDeleteVideo}
+                  collections={collections}
+                  onDeleteCollection={handleDeleteCollection}
                 />
               }
             />

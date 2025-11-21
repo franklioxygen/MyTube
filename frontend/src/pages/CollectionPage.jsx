@@ -14,22 +14,22 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
   useEffect(() => {
     if (collections && collections.length > 0) {
       const foundCollection = collections.find(c => c.id === id);
-      
+
       if (foundCollection) {
         setCollection(foundCollection);
-        
+
         // Find all videos that are in this collection
-        const videosInCollection = videos.filter(video => 
+        const videosInCollection = videos.filter(video =>
           foundCollection.videos.includes(video.id)
         );
-        
+
         setCollectionVideos(videosInCollection);
       } else {
         // Collection not found, redirect to home
         navigate('/');
       }
     }
-    
+
     setLoading(false);
   }, [id, collections, videos, navigate]);
 
@@ -79,11 +79,8 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
           <h2 className="collection-title">Collection: {collection.name}</h2>
           <span className="video-count">{collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}</span>
         </div>
-        <button className="delete-collection-button" onClick={handleShowDeleteModal}>
-          Delete Collection
-        </button>
       </div>
-      
+
       {collectionVideos.length === 0 ? (
         <div className="no-videos">
           <p>No videos in this collection.</p>
@@ -91,9 +88,9 @@ const CollectionPage = ({ collections, videos, onDeleteVideo, onDeleteCollection
       ) : (
         <div className="videos-grid">
           {collectionVideos.map(video => (
-            <VideoCard 
-              key={video.id} 
-              video={video} 
+            <VideoCard
+              key={video.id}
+              video={video}
               onDeleteVideo={onDeleteVideo}
               showDeleteButton={true}
             />

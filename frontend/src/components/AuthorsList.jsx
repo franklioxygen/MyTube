@@ -50,16 +50,7 @@ const AuthorsList = ({ videos }) => {
             </li>
           ))}
         </ul>
-        <div className="manage-videos-link-container" style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
-          <Link
-            to="/manage"
-            className="author-link manage-link"
-            onClick={() => setIsOpen(false)}
-            style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}
-          >
-            Manage Videos
-          </Link>
-        </div>
+
       </div>
     </div>
   );
