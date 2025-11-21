@@ -160,6 +160,10 @@ Copy the `.env.example` files in both frontend and backend directories to create
 
 For detailed instructions on how to deploy MyTube using Docker or on QNAP Container Station, please refer to [DEPLOYMENT.md](DEPLOYMENT.md).
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)
+
 ## License
 
 MIT
