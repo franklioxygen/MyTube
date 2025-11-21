@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import logo from '../assets/logo.svg';
 
 const Header = ({ onSubmit, onSearch, activeDownloads = [] }) => {
+  // ... existing state ...
   const [videoUrl, setVideoUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -16,6 +18,7 @@ const Header = ({ onSubmit, onSearch, activeDownloads = [] }) => {
   }, [activeDownloads]);
 
   const handleSubmit = async (e) => {
+    // ... existing submit handler ...
     e.preventDefault();
 
     if (!videoUrl.trim()) {
@@ -76,8 +79,8 @@ const Header = ({ onSubmit, onSearch, activeDownloads = [] }) => {
     <header className="header">
       <div className="header-content">
         <Link to="/" className="logo">
-          <span style={{ color: '#ff3e3e' }}>My</span>
-          <span style={{ color: '#f0f0f0' }}>Tube</span>
+          <img src={logo} alt="MyTube Logo" className="logo-icon" />
+          <span style={{ color: '#f0f0f0' }}>MyTube</span>
         </Link>
 
         <form className="url-form" onSubmit={handleSubmit}>

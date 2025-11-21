@@ -217,7 +217,7 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
                 className="action-btn btn-secondary"
                 onClick={handleAddToCollection}
               >
-                <span>+ Save</span>
+                <span>+ Add to Collection</span>
               </button>
               <button
                 className="action-btn btn-danger"
