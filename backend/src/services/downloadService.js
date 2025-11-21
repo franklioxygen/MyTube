@@ -13,8 +13,10 @@ const storageService = require("./storageService");
 // Helper function to download Bilibili video
 async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
   try {
-    // Create a temporary directory for the download
-    const tempDir = path.join(VIDEOS_DIR, "temp");
+    // Create a unique temporary directory for the download
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    const tempDir = path.join(VIDEOS_DIR, `temp_${timestamp}_${random}`);
     fs.ensureDirSync(tempDir);
 
     console.log("Downloading Bilibili video to temp directory:", tempDir);
@@ -128,7 +130,6 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
     console.error("Error in downloadBilibiliVideo:", error);
 
     // Make sure we clean up the temp directory if it exists
-    const tempDir = path.join(VIDEOS_DIR, "temp");
     if (fs.existsSync(tempDir)) {
       fs.removeSync(tempDir);
     }
@@ -317,17 +318,14 @@ async function downloadRemainingBilibiliParts(
       // If download was successful and we have a collection ID, add to collection
       if (result.success && collectionId && result.videoData) {
         try {
-          const collection = storageService.getCollectionById(collectionId);
-
-          if (collection) {
-            // Add video to collection
+          storageService.atomicUpdateCollection(collectionId, (collection) => {
             collection.videos.push(result.videoData.id);
-            storageService.updateCollection(collection);
+            return collection;
+          });
 
-            console.log(
-              `Added part ${part}/${totalParts} to collection ${collectionId}`
-            );
-          }
+          console.log(
+            `Added part ${part}/${totalParts} to collection ${collectionId}`
+          );
         } catch (collectionError) {
           console.error(
             `Error adding part ${part}/${totalParts} to collection:`,
