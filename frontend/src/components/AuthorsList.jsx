@@ -11,7 +11,7 @@ const AuthorsList = ({ videos }) => {
       const uniqueAuthors = [...new Set(videos.map(video => video.author))]
         .filter(author => author) // Filter out null/undefined authors
         .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
-      
+
       setAuthors(uniqueAuthors);
     } else {
       setAuthors([]);
@@ -40,7 +40,7 @@ const AuthorsList = ({ videos }) => {
         <ul>
           {authors.map(author => (
             <li key={author} className="author-item">
-              <Link 
+              <Link
                 to={`/author/${encodeURIComponent(author)}`}
                 className="author-link"
                 onClick={() => setIsOpen(false)} // Close dropdown when an author is selected
@@ -50,6 +50,16 @@ const AuthorsList = ({ videos }) => {
             </li>
           ))}
         </ul>
+        <div className="manage-videos-link-container" style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem' }}>
+          <Link
+            to="/manage"
+            className="author-link manage-link"
+            onClick={() => setIsOpen(false)}
+            style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}
+          >
+            Manage Videos
+          </Link>
+        </div>
       </div>
     </div>
   );

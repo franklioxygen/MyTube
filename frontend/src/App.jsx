@@ -7,6 +7,7 @@ import Header from './components/Header';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
 import Home from './pages/Home';
+import ManagePage from './pages/ManagePage';
 import SearchResults from './pages/SearchResults';
 import VideoPlayer from './pages/VideoPlayer';
 
@@ -678,6 +679,15 @@ function App() {
                   onDeleteVideo={handleDeleteVideo}
                   onResetSearch={resetSearch}
                   collections={collections}
+                />
+              }
+            />
+            <Route
+              path="/manage"
+              element={
+                <ManagePage
+                  videos={videos}
+                  onDeleteVideo={handleDeleteVideo}
                 />
               }
             />
