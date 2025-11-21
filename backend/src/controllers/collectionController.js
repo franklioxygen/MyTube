@@ -95,6 +95,17 @@ const updateCollection = (req, res) => {
 const deleteCollection = (req, res) => {
   try {
     const { id } = req.params;
+    const { deleteVideos } = req.query;
+
+    // If deleteVideos is true, delete all videos in the collection first
+    if (deleteVideos === 'true') {
+      const collection = storageService.getCollectionById(id);
+      if (collection && collection.videos && collection.videos.length > 0) {
+        collection.videos.forEach(videoId => {
+          storageService.deleteVideo(videoId);
+        });
+      }
+    }
 
     const success = storageService.deleteCollection(id);
 

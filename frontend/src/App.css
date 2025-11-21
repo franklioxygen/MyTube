@@ -1597,8 +1597,71 @@ body {
   background-color: var(--hover-color);
 }
 
+
+/* Unified Modal Button Styles */
+.modal-btn {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-btn.primary-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.modal-btn.primary-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.modal-btn.secondary-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.modal-btn.secondary-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: var(--text-color);
+}
+
+.modal-btn.danger-btn {
+  background-color: rgba(255, 62, 62, 0.15);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.modal-btn.danger-btn:hover:not(:disabled) {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.modal-btn.cancel-btn {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.modal-btn.cancel-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-color);
+  color: var(--text-color);
+}
+
 /* Video collections info */
-.video-collections {}
 
 .video-collections-title {
   font-weight: bold;
@@ -2151,4 +2214,57 @@ body {
   color: var(--text-secondary);
   background: var(--bg-secondary);
   border-radius: 8px;
+}
+
+/* Manage Page Sections */
+.manage-section {
+  margin-bottom: 40px;
+}
+
+.manage-section h2 {
+  margin-bottom: 20px;
+  color: var(--text-color);
+  font-size: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+/* Modal Actions */
+.column-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.column-actions button {
+  width: 100%;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 10px 15px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-color);
+  border-color: var(--text-secondary);
+}
+
+.delete-btn.danger {
+  background-color: rgba(255, 62, 62, 0.1);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.delete-btn.danger:hover {
+  background-color: var(--primary-color);
+  color: white;
 }

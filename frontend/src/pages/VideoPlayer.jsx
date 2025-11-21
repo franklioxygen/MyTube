@@ -300,20 +300,27 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
 
       {/* Collection Modal */}
       {showCollectionModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>Add to Collection</h2>
 
             {videoCollections.length > 0 && (
-              <div className="current-collection">
-                <p className="collection-note">
-                  This video is currently in the collection: <strong>{videoCollections[0].name}</strong>
+              <div className="current-collection" style={{
+                marginBottom: '1.5rem',
+                padding: '1rem',
+                backgroundColor: 'rgba(62, 166, 255, 0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(62, 166, 255, 0.3)'
+              }}>
+                <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>
+                  Currently in: <strong>{videoCollections[0].name}</strong>
                 </p>
-                <p className="collection-warning">
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   Adding to a different collection will remove it from the current one.
                 </p>
                 <button
-                  className="remove-from-collection"
+                  className="modal-btn danger-btn"
+                  style={{ width: '100%' }}
                   onClick={handleRemoveFromCollection}
                 >
                   Remove from Collection
@@ -322,7 +329,7 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
             )}
 
             {collections && collections.length > 0 && (
-              <div className="existing-collections">
+              <div className="existing-collections" style={{ marginBottom: '1.5rem' }}>
                 <h3>Add to existing collection:</h3>
                 <select
                   value={selectedCollection}
@@ -340,6 +347,8 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
                   ))}
                 </select>
                 <button
+                  className="modal-btn primary-btn"
+                  style={{ width: '100%', marginTop: '0.5rem' }}
                   onClick={handleAddToExistingCollection}
                   disabled={!selectedCollection}
                 >
@@ -348,15 +357,18 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
               </div>
             )}
 
-            <div className="new-collection">
+            <div className="new-collection" style={{ marginBottom: '1.5rem' }}>
               <h3>Create new collection:</h3>
               <input
                 type="text"
                 placeholder="Collection name"
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
               />
               <button
+                className="modal-btn primary-btn"
+                style={{ width: '100%', marginTop: '0.5rem' }}
                 onClick={handleCreateCollection}
                 disabled={!newCollectionName.trim()}
               >
@@ -364,7 +376,7 @@ const VideoPlayer = ({ videos, onDeleteVideo, collections, onAddToCollection, on
               </button>
             </div>
 
-            <button className="close-modal" onClick={handleCloseModal}>
+            <button className="modal-btn cancel-btn" style={{ width: '100%' }} onClick={handleCloseModal}>
               Cancel
             </button>
           </div>

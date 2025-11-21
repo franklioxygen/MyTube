@@ -1,12 +1,13 @@
+import { Link } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
 import VideoCard from '../components/VideoCard';
 
-const Home = ({ 
-  videos = [], 
-  loading, 
-  error, 
-  onDeleteVideo, 
+const Home = ({
+  videos = [],
+  loading,
+  error,
+  onDeleteVideo,
   collections = [],
   isSearchMode = false,
   searchTerm = '',
@@ -29,14 +30,14 @@ const Home = ({
   // Filter videos to only show the first video from each collection
   const filteredVideos = videoArray.filter(video => {
     // If the video is not in any collection, show it
-    const videoCollections = collections.filter(collection => 
+    const videoCollections = collections.filter(collection =>
       collection.videos.includes(video.id)
     );
-    
+
     if (videoCollections.length === 0) {
       return true;
     }
-    
+
     // For each collection this video is in, check if it's the first video
     return videoCollections.some(collection => {
       // Get the first video ID in this collection
@@ -50,13 +51,13 @@ const Home = ({
   if (isSearchMode) {
     const hasLocalResults = localSearchResults && localSearchResults.length > 0;
     const hasYouTubeResults = searchResults && searchResults.length > 0;
-    
+
     return (
       <div className="search-results">
         <div className="search-header">
           <h2>Search Results for "{searchTerm}"</h2>
         </div>
-        
+
         {/* Local Video Results */}
         <div className="search-results-section">
           <h3 className="section-title">From Your Library</h3>
@@ -76,11 +77,11 @@ const Home = ({
             <p className="no-results">No matching videos in your library.</p>
           )}
         </div>
-        
+
         {/* YouTube Search Results */}
         <div className="search-results-section">
           <h3 className="section-title">From YouTube</h3>
-          
+
           {youtubeLoading ? (
             <div className="youtube-loading">
               <div className="loading-spinner"></div>
@@ -92,8 +93,8 @@ const Home = ({
                 <div key={result.id} className="search-result-card">
                   <div className="search-result-thumbnail">
                     {result.thumbnailUrl ? (
-                      <img 
-                        src={result.thumbnailUrl} 
+                      <img
+                        src={result.thumbnailUrl}
                         alt={result.title}
                         onError={(e) => {
                           e.target.onerror = null;
@@ -122,7 +123,7 @@ const Home = ({
                         {result.source}
                       </span>
                     </div>
-                    <button 
+                    <button
                       className="download-btn"
                       onClick={() => onDownload(result.sourceUrl, result.title)}
                     >
@@ -153,17 +154,27 @@ const Home = ({
           <div className="sidebar-container">
             {/* Collections list */}
             <Collections collections={collections} />
-            
+
             {/* Authors list */}
             <AuthorsList videos={videoArray} />
+
+            <div className="manage-videos-link-container" style={{ marginTop: '1rem', paddingTop: '0.5rem' }}>
+              <Link
+                to="/manage"
+                className="author-link manage-link"
+                style={{ fontWeight: 'bold', color: 'var(--primary-color)', display: 'block', textAlign: 'center' }}
+              >
+                Manage Videos
+              </Link>
+            </div>
           </div>
-          
+
           {/* Videos grid */}
           <div className="videos-grid">
             {filteredVideos.map(video => (
-              <VideoCard 
-                key={video.id} 
-                video={video} 
+              <VideoCard
+                key={video.id}
+                video={video}
                 onDeleteVideo={onDeleteVideo}
                 showDeleteButton={true}
                 collections={collections}
