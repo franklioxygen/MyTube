@@ -2,7 +2,7 @@
  * MyTube Backend Version Information
  */
 
-const VERSION = {
+export const VERSION = {
   number: "1.1.0",
   buildDate: new Date().toISOString().split("T")[0],
   name: "MyTube Backend Server",
@@ -18,5 +18,3 @@ const VERSION = {
 `);
   },
 };
-
-module.exports = VERSION;

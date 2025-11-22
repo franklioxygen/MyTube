@@ -1,16 +1,18 @@
-const storageService = require("../services/storageService");
-const downloadService = require("../services/downloadService");
-const {
-  isValidUrl,
-  extractUrlFromText,
-  resolveShortUrl,
-  isBilibiliUrl,
-  trimBilibiliUrl,
-  extractBilibiliVideoId,
-} = require("../utils/helpers");
+import { Request, Response } from "express";
+import downloadManager from "../services/downloadManager";
+import * as downloadService from "../services/downloadService";
+import * as storageService from "../services/storageService";
+import {
+    extractBilibiliVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl,
+} from "../utils/helpers";
 
 // Search for videos
-const searchVideos = async (req, res) => {
+export const searchVideos = async (req: Request, res: Response): Promise<any> => {
   try {
     const { query } = req.query;
 
@@ -18,9 +20,9 @@ const searchVideos = async (req, res) => {
       return res.status(400).json({ error: "Search query is required" });
     }
 
-    const results = await downloadService.searchYouTube(query);
+    const results = await downloadService.searchYouTube(query as string);
     res.status(200).json({ results });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error searching for videos:", error);
     res.status(500).json({
       error: "Failed to search for videos",
@@ -29,12 +31,8 @@ const searchVideos = async (req, res) => {
   }
 };
 
-const downloadManager = require("../services/downloadManager");
-
-// ... (imports remain the same)
-
 // Download video
-const downloadVideo = async (req, res) => {
+export const downloadVideo = async (req: Request, res: Response): Promise<any> => {
   try {
     const { youtubeUrl, downloadAllParts, collectionName, downloadCollection, collectionInfo } = req.body;
     let videoUrl = youtubeUrl;
@@ -122,16 +120,17 @@ const downloadVideo = async (req, res) => {
           const { videosNumber, title } = partsInfo;
           
           // Update title in storage
-          storageService.addActiveDownload(downloadId, title);
+          storageService.addActiveDownload(downloadId, title || "Bilibili Video");
 
           // Create a collection for the multi-part video if collectionName is provided
-          let collectionId = null;
+          let collectionId: string | null = null;
           if (collectionName) {
             const newCollection = {
               id: Date.now().toString(),
               name: collectionName,
               videos: [],
               createdAt: new Date().toISOString(),
+              title: collectionName,
             };
             storageService.saveCollection(newCollection);
             collectionId = newCollection.id;
@@ -146,28 +145,27 @@ const downloadVideo = async (req, res) => {
             firstPartUrl,
             1,
             videosNumber,
-            title
+            title || "Bilibili Video"
           );
 
           // Add to collection if needed
           if (collectionId && firstPartResult.videoData) {
             storageService.atomicUpdateCollection(collectionId, (collection) => {
-              collection.videos.push(firstPartResult.videoData.id);
+              collection.videos.push(firstPartResult.videoData!.id);
               return collection;
             });
           }
 
           // Set up background download for remaining parts
           // Note: We don't await this, it runs in background
-          // But we should probably track it? For now, let's keep it simple
-          // and only track the first part as the "main" download
           if (videosNumber > 1) {
             downloadService.downloadRemainingBilibiliParts(
               baseUrl,
               2,
               videosNumber,
-              title,
-              collectionId
+              title || "Bilibili Video",
+              collectionId!,
+              downloadId // Pass downloadId to track progress
             );
           }
 
@@ -203,26 +201,22 @@ const downloadVideo = async (req, res) => {
     };
 
     // Add to download manager
-    // We don't await the result here because we want to return immediately
-    // that the download has been queued/started
     downloadManager.addDownload(downloadTask, downloadId, initialTitle)
-      .then(result => {
+      .then((result: any) => {
         console.log("Download completed successfully:", result);
       })
-      .catch(error => {
+      .catch((error: any) => {
         console.error("Download failed:", error);
       });
 
     // Return success immediately indicating the download is queued/started
-    // We can't return the video object yet because it hasn't been downloaded
-    // The frontend will need to refresh or listen for updates
     res.status(200).json({ 
       success: true, 
       message: "Download queued", 
       downloadId 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error queuing download:", error);
     res
       .status(500)
@@ -231,7 +225,7 @@ const downloadVideo = async (req, res) => {
 };
 
 // Get all videos
-const getVideos = (req, res) => {
+export const getVideos = (req: Request, res: Response): void => {
   try {
     const videos = storageService.getVideos();
     res.status(200).json(videos);
@@ -242,7 +236,7 @@ const getVideos = (req, res) => {
 };
 
 // Get video by ID
-const getVideoById = (req, res) => {
+export const getVideoById = (req: Request, res: Response): any => {
   try {
     const { id } = req.params;
     const video = storageService.getVideoById(id);
@@ -259,7 +253,7 @@ const getVideoById = (req, res) => {
 };
 
 // Delete video
-const deleteVideo = (req, res) => {
+export const deleteVideo = (req: Request, res: Response): any => {
   try {
     const { id } = req.params;
     const success = storageService.deleteVideo(id);
@@ -278,7 +272,7 @@ const deleteVideo = (req, res) => {
 };
 
 // Get download status
-const getDownloadStatus = (req, res) => {
+export const getDownloadStatus = (req: Request, res: Response): void => {
   try {
     const status = storageService.getDownloadStatus();
     res.status(200).json(status);
@@ -289,7 +283,7 @@ const getDownloadStatus = (req, res) => {
 };
 
 // Check Bilibili parts
-const checkBilibiliParts = async (req, res) => {
+export const checkBilibiliParts = async (req: Request, res: Response): Promise<any> => {
   try {
     const { url } = req.query;
 
@@ -297,12 +291,12 @@ const checkBilibiliParts = async (req, res) => {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    if (!isBilibiliUrl(url)) {
+    if (!isBilibiliUrl(url as string)) {
       return res.status(400).json({ error: "Not a valid Bilibili URL" });
     }
 
     // Resolve shortened URLs (like b23.tv)
-    let videoUrl = url;
+    let videoUrl = url as string;
     if (videoUrl.includes("b23.tv")) {
       videoUrl = await resolveShortUrl(videoUrl);
       console.log("Resolved shortened URL to:", videoUrl);
@@ -323,7 +317,7 @@ const checkBilibiliParts = async (req, res) => {
     const result = await downloadService.checkBilibiliVideoParts(videoId);
 
     res.status(200).json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking Bilibili video parts:", error);
     res.status(500).json({
       error: "Failed to check Bilibili video parts",
@@ -333,7 +327,7 @@ const checkBilibiliParts = async (req, res) => {
 };
 
 // Check if Bilibili URL is a collection or series
-const checkBilibiliCollection = async (req, res) => {
+export const checkBilibiliCollection = async (req: Request, res: Response): Promise<any> => {
   try {
     const { url } = req.query;
 
@@ -341,12 +335,12 @@ const checkBilibiliCollection = async (req, res) => {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    if (!isBilibiliUrl(url)) {
+    if (!isBilibiliUrl(url as string)) {
       return res.status(400).json({ error: "Not a valid Bilibili URL" });
     }
 
     // Resolve shortened URLs (like b23.tv)
-    let videoUrl = url;
+    let videoUrl = url as string;
     if (videoUrl.includes("b23.tv")) {
       videoUrl = await resolveShortUrl(videoUrl);
       console.log("Resolved shortened URL to:", videoUrl);
@@ -368,22 +362,11 @@ const checkBilibiliCollection = async (req, res) => {
     const result = await downloadService.checkBilibiliCollectionOrSeries(videoId);
 
     res.status(200).json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking Bilibili collection/series:", error);
     res.status(500).json({
       error: "Failed to check Bilibili collection/series",
       details: error.message,
     });
   }
-};
-
-module.exports = {
-  searchVideos,
-  downloadVideo,
-  getVideos,
-  getVideoById,
-  deleteVideo,
-  getDownloadStatus,
-  checkBilibiliParts,
-  checkBilibiliCollection,
 };

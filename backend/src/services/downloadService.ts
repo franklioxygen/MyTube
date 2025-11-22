@@ -1,22 +1,75 @@
-const fs = require("fs-extra");
-const path = require("path");
-const youtubedl = require("youtube-dl-exec");
-const axios = require("axios");
-const { downloadByVedioPath } = require("bilibili-save-nodejs");
-const { VIDEOS_DIR, IMAGES_DIR } = require("../config/paths");
-const {
-  sanitizeFilename,
-  extractBilibiliVideoId,
-} = require("../utils/helpers");
-const storageService = require("./storageService");
+import axios from "axios";
+import fs from "fs-extra";
+import path from "path";
+import youtubedl from "youtube-dl-exec";
+// @ts-ignore
+import { downloadByVedioPath } from "bilibili-save-nodejs";
+import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
+import {
+    extractBilibiliVideoId,
+    sanitizeFilename,
+} from "../utils/helpers";
+import * as storageService from "./storageService";
+import { Collection, Video } from "./storageService";
+
+interface BilibiliVideoInfo {
+  title: string;
+  author: string;
+  date: string;
+  thumbnailUrl: string | null;
+  thumbnailSaved: boolean;
+  error?: string;
+}
+
+interface BilibiliPartsCheckResult {
+  success: boolean;
+  videosNumber: number;
+  title?: string;
+}
+
+interface BilibiliCollectionCheckResult {
+  success: boolean;
+  type: 'collection' | 'series' | 'none';
+  id?: number;
+  title?: string;
+  count?: number;
+  mid?: number;
+}
+
+interface BilibiliVideoItem {
+  bvid: string;
+  title: string;
+  aid: number;
+}
+
+interface BilibiliVideosResult {
+  success: boolean;
+  videos: BilibiliVideoItem[];
+}
+
+interface DownloadResult {
+  success: boolean;
+  videoData?: Video;
+  error?: string;
+}
+
+interface CollectionDownloadResult {
+  success: boolean;
+  collectionId?: string;
+  videosDownloaded?: number;
+  error?: string;
+}
 
 // Helper function to download Bilibili video
-async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
+export async function downloadBilibiliVideo(
+  url: string,
+  videoPath: string,
+  thumbnailPath: string
+): Promise<BilibiliVideoInfo> {
+  const tempDir = path.join(VIDEOS_DIR, `temp_${Date.now()}_${Math.floor(Math.random() * 10000)}`);
+  
   try {
     // Create a unique temporary directory for the download
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const tempDir = path.join(VIDEOS_DIR, `temp_${timestamp}_${random}`);
     fs.ensureDirSync(tempDir);
 
     console.log("Downloading Bilibili video to temp directory:", tempDir);
@@ -34,7 +87,7 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
     const files = fs.readdirSync(tempDir);
     console.log("Files in temp directory:", files);
 
-    const videoFile = files.find((file) => file.endsWith(".mp4"));
+    const videoFile = files.find((file: string) => file.endsWith(".mp4"));
 
     if (!videoFile) {
       throw new Error("Downloaded video file not found");
@@ -56,7 +109,7 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
 
     // Try to get thumbnail from Bilibili
     let thumbnailSaved = false;
-    let thumbnailUrl = null;
+    let thumbnailUrl: string | null = null;
     const videoId = extractBilibiliVideoId(url);
 
     console.log("Extracted video ID:", videoId);
@@ -92,7 +145,7 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
             const thumbnailWriter = fs.createWriteStream(thumbnailPath);
             thumbnailResponse.data.pipe(thumbnailWriter);
 
-            await new Promise((resolve, reject) => {
+            await new Promise<void>((resolve, reject) => {
               thumbnailWriter.on("finish", () => {
                 thumbnailSaved = true;
                 resolve();
@@ -126,7 +179,7 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
       thumbnailUrl: null,
       thumbnailSaved: false,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in downloadBilibiliVideo:", error);
 
     // Make sure we clean up the temp directory if it exists
@@ -147,7 +200,7 @@ async function downloadBilibiliVideo(url, videoPath, thumbnailPath) {
 }
 
 // Helper function to check if a Bilibili video has multiple parts
-async function checkBilibiliVideoParts(videoId) {
+export async function checkBilibiliVideoParts(videoId: string): Promise<BilibiliPartsCheckResult> {
   try {
     // Try to get video info from Bilibili API
     const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
@@ -176,7 +229,7 @@ async function checkBilibiliVideoParts(videoId) {
 }
 
 // Helper function to check if a Bilibili video belongs to a collection or series
-async function checkBilibiliCollectionOrSeries(videoId) {
+export async function checkBilibiliCollectionOrSeries(videoId: string): Promise<BilibiliCollectionCheckResult> {
   try {
     const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
     console.log("Checking if video belongs to collection/series:", apiUrl);
@@ -218,9 +271,9 @@ async function checkBilibiliCollectionOrSeries(videoId) {
 }
 
 // Helper function to get all videos from a Bilibili collection
-async function getBilibiliCollectionVideos(mid, seasonId) {
+export async function getBilibiliCollectionVideos(mid: number, seasonId: number): Promise<BilibiliVideosResult> {
   try {
-    const allVideos = [];
+    const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const pageSize = 30;
     let hasMore = true;
@@ -253,7 +306,7 @@ async function getBilibiliCollectionVideos(mid, seasonId) {
         
         console.log(`Got ${archives.length} videos from page ${pageNum}`);
 
-        archives.forEach(video => {
+        archives.forEach((video: any) => {
           allVideos.push({
             bvid: video.bvid,
             title: video.title,
@@ -279,9 +332,9 @@ async function getBilibiliCollectionVideos(mid, seasonId) {
 }
 
 // Helper function to get all videos from a Bilibili series
-async function getBilibiliSeriesVideos(mid, seriesId) {
+export async function getBilibiliSeriesVideos(mid: number, seriesId: number): Promise<BilibiliVideosResult> {
   try {
-    const allVideos = [];
+    const allVideos: BilibiliVideoItem[] = [];
     let pageNum = 1;
     const pageSize = 30;
     let hasMore = true;
@@ -313,7 +366,7 @@ async function getBilibiliSeriesVideos(mid, seriesId) {
         
         console.log(`Got ${archives.length} videos from page ${pageNum}`);
 
-        archives.forEach(video => {
+        archives.forEach((video: any) => {
           allVideos.push({
             bvid: video.bvid,
             title: video.title,
@@ -339,12 +392,12 @@ async function getBilibiliSeriesVideos(mid, seriesId) {
 }
 
 // Helper function to download a single Bilibili part
-async function downloadSingleBilibiliPart(
-  url,
-  partNumber,
-  totalParts,
-  seriesTitle
-) {
+export async function downloadSingleBilibiliPart(
+  url: string,
+  partNumber: number,
+  totalParts: number,
+  seriesTitle: string
+): Promise<DownloadResult> {
   try {
     console.log(
       `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
@@ -416,7 +469,7 @@ async function downloadSingleBilibiliPart(
     }
 
     // Create metadata for the video
-    const videoData = {
+    const videoData: Video = {
       id: timestamp.toString(),
       title: videoTitle,
       author: videoAuthor,
@@ -424,8 +477,8 @@ async function downloadSingleBilibiliPart(
       source: "bilibili",
       sourceUrl: url,
       videoFilename: finalVideoFilename,
-      thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
-      thumbnailUrl: thumbnailUrl,
+      thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
+      thumbnailUrl: thumbnailUrl || undefined,
       videoPath: `/videos/${finalVideoFilename}`,
       thumbnailPath: thumbnailSaved
         ? `/images/${finalThumbnailFilename}`
@@ -434,6 +487,7 @@ async function downloadSingleBilibiliPart(
       partNumber: partNumber,
       totalParts: totalParts,
       seriesTitle: seriesTitle,
+      createdAt: new Date().toISOString(),
     };
 
     // Save the video using storage service
@@ -442,7 +496,7 @@ async function downloadSingleBilibiliPart(
     console.log(`Part ${partNumber}/${totalParts} added to database`);
 
     return { success: true, videoData };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
       error
@@ -452,11 +506,11 @@ async function downloadSingleBilibiliPart(
 }
 
 // Helper function to download all videos from a Bilibili collection or series
-async function downloadBilibiliCollection(
-  collectionInfo,
-  collectionName,
-  downloadId
-) {
+export async function downloadBilibiliCollection(
+  collectionInfo: BilibiliCollectionCheckResult,
+  collectionName: string,
+  downloadId: string
+): Promise<CollectionDownloadResult> {
   try {
     const { type, id, mid, title, count } = collectionInfo;
     
@@ -471,10 +525,10 @@ async function downloadBilibiliCollection(
     }
 
     // Fetch all videos from the collection/series
-    let videosResult;
-    if (type === 'collection') {
+    let videosResult: BilibiliVideosResult;
+    if (type === 'collection' && mid && id) {
       videosResult = await getBilibiliCollectionVideos(mid, id);
-    } else if (type === 'series') {
+    } else if (type === 'series' && mid && id) {
       videosResult = await getBilibiliSeriesVideos(mid, id);
     } else {
       throw new Error(`Unknown type: ${type}`);
@@ -488,11 +542,12 @@ async function downloadBilibiliCollection(
     console.log(`Found ${videos.length} videos to download`);
 
     // Create a MyTube collection for these videos
-    const mytubeCollection = {
+    const mytubeCollection: Collection = {
       id: Date.now().toString(),
-      name: collectionName || title,
+      name: collectionName || title || "Collection",
       videos: [],
       createdAt: new Date().toISOString(),
+      title: collectionName || title || "Collection",
     };
     storageService.saveCollection(mytubeCollection);
     const mytubeCollectionId = mytubeCollection.id;
@@ -523,13 +578,13 @@ async function downloadBilibiliCollection(
           videoUrl,
           videoNumber,
           videos.length,
-          title
+          title || "Collection"
         );
 
         // If download was successful, add to collection
         if (result.success && result.videoData) {
           storageService.atomicUpdateCollection(mytubeCollectionId, (collection) => {
-            collection.videos.push(result.videoData.id);
+            collection.videos.push(result.videoData!.id);
             return collection;
           });
 
@@ -558,7 +613,7 @@ async function downloadBilibiliCollection(
       collectionId: mytubeCollectionId,
       videosDownloaded: videos.length
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error downloading ${collectionInfo.type}:`, error);
     if (downloadId) {
       storageService.removeActiveDownload(downloadId);
@@ -571,14 +626,14 @@ async function downloadBilibiliCollection(
 }
 
 // Helper function to download remaining Bilibili parts in sequence
-async function downloadRemainingBilibiliParts(
-  baseUrl,
-  startPart,
-  totalParts,
-  seriesTitle,
-  collectionId,
-  downloadId
-) {
+export async function downloadRemainingBilibiliParts(
+  baseUrl: string,
+  startPart: number,
+  totalParts: number,
+  seriesTitle: string,
+  collectionId: string,
+  downloadId: string
+): Promise<void> {
   try {
     // Add to active downloads if ID is provided
     if (downloadId) {
@@ -609,7 +664,7 @@ async function downloadRemainingBilibiliParts(
       if (result.success && collectionId && result.videoData) {
         try {
           storageService.atomicUpdateCollection(collectionId, (collection) => {
-            collection.videos.push(result.videoData.id);
+            collection.videos.push(result.videoData!.id);
             return collection;
           });
 
@@ -644,7 +699,7 @@ async function downloadRemainingBilibiliParts(
 }
 
 // Search for videos on YouTube
-async function searchYouTube(query) {
+export async function searchYouTube(query: string): Promise<any[]> {
   console.log("Processing search request for query:", query);
 
   // Use youtube-dl to search for videos
@@ -654,14 +709,14 @@ async function searchYouTube(query) {
     noCallHome: true,
     skipDownload: true,
     playlistEnd: 5, // Limit to 5 results
-  });
+  } as any);
 
-  if (!searchResults || !searchResults.entries) {
+  if (!searchResults || !(searchResults as any).entries) {
     return [];
   }
 
   // Format the search results
-  const formattedResults = searchResults.entries.map((entry) => ({
+  const formattedResults = (searchResults as any).entries.map((entry: any) => ({
     id: entry.id,
     title: entry.title,
     author: entry.uploader,
@@ -680,9 +735,8 @@ async function searchYouTube(query) {
 }
 
 // Download YouTube video
-async function downloadYouTubeVideo(videoUrl) {
+export async function downloadYouTubeVideo(videoUrl: string): Promise<Video> {
   console.log("Detected YouTube URL");
-  // storageService.updateDownloadStatus(true, "Downloading YouTube video..."); // Removed
 
   // Create a safe base filename (without extension)
   const timestamp = Date.now();
@@ -705,10 +759,10 @@ async function downloadYouTubeVideo(videoUrl) {
     const info = await youtubedl(videoUrl, {
       dumpSingleJson: true,
       noWarnings: true,
-      noCallHome: true,
+      callHome: false,
       preferFreeFormats: true,
       youtubeSkipDashManifest: true,
-    });
+    } as any);
 
     console.log("YouTube video info:", {
       title: info.title,
@@ -722,9 +776,6 @@ async function downloadYouTubeVideo(videoUrl) {
       info.upload_date ||
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
     thumbnailUrl = info.thumbnail;
-
-    // Update download status with actual title
-    // storageService.updateDownloadStatus(true, `Downloading: ${videoTitle}`); // Removed
 
     // Update the safe base filename with the actual title
     const newSafeBaseFilename = `${sanitizeFilename(
@@ -768,7 +819,7 @@ async function downloadYouTubeVideo(videoUrl) {
         const thumbnailWriter = fs.createWriteStream(newThumbnailPath);
         thumbnailResponse.data.pipe(thumbnailWriter);
 
-        await new Promise((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           thumbnailWriter.on("finish", () => {
             thumbnailSaved = true;
             resolve();
@@ -784,13 +835,11 @@ async function downloadYouTubeVideo(videoUrl) {
     }
   } catch (youtubeError) {
     console.error("Error in YouTube download process:", youtubeError);
-    // Set download status to false on error
-    // storageService.updateDownloadStatus(false); // Removed
     throw youtubeError;
   }
 
   // Create metadata for the video
-  const videoData = {
+  const videoData: Video = {
     id: timestamp.toString(),
     title: videoTitle || "Video",
     author: videoAuthor || "Unknown",
@@ -799,13 +848,14 @@ async function downloadYouTubeVideo(videoUrl) {
     source: "youtube",
     sourceUrl: videoUrl,
     videoFilename: finalVideoFilename,
-    thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : null,
-    thumbnailUrl: thumbnailUrl,
+    thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
+    thumbnailUrl: thumbnailUrl || undefined,
     videoPath: `/videos/${finalVideoFilename}`,
     thumbnailPath: thumbnailSaved
       ? `/images/${finalThumbnailFilename}`
       : null,
     addedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 
   // Save the video
@@ -813,21 +863,5 @@ async function downloadYouTubeVideo(videoUrl) {
 
   console.log("Video added to database");
 
-  // Set download status to false when complete
-  // storageService.updateDownloadStatus(false); // Removed
-
   return videoData;
 }
-
-module.exports = {
-  downloadBilibiliVideo,
-  checkBilibiliVideoParts,
-  checkBilibiliCollectionOrSeries,
-  getBilibiliCollectionVideos,
-  getBilibiliSeriesVideos,
-  downloadBilibiliCollection,
-  downloadSingleBilibiliPart,
-  downloadRemainingBilibiliParts,
-  searchYouTube,
-  downloadYouTubeVideo,
-};

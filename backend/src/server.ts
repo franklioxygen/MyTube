@@ -1,13 +1,13 @@
 // Load environment variables from .env file
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config();
 
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const VERSION = require("./version");
-const apiRoutes = require("./src/routes/api");
-const storageService = require("./src/services/storageService");
-const { VIDEOS_DIR, IMAGES_DIR } = require("./src/config/paths");
+import cors from "cors";
+import express from "express";
+import { IMAGES_DIR, VIDEOS_DIR } from "./config/paths";
+import apiRoutes from "./routes/api";
+import * as storageService from "./services/storageService";
+import { VERSION } from "./version";
 
 // Display version information
 VERSION.displayVersion();

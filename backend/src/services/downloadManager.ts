@@ -1,6 +1,18 @@
-const storageService = require("./storageService");
+import * as storageService from "./storageService";
+
+interface DownloadTask {
+  downloadFn: () => Promise<any>;
+  id: string;
+  title: string;
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}
 
 class DownloadManager {
+  private queue: DownloadTask[];
+  private activeDownloads: number;
+  private maxConcurrentDownloads: number;
+
   constructor() {
     this.queue = [];
     this.activeDownloads = 0;
@@ -9,14 +21,18 @@ class DownloadManager {
 
   /**
    * Add a download task to the manager
-   * @param {Function} downloadFn - Async function that performs the download
-   * @param {string} id - Unique ID for the download
-   * @param {string} title - Title of the video being downloaded
-   * @returns {Promise} - Resolves when the download is complete
+   * @param downloadFn - Async function that performs the download
+   * @param id - Unique ID for the download
+   * @param title - Title of the video being downloaded
+   * @returns - Resolves when the download is complete
    */
-  async addDownload(downloadFn, id, title) {
+  async addDownload(
+    downloadFn: () => Promise<any>,
+    id: string,
+    title: string
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const task = {
+      const task: DownloadTask = {
         downloadFn,
         id,
         title,
@@ -32,7 +48,7 @@ class DownloadManager {
   /**
    * Process the download queue
    */
-  async processQueue() {
+  private async processQueue(): Promise<void> {
     if (
       this.activeDownloads >= this.maxConcurrentDownloads ||
       this.queue.length === 0
@@ -41,6 +57,8 @@ class DownloadManager {
     }
 
     const task = this.queue.shift();
+    if (!task) return;
+
     this.activeDownloads++;
 
     // Update status in storage
@@ -49,14 +67,14 @@ class DownloadManager {
     try {
       console.log(`Starting download: ${task.title} (${task.id})`);
       const result = await task.downloadFn();
-      
+
       // Download complete
       storageService.removeActiveDownload(task.id);
       this.activeDownloads--;
       task.resolve(result);
     } catch (error) {
       console.error(`Error downloading ${task.title}:`, error);
-      
+
       // Download failed
       storageService.removeActiveDownload(task.id);
       this.activeDownloads--;
@@ -70,7 +88,7 @@ class DownloadManager {
   /**
    * Get current status
    */
-  getStatus() {
+  getStatus(): { active: number; queued: number } {
     return {
       active: this.activeDownloads,
       queued: this.queue.length,
@@ -79,4 +97,4 @@ class DownloadManager {
 }
 
 // Export a singleton instance
-module.exports = new DownloadManager();
+export default new DownloadManager();

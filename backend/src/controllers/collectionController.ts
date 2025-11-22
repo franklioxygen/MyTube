@@ -1,7 +1,9 @@
-const storageService = require("../services/storageService");
+import { Request, Response } from "express";
+import * as storageService from "../services/storageService";
+import { Collection } from "../services/storageService";
 
 // Get all collections
-const getCollections = (req, res) => {
+export const getCollections = (req: Request, res: Response): void => {
   try {
     const collections = storageService.getCollections();
     res.json(collections);
@@ -14,7 +16,7 @@ const getCollections = (req, res) => {
 };
 
 // Create a new collection
-const createCollection = (req, res) => {
+export const createCollection = (req: Request, res: Response): any => {
   try {
     const { name, videoId } = req.body;
 
@@ -25,11 +27,12 @@ const createCollection = (req, res) => {
     }
 
     // Create a new collection
-    const newCollection = {
+    const newCollection: Collection = {
       id: Date.now().toString(),
       name,
       videos: videoId ? [videoId] : [],
       createdAt: new Date().toISOString(),
+      title: name, // Ensure title is also set as it's required by the interface
     };
 
     // Save the new collection
@@ -45,7 +48,7 @@ const createCollection = (req, res) => {
 };
 
 // Update a collection
-const updateCollection = (req, res) => {
+export const updateCollection = (req: Request, res: Response): any => {
   try {
     const { id } = req.params;
     const { name, videoId, action } = req.body;
@@ -57,6 +60,7 @@ const updateCollection = (req, res) => {
         // Update the collection
         if (name) {
           collection.name = name;
+          collection.title = name; // Update title as well
         }
 
         // Add or remove a video
@@ -92,7 +96,7 @@ const updateCollection = (req, res) => {
 };
 
 // Delete a collection
-const deleteCollection = (req, res) => {
+export const deleteCollection = (req: Request, res: Response): any => {
   try {
     const { id } = req.params;
     const { deleteVideos } = req.query;
@@ -101,7 +105,7 @@ const deleteCollection = (req, res) => {
     if (deleteVideos === 'true') {
       const collection = storageService.getCollectionById(id);
       if (collection && collection.videos && collection.videos.length > 0) {
-        collection.videos.forEach(videoId => {
+        collection.videos.forEach((videoId) => {
           storageService.deleteVideo(videoId);
         });
       }
@@ -122,11 +126,4 @@ const deleteCollection = (req, res) => {
       .status(500)
       .json({ success: false, error: "Failed to delete collection" });
   }
-};
-
-module.exports = {
-  getCollections,
-  createCollection,
-  updateCollection,
-  deleteCollection,
 };
