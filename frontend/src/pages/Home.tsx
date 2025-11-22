@@ -1,3 +1,18 @@
+import { ArrowBack, Download, OndemandVideo, YouTube } from '@mui/icons-material';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardActions,
+    CardContent,
+    CardMedia,
+    Chip,
+    CircularProgress,
+    Container,
+    Grid,
+    Typography
+} from '@mui/material';
 import { Link } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
@@ -44,15 +59,26 @@ const Home: React.FC<HomeProps> = ({
     onDownload,
     onResetSearch
 }) => {
+
+
     // Add default empty array to ensure videos is always an array
     const videoArray = Array.isArray(videos) ? videos : [];
 
     if (loading && videoArray.length === 0 && !isSearchMode) {
-        return <div className="loading">Loading videos...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading videos...</Typography>
+            </Box>
+        );
     }
 
     if (error && videoArray.length === 0 && !isSearchMode) {
-        return <div className="error">{error}</div>;
+        return (
+            <Container sx={{ mt: 4 }}>
+                <Alert severity="error">{error}</Alert>
+            </Container>
+        );
     }
 
     // Filter videos to only show the first video from each collection
@@ -97,141 +123,166 @@ const Home: React.FC<HomeProps> = ({
         const hasYouTubeResults = searchResults && searchResults.length > 0;
 
         return (
-            <div className="search-results">
-                <div className="search-header">
-                    <h2>Search Results for "{searchTerm}"</h2>
+            <Container maxWidth="xl" sx={{ py: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                    <Typography variant="h4" component="h1" fontWeight="bold">
+                        Search Results for "{searchTerm}"
+                    </Typography>
                     {onResetSearch && (
-                        <button className="back-to-home-btn" onClick={onResetSearch}>
-                            ← Back to Home
-                        </button>
+                        <Button
+                            variant="outlined"
+                            startIcon={<ArrowBack />}
+                            onClick={onResetSearch}
+                        >
+                            Back to Home
+                        </Button>
                     )}
-                </div>
+                </Box>
 
                 {/* Local Video Results */}
-                <div className="search-results-section">
-                    <h3 className="section-title">From Your Library</h3>
+                <Box sx={{ mb: 6 }}>
+                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: 'primary.main' }}>
+                        From Your Library
+                    </Typography>
                     {hasLocalResults ? (
-                        <div className="search-results-grid">
+                        <Grid container spacing={3}>
                             {localSearchResults.map((video) => (
-                                <VideoCard
-                                    key={video.id}
-                                    video={video}
-                                    collections={collections}
-                                    onDeleteVideo={onDeleteVideo}
-                                    showDeleteButton={true}
-                                />
+                                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                                    <VideoCard
+                                        video={video}
+                                        collections={collections}
+                                        onDeleteVideo={onDeleteVideo}
+                                        showDeleteButton={true}
+                                    />
+                                </Grid>
                             ))}
-                        </div>
+                        </Grid>
                     ) : (
-                        <p className="no-results">No matching videos in your library.</p>
+                        <Typography color="text.secondary">No matching videos in your library.</Typography>
                     )}
-                </div>
+                </Box>
 
                 {/* YouTube Search Results */}
-                <div className="search-results-section">
-                    <h3 className="section-title">From YouTube</h3>
+                <Box>
+                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: '#ff0000' }}>
+                        From YouTube
+                    </Typography>
 
                     {youtubeLoading ? (
-                        <div className="youtube-loading">
-                            <div className="loading-spinner"></div>
-                            <p>Loading YouTube results...</p>
-                        </div>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+                            <CircularProgress color="error" />
+                            <Typography sx={{ mt: 2 }}>Loading YouTube results...</Typography>
+                        </Box>
                     ) : hasYouTubeResults ? (
-                        <div className="search-results-grid">
+                        <Grid container spacing={3}>
                             {searchResults.map((result) => (
-                                <div key={result.id} className="search-result-card">
-                                    <div className="search-result-thumbnail">
-                                        {result.thumbnailUrl ? (
-                                            <img
-                                                src={result.thumbnailUrl}
+                                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
+                                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
+                                            <CardMedia
+                                                component="img"
+                                                image={result.thumbnailUrl || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
                                                 alt={result.title}
+                                                sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                                                 onError={(e) => {
                                                     const target = e.target as HTMLImageElement;
                                                     target.onerror = null;
                                                     target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
                                                 }}
                                             />
-                                        ) : (
-                                            <div className="thumbnail-placeholder">No Thumbnail</div>
-                                        )}
-                                    </div>
-                                    <div className="search-result-info">
-                                        <h3 className="search-result-title">{result.title}</h3>
-                                        <p className="search-result-author">{result.author}</p>
-                                        <div className="search-result-meta">
                                             {result.duration && (
-                                                <span className="search-result-duration">
-                                                    {formatDuration(result.duration)}
-                                                </span>
+                                                <Chip
+                                                    label={formatDuration(result.duration)}
+                                                    size="small"
+                                                    sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.8)', color: 'white' }}
+                                                />
                                             )}
+                                            <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
+                                                {result.source === 'bilibili' ? <OndemandVideo sx={{ color: '#23ade5' }} /> : <YouTube sx={{ color: '#ff0000' }} />}
+                                            </Box>
+                                        </Box>
+                                        <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                                            <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {result.title}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                {result.author}
+                                            </Typography>
                                             {result.viewCount && (
-                                                <span className="search-result-views">
+                                                <Typography variant="caption" color="text.secondary">
                                                     {formatViewCount(result.viewCount)} views
-                                                </span>
+                                                </Typography>
                                             )}
-                                            <span className={`source-badge ${result.source}`}>
-                                                {result.source}
-                                            </span>
-                                        </div>
-                                        <button
-                                            className="download-btn"
-                                            onClick={() => onDownload(result.sourceUrl, result.title)}
-                                        >
-                                            Download
-                                        </button>
-                                    </div>
-                                </div>
+                                        </CardContent>
+                                        <CardActions sx={{ p: 2, pt: 0 }}>
+                                            <Button
+                                                fullWidth
+                                                variant="contained"
+                                                startIcon={<Download />}
+                                                onClick={() => onDownload(result.sourceUrl, result.title)}
+                                            >
+                                                Download
+                                            </Button>
+                                        </CardActions>
+                                    </Card>
+                                </Grid>
                             ))}
-                        </div>
+                        </Grid>
                     ) : (
-                        <p className="no-results">No YouTube results found.</p>
+                        <Typography color="text.secondary">No YouTube results found.</Typography>
                     )}
-                </div>
-            </div>
+                </Box>
+            </Container>
         );
     }
 
     // Regular home view (not in search mode)
     return (
-        <div className="home-container">
+        <Container maxWidth="xl" sx={{ py: 4 }}>
             {videoArray.length === 0 ? (
-                <div className="no-videos">
-                    <p>No videos yet. Submit a YouTube URL to download your first video!</p>
-                </div>
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography variant="h5" color="text.secondary">
+                        No videos yet. Submit a YouTube URL to download your first video!
+                    </Typography>
+                </Box>
             ) : (
-                <div className="home-content">
+                <Grid container spacing={4}>
                     {/* Sidebar container for Collections and Authors */}
-                    <div className="sidebar-container">
-                        {/* Collections list */}
-                        <Collections collections={collections} />
-
-                        {/* Authors list */}
-                        <AuthorsList videos={videoArray} />
-
-                        <div className="manage-videos-link-container" style={{ marginTop: '1rem', paddingTop: '0.5rem' }}>
-                            <Link
-                                to="/manage"
-                                className="author-link manage-link"
-                                style={{ fontWeight: 'bold', color: 'var(--primary-color)', display: 'block', textAlign: 'center' }}
-                            >
-                                Manage Videos
-                            </Link>
-                        </div>
-                    </div>
+                    <Grid size={{ xs: 12, md: 3 }}>
+                        <Box sx={{ position: 'sticky', top: 80 }}>
+                            <Collections collections={collections} />
+                            <Box sx={{ mt: 2 }}>
+                                <AuthorsList videos={videoArray} />
+                            </Box>
+                            <Box sx={{ mt: 3, textAlign: 'center' }}>
+                                <Button
+                                    component={Link}
+                                    to="/manage"
+                                    variant="outlined"
+                                    fullWidth
+                                >
+                                    Manage Videos
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Grid>
 
                     {/* Videos grid */}
-                    <div className="videos-grid">
-                        {filteredVideos.map(video => (
-                            <VideoCard
-                                key={video.id}
-                                video={video}
-                                collections={collections}
-                            />
-                        ))}
-                    </div>
-                </div>
+                    <Grid size={{ xs: 12, md: 9 }}>
+                        <Grid container spacing={3}>
+                            {filteredVideos.map(video => (
+                                <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
+                                    <VideoCard
+                                        video={video}
+                                        collections={collections}
+                                    />
+                                </Grid>
+                            ))}
+                        </Grid>
+                    </Grid>
+                </Grid>
             )}
-        </div>
+        </Container>
     );
 };
 

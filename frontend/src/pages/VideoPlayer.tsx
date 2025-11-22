@@ -1,8 +1,40 @@
+import {
+    Add,
+    Delete,
+    Folder
+} from '@mui/icons-material';
+import {
+    Alert,
+    Avatar,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    CardMedia,
+    Chip,
+    CircularProgress,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    FormControl,
+    Grid,
+    InputLabel,
+    MenuItem,
+    Select,
+    Stack,
+    TextField,
+    Typography,
+    useTheme
+} from '@mui/material';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Collection, Video } from '../types';
+
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -25,6 +57,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const theme = useTheme();
+
     const [video, setVideo] = useState<Video | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -213,296 +247,269 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     if (loading) {
-        return <div className="loading">Loading video...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading video...</Typography>
+            </Box>
+        );
     }
 
     if (error || !video) {
-        return <div className="error">{error || 'Video not found'}</div>;
+        return (
+            <Container sx={{ mt: 4 }}>
+                <Alert severity="error">{error || 'Video not found'}</Alert>
+            </Container>
+        );
     }
 
     // Get related videos (exclude current video)
     const relatedVideos = videos.filter(v => v.id !== id).slice(0, 10);
 
     return (
-        <div className="video-player-page">
-            {/* Main Content Column */}
-            <div className="video-main-content">
-                <div className="video-wrapper">
-                    <video
-                        className="video-player"
-                        controls
-                        autoPlay
-                        src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
-                    >
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Grid container spacing={4}>
+                {/* Main Content Column */}
+                <Grid size={{ xs: 12, lg: 9 }}>
+                    <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', boxShadow: 4 }}>
+                        <video
+                            style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
+                            controls
+                            autoPlay
+                            src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                    </Box>
 
-                <div className="video-info-section">
-                    <h1 className="video-title-h1">{video.title}</h1>
+                    <Box sx={{ mt: 2 }}>
+                        <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
+                            {video.title}
+                        </Typography>
 
-                    <div className="video-actions-row">
-                        <div className="video-primary-actions">
-                            <div className="channel-row" style={{ marginBottom: 0 }}>
-                                <div className="channel-avatar">
+                        <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            justifyContent="space-between"
+                            alignItems={{ xs: 'flex-start', sm: 'center' }}
+                            spacing={2}
+                            sx={{ mb: 2 }}
+                        >
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
                                     {video.author ? video.author.charAt(0).toUpperCase() : 'A'}
-                                </div>
-                                <div className="channel-info">
-                                    <div
-                                        className="channel-name clickable"
+                                </Avatar>
+                                <Box>
+                                    <Typography
+                                        variant="subtitle1"
+                                        fontWeight="bold"
                                         onClick={handleAuthorClick}
+                                        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
                                     >
                                         {video.author}
-                                    </div>
-                                    <div className="video-stats">
-                                        {/* Placeholder for subscribers if we had that data */}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {formatDate(video.date)}
+                                    </Typography>
+                                </Box>
+                            </Box>
 
-                        <div className="video-primary-actions">
-                            <button
-                                className="action-btn btn-secondary"
-                                onClick={handleAddToCollection}
-                            >
-                                <span>+ Add to Collection</span>
-                            </button>
-                            <button
-                                className="action-btn btn-danger"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                            >
-                                {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-
-                    {deleteError && (
-                        <div className="error-message" style={{ color: 'var(--primary-color)', marginTop: '10px' }}>
-                            {deleteError}
-                        </div>
-                    )}
-                </div>
-
-                <div className="channel-desc-container">
-                    <div className="video-stats" style={{ marginBottom: '8px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                        {/* Views would go here */}
-                        {formatDate(video.date)}
-                    </div>
-
-                    <div className="description-text" style={{ color: 'var(--text-color)' }}>
-                        {/* We don't have a real description, so we'll show some metadata */}
-                        <p>Source: {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}</p>
-                        {video.sourceUrl && (
-                            <p>
-                                Original Link: <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)' }}>{video.sourceUrl}</a>
-                            </p>
-                        )}
-                    </div>
-
-                    {videoCollections.length > 0 && (
-                        <div className="collection-tags">
-                            {videoCollections.map(c => (
-                                <span
-                                    key={c.id}
-                                    className="collection-pill"
-                                    onClick={() => handleCollectionClick(c.id)}
+                            <Stack direction="row" spacing={1}>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<Add />}
+                                    onClick={handleAddToCollection}
                                 >
-                                    {c.name}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+                                    Add to Collection
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    startIcon={<Delete />}
+                                    onClick={handleDelete}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? 'Deleting...' : 'Delete'}
+                                </Button>
+                            </Stack>
+                        </Stack>
 
+                        {deleteError && (
+                            <Alert severity="error" sx={{ mb: 2 }}>
+                                {deleteError}
+                            </Alert>
+                        )}
 
-            {/* Sidebar Column - Up Next */}
-            <div className="video-sidebar">
-                <h3 className="sidebar-title">Up Next</h3>
-                <div className="related-videos-list">
-                    {relatedVideos.map(relatedVideo => (
-                        <div
-                            key={relatedVideo.id}
-                            className="related-video-card"
-                            onClick={() => navigate(`/video/${relatedVideo.id}`)}
-                        >
-                            <div className="related-video-thumbnail">
-                                <img
-                                    src={`${BACKEND_URL}${relatedVideo.thumbnailPath}`}
-                                    alt={relatedVideo.title}
-                                    onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.onerror = null;
-                                        target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
-                                    }}
-                                />
-                                <span className="duration-badge">{relatedVideo.duration || '00:00'}</span>
-                            </div>
-                            <div className="related-video-info">
-                                <div className="related-video-title">{relatedVideo.title}</div>
-                                <div className="related-video-author">{relatedVideo.author}</div>
-                                <div className="related-video-meta">
-                                    {formatDate(relatedVideo.date)}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {relatedVideos.length === 0 && (
-                        <div className="no-videos">No other videos available</div>
-                    )}
-                </div>
-            </div>
+                        <Divider sx={{ my: 2 }} />
 
-            {/* Collection Modal */}
-            {
-                showCollectionModal && (
-                    <div className="modal-overlay" onClick={handleCloseModal}>
-                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h2>Add to Collection</h2>
-                                <button className="close-btn" onClick={handleCloseModal}>×</button>
-                            </div>
+                        <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
+                            <Typography variant="body2" paragraph>
+                                <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}
+                            </Typography>
+                            {video.sourceUrl && (
+                                <Typography variant="body2" paragraph>
+                                    <strong>Original Link:</strong>{' '}
+                                    <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main }}>
+                                        {video.sourceUrl}
+                                    </a>
+                                </Typography>
+                            )}
 
-                            <div className="modal-body">
-                                {videoCollections.length > 0 && (
-                                    <div className="current-collection" style={{
-                                        marginBottom: '1.5rem',
-                                        padding: '1rem',
-                                        background: 'linear-gradient(135deg, rgba(62, 166, 255, 0.1) 0%, rgba(62, 166, 255, 0.05) 100%)',
-                                        borderRadius: '8px',
-                                        border: '1px solid rgba(62, 166, 255, 0.3)'
-                                    }}>
-                                        <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)', fontWeight: '500' }}>
-                                            📁 Currently in: <strong>{videoCollections[0].name}</strong>
-                                        </p>
-                                        <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                            Adding to a different collection will remove it from the current one.
-                                        </p>
-                                        <button
-                                            className="modal-btn danger-btn"
-                                            style={{ width: '100%' }}
-                                            onClick={handleRemoveFromCollection}
-                                        >
-                                            Remove from Collection
-                                        </button>
-                                    </div>
-                                )}
+                            {videoCollections.length > 0 && (
+                                <Box sx={{ mt: 2 }}>
+                                    <Typography variant="subtitle2" gutterBottom>Collections:</Typography>
+                                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                                        {videoCollections.map(c => (
+                                            <Chip
+                                                key={c.id}
+                                                icon={<Folder />}
+                                                label={c.name}
+                                                onClick={() => handleCollectionClick(c.id)}
+                                                color="secondary"
+                                                variant="outlined"
+                                                clickable
+                                                sx={{ mb: 1 }}
+                                            />
+                                        ))}
+                                    </Stack>
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
+                </Grid>
 
-                                {collections && collections.length > 0 && (
-                                    <div className="existing-collections" style={{ marginBottom: '1.5rem' }}>
-                                        <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '600', color: 'var(--text-color)' }}>
-                                            Add to existing collection:
-                                        </h3>
-                                        <div style={{ position: 'relative' }}>
-                                            <select
-                                                value={selectedCollection}
-                                                onChange={(e) => setSelectedCollection(e.target.value)}
-                                                className="glass-panel"
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '12px 16px',
-                                                    paddingRight: '40px',
-                                                    borderRadius: '8px',
-                                                    color: 'var(--text-color)',
-                                                    fontSize: '1rem',
-                                                    marginBottom: '0.8rem',
-                                                    cursor: 'pointer',
-                                                    appearance: 'none',
-                                                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='var(--text-color)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                                                    backgroundRepeat: 'no-repeat',
-                                                    backgroundPosition: 'right 12px center',
-                                                    backgroundSize: '16px',
-                                                }}
-                                            >
-
-                                                <option value="" style={{ color: 'var(--text-color)', backgroundColor: 'var(--background-card)' }}>Select a collection</option>
-                                                {collections.map(collection => (
-                                                    <option
-                                                        key={collection.id}
-                                                        value={collection.id}
-                                                        disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
-                                                        style={{ color: 'var(--text-color)', backgroundColor: 'var(--background-card)' }}
-                                                    >
-                                                        {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <button
-                                            className="modal-btn primary-btn"
-                                            style={{
-                                                width: '100%',
-                                                padding: '12px',
-                                                borderRadius: '8px',
-                                                background: 'linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)',
-                                                border: 'none',
-                                                color: 'white',
-                                                fontWeight: '600',
-                                                cursor: selectedCollection ? 'pointer' : 'not-allowed',
-                                                opacity: selectedCollection ? 1 : 0.6,
-                                                transition: 'all 0.2s ease'
-                                            }}
-                                            onClick={handleAddToExistingCollection}
-                                            disabled={!selectedCollection}
-                                        >
-                                            Add to Collection
-                                        </button>
-                                    </div>
-                                )}
-
-                                <div className="new-collection">
-                                    <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '600', color: 'var(--text-color)' }}>
-                                        Create new collection:
-                                    </h3>
-                                    <input
-                                        type="text"
-                                        className="collection-input glass-panel"
-                                        placeholder="Collection name"
-                                        value={newCollectionName}
-                                        onChange={(e) => setNewCollectionName(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px 16px',
-                                            borderRadius: '8px',
-                                            color: 'var(--text-color)',
-                                            fontSize: '1rem',
-                                            marginBottom: '0.8rem',
+                {/* Sidebar Column - Up Next */}
+                <Grid size={{ xs: 12, lg: 3 }}>
+                    <Typography variant="h6" gutterBottom fontWeight="bold">Up Next</Typography>
+                    <Stack spacing={2}>
+                        {relatedVideos.map(relatedVideo => (
+                            <Card
+                                key={relatedVideo.id}
+                                sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                onClick={() => navigate(`/video/${relatedVideo.id}`)}
+                            >
+                                <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
+                                    <CardMedia
+                                        component="img"
+                                        sx={{ width: '100%', height: 94, objectFit: 'cover' }}
+                                        image={`${BACKEND_URL}${relatedVideo.thumbnailPath}`}
+                                        alt={relatedVideo.title}
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
                                         }}
                                     />
-                                    <button
-                                        className="modal-btn primary-btn"
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px',
-                                            borderRadius: '8px',
-                                            background: 'linear-gradient(135deg, #00C6FF 0%, #0072FF 100%)',
-                                            border: 'none',
-                                            color: 'white',
-                                            fontWeight: '600',
-                                            cursor: newCollectionName.trim() ? 'pointer' : 'not-allowed',
-                                            opacity: newCollectionName.trim() ? 1 : 0.6,
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                        onClick={handleCreateCollection}
-                                        disabled={!newCollectionName.trim()}
-                                    >
-                                        Create Collection
-                                    </button>
-                                </div>
-                            </div>
+                                    {relatedVideo.duration && (
+                                        <Chip
+                                            label={relatedVideo.duration || '00:00'}
+                                            size="small"
+                                            sx={{
+                                                position: 'absolute',
+                                                bottom: 4,
+                                                right: 4,
+                                                height: 20,
+                                                fontSize: '0.75rem',
+                                                bgcolor: 'rgba(0,0,0,0.8)',
+                                                color: 'white'
+                                            }}
+                                        />
+                                    )}
+                                </Box>
+                                <CardContent sx={{ flex: '1 0 auto', p: 1, '&:last-child': { pb: 1 } }}>
+                                    <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                        {relatedVideo.title}
+                                    </Typography>
+                                    <Typography variant="caption" display="block" color="text.secondary">
+                                        {relatedVideo.author}
+                                    </Typography>
+                                    <Typography variant="caption" display="block" color="text.secondary">
+                                        {formatDate(relatedVideo.date)}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {relatedVideos.length === 0 && (
+                            <Typography variant="body2" color="text.secondary">No other videos available</Typography>
+                        )}
+                    </Stack>
+                </Grid>
+            </Grid>
 
-                            <div className="modal-footer">
-                                <button className="btn secondary-btn" onClick={handleCloseModal}>
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Collection Modal */}
+            <Dialog open={showCollectionModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
+                <DialogTitle>Add to Collection</DialogTitle>
+                <DialogContent dividers>
+                    {videoCollections.length > 0 && (
+                        <Alert severity="info" sx={{ mb: 3 }} action={
+                            <Button color="error" size="small" onClick={handleRemoveFromCollection}>
+                                Remove
+                            </Button>
+                        }>
+                            Currently in: <strong>{videoCollections[0].name}</strong>
+                            <Typography variant="caption" display="block">
+                                Adding to a different collection will remove it from the current one.
+                            </Typography>
+                        </Alert>
+                    )}
+
+                    {collections && collections.length > 0 && (
+                        <Box sx={{ mb: 4 }}>
+                            <Typography variant="subtitle2" gutterBottom>Add to existing collection:</Typography>
+                            <Stack direction="row" spacing={2}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Select a collection</InputLabel>
+                                    <Select
+                                        value={selectedCollection}
+                                        label="Select a collection"
+                                        onChange={(e) => setSelectedCollection(e.target.value)}
+                                    >
+                                        {collections.map(collection => (
+                                            <MenuItem
+                                                key={collection.id}
+                                                value={collection.id}
+                                                disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
+                                            >
+                                                {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleAddToExistingCollection}
+                                    disabled={!selectedCollection}
+                                >
+                                    Add
+                                </Button>
+                            </Stack>
+                        </Box>
+                    )}
+
+                    <Box>
+                        <Typography variant="subtitle2" gutterBottom>Create new collection:</Typography>
+                        <Stack direction="row" spacing={2}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label="Collection name"
+                                value={newCollectionName}
+                                onChange={(e) => setNewCollectionName(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={handleCreateCollection}
+                                disabled={!newCollectionName.trim()}
+                            >
+                                Create
+                            </Button>
+                        </Stack>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseModal} color="inherit">Cancel</Button>
+                </DialogActions>
+            </Dialog>
 
             <ConfirmationModal
                 isOpen={confirmationModal.isOpen}
@@ -513,7 +520,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 confirmText={confirmationModal.confirmText}
                 isDanger={confirmationModal.isDanger}
             />
-        </div >
+        </Container>
     );
 };
 

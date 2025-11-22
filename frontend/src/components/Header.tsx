@@ -1,3 +1,24 @@
+import {
+    Brightness4,
+    Brightness7,
+    Clear,
+    Download,
+    Search
+} from '@mui/icons-material';
+import {
+    AppBar,
+    Badge,
+    Box,
+    Button,
+    CircularProgress,
+    IconButton,
+    InputAdornment,
+    Menu,
+    MenuItem,
+    TextField,
+    Toolbar,
+    Typography
+} from '@mui/material';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
@@ -26,21 +47,29 @@ const Header: React.FC<HeaderProps> = ({
     isSearchMode = false,
     searchTerm = '',
     onResetSearch,
-    theme,
+    theme: currentThemeMode,
     toggleTheme
 }) => {
     const [videoUrl, setVideoUrl] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
-    const [showDownloads, setShowDownloads] = useState<boolean>(false);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const navigate = useNavigate();
+
 
     const isDownloading = activeDownloads.length > 0;
 
-    // Log props for debugging
     useEffect(() => {
         console.log('Header props:', { activeDownloads });
     }, [activeDownloads]);
+
+    const handleDownloadsClick = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleDownloadsClose = () => {
+        setAnchorEl(null);
+    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
@@ -50,11 +79,8 @@ const Header: React.FC<HeaderProps> = ({
             return;
         }
 
-        // Simple validation for YouTube or Bilibili URL
         const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
         const bilibiliRegex = /^(https?:\/\/)?(www\.)?(bilibili\.com|b23\.tv)\/.+$/;
-
-        // Check if input is a URL
         const isUrl = youtubeRegex.test(videoUrl) || bilibiliRegex.test(videoUrl);
 
         setError('');
@@ -62,17 +88,14 @@ const Header: React.FC<HeaderProps> = ({
 
         try {
             if (isUrl) {
-                // Handle as URL for download
                 const result = await onSubmit(videoUrl);
-
                 if (result.success) {
                     setVideoUrl('');
                 } else if (result.isSearchTerm) {
-                    // If backend determined it's a search term despite our check
                     const searchResult = await onSearch(videoUrl);
                     if (searchResult.success) {
                         setVideoUrl('');
-                        navigate('/'); // Stay on homepage to show search results
+                        navigate('/');
                     } else {
                         setError(searchResult.error);
                     }
@@ -80,12 +103,9 @@ const Header: React.FC<HeaderProps> = ({
                     setError(result.error);
                 }
             } else {
-                // Handle as search term
                 const result = await onSearch(videoUrl);
-
                 if (result.success) {
                     setVideoUrl('');
-                    // Stay on homepage to show search results
                     navigate('/');
                 } else {
                     setError(result.error);
@@ -100,115 +120,109 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     return (
-        <header className="header">
-            <div className="header-content">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <Link to="/" className="logo">
-                        <img src={logo} alt="MyTube Logo" className="logo-icon" />
-                        <span style={{ color: 'var(--text-color)' }}>MyTube</span>
+        <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+            <Toolbar>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 0, mr: 2 }}>
+                    <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>
+                        <img src={logo} alt="MyTube Logo" height={40} />
+                        <Typography variant="h5" sx={{ ml: 1, fontWeight: 'bold' }}>
+                            MyTube
+                        </Typography>
                     </Link>
+                </Box>
 
-                    <button
-                        onClick={toggleTheme}
-                        className="theme-toggle-btn"
-                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            fontSize: '1.2rem',
-                            cursor: 'pointer',
-                            padding: '8px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--text-color)',
-                            transition: 'background-color 0.2s'
+                <Box component="form" onSubmit={handleSubmit} sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Enter YouTube/Bilibili URL or search term"
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
+                        disabled={isSubmitting}
+                        error={!!error}
+                        helperText={error}
+                        size="small"
+                        InputProps={{
+                            endAdornment: (
+                                <InputAdornment position="end">
+                                    {isSearchMode && searchTerm && (
+                                        <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
+                                            <Clear />
+                                        </IconButton>
+                                    )}
+                                    <Button
+                                        type="submit"
+                                        variant="contained"
+                                        disabled={isSubmitting}
+                                        sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
+                                    >
+                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                                    </Button>
+                                </InputAdornment>
+                            ),
+                            sx: { pr: 0, borderRadius: 2 }
                         }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(128, 128, 128, 0.1)'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                </div>
+                    />
+                </Box>
 
-                <form className="url-form" onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <input
-                            type="text"
-                            className="url-input"
-                            placeholder="Enter YouTube/Bilibili URL or search term"
-                            value={videoUrl}
-                            onChange={(e) => setVideoUrl(e.target.value)}
-                            disabled={isSubmitting}
-                            aria-label="Video URL or search term"
-                        />
-                        {isSearchMode && searchTerm && (
-                            <button
-                                type="button"
-                                className="clear-search-btn"
-                                onClick={onResetSearch}
-                                title="Clear search"
-                                style={{
-                                    position: 'absolute',
-                                    right: '100px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    background: 'none',
-                                    border: 'none',
-                                    color: '#aaa',
-                                    fontSize: '1.2rem',
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                ×
-                            </button>
-                        )}
-                        <button
-                            type="submit"
-                            className="submit-btn"
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? 'Processing...' : 'Submit'}
-                        </button>
-                    </div>
-                    {error && (
-                        <div className="form-error">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Active Downloads Indicator */}
+                <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
                     {isDownloading && (
-                        <div className="downloads-indicator-container">
-                            <div
-                                className="downloads-summary"
-                                onClick={() => setShowDownloads(!showDownloads)}
+                        <>
+                            <IconButton color="inherit" onClick={handleDownloadsClick}>
+                                <Badge badgeContent={activeDownloads.length} color="secondary">
+                                    <Download />
+                                </Badge>
+                            </IconButton>
+                            <Menu
+                                anchorEl={anchorEl}
+                                open={Boolean(anchorEl)}
+                                onClose={handleDownloadsClose}
+                                PaperProps={{
+                                    elevation: 0,
+                                    sx: {
+                                        overflow: 'visible',
+                                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                                        mt: 1.5,
+                                        '& .MuiAvatar-root': {
+                                            width: 32,
+                                            height: 32,
+                                            ml: -0.5,
+                                            mr: 1,
+                                        },
+                                        '&:before': {
+                                            content: '""',
+                                            display: 'block',
+                                            position: 'absolute',
+                                            top: 0,
+                                            right: 14,
+                                            width: 10,
+                                            height: 10,
+                                            bgcolor: 'background.paper',
+                                            transform: 'translateY(-50%) rotate(45deg)',
+                                            zIndex: 0,
+                                        },
+                                    },
+                                }}
+                                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                             >
-                                <span className="download-icon">⬇️</span>
-                                <span className="download-count">
-                                    {activeDownloads.length} Downloading
-                                </span>
-                                <span className="download-arrow">{showDownloads ? '▲' : '▼'}</span>
-                            </div>
-
-                            {showDownloads && (
-                                <div className="downloads-dropdown">
-                                    {activeDownloads.map((download) => (
-                                        <div key={download.id} className="download-item">
-                                            <div className="download-spinner"></div>
-                                            <div className="download-title" title={download.title}>
-                                                {download.title}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                {activeDownloads.map((download) => (
+                                    <MenuItem key={download.id}>
+                                        <CircularProgress size={20} sx={{ mr: 2 }} />
+                                        <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                            {download.title}
+                                        </Typography>
+                                    </MenuItem>
+                                ))}
+                            </Menu>
+                        </>
                     )}
-                </form>
-            </div>
-        </header>
+                    <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
+                        {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                    </IconButton>
+                </Box>
+            </Toolbar>
+        </AppBar>
     );
 };
 

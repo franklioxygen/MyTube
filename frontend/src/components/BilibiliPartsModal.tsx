@@ -1,3 +1,16 @@
+import { Close } from '@mui/icons-material';
+import {
+    Box,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    IconButton,
+    TextField,
+    Typography
+} from '@mui/material';
 import { useState } from 'react';
 
 interface BilibiliPartsModalProps {
@@ -22,8 +35,6 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     type = 'parts'
 }) => {
     const [collectionName, setCollectionName] = useState<string>('');
-
-    if (!isOpen) return null;
 
     const handleDownloadAll = () => {
         onDownloadAll(collectionName || videoTitle);
@@ -79,53 +90,71 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     };
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <div className="modal-header">
-                    <h2>{getHeaderText()}</h2>
-                    <button className="close-btn" onClick={onClose}>×</button>
-                </div>
-                <div className="modal-body">
-                    <p>
-                        {getDescriptionText()}
-                    </p>
-                    <p>
-                        <strong>Title:</strong> {videoTitle}
-                    </p>
-                    <p>Would you like to download all {type === 'parts' ? 'parts' : 'videos'}?</p>
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: { borderRadius: 2 }
+            }}
+        >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                    {getHeaderText()}
+                </Typography>
+                <IconButton
+                    aria-label="close"
+                    onClick={onClose}
+                    sx={{
+                        color: (theme) => theme.palette.grey[500],
+                    }}
+                >
+                    <Close />
+                </IconButton>
+            </DialogTitle>
+            <DialogContent dividers>
+                <DialogContentText sx={{ mb: 2 }}>
+                    {getDescriptionText()}
+                </DialogContentText>
+                <Typography variant="body2" gutterBottom>
+                    <strong>Title:</strong> {videoTitle}
+                </Typography>
+                <Typography variant="body1" sx={{ mt: 2, mb: 1 }}>
+                    Would you like to download all {type === 'parts' ? 'parts' : 'videos'}?
+                </Typography>
 
-                    <div className="form-group">
-                        <label htmlFor="collection-name">Collection Name:</label>
-                        <input
-                            type="text"
-                            id="collection-name"
-                            className="collection-input"
-                            value={collectionName}
-                            onChange={(e) => setCollectionName(e.target.value)}
-                            placeholder={videoTitle}
-                            disabled={isLoading}
-                        />
-                        <small>All {type === 'parts' ? 'parts' : 'videos'} will be added to this collection</small>
-                    </div>
-                </div>
-                <div className="modal-footer">
-                    <button
-                        className="btn secondary-btn"
-                        onClick={onDownloadCurrent}
+                <Box sx={{ mt: 2 }}>
+                    <TextField
+                        fullWidth
+                        label="Collection Name"
+                        variant="outlined"
+                        value={collectionName}
+                        onChange={(e) => setCollectionName(e.target.value)}
+                        placeholder={videoTitle}
                         disabled={isLoading}
-                    >
-                        {getCurrentButtonText()}
-                    </button>
-                    <button
-                        className="btn primary-btn"
-                        onClick={handleDownloadAll}
-                        disabled={isLoading}
-                    >
-                        {getDownloadAllButtonText()}
-                    </button>
-                </div>
-            </div>
-        </div>
+                        helperText={`All ${type === 'parts' ? 'parts' : 'videos'} will be added to this collection`}
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+                <Button
+                    onClick={onDownloadCurrent}
+                    disabled={isLoading}
+                    color="inherit"
+                >
+                    {getCurrentButtonText()}
+                </Button>
+                <Button
+                    onClick={handleDownloadAll}
+                    disabled={isLoading}
+                    variant="contained"
+                    color="primary"
+                >
+                    {getDownloadAllButtonText()}
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

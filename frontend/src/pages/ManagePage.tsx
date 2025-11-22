@@ -1,6 +1,33 @@
+import {
+    ArrowBack,
+    Delete,
+    Folder,
+    Search,
+    VideoLibrary
+} from '@mui/icons-material';
+import {
+    Alert,
+    Box,
+    Button,
+    CircularProgress,
+    Container,
+    IconButton,
+    InputAdornment,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    Tooltip,
+    Typography
+} from '@mui/material';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
+import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -44,11 +71,18 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
         setCollectionToDelete(collection);
     };
 
-    const handleCollectionDelete = async (deleteVideos: boolean) => {
+    const handleCollectionDeleteOnly = async () => {
         if (!collectionToDelete) return;
-
         setIsDeletingCollection(true);
-        await onDeleteCollection(collectionToDelete.id, deleteVideos);
+        await onDeleteCollection(collectionToDelete.id, false);
+        setIsDeletingCollection(false);
+        setCollectionToDelete(null);
+    };
+
+    const handleCollectionDeleteAll = async () => {
+        if (!collectionToDelete) return;
+        setIsDeletingCollection(true);
+        await onDeleteCollection(collectionToDelete.id, true);
         setIsDeletingCollection(false);
         setCollectionToDelete(null);
     };
@@ -61,73 +95,29 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
     };
 
     return (
-        <div className="manage-page">
-            <div className="manage-header">
-                <h1>Manage Content</h1>
-                <Link to="/" className="back-link">← Back to Home</Link>
-            </div>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Typography variant="h4" component="h1" fontWeight="bold">
+                    Manage Content
+                </Typography>
+                <Button
+                    component={Link}
+                    to="/"
+                    variant="outlined"
+                    startIcon={<ArrowBack />}
+                >
+                    Back to Home
+                </Button>
+            </Box>
 
-            {/* Delete Collection Modal */}
-            {collectionToDelete && (
-                <div className="modal-overlay" onClick={() => !isDeletingCollection && setCollectionToDelete(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Delete Collection</h2>
-                            <button
-                                className="close-btn"
-                                onClick={() => setCollectionToDelete(null)}
-                                disabled={isDeletingCollection}
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        <div className="modal-body">
-                            <p style={{ marginBottom: '12px', fontSize: '0.95rem' }}>
-                                You are about to delete the collection <strong>"{collectionToDelete.name}"</strong>.
-                            </p>
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '20px' }}>
-                                This collection contains <strong>{collectionToDelete.videos.length}</strong> video{collectionToDelete.videos.length !== 1 ? 's' : ''}.
-                            </p>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <button
-                                    className="btn secondary-btn"
-                                    onClick={() => handleCollectionDelete(false)}
-                                    disabled={isDeletingCollection}
-                                    style={{ width: '100%' }}
-                                >
-                                    {isDeletingCollection ? 'Deleting...' : 'Delete Collection Only'}
-                                </button>
-                                {collectionToDelete.videos.length > 0 && (
-                                    <button
-                                        className="btn primary-btn"
-                                        onClick={() => handleCollectionDelete(true)}
-                                        disabled={isDeletingCollection}
-                                        style={{
-                                            width: '100%',
-                                            background: 'linear-gradient(135deg, #ff3e3e 0%, #ff6b6b 100%)',
-                                            color: 'white'
-                                        }}
-                                    >
-                                        {isDeletingCollection ? 'Deleting...' : '⚠️ Delete Collection & Videos'}
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="modal-footer">
-                            <button
-                                className="btn secondary-btn"
-                                onClick={() => setCollectionToDelete(null)}
-                                disabled={isDeletingCollection}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteCollectionModal
+                isOpen={!!collectionToDelete}
+                onClose={() => !isDeletingCollection && setCollectionToDelete(null)}
+                onDeleteCollectionOnly={handleCollectionDeleteOnly}
+                onDeleteCollectionAndVideos={handleCollectionDeleteAll}
+                collectionName={collectionToDelete?.name || ''}
+                videoCount={collectionToDelete?.videos.length || 0}
+            />
 
             <ConfirmationModal
                 isOpen={showVideoDeleteModal}
@@ -142,101 +132,121 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                 isDanger={true}
             />
 
-            <div className="manage-section">
-                <h2>Collections ({collections.length})</h2>
-                <div className="manage-list">
-                    {collections.length > 0 ? (
-                        <table className="manage-table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Videos</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {collections.map(collection => (
-                                    <tr key={collection.id}>
-                                        <td className="col-title">{collection.name}</td>
-                                        <td>{collection.videos.length} videos</td>
-                                        <td>{new Date(collection.createdAt).toLocaleDateString()}</td>
-                                        <td className="col-actions">
-                                            <button
-                                                className="delete-btn-small"
-                                                onClick={() => confirmDeleteCollection(collection)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="no-videos-found">
-                            No collections found.
-                        </div>
-                    )}
-                </div>
-            </div>
+            <Box sx={{ mb: 6 }}>
+                <Typography variant="h5" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                    <Folder sx={{ mr: 1, color: 'secondary.main' }} />
+                    Collections ({collections.length})
+                </Typography>
 
-            <div className="manage-section">
-                <h2>Videos ({filteredVideos.length})</h2>
-                <div className="manage-controls">
-                    <input
-                        type="text"
+                {collections.length > 0 ? (
+                    <TableContainer component={Paper} variant="outlined">
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Name</TableCell>
+                                    <TableCell>Videos</TableCell>
+                                    <TableCell>Created</TableCell>
+                                    <TableCell align="right">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {collections.map(collection => (
+                                    <TableRow key={collection.id} hover>
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: 500 }}>
+                                            {collection.name}
+                                        </TableCell>
+                                        <TableCell>{collection.videos.length} videos</TableCell>
+                                        <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
+                                        <TableCell align="right">
+                                            <Tooltip title="Delete Collection">
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => confirmDeleteCollection(collection)}
+                                                    size="small"
+                                                >
+                                                    <Delete />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Alert severity="info" variant="outlined">No collections found.</Alert>
+                )}
+            </Box>
+
+            <Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
+                        <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
+                        Videos ({filteredVideos.length})
+                    </Typography>
+                    <TextField
                         placeholder="Search videos..."
+                        size="small"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="manage-search"
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Search />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{ width: 300 }}
                     />
-                </div>
+                </Box>
 
-                <div className="manage-list">
-                    {filteredVideos.length > 0 ? (
-                        <table className="manage-table">
-                            <thead>
-                                <tr>
-                                    <th>Thumbnail</th>
-                                    <th>Title</th>
-                                    <th>Author</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                {filteredVideos.length > 0 ? (
+                    <TableContainer component={Paper} variant="outlined">
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Thumbnail</TableCell>
+                                    <TableCell>Title</TableCell>
+                                    <TableCell>Author</TableCell>
+                                    <TableCell align="right">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {filteredVideos.map(video => (
-                                    <tr key={video.id}>
-                                        <td className="col-thumbnail">
-                                            <img
+                                    <TableRow key={video.id} hover>
+                                        <TableCell sx={{ width: 140 }}>
+                                            <Box
+                                                component="img"
                                                 src={getThumbnailSrc(video)}
                                                 alt={video.title}
-                                                className="manage-thumbnail"
+                                                sx={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 1 }}
                                             />
-                                        </td>
-                                        <td className="col-title">{video.title}</td>
-                                        <td className="col-author">{video.author}</td>
-                                        <td className="col-actions">
-                                            <button
-                                                className="delete-btn-small"
-                                                onClick={() => handleDelete(video.id)}
-                                                disabled={deletingId === video.id}
-                                            >
-                                                {deletingId === video.id ? 'Deleting...' : 'Delete'}
-                                            </button>
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>
+                                            {video.title}
+                                        </TableCell>
+                                        <TableCell>{video.author}</TableCell>
+                                        <TableCell align="right">
+                                            <Tooltip title="Delete Video">
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => handleDelete(video.id)}
+                                                    disabled={deletingId === video.id}
+                                                >
+                                                    {deletingId === video.id ? <CircularProgress size={24} /> : <Delete />}
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="no-videos-found">
-                            No videos found matching your search.
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Alert severity="info" variant="outlined">No videos found matching your search.</Alert>
+                )}
+            </Box>
+        </Container>
     );
 };
 
