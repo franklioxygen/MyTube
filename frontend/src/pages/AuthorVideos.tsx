@@ -1,3 +1,14 @@
+import { ArrowBack } from '@mui/icons-material';
+import {
+    Alert,
+    Avatar,
+    Box,
+    Button,
+    CircularProgress,
+    Container,
+    Grid,
+    Typography
+} from '@mui/material';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -58,11 +69,20 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
     };
 
     if (loading) {
-        return <div className="loading">Loading videos...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading videos...</Typography>
+            </Box>
+        );
     }
 
     if (error) {
-        return <div className="error">{error}</div>;
+        return (
+            <Container sx={{ mt: 4 }}>
+                <Alert severity="error">{error}</Alert>
+            </Container>
+        );
     }
 
     // Filter videos to only show the first video from each collection
@@ -86,33 +106,47 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
     });
 
     return (
-        <div className="author-videos-container">
-            <div className="author-header">
-                <button className="back-button" onClick={handleBack}>
-                    &larr; Back
-                </button>
-                <div className="author-info">
-                    <h2>Author: {author ? decodeURIComponent(author) : 'Unknown'}</h2>
-                    <span className="video-count">{authorVideos.length} video{authorVideos.length !== 1 ? 's' : ''}</span>
-                </div>
-            </div>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}>
+                        {author ? author.charAt(0).toUpperCase() : 'A'}
+                    </Avatar>
+                    <Box>
+                        <Typography variant="h4" component="h1" fontWeight="bold">
+                            {author ? decodeURIComponent(author) : 'Unknown'}
+                        </Typography>
+                        <Typography variant="subtitle1" color="text.secondary">
+                            {authorVideos.length} video{authorVideos.length !== 1 ? 's' : ''}
+                        </Typography>
+                    </Box>
+                </Box>
+                <Button
+                    variant="outlined"
+                    startIcon={<ArrowBack />}
+                    onClick={handleBack}
+                >
+                    Back
+                </Button>
+            </Box>
 
             {authorVideos.length === 0 ? (
-                <div className="no-videos">No videos found for this author.</div>
+                <Alert severity="info" variant="outlined">No videos found for this author.</Alert>
             ) : (
-                <div className="videos-grid">
+                <Grid container spacing={3}>
                     {filteredVideos.map(video => (
-                        <VideoCard
-                            key={video.id}
-                            video={video}
-                            collections={collections}
-                            onDeleteVideo={onDeleteVideo}
-                            showDeleteButton={true}
-                        />
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                            <VideoCard
+                                video={video}
+                                collections={collections}
+                                onDeleteVideo={onDeleteVideo}
+                                showDeleteButton={true}
+                            />
+                        </Grid>
                     ))}
-                </div>
+                </Grid>
             )}
-        </div>
+        </Container>
     );
 };
 

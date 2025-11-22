@@ -1,3 +1,14 @@
+import { ExpandLess, ExpandMore, Person } from '@mui/icons-material';
+import {
+    Collapse,
+    List,
+    ListItemButton,
+    ListItemText,
+    Paper,
+    Typography,
+    useMediaQuery,
+    useTheme
+} from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Video } from '../types';
@@ -7,8 +18,10 @@ interface AuthorsListProps {
 }
 
 const AuthorsList: React.FC<AuthorsListProps> = ({ videos }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [isOpen, setIsOpen] = useState<boolean>(true);
     const [authors, setAuthors] = useState<string[]>([]);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     useEffect(() => {
         // Extract unique authors from videos
@@ -23,41 +36,49 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos }) => {
         }
     }, [videos]);
 
-    const toggleDropdown = () => {
-        setIsOpen(!isOpen);
-    };
+    // Auto-collapse on mobile by default
+    useEffect(() => {
+        if (isMobile) {
+            setIsOpen(false);
+        } else {
+            setIsOpen(true);
+        }
+    }, [isMobile]);
 
     if (!authors.length) {
         return null;
     }
 
     return (
-        <div className="authors-container">
-            {/* Mobile dropdown toggle */}
-            <div className="authors-dropdown-toggle" onClick={toggleDropdown}>
-                <h3>Authors</h3>
-                <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
-            </div>
-
-            {/* Authors list - visible on desktop or when dropdown is open on mobile */}
-            <div className={`authors-list ${isOpen ? 'open' : ''}`}>
-                <h3 className="authors-title">Authors</h3>
-                <ul>
+        <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
+            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                    Authors
+                </Typography>
+                {isOpen ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
                     {authors.map(author => (
-                        <li key={author} className="author-item">
-                            <Link
-                                to={`/author/${encodeURIComponent(author)}`}
-                                className="author-link"
-                                onClick={() => setIsOpen(false)} // Close dropdown when an author is selected
-                            >
-                                {author}
-                            </Link>
-                        </li>
+                        <ListItemButton
+                            key={author}
+                            component={Link}
+                            to={`/author/${encodeURIComponent(author)}`}
+                            sx={{ pl: 2, borderRadius: 1 }}
+                        >
+                            <Person fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                            <ListItemText
+                                primary={author}
+                                primaryTypographyProps={{
+                                    variant: 'body2',
+                                    noWrap: true
+                                }}
+                            />
+                        </ListItemButton>
                     ))}
-                </ul>
-
-            </div>
-        </div>
+                </List>
+            </Collapse>
+        </Paper>
     );
 };
 

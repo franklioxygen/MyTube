@@ -1,3 +1,14 @@
+import { Close } from '@mui/icons-material';
+import {
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    IconButton,
+    Typography
+} from '@mui/material';
 import React from 'react';
 
 interface ConfirmationModalProps {
@@ -21,34 +32,57 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     cancelText = 'Cancel',
     isDanger = false
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>{title}</h2>
-                    <button className="close-btn" onClick={onClose}>×</button>
-                </div>
-                <div className="modal-body">
-                    <p>{message}</p>
-                </div>
-                <div className="modal-footer">
-                    <button className="btn secondary-btn" onClick={onClose}>
-                        {cancelText}
-                    </button>
-                    <button
-                        className={`btn ${isDanger ? 'danger-btn' : 'primary-btn'}`}
-                        onClick={() => {
-                            onConfirm();
-                            onClose();
-                        }}
-                    >
-                        {confirmText}
-                    </button>
-                </div>
-            </div>
-        </div>
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            aria-labelledby="alert-dialog-title"
+            aria-describedby="alert-dialog-description"
+            PaperProps={{
+                sx: {
+                    borderRadius: 2,
+                    minWidth: 300,
+                    maxWidth: 500,
+                    backgroundImage: 'none'
+                }
+            }}
+        >
+            <DialogTitle id="alert-dialog-title" sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                    {title}
+                </Typography>
+                <IconButton
+                    aria-label="close"
+                    onClick={onClose}
+                    sx={{
+                        color: (theme) => theme.palette.grey[500],
+                    }}
+                >
+                    <Close />
+                </IconButton>
+            </DialogTitle>
+            <DialogContent dividers>
+                <DialogContentText id="alert-dialog-description">
+                    {message}
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+                <Button onClick={onClose} color="inherit" variant="text">
+                    {cancelText}
+                </Button>
+                <Button
+                    onClick={() => {
+                        onConfirm();
+                        onClose();
+                    }}
+                    color={isDanger ? 'error' : 'primary'}
+                    variant="contained"
+                    autoFocus
+                >
+                    {confirmText}
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

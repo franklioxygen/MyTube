@@ -1,3 +1,17 @@
+import { Close, Warning } from '@mui/icons-material';
+import {
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    IconButton,
+    Stack,
+    Typography
+} from '@mui/material';
+import React from 'react';
+
 interface DeleteCollectionModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -15,85 +29,74 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
     collectionName,
     videoCount
 }) => {
-    if (!isOpen) return null;
-
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Delete Collection</h2>
-                    <button className="close-btn" onClick={onClose}>×</button>
-                </div>
+        <Dialog
+            open={isOpen}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: { borderRadius: 2 }
+            }}
+        >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                    Delete Collection
+                </Typography>
+                <IconButton
+                    aria-label="close"
+                    onClick={onClose}
+                    sx={{
+                        color: (theme) => theme.palette.grey[500],
+                    }}
+                >
+                    <Close />
+                </IconButton>
+            </DialogTitle>
+            <DialogContent dividers>
+                <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+                    Are you sure you want to delete the collection <strong>"{collectionName}"</strong>?
+                </DialogContentText>
+                <DialogContentText sx={{ mb: 3 }}>
+                    This collection contains <strong>{videoCount}</strong> video{videoCount !== 1 ? 's' : ''}.
+                </DialogContentText>
 
-                <div className="modal-body">
-                    <p style={{ marginBottom: '12px', fontSize: '0.95rem' }}>
-                        Are you sure you want to delete the collection <strong>"{collectionName}"</strong>?
-                    </p>
-                    <p style={{ marginBottom: '20px', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                        This collection contains <strong>{videoCount}</strong> video{videoCount !== 1 ? 's' : ''}.
-                    </p>
+                <Stack spacing={2}>
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        onClick={onDeleteCollectionOnly}
+                        fullWidth
+                        sx={{ justifyContent: 'center', py: 1.5 }}
+                    >
+                        Delete Collection Only
+                    </Button>
 
-                    <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <button
-                            className="btn secondary-btn glass-panel"
-                            onClick={onDeleteCollectionOnly}
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '8px',
-                                color: 'var(--text-color)',
-                                cursor: 'pointer',
+                    {videoCount > 0 && (
+                        <Button
+                            variant="contained"
+                            color="error"
+                            onClick={onDeleteCollectionAndVideos}
+                            fullWidth
+                            startIcon={<Warning />}
+                            sx={{
+                                justifyContent: 'center',
+                                py: 1.5,
+                                fontWeight: 600,
+                                boxShadow: (theme) => `0 4px 12px ${theme.palette.error.main}40`
                             }}
                         >
-
-                            Delete Collection Only
-                        </button>
-                        {videoCount > 0 && (
-                            <button
-                                className="btn danger-btn"
-                                onClick={onDeleteCollectionAndVideos}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: 'linear-gradient(90deg, #ff4b4b 0%, #ff0000 100%)',
-                                    color: 'white',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 12px rgba(255, 0, 0, 0.3)',
-                                    transition: 'all 0.2s ease',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px'
-                                }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-2px)';
-                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 0, 0, 0.4)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 0, 0, 0.3)';
-                                }}
-                            >
-                                <span style={{ fontSize: '1.2em' }}>⚠️</span>
-                                <span>Delete Collection & All {videoCount} Videos</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                <div className="modal-footer">
-                    <button
-                        className="btn secondary-btn"
-                        onClick={onClose}
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        </div>
+                            Delete Collection & All {videoCount} Videos
+                        </Button>
+                    )}
+                </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+                <Button onClick={onClose} color="inherit">
+                    Cancel
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

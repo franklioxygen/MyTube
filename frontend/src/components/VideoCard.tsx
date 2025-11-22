@@ -1,3 +1,20 @@
+import {
+    Delete,
+    Folder,
+    OndemandVideo,
+    YouTube
+} from '@mui/icons-material';
+import {
+    Box,
+    Card,
+    CardActionArea,
+    CardContent,
+    CardMedia,
+    Chip,
+    IconButton,
+    Typography,
+    useTheme
+} from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Collection, Video } from '../types';
@@ -19,6 +36,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     showDeleteButton = false
 }) => {
     const navigate = useNavigate();
+    const theme = useTheme();
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -100,98 +118,130 @@ const VideoCard: React.FC<VideoCardProps> = ({
     // Get source icon
     const getSourceIcon = () => {
         if (video.source === 'bilibili') {
-            return (
-                <div className="source-icon bilibili-icon" title="Bilibili">
-                    B
-                </div>
-            );
+            return <OndemandVideo sx={{ color: '#23ade5' }} />; // Bilibili blue
         }
-        return (
-            <div className="source-icon youtube-icon" title="YouTube">
-                YT
-            </div>
-        );
+        return <YouTube sx={{ color: '#ff0000' }} />; // YouTube red
     };
 
     return (
         <>
-            <div className={`video-card ${isFirstInAnyCollection ? 'collection-first' : ''}`}>
-                {/* ... (rest of the video card JSX) ... */}
-                <div
-                    className="thumbnail-container clickable"
-                    onClick={handleVideoNavigation}
-                    aria-label={isFirstInAnyCollection
-                        ? `View collection: ${firstInCollectionNames[0]}${firstInCollectionNames.length > 1 ? ' and others' : ''}`
-                        : `Play ${video.title}`}
-                >
-                    <img
-                        src={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
-                        alt={`${video.title} thumbnail`}
-                        className="thumbnail"
-                        loading="lazy"
-                        onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.onerror = null;
-                            target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
-                        }}
-                    />
-                    {getSourceIcon()}
+            <Card
+                sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: theme.shadows[8],
+                        '& .delete-btn': {
+                            opacity: 1
+                        }
+                    },
+                    border: isFirstInAnyCollection ? `1px solid ${theme.palette.primary.main}` : 'none'
+                }}
+            >
+                <CardActionArea onClick={handleVideoNavigation} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                    <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
+                        <CardMedia
+                            component="img"
+                            image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                            alt={`${video.title} thumbnail`}
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                            }}
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                            }}
+                        />
 
-                    {/* Show part number for multi-part videos */}
-                    {video.partNumber && video.totalParts && video.totalParts > 1 && (
-                        <div className="part-badge">
-                            Part {video.partNumber}/{video.totalParts}
-                        </div>
-                    )}
+                        <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
+                            {getSourceIcon()}
+                        </Box>
 
-                    {/* Show collection badge if this is the first video in a collection */}
-                    {isFirstInAnyCollection && (
-                        <div className="collection-badge" title={`Collection${firstInCollectionNames.length > 1 ? 's' : ''}: ${firstInCollectionNames.join(', ')}`}>
-                            <span className="collection-icon">📁</span>
-                        </div>
-                    )}
-
-                    {/* Delete button overlay */}
-                    {showDeleteButton && onDeleteVideo && (
-                        <button
-                            className="card-delete-btn"
-                            onClick={handleDeleteClick}
-                            disabled={isDeleting}
-                            title="Delete video"
-                        >
-                            {isDeleting ? '...' : '×'}
-                        </button>
-                    )}
-                </div>
-                <div className="video-info">
-                    <h3
-                        className="video-title clickable"
-                        onClick={handleVideoNavigation}
-                    >
-                        {isFirstInAnyCollection ? (
-                            <>
-                                {firstInCollectionNames[0]}
-                                {firstInCollectionNames.length > 1 && <span className="more-collections"> +{firstInCollectionNames.length - 1}</span>}
-                            </>
-                        ) : (
-                            video.title
+                        {video.partNumber && video.totalParts && video.totalParts > 1 && (
+                            <Chip
+                                label={`Part ${video.partNumber}/${video.totalParts}`}
+                                size="small"
+                                color="primary"
+                                sx={{ position: 'absolute', bottom: 8, right: 8 }}
+                            />
                         )}
-                    </h3>
-                    <div className="video-meta">
-                        <span
-                            className="author-link"
-                            onClick={handleAuthorClick}
-                            role="button"
-                            tabIndex={0}
-                            aria-label={`View all videos by ${video.author}`}
-                        >
-                            {video.author}
-                        </span>
-                        <span className="video-date">{formatDate(video.date)}</span>
-                    </div>
 
-                </div>
-            </div>
+                        {isFirstInAnyCollection && (
+                            <Chip
+                                icon={<Folder />}
+                                label={firstInCollectionNames.length > 1 ? `${firstInCollectionNames[0]} +${firstInCollectionNames.length - 1}` : firstInCollectionNames[0]}
+                                color="secondary"
+                                size="small"
+                                sx={{ position: 'absolute', top: 8, left: 8 }}
+                            />
+                        )}
+                    </Box>
+
+                    <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                        <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {isFirstInAnyCollection ? (
+                                <>
+                                    {firstInCollectionNames[0]}
+                                    {firstInCollectionNames.length > 1 && <Typography component="span" color="text.secondary" sx={{ fontSize: 'inherit' }}> +{firstInCollectionNames.length - 1}</Typography>}
+                                </>
+                            ) : (
+                                video.title
+                            )}
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                onClick={handleAuthorClick}
+                                sx={{
+                                    cursor: 'pointer',
+                                    '&:hover': { color: 'primary.main' },
+                                    fontWeight: 500
+                                }}
+                            >
+                                {video.author}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {formatDate(video.date)}
+                            </Typography>
+                        </Box>
+                    </CardContent>
+                </CardActionArea>
+
+                {showDeleteButton && onDeleteVideo && (
+                    <IconButton
+                        className="delete-btn"
+                        onClick={handleDeleteClick}
+                        disabled={isDeleting}
+                        size="small"
+                        sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 40, // Positioned to the left of the source icon
+                            bgcolor: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            opacity: 0, // Hidden by default, shown on hover
+                            transition: 'opacity 0.2s',
+                            '&:hover': {
+                                bgcolor: 'error.main',
+                            }
+                        }}
+                    >
+                        <Delete fontSize="small" />
+                    </IconButton>
+                )}
+            </Card>
 
             <ConfirmationModal
                 isOpen={showDeleteModal}

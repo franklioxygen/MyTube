@@ -1,4 +1,16 @@
-import { useState } from 'react';
+import { ExpandLess, ExpandMore, Folder } from '@mui/icons-material';
+import {
+    Chip,
+    Collapse,
+    List,
+    ListItemButton,
+    ListItemText,
+    Paper,
+    Typography,
+    useMediaQuery,
+    useTheme
+} from '@mui/material';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Collection } from '../types';
 
@@ -7,42 +19,59 @@ interface CollectionsProps {
 }
 
 const Collections: React.FC<CollectionsProps> = ({ collections }) => {
-    const [isOpen, setIsOpen] = useState<boolean>(false);
+    const [isOpen, setIsOpen] = useState<boolean>(true);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-    const toggleDropdown = () => {
-        setIsOpen(!isOpen);
-    };
+    // Auto-collapse on mobile by default
+    useEffect(() => {
+        if (isMobile) {
+            setIsOpen(false);
+        } else {
+            setIsOpen(true);
+        }
+    }, [isMobile]);
 
     if (!collections || collections.length === 0) {
         return null;
     }
 
     return (
-        <div className="collections-container">
-            {/* Mobile dropdown toggle */}
-            <div className="collections-dropdown-toggle" onClick={toggleDropdown}>
-                <h3>Collections</h3>
-                <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
-            </div>
-
-            {/* Collections list - visible on desktop or when dropdown is open on mobile */}
-            <div className={`collections-list ${isOpen ? 'open' : ''}`}>
-                <h3 className="collections-title">Collections</h3>
-                <ul>
+        <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
+            <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                    Collections
+                </Typography>
+                {isOpen ? <ExpandLess /> : <ExpandMore />}
+            </ListItemButton>
+            <Collapse in={isOpen} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
                     {collections.map(collection => (
-                        <li key={collection.id} className="collection-item">
-                            <Link
-                                to={`/collection/${collection.id}`}
-                                className="collection-link"
-                                onClick={() => setIsOpen(false)} // Close dropdown when a collection is selected
-                            >
-                                {collection.name} ({collection.videos.length})
-                            </Link>
-                        </li>
+                        <ListItemButton
+                            key={collection.id}
+                            component={Link}
+                            to={`/collection/${collection.id}`}
+                            sx={{ pl: 2, borderRadius: 1 }}
+                        >
+                            <Folder fontSize="small" sx={{ mr: 1, color: 'secondary.main' }} />
+                            <ListItemText
+                                primary={collection.name}
+                                primaryTypographyProps={{
+                                    variant: 'body2',
+                                    noWrap: true
+                                }}
+                            />
+                            <Chip
+                                label={collection.videos.length}
+                                size="small"
+                                variant="outlined"
+                                sx={{ height: 20, minWidth: 20, ml: 1 }}
+                            />
+                        </ListItemButton>
                     ))}
-                </ul>
-            </div>
-        </div>
+                </List>
+            </Collapse>
+        </Paper>
     );
 };
 

@@ -1,3 +1,14 @@
+import { ArrowBack, Folder } from '@mui/icons-material';
+import {
+    Alert,
+    Avatar,
+    Box,
+    Button,
+    CircularProgress,
+    Container,
+    Grid,
+    Typography
+} from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
@@ -68,41 +79,62 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
     };
 
     if (loading) {
-        return <div className="loading">Loading collection...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading collection...</Typography>
+            </Box>
+        );
     }
 
     if (!collection) {
-        return <div className="error">Collection not found</div>;
+        return (
+            <Container sx={{ mt: 4 }}>
+                <Alert severity="error">Collection not found</Alert>
+            </Container>
+        );
     }
 
     return (
-        <div className="collection-page">
-            <div className="collection-header">
-                <button className="back-button" onClick={handleBack}>
-                    &larr; Back
-                </button>
-                <div className="collection-info">
-                    <h2 className="collection-title">Collection: {collection.name}</h2>
-                    <span className="video-count">{collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}</span>
-                </div>
-            </div>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', mr: 2 }}>
+                        <Folder fontSize="large" />
+                    </Avatar>
+                    <Box>
+                        <Typography variant="h4" component="h1" fontWeight="bold">
+                            {collection.name}
+                        </Typography>
+                        <Typography variant="subtitle1" color="text.secondary">
+                            {collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}
+                        </Typography>
+                    </Box>
+                </Box>
+                <Button
+                    variant="outlined"
+                    startIcon={<ArrowBack />}
+                    onClick={handleBack}
+                >
+                    Back
+                </Button>
+            </Box>
 
             {collectionVideos.length === 0 ? (
-                <div className="no-videos">
-                    <p>No videos in this collection.</p>
-                </div>
+                <Alert severity="info" variant="outlined">No videos in this collection.</Alert>
             ) : (
-                <div className="videos-grid">
+                <Grid container spacing={3}>
                     {collectionVideos.map(video => (
-                        <VideoCard
-                            key={video.id}
-                            video={video}
-                            collections={collections}
-                            onDeleteVideo={onDeleteVideo}
-                            showDeleteButton={true}
-                        />
+                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                            <VideoCard
+                                video={video}
+                                collections={collections}
+                                onDeleteVideo={onDeleteVideo}
+                                showDeleteButton={true}
+                            />
+                        </Grid>
                     ))}
-                </div>
+                </Grid>
             )}
 
             <DeleteCollectionModal
@@ -113,7 +145,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
                 collectionName={collection?.name || ''}
                 videoCount={collectionVideos.length}
             />
-        </div>
+        </Container>
     );
 };
 
