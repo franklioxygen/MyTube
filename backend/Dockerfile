@@ -13,6 +13,9 @@ RUN npm install
 
 COPY . .
 
+# Build TypeScript code
+RUN npm run build
+
 # Set environment variables
 ENV PORT=5551
 
@@ -21,4 +24,4 @@ RUN mkdir -p uploads/videos uploads/images data
 
 EXPOSE 5551
 
-CMD ["node", "server.js"] 
+CMD ["node", "dist/server.js"] 
