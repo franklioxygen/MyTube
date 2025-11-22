@@ -1,7 +1,8 @@
-const express = require("express");
+import express from "express";
+import * as collectionController from "../controllers/collectionController";
+import * as videoController from "../controllers/videoController";
+
 const router = express.Router();
-const videoController = require("../controllers/videoController");
-const collectionController = require("../controllers/collectionController");
 
 // Video routes
 router.get("/search", videoController.searchVideos);
@@ -19,4 +20,4 @@ router.post("/collections", collectionController.createCollection);
 router.put("/collections/:id", collectionController.updateCollection);
 router.delete("/collections/:id", collectionController.deleteCollection);
 
-module.exports = router;
+export default router;

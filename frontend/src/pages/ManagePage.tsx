@@ -1,20 +1,28 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-const ManagePage = ({ videos, onDeleteVideo, collections = [], onDeleteCollection }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [deletingId, setDeletingId] = useState(null);
-    const [collectionToDelete, setCollectionToDelete] = useState(null);
-    const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+interface ManagePageProps {
+    videos: Video[];
+    onDeleteVideo: (id: string) => Promise<any>;
+    collections: Collection[];
+    onDeleteCollection: (id: string, deleteVideos: boolean) => Promise<any>;
+}
+
+const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collections = [], onDeleteCollection }) => {
+    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
+    const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
 
     const filteredVideos = videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.author.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id: string) => {
         if (window.confirm('Are you sure you want to delete this video?')) {
             setDeletingId(id);
             await onDeleteVideo(id);
@@ -22,11 +30,11 @@ const ManagePage = ({ videos, onDeleteVideo, collections = [], onDeleteCollectio
         }
     };
 
-    const confirmDeleteCollection = (collection) => {
+    const confirmDeleteCollection = (collection: Collection) => {
         setCollectionToDelete(collection);
     };
 
-    const handleCollectionDelete = async (deleteVideos) => {
+    const handleCollectionDelete = async (deleteVideos: boolean) => {
         if (!collectionToDelete) return;
 
         setIsDeletingCollection(true);
@@ -35,7 +43,7 @@ const ManagePage = ({ videos, onDeleteVideo, collections = [], onDeleteCollectio
         setCollectionToDelete(null);
     };
 
-    const getThumbnailSrc = (video) => {
+    const getThumbnailSrc = (video: Video) => {
         if (video.thumbnailPath) {
             return `${BACKEND_URL}${video.thumbnailPath}`;
         }

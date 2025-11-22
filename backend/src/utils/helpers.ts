@@ -1,7 +1,7 @@
-const axios = require("axios");
+import axios from "axios";
 
 // Helper function to check if a string is a valid URL
-function isValidUrl(string) {
+export function isValidUrl(string: string): boolean {
   try {
     new URL(string);
     return true;
@@ -11,12 +11,12 @@ function isValidUrl(string) {
 }
 
 // Helper function to check if a URL is from Bilibili
-function isBilibiliUrl(url) {
+export function isBilibiliUrl(url: string): boolean {
   return url.includes("bilibili.com") || url.includes("b23.tv");
 }
 
 // Helper function to extract URL from text that might contain a title and URL
-function extractUrlFromText(text) {
+export function extractUrlFromText(text: string): string {
   // Regular expression to find URLs in text
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const matches = text.match(urlRegex);
@@ -29,7 +29,7 @@ function extractUrlFromText(text) {
 }
 
 // Helper function to resolve shortened URLs (like b23.tv)
-async function resolveShortUrl(url) {
+export async function resolveShortUrl(url: string): Promise<string> {
   try {
     console.log(`Resolving shortened URL: ${url}`);
 
@@ -44,14 +44,14 @@ async function resolveShortUrl(url) {
     console.log(`Resolved to: ${resolvedUrl}`);
 
     return resolvedUrl;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error resolving shortened URL: ${error.message}`);
     return url; // Return original URL if resolution fails
   }
 }
 
 // Helper function to trim Bilibili URL by removing query parameters
-function trimBilibiliUrl(url) {
+export function trimBilibiliUrl(url: string): string {
   try {
     // First, extract the video ID (BV or av format)
     const videoIdMatch = url.match(/\/video\/(BV[\w]+|av\d+)/i);
@@ -85,7 +85,7 @@ function trimBilibiliUrl(url) {
 }
 
 // Helper function to extract video ID from Bilibili URL
-function extractBilibiliVideoId(url) {
+export function extractBilibiliVideoId(url: string): string | null {
   // Extract BV ID from URL - works for both desktop and mobile URLs
   const bvMatch = url.match(/\/video\/(BV[\w]+)/i);
   if (bvMatch && bvMatch[1]) {
@@ -102,16 +102,19 @@ function extractBilibiliVideoId(url) {
 }
 
 // Helper function to create a safe filename that preserves non-Latin characters
-function sanitizeFilename(filename) {
+export function sanitizeFilename(filename: string): string {
+  // Remove hashtags (e.g. #tag)
+  const withoutHashtags = filename.replace(/#\S+/g, "").trim();
+
   // Replace only unsafe characters for filesystems
   // This preserves non-Latin characters like Chinese, Japanese, Korean, etc.
-  return filename
+  return withoutHashtags
     .replace(/[\/\\:*?"<>|]/g, "_") // Replace unsafe filesystem characters
     .replace(/\s+/g, "_"); // Replace spaces with underscores
 }
 
 // Helper function to extract user mid from Bilibili URL
-function extractBilibiliMid(url) {
+export function extractBilibiliMid(url: string): string | null {
   // Try to extract from space URL pattern: space.bilibili.com/{mid}
   const spaceMatch = url.match(/space\.bilibili\.com\/(\d+)/i);
   if (spaceMatch && spaceMatch[1]) {
@@ -129,7 +132,7 @@ function extractBilibiliMid(url) {
 }
 
 // Helper function to extract season_id from Bilibili URL
-function extractBilibiliSeasonId(url) {
+export function extractBilibiliSeasonId(url: string): string | null {
   try {
     const urlObj = new URL(url);
     const seasonId = urlObj.searchParams.get('season_id');
@@ -140,7 +143,7 @@ function extractBilibiliSeasonId(url) {
 }
 
 // Helper function to extract series_id from Bilibili URL
-function extractBilibiliSeriesId(url) {
+export function extractBilibiliSeriesId(url: string): string | null {
   try {
     const urlObj = new URL(url);
     const seriesId = urlObj.searchParams.get('series_id');
@@ -149,16 +152,3 @@ function extractBilibiliSeriesId(url) {
     return null;
   }
 }
-
-module.exports = {
-  isValidUrl,
-  isBilibiliUrl,
-  extractUrlFromText,
-  resolveShortUrl,
-  trimBilibiliUrl,
-  extractBilibiliVideoId,
-  sanitizeFilename,
-  extractBilibiliMid,
-  extractBilibiliSeasonId,
-  extractBilibiliSeriesId,
-};
