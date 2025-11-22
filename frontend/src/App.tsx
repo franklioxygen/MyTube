@@ -68,6 +68,21 @@ function App() {
     });
     const [isCheckingParts, setIsCheckingParts] = useState<boolean>(false);
 
+    // Theme state
+    const [theme, setTheme] = useState<string>(() => {
+        return localStorage.getItem('theme') || 'dark';
+    });
+
+    // Apply theme to body
+    useEffect(() => {
+        document.body.className = theme === 'light' ? 'light-mode' : '';
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    };
+
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
 
@@ -636,6 +651,8 @@ function App() {
                     isSearchMode={isSearchMode}
                     searchTerm={searchTerm}
                     onResetSearch={resetSearch}
+                    theme={theme}
+                    toggleTheme={toggleTheme}
                 />
 
                 {/* Bilibili Parts Modal */}

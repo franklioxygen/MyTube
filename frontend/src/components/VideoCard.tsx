@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Collection, Video } from '../types';
+import ConfirmationModal from './ConfirmationModal';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -19,6 +20,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 }) => {
     const navigate = useNavigate();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     // Format the date (assuming format YYYYMMDD from youtube-dl)
     const formatDate = (dateString: string) => {
@@ -44,20 +46,24 @@ const VideoCard: React.FC<VideoCardProps> = ({
         navigate(`/author/${encodeURIComponent(video.author)}`);
     };
 
-    // Handle delete click
-    const handleDeleteClick = async (e: React.MouseEvent) => {
-        e.stopPropagation();
+    // Handle confirm delete
+    const confirmDelete = async () => {
         if (!onDeleteVideo) return;
 
-        if (window.confirm(`Are you sure you want to delete "${video.title}"?`)) {
-            setIsDeleting(true);
-            try {
-                await onDeleteVideo(video.id);
-            } catch (error) {
-                console.error('Error deleting video:', error);
-                setIsDeleting(false);
-            }
+        setIsDeleting(true);
+        try {
+            await onDeleteVideo(video.id);
+        } catch (error) {
+            console.error('Error deleting video:', error);
+            setIsDeleting(false);
         }
+    };
+
+    // Handle delete click
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onDeleteVideo) return;
+        setShowDeleteModal(true);
     };
 
     // Find collections this video belongs to
@@ -108,82 +114,95 @@ const VideoCard: React.FC<VideoCardProps> = ({
     };
 
     return (
-        <div className={`video-card ${isFirstInAnyCollection ? 'collection-first' : ''}`}>
-            <div
-                className="thumbnail-container clickable"
-                onClick={handleVideoNavigation}
-                aria-label={isFirstInAnyCollection
-                    ? `View collection: ${firstInCollectionNames[0]}${firstInCollectionNames.length > 1 ? ' and others' : ''}`
-                    : `Play ${video.title}`}
-            >
-                <img
-                    src={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
-                    alt={`${video.title} thumbnail`}
-                    className="thumbnail"
-                    loading="lazy"
-                    onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.onerror = null;
-                        target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
-                    }}
-                />
-                {getSourceIcon()}
-
-                {/* Show part number for multi-part videos */}
-                {video.partNumber && video.totalParts && video.totalParts > 1 && (
-                    <div className="part-badge">
-                        Part {video.partNumber}/{video.totalParts}
-                    </div>
-                )}
-
-                {/* Show collection badge if this is the first video in a collection */}
-                {isFirstInAnyCollection && (
-                    <div className="collection-badge" title={`Collection${firstInCollectionNames.length > 1 ? 's' : ''}: ${firstInCollectionNames.join(', ')}`}>
-                        <span className="collection-icon">📁</span>
-                    </div>
-                )}
-
-                {/* Delete button overlay */}
-                {showDeleteButton && onDeleteVideo && (
-                    <button
-                        className="card-delete-btn"
-                        onClick={handleDeleteClick}
-                        disabled={isDeleting}
-                        title="Delete video"
-                    >
-                        {isDeleting ? '...' : '×'}
-                    </button>
-                )}
-            </div>
-            <div className="video-info">
-                <h3
-                    className="video-title clickable"
+        <>
+            <div className={`video-card ${isFirstInAnyCollection ? 'collection-first' : ''}`}>
+                {/* ... (rest of the video card JSX) ... */}
+                <div
+                    className="thumbnail-container clickable"
                     onClick={handleVideoNavigation}
+                    aria-label={isFirstInAnyCollection
+                        ? `View collection: ${firstInCollectionNames[0]}${firstInCollectionNames.length > 1 ? ' and others' : ''}`
+                        : `Play ${video.title}`}
                 >
-                    {isFirstInAnyCollection ? (
-                        <>
-                            {firstInCollectionNames[0]}
-                            {firstInCollectionNames.length > 1 && <span className="more-collections"> +{firstInCollectionNames.length - 1}</span>}
-                        </>
-                    ) : (
-                        video.title
-                    )}
-                </h3>
-                <div className="video-meta">
-                    <span
-                        className="author-link"
-                        onClick={handleAuthorClick}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`View all videos by ${video.author}`}
-                    >
-                        {video.author}
-                    </span>
-                    <span className="video-date">{formatDate(video.date)}</span>
-                </div>
+                    <img
+                        src={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                        alt={`${video.title} thumbnail`}
+                        className="thumbnail"
+                        loading="lazy"
+                        onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                        }}
+                    />
+                    {getSourceIcon()}
 
+                    {/* Show part number for multi-part videos */}
+                    {video.partNumber && video.totalParts && video.totalParts > 1 && (
+                        <div className="part-badge">
+                            Part {video.partNumber}/{video.totalParts}
+                        </div>
+                    )}
+
+                    {/* Show collection badge if this is the first video in a collection */}
+                    {isFirstInAnyCollection && (
+                        <div className="collection-badge" title={`Collection${firstInCollectionNames.length > 1 ? 's' : ''}: ${firstInCollectionNames.join(', ')}`}>
+                            <span className="collection-icon">📁</span>
+                        </div>
+                    )}
+
+                    {/* Delete button overlay */}
+                    {showDeleteButton && onDeleteVideo && (
+                        <button
+                            className="card-delete-btn"
+                            onClick={handleDeleteClick}
+                            disabled={isDeleting}
+                            title="Delete video"
+                        >
+                            {isDeleting ? '...' : '×'}
+                        </button>
+                    )}
+                </div>
+                <div className="video-info">
+                    <h3
+                        className="video-title clickable"
+                        onClick={handleVideoNavigation}
+                    >
+                        {isFirstInAnyCollection ? (
+                            <>
+                                {firstInCollectionNames[0]}
+                                {firstInCollectionNames.length > 1 && <span className="more-collections"> +{firstInCollectionNames.length - 1}</span>}
+                            </>
+                        ) : (
+                            video.title
+                        )}
+                    </h3>
+                    <div className="video-meta">
+                        <span
+                            className="author-link"
+                            onClick={handleAuthorClick}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`View all videos by ${video.author}`}
+                        >
+                            {video.author}
+                        </span>
+                        <span className="video-date">{formatDate(video.date)}</span>
+                    </div>
+
+                </div>
             </div>
-        </div>
+
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => setShowDeleteModal(false)}
+                onConfirm={confirmDelete}
+                title="Delete Video"
+                message={`Are you sure you want to delete "${video.title}"?`}
+                confirmText="Delete"
+                isDanger={true}
+            />
+        </>
     );
 };
 

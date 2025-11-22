@@ -35,21 +35,17 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
 
                     <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <button
-                            className="btn secondary-btn"
+                            className="btn secondary-btn glass-panel"
                             onClick={onDeleteCollectionOnly}
                             style={{
                                 width: '100%',
                                 padding: '12px',
                                 borderRadius: '8px',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                background: 'rgba(255, 255, 255, 0.05)',
                                 color: 'var(--text-color)',
                                 cursor: 'pointer',
-                                transition: 'all 0.2s ease'
                             }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
                         >
+
                             Delete Collection Only
                         </button>
                         {videoCount > 0 && (

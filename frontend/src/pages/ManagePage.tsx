@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -16,18 +17,27 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
+    const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
+    const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
 
     const filteredVideos = videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.author.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm('Are you sure you want to delete this video?')) {
-            setDeletingId(id);
-            await onDeleteVideo(id);
-            setDeletingId(null);
-        }
+    const confirmDeleteVideo = async () => {
+        if (!videoToDelete) return;
+
+        setDeletingId(videoToDelete);
+        await onDeleteVideo(videoToDelete);
+        setDeletingId(null);
+        setVideoToDelete(null);
+        setShowVideoDeleteModal(false); // Close the modal after deletion
+    };
+
+    const handleDelete = (id: string) => {
+        setVideoToDelete(id);
+        setShowVideoDeleteModal(true);
     };
 
     const confirmDeleteCollection = (collection: Collection) => {
@@ -96,7 +106,8 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                         disabled={isDeletingCollection}
                                         style={{
                                             width: '100%',
-                                            background: 'linear-gradient(135deg, #ff3e3e 0%, #ff6b6b 100%)'
+                                            background: 'linear-gradient(135deg, #ff3e3e 0%, #ff6b6b 100%)',
+                                            color: 'white'
                                         }}
                                     >
                                         {isDeletingCollection ? 'Deleting...' : '⚠️ Delete Collection & Videos'}
@@ -117,6 +128,19 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                     </div>
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={showVideoDeleteModal}
+                onClose={() => {
+                    setShowVideoDeleteModal(false);
+                    setVideoToDelete(null);
+                }}
+                onConfirm={confirmDeleteVideo}
+                title="Delete Video"
+                message="Are you sure you want to delete this video?"
+                confirmText="Delete"
+                isDanger={true}
+            />
 
             <div className="manage-section">
                 <h2>Collections ({collections.length})</h2>
