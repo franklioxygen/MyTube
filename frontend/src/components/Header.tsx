@@ -15,6 +15,8 @@ interface HeaderProps {
     isSearchMode?: boolean;
     searchTerm?: string;
     onResetSearch?: () => void;
+    theme: string;
+    toggleTheme: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -23,7 +25,9 @@ const Header: React.FC<HeaderProps> = ({
     activeDownloads = [],
     isSearchMode = false,
     searchTerm = '',
-    onResetSearch
+    onResetSearch,
+    theme,
+    toggleTheme
 }) => {
     const [videoUrl, setVideoUrl] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -98,10 +102,35 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header className="header">
             <div className="header-content">
-                <Link to="/" className="logo">
-                    <img src={logo} alt="MyTube Logo" className="logo-icon" />
-                    <span style={{ color: '#f0f0f0' }}>MyTube</span>
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <Link to="/" className="logo">
+                        <img src={logo} alt="MyTube Logo" className="logo-icon" />
+                        <span style={{ color: 'var(--text-color)' }}>MyTube</span>
+                    </Link>
+
+                    <button
+                        onClick={toggleTheme}
+                        className="theme-toggle-btn"
+                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            fontSize: '1.2rem',
+                            cursor: 'pointer',
+                            padding: '8px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-color)',
+                            transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(128, 128, 128, 0.1)'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                    </button>
+                </div>
 
                 <form className="url-form" onSubmit={handleSubmit}>
                     <div className="form-group">

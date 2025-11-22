@@ -17,7 +17,84 @@
   --spacing-md: 15px;
   --spacing-lg: 20px;
   --spacing-xl: 30px;
+  --input-height: 46px;
 }
+
+/* ... (lines 22-131 unchanged) ... */
+
+.url-input {
+  width: 100%;
+  height: var(--input-height);
+  padding: 0 20px;
+  border-radius: 24px 0 0 24px;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-light);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  min-width: 0;
+  /* Prevents flex item from overflowing */
+}
+
+/* ... (lines 145-156 unchanged) ... */
+
+.submit-btn {
+  height: var(--input-height);
+  padding: 0 24px;
+  background-color: var(--background-light);
+  border: 1px solid var(--border-color);
+  border-left: none;
+  border-radius: 0 24px 24px 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ... (lines 170-198 unchanged) ... */
+
+.downloads-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--background-light);
+  border: 1px solid var(--border-color);
+  padding: 0 16px;
+  height: var(--input-height);
+  border-radius: 23px;
+  /* Half of 46px */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 160px;
+}
+
+.light-mode {
+  --primary-color: #ff3e3e;
+  --primary-hover: #ff1a1a;
+  --secondary-color: #e0e0e0;
+  --text-color: #121212;
+  --text-secondary: #555555;
+  --background-dark: #f9f9f9;
+  --background-darker: #ffffff;
+  --background-lighter: #f0f0f0;
+  --card-background: #ffffff;
+  --border-color: #e0e0e0;
+  --hover-color: #f0f0f0;
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  --background-light: #f0f0f0;
+  /* Added for input backgrounds */
+  --text-primary: #121212;
+  /* Added for input text */
+}
+
+/* Default dark mode variables that were missing or hardcoded */
+:root {
+  --background-light: #2a2a2a;
+  --text-primary: #f0f0f0;
+}
+
 
 * {
   margin: 0;
@@ -93,7 +170,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 16px;
 }
 
 .form-group {
@@ -105,7 +182,8 @@ body {
 
 .url-input {
   width: 100%;
-  padding: 12px 20px;
+  height: var(--input-height);
+  padding: 0 20px;
   border-radius: 24px 0 0 24px;
   border: 1px solid var(--border-color);
   background-color: var(--background-light);
@@ -129,6 +207,7 @@ body {
 }
 
 .submit-btn {
+  height: var(--input-height);
   padding: 0 24px;
   background-color: var(--background-light);
   border: 1px solid var(--border-color);
@@ -164,8 +243,10 @@ body {
 /* Downloads Indicator */
 .downloads-indicator-container {
   position: relative;
-  margin-left: 10px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .downloads-summary {
@@ -174,8 +255,10 @@ body {
   gap: 8px;
   background-color: var(--background-light);
   border: 1px solid var(--border-color);
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 0 16px;
+  height: var(--input-height);
+  border-radius: 23px;
+  /* Half of 46px */
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -208,7 +291,7 @@ body {
   top: calc(100% + 10px);
   right: 0;
   width: 300px;
-  background-color: var(--background-card);
+  background-color: var(--card-background);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -456,7 +539,7 @@ body {
   font-weight: 700;
   line-height: 1.4;
   margin-bottom: 12px;
-  color: #fff;
+  color: var(--text-color);
 }
 
 .video-actions-row {
@@ -489,25 +572,37 @@ body {
 
 .btn-secondary {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--text-color);
 }
 
 .btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+.light-mode .btn-secondary {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.light-mode .btn-secondary:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 .btn-primary {
   background-color: var(--text-color);
-  color: #000;
+  color: var(--background-darker);
 }
 
 .btn-primary:hover {
-  background-color: #e0e0e0;
+  opacity: 0.9;
 }
 
 .btn-danger {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #ff3e3e;
+  color: var(--primary-color);
+}
+
+.light-mode .btn-danger {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .btn-danger:hover {
@@ -516,7 +611,7 @@ body {
 
 /* Channel/Description Box */
 .channel-desc-container {
-  background-color: #2a2a2a;
+  background-color: var(--background-light);
   border-radius: 12px;
   padding: 16px;
   margin-top: 16px;
@@ -549,7 +644,7 @@ body {
 .channel-name {
   font-weight: 600;
   font-size: 1rem;
-  color: #fff;
+  color: var(--text-color);
   text-decoration: none;
 }
 
@@ -565,7 +660,7 @@ body {
 .description-text {
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #fff;
+  color: var(--text-color);
   white-space: pre-wrap;
 }
 
@@ -582,7 +677,7 @@ body {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #fff;
+  color: var(--text-color);
 }
 
 .related-videos-list {
@@ -623,7 +718,7 @@ body {
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.4;
-  color: #fff;
+  color: var(--text-color);
   margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1134,6 +1229,21 @@ body {
   border-color: #ff3e3e;
 }
 
+.light-mode .glass-panel:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.glass-panel:focus {
+  outline: none;
+  border-color: rgba(62, 166, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.light-mode .glass-panel:focus {
+  border-color: rgba(62, 166, 255, 0.5);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 .video-link,
 .author-link {
   text-decoration: none;
@@ -1505,8 +1615,8 @@ body {
 }
 
 .modal-content {
-  background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   width: 100%;
   max-width: 550px;
@@ -1515,9 +1625,13 @@ body {
   overflow: visible;
 }
 
+.light-mode .modal-content {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1), 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
 .modal-header {
   padding: 24px 24px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1630,8 +1744,8 @@ body {
   padding: 20px 24px 24px;
   display: flex;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--background-lighter);
+  border-top: 1px solid var(--border-color);
 }
 
 .modal-footer .btn {
@@ -1670,14 +1784,14 @@ body {
 }
 
 .modal-footer .secondary-btn {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--background-light);
   color: var(--text-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
 }
 
 .modal-footer .secondary-btn:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.2);
+  background-color: var(--hover-color);
+  border-color: var(--border-color);
 }
 
 /* Responsive modal styles */

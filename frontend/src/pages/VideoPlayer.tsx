@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { Collection, Video } from '../types';
-
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -34,6 +34,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [newCollectionName, setNewCollectionName] = useState<string>('');
     const [selectedCollection, setSelectedCollection] = useState<string>('');
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
+
+    // Confirmation Modal State
+    const [confirmationModal, setConfirmationModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        confirmText: 'Confirm',
+        isDanger: false
+    });
 
     useEffect(() => {
         // Don't try to fetch the video if it's being deleted
@@ -110,12 +120,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         navigate(`/collection/${collectionId}`);
     };
 
-    const handleDelete = async () => {
+    const executeDelete = async () => {
         if (!id) return;
-
-        if (!window.confirm('Are you sure you want to delete this video?')) {
-            return;
-        }
 
         setIsDeleting(true);
         setDeleteError(null);
@@ -135,6 +141,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             console.error(err);
             setIsDeleting(false);
         }
+    };
+
+    const handleDelete = () => {
+        setConfirmationModal({
+            isOpen: true,
+            title: 'Delete Video',
+            message: 'Are you sure you want to delete this video?',
+            onConfirm: executeDelete,
+            confirmText: 'Delete',
+            isDanger: true
+        });
     };
 
     const handleAddToCollection = () => {
@@ -173,12 +190,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
     };
 
-    const handleRemoveFromCollection = async () => {
+    const executeRemoveFromCollection = async () => {
         if (!id) return;
-
-        if (!window.confirm('Are you sure you want to remove this video from the collection?')) {
-            return;
-        }
 
         try {
             await onRemoveFromCollection(id);
@@ -186,6 +199,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         } catch (error) {
             console.error('Error removing from collection:', error);
         }
+    };
+
+    const handleRemoveFromCollection = () => {
+        setConfirmationModal({
+            isOpen: true,
+            title: 'Remove from Collection',
+            message: 'Are you sure you want to remove this video from the collection?',
+            onConfirm: executeRemoveFromCollection,
+            confirmText: 'Remove',
+            isDanger: true
+        });
     };
 
     if (loading) {
@@ -255,24 +279,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </div>
 
                     {deleteError && (
-                        <div className="error-message" style={{ color: '#ff4d4d', marginTop: '10px' }}>
+                        <div className="error-message" style={{ color: 'var(--primary-color)', marginTop: '10px' }}>
                             {deleteError}
                         </div>
                     )}
                 </div>
 
                 <div className="channel-desc-container">
-                    <div className="video-stats" style={{ marginBottom: '8px', color: '#fff', fontWeight: 'bold' }}>
+                    <div className="video-stats" style={{ marginBottom: '8px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
                         {/* Views would go here */}
                         {formatDate(video.date)}
                     </div>
 
-                    <div className="description-text">
+                    <div className="description-text" style={{ color: 'var(--text-color)' }}>
                         {/* We don't have a real description, so we'll show some metadata */}
                         <p>Source: {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}</p>
                         {video.sourceUrl && (
                             <p>
-                                Original Link: <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3ea6ff' }}>{video.sourceUrl}</a>
+                                Original Link: <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-color)' }}>{video.sourceUrl}</a>
                             </p>
                         )}
                     </div>
@@ -375,34 +399,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                             <select
                                                 value={selectedCollection}
                                                 onChange={(e) => setSelectedCollection(e.target.value)}
+                                                className="glass-panel"
                                                 style={{
                                                     width: '100%',
                                                     padding: '12px 16px',
                                                     paddingRight: '40px',
-                                                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
                                                     borderRadius: '8px',
                                                     color: 'var(--text-color)',
                                                     fontSize: '1rem',
                                                     marginBottom: '0.8rem',
                                                     cursor: 'pointer',
                                                     appearance: 'none',
-                                                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                                                    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='var(--text-color)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                                                     backgroundRepeat: 'no-repeat',
                                                     backgroundPosition: 'right 12px center',
                                                     backgroundSize: '16px',
-                                                    transition: 'all 0.2s ease'
                                                 }}
-                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
                                             >
-                                                <option value="" style={{ color: 'black' }}>Select a collection</option>
+
+                                                <option value="" style={{ color: 'var(--text-color)', backgroundColor: 'var(--background-card)' }}>Select a collection</option>
                                                 {collections.map(collection => (
                                                     <option
                                                         key={collection.id}
                                                         value={collection.id}
                                                         disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
-                                                        style={{ color: 'black' }}
+                                                        style={{ color: 'var(--text-color)', backgroundColor: 'var(--background-card)' }}
                                                     >
                                                         {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
                                                     </option>
@@ -437,7 +458,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     </h3>
                                     <input
                                         type="text"
-                                        className="collection-input"
+                                        className="collection-input glass-panel"
                                         placeholder="Collection name"
                                         value={newCollectionName}
                                         onChange={(e) => setNewCollectionName(e.target.value)}
@@ -445,16 +466,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                         style={{
                                             width: '100%',
                                             padding: '12px 16px',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                            border: '1px solid rgba(255, 255, 255, 0.1)',
                                             borderRadius: '8px',
                                             color: 'var(--text-color)',
                                             fontSize: '1rem',
                                             marginBottom: '0.8rem',
-                                            transition: 'all 0.2s ease'
                                         }}
-                                        onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(62, 166, 255, 0.5)'}
-                                        onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
                                     />
                                     <button
                                         className="modal-btn primary-btn"
@@ -487,6 +503,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </div>
                 )
             }
+
+            <ConfirmationModal
+                isOpen={confirmationModal.isOpen}
+                onClose={() => setConfirmationModal({ ...confirmationModal, isOpen: false })}
+                onConfirm={confirmationModal.onConfirm}
+                title={confirmationModal.title}
+                message={confirmationModal.message}
+                confirmText={confirmationModal.confirmText}
+                isDanger={confirmationModal.isDanger}
+            />
         </div >
     );
 };
