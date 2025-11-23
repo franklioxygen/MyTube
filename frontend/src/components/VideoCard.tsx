@@ -13,6 +13,7 @@ import {
     Chip,
     IconButton,
     Typography,
+    useMediaQuery,
     useTheme
 } from '@mui/material';
 import { useState } from 'react';
@@ -39,6 +40,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 }) => {
     const navigate = useNavigate();
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -223,7 +225,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     </CardContent>
                 </CardActionArea>
 
-                {showDeleteButton && onDeleteVideo && (
+                {showDeleteButton && onDeleteVideo && !isMobile && (
                     <IconButton
                         className="delete-btn"
                         onClick={handleDeleteClick}
