@@ -731,7 +731,7 @@ function App() {
                                 type={bilibiliPartsInfo.type}
                             />
 
-                            <main className="main-content">
+                            <Box component="main" sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', px: { xs: 2, md: 4, lg: 8 } }}>
                                 <AnimatedRoutes
                                     videos={videos}
                                     loading={loading}
@@ -750,7 +750,7 @@ function App() {
                                     onRemoveFromCollection={handleRemoveFromCollection}
                                     onDeleteCollection={handleDeleteCollection}
                                 />
-                            </main>
+                            </Box>
 
                             <Footer />
                         </Box>
