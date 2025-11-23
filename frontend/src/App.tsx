@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
+import Footer from './components/Footer';
 import Header from './components/Header';
 import { useSnackbar } from './contexts/SnackbarContext';
 import AuthorVideos from './pages/AuthorVideos';
@@ -764,6 +765,7 @@ function App() {
                             />
                         </Routes>
                     </main>
+                    <Footer />
                 </div>
             </Router>
         </ThemeProvider>
