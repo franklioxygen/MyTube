@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -38,6 +39,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     showDeleteButton = false,
     disableCollectionGrouping = false
 }) => {
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -47,7 +49,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     // Format the date (assuming format YYYYMMDD from youtube-dl)
     const formatDate = (dateString: string) => {
         if (!dateString || dateString.length !== 8) {
-            return 'Unknown date';
+            return t('unknownDate');
         }
 
         const year = dateString.substring(0, 4);
@@ -175,7 +177,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
                         {video.partNumber && video.totalParts && video.totalParts > 1 && (
                             <Chip
-                                label={`Part ${video.partNumber}/${video.totalParts}`}
+                                label={`${t('part')} ${video.partNumber}/${video.totalParts}`}
                                 size="small"
                                 color="primary"
                                 sx={{ position: 'absolute', bottom: 8, right: 8 }}
@@ -253,9 +255,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 isOpen={showDeleteModal}
                 onClose={() => setShowDeleteModal(false)}
                 onConfirm={confirmDelete}
-                title="Delete Video"
-                message={`Are you sure you want to delete "${video.title}"?`}
-                confirmText="Delete"
+                title={t('deleteVideo')}
+                message={`${t('confirmDelete')} "${video.title}"?`}
+                confirmText={t('delete')}
                 isDanger={true}
             />
         </>

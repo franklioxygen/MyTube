@@ -10,8 +10,12 @@ import {
     CardContent,
     Container,
     Divider,
+    FormControl,
     FormControlLabel,
     Grid,
+    InputLabel,
+    MenuItem,
+    Select,
     Slider,
     Snackbar,
     Switch,
@@ -21,6 +25,7 @@ import {
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -31,6 +36,7 @@ interface Settings {
     defaultAutoPlay: boolean;
     defaultAutoLoop: boolean;
     maxConcurrentDownloads: number;
+    language: string;
 }
 
 const SettingsPage: React.FC = () => {
@@ -39,10 +45,12 @@ const SettingsPage: React.FC = () => {
         password: '',
         defaultAutoPlay: false,
         defaultAutoLoop: false,
-        maxConcurrentDownloads: 3
+        maxConcurrentDownloads: 3,
+        language: 'en'
     });
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+    const { t, setLanguage } = useLanguage();
 
     useEffect(() => {
         fetchSettings();
@@ -54,7 +62,7 @@ const SettingsPage: React.FC = () => {
             setSettings(response.data);
         } catch (error) {
             console.error('Error fetching settings:', error);
-            setMessage({ text: 'Failed to load settings', type: 'error' });
+            setMessage({ text: t('settingsFailed'), type: 'error' });
         } finally {
             // Loading finished
         }
@@ -70,13 +78,13 @@ const SettingsPage: React.FC = () => {
             }
 
             await axios.post(`${API_URL}/settings`, settingsToSend);
-            setMessage({ text: 'Settings saved successfully', type: 'success' });
+            setMessage({ text: t('settingsSaved'), type: 'success' });
 
             // Clear password field after save
             setSettings(prev => ({ ...prev, password: '', isPasswordSet: true }));
         } catch (error) {
             console.error('Error saving settings:', error);
-            setMessage({ text: 'Failed to save settings', type: 'error' });
+            setMessage({ text: t('settingsFailed'), type: 'error' });
         } finally {
             setSaving(false);
         }
@@ -84,30 +92,55 @@ const SettingsPage: React.FC = () => {
 
     const handleChange = (field: keyof Settings, value: any) => {
         setSettings(prev => ({ ...prev, [field]: value }));
+        if (field === 'language') {
+            setLanguage(value);
+        }
     };
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" fontWeight="bold">
-                    Settings
+                    {t('settings')}
                 </Typography>
                 <Button
                     component={Link}
-                    to="/manage"
+                    to="/"
                     variant="outlined"
                     startIcon={<ArrowBack />}
                 >
-                    Back to Manage
+                    {t('backToHome')}
                 </Button>
             </Box>
 
             <Card variant="outlined">
                 <CardContent>
                     <Grid container spacing={4}>
+                        {/* General Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('general')}</Typography>
+                            <Box sx={{ maxWidth: 400 }}>
+                                <FormControl fullWidth>
+                                    <InputLabel id="language-select-label">{t('language')}</InputLabel>
+                                    <Select
+                                        labelId="language-select-label"
+                                        id="language-select"
+                                        value={settings.language || 'en'}
+                                        label={t('language')}
+                                        onChange={(e) => handleChange('language', e.target.value)}
+                                    >
+                                        <MenuItem value="en">English</MenuItem>
+                                        <MenuItem value="zh">Chinese</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
                         {/* Security Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>Security</Typography>
+                            <Typography variant="h6" gutterBottom>{t('security')}</Typography>
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -115,21 +148,21 @@ const SettingsPage: React.FC = () => {
                                         onChange={(e) => handleChange('loginEnabled', e.target.checked)}
                                     />
                                 }
-                                label="Enable Login Protection"
+                                label={t('enableLogin')}
                             />
 
                             {settings.loginEnabled && (
                                 <Box sx={{ mt: 2, maxWidth: 400 }}>
                                     <TextField
                                         fullWidth
-                                        label="Password"
+                                        label={t('password')}
                                         type="password"
                                         value={settings.password || ''}
                                         onChange={(e) => handleChange('password', e.target.value)}
                                         helperText={
                                             settings.isPasswordSet
-                                                ? "Leave empty to keep current password, or type to change"
-                                                : "Set a password for accessing the application"
+                                                ? t('passwordHelper')
+                                                : t('passwordSetHelper')
                                         }
                                     />
                                 </Box>
@@ -140,7 +173,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Video Defaults */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>Video Player Defaults</Typography>
+                            <Typography variant="h6" gutterBottom>{t('videoDefaults')}</Typography>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 <FormControlLabel
                                     control={
@@ -149,7 +182,7 @@ const SettingsPage: React.FC = () => {
                                             onChange={(e) => handleChange('defaultAutoPlay', e.target.checked)}
                                         />
                                     }
-                                    label="Auto-play Videos"
+                                    label={t('autoPlay')}
                                 />
                                 <FormControlLabel
                                     control={
@@ -158,7 +191,7 @@ const SettingsPage: React.FC = () => {
                                             onChange={(e) => handleChange('defaultAutoLoop', e.target.checked)}
                                         />
                                     }
-                                    label="Auto-loop Videos"
+                                    label={t('autoLoop')}
                                 />
                             </Box>
                         </Grid>
@@ -167,9 +200,9 @@ const SettingsPage: React.FC = () => {
 
                         {/* Download Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>Download Settings</Typography>
+                            <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
                             <Typography gutterBottom>
-                                Max Concurrent Downloads: {settings.maxConcurrentDownloads}
+                                {t('maxConcurrent')}: {settings.maxConcurrentDownloads}
                             </Typography>
                             <Box sx={{ maxWidth: 400, px: 2 }}>
                                 <Slider
@@ -193,7 +226,7 @@ const SettingsPage: React.FC = () => {
                                     onClick={handleSave}
                                     disabled={saving}
                                 >
-                                    {saving ? 'Saving...' : 'Save Settings'}
+                                    {saving ? t('saving') : t('saveSettings')}
                                 </Button>
                             </Box>
                         </Grid>

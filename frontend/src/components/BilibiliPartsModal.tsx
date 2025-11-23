@@ -12,6 +12,7 @@ import {
     Typography
 } from '@mui/material';
 import { useState } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BilibiliPartsModalProps {
     isOpen: boolean;
@@ -34,6 +35,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     isLoading,
     type = 'parts'
 }) => {
+    const { t } = useLanguage();
     const [collectionName, setCollectionName] = useState<string>('');
 
     const handleDownloadAll = () => {
@@ -44,48 +46,48 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     const getHeaderText = () => {
         switch (type) {
             case 'collection':
-                return 'Bilibili Collection Detected';
+                return t('bilibiliCollectionDetected');
             case 'series':
-                return 'Bilibili Series Detected';
+                return t('bilibiliSeriesDetected');
             default:
-                return 'Multi-part Video Detected';
+                return t('multiPartVideoDetected');
         }
     };
 
     const getDescriptionText = () => {
         switch (type) {
             case 'collection':
-                return `This Bilibili collection has ${videosNumber} videos.`;
+                return t('collectionHasVideos', { count: videosNumber });
             case 'series':
-                return `This Bilibili series has ${videosNumber} videos.`;
+                return t('seriesHasVideos', { count: videosNumber });
             default:
-                return `This Bilibili video has ${videosNumber} parts.`;
+                return t('videoHasParts', { count: videosNumber });
         }
     };
 
     const getDownloadAllButtonText = () => {
-        if (isLoading) return 'Processing...';
+        if (isLoading) return t('processing');
 
         switch (type) {
             case 'collection':
-                return `Download All ${videosNumber} Videos`;
+                return t('downloadAllVideos', { count: videosNumber });
             case 'series':
-                return `Download All ${videosNumber} Videos`;
+                return t('downloadAllVideos', { count: videosNumber });
             default:
-                return `Download All ${videosNumber} Parts`;
+                return t('downloadAllParts', { count: videosNumber });
         }
     };
 
     const getCurrentButtonText = () => {
-        if (isLoading) return 'Processing...';
+        if (isLoading) return t('processing');
 
         switch (type) {
             case 'collection':
-                return 'Download This Video Only';
+                return t('downloadThisVideoOnly');
             case 'series':
-                return 'Download This Video Only';
+                return t('downloadThisVideoOnly');
             default:
-                return 'Download Current Part Only';
+                return t('downloadCurrentPartOnly');
         }
     };
 
@@ -118,22 +120,22 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                     {getDescriptionText()}
                 </DialogContentText>
                 <Typography variant="body2" gutterBottom>
-                    <strong>Title:</strong> {videoTitle}
+                    <strong>{t('title')}:</strong> {videoTitle}
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 2, mb: 1 }}>
-                    Would you like to download all {type === 'parts' ? 'parts' : 'videos'}?
+                    {type === 'parts' ? t('wouldYouLikeToDownloadAllParts') : t('wouldYouLikeToDownloadAllVideos')}
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
                     <TextField
                         fullWidth
-                        label="Collection Name"
+                        label={t('collectionName')}
                         variant="outlined"
                         value={collectionName}
                         onChange={(e) => setCollectionName(e.target.value)}
                         placeholder={videoTitle}
                         disabled={isLoading}
-                        helperText={`All ${type === 'parts' ? 'parts' : 'videos'} will be added to this collection`}
+                        helperText={type === 'parts' ? t('allPartsAddedToCollection') : t('allVideosAddedToCollection')}
                     />
                 </Box>
             </DialogContent>

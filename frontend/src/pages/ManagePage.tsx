@@ -29,6 +29,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -42,6 +43,7 @@ interface ManagePageProps {
 
 const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collections = [], onDeleteCollection }) => {
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const { t } = useLanguage();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
@@ -71,11 +73,11 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
         videoPage * ITEMS_PER_PAGE
     );
 
-    const handleCollectionPageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    const handleCollectionPageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setCollectionPage(value);
     };
 
-    const handleVideoPageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    const handleVideoPageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setVideoPage(value);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -126,7 +128,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" fontWeight="bold">
-                    Manage Content
+                    {t('manageContent')}
                 </Typography>
                 <Button
                     component={Link}
@@ -134,7 +136,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                     variant="outlined"
                     startIcon={<ArrowBack />}
                 >
-                    Back to Home
+                    {t('backToHome')}
                 </Button>
             </Box>
 
@@ -154,16 +156,16 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                     setVideoToDelete(null);
                 }}
                 onConfirm={confirmDeleteVideo}
-                title="Delete Video"
-                message="Are you sure you want to delete this video?"
-                confirmText="Delete"
+                title={t('deleteVideo')}
+                message={t('confirmDelete')}
+                confirmText={t('delete')}
                 isDanger={true}
             />
 
             <Box sx={{ mb: 6 }}>
                 <Typography variant="h5" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
                     <Folder sx={{ mr: 1, color: 'secondary.main' }} />
-                    Collections ({collections.length})
+                    {t('collections')} ({collections.length})
                 </Typography>
 
                 {collections.length > 0 ? (
@@ -171,10 +173,10 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Name</TableCell>
-                                    <TableCell>Videos</TableCell>
-                                    <TableCell>Created</TableCell>
-                                    <TableCell align="right">Actions</TableCell>
+                                    <TableCell>{t('name')}</TableCell>
+                                    <TableCell>{t('videos')}</TableCell>
+                                    <TableCell>{t('created')}</TableCell>
+                                    <TableCell align="right">{t('actions')}</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -186,7 +188,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                         <TableCell>{collection.videos.length} videos</TableCell>
                                         <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell align="right">
-                                            <Tooltip title="Delete Collection">
+                                            <Tooltip title={t('deleteCollection')}>
                                                 <IconButton
                                                     color="error"
                                                     onClick={() => confirmDeleteCollection(collection)}
@@ -202,7 +204,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                         </Table>
                     </TableContainer>
                 ) : (
-                    <Alert severity="info" variant="outlined">No collections found.</Alert>
+                    <Alert severity="info" variant="outlined">{t('noCollections')}</Alert>
                 )}
 
                 {totalCollectionPages > 1 && (
@@ -223,7 +225,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
                         <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
-                        Videos ({filteredVideos.length})
+                        {t('videos')} ({filteredVideos.length})
                     </Typography>
                     <TextField
                         placeholder="Search videos..."
@@ -246,10 +248,10 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Thumbnail</TableCell>
-                                    <TableCell>Title</TableCell>
-                                    <TableCell>Author</TableCell>
-                                    <TableCell align="right">Actions</TableCell>
+                                    <TableCell>{t('thumbnail')}</TableCell>
+                                    <TableCell>{t('title')}</TableCell>
+                                    <TableCell>{t('author')}</TableCell>
+                                    <TableCell align="right">{t('actions')}</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -268,7 +270,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                         </TableCell>
                                         <TableCell>{video.author}</TableCell>
                                         <TableCell align="right">
-                                            <Tooltip title="Delete Video">
+                                            <Tooltip title={t('deleteVideo')}>
                                                 <IconButton
                                                     color="error"
                                                     onClick={() => handleDelete(video.id)}
@@ -284,7 +286,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                         </Table>
                     </TableContainer>
                 ) : (
-                    <Alert severity="info" variant="outlined">No videos found matching your search.</Alert>
+                    <Alert severity="info" variant="outlined">{t('noVideosFoundMatching')}</Alert>
                 )}
             </Box>
 

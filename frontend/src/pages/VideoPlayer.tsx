@@ -1,6 +1,7 @@
 import {
     Add,
     Delete,
+    Download,
     FastForward,
     FastRewind,
     Folder,
@@ -30,6 +31,7 @@ import {
     Grid,
     InputLabel,
     MenuItem,
+    Rating,
     Select,
     Stack,
     TextField,
@@ -41,6 +43,7 @@ import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Comment, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -67,6 +70,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const { t } = useLanguage();
 
     const [video, setVideo] = useState<Video | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -90,7 +94,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         title: '',
         message: '',
         onConfirm: () => { },
-        confirmText: 'Confirm',
+        confirmText: t('confirm'),
         isDanger: false
     });
 
@@ -143,7 +147,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 setError(null);
             } catch (err) {
                 console.error('Error fetching video:', err);
-                setError('Video not found or could not be loaded.');
+                setError(t('videoNotFoundOrLoaded'));
 
                 // Redirect to home after 3 seconds if video not found
                 setTimeout(() => {
@@ -252,11 +256,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 // Navigate to home immediately after successful deletion
                 navigate('/', { replace: true });
             } else {
-                setDeleteError(result.error || 'Failed to delete video');
+                setDeleteError(result.error || t('deleteFailed'));
                 setIsDeleting(false);
             }
         } catch (err) {
-            setDeleteError('An unexpected error occurred while deleting the video.');
+            setDeleteError(t('unexpectedErrorOccurred'));
             console.error(err);
             setIsDeleting(false);
         }
@@ -265,10 +269,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleDelete = () => {
         setConfirmationModal({
             isOpen: true,
-            title: 'Delete Video',
-            message: 'Are you sure you want to delete this video?',
+            title: t('deleteVideo'),
+            message: t('confirmDelete'),
             onConfirm: executeDelete,
-            confirmText: 'Delete',
+            confirmText: t('delete'),
             isDanger: true
         });
     };
@@ -323,19 +327,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleRemoveFromCollection = () => {
         setConfirmationModal({
             isOpen: true,
-            title: 'Remove from Collection',
-            message: 'Are you sure you want to remove this video from the collection?',
+            title: t('removeFromCollection'),
+            message: t('confirmRemoveFromCollection'),
             onConfirm: executeRemoveFromCollection,
-            confirmText: 'Remove',
+            confirmText: t('remove'),
             isDanger: true
         });
+    };
+
+    const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
+        if (!newValue || !id) return;
+
+        try {
+            await axios.post(`${API_URL}/videos/${id}/rate`, { rating: newValue });
+            setVideo(prev => prev ? { ...prev, rating: newValue } : null);
+        } catch (error) {
+            console.error('Error updating rating:', error);
+        }
     };
 
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading video...</Typography>
+                <Typography sx={{ ml: 2 }}>{t('loadingVideo')}</Typography>
             </Box>
         );
     }
@@ -343,7 +358,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (error || !video) {
         return (
             <Container sx={{ mt: 4 }}>
-                <Alert severity="error">{error || 'Video not found'}</Alert>
+                <Alert severity="error">{error || t('videoNotFound')}</Alert>
             </Container>
         );
     }
@@ -386,7 +401,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                         startIcon={isPlaying ? <Pause /> : <PlayArrow />}
                                         fullWidth={isMobile}
                                     >
-                                        {isPlaying ? "Pause" : "Play"}
+                                        {isPlaying ? t('paused') : t('playing')}
                                     </Button>
 
                                     <Button
@@ -396,7 +411,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                         startIcon={<Loop />}
                                         fullWidth={isMobile}
                                     >
-                                        Loop {isLooping ? "On" : "Off"}
+                                        {t('loop')} {isLooping ? t('on') : t('off')}
                                     </Button>
                                 </Stack>
 
@@ -423,6 +438,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
                             {video.title}
                         </Typography>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Rating
+                                value={video.rating || 0}
+                                onChange={handleRatingChange}
+                            />
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                {video.rating ? `(${video.rating})` : t('rateThisVideo')}
+                            </Typography>
+                        </Box>
 
                         <Stack
                             direction={{ xs: 'column', sm: 'row' }}
@@ -456,7 +481,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     startIcon={<Add />}
                                     onClick={handleAddToCollection}
                                 >
-                                    Add to Collection
+                                    {t('addToCollection')}
                                 </Button>
                                 <Button
                                     variant="outlined"
@@ -465,7 +490,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     onClick={handleDelete}
                                     disabled={isDeleting}
                                 >
-                                    {isDeleting ? 'Deleting...' : 'Delete'}
+                                    {isDeleting ? t('deleting') : t('delete')}
                                 </Button>
                             </Stack>
                         </Stack>
@@ -483,23 +508,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 {video.sourceUrl && (
                                     <Typography variant="body2">
                                         <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none' }}>
-                                            <strong>Original Link</strong>
+                                            <strong>{t('originalLink')}</strong>
+                                        </a>
+                                    </Typography>
+                                )}
+                                {video.videoPath && (
+                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <a href={`${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                                            <Download fontSize="small" sx={{ mr: 0.5 }} />
+                                            <strong>{t('download')}</strong>
                                         </a>
                                     </Typography>
                                 )}
                                 <Typography variant="body2">
-                                    <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
+                                    <strong>{t('source')}</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
                                 </Typography>
                                 {video.addedAt && (
                                     <Typography variant="body2">
-                                        <strong>Added Date:</strong> {new Date(video.addedAt).toLocaleDateString()}
+                                        <strong>{t('addedDate')}</strong> {new Date(video.addedAt).toLocaleDateString()}
                                     </Typography>
                                 )}
                             </Stack>
 
                             {videoCollections.length > 0 && (
                                 <Box sx={{ mt: 2 }}>
-                                    <Typography variant="subtitle2" gutterBottom>Collections:</Typography>
+                                    <Typography variant="subtitle2" gutterBottom>{t('collections')}:</Typography>
                                     <Stack direction="row" spacing={1} flexWrap="wrap">
                                         {videoCollections.map(c => (
                                             <Chip
@@ -521,7 +554,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         {/* Comments Section */}
                         <Box sx={{ mt: 4 }}>
                             <Typography variant="h6" gutterBottom fontWeight="bold">
-                                Latest Comments
+                                {t('latestComments')}
                             </Typography>
 
                             {loadingComments ? (
@@ -553,7 +586,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 </Stack>
                             ) : (
                                 <Typography variant="body2" color="text.secondary">
-                                    No comments available.
+                                    {t('noComments')}
                                 </Typography>
                             )}
                         </Box>
@@ -562,7 +595,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                 {/* Sidebar Column - Up Next */}
                 <Grid size={{ xs: 12, lg: 3 }}>
-                    <Typography variant="h6" gutterBottom fontWeight="bold">Up Next</Typography>
+                    <Typography variant="h6" gutterBottom fontWeight="bold">{t('upNext')}</Typography>
                     <Stack spacing={2}>
                         {relatedVideos.map(relatedVideo => (
                             <Card
@@ -612,7 +645,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             </Card>
                         ))}
                         {relatedVideos.length === 0 && (
-                            <Typography variant="body2" color="text.secondary">No other videos available</Typography>
+                            <Typography variant="body2" color="text.secondary">{t('noOtherVideos')}</Typography>
                         )}
                     </Stack>
                 </Grid>
@@ -620,30 +653,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             {/* Collection Modal */}
             <Dialog open={showCollectionModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-                <DialogTitle>Add to Collection</DialogTitle>
+                <DialogTitle>{t('addToCollection')}</DialogTitle>
                 <DialogContent dividers>
                     {videoCollections.length > 0 && (
                         <Alert severity="info" sx={{ mb: 3 }} action={
                             <Button color="error" size="small" onClick={handleRemoveFromCollection}>
-                                Remove
+                                {t('remove')}
                             </Button>
                         }>
-                            Currently in: <strong>{videoCollections[0].name}</strong>
+                            {t('currentlyIn')} <strong>{videoCollections[0].name}</strong>
                             <Typography variant="caption" display="block">
-                                Adding to a different collection will remove it from the current one.
+                                {t('collectionWarning')}
                             </Typography>
                         </Alert>
                     )}
 
                     {collections && collections.length > 0 && (
                         <Box sx={{ mb: 4 }}>
-                            <Typography variant="subtitle2" gutterBottom>Add to existing collection:</Typography>
+                            <Typography variant="subtitle2" gutterBottom>{t('addToExistingCollection')}</Typography>
                             <Stack direction="row" spacing={2}>
                                 <FormControl fullWidth size="small">
-                                    <InputLabel>Select a collection</InputLabel>
+                                    <InputLabel>{t('selectCollection')}</InputLabel>
                                     <Select
                                         value={selectedCollection}
-                                        label="Select a collection"
+                                        label={t('selectCollection')}
                                         onChange={(e) => setSelectedCollection(e.target.value)}
                                     >
                                         {collections.map(collection => (
@@ -652,7 +685,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                                 value={collection.id}
                                                 disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
                                             >
-                                                {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? '(Current)' : ''}
+                                                {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? t('current') : ''}
                                             </MenuItem>
                                         ))}
                                     </Select>
@@ -662,19 +695,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     onClick={handleAddToExistingCollection}
                                     disabled={!selectedCollection}
                                 >
-                                    Add
+                                    {t('add')}
                                 </Button>
                             </Stack>
                         </Box>
                     )}
 
                     <Box>
-                        <Typography variant="subtitle2" gutterBottom>Create new collection:</Typography>
+                        <Typography variant="subtitle2" gutterBottom>{t('createNewCollection')}</Typography>
                         <Stack direction="row" spacing={2}>
                             <TextField
                                 fullWidth
                                 size="small"
-                                label="Collection name"
+                                label={t('collectionName')}
                                 value={newCollectionName}
                                 onChange={(e) => setNewCollectionName(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
@@ -684,13 +717,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 onClick={handleCreateCollection}
                                 disabled={!newCollectionName.trim()}
                             >
-                                Create
+                                {t('create')}
                             </Button>
                         </Stack>
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseModal} color="inherit">Cancel</Button>
+                    <Button onClick={handleCloseModal} color="inherit">{t('cancel')}</Button>
                 </DialogActions>
             </Dialog>
 

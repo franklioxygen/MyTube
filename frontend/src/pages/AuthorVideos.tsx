@@ -13,6 +13,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -24,6 +25,7 @@ interface AuthorVideosProps {
 }
 
 const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDeleteVideo, collections = [] }) => {
+    const { t } = useLanguage();
     const { author } = useParams<{ author: string }>();
     const navigate = useNavigate();
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
@@ -72,7 +74,7 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading videos...</Typography>
+                <Typography sx={{ ml: 2 }}>{t('loadingVideos')}</Typography>
             </Box>
         );
     }
@@ -80,7 +82,7 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
     if (error) {
         return (
             <Container sx={{ mt: 4 }}>
-                <Alert severity="error">{error}</Alert>
+                <Alert severity="error">{t('loadVideosError')}</Alert>
             </Container>
         );
     }
@@ -114,10 +116,10 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
                     </Avatar>
                     <Box>
                         <Typography variant="h4" component="h1" fontWeight="bold">
-                            {author ? decodeURIComponent(author) : 'Unknown'}
+                            {author ? decodeURIComponent(author) : t('unknownAuthor')}
                         </Typography>
                         <Typography variant="subtitle1" color="text.secondary">
-                            {authorVideos.length} video{authorVideos.length !== 1 ? 's' : ''}
+                            {authorVideos.length} {t('videos')}
                         </Typography>
                     </Box>
                 </Box>
@@ -126,12 +128,12 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
                     startIcon={<ArrowBack />}
                     onClick={handleBack}
                 >
-                    Back
+                    {t('back')}
                 </Button>
             </Box>
 
             {authorVideos.length === 0 ? (
-                <Alert severity="info" variant="outlined">No videos found for this author.</Alert>
+                <Alert severity="info" variant="outlined">{t('noVideosForAuthor')}</Alert>
             ) : (
                 <Grid container spacing={3}>
                     {filteredVideos.map(video => (

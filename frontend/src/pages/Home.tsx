@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
 import VideoCard from '../components/VideoCard';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 
 interface SearchResult {
@@ -62,6 +63,7 @@ const Home: React.FC<HomeProps> = ({
 }) => {
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
+    const { t } = useLanguage();
 
     // Reset page when filters change (though currently no filters other than search which is separate)
     useEffect(() => {
@@ -76,7 +78,7 @@ const Home: React.FC<HomeProps> = ({
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading videos...</Typography>
+                <Typography sx={{ ml: 2 }}>{t('loadingVideos')}</Typography>
             </Box>
         );
     }
@@ -148,7 +150,7 @@ const Home: React.FC<HomeProps> = ({
             <Container maxWidth="xl" sx={{ py: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                     <Typography variant="h4" component="h1" fontWeight="bold">
-                        Search Results for "{searchTerm}"
+                        {t('searchResultsFor')} "{searchTerm}"
                     </Typography>
                     {onResetSearch && (
                         <Button
@@ -156,7 +158,7 @@ const Home: React.FC<HomeProps> = ({
                             startIcon={<ArrowBack />}
                             onClick={onResetSearch}
                         >
-                            Back to Home
+                            {t('backToHome')}
                         </Button>
                     )}
                 </Box>
@@ -164,7 +166,7 @@ const Home: React.FC<HomeProps> = ({
                 {/* Local Video Results */}
                 <Box sx={{ mb: 6 }}>
                     <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: 'primary.main' }}>
-                        From Your Library
+                        {t('fromYourLibrary')}
                     </Typography>
                     {hasLocalResults ? (
                         <Grid container spacing={3}>
@@ -180,20 +182,20 @@ const Home: React.FC<HomeProps> = ({
                             ))}
                         </Grid>
                     ) : (
-                        <Typography color="text.secondary">No matching videos in your library.</Typography>
+                        <Typography color="text.secondary">{t('noMatchingVideos')}</Typography>
                     )}
                 </Box>
 
                 {/* YouTube Search Results */}
                 <Box>
                     <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: '#ff0000' }}>
-                        From YouTube
+                        {t('fromYouTube')}
                     </Typography>
 
                     {youtubeLoading ? (
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
                             <CircularProgress color="error" />
-                            <Typography sx={{ mt: 2 }}>Loading YouTube results...</Typography>
+                            <Typography sx={{ mt: 2 }}>{t('loadingYouTubeResults')}</Typography>
                         </Box>
                     ) : hasYouTubeResults ? (
                         <Grid container spacing={3}>
@@ -232,7 +234,7 @@ const Home: React.FC<HomeProps> = ({
                                             </Typography>
                                             {result.viewCount && (
                                                 <Typography variant="caption" color="text.secondary">
-                                                    {formatViewCount(result.viewCount)} views
+                                                    {formatViewCount(result.viewCount)} {t('views')}
                                                 </Typography>
                                             )}
                                         </CardContent>
@@ -243,7 +245,7 @@ const Home: React.FC<HomeProps> = ({
                                                 startIcon={<Download />}
                                                 onClick={() => onDownload(result.sourceUrl, result.title)}
                                             >
-                                                Download
+                                                {t('download')}
                                             </Button>
                                         </CardActions>
                                     </Card>
@@ -251,7 +253,7 @@ const Home: React.FC<HomeProps> = ({
                             ))}
                         </Grid>
                     ) : (
-                        <Typography color="text.secondary">No YouTube results found.</Typography>
+                        <Typography color="text.secondary">{t('noYouTubeResults')}</Typography>
                     )}
                 </Box>
             </Container>
@@ -264,7 +266,7 @@ const Home: React.FC<HomeProps> = ({
             {videoArray.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                     <Typography variant="h5" color="text.secondary">
-                        No videos yet. Submit a YouTube URL to download your first video!
+                        {t('noVideosYet')}
                     </Typography>
                 </Box>
             ) : (

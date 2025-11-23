@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection } from '../types';
 
 interface CollectionsProps {
@@ -20,6 +21,7 @@ interface CollectionsProps {
 }
 
 const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) => {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -41,7 +43,7 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
             <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-                    Collections
+                    {t('collections')}
                 </Typography>
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>

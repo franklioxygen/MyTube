@@ -15,6 +15,7 @@ import {
     Box,
     Button,
     CircularProgress,
+    ClickAwayListener,
     Collapse,
     IconButton,
     InputAdornment,
@@ -31,6 +32,7 @@ import {
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 import AuthorsList from './AuthorsList';
 import Collections from './Collections';
@@ -77,6 +79,7 @@ const Header: React.FC<HeaderProps> = ({
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { t } = useLanguage();
 
 
     const isDownloading = activeDownloads.length > 0;
@@ -105,7 +108,7 @@ const Header: React.FC<HeaderProps> = ({
         e.preventDefault();
 
         if (!videoUrl.trim()) {
-            setError('Please enter a video URL or search term');
+            setError(t('pleaseEnterUrlOrSearchTerm'));
             return;
         }
 
@@ -145,7 +148,7 @@ const Header: React.FC<HeaderProps> = ({
                 }
             }
         } catch (err) {
-            setError('An unexpected error occurred. Please try again.');
+            setError(t('unexpectedErrorOccurred'));
             console.error(err);
         } finally {
             setIsSubmitting(false);
@@ -162,7 +165,7 @@ const Header: React.FC<HeaderProps> = ({
 
     const renderActionButtons = () => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Upload Video">
+            <Tooltip title={t('uploadVideo')}>
                 <IconButton color="inherit" onClick={() => setUploadModalOpen(true)} sx={{ mr: 1 }}>
                     <CloudUpload />
                 </IconButton>
@@ -223,15 +226,17 @@ const Header: React.FC<HeaderProps> = ({
                 {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
 
-            <Tooltip title="Manage">
-                <IconButton
-                    color="inherit"
-                    onClick={handleManageClick}
-                    sx={{ ml: 1 }}
-                >
-                    <Settings />
-                </IconButton>
-            </Tooltip>
+            {!isMobile && (
+                <Tooltip title={t('manage')}>
+                    <IconButton
+                        color="inherit"
+                        onClick={handleManageClick}
+                        sx={{ ml: 1 }}
+                    >
+                        <Settings />
+                    </IconButton>
+                </Tooltip>
+            )}
             <Menu
                 anchorEl={manageAnchorEl}
                 open={Boolean(manageAnchorEl)}
@@ -260,10 +265,10 @@ const Header: React.FC<HeaderProps> = ({
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
                 <MenuItem onClick={() => { handleManageClose(); navigate('/manage'); }}>
-                    <VideoLibrary sx={{ mr: 2 }} /> Manage Content
+                    <VideoLibrary sx={{ mr: 2 }} /> {t('manageContent')}
                 </MenuItem>
                 <MenuItem onClick={() => { handleManageClose(); navigate('/settings'); }}>
-                    <Settings sx={{ mr: 2 }} /> Settings
+                    <Settings sx={{ mr: 2 }} /> {t('settings')}
                 </MenuItem>
             </Menu>
         </Box>
@@ -274,7 +279,7 @@ const Header: React.FC<HeaderProps> = ({
             <TextField
                 fullWidth
                 variant="outlined"
-                placeholder="Enter YouTube/Bilibili URL or search term"
+                placeholder={t('enterUrlOrSearchTerm')}
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 disabled={isSubmitting}
@@ -306,63 +311,52 @@ const Header: React.FC<HeaderProps> = ({
     );
 
     return (
-        <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-            <Toolbar sx={{ flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', py: isMobile ? 1 : 0 }}>
-                {/* Top Bar for Mobile / Main Bar for Desktop */}
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto', flexGrow: isMobile ? 0 : 0, mr: isMobile ? 0 : 2 }}>
-                    <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>
-                        <img src={logo} alt="MyTube Logo" height={40} />
-                        <Typography variant="h5" sx={{ ml: 1, fontWeight: 'bold' }}>
-                            MyTube
-                        </Typography>
-                    </Link>
+        <ClickAwayListener onClickAway={() => setMobileMenuOpen(false)}>
+            <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+                <Toolbar sx={{ flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', py: isMobile ? 1 : 0 }}>
+                    {/* Top Bar for Mobile / Main Bar for Desktop */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto', flexGrow: isMobile ? 0 : 0, mr: isMobile ? 0 : 2 }}>
+                        <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>
+                            <img src={logo} alt="MyTube Logo" height={40} />
+                            <Typography variant="h5" sx={{ ml: 1, fontWeight: 'bold' }}>
+                                {t('myTube')}
+                            </Typography>
+                        </Link>
 
-                    {isMobile && (
-                        <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                            <MenuIcon />
-                        </IconButton>
+                        {isMobile && (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                {renderActionButtons()}
+                                <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                                    <MenuIcon />
+                                </IconButton>
+                            </Box>
+                        )}
+                    </Box>
+
+                    {/* Desktop Layout */}
+                    {!isMobile && (
+                        <>
+                            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
+                                {renderSearchInput()}
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                                {renderActionButtons()}
+                            </Box>
+                        </>
                     )}
-                </Box>
 
-                {/* Desktop Layout */}
-                {!isMobile && (
-                    <>
-                        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
-                            {renderSearchInput()}
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-                            {renderActionButtons()}
-                        </Box>
-                    </>
-                )}
-
-                {/* Mobile Dropdown Layout */}
-                {isMobile && (
-                    <Collapse in={mobileMenuOpen} sx={{ width: '100%' }}>
-                        <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
-                            <Stack spacing={2} sx={{ py: 2 }}>
-                                {/* Row 1: Search Input */}
-                                <Box>
-                                    {renderSearchInput()}
-                                </Box>
-                                {/* Row 2: Action Buttons */}
-                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                    {renderActionButtons()}
-                                </Box>
-
-                                {/* Mobile Navigation Items */}
-                                <Box sx={{ mt: 2 }}>
-                                    <Collections
-                                        collections={collections}
-                                        onItemClick={() => setMobileMenuOpen(false)}
-                                    />
-                                    <Box sx={{ mt: 2 }}>
-                                        <AuthorsList
-                                            videos={videos}
-                                            onItemClick={() => setMobileMenuOpen(false)}
-                                        />
+                    {/* Mobile Dropdown Layout */}
+                    {isMobile && (
+                        <Collapse in={mobileMenuOpen} sx={{ width: '100%' }}>
+                            <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                                <Stack spacing={2} sx={{ py: 2 }}>
+                                    {/* Row 1: Search Input */}
+                                    <Box>
+                                        {renderSearchInput()}
                                     </Box>
-                                    <Box sx={{ mt: 3, textAlign: 'center', mb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+                                    {/* Mobile Navigation Buttons - Moved under search */}
+                                    <Box sx={{ display: 'flex', gap: 2 }}>
                                         <Button
                                             component={Link}
                                             to="/manage"
@@ -371,7 +365,7 @@ const Header: React.FC<HeaderProps> = ({
                                             onClick={() => setMobileMenuOpen(false)}
                                             startIcon={<VideoLibrary />}
                                         >
-                                            Manage Videos
+                                            {t('manageVideos')}
                                         </Button>
                                         <Button
                                             component={Link}
@@ -381,22 +375,46 @@ const Header: React.FC<HeaderProps> = ({
                                             onClick={() => setMobileMenuOpen(false)}
                                             startIcon={<Settings />}
                                         >
-                                            Settings
+                                            {t('settings')}
                                         </Button>
                                     </Box>
-                                </Box>
-                            </Stack>
-                        </Box>
-                    </Collapse>
-                )}
-            </Toolbar>
 
-            <UploadModal
-                open={uploadModalOpen}
-                onClose={() => setUploadModalOpen(false)}
-                onUploadSuccess={handleUploadSuccess}
-            />
-        </AppBar>
+                                    {/* Row 2: Action Buttons - Removed from here for mobile */}
+                                    {/* <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                    {renderActionButtons()}
+                                </Box> */}
+
+                                    {/* Mobile Navigation Items */}
+                                    <Box sx={{ mt: 2 }}>
+                                        <Collections
+                                            collections={collections}
+                                            onItemClick={() => setMobileMenuOpen(false)}
+                                        />
+                                        <Box sx={{ mt: 2 }}>
+                                            <AuthorsList
+                                                videos={videos}
+                                                onItemClick={() => setMobileMenuOpen(false)}
+                                            />
+                                        </Box>
+                                    </Box>
+                                </Stack>
+                            </Box>
+                        </Collapse>
+                    )}
+                </Toolbar>
+
+                <UploadModal
+                    open={uploadModalOpen}
+                    onClose={() => setUploadModalOpen(false)}
+                    onUploadSuccess={handleUploadSuccess}
+                />
+                <UploadModal
+                    open={uploadModalOpen}
+                    onClose={() => setUploadModalOpen(false)}
+                    onUploadSuccess={handleUploadSuccess}
+                />
+            </AppBar>
+        </ClickAwayListener>
     );
 };
 

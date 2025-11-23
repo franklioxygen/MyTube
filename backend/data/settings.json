@@ -1,8 +1,9 @@
 {
-  "loginEnabled": false,
+  "loginEnabled": true,
   "defaultAutoPlay": false,
   "defaultAutoLoop": false,
   "maxConcurrentDownloads": 3,
   "isPasswordSet": true,
-  "password": "$2b$10$1vONfSGZSusSlGf3Vng2UOX8lcmRxtHkTm6eWnP8FlJ19E.QHKNC."
+  "language": "en",
+  "password": "$2b$10$4g06vnvfzqN8Pnm.1JEqkO8D9lNE.QGg4/AA1rQm9ipjmtJQN7VDO"
 }

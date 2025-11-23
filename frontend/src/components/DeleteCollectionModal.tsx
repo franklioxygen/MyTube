@@ -21,6 +21,8 @@ interface DeleteCollectionModalProps {
     videoCount: number;
 }
 
+import { useLanguage } from '../contexts/LanguageContext';
+
 const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
     isOpen,
     onClose,
@@ -29,6 +31,7 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
     collectionName,
     videoCount
 }) => {
+    const { t } = useLanguage();
     return (
         <Dialog
             open={isOpen}
@@ -41,7 +44,7 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
         >
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    Delete Collection
+                    {t('deleteCollectionTitle')}
                 </Typography>
                 <IconButton
                     aria-label="close"
@@ -55,10 +58,10 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
             </DialogTitle>
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
-                    Are you sure you want to delete the collection <strong>"{collectionName}"</strong>?
+                    {t('deleteCollectionConfirmation')} <strong>"{collectionName}"</strong>?
                 </DialogContentText>
                 <DialogContentText sx={{ mb: 3 }}>
-                    This collection contains <strong>{videoCount}</strong> video{videoCount !== 1 ? 's' : ''}.
+                    {t('collectionContains')} <strong>{videoCount}</strong> {t('videos')}.
                 </DialogContentText>
 
                 <Stack spacing={2}>
@@ -69,7 +72,7 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
                         fullWidth
                         sx={{ justifyContent: 'center', py: 1.5 }}
                     >
-                        Delete Collection Only
+                        {t('deleteCollectionOnly')}
                     </Button>
 
                     {videoCount > 0 && (
@@ -86,14 +89,14 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
                                 boxShadow: (theme) => `0 4px 12px ${theme.palette.error.main}40`
                             }}
                         >
-                            Delete Collection & All {videoCount} Videos
+                            {t('deleteCollectionAndVideos')}
                         </Button>
                     )}
                 </Stack>
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
                 <Button onClick={onClose} color="inherit">
-                    Cancel
+                    {t('cancel')}
                 </Button>
             </DialogActions>
         </Dialog>

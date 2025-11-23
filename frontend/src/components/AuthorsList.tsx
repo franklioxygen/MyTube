@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Video } from '../types';
 
 interface AuthorsListProps {
@@ -19,6 +20,7 @@ interface AuthorsListProps {
 }
 
 const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const [authors, setAuthors] = useState<string[]>([]);
     const theme = useTheme();
@@ -54,7 +56,7 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
         <Paper elevation={0} sx={{ bgcolor: 'transparent' }}>
             <ListItemButton onClick={() => setIsOpen(!isOpen)} sx={{ borderRadius: 1 }}>
                 <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-                    Authors
+                    {t('authors')}
                 </Typography>
                 {isOpen ? <ExpandLess /> : <ExpandMore />}
             </ListItemButton>

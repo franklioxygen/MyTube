@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { useState } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -24,6 +25,7 @@ interface UploadModalProps {
 }
 
 const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSuccess }) => {
+    const { t } = useLanguage();
     const [file, setFile] = useState<File | null>(null);
     const [title, setTitle] = useState<string>('');
     const [author, setAuthor] = useState<string>('Admin');
@@ -43,7 +45,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
 
     const handleUpload = async () => {
         if (!file) {
-            setError('Please select a video file');
+            setError(t('pleaseSelectVideo'));
             return;
         }
 
@@ -71,7 +73,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
             handleClose();
         } catch (err: any) {
             console.error('Upload failed:', err);
-            setError(err.response?.data?.error || 'Failed to upload video');
+            setError(err.response?.data?.error || t('failedToUpload'));
         } finally {
             setUploading(false);
         }
@@ -88,7 +90,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
 
     return (
         <Dialog open={open} onClose={!uploading ? handleClose : undefined} maxWidth="sm" fullWidth>
-            <DialogTitle>Upload Video</DialogTitle>
+            <DialogTitle>{t('uploadVideo')}</DialogTitle>
             <DialogContent>
                 <Stack spacing={3} sx={{ mt: 1 }}>
                     <Button
@@ -98,7 +100,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         fullWidth
                         sx={{ height: 100, borderStyle: 'dashed' }}
                     >
-                        {file ? file.name : 'Select Video File'}
+                        {file ? file.name : t('selectVideoFile')}
                         <input
                             type="file"
                             hidden
@@ -108,7 +110,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                     </Button>
 
                     <TextField
-                        label="Title"
+                        label={t('title')}
                         fullWidth
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
@@ -116,7 +118,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                     />
 
                     <TextField
-                        label="Author"
+                        label={t('author')}
                         fullWidth
                         value={author}
                         onChange={(e) => setAuthor(e.target.value)}
@@ -133,20 +135,20 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         <Box sx={{ width: '100%' }}>
                             <LinearProgress variant="determinate" value={progress} />
                             <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 1 }}>
-                                Uploading... {progress}%
+                                {t('uploading')} {progress}%
                             </Typography>
                         </Box>
                     )}
                 </Stack>
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} disabled={uploading}>Cancel</Button>
+                <Button onClick={handleClose} disabled={uploading}>{t('cancel')}</Button>
                 <Button
                     onClick={handleUpload}
                     variant="contained"
                     disabled={!file || uploading}
                 >
-                    {uploading ? <CircularProgress size={24} /> : 'Upload'}
+                    {uploading ? <CircularProgress size={24} /> : t('upload')}
                 </Button>
             </DialogActions>
         </Dialog>

@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import React, { useState } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -24,6 +25,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const { t } = useLanguage();
 
     // Use dark theme for login page to match app style
     const theme = getTheme('dark');
@@ -38,14 +40,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             if (response.data.success) {
                 onLoginSuccess();
             } else {
-                setError('Incorrect password');
+                setError(t('incorrectPassword'));
             }
         } catch (err: any) {
             console.error('Login error:', err);
             if (err.response && err.response.status === 401) {
-                setError('Incorrect password');
+                setError(t('incorrectPassword'));
             } else {
-                setError('Failed to verify password. Please try again.');
+                setError(t('loginFailed'));
             }
         } finally {
             setLoading(false);
@@ -68,7 +70,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         <LockOutlined />
                     </Avatar>
                     <Typography component="h1" variant="h5">
-                        Sign in
+                        {t('signIn')}
                     </Typography>
                     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
                         <TextField
@@ -76,13 +78,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                             required
                             fullWidth
                             name="password"
-                            label="Password"
+                            label={t('password')}
                             type="password"
                             id="password"
                             autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             autoFocus
+                            helperText={t('defaultPasswordHint') || "Default password: 123"}
                         />
                         {error && (
                             <Alert severity="error" sx={{ mt: 2 }}>
@@ -96,7 +99,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                             sx={{ mt: 3, mb: 2 }}
                             disabled={loading}
                         >
-                            {loading ? 'Verifying...' : 'Sign In'}
+                            {loading ? t('verifying') : t('signIn')}
                         </Button>
                     </Box>
                 </Box>
