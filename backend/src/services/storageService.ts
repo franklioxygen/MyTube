@@ -32,10 +32,16 @@ export interface DownloadInfo {
   id: string;
   title: string;
   timestamp: number;
+  filename?: string;
+  totalSize?: string;
+  downloadedSize?: string;
+  progress?: number;
+  speed?: string;
 }
 
 export interface DownloadStatus {
   activeDownloads: DownloadInfo[];
+  queuedDownloads: DownloadInfo[];
 }
 
 // Initialize storage directories and files
@@ -45,12 +51,32 @@ export function initializeStorage(): void {
   fs.ensureDirSync(IMAGES_DIR);
   fs.ensureDirSync(DATA_DIR);
 
-  // Initialize status.json if it doesn't exist
+  // Initialize status.json if it doesn't exist, or reset active downloads if it does
   if (!fs.existsSync(STATUS_DATA_PATH)) {
     fs.writeFileSync(
       STATUS_DATA_PATH,
-      JSON.stringify({ activeDownloads: [] }, null, 2)
+      JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
     );
+  } else {
+    // If it exists, we should clear active downloads because the server is just starting up
+    // so no downloads can be active yet.
+    try {
+      const status = JSON.parse(fs.readFileSync(STATUS_DATA_PATH, "utf8"));
+      status.activeDownloads = [];
+      // We keep queued downloads as they might still be valid to process later
+      // (though currently we don't auto-resume them, but we shouldn't delete them)
+      if (!status.queuedDownloads) status.queuedDownloads = [];
+      
+      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+      console.log("Cleared active downloads on startup");
+    } catch (error) {
+      console.error("Error resetting active downloads:", error);
+      // Re-create if corrupt
+      fs.writeFileSync(
+        STATUS_DATA_PATH,
+        JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
+      );
+    }
   }
 }
 
@@ -67,6 +93,13 @@ export function addActiveDownload(id: string, title: string): void {
     };
 
     if (existingIndex >= 0) {
+      // Preserve existing progress info if just updating title/timestamp
+      downloadInfo.filename = status.activeDownloads[existingIndex].filename;
+      downloadInfo.totalSize = status.activeDownloads[existingIndex].totalSize;
+      downloadInfo.downloadedSize = status.activeDownloads[existingIndex].downloadedSize;
+      downloadInfo.progress = status.activeDownloads[existingIndex].progress;
+      downloadInfo.speed = status.activeDownloads[existingIndex].speed;
+      
       status.activeDownloads[existingIndex] = downloadInfo;
     } else {
       status.activeDownloads.push(downloadInfo);
@@ -76,6 +109,25 @@ export function addActiveDownload(id: string, title: string): void {
     console.log(`Added/Updated active download: ${title} (${id})`);
   } catch (error) {
     console.error("Error adding active download:", error);
+  }
+}
+
+// Update an active download with partial info
+export function updateActiveDownload(id: string, updates: Partial<DownloadInfo>): void {
+  try {
+    const status = getDownloadStatus();
+    const existingIndex = status.activeDownloads.findIndex((d) => d.id === id);
+
+    if (existingIndex >= 0) {
+      status.activeDownloads[existingIndex] = {
+        ...status.activeDownloads[existingIndex],
+        ...updates,
+        timestamp: Date.now() // Update timestamp to prevent stale removal
+      };
+      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+    }
+  } catch (error) {
+    console.error("Error updating active download:", error);
   }
 }
 
@@ -95,10 +147,21 @@ export function removeActiveDownload(id: string): void {
   }
 }
 
+// Set queued downloads
+export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
+  try {
+    const status = getDownloadStatus();
+    status.queuedDownloads = queuedDownloads;
+    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+  } catch (error) {
+    console.error("Error setting queued downloads:", error);
+  }
+}
+
 // Get download status
 export function getDownloadStatus(): DownloadStatus {
   if (!fs.existsSync(STATUS_DATA_PATH)) {
-    const initialStatus: DownloadStatus = { activeDownloads: [] };
+    const initialStatus: DownloadStatus = { activeDownloads: [], queuedDownloads: [] };
     fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(initialStatus, null, 2));
     return initialStatus;
   }
@@ -108,10 +171,9 @@ export function getDownloadStatus(): DownloadStatus {
       fs.readFileSync(STATUS_DATA_PATH, "utf8")
     );
 
-    // Ensure activeDownloads exists
-    if (!status.activeDownloads) {
-      status.activeDownloads = [];
-    }
+    // Ensure arrays exist
+    if (!status.activeDownloads) status.activeDownloads = [];
+    if (!status.queuedDownloads) status.queuedDownloads = [];
 
     // Check for stale downloads (older than 30 minutes)
     const now = Date.now();
@@ -128,7 +190,7 @@ export function getDownloadStatus(): DownloadStatus {
     return status;
   } catch (error) {
     console.error("Error reading download status:", error);
-    return { activeDownloads: [] };
+    return { activeDownloads: [], queuedDownloads: [] };
   }
 }
 

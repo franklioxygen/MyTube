@@ -42,12 +42,18 @@ interface DownloadInfo {
     id: string;
     title: string;
     timestamp?: number;
+    filename?: string;
+    totalSize?: string;
+    downloadedSize?: string;
+    progress?: number;
+    speed?: string;
 }
 
 interface HeaderProps {
     onSubmit: (url: string) => Promise<any>;
     onSearch: (term: string) => Promise<any>;
     activeDownloads?: DownloadInfo[];
+    queuedDownloads?: DownloadInfo[];
     isSearchMode?: boolean;
     searchTerm?: string;
     onResetSearch?: () => void;
@@ -61,6 +67,7 @@ const Header: React.FC<HeaderProps> = ({
     onSubmit,
     onSearch,
     activeDownloads = [],
+    queuedDownloads = [],
     isSearchMode = false,
     searchTerm = '',
     onResetSearch,
@@ -82,11 +89,11 @@ const Header: React.FC<HeaderProps> = ({
     const { t } = useLanguage();
 
 
-    const isDownloading = activeDownloads.length > 0;
+    const isDownloading = activeDownloads.length > 0 || queuedDownloads.length > 0;
 
     useEffect(() => {
-        console.log('Header props:', { activeDownloads });
-    }, [activeDownloads]);
+        console.log('Header props:', { activeDownloads, queuedDownloads });
+    }, [activeDownloads, queuedDownloads]);
 
     const handleDownloadsClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
@@ -114,7 +121,8 @@ const Header: React.FC<HeaderProps> = ({
 
         const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
         const bilibiliRegex = /^(https?:\/\/)?(www\.)?(bilibili\.com|b23\.tv)\/.+$/;
-        const isUrl = youtubeRegex.test(videoUrl) || bilibiliRegex.test(videoUrl);
+        const missavRegex = /^(https?:\/\/)?(www\.)?(missav\.(ai|ws|com))\/.+$/;
+        const isUrl = youtubeRegex.test(videoUrl) || bilibiliRegex.test(videoUrl) || missavRegex.test(videoUrl);
 
         setError('');
         setIsSubmitting(true);
@@ -174,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({
             {isDownloading && (
                 <>
                     <IconButton color="inherit" onClick={handleDownloadsClick}>
-                        <Badge badgeContent={activeDownloads.length} color="secondary">
+                        <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">
                             <Download />
                         </Badge>
                     </IconButton>
@@ -188,6 +196,7 @@ const Header: React.FC<HeaderProps> = ({
                                 overflow: 'visible',
                                 filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                                 mt: 1.5,
+                                width: 320,
                                 '& .MuiAvatar-root': {
                                     width: 32,
                                     height: 32,
@@ -212,13 +221,66 @@ const Header: React.FC<HeaderProps> = ({
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                     >
                         {activeDownloads.map((download) => (
-                            <MenuItem key={download.id}>
-                                <CircularProgress size={20} sx={{ mr: 2 }} />
-                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                    {download.title}
-                                </Typography>
+                            <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                    <CircularProgress
+                                        variant={download.progress ? "determinate" : "indeterminate"}
+                                        value={download.progress || 0}
+                                        size={20}
+                                        sx={{ mr: 2, flexShrink: 0 }}
+                                    />
+                                    <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                                        <Typography variant="body2" noWrap sx={{ fontWeight: 'bold' }}>
+                                            {download.filename || download.title}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {download.progress ? `${download.progress.toFixed(1)}%` : 'Downloading...'}
+                                            </Typography>
+                                            {download.totalSize && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {download.totalSize}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                        {download.speed && (
+                                            <Typography variant="caption" color="text.secondary" display="block">
+                                                {download.speed}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </Box>
                             </MenuItem>
                         ))}
+
+                        {queuedDownloads.length > 0 && (
+                            <>
+                                <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                                        {t('queued')} ({queuedDownloads.length})
+                                    </Typography>
+                                </Box>
+                                {queuedDownloads.map((download) => (
+                                    <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5, opacity: 0.7 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                            <CircularProgress
+                                                variant="indeterminate"
+                                                size={16}
+                                                sx={{ mr: 2, flexShrink: 0, color: 'text.disabled' }}
+                                            />
+                                            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                                                <Typography variant="body2" noWrap>
+                                                    {download.title}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {t('waitingInQueue')}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </>
+                        )}
                     </Menu>
                 </>
             )}

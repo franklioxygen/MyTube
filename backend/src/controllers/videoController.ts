@@ -82,6 +82,8 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
       initialTitle = "YouTube Video";
     } else if (isBilibiliUrl(videoUrl)) {
       initialTitle = "Bilibili Video";
+    } else if (videoUrl.includes("missav")) {
+      initialTitle = "MissAV Video";
     }
 
     // Generate a unique ID for this download task
@@ -212,9 +214,13 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
             throw new Error(result.error || "Failed to download Bilibili video");
           }
         }
+      } else if (videoUrl.includes("missav")) {
+        // MissAV download
+        const videoData = await downloadService.downloadMissAVVideo(videoUrl, downloadId);
+        return { success: true, video: videoData };
       } else {
         // YouTube download
-        const videoData = await downloadService.downloadYouTubeVideo(videoUrl);
+        const videoData = await downloadService.downloadYouTubeVideo(videoUrl, downloadId);
         return { success: true, video: videoData };
       }
     };

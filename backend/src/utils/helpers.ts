@@ -106,9 +106,24 @@ export function sanitizeFilename(filename: string): string {
   // Remove hashtags (e.g. #tag)
   const withoutHashtags = filename.replace(/#\S+/g, "").trim();
 
+  // Replace full-width punctuation with standard equivalents or underscores
+  const sanitized = withoutHashtags
+    .replace(/？/g, "_")
+    .replace(/！/g, "_")
+    .replace(/：/g, "_")
+    .replace(/“/g, "_")
+    .replace(/”/g, "_")
+    .replace(/，/g, "_")
+    .replace(/。/g, "_")
+    .replace(/、/g, "_")
+    .replace(/【/g, "_")
+    .replace(/】/g, "_")
+    .replace(/《/g, "_")
+    .replace(/》/g, "_");
+
   // Replace only unsafe characters for filesystems
   // This preserves non-Latin characters like Chinese, Japanese, Korean, etc.
-  return withoutHashtags
+  return sanitized
     .replace(/[\/\\:*?"<>|]/g, "_") // Replace unsafe filesystem characters
     .replace(/\s+/g, "_"); // Replace spaces with underscores
 }
