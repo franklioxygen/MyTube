@@ -142,6 +142,7 @@ export const translations = {
         // Video Card
         unknownDate: "Unknown date",
         part: "Part",
+        collection: "Collection",
         
         // Upload Modal
         selectVideoFile: "Select Video File",
@@ -311,6 +312,7 @@ export const translations = {
         // Video Card
         unknownDate: "未知日期",
         part: "分P",
+        collection: "合集",
         
         // Upload Modal
         selectVideoFile: "选择视频文件",
