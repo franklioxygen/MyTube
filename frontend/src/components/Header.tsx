@@ -4,6 +4,7 @@ import {
     Clear,
     CloudUpload,
     Download,
+    Menu as MenuIcon,
     Search
 } from '@mui/icons-material';
 import {
@@ -12,14 +13,18 @@ import {
     Box,
     Button,
     CircularProgress,
+    Collapse,
     IconButton,
     InputAdornment,
     Menu,
     MenuItem,
+    Stack,
     TextField,
     Toolbar,
     Tooltip,
-    Typography
+    Typography,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -58,7 +63,10 @@ const Header: React.FC<HeaderProps> = ({
     const [error, setError] = useState<string>('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
     const navigate = useNavigate();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
 
     const isDownloading = activeDownloads.length > 0;
@@ -95,10 +103,12 @@ const Header: React.FC<HeaderProps> = ({
                 const result = await onSubmit(videoUrl);
                 if (result.success) {
                     setVideoUrl('');
+                    setMobileMenuOpen(false);
                 } else if (result.isSearchTerm) {
                     const searchResult = await onSearch(videoUrl);
                     if (searchResult.success) {
                         setVideoUrl('');
+                        setMobileMenuOpen(false);
                         navigate('/');
                     } else {
                         setError(searchResult.error);
@@ -110,6 +120,7 @@ const Header: React.FC<HeaderProps> = ({
                 const result = await onSearch(videoUrl);
                 if (result.success) {
                     setVideoUrl('');
+                    setMobileMenuOpen(false);
                     navigate('/');
                 } else {
                     setError(result.error);
@@ -124,11 +135,6 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const handleUploadSuccess = () => {
-        // Refresh the home page to show the new video
-        // If we are already on home, we might need to trigger a refresh. 
-        // For now, navigating to / usually triggers a re-render if the component fetches on mount.
-        // If not, we might need a context or prop to trigger refresh.
-        // Assuming Home component fetches on mount.
         if (window.location.pathname === '/') {
             window.location.reload();
         } else {
@@ -136,114 +142,153 @@ const Header: React.FC<HeaderProps> = ({
         }
     };
 
+    const renderActionButtons = () => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip title="Upload Video">
+                <IconButton color="inherit" onClick={() => setUploadModalOpen(true)} sx={{ mr: 1 }}>
+                    <CloudUpload />
+                </IconButton>
+            </Tooltip>
+
+            {isDownloading && (
+                <>
+                    <IconButton color="inherit" onClick={handleDownloadsClick}>
+                        <Badge badgeContent={activeDownloads.length} color="secondary">
+                            <Download />
+                        </Badge>
+                    </IconButton>
+                    <Menu
+                        anchorEl={anchorEl}
+                        open={Boolean(anchorEl)}
+                        onClose={handleDownloadsClose}
+                        PaperProps={{
+                            elevation: 0,
+                            sx: {
+                                overflow: 'visible',
+                                filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                                mt: 1.5,
+                                '& .MuiAvatar-root': {
+                                    width: 32,
+                                    height: 32,
+                                    ml: -0.5,
+                                    mr: 1,
+                                },
+                                '&:before': {
+                                    content: '""',
+                                    display: 'block',
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 14,
+                                    width: 10,
+                                    height: 10,
+                                    bgcolor: 'background.paper',
+                                    transform: 'translateY(-50%) rotate(45deg)',
+                                    zIndex: 0,
+                                },
+                            },
+                        }}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    >
+                        {activeDownloads.map((download) => (
+                            <MenuItem key={download.id}>
+                                <CircularProgress size={20} sx={{ mr: 2 }} />
+                                <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                    {download.title}
+                                </Typography>
+                            </MenuItem>
+                        ))}
+                    </Menu>
+                </>
+            )}
+            <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
+                {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+            </IconButton>
+        </Box>
+    );
+
+    const renderSearchInput = () => (
+        <Box component="form" onSubmit={handleSubmit} sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Enter YouTube/Bilibili URL or search term"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                disabled={isSubmitting}
+                error={!!error}
+                helperText={error}
+                size="small"
+                InputProps={{
+                    endAdornment: (
+                        <InputAdornment position="end">
+                            {isSearchMode && searchTerm && (
+                                <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
+                                    <Clear />
+                                </IconButton>
+                            )}
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                disabled={isSubmitting}
+                                sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
+                            >
+                                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                            </Button>
+                        </InputAdornment>
+                    ),
+                    sx: { pr: 0, borderRadius: 2 }
+                }}
+            />
+        </Box>
+    );
+
     return (
         <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-            <Toolbar>
-                <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 0, mr: 2 }}>
+            <Toolbar sx={{ flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', py: isMobile ? 1 : 0 }}>
+                {/* Top Bar for Mobile / Main Bar for Desktop */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto', flexGrow: isMobile ? 0 : 0, mr: isMobile ? 0 : 2 }}>
                     <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>
                         <img src={logo} alt="MyTube Logo" height={40} />
                         <Typography variant="h5" sx={{ ml: 1, fontWeight: 'bold' }}>
                             MyTube
                         </Typography>
                     </Link>
-                </Box>
 
-                <Box component="form" onSubmit={handleSubmit} sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
-                    <TextField
-                        fullWidth
-                        variant="outlined"
-                        placeholder="Enter YouTube/Bilibili URL or search term"
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        disabled={isSubmitting}
-                        error={!!error}
-                        helperText={error}
-                        size="small"
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    {isSearchMode && searchTerm && (
-                                        <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
-                                            <Clear />
-                                        </IconButton>
-                                    )}
-                                    <Button
-                                        type="submit"
-                                        variant="contained"
-                                        disabled={isSubmitting}
-                                        sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
-                                    >
-                                        {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
-                                    </Button>
-                                </InputAdornment>
-                            ),
-                            sx: { pr: 0, borderRadius: 2 }
-                        }}
-                    />
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-                    <Tooltip title="Upload Video">
-                        <IconButton color="inherit" onClick={() => setUploadModalOpen(true)} sx={{ mr: 1 }}>
-                            <CloudUpload />
+                    {isMobile && (
+                        <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                            <MenuIcon />
                         </IconButton>
-                    </Tooltip>
-
-                    {isDownloading && (
-                        <>
-                            <IconButton color="inherit" onClick={handleDownloadsClick}>
-                                <Badge badgeContent={activeDownloads.length} color="secondary">
-                                    <Download />
-                                </Badge>
-                            </IconButton>
-                            <Menu
-                                anchorEl={anchorEl}
-                                open={Boolean(anchorEl)}
-                                onClose={handleDownloadsClose}
-                                PaperProps={{
-                                    elevation: 0,
-                                    sx: {
-                                        overflow: 'visible',
-                                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                                        mt: 1.5,
-                                        '& .MuiAvatar-root': {
-                                            width: 32,
-                                            height: 32,
-                                            ml: -0.5,
-                                            mr: 1,
-                                        },
-                                        '&:before': {
-                                            content: '""',
-                                            display: 'block',
-                                            position: 'absolute',
-                                            top: 0,
-                                            right: 14,
-                                            width: 10,
-                                            height: 10,
-                                            bgcolor: 'background.paper',
-                                            transform: 'translateY(-50%) rotate(45deg)',
-                                            zIndex: 0,
-                                        },
-                                    },
-                                }}
-                                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                            >
-                                {activeDownloads.map((download) => (
-                                    <MenuItem key={download.id}>
-                                        <CircularProgress size={20} sx={{ mr: 2 }} />
-                                        <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                                            {download.title}
-                                        </Typography>
-                                    </MenuItem>
-                                ))}
-                            </Menu>
-                        </>
                     )}
-                    <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
-                        {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                    </IconButton>
                 </Box>
+
+                {/* Desktop Layout */}
+                {!isMobile && (
+                    <>
+                        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
+                            {renderSearchInput()}
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                            {renderActionButtons()}
+                        </Box>
+                    </>
+                )}
+
+                {/* Mobile Dropdown Layout */}
+                {isMobile && (
+                    <Collapse in={mobileMenuOpen} sx={{ width: '100%' }}>
+                        <Stack spacing={2} sx={{ py: 2 }}>
+                            {/* Row 1: Search Input */}
+                            <Box>
+                                {renderSearchInput()}
+                            </Box>
+                            {/* Row 2: Action Buttons */}
+                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                {renderActionButtons()}
+                            </Box>
+                        </Stack>
+                    </Collapse>
+                )}
             </Toolbar>
 
             <UploadModal

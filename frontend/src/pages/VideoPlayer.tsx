@@ -34,6 +34,7 @@ import {
     Stack,
     TextField,
     Typography,
+    useMediaQuery,
     useTheme
 } from '@mui/material';
 import axios from 'axios';
@@ -65,6 +66,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     const [video, setVideo] = useState<Video | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -341,38 +343,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         </video>
 
                         {/* Custom Controls Area */}
-                        <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', gap: 2, bgcolor: '#1a1a1a' }}>
-                            <Button
-                                variant="contained"
-                                color={isPlaying ? "warning" : "primary"}
-                                onClick={handlePlayPause}
-                                startIcon={isPlaying ? <Pause /> : <PlayArrow />}
+                        <Box sx={{ p: 1, bgcolor: '#1a1a1a' }}>
+                            <Stack
+                                direction={{ xs: 'column', sm: 'row' }}
+                                alignItems="center"
+                                justifyContent="center"
+                                spacing={{ xs: 2, sm: 2 }}
                             >
-                                {isPlaying ? "Pause" : "Play"}
-                            </Button>
+                                {/* Row 1 on Mobile: Play/Pause and Loop */}
+                                <Stack direction="row" spacing={2} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
+                                    <Button
+                                        variant="contained"
+                                        color={isPlaying ? "warning" : "primary"}
+                                        onClick={handlePlayPause}
+                                        startIcon={isPlaying ? <Pause /> : <PlayArrow />}
+                                        fullWidth={isMobile}
+                                    >
+                                        {isPlaying ? "Pause" : "Play"}
+                                    </Button>
 
-                            <Button
-                                variant={isLooping ? "contained" : "outlined"}
-                                color="secondary"
-                                onClick={handleToggleLoop}
-                                startIcon={<Loop />}
-                            >
-                                Loop {isLooping ? "On" : "Off"}
-                            </Button>
+                                    <Button
+                                        variant={isLooping ? "contained" : "outlined"}
+                                        color="secondary"
+                                        onClick={handleToggleLoop}
+                                        startIcon={<Loop />}
+                                        fullWidth={isMobile}
+                                    >
+                                        Loop {isLooping ? "On" : "Off"}
+                                    </Button>
+                                </Stack>
 
-                            <Stack direction="row" spacing={1}>
-                                <Button variant="outlined" onClick={() => handleSeek(-60)} startIcon={<FastRewind />}>
-                                    -1m
-                                </Button>
-                                <Button variant="outlined" onClick={() => handleSeek(-10)} startIcon={<Replay10 />}>
-                                    -10s
-                                </Button>
-                                <Button variant="outlined" onClick={() => handleSeek(10)} endIcon={<Forward10 />}>
-                                    +10s
-                                </Button>
-                                <Button variant="outlined" onClick={() => handleSeek(60)} endIcon={<FastForward />}>
-                                    +1m
-                                </Button>
+                                {/* Row 2 on Mobile: Seek Controls */}
+                                <Stack direction="row" spacing={1} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
+                                    <Button variant="outlined" onClick={() => handleSeek(-60)} startIcon={<FastRewind />}>
+                                        -1m
+                                    </Button>
+                                    <Button variant="outlined" onClick={() => handleSeek(-10)} startIcon={<Replay10 />}>
+                                        -10s
+                                    </Button>
+                                    <Button variant="outlined" onClick={() => handleSeek(10)} endIcon={<Forward10 />}>
+                                        +10s
+                                    </Button>
+                                    <Button variant="outlined" onClick={() => handleSeek(60)} endIcon={<FastForward />}>
+                                        +1m
+                                    </Button>
+                                </Stack>
                             </Stack>
                         </Box>
                     </Box>
