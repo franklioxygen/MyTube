@@ -12,6 +12,7 @@ interface Settings {
     defaultAutoPlay: boolean;
     defaultAutoLoop: boolean;
     maxConcurrentDownloads: number;
+    language: string;
 }
 
 const defaultSettings: Settings = {
@@ -19,7 +20,8 @@ const defaultSettings: Settings = {
     password: "",
     defaultAutoPlay: false,
     defaultAutoLoop: false,
-    maxConcurrentDownloads: 3
+    maxConcurrentDownloads: 3,
+    language: 'en'
 };
 
 export const getSettings = async (req: Request, res: Response) => {

@@ -462,3 +462,31 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     });
   }
 };
+
+// Rate video
+export const rateVideo = (req: Request, res: Response): any => {
+  try {
+    const { id } = req.params;
+    const { rating } = req.body;
+
+    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be a number between 1 and 5" });
+    }
+
+    const updatedVideo = storageService.updateVideo(id, { rating });
+
+    if (!updatedVideo) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Video rated successfully",
+      video: updatedVideo
+    });
+  } catch (error) {
+    console.error("Error rating video:", error);
+    res.status(500).json({ error: "Failed to rate video" });
+  }
+};
+

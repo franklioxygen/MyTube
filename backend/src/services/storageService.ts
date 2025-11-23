@@ -154,6 +154,21 @@ export function saveVideo(videoData: Video): Video {
   return videoData;
 }
 
+// Update a video
+export function updateVideo(id: string, updates: Partial<Video>): Video | null {
+  let videos = getVideos();
+  const index = videos.findIndex((v) => v.id === id);
+
+  if (index === -1) {
+    return null;
+  }
+
+  const updatedVideo = { ...videos[index], ...updates };
+  videos[index] = updatedVideo;
+  fs.writeFileSync(VIDEOS_DATA_PATH, JSON.stringify(videos, null, 2));
+  return updatedVideo;
+}
+
 // Delete a video
 export function deleteVideo(id: string): boolean {
   let videos = getVideos();

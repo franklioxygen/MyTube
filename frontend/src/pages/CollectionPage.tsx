@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import VideoCard from '../components/VideoCard';
+import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 
 interface CollectionPageProps {
@@ -24,6 +25,7 @@ interface CollectionPageProps {
 }
 
 const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, onDeleteVideo, onDeleteCollection }) => {
+    const { t } = useLanguage();
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [collection, setCollection] = useState<Collection | null>(null);
@@ -63,7 +65,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
         page * ITEMS_PER_PAGE
     );
 
-    const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setPage(value);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -98,7 +100,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading collection...</Typography>
+                <Typography sx={{ ml: 2 }}>{t('loadingCollection')}</Typography>
             </Box>
         );
     }
@@ -106,7 +108,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
     if (!collection) {
         return (
             <Container sx={{ mt: 4 }}>
-                <Alert severity="error">Collection not found</Alert>
+                <Alert severity="error">{t('collectionNotFound')}</Alert>
             </Container>
         );
     }
@@ -123,7 +125,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
                             {collection.name}
                         </Typography>
                         <Typography variant="subtitle1" color="text.secondary">
-                            {collectionVideos.length} video{collectionVideos.length !== 1 ? 's' : ''}
+                            {collectionVideos.length} {t('videos')}
                         </Typography>
                     </Box>
                 </Box>
@@ -132,12 +134,12 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
                     startIcon={<ArrowBack />}
                     onClick={handleBack}
                 >
-                    Back
+                    {t('back')}
                 </Button>
             </Box>
 
             {collectionVideos.length === 0 ? (
-                <Alert severity="info" variant="outlined">No videos in this collection.</Alert>
+                <Alert severity="info" variant="outlined">{t('noVideosInCollection')}</Alert>
             ) : (
                 <Box>
                     <Grid container spacing={3}>
