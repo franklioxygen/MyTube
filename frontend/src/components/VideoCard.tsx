@@ -121,6 +121,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const getSourceIcon = () => {
         if (video.source === 'bilibili') {
             return <OndemandVideo sx={{ color: '#23ade5' }} />; // Bilibili blue
+        } else if (video.source === 'local') {
+            return <Folder sx={{ color: '#4caf50' }} />; // Local green (using Folder as generic local icon, or maybe VideoFile if available)
         }
         return <YouTube sx={{ color: '#ff0000' }} />; // YouTube red
     };

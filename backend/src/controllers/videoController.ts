@@ -1,4 +1,8 @@
 import { Request, Response } from "express";
+import fs from "fs-extra";
+import multer from "multer";
+import path from "path";
+import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
@@ -8,8 +12,22 @@ import {
   isBilibiliUrl,
   isValidUrl,
   resolveShortUrl,
-  trimBilibiliUrl,
+  trimBilibiliUrl
 } from "../utils/helpers";
+
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    fs.ensureDirSync(VIDEOS_DIR);
+    cb(null, VIDEOS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+export const upload = multer({ storage: storage });
 
 // Search for videos
 export const searchVideos = async (req: Request, res: Response): Promise<any> => {
@@ -380,5 +398,67 @@ export const getVideoComments = async (req: Request, res: Response): Promise<any
   } catch (error) {
     console.error("Error fetching video comments:", error);
     res.status(500).json({ error: "Failed to fetch video comments" });
+  }
+};
+
+import { exec } from "child_process";
+
+// Upload video
+export const uploadVideo = async (req: Request, res: Response): Promise<any> => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No video file uploaded" });
+    }
+
+    const { title, author } = req.body;
+    const videoId = Date.now().toString();
+    const videoFilename = req.file.filename;
+    const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
+    
+    const videoPath = path.join(VIDEOS_DIR, videoFilename);
+    const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
+
+    // Generate thumbnail
+    await new Promise<void>((resolve, reject) => {
+      exec(`ffmpeg -i "${videoPath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`, (error) => {
+        if (error) {
+          console.error("Error generating thumbnail:", error);
+          // We resolve anyway to not block the upload, just without a custom thumbnail
+          resolve();
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    const newVideo = {
+      id: videoId,
+      title: title || req.file.originalname,
+      author: author || "Admin",
+      source: "local",
+      sourceUrl: "", // No source URL for uploaded videos
+      videoFilename: videoFilename,
+      thumbnailFilename: fs.existsSync(thumbnailPath) ? thumbnailFilename : undefined,
+      videoPath: `/videos/${videoFilename}`,
+      thumbnailPath: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
+      thumbnailUrl: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
+      createdAt: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+      addedAt: new Date().toISOString(),
+    };
+
+    storageService.saveVideo(newVideo);
+
+    res.status(201).json({
+      success: true,
+      message: "Video uploaded successfully",
+      video: newVideo
+    });
+  } catch (error: any) {
+    console.error("Error uploading video:", error);
+    res.status(500).json({
+      error: "Failed to upload video",
+      details: error.message
+    });
   }
 };

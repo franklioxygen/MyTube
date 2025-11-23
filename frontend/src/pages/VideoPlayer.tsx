@@ -446,7 +446,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     </Typography>
                                 )}
                                 <Typography variant="body2">
-                                    <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}
+                                    <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
                                 </Typography>
                                 {video.addedAt && (
                                     <Typography variant="body2">

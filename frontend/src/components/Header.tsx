@@ -2,6 +2,7 @@ import {
     Brightness4,
     Brightness7,
     Clear,
+    CloudUpload,
     Download,
     Search
 } from '@mui/icons-material';
@@ -17,11 +18,13 @@ import {
     MenuItem,
     TextField,
     Toolbar,
+    Tooltip,
     Typography
 } from '@mui/material';
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
+import UploadModal from './UploadModal';
 
 interface DownloadInfo {
     id: string;
@@ -54,6 +57,7 @@ const Header: React.FC<HeaderProps> = ({
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
     const navigate = useNavigate();
 
 
@@ -119,6 +123,19 @@ const Header: React.FC<HeaderProps> = ({
         }
     };
 
+    const handleUploadSuccess = () => {
+        // Refresh the home page to show the new video
+        // If we are already on home, we might need to trigger a refresh. 
+        // For now, navigating to / usually triggers a re-render if the component fetches on mount.
+        // If not, we might need a context or prop to trigger refresh.
+        // Assuming Home component fetches on mount.
+        if (window.location.pathname === '/') {
+            window.location.reload();
+        } else {
+            navigate('/');
+        }
+    };
+
     return (
         <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
             <Toolbar>
@@ -166,6 +183,12 @@ const Header: React.FC<HeaderProps> = ({
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                    <Tooltip title="Upload Video">
+                        <IconButton color="inherit" onClick={() => setUploadModalOpen(true)} sx={{ mr: 1 }}>
+                            <CloudUpload />
+                        </IconButton>
+                    </Tooltip>
+
                     {isDownloading && (
                         <>
                             <IconButton color="inherit" onClick={handleDownloadsClick}>
@@ -222,6 +245,12 @@ const Header: React.FC<HeaderProps> = ({
                     </IconButton>
                 </Box>
             </Toolbar>
+
+            <UploadModal
+                open={uploadModalOpen}
+                onClose={() => setUploadModalOpen(false)}
+                onUploadSuccess={handleUploadSuccess}
+            />
         </AppBar>
     );
 };
