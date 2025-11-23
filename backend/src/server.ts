@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import { IMAGES_DIR, VIDEOS_DIR } from "./config/paths";
 import apiRoutes from "./routes/api";
+import settingsRoutes from './routes/settingsRoutes';
 import * as storageService from "./services/storageService";
 import { VERSION } from "./version";
 
@@ -29,6 +30,7 @@ app.use("/images", express.static(IMAGES_DIR));
 
 // API Routes
 app.use("/api", apiRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Start the server
 app.listen(PORT, () => {
