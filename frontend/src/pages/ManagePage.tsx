@@ -13,6 +13,7 @@ import {
     Container,
     IconButton,
     InputAdornment,
+    Pagination,
     Paper,
     Table,
     TableBody,
@@ -47,10 +48,37 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
 
+    // Pagination state
+    const [collectionPage, setCollectionPage] = useState(1);
+    const [videoPage, setVideoPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
+
     const filteredVideos = videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.author.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Pagination logic
+    const totalCollectionPages = Math.ceil(collections.length / ITEMS_PER_PAGE);
+    const displayedCollections = collections.slice(
+        (collectionPage - 1) * ITEMS_PER_PAGE,
+        collectionPage * ITEMS_PER_PAGE
+    );
+
+    const totalVideoPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
+    const displayedVideos = filteredVideos.slice(
+        (videoPage - 1) * ITEMS_PER_PAGE,
+        videoPage * ITEMS_PER_PAGE
+    );
+
+    const handleCollectionPageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+        setCollectionPage(value);
+    };
+
+    const handleVideoPageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+        setVideoPage(value);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const confirmDeleteVideo = async () => {
         if (!videoToDelete) return;
@@ -150,7 +178,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {collections.map(collection => (
+                                {displayedCollections.map(collection => (
                                     <TableRow key={collection.id} hover>
                                         <TableCell component="th" scope="row" sx={{ fontWeight: 500 }}>
                                             {collection.name}
@@ -175,6 +203,19 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                     </TableContainer>
                 ) : (
                     <Alert severity="info" variant="outlined">No collections found.</Alert>
+                )}
+
+                {totalCollectionPages > 1 && (
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                        <Pagination
+                            count={totalCollectionPages}
+                            page={collectionPage}
+                            onChange={handleCollectionPageChange}
+                            color="secondary"
+                            showFirstButton
+                            showLastButton
+                        />
+                    </Box>
                 )}
             </Box>
 
@@ -212,7 +253,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {filteredVideos.map(video => (
+                                {displayedVideos.map(video => (
                                     <TableRow key={video.id} hover>
                                         <TableCell sx={{ width: 140 }}>
                                             <Box
@@ -246,6 +287,19 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                     <Alert severity="info" variant="outlined">No videos found matching your search.</Alert>
                 )}
             </Box>
+
+            {totalVideoPages > 1 && (
+                <Box sx={{ mt: 2, mb: 4, display: 'flex', justifyContent: 'center' }}>
+                    <Pagination
+                        count={totalVideoPages}
+                        page={videoPage}
+                        onChange={handleVideoPageChange}
+                        color="primary"
+                        showFirstButton
+                        showLastButton
+                    />
+                </Box>
+            )}
         </Container>
     );
 };

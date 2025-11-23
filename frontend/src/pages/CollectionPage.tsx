@@ -7,6 +7,7 @@ import {
     CircularProgress,
     Container,
     Grid,
+    Pagination,
     Typography
 } from '@mui/material';
 import { useEffect, useState } from 'react';
@@ -29,6 +30,8 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
     const [collectionVideos, setCollectionVideos] = useState<Video[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+    const [page, setPage] = useState(1);
+    const ITEMS_PER_PAGE = 12;
 
     useEffect(() => {
         if (collections && collections.length > 0 && id) {
@@ -50,7 +53,20 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
         }
 
         setLoading(false);
+        setLoading(false);
     }, [id, collections, videos, navigate]);
+
+    // Pagination logic
+    const totalPages = Math.ceil(collectionVideos.length / ITEMS_PER_PAGE);
+    const displayedVideos = collectionVideos.slice(
+        (page - 1) * ITEMS_PER_PAGE,
+        page * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+        setPage(value);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const handleBack = () => {
         navigate(-1);
@@ -123,19 +139,35 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
             {collectionVideos.length === 0 ? (
                 <Alert severity="info" variant="outlined">No videos in this collection.</Alert>
             ) : (
-                <Grid container spacing={3}>
-                    {collectionVideos.map(video => (
-                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
-                            <VideoCard
-                                video={video}
-                                collections={collections}
-                                onDeleteVideo={onDeleteVideo}
-                                showDeleteButton={true}
-                                disableCollectionGrouping={true}
+                <Box>
+                    <Grid container spacing={3}>
+                        {displayedVideos.map(video => (
+                            <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                                <VideoCard
+                                    video={video}
+                                    collections={collections}
+                                    onDeleteVideo={onDeleteVideo}
+                                    showDeleteButton={true}
+                                    disableCollectionGrouping={true}
+                                />
+                            </Grid>
+                        ))}
+                    </Grid>
+
+                    {totalPages > 1 && (
+                        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                            <Pagination
+                                count={totalPages}
+                                page={page}
+                                onChange={handlePageChange}
+                                color="primary"
+                                size="large"
+                                showFirstButton
+                                showLastButton
                             />
-                        </Grid>
-                    ))}
-                </Grid>
+                        </Box>
+                    )}
+                </Box>
             )}
 
             <DeleteCollectionModal

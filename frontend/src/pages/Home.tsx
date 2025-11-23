@@ -11,8 +11,10 @@ import {
     CircularProgress,
     Container,
     Grid,
+    Pagination,
     Typography
 } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
@@ -59,6 +61,13 @@ const Home: React.FC<HomeProps> = ({
     onDownload,
     onResetSearch
 }) => {
+    const [page, setPage] = useState(1);
+    const ITEMS_PER_PAGE = 12;
+
+    // Reset page when filters change (though currently no filters other than search which is separate)
+    useEffect(() => {
+        setPage(1);
+    }, [videos, collections]);
 
 
     // Add default empty array to ensure videos is always an array
@@ -100,6 +109,20 @@ const Home: React.FC<HomeProps> = ({
             return video.id === firstVideoId;
         });
     });
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
+    const displayedVideos = filteredVideos.slice(
+        (page - 1) * ITEMS_PER_PAGE,
+        page * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+        setPage(value);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+
 
     // Helper function to format duration in seconds to MM:SS
     const formatDuration = (seconds?: number) => {
@@ -270,7 +293,7 @@ const Home: React.FC<HomeProps> = ({
                     {/* Videos grid */}
                     <Grid size={{ xs: 12, md: 9 }}>
                         <Grid container spacing={3}>
-                            {filteredVideos.map(video => (
+                            {displayedVideos.map(video => (
                                 <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
                                     <VideoCard
                                         video={video}
@@ -279,6 +302,20 @@ const Home: React.FC<HomeProps> = ({
                                 </Grid>
                             ))}
                         </Grid>
+
+                        {totalPages > 1 && (
+                            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                                <Pagination
+                                    count={totalPages}
+                                    page={page}
+                                    onChange={handlePageChange}
+                                    color="primary"
+                                    size="large"
+                                    showFirstButton
+                                    showLastButton
+                                />
+                            </Box>
+                        )}
                     </Grid>
                 </Grid>
             )}
