@@ -74,7 +74,7 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
 
                     {videoCount > 0 && (
                         <Button
-                            variant="contained"
+                            variant="outlined"
                             color="error"
                             onClick={onDeleteCollectionAndVideos}
                             fullWidth

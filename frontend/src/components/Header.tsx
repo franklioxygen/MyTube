@@ -29,6 +29,9 @@ import {
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
+import { Collection, Video } from '../types';
+import AuthorsList from './AuthorsList';
+import Collections from './Collections';
 import UploadModal from './UploadModal';
 
 interface DownloadInfo {
@@ -46,6 +49,8 @@ interface HeaderProps {
     onResetSearch?: () => void;
     theme: string;
     toggleTheme: () => void;
+    collections?: Collection[];
+    videos?: Video[];
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -56,7 +61,9 @@ const Header: React.FC<HeaderProps> = ({
     searchTerm = '',
     onResetSearch,
     theme: currentThemeMode,
-    toggleTheme
+    toggleTheme,
+    collections = [],
+    videos = []
 }) => {
     const [videoUrl, setVideoUrl] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -277,16 +284,43 @@ const Header: React.FC<HeaderProps> = ({
                 {/* Mobile Dropdown Layout */}
                 {isMobile && (
                     <Collapse in={mobileMenuOpen} sx={{ width: '100%' }}>
-                        <Stack spacing={2} sx={{ py: 2 }}>
-                            {/* Row 1: Search Input */}
-                            <Box>
-                                {renderSearchInput()}
-                            </Box>
-                            {/* Row 2: Action Buttons */}
-                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                {renderActionButtons()}
-                            </Box>
-                        </Stack>
+                        <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                            <Stack spacing={2} sx={{ py: 2 }}>
+                                {/* Row 1: Search Input */}
+                                <Box>
+                                    {renderSearchInput()}
+                                </Box>
+                                {/* Row 2: Action Buttons */}
+                                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                    {renderActionButtons()}
+                                </Box>
+
+                                {/* Mobile Navigation Items */}
+                                <Box sx={{ mt: 2 }}>
+                                    <Collections
+                                        collections={collections}
+                                        onItemClick={() => setMobileMenuOpen(false)}
+                                    />
+                                    <Box sx={{ mt: 2 }}>
+                                        <AuthorsList
+                                            videos={videos}
+                                            onItemClick={() => setMobileMenuOpen(false)}
+                                        />
+                                    </Box>
+                                    <Box sx={{ mt: 3, textAlign: 'center', mb: 2 }}>
+                                        <Button
+                                            component={Link}
+                                            to="/manage"
+                                            variant="outlined"
+                                            fullWidth
+                                            onClick={() => setMobileMenuOpen(false)}
+                                        >
+                                            Manage Videos
+                                        </Button>
+                                    </Box>
+                                </Box>
+                            </Stack>
+                        </Box>
                     </Collapse>
                 )}
             </Toolbar>

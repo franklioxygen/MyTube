@@ -667,6 +667,8 @@ function App() {
                         onResetSearch={resetSearch}
                         theme={themeMode}
                         toggleTheme={toggleTheme}
+                        collections={collections}
+                        videos={videos}
                     />
 
                     {/* Bilibili Parts Modal */}
