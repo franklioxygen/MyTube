@@ -1,7 +1,14 @@
 import {
     Add,
     Delete,
-    Folder
+    FastForward,
+    FastRewind,
+    Folder,
+    Forward10,
+    Loop,
+    Pause,
+    PlayArrow,
+    Replay10
 } from '@mui/icons-material';
 import {
     Alert,
@@ -30,10 +37,10 @@ import {
     useTheme
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { Collection, Video } from '../types';
+import { Collection, Comment, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -68,6 +75,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [newCollectionName, setNewCollectionName] = useState<string>('');
     const [selectedCollection, setSelectedCollection] = useState<string>('');
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
+    const [comments, setComments] = useState<Comment[]>([]);
+    const [loadingComments, setLoadingComments] = useState<boolean>(false);
+
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isPlaying, setIsPlaying] = useState<boolean>(false);
+    const [isLooping, setIsLooping] = useState<boolean>(false);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -78,6 +91,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         confirmText: 'Confirm',
         isDanger: false
     });
+
+    const handlePlayPause = () => {
+        if (videoRef.current) {
+            if (isPlaying) {
+                videoRef.current.pause();
+            } else {
+                videoRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    const handleToggleLoop = () => {
+        if (videoRef.current) {
+            videoRef.current.loop = !isLooping;
+            setIsLooping(!isLooping);
+        }
+    };
+
+    const handleSeek = (seconds: number) => {
+        if (videoRef.current) {
+            videoRef.current.currentTime += seconds;
+        }
+    };
 
     useEffect(() => {
         // Don't try to fetch the video if it's being deleted
@@ -117,6 +154,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         fetchVideo();
     }, [id, videos, navigate, isDeleting]);
+
+    // Fetch comments
+    useEffect(() => {
+        const fetchComments = async () => {
+            if (!id) return;
+
+            setLoadingComments(true);
+            try {
+                const response = await axios.get(`${API_URL}/videos/${id}/comments`);
+                setComments(response.data);
+            } catch (err) {
+                console.error('Error fetching comments:', err);
+                // We don't set a global error here as comments are secondary
+            } finally {
+                setLoadingComments(false);
+            }
+        };
+
+        fetchComments();
+    }, [id]);
 
     // Find collections that contain this video
     useEffect(() => {
@@ -273,13 +330,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <Grid size={{ xs: 12, lg: 9 }}>
                     <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', boxShadow: 4 }}>
                         <video
+                            ref={videoRef}
                             style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
                             controls
-                            autoPlay
                             src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
                         >
                             Your browser does not support the video tag.
                         </video>
+
+                        {/* Custom Controls Area */}
+                        <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', gap: 2, bgcolor: '#1a1a1a' }}>
+                            <Button
+                                variant="contained"
+                                color={isPlaying ? "warning" : "primary"}
+                                onClick={handlePlayPause}
+                                startIcon={isPlaying ? <Pause /> : <PlayArrow />}
+                            >
+                                {isPlaying ? "Pause" : "Play"}
+                            </Button>
+
+                            <Button
+                                variant={isLooping ? "contained" : "outlined"}
+                                color="secondary"
+                                onClick={handleToggleLoop}
+                                startIcon={<Loop />}
+                            >
+                                Loop {isLooping ? "On" : "Off"}
+                            </Button>
+
+                            <Stack direction="row" spacing={1}>
+                                <Button variant="outlined" onClick={() => handleSeek(-60)} startIcon={<FastRewind />}>
+                                    -1m
+                                </Button>
+                                <Button variant="outlined" onClick={() => handleSeek(-10)} startIcon={<Replay10 />}>
+                                    -10s
+                                </Button>
+                                <Button variant="outlined" onClick={() => handleSeek(10)} endIcon={<Forward10 />}>
+                                    +10s
+                                </Button>
+                                <Button variant="outlined" onClick={() => handleSeek(60)} endIcon={<FastForward />}>
+                                    +1m
+                                </Button>
+                            </Stack>
+                        </Box>
                     </Box>
 
                     <Box sx={{ mt: 2 }}>
@@ -342,17 +437,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
-                            <Typography variant="body2" paragraph>
-                                <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}
-                            </Typography>
-                            {video.sourceUrl && (
-                                <Typography variant="body2" paragraph>
-                                    <strong>Original Link:</strong>{' '}
-                                    <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main }}>
-                                        {video.sourceUrl}
-                                    </a>
+                            <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap">
+                                {video.sourceUrl && (
+                                    <Typography variant="body2">
+                                        <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none' }}>
+                                            <strong>Original Link</strong>
+                                        </a>
+                                    </Typography>
+                                )}
+                                <Typography variant="body2">
+                                    <strong>Source:</strong> {video.source === 'bilibili' ? 'Bilibili' : 'YouTube'}
                                 </Typography>
-                            )}
+                                {video.addedAt && (
+                                    <Typography variant="body2">
+                                        <strong>Added Date:</strong> {new Date(video.addedAt).toLocaleDateString()}
+                                    </Typography>
+                                )}
+                            </Stack>
 
                             {videoCollections.length > 0 && (
                                 <Box sx={{ mt: 2 }}>
@@ -372,6 +473,46 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                         ))}
                                     </Stack>
                                 </Box>
+                            )}
+                        </Box>
+
+                        {/* Comments Section */}
+                        <Box sx={{ mt: 4 }}>
+                            <Typography variant="h6" gutterBottom fontWeight="bold">
+                                Latest Comments
+                            </Typography>
+
+                            {loadingComments ? (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                    <CircularProgress size={24} />
+                                </Box>
+                            ) : comments.length > 0 ? (
+                                <Stack spacing={2}>
+                                    {comments.map((comment) => (
+                                        <Box key={comment.id} sx={{ display: 'flex', gap: 2 }}>
+                                            <Avatar src={comment.avatar} alt={comment.author}>
+                                                {comment.author.charAt(0).toUpperCase()}
+                                            </Avatar>
+                                            <Box sx={{ flex: 1 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                    <Typography variant="subtitle2" fontWeight="bold">
+                                                        {comment.author}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {comment.date}
+                                                    </Typography>
+                                                </Box>
+                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                                    {comment.content}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    ))}
+                                </Stack>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                    No comments available.
+                                </Typography>
                             )}
                         </Box>
                     </Box>

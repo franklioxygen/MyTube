@@ -31,3 +31,11 @@ export interface DownloadInfo {
   title: string;
   timestamp?: number;
 }
+
+export interface Comment {
+  id: string;
+  author: string;
+  content: string;
+  date: string;
+  avatar?: string;
+}

@@ -10,6 +10,8 @@ router.post("/download", videoController.downloadVideo);
 router.get("/videos", videoController.getVideos);
 router.get("/videos/:id", videoController.getVideoById);
 router.delete("/videos/:id", videoController.deleteVideo);
+router.get("/videos/:id/comments", videoController.getVideoComments);
+
 router.get("/download-status", videoController.getDownloadStatus);
 router.get("/check-bilibili-parts", videoController.checkBilibiliParts);
 router.get("/check-bilibili-collection", videoController.checkBilibiliCollection);
