@@ -1,21 +1,15 @@
 import { Box, CssBaseline, ThemeProvider } from '@mui/material';
 import axios from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { BrowserRouter as Router } from 'react-router-dom';
 import './App.css';
+import AnimatedRoutes from './components/AnimatedRoutes';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { useSnackbar } from './contexts/SnackbarContext';
-import AuthorVideos from './pages/AuthorVideos';
-import CollectionPage from './pages/CollectionPage';
-import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
-import ManagePage from './pages/ManagePage';
-import SearchResults from './pages/SearchResults';
-import SettingsPage from './pages/SettingsPage';
-import VideoPlayer from './pages/VideoPlayer';
 import getTheme from './theme';
 import { Collection, DownloadInfo, Video } from './types';
 
@@ -738,93 +732,26 @@ function App() {
                             />
 
                             <main className="main-content">
-                                <Routes>
-                                    <Route
-                                        path="/"
-                                        element={
-                                            <Home
-                                                videos={videos}
-                                                loading={loading}
-                                                error={error}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                collections={collections}
-                                                isSearchMode={isSearchMode}
-                                                searchTerm={searchTerm}
-                                                localSearchResults={localSearchResults}
-                                                youtubeLoading={youtubeLoading}
-                                                searchResults={searchResults}
-                                                onDownload={handleDownloadFromSearch}
-                                                onResetSearch={resetSearch}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/video/:id"
-                                        element={
-                                            <VideoPlayer
-                                                videos={videos}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                collections={collections}
-                                                onAddToCollection={handleAddToCollection}
-                                                onCreateCollection={handleCreateCollection}
-                                                onRemoveFromCollection={handleRemoveFromCollection}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/author/:author"
-                                        element={
-                                            <AuthorVideos
-                                                videos={videos}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                collections={collections}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/collection/:id"
-                                        element={
-                                            <CollectionPage
-                                                collections={collections}
-                                                videos={videos}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                onDeleteCollection={handleDeleteCollection}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/search"
-                                        element={
-                                            <SearchResults
-                                                results={searchResults}
-                                                localResults={localSearchResults}
-                                                loading={loading}
-                                                youtubeLoading={youtubeLoading}
-                                                searchTerm={searchTerm}
-                                                onDownload={handleDownloadFromSearch}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                onResetSearch={resetSearch}
-                                                collections={collections}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/manage"
-                                        element={
-                                            <ManagePage
-                                                videos={videos}
-                                                onDeleteVideo={handleDeleteVideo}
-                                                collections={collections}
-                                                onDeleteCollection={handleDeleteCollection}
-                                            />
-                                        }
-                                    />
-                                    <Route
-                                        path="/settings"
-                                        element={<SettingsPage />}
-                                    />
-                                </Routes>
+                                <AnimatedRoutes
+                                    videos={videos}
+                                    loading={loading}
+                                    error={error}
+                                    onDeleteVideo={handleDeleteVideo}
+                                    collections={collections}
+                                    isSearchMode={isSearchMode}
+                                    searchTerm={searchTerm}
+                                    localSearchResults={localSearchResults}
+                                    youtubeLoading={youtubeLoading}
+                                    searchResults={searchResults}
+                                    onDownload={handleDownloadFromSearch}
+                                    onResetSearch={resetSearch}
+                                    onAddToCollection={handleAddToCollection}
+                                    onCreateCollection={handleCreateCollection}
+                                    onRemoveFromCollection={handleRemoveFromCollection}
+                                    onDeleteCollection={handleDeleteCollection}
+                                />
                             </main>
+
                             <Footer />
                         </Box>
                     </Router>
@@ -835,4 +762,3 @@ function App() {
 }
 
 export default App;
-

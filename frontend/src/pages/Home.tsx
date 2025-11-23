@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import AuthorsList from '../components/AuthorsList';
+import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
 import VideoCard from '../components/VideoCard';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -284,14 +285,32 @@ const Home: React.FC<HomeProps> = ({
                     {/* Videos grid */}
                     <Grid size={{ xs: 12, md: 9 }}>
                         <Grid container spacing={3}>
-                            {displayedVideos.map(video => (
-                                <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
-                                    <VideoCard
-                                        video={video}
-                                        collections={collections}
-                                    />
-                                </Grid>
-                            ))}
+                            {displayedVideos.map(video => {
+                                // Check if this video is the first in a collection
+                                const collection = collections.find(c => c.videos[0] === video.id);
+
+                                // If it is, render CollectionCard
+                                if (collection) {
+                                    return (
+                                        <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={`collection-${collection.id}`}>
+                                            <CollectionCard
+                                                collection={collection}
+                                                videos={videoArray}
+                                            />
+                                        </Grid>
+                                    );
+                                }
+
+                                // Otherwise render VideoCard
+                                return (
+                                    <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
+                                        <VideoCard
+                                            video={video}
+                                            collections={collections}
+                                        />
+                                    </Grid>
+                                );
+                            })}
                         </Grid>
 
                         {totalPages > 1 && (
