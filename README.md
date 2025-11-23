@@ -4,7 +4,8 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 
 [中文](README-zh.md)
 
-![Nov-21-2025 16-53-03](https://github.com/user-attachments/assets/1f23ba18-da7a-4011-b716-6daa628552a5)
+![Nov-22-2025 13-56-10](https://github.com/user-attachments/assets/ee8e9f84-1597-4d4e-a238-8ea7d9e0f590)
+
 
 ## Features
 
