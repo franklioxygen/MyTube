@@ -118,7 +118,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
                 <CardContent sx={{ flexGrow: 1, p: 2 }}>
                     <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1 }}>
-                        {collection.name} Collection
+                        {collection.name} {t('collection')}
                     </Typography>
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
