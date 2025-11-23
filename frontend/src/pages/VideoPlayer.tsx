@@ -1,15 +1,20 @@
 import {
     Add,
+    CalendarToday,
     Delete,
     Download,
     FastForward,
     FastRewind,
     Folder,
     Forward10,
+    Fullscreen,
+    FullscreenExit,
+    Link as LinkIcon,
     Loop,
     Pause,
     PlayArrow,
-    Replay10
+    Replay10,
+    VideoLibrary
 } from '@mui/icons-material';
 import {
     Alert,
@@ -35,6 +40,7 @@ import {
     Select,
     Stack,
     TextField,
+    Tooltip,
     Typography,
     useMediaQuery,
     useTheme
@@ -115,6 +121,32 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setIsLooping(!isLooping);
         }
     };
+
+    const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+    const handleToggleFullscreen = () => {
+        const videoContainer = videoRef.current?.parentElement;
+        if (!videoContainer) return;
+
+        if (!document.fullscreenElement) {
+            videoContainer.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
+    }, []);
 
     const handleSeek = (seconds: number) => {
         if (videoRef.current) {
@@ -385,7 +417,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         </video>
 
                         {/* Custom Controls Area */}
-                        <Box sx={{ p: 1, bgcolor: '#1a1a1a' }}>
+                        <Box sx={{
+                            p: 1,
+                            bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+                            opacity: isFullscreen ? 0.3 : 1,
+                            transition: 'opacity 0.3s',
+                            '&:hover': { opacity: 1 }
+                        }}>
                             <Stack
                                 direction={{ xs: 'column', sm: 'row' }}
                                 alignItems="center"
@@ -394,46 +432,66 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             >
                                 {/* Row 1 on Mobile: Play/Pause and Loop */}
                                 <Stack direction="row" spacing={2} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
-                                    <Button
-                                        variant="contained"
-                                        color={isPlaying ? "warning" : "primary"}
-                                        onClick={handlePlayPause}
-                                        startIcon={isPlaying ? <Pause /> : <PlayArrow />}
-                                        fullWidth={isMobile}
-                                    >
-                                        {isPlaying ? t('paused') : t('playing')}
-                                    </Button>
+                                    <Tooltip title={isPlaying ? t('paused') : t('playing')}>
+                                        <Button
+                                            variant="contained"
+                                            color={isPlaying ? "warning" : "primary"}
+                                            onClick={handlePlayPause}
+                                            fullWidth={isMobile}
+                                        >
+                                            {isPlaying ? <Pause /> : <PlayArrow />}
+                                        </Button>
+                                    </Tooltip>
 
-                                    <Button
-                                        variant={isLooping ? "contained" : "outlined"}
-                                        color="secondary"
-                                        onClick={handleToggleLoop}
-                                        startIcon={<Loop />}
-                                        fullWidth={isMobile}
-                                    >
-                                        {t('loop')} {isLooping ? t('on') : t('off')}
-                                    </Button>
+                                    <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`}>
+                                        <Button
+                                            variant={isLooping ? "contained" : "outlined"}
+                                            color="secondary"
+                                            onClick={handleToggleLoop}
+                                            fullWidth={isMobile}
+                                        >
+                                            <Loop />
+                                        </Button>
+                                    </Tooltip>
+
+                                    <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleToggleFullscreen}
+                                            fullWidth={isMobile}
+                                        >
+                                            {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+                                        </Button>
+                                    </Tooltip>
                                 </Stack>
 
                                 {/* Row 2 on Mobile: Seek Controls */}
                                 <Stack direction="row" spacing={1} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
-                                    <Button variant="outlined" onClick={() => handleSeek(-60)} startIcon={<FastRewind />}>
-                                        -1m
-                                    </Button>
-                                    <Button variant="outlined" onClick={() => handleSeek(-10)} startIcon={<Replay10 />}>
-                                        -10s
-                                    </Button>
-                                    <Button variant="outlined" onClick={() => handleSeek(10)} endIcon={<Forward10 />}>
-                                        +10s
-                                    </Button>
-                                    <Button variant="outlined" onClick={() => handleSeek(60)} endIcon={<FastForward />}>
-                                        +1m
-                                    </Button>
+                                    <Tooltip title="-1m">
+                                        <Button variant="outlined" onClick={() => handleSeek(-60)}>
+                                            <FastRewind />
+                                        </Button>
+                                    </Tooltip>
+                                    <Tooltip title="-10s">
+                                        <Button variant="outlined" onClick={() => handleSeek(-10)}>
+                                            <Replay10 />
+                                        </Button>
+                                    </Tooltip>
+                                    <Tooltip title="+10s">
+                                        <Button variant="outlined" onClick={() => handleSeek(10)}>
+                                            <Forward10 />
+                                        </Button>
+                                    </Tooltip>
+                                    <Tooltip title="+1m">
+                                        <Button variant="outlined" onClick={() => handleSeek(60)}>
+                                            <FastForward />
+                                        </Button>
+                                    </Tooltip>
                                 </Stack>
                             </Stack>
                         </Box>
                     </Box>
-
+                    {/* Info Column */}
                     <Box sx={{ mt: 2 }}>
                         <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
                             {video.title}
@@ -506,8 +564,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
                             <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap">
                                 {video.sourceUrl && (
-                                    <Typography variant="body2">
-                                        <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none' }}>
+                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                                            <LinkIcon fontSize="small" sx={{ mr: 0.5 }} />
                                             <strong>{t('originalLink')}</strong>
                                         </a>
                                     </Typography>
@@ -520,11 +579,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                         </a>
                                     </Typography>
                                 )}
-                                <Typography variant="body2">
+                                <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <VideoLibrary fontSize="small" sx={{ mr: 0.5 }} />
                                     <strong>{t('source')}</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
                                 </Typography>
                                 {video.addedAt && (
-                                    <Typography variant="body2">
+                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
                                         <strong>{t('addedDate')}</strong> {new Date(video.addedAt).toLocaleDateString()}
                                     </Typography>
                                 )}

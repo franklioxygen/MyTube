@@ -72,8 +72,8 @@ export const translations = {
         noVideosFoundMatching: "No videos found matching your search.",
         
         // Video Player
-        playing: "Playing",
-        paused: "Paused",
+        playing: "Play",
+        paused: "Pause",
         next: "Next",
         previous: "Previous",
         loop: "Loop",
@@ -104,6 +104,8 @@ export const translations = {
         loadingVideo: "Loading video...",
         current: "(Current)",
         rateThisVideo: "Rate this video",
+        enterFullscreen: "Enter Fullscreen",
+        exitFullscreen: "Exit Fullscreen",
         
         // Login
         signIn: "Sign in",
@@ -242,8 +244,8 @@ export const translations = {
         noVideosFoundMatching: "未找到匹配的视频。",
         
         // Video Player
-        playing: "播放中",
-        paused: "已暂停",
+        playing: "播放",
+        paused: "暂停",
         next: "下一个",
         previous: "上一个",
         loop: "循环",
@@ -274,6 +276,8 @@ export const translations = {
         loadingVideo: "加载视频中...",
         current: "（当前）",
         rateThisVideo: "给视频评分",
+        enterFullscreen: "全屏",
+        exitFullscreen: "退出全屏",
         
         // Login
         signIn: "登录",

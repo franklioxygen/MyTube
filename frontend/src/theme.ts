@@ -4,7 +4,7 @@ const getTheme = (mode: 'light' | 'dark') => createTheme({
   palette: {
     mode,
     primary: {
-      main: '#00e5ff', // Neon Cyan
+      main: mode === 'dark' ? '#00e5ff' : '#00838f', // Neon Cyan for dark, Cyan 800 for light
     },
     secondary: {
       main: '#651fff', // Deep Purple
@@ -14,7 +14,7 @@ const getTheme = (mode: 'light' | 'dark') => createTheme({
       paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
     },
     text: {
-      primary: mode === 'dark' ? '#ffffff' : '#000000',
+      primary: mode === 'dark' ? '#ffffff' : '#212121', // Dark grey for light mode
       secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
     },
   },
@@ -39,9 +39,9 @@ const getTheme = (mode: 'light' | 'dark') => createTheme({
           fontWeight: 600,
         },
         containedPrimary: {
-          boxShadow: '0 0 10px rgba(0, 229, 255, 0.5)', // Neon glow
+          boxShadow: mode === 'dark' ? '0 0 10px rgba(0, 229, 255, 0.5)' : 'none', // Neon glow only in dark mode
           '&:hover': {
-            boxShadow: '0 0 20px rgba(0, 229, 255, 0.7)',
+            boxShadow: mode === 'dark' ? '0 0 20px rgba(0, 229, 255, 0.7)' : '0 2px 4px rgba(0,0,0,0.2)',
           },
         },
       },
