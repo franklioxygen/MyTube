@@ -131,6 +131,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
                                 collections={collections}
                                 onDeleteVideo={onDeleteVideo}
                                 showDeleteButton={true}
+                                disableCollectionGrouping={true}
                             />
                         </Grid>
                     ))}

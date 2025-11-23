@@ -27,13 +27,15 @@ interface VideoCardProps {
     collections?: Collection[];
     onDeleteVideo?: (id: string) => Promise<void>;
     showDeleteButton?: boolean;
+    disableCollectionGrouping?: boolean;
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({
     video,
     collections = [],
     onDeleteVideo,
-    showDeleteButton = false
+    showDeleteButton = false,
+    disableCollectionGrouping = false
 }) => {
     const navigate = useNavigate();
     const theme = useTheme();
@@ -90,7 +92,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     );
 
     // Check if this video is the first in any collection
-    const isFirstInAnyCollection = videoCollections.some(collection =>
+    const isFirstInAnyCollection = !disableCollectionGrouping && videoCollections.some(collection =>
         collection.videos[0] === video.id
     );
 

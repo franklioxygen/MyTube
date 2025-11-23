@@ -314,7 +314,7 @@ function App() {
             }
 
             setIsSearchMode(false);
-            showSnackbar('Video added successfully');
+            showSnackbar('Video downloading');
             return { success: true };
         } catch (err: any) {
             console.error('Error downloading video:', err);
