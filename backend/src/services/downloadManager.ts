@@ -20,6 +20,15 @@ class DownloadManager {
   }
 
   /**
+   * Set the maximum number of concurrent downloads
+   * @param limit - Maximum number of concurrent downloads
+   */
+  setMaxConcurrentDownloads(limit: number): void {
+    this.maxConcurrentDownloads = limit;
+    this.processQueue();
+  }
+
+  /**
    * Add a download task to the manager
    * @param downloadFn - Async function that performs the download
    * @param id - Unique ID for the download

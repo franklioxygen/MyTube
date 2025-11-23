@@ -155,7 +155,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         };
 
         fetchVideo();
+        fetchVideo();
     }, [id, videos, navigate, isDeleting]);
+
+    // Fetch settings and apply defaults
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings`);
+                const { defaultAutoPlay, defaultAutoLoop } = response.data;
+
+                if (videoRef.current) {
+                    if (defaultAutoPlay) {
+                        videoRef.current.autoplay = true;
+                        setIsPlaying(true);
+                    }
+                    if (defaultAutoLoop) {
+                        videoRef.current.loop = true;
+                        setIsLooping(true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching settings:', error);
+            }
+        };
+
+        fetchSettings();
+    }, [id]); // Re-run when video changes
 
     // Fetch comments
     useEffect(() => {

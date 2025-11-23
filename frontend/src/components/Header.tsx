@@ -5,7 +5,9 @@ import {
     CloudUpload,
     Download,
     Menu as MenuIcon,
-    Search
+    Search,
+    Settings,
+    VideoLibrary
 } from '@mui/icons-material';
 import {
     AppBar,
@@ -69,6 +71,7 @@ const Header: React.FC<HeaderProps> = ({
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [manageAnchorEl, setManageAnchorEl] = useState<null | HTMLElement>(null);
     const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
     const navigate = useNavigate();
@@ -88,6 +91,14 @@ const Header: React.FC<HeaderProps> = ({
 
     const handleDownloadsClose = () => {
         setAnchorEl(null);
+    };
+
+    const handleManageClick = (event: React.MouseEvent<HTMLElement>) => {
+        setManageAnchorEl(event.currentTarget);
+    };
+
+    const handleManageClose = () => {
+        setManageAnchorEl(null);
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -211,6 +222,50 @@ const Header: React.FC<HeaderProps> = ({
             <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
                 {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
+
+            <Tooltip title="Manage">
+                <IconButton
+                    color="inherit"
+                    onClick={handleManageClick}
+                    sx={{ ml: 1 }}
+                >
+                    <Settings />
+                </IconButton>
+            </Tooltip>
+            <Menu
+                anchorEl={manageAnchorEl}
+                open={Boolean(manageAnchorEl)}
+                onClose={handleManageClose}
+                PaperProps={{
+                    elevation: 0,
+                    sx: {
+                        overflow: 'visible',
+                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                        mt: 1.5,
+                        '&:before': {
+                            content: '""',
+                            display: 'block',
+                            position: 'absolute',
+                            top: 0,
+                            right: 14,
+                            width: 10,
+                            height: 10,
+                            bgcolor: 'background.paper',
+                            transform: 'translateY(-50%) rotate(45deg)',
+                            zIndex: 0,
+                        },
+                    },
+                }}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+                <MenuItem onClick={() => { handleManageClose(); navigate('/manage'); }}>
+                    <VideoLibrary sx={{ mr: 2 }} /> Manage Content
+                </MenuItem>
+                <MenuItem onClick={() => { handleManageClose(); navigate('/settings'); }}>
+                    <Settings sx={{ mr: 2 }} /> Settings
+                </MenuItem>
+            </Menu>
         </Box>
     );
 
@@ -307,15 +362,26 @@ const Header: React.FC<HeaderProps> = ({
                                             onItemClick={() => setMobileMenuOpen(false)}
                                         />
                                     </Box>
-                                    <Box sx={{ mt: 3, textAlign: 'center', mb: 2 }}>
+                                    <Box sx={{ mt: 3, textAlign: 'center', mb: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         <Button
                                             component={Link}
                                             to="/manage"
                                             variant="outlined"
                                             fullWidth
                                             onClick={() => setMobileMenuOpen(false)}
+                                            startIcon={<VideoLibrary />}
                                         >
                                             Manage Videos
+                                        </Button>
+                                        <Button
+                                            component={Link}
+                                            to="/settings"
+                                            variant="outlined"
+                                            fullWidth
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            startIcon={<Settings />}
+                                        >
+                                            Settings
                                         </Button>
                                     </Box>
                                 </Box>

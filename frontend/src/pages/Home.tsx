@@ -15,7 +15,6 @@ import {
     Typography
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import Collections from '../components/Collections';
 import VideoCard from '../components/VideoCard';
@@ -276,16 +275,6 @@ const Home: React.FC<HomeProps> = ({
                             <Collections collections={collections} />
                             <Box sx={{ mt: 2 }}>
                                 <AuthorsList videos={videoArray} />
-                            </Box>
-                            <Box sx={{ mt: 3, textAlign: 'center' }}>
-                                <Button
-                                    component={Link}
-                                    to="/manage"
-                                    variant="outlined"
-                                    fullWidth
-                                >
-                                    Manage Videos
-                                </Button>
                             </Box>
                         </Box>
                     </Grid>
