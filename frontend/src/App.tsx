@@ -209,9 +209,10 @@ function App() {
             try {
                 // Check if login is enabled in settings
                 const response = await axios.get(`${API_URL}/settings`);
-                const { loginEnabled } = response.data;
+                const { loginEnabled, isPasswordSet } = response.data;
 
-                if (!loginEnabled) {
+                // Login is required only if enabled AND a password is set
+                if (!loginEnabled || !isPasswordSet) {
                     setLoginRequired(false);
                     setIsAuthenticated(true);
                 } else {

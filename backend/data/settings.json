@@ -2,8 +2,8 @@
   "loginEnabled": true,
   "defaultAutoPlay": false,
   "defaultAutoLoop": false,
-  "maxConcurrentDownloads": 2,
+  "maxConcurrentDownloads": 1,
   "isPasswordSet": true,
   "language": "en",
-  "password": "$2b$10$4g06vnvfzqN8Pnm.1JEqkO8D9lNE.QGg4/AA1rQm9ipjmtJQN7VDO"
+  "password": ""
 }

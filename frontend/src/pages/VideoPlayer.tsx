@@ -402,7 +402,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Grid container spacing={4}>
                 {/* Main Content Column */}
-                <Grid size={{ xs: 12, lg: 9 }}>
+                <Grid size={{ xs: 12, lg: 8 }}>
                     <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', boxShadow: 4 }}>
                         <video
                             ref={videoRef}
@@ -655,7 +655,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </Grid>
 
                 {/* Sidebar Column - Up Next */}
-                <Grid size={{ xs: 12, lg: 3 }}>
+                <Grid size={{ xs: 12, lg: 4 }}>
                     <Typography variant="h6" gutterBottom fontWeight="bold">{t('upNext')}</Typography>
                     <Stack spacing={2}>
                         {relatedVideos.map(relatedVideo => (
