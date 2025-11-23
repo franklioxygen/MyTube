@@ -164,9 +164,9 @@ const Header: React.FC<HeaderProps> = ({
     };
 
     const renderActionButtons = () => (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Tooltip title={t('uploadVideo')}>
-                <IconButton color="inherit" onClick={() => setUploadModalOpen(true)} sx={{ mr: 1 }}>
+                <IconButton color="inherit" onClick={() => setUploadModalOpen(true)}>
                     <CloudUpload />
                 </IconButton>
             </Tooltip>
@@ -222,7 +222,7 @@ const Header: React.FC<HeaderProps> = ({
                     </Menu>
                 </>
             )}
-            <IconButton sx={{ ml: 1 }} onClick={toggleTheme} color="inherit">
+            <IconButton onClick={toggleTheme} color="inherit">
                 {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
 
@@ -231,7 +231,6 @@ const Header: React.FC<HeaderProps> = ({
                     <IconButton
                         color="inherit"
                         onClick={handleManageClick}
-                        sx={{ ml: 1 }}
                     >
                         <Settings />
                     </IconButton>
@@ -324,7 +323,7 @@ const Header: React.FC<HeaderProps> = ({
                         </Link>
 
                         {isMobile && (
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {renderActionButtons()}
                                 <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                                     <MenuIcon />

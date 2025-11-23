@@ -15,6 +15,7 @@ html {
   width: 100%;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+  overflow-y: scroll;
 }
 
 /* Scrollbar styling for dark theme */
