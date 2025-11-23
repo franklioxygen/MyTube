@@ -3,7 +3,7 @@ export interface Video {
   title: string;
   author: string;
   date: string;
-  source: 'youtube' | 'bilibili';
+  source: 'youtube' | 'bilibili' | 'local';
   sourceUrl: string;
   videoFilename?: string;
   thumbnailFilename?: string;

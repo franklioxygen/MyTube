@@ -1,3 +1,4 @@
+import { exec } from "child_process";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import multer from "multer";
@@ -7,12 +8,12 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl
+    extractBilibiliVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -401,7 +402,6 @@ export const getVideoComments = async (req: Request, res: Response): Promise<any
   }
 };
 
-import { exec } from "child_process";
 
 // Upload video
 export const uploadVideo = async (req: Request, res: Response): Promise<any> => {
