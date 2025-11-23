@@ -271,7 +271,7 @@ const Home: React.FC<HomeProps> = ({
             ) : (
                 <Grid container spacing={4}>
                     {/* Sidebar container for Collections and Authors */}
-                    <Grid size={{ xs: 12, md: 3 }}>
+                    <Grid size={{ xs: 12, md: 3 }} sx={{ display: { xs: 'none', md: 'block' } }}>
                         <Box sx={{ position: 'sticky', top: 80 }}>
                             <Collections collections={collections} />
                             <Box sx={{ mt: 2 }}>

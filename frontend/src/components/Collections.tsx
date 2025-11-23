@@ -16,9 +16,10 @@ import { Collection } from '../types';
 
 interface CollectionsProps {
     collections: Collection[];
+    onItemClick?: () => void;
 }
 
-const Collections: React.FC<CollectionsProps> = ({ collections }) => {
+const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) => {
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -51,6 +52,7 @@ const Collections: React.FC<CollectionsProps> = ({ collections }) => {
                             key={collection.id}
                             component={Link}
                             to={`/collection/${collection.id}`}
+                            onClick={onItemClick}
                             sx={{ pl: 2, borderRadius: 1 }}
                         >
                             <Folder fontSize="small" sx={{ mr: 1, color: 'secondary.main' }} />

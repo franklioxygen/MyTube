@@ -76,7 +76,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                         onClose();
                     }}
                     color={isDanger ? 'error' : 'primary'}
-                    variant="contained"
+                    variant="outlined"
                     autoFocus
                 >
                     {confirmText}

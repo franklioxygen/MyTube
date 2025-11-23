@@ -15,9 +15,10 @@ import { Video } from '../types';
 
 interface AuthorsListProps {
     videos: Video[];
+    onItemClick?: () => void;
 }
 
-const AuthorsList: React.FC<AuthorsListProps> = ({ videos }) => {
+const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
     const [isOpen, setIsOpen] = useState<boolean>(true);
     const [authors, setAuthors] = useState<string[]>([]);
     const theme = useTheme();
@@ -64,6 +65,7 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos }) => {
                             key={author}
                             component={Link}
                             to={`/author/${encodeURIComponent(author)}`}
+                            onClick={onItemClick}
                             sx={{ pl: 2, borderRadius: 1 }}
                         >
                             <Person fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />

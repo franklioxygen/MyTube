@@ -338,6 +338,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
                             onPlay={() => setIsPlaying(true)}
                             onPause={() => setIsPlaying(false)}
+                            playsInline
                         >
                             Your browser does not support the video tag.
                         </video>
@@ -432,7 +433,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     Add to Collection
                                 </Button>
                                 <Button
-                                    variant="contained"
+                                    variant="outlined"
                                     color="error"
                                     startIcon={<Delete />}
                                     onClick={handleDelete}
