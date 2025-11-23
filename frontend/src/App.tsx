@@ -100,6 +100,9 @@ function App() {
     const [activeDownloads, setActiveDownloads] = useState<DownloadInfo[]>(
         initialStatus ? initialStatus.activeDownloads || [] : []
     );
+    const [queuedDownloads, setQueuedDownloads] = useState<DownloadInfo[]>(
+        initialStatus ? initialStatus.queuedDownloads || [] : []
+    );
 
     // Fetch collections from the server
     const fetchCollections = async () => {
@@ -111,28 +114,64 @@ function App() {
         }
     };
 
+    // Reference to track current download IDs for detecting completion
+    const currentDownloadIdsRef = useRef<Set<string>>(new Set());
+
     // Add a function to check download status from the backend
     const checkBackendDownloadStatus = async () => {
         try {
             const response = await axios.get(`${API_URL}/download-status`);
+            const { activeDownloads: backendActive, queuedDownloads: backendQueued } = response.data;
 
-            if (response.data.activeDownloads && response.data.activeDownloads.length > 0) {
-                // If backend has active downloads, update the local status
-                setActiveDownloads(response.data.activeDownloads);
+            const newActive = backendActive || [];
+            const newQueued = backendQueued || [];
+
+            // Create a set of all current download IDs from the backend
+            const newIds = new Set<string>([
+                ...newActive.map((d: DownloadInfo) => d.id),
+                ...newQueued.map((d: DownloadInfo) => d.id)
+            ]);
+
+            // Check if any ID from the previous check is missing in the new check
+            // This implies it finished (or failed), so we should refresh the video list
+            let hasCompleted = false;
+            if (currentDownloadIdsRef.current.size > 0) {
+                for (const id of currentDownloadIdsRef.current) {
+                    if (!newIds.has(id)) {
+                        hasCompleted = true;
+                        break;
+                    }
+                }
+            }
+
+            // Update the ref for the next check
+            currentDownloadIdsRef.current = newIds;
+
+            if (hasCompleted) {
+                console.log('Download completed, refreshing videos');
+                fetchVideos();
+            }
+
+            if (newActive.length > 0 || newQueued.length > 0) {
+                // If backend has active or queued downloads, update the local status
+                setActiveDownloads(newActive);
+                setQueuedDownloads(newQueued);
 
                 // Save to localStorage for persistence
                 const statusData = {
-                    activeDownloads: response.data.activeDownloads,
+                    activeDownloads: newActive,
+                    queuedDownloads: newQueued,
                     timestamp: Date.now()
                 };
                 localStorage.setItem(DOWNLOAD_STATUS_KEY, JSON.stringify(statusData));
             } else {
                 // If backend says no downloads are in progress, clear the status
-                if (activeDownloads.length > 0) {
+                if (activeDownloads.length > 0 || queuedDownloads.length > 0) {
                     console.log('Backend says downloads are complete, clearing status');
                     localStorage.removeItem(DOWNLOAD_STATUS_KEY);
                     setActiveDownloads([]);
-                    // Refresh videos list when downloads complete
+                    setQueuedDownloads([]);
+                    // Refresh videos list when downloads complete (fallback)
                     fetchVideos();
                 }
             }
@@ -152,7 +191,7 @@ function App() {
         return () => {
             clearInterval(statusCheckInterval);
         };
-    }, [activeDownloads.length]); // Depend on length to trigger refresh when downloads finish
+    }, [activeDownloads.length, queuedDownloads.length]); // Depend on lengths to trigger refresh when downloads finish
 
     // Fetch collections on component mount
     useEffect(() => {
@@ -210,9 +249,10 @@ function App() {
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === DOWNLOAD_STATUS_KEY) {
                 try {
-                    const newStatus = e.newValue ? JSON.parse(e.newValue) : { activeDownloads: [] };
+                    const newStatus = e.newValue ? JSON.parse(e.newValue) : { activeDownloads: [], queuedDownloads: [] };
                     console.log('Storage changed, new status:', newStatus);
                     setActiveDownloads(newStatus.activeDownloads || []);
+                    setQueuedDownloads(newStatus.queuedDownloads || []);
                 } catch (error) {
                     console.error('Error handling storage change:', error);
                 }
@@ -224,9 +264,10 @@ function App() {
         // Set up periodic check for stale download status
         const checkDownloadStatus = () => {
             const status = getStoredDownloadStatus();
-            if (!status && activeDownloads.length > 0) {
+            if (!status && (activeDownloads.length > 0 || queuedDownloads.length > 0)) {
                 console.log('Clearing stale download status');
                 setActiveDownloads([]);
+                setQueuedDownloads([]);
             }
         };
 
@@ -237,15 +278,16 @@ function App() {
             window.removeEventListener('storage', handleStorageChange);
             clearInterval(statusCheckInterval);
         };
-    }, [activeDownloads]);
+    }, [activeDownloads, queuedDownloads]);
 
-    // Update localStorage whenever activeDownloads changes
+    // Update localStorage whenever activeDownloads or queuedDownloads changes
     useEffect(() => {
-        console.log('Active downloads changed:', activeDownloads);
+        console.log('Downloads state changed:', { active: activeDownloads.length, queued: queuedDownloads.length });
 
-        if (activeDownloads.length > 0) {
+        if (activeDownloads.length > 0 || queuedDownloads.length > 0) {
             const statusData = {
                 activeDownloads,
+                queuedDownloads,
                 timestamp: Date.now()
             };
             console.log('Saving to localStorage:', statusData);
@@ -254,7 +296,7 @@ function App() {
             console.log('Removing from localStorage');
             localStorage.removeItem(DOWNLOAD_STATUS_KEY);
         }
-    }, [activeDownloads]);
+    }, [activeDownloads, queuedDownloads]);
 
     const fetchVideos = async () => {
         try {
@@ -264,11 +306,12 @@ function App() {
             setError(null);
 
             // Check if we need to clear a stale download status
-            if (activeDownloads.length > 0) {
+            if (activeDownloads.length > 0 || queuedDownloads.length > 0) {
                 const status = getStoredDownloadStatus();
                 if (!status) {
                     console.log('Clearing download status after fetching videos');
                     setActiveDownloads([]);
+                    setQueuedDownloads([]);
                 }
             }
         } catch (err) {
@@ -515,10 +558,11 @@ function App() {
     useEffect(() => {
         console.log('Current download status:', {
             activeDownloads,
-            count: activeDownloads.length,
+            queuedDownloads,
+            count: activeDownloads.length + queuedDownloads.length,
             localStorage: localStorage.getItem(DOWNLOAD_STATUS_KEY)
         });
-    }, [activeDownloads]);
+    }, [activeDownloads, queuedDownloads]);
 
     // Cleanup effect to abort any pending search requests when unmounting
     useEffect(() => {
@@ -710,6 +754,7 @@ function App() {
                                 onSearch={handleSearch}
                                 onSubmit={handleVideoSubmit}
                                 activeDownloads={activeDownloads}
+                                queuedDownloads={queuedDownloads}
                                 isSearchMode={isSearchMode}
                                 searchTerm={searchTerm}
                                 onResetSearch={resetSearch}

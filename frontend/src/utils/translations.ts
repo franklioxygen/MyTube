@@ -169,7 +169,9 @@ export const translations = {
         wouldYouLikeToDownloadAllParts: "Would you like to download all parts?",
         wouldYouLikeToDownloadAllVideos: "Would you like to download all videos?",
         allPartsAddedToCollection: "All parts will be added to this collection",
-        allVideosAddedToCollection: "All videos will be added to this collection"
+        allVideosAddedToCollection: "All videos will be added to this collection",
+        queued: "Queued",
+        waitingInQueue: "Waiting in queue"
     },
     zh: {
         // Header
@@ -341,7 +343,9 @@ export const translations = {
         wouldYouLikeToDownloadAllParts: "您想要下载所有分P吗？",
         wouldYouLikeToDownloadAllVideos: "您想要下载所有视频吗？",
         allPartsAddedToCollection: "所有分P将被添加到此合集",
-        allVideosAddedToCollection: "所有视频将被添加到此合集"
+        allVideosAddedToCollection: "所有视频将被添加到此合集",
+        queued: "已排队",
+        waitingInQueue: "等待中"
     }
 };
 

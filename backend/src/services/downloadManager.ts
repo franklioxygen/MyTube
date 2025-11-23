@@ -1,4 +1,8 @@
+import fs from "fs-extra";
+import path from "path";
 import * as storageService from "./storageService";
+
+const SETTINGS_FILE = path.join(__dirname, "../../data/settings.json");
 
 interface DownloadTask {
   downloadFn: () => Promise<any>;
@@ -16,7 +20,22 @@ class DownloadManager {
   constructor() {
     this.queue = [];
     this.activeDownloads = 0;
-    this.maxConcurrentDownloads = 3;
+    this.maxConcurrentDownloads = 3; // Default
+    this.loadSettings();
+  }
+
+  private async loadSettings() {
+    try {
+      if (await fs.pathExists(SETTINGS_FILE)) {
+        const settings = await fs.readJson(SETTINGS_FILE);
+        if (settings.maxConcurrentDownloads) {
+          this.maxConcurrentDownloads = settings.maxConcurrentDownloads;
+          console.log(`Loaded maxConcurrentDownloads: ${this.maxConcurrentDownloads}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading settings in DownloadManager:", error);
+    }
   }
 
   /**
@@ -28,6 +47,13 @@ class DownloadManager {
     this.processQueue();
   }
 
+  /**
+   * Add a download task to the manager
+   * @param downloadFn - Async function that performs the download
+   * @param id - Unique ID for the download
+   * @param title - Title of the video being downloaded
+   * @returns - Resolves when the download is complete
+   */
   /**
    * Add a download task to the manager
    * @param downloadFn - Async function that performs the download
@@ -50,8 +76,21 @@ class DownloadManager {
       };
 
       this.queue.push(task);
+      this.updateQueuedDownloads();
       this.processQueue();
     });
+  }
+
+  /**
+   * Update the queued downloads in storage
+   */
+  private updateQueuedDownloads(): void {
+    const queuedDownloads = this.queue.map(task => ({
+      id: task.id,
+      title: task.title,
+      timestamp: Date.now()
+    }));
+    storageService.setQueuedDownloads(queuedDownloads);
   }
 
   /**
@@ -68,6 +107,7 @@ class DownloadManager {
     const task = this.queue.shift();
     if (!task) return;
 
+    this.updateQueuedDownloads();
     this.activeDownloads++;
 
     // Update status in storage

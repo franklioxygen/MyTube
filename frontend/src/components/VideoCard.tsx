@@ -1,6 +1,7 @@
 import {
     Delete,
     Folder,
+    Movie,
     OndemandVideo,
     YouTube
 } from '@mui/icons-material';
@@ -127,6 +128,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
             return <OndemandVideo sx={{ color: '#23ade5' }} />; // Bilibili blue
         } else if (video.source === 'local') {
             return <Folder sx={{ color: '#4caf50' }} />; // Local green (using Folder as generic local icon, or maybe VideoFile if available)
+        } else if (video.source === 'missav') {
+            return <Movie sx={{ color: '#ff4081' }} />; // Pink for MissAV
         }
         return <YouTube sx={{ color: '#ff0000' }} />; // YouTube red
     };
