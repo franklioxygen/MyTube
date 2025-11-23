@@ -8,38 +8,38 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 
 ## Features
 
-- Download YouTube and Bilibili videos with a simple URL input
-- Automatically save video thumbnails
-- Browse and play downloaded videos
-- View videos by specific authors
-- Organize videos into collections
-- Add videos to multiple collections
-- Responsive design that works on all devices
+- **Video Downloading**: Download YouTube and Bilibili videos with a simple URL input.
+- **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
+- **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
+- **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
+- **Search**: Search for videos locally in your library or online via YouTube.
+- **Collections**: Organize videos into custom collections for easy access.
+- **Modern UI**: Responsive, dark-themed interface with a "Back to Home" feature and glassmorphism effects.
+- **Theme Support**: Toggle between Light and Dark modes.
 
 ## Directory Structure
 
 ```
 mytube/
-├── backend/             # Express.js backend
+├── backend/             # Express.js backend (TypeScript)
 │   ├── src/             # Source code
 │   │   ├── config/      # Configuration files
 │   │   ├── controllers/ # Route controllers
 │   │   ├── routes/      # API routes
 │   │   ├── services/    # Business logic services
-│   │   └── utils/       # Utility functions
+│   │   ├── utils/       # Utility functions
+│   │   └── server.ts    # Main server file
 │   ├── uploads/         # Uploaded files directory
 │   │   ├── videos/      # Downloaded videos
 │   │   └── images/      # Downloaded thumbnails
-│   └── server.js        # Main server file
-├── frontend/            # React.js frontend
-│   ├── public/          # Static assets
+│   └── package.json     # Backend dependencies
+├── frontend/            # React.js frontend (Vite + TypeScript)
 │   ├── src/             # Source code
 │   │   ├── assets/      # Images and styles
 │   │   ├── components/  # React components
-│   │   └── pages/       # Page components
-│   └── index.html       # HTML entry point
-├── start.sh             # Unix/Mac startup script
-├── start.bat            # Windows startup script
+│   │   ├── pages/       # Page components
+│   │   └── theme.ts     # Theme configuration
+│   └── package.json     # Frontend dependencies
 ├── build-and-push.sh    # Docker build script
 ├── docker-compose.yml   # Docker Compose configuration
 ├── DEPLOYMENT.md        # Deployment guide
@@ -58,7 +58,7 @@ mytube/
 
 1. Clone the repository:
 
-   ```
+   ```bash
    git clone <repository-url>
    cd mytube
    ```
@@ -67,13 +67,13 @@ mytube/
 
    You can install all dependencies for the root, frontend, and backend with a single command:
 
-   ```
+   ```bash
    npm run install:all
    ```
 
    Or manually:
 
-   ```
+   ```bash
    npm install
    cd frontend && npm install
    cd ../backend && npm install
@@ -81,15 +81,15 @@ mytube/
 
 #### Using npm Scripts
 
-Alternatively, you can use npm scripts:
+You can use npm scripts from the root directory:
 
-```
+```bash
 npm run dev       # Start both frontend and backend in development mode
 ```
 
 Other available scripts:
 
-```
+```bash
 npm run start     # Start both frontend and backend in production mode
 npm run build     # Build the frontend for production
 ```
@@ -101,52 +101,55 @@ npm run build     # Build the frontend for production
 
 ## API Endpoints
 
-- `POST /api/download/youtube` - Download a YouTube video
-- `POST /api/download/bilibili` - Download a Bilibili video
+### Videos
+- `POST /api/download` - Download a video (YouTube or Bilibili)
 - `GET /api/videos` - Get all downloaded videos
 - `GET /api/videos/:id` - Get a specific video
 - `DELETE /api/videos/:id` - Delete a video
+- `GET /api/search` - Search for videos online
+- `GET /api/download-status` - Get status of active downloads
+- `GET /api/check-bilibili-parts` - Check if a Bilibili video has multiple parts
+- `GET /api/check-bilibili-collection` - Check if a Bilibili URL is a collection/series
+
+### Collections
 - `GET /api/collections` - Get all collections
 - `POST /api/collections` - Create a new collection
-- `PUT /api/collections/:id` - Update a collection
+- `PUT /api/collections/:id` - Update a collection (add/remove videos)
 - `DELETE /api/collections/:id` - Delete a collection
-- `POST /api/collections/:id/videos` - Add a video to a collection
-- `DELETE /api/collections/:id/videos/:videoId` - Remove a video from a collection
 
 ## Collections Feature
 
 MyTube allows you to organize your videos into collections:
 
-- **Create Collections**: Create custom collections to categorize your videos
-- **Add to Collections**: Add videos to one or more collections directly from the video player
-- **Remove from Collections**: Remove videos from collections with a single click
-- **Browse Collections**: View all your collections in the sidebar and browse videos by collection
+- **Create Collections**: Create custom collections to categorize your videos.
+- **Add to Collections**: Add videos to one or more collections directly from the video player or manage page.
+- **Remove from Collections**: Remove videos from collections easily.
+- **Browse Collections**: View all your collections in the sidebar and browse videos by collection.
 
 ## User Interface
 
-The application features a modern, dark-themed UI with:
+The application features a modern, premium UI with:
 
-- Responsive design that works on desktop and mobile devices
-- Video grid layout for easy browsing
-- Video player with collection management
-- Author and collection filtering
-- Search functionality for finding videos
+- **Dark/Light Mode**: Toggle between themes to suit your preference.
+- **Responsive Design**: Works seamlessly on desktop and mobile devices.
+- **Video Grid**: Easy-to-browse grid layout for your video library.
+- **Confirmation Modals**: Safe deletion with custom confirmation dialogs.
+- **Search**: Integrated search bar for finding local and online content.
 
 ## Environment Variables
 
-The application uses environment variables for configuration. Here's how to set them up:
+The application uses environment variables for configuration.
 
-### Frontend (.env file in frontend directory)
+### Frontend (`frontend/.env`)
 
-```
+```env
 VITE_API_URL=http://localhost:5551/api
 VITE_BACKEND_URL=http://localhost:5551
-VITE_APP_PORT=5556
 ```
 
-### Backend (.env file in backend directory)
+### Backend (`backend/.env`)
 
-```
+```env
 PORT=5551
 UPLOAD_DIR=uploads
 VIDEO_DIR=uploads/videos
@@ -154,7 +157,7 @@ IMAGE_DIR=uploads/images
 MAX_FILE_SIZE=500000000
 ```
 
-Copy the `.env.example` files in both frontend and backend directories to create your own `.env` files and replace the placeholders with your desired values.
+Copy the `.env.example` files in both frontend and backend directories to create your own `.env` files.
 
 ## Deployment
 

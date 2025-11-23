@@ -5,6 +5,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
 import Header from './components/Header';
+import { useSnackbar } from './contexts/SnackbarContext';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
 import Home from './pages/Home';
@@ -49,6 +50,7 @@ interface BilibiliPartsInfo {
 }
 
 function App() {
+    const { showSnackbar } = useSnackbar();
     const [videos, setVideos] = useState<Video[]>([]);
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [localSearchResults, setLocalSearchResults] = useState<Video[]>([]);
@@ -312,7 +314,7 @@ function App() {
             }
 
             setIsSearchMode(false);
-
+            showSnackbar('Video added successfully');
             return { success: true };
         } catch (err: any) {
             console.error('Error downloading video:', err);
@@ -440,6 +442,7 @@ function App() {
             setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
 
             setLoading(false);
+            showSnackbar('Video removed successfully');
             return { success: true };
         } catch (error) {
             console.error('Error deleting video:', error);
@@ -513,7 +516,7 @@ function App() {
 
             // Update the collections state with the new collection from the server
             setCollections(prevCollections => [...prevCollections, response.data]);
-
+            showSnackbar('Collection created successfully');
             return response.data;
         } catch (error) {
             console.error('Error creating collection:', error);
@@ -538,6 +541,7 @@ function App() {
                 collection.id === collectionId ? response.data : collection
             ));
 
+            showSnackbar('Video added to collection');
             return response.data;
         } catch (error) {
             console.error('Error adding video to collection:', error);
@@ -567,6 +571,7 @@ function App() {
                 videos: collection.videos.filter(v => v !== videoId)
             })));
 
+            showSnackbar('Video removed from collection');
             return true;
         } catch (error) {
             console.error('Error removing video from collection:', error);
@@ -592,9 +597,11 @@ function App() {
                 await fetchVideos();
             }
 
+            showSnackbar('Collection deleted successfully');
             return { success: true };
         } catch (error) {
             console.error('Error deleting collection:', error);
+            showSnackbar('Failed to delete collection', 'error');
             return { success: false, error: 'Failed to delete collection' };
         }
     };
@@ -624,7 +631,7 @@ function App() {
             }
 
             setIsSearchMode(false);
-
+            showSnackbar('Download started successfully');
             return { success: true };
         } catch (err: any) {
             console.error('Error downloading Bilibili parts/collection:', err);
