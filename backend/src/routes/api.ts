@@ -7,6 +7,7 @@ const router = express.Router();
 // Video routes
 router.get("/search", videoController.searchVideos);
 router.post("/download", videoController.downloadVideo);
+router.post("/upload", videoController.upload.single("video"), videoController.uploadVideo);
 router.get("/videos", videoController.getVideos);
 router.get("/videos/:id", videoController.getVideoById);
 router.delete("/videos/:id", videoController.deleteVideo);
