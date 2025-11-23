@@ -3,12 +3,12 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    extractUrlFromText,
-    isBilibiliUrl,
-    isValidUrl,
-    resolveShortUrl,
-    trimBilibiliUrl,
+  extractBilibiliVideoId,
+  extractUrlFromText,
+  isBilibiliUrl,
+  isValidUrl,
+  resolveShortUrl,
+  trimBilibiliUrl,
 } from "../utils/helpers";
 
 // Search for videos
@@ -368,5 +368,17 @@ export const checkBilibiliCollection = async (req: Request, res: Response): Prom
       error: "Failed to check Bilibili collection/series",
       details: error.message,
     });
+  }
+};
+
+// Get video comments
+export const getVideoComments = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const comments = await import("../services/commentService").then(m => m.getComments(id));
+    res.status(200).json(comments);
+  } catch (error) {
+    console.error("Error fetching video comments:", error);
+    res.status(500).json({ error: "Failed to fetch video comments" });
   }
 };
