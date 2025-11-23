@@ -10,9 +10,11 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 ## Features
 
 - **Video Downloading**: Download YouTube and Bilibili videos with a simple URL input.
+- **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
 - **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
+- **Video Player**: Custom player with Play/Pause, Loop, and Seek controls.
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
 - **Modern UI**: Responsive, dark-themed interface with a "Back to Home" feature and glassmorphism effects.
@@ -104,6 +106,7 @@ npm run build     # Build the frontend for production
 
 ### Videos
 - `POST /api/download` - Download a video (YouTube or Bilibili)
+- `POST /api/upload` - Upload a local video file
 - `GET /api/videos` - Get all downloaded videos
 - `GET /api/videos/:id` - Get a specific video
 - `DELETE /api/videos/:id` - Delete a video
