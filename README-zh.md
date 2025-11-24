@@ -4,7 +4,7 @@
 
 [English](README.md)
 
-![Nov-22-2025 13-56-10](https://github.com/user-attachments/assets/ee8e9f84-1597-4d4e-a238-8ea7d9e0f590)
+![Nov-23-2025 21-19-25](https://github.com/user-attachments/assets/0f8761c9-893d-48df-8add-47f3f19357df)
 
 ## 功能特点
 
