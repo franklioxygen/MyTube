@@ -1,6 +1,6 @@
 # MyTube
 
-A YouTube/Bilibili video downloader and player application that allows you to download and save YouTube/Bilibili videos locally, along with their thumbnails. Organize your videos into collections for easy access and management.
+A YouTube/Bilibili/MissAV video downloader and player application that allows you to download and save videos locally, along with their thumbnails. Organize your videos into collections for easy access and management.
 
 [中文](README-zh.md)
 
@@ -9,16 +9,20 @@ A YouTube/Bilibili video downloader and player application that allows you to do
 
 ## Features
 
-- **Video Downloading**: Download YouTube and Bilibili videos with a simple URL input.
+- **Video Downloading**: Download YouTube, Bilibili and MissAV videos with a simple URL input.
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
 - **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
-- **Video Player**: Custom player with Play/Pause, Loop, and Seek controls.
+- **Video Player**: Custom player with Play/Pause, Loop, Seek, Full-screen, and Dimming controls.
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
 - **Modern UI**: Responsive, dark-themed interface with a "Back to Home" feature and glassmorphism effects.
 - **Theme Support**: Toggle between Light and Dark modes.
+- **Login Protection**: Secure your application with a password login page.
+- **Language Switching**: Support for English and Chinese languages.
+- **Pagination**: Efficiently browse large libraries with pagination support.
+- **Video Rating**: Rate your videos with a 5-star system.
 
 ## Directory Structure
 
@@ -135,10 +139,11 @@ MyTube allows you to organize your videos into collections:
 The application features a modern, premium UI with:
 
 - **Dark/Light Mode**: Toggle between themes to suit your preference.
-- **Responsive Design**: Works seamlessly on desktop and mobile devices.
+- **Responsive Design**: Works seamlessly on desktop and mobile devices, with mobile-specific optimizations.
 - **Video Grid**: Easy-to-browse grid layout for your video library.
 - **Confirmation Modals**: Safe deletion with custom confirmation dialogs.
 - **Search**: Integrated search bar for finding local and online content.
+- **Snackbar Notifications**: Visual feedback for actions like adding/removing videos.
 
 ## Environment Variables
 
