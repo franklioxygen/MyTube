@@ -5,8 +5,6 @@ services:
     image: franklioxygen/mytube:backend-latest
     pull_policy: always
     container_name: mytube-backend
-    ports:
-      - "5551:5551"
     volumes:
       - /share/CACHEDEV2_DATA/Medias/MyTube/uploads:/app/uploads
       - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
@@ -25,8 +23,8 @@ services:
     environment:
       # For internal container communication, use the service name
       # These will be replaced at runtime by the entrypoint script
-      - VITE_API_URL=http://backend:5551/api
-      - VITE_BACKEND_URL=http://backend:5551
+      - VITE_API_URL=/api
+      - VITE_BACKEND_URL=
       # For QNAP or other environments where service discovery doesn't work,
       # you can override these values using a .env file with:
       # - API_HOST=your-ip-or-hostname
