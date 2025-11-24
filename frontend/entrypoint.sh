@@ -6,8 +6,8 @@ DEFAULT_API_URL="http://localhost:5551/api"
 DEFAULT_BACKEND_URL="http://localhost:5551"
 
 # Runtime values from docker-compose environment variables
-DOCKER_API_URL="${VITE_API_URL:-http://backend:5551/api}"
-DOCKER_BACKEND_URL="${VITE_BACKEND_URL:-http://backend:5551}"
+DOCKER_API_URL="${VITE_API_URL-http://backend:5551/api}"
+DOCKER_BACKEND_URL="${VITE_BACKEND_URL-http://backend:5551}"
 
 # If API_HOST is provided, override with custom host configuration
 if [ ! -z "$API_HOST" ]; then
