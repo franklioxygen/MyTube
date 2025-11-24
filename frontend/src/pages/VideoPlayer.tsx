@@ -89,6 +89,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
     const [comments, setComments] = useState<Comment[]>([]);
     const [loadingComments, setLoadingComments] = useState<boolean>(false);
+    const [showComments, setShowComments] = useState<boolean>(false);
+    const [commentsLoaded, setCommentsLoaded] = useState<boolean>(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -219,25 +221,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         fetchSettings();
     }, [id]); // Re-run when video changes
 
-    // Fetch comments
-    useEffect(() => {
-        const fetchComments = async () => {
-            if (!id) return;
+    const fetchComments = async () => {
+        if (!id) return;
 
-            setLoadingComments(true);
-            try {
-                const response = await axios.get(`${API_URL}/videos/${id}/comments`);
-                setComments(response.data);
-            } catch (err) {
-                console.error('Error fetching comments:', err);
-                // We don't set a global error here as comments are secondary
-            } finally {
-                setLoadingComments(false);
-            }
-        };
+        setLoadingComments(true);
+        try {
+            const response = await axios.get(`${API_URL}/videos/${id}/comments`);
+            setComments(response.data);
+            setCommentsLoaded(true);
+        } catch (err) {
+            console.error('Error fetching comments:', err);
+            // We don't set a global error here as comments are secondary
+        } finally {
+            setLoadingComments(false);
+        }
+    };
 
-        fetchComments();
-    }, [id]);
+    const handleToggleComments = () => {
+        if (!showComments && !commentsLoaded) {
+            fetchComments();
+        }
+        setShowComments(!showComments);
+    };
 
     // Find collections that contain this video
     useEffect(() => {
@@ -614,41 +619,54 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                         {/* Comments Section */}
                         <Box sx={{ mt: 4 }}>
-                            <Typography variant="h6" gutterBottom fontWeight="bold">
-                                {t('latestComments')}
-                            </Typography>
-
-                            {loadingComments ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                    <CircularProgress size={24} />
-                                </Box>
-                            ) : comments.length > 0 ? (
-                                <Stack spacing={2}>
-                                    {comments.map((comment) => (
-                                        <Box key={comment.id} sx={{ display: 'flex', gap: 2 }}>
-                                            <Avatar src={comment.avatar} alt={comment.author}>
-                                                {comment.author.charAt(0).toUpperCase()}
-                                            </Avatar>
-                                            <Box sx={{ flex: 1 }}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                                    <Typography variant="subtitle2" fontWeight="bold">
-                                                        {comment.author}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {comment.date}
-                                                    </Typography>
-                                                </Box>
-                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                                    {comment.content}
-                                                </Typography>
-                                            </Box>
-                                        </Box>
-                                    ))}
-                                </Stack>
-                            ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                    {t('noComments')}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6" fontWeight="bold">
+                                    {t('latestComments')}
                                 </Typography>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleToggleComments}
+                                    size="small"
+                                >
+                                    {showComments ? "Hide Comments" : "Show Comments"}
+                                </Button>
+                            </Box>
+
+                            {showComments && (
+                                <>
+                                    {loadingComments ? (
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                                            <CircularProgress size={24} />
+                                        </Box>
+                                    ) : comments.length > 0 ? (
+                                        <Stack spacing={2}>
+                                            {comments.map((comment) => (
+                                                <Box key={comment.id} sx={{ display: 'flex', gap: 2 }}>
+                                                    <Avatar src={comment.avatar} alt={comment.author}>
+                                                        {comment.author.charAt(0).toUpperCase()}
+                                                    </Avatar>
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                            <Typography variant="subtitle2" fontWeight="bold">
+                                                                {comment.author}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {comment.date}
+                                                            </Typography>
+                                                        </Box>
+                                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                                            {comment.content}
+                                                        </Typography>
+                                                    </Box>
+                                                </Box>
+                                            ))}
+                                        </Stack>
+                                    ) : (
+                                        <Typography variant="body2" color="text.secondary">
+                                            {t('noComments')}
+                                        </Typography>
+                                    )}
+                                </>
                             )}
                         </Box>
                     </Box>
