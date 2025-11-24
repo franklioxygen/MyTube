@@ -8,8 +8,8 @@ import * as cheerio from "cheerio";
 import puppeteer from "puppeteer";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import {
-    extractBilibiliVideoId,
-    sanitizeFilename
+  extractBilibiliVideoId,
+  sanitizeFilename
 } from "../utils/helpers";
 import * as storageService from "./storageService";
 import { Collection, Video } from "./storageService";
@@ -805,10 +805,19 @@ export async function downloadYouTubeVideo(videoUrl: string, downloadId?: string
     }
 
     // Use exec to capture stdout for progress
+    // Format selection prioritizes Safari-compatible codecs (H.264/AAC)
+    // avc1 is the H.264 variant that Safari supports best
+    // Use Android client to avoid SABR streaming issues and JS runtime requirements
     const subprocess = youtubedl.exec(videoUrl, {
       output: newVideoPath,
-      format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-    });
+      format: "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+      mergeOutputFormat: "mp4",
+      'extractor-args': "youtube:player_client=android",
+      addHeader: [
+        'Referer:https://www.youtube.com/',
+        'User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+      ]
+    } as any);
 
     subprocess.stdout?.on('data', (data: Buffer) => {
       const output = data.toString();
