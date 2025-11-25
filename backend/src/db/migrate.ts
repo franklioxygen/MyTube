@@ -19,5 +19,6 @@ export function runMigrations() {
     // Don't throw, as we might want the app to start even if migration fails (though it might be broken)
     // But for initial setup, it's critical.
     throw error;
+    // console.warn("Migration failed but continuing server startup...");
   }
 }
