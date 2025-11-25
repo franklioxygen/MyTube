@@ -24,6 +24,7 @@ export const videos = sqliteTable('videos', {
   description: text('description'),
   viewCount: integer('view_count'),
   duration: text('duration'),
+  tags: text('tags'), // JSON stringified array of strings
 });
 
 export const collections = sqliteTable('collections', {

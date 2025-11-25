@@ -13,6 +13,7 @@ import {
     Fullscreen,
     FullscreenExit,
     Link as LinkIcon,
+    LocalOffer,
     Loop,
     Pause,
     PlayArrow,
@@ -21,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import {
     Alert,
+    Autocomplete,
     Avatar,
     Box,
     Button,
@@ -96,6 +98,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [loadingComments, setLoadingComments] = useState<boolean>(false);
     const [showComments, setShowComments] = useState<boolean>(false);
     const [commentsLoaded, setCommentsLoaded] = useState<boolean>(false);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -223,6 +226,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         setIsLooping(true);
                     }
                 }
+
+                console.log('Fetched settings in VideoPlayer:', response.data);
+                setAvailableTags(response.data.tags || []);
+                console.log('Setting available tags:', response.data.tags || []);
             } catch (error) {
                 console.error('Error fetching settings:', error);
             }
@@ -420,6 +427,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         } catch (error) {
             console.error('Error updating title:', error);
             showSnackbar(t('titleUpdateFailed'), 'error');
+        }
+    };
+
+    const handleUpdateTags = async (newTags: string[]) => {
+        if (!id) return;
+        try {
+            const response = await axios.put(`${API_URL}/videos/${id}`, { tags: newTags });
+            if (response.data.success) {
+                setVideo(prev => prev ? { ...prev, tags: newTags } : null);
+            }
+        } catch (error) {
+            console.error('Error updating tags:', error);
+            showSnackbar(t('error'), 'error');
         }
     };
 
@@ -643,6 +663,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                             </Stack>
                         </Stack>
 
+
                         {deleteError && (
                             <Alert severity="error" sx={{ mb: 2 }}>
                                 {deleteError}
@@ -681,6 +702,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                 )}
                             </Stack>
 
+
+
                             {videoCollections.length > 0 && (
                                 <Box sx={{ mt: 2 }}>
                                     <Typography variant="subtitle2" gutterBottom>{t('collections')}:</Typography>
@@ -700,6 +723,42 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     </Stack>
                                 </Box>
                             )}
+                        </Box>
+
+                        {/* Tags Section */}
+                        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LocalOffer color="action" fontSize="small" />
+                            <Autocomplete
+                                multiple
+                                options={availableTags}
+                                value={video.tags || []}
+                                isOptionEqualToValue={(option, value) => option === value}
+                                onChange={(_, newValue) => handleUpdateTags(newValue)}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        variant="standard"
+                                        placeholder={!video.tags || video.tags.length === 0 ? (t('tags') || 'Tags') : ''}
+                                        sx={{ minWidth: 200 }}
+                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
+                                    />
+                                )}
+                                renderTags={(value, getTagProps) =>
+                                    value.map((option, index) => {
+                                        const { key, ...tagProps } = getTagProps({ index });
+                                        return (
+                                            <Chip
+                                                key={key}
+                                                variant="outlined"
+                                                label={option}
+                                                size="small"
+                                                {...tagProps}
+                                            />
+                                        );
+                                    })
+                                }
+                                sx={{ flexGrow: 1 }}
+                            />
                         </Box>
 
                         {/* Comments Section */}

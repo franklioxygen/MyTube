@@ -8,7 +8,7 @@ import {
     UPLOADS_DIR,
     VIDEOS_DIR,
 } from "../config/paths";
-import { db } from "../db";
+import { db, sqlite } from "../db";
 import { collections, collectionVideos, downloads, settings, videos } from "../db/schema";
 
 export interface Video {
@@ -18,6 +18,7 @@ export interface Video {
   videoFilename?: string;
   thumbnailFilename?: string;
   createdAt: string;
+  tags?: string[];
   [key: string]: any;
 }
 
@@ -73,6 +74,20 @@ export function initializeStorage(): void {
         JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
       );
     }
+  }
+
+  // Check and migrate tags column if needed
+  try {
+    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
+    const hasTags = (tableInfo as any[]).some((col: any) => col.name === 'tags');
+    
+    if (!hasTags) {
+      console.log("Migrating database: Adding tags column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN tags TEXT").run();
+      console.log("Migration successful.");
+    }
+  } catch (error) {
+    console.error("Error checking/migrating tags column:", error);
   }
 }
 
@@ -240,7 +255,10 @@ export function saveSettings(newSettings: Record<string, any>): void {
 export function getVideos(): Video[] {
   try {
     const allVideos = db.select().from(videos).orderBy(desc(videos.createdAt)).all();
-    return allVideos as Video[];
+    return allVideos.map(v => ({
+      ...v,
+      tags: v.tags ? JSON.parse(v.tags) : [],
+    })) as Video[];
   } catch (error) {
     console.error("Error getting videos:", error);
     return [];
@@ -250,7 +268,13 @@ export function getVideos(): Video[] {
 export function getVideoById(id: string): Video | undefined {
   try {
     const video = db.select().from(videos).where(eq(videos.id, id)).get();
-    return video as Video | undefined;
+    if (video) {
+      return {
+        ...video,
+        tags: video.tags ? JSON.parse(video.tags) : [],
+      } as Video;
+    }
+    return undefined;
   } catch (error) {
     console.error("Error getting video by id:", error);
     return undefined;
@@ -259,9 +283,13 @@ export function getVideoById(id: string): Video | undefined {
 
 export function saveVideo(videoData: Video): Video {
   try {
-    db.insert(videos).values(videoData as any).onConflictDoUpdate({
+    const videoToSave = {
+      ...videoData,
+      tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
+    };
+    db.insert(videos).values(videoToSave as any).onConflictDoUpdate({
       target: videos.id,
-      set: videoData,
+      set: videoToSave,
     }).run();
     return videoData;
   } catch (error) {
@@ -272,8 +300,22 @@ export function saveVideo(videoData: Video): Video {
 
 export function updateVideo(id: string, updates: Partial<Video>): Video | null {
   try {
-    const result = db.update(videos).set(updates as any).where(eq(videos.id, id)).returning().get();
-    return (result as Video) || null;
+    const updatesToSave = {
+      ...updates,
+      tags: updates.tags ? JSON.stringify(updates.tags) : undefined,
+    };
+    // If tags is explicitly empty array, we might want to save it as '[]' or null. 
+    // JSON.stringify([]) is '[]', which is fine.
+    
+    const result = db.update(videos).set(updatesToSave as any).where(eq(videos.id, id)).returning().get();
+    
+    if (result) {
+        return {
+            ...result,
+            tags: result.tags ? JSON.parse(result.tags) : [],
+        } as Video;
+    }
+    return null;
   } catch (error) {
     console.error("Error updating video:", error);
     return null;

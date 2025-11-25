@@ -505,6 +505,7 @@ export const updateVideoDetails = (req: Request, res: Response): any => {
     // Filter allowed updates
     const allowedUpdates: any = {};
     if (updates.title !== undefined) allowedUpdates.title = updates.title;
+    if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
     // Add other allowed fields here if needed in the future
 
     if (Object.keys(allowedUpdates).length === 0) {

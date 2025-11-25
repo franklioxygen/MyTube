@@ -8,6 +8,7 @@ import {
     Button,
     Card,
     CardContent,
+    Chip,
     Container,
     Divider,
     FormControl,
@@ -40,6 +41,7 @@ interface Settings {
     defaultAutoLoop: boolean;
     maxConcurrentDownloads: number;
     language: string;
+    tags: string[];
 }
 
 const SettingsPage: React.FC = () => {
@@ -49,8 +51,10 @@ const SettingsPage: React.FC = () => {
         defaultAutoPlay: false,
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,
-        language: 'en'
+        language: 'en',
+        tags: []
     });
+    const [newTag, setNewTag] = useState('');
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -75,7 +79,10 @@ const SettingsPage: React.FC = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get(`${API_URL}/settings`);
-            setSettings(response.data);
+            setSettings({
+                ...response.data,
+                tags: response.data.tags || []
+            });
         } catch (error) {
             console.error('Error fetching settings:', error);
             setMessage({ text: t('settingsFailed'), type: 'error' });
@@ -93,6 +100,7 @@ const SettingsPage: React.FC = () => {
                 delete settingsToSend.password;
             }
 
+            console.log('Saving settings:', settingsToSend);
             await axios.post(`${API_URL}/settings`, settingsToSend);
             setMessage({ text: t('settingsSaved'), type: 'success' });
 
@@ -111,6 +119,19 @@ const SettingsPage: React.FC = () => {
         if (field === 'language') {
             setLanguage(value as Language);
         }
+    };
+
+    const handleAddTag = () => {
+        if (newTag && !settings.tags.includes(newTag)) {
+            const updatedTags = [...settings.tags, newTag];
+            setSettings(prev => ({ ...prev, tags: updatedTags }));
+            setNewTag('');
+        }
+    };
+
+    const handleDeleteTag = (tagToDelete: string) => {
+        const updatedTags = settings.tags.filter(tag => tag !== tagToDelete);
+        setSettings(prev => ({ ...prev, tags: updatedTags }));
     };
 
     return (
@@ -209,6 +230,39 @@ const SettingsPage: React.FC = () => {
                                     }
                                     label={t('autoLoop')}
                                 />
+                            </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* Tags Management */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('tagsManagement') || 'Tags Management'}</Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                                {settings.tags && settings.tags.map((tag) => (
+                                    <Chip
+                                        key={tag}
+                                        label={tag}
+                                        onDelete={() => handleDeleteTag(tag)}
+                                    />
+                                ))}
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1, maxWidth: 400 }}>
+                                <TextField
+                                    label={t('newTag') || 'New Tag'}
+                                    value={newTag}
+                                    onChange={(e) => setNewTag(e.target.value)}
+                                    size="small"
+                                    fullWidth
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleAddTag();
+                                        }
+                                    }}
+                                />
+                                <Button variant="contained" onClick={handleAddTag}>
+                                    {t('add') || 'Add'}
+                                </Button>
                             </Box>
                         </Grid>
 
