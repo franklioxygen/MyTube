@@ -1,14 +1,15 @@
+import { desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-    COLLECTIONS_DATA_PATH,
     DATA_DIR,
     IMAGES_DIR,
     STATUS_DATA_PATH,
     UPLOADS_DIR,
-    VIDEOS_DATA_PATH,
     VIDEOS_DIR,
 } from "../config/paths";
+import { db } from "../db";
+import { collections, collectionVideos, downloads, settings, videos } from "../db/schema";
 
 export interface Video {
   id: string;
@@ -25,7 +26,7 @@ export interface Collection {
   title: string;
   videos: string[];
   updatedAt?: string;
-  name?: string; // Add name property
+  name?: string;
   [key: string]: any;
 }
 
@@ -52,27 +53,21 @@ export function initializeStorage(): void {
   fs.ensureDirSync(IMAGES_DIR);
   fs.ensureDirSync(DATA_DIR);
 
-  // Initialize status.json if it doesn't exist, or reset active downloads if it does
+  // Initialize status.json if it doesn't exist
   if (!fs.existsSync(STATUS_DATA_PATH)) {
     fs.writeFileSync(
       STATUS_DATA_PATH,
       JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
     );
   } else {
-    // If it exists, we should clear active downloads because the server is just starting up
-    // so no downloads can be active yet.
     try {
       const status = JSON.parse(fs.readFileSync(STATUS_DATA_PATH, "utf8"));
       status.activeDownloads = [];
-      // We keep queued downloads as they might still be valid to process later
-      // (though currently we don't auto-resume them, but we shouldn't delete them)
       if (!status.queuedDownloads) status.queuedDownloads = [];
-      
       fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
       console.log("Cleared active downloads on startup");
     } catch (error) {
       console.error("Error resetting active downloads:", error);
-      // Re-create if corrupt
       fs.writeFileSync(
         STATUS_DATA_PATH,
         JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
@@ -81,275 +76,390 @@ export function initializeStorage(): void {
   }
 }
 
-// Add an active download
+
+// --- Download Status ---
+
 export function addActiveDownload(id: string, title: string): void {
   try {
-    const status = getDownloadStatus();
-    const existingIndex = status.activeDownloads.findIndex((d) => d.id === id);
-
-    const downloadInfo: DownloadInfo = {
+    const now = Date.now();
+    db.insert(downloads).values({
       id,
       title,
-      timestamp: Date.now(),
-    };
-
-    if (existingIndex >= 0) {
-      // Preserve existing progress info if just updating title/timestamp
-      downloadInfo.filename = status.activeDownloads[existingIndex].filename;
-      downloadInfo.totalSize = status.activeDownloads[existingIndex].totalSize;
-      downloadInfo.downloadedSize = status.activeDownloads[existingIndex].downloadedSize;
-      downloadInfo.progress = status.activeDownloads[existingIndex].progress;
-      downloadInfo.speed = status.activeDownloads[existingIndex].speed;
-      
-      status.activeDownloads[existingIndex] = downloadInfo;
-    } else {
-      status.activeDownloads.push(downloadInfo);
-    }
-
-    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+      timestamp: now,
+      status: 'active',
+    }).onConflictDoUpdate({
+      target: downloads.id,
+      set: {
+        title,
+        timestamp: now,
+        status: 'active',
+      }
+    }).run();
     console.log(`Added/Updated active download: ${title} (${id})`);
   } catch (error) {
     console.error("Error adding active download:", error);
   }
 }
 
-// Update an active download with partial info
 export function updateActiveDownload(id: string, updates: Partial<DownloadInfo>): void {
   try {
-    const status = getDownloadStatus();
-    const existingIndex = status.activeDownloads.findIndex((d) => d.id === id);
-
-    if (existingIndex >= 0) {
-      status.activeDownloads[existingIndex] = {
-        ...status.activeDownloads[existingIndex],
-        ...updates,
-        timestamp: Date.now() // Update timestamp to prevent stale removal
-      };
-      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
-    }
+    const updateData: any = { ...updates, timestamp: Date.now() };
+    
+    // Map fields to DB columns if necessary (though they match mostly)
+    if (updates.totalSize) updateData.totalSize = updates.totalSize;
+    if (updates.downloadedSize) updateData.downloadedSize = updates.downloadedSize;
+    
+    db.update(downloads)
+      .set(updateData)
+      .where(eq(downloads.id, id))
+      .run();
   } catch (error) {
     console.error("Error updating active download:", error);
   }
 }
 
-// Remove an active download
 export function removeActiveDownload(id: string): void {
   try {
-    const status = getDownloadStatus();
-    const initialLength = status.activeDownloads.length;
-    status.activeDownloads = status.activeDownloads.filter((d) => d.id !== id);
-
-    if (status.activeDownloads.length !== initialLength) {
-      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
-      console.log(`Removed active download: ${id}`);
-    }
+    db.delete(downloads).where(eq(downloads.id, id)).run();
+    console.log(`Removed active download: ${id}`);
   } catch (error) {
     console.error("Error removing active download:", error);
   }
 }
 
-// Set queued downloads
 export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
   try {
-    const status = getDownloadStatus();
-    status.queuedDownloads = queuedDownloads;
-    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+    // Transaction to clear old queued and add new ones
+    db.transaction(() => {
+      // First, remove all existing queued downloads
+      db.delete(downloads).where(eq(downloads.status, 'queued')).run();
+
+      // Then insert new ones
+      for (const download of queuedDownloads) {
+        db.insert(downloads).values({
+          id: download.id,
+          title: download.title,
+          timestamp: download.timestamp,
+          status: 'queued',
+        }).onConflictDoUpdate({
+            target: downloads.id,
+            set: {
+                title: download.title,
+                timestamp: download.timestamp,
+                status: 'queued'
+            }
+        }).run();
+      }
+    });
   } catch (error) {
     console.error("Error setting queued downloads:", error);
   }
 }
 
-// Get download status
 export function getDownloadStatus(): DownloadStatus {
-  if (!fs.existsSync(STATUS_DATA_PATH)) {
-    const initialStatus: DownloadStatus = { activeDownloads: [], queuedDownloads: [] };
-    fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(initialStatus, null, 2));
-    return initialStatus;
-  }
-
   try {
-    const status: DownloadStatus = JSON.parse(
-      fs.readFileSync(STATUS_DATA_PATH, "utf8")
-    );
+    // Clean up stale downloads (older than 30 mins)
+    const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+    db.delete(downloads)
+      .where(lt(downloads.timestamp, thirtyMinsAgo))
+      .run();
 
-    // Ensure arrays exist
-    if (!status.activeDownloads) status.activeDownloads = [];
-    if (!status.queuedDownloads) status.queuedDownloads = [];
+    const allDownloads = db.select().from(downloads).all();
+    
+    const activeDownloads = allDownloads
+      .filter(d => d.status === 'active')
+      .map(d => ({
+        id: d.id,
+        title: d.title,
+        timestamp: d.timestamp || 0,
+        filename: d.filename || undefined,
+        totalSize: d.totalSize || undefined,
+        downloadedSize: d.downloadedSize || undefined,
+        progress: d.progress || undefined,
+        speed: d.speed || undefined,
+      }));
 
-    // Check for stale downloads (older than 30 minutes)
-    const now = Date.now();
-    const validDownloads = status.activeDownloads.filter((d) => {
-      return d.timestamp && now - d.timestamp < 30 * 60 * 1000;
-    });
+    const queuedDownloads = allDownloads
+      .filter(d => d.status === 'queued')
+      .map(d => ({
+        id: d.id,
+        title: d.title,
+        timestamp: d.timestamp || 0,
+      }));
 
-    if (validDownloads.length !== status.activeDownloads.length) {
-      console.log("Removed stale downloads");
-      status.activeDownloads = validDownloads;
-      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
-    }
-
-    return status;
+    return { activeDownloads, queuedDownloads };
   } catch (error) {
     console.error("Error reading download status:", error);
     return { activeDownloads: [], queuedDownloads: [] };
   }
 }
 
-// Get all videos
+// --- Settings ---
+
+export function getSettings(): Record<string, any> {
+  try {
+    const allSettings = db.select().from(settings).all();
+    const settingsMap: Record<string, any> = {};
+    
+    for (const setting of allSettings) {
+      try {
+        settingsMap[setting.key] = JSON.parse(setting.value);
+      } catch (e) {
+        settingsMap[setting.key] = setting.value;
+      }
+    }
+    
+    return settingsMap;
+  } catch (error) {
+    console.error("Error getting settings:", error);
+    return {};
+  }
+}
+
+export function saveSettings(newSettings: Record<string, any>): void {
+  try {
+    db.transaction(() => {
+      for (const [key, value] of Object.entries(newSettings)) {
+        db.insert(settings).values({
+          key,
+          value: JSON.stringify(value),
+        }).onConflictDoUpdate({
+          target: settings.key,
+          set: { value: JSON.stringify(value) },
+        }).run();
+      }
+    });
+  } catch (error) {
+    console.error("Error saving settings:", error);
+    throw error;
+  }
+}
+
+// --- Videos ---
+
 export function getVideos(): Video[] {
-  if (!fs.existsSync(VIDEOS_DATA_PATH)) {
+  try {
+    const allVideos = db.select().from(videos).orderBy(desc(videos.createdAt)).all();
+    return allVideos as Video[];
+  } catch (error) {
+    console.error("Error getting videos:", error);
     return [];
   }
-  return JSON.parse(fs.readFileSync(VIDEOS_DATA_PATH, "utf8"));
 }
 
-// Get video by ID
 export function getVideoById(id: string): Video | undefined {
-  const videos = getVideos();
-  return videos.find((v) => v.id === id);
+  try {
+    const video = db.select().from(videos).where(eq(videos.id, id)).get();
+    return video as Video | undefined;
+  } catch (error) {
+    console.error("Error getting video by id:", error);
+    return undefined;
+  }
 }
 
-// Save a new video
 export function saveVideo(videoData: Video): Video {
-  let videos = getVideos();
-  videos.unshift(videoData);
-  fs.writeFileSync(VIDEOS_DATA_PATH, JSON.stringify(videos, null, 2));
-  return videoData;
+  try {
+    db.insert(videos).values(videoData as any).onConflictDoUpdate({
+      target: videos.id,
+      set: videoData,
+    }).run();
+    return videoData;
+  } catch (error) {
+    console.error("Error saving video:", error);
+    throw error;
+  }
 }
 
-// Update a video
 export function updateVideo(id: string, updates: Partial<Video>): Video | null {
-  let videos = getVideos();
-  const index = videos.findIndex((v) => v.id === id);
-
-  if (index === -1) {
+  try {
+    const result = db.update(videos).set(updates as any).where(eq(videos.id, id)).returning().get();
+    return (result as Video) || null;
+  } catch (error) {
+    console.error("Error updating video:", error);
     return null;
   }
-
-  const updatedVideo = { ...videos[index], ...updates };
-  videos[index] = updatedVideo;
-  fs.writeFileSync(VIDEOS_DATA_PATH, JSON.stringify(videos, null, 2));
-  return updatedVideo;
 }
 
-// Delete a video
 export function deleteVideo(id: string): boolean {
-  let videos = getVideos();
-  const videoToDelete = videos.find((v) => v.id === id);
+  try {
+    const videoToDelete = getVideoById(id);
+    if (!videoToDelete) return false;
 
-  if (!videoToDelete) {
-    return false;
-  }
-
-  // Remove the video file
-  if (videoToDelete.videoFilename) {
-    const actualPath = findVideoFile(videoToDelete.videoFilename);
-    if (actualPath && fs.existsSync(actualPath)) {
+    // Remove files
+    if (videoToDelete.videoFilename) {
+      const actualPath = findVideoFile(videoToDelete.videoFilename);
+      if (actualPath && fs.existsSync(actualPath)) {
         fs.unlinkSync(actualPath);
+      }
     }
-  }
 
-  // Remove the thumbnail file
-  if (videoToDelete.thumbnailFilename) {
+    if (videoToDelete.thumbnailFilename) {
       const actualPath = findImageFile(videoToDelete.thumbnailFilename);
       if (actualPath && fs.existsSync(actualPath)) {
-          fs.unlinkSync(actualPath);
+        fs.unlinkSync(actualPath);
       }
+    }
+
+    // Delete from DB
+    db.delete(videos).where(eq(videos.id, id)).run();
+    return true;
+  } catch (error) {
+    console.error("Error deleting video:", error);
+    return false;
   }
-
-  // Filter out the deleted video from the videos array
-  videos = videos.filter((v) => v.id !== id);
-
-  // Save the updated videos array
-  fs.writeFileSync(VIDEOS_DATA_PATH, JSON.stringify(videos, null, 2));
-
-  return true;
 }
 
-// Get all collections
+// --- Collections ---
+
 export function getCollections(): Collection[] {
-  if (!fs.existsSync(COLLECTIONS_DATA_PATH)) {
+  try {
+    const rows = db.select({
+      c: collections,
+      cv: collectionVideos,
+    })
+    .from(collections)
+    .leftJoin(collectionVideos, eq(collections.id, collectionVideos.collectionId))
+    .all();
+
+    const map = new Map<string, Collection>();
+    for (const row of rows) {
+      if (!map.has(row.c.id)) {
+        map.set(row.c.id, {
+          ...row.c,
+          title: row.c.title || row.c.name,
+          updatedAt: row.c.updatedAt || undefined,
+          videos: [],
+        });
+      }
+      if (row.cv) {
+        map.get(row.c.id)!.videos.push(row.cv.videoId);
+      }
+    }
+    return Array.from(map.values());
+  } catch (error) {
+    console.error("Error getting collections:", error);
     return [];
   }
-  return JSON.parse(fs.readFileSync(COLLECTIONS_DATA_PATH, "utf8"));
 }
 
-// Get collection by ID
 export function getCollectionById(id: string): Collection | undefined {
-  const collections = getCollections();
-  return collections.find((c) => c.id === id);
+  try {
+    const rows = db.select({
+      c: collections,
+      cv: collectionVideos,
+    })
+    .from(collections)
+    .leftJoin(collectionVideos, eq(collections.id, collectionVideos.collectionId))
+    .where(eq(collections.id, id))
+    .all();
+
+    if (rows.length === 0) return undefined;
+
+    const collection: Collection = {
+      ...rows[0].c,
+      title: rows[0].c.title || rows[0].c.name,
+      updatedAt: rows[0].c.updatedAt || undefined,
+      videos: [],
+    };
+
+    for (const row of rows) {
+      if (row.cv) {
+        collection.videos.push(row.cv.videoId);
+      }
+    }
+
+    return collection;
+  } catch (error) {
+    console.error("Error getting collection by id:", error);
+    return undefined;
+  }
 }
 
-// Save a new collection
 export function saveCollection(collection: Collection): Collection {
-  let collections = getCollections();
-  collections.push(collection);
-  fs.writeFileSync(COLLECTIONS_DATA_PATH, JSON.stringify(collections, null, 2));
-  return collection;
+  try {
+    db.transaction(() => {
+      // Insert collection
+      db.insert(collections).values({
+        id: collection.id,
+        name: collection.name || collection.title,
+        title: collection.title,
+        createdAt: collection.createdAt || new Date().toISOString(),
+        updatedAt: collection.updatedAt,
+      }).onConflictDoUpdate({
+        target: collections.id,
+        set: {
+          name: collection.name || collection.title,
+          title: collection.title,
+          updatedAt: new Date().toISOString(),
+        }
+      }).run();
+
+      // Sync videos
+      // First delete existing links
+      db.delete(collectionVideos).where(eq(collectionVideos.collectionId, collection.id)).run();
+      
+      // Then insert new links
+      if (collection.videos && collection.videos.length > 0) {
+        for (const videoId of collection.videos) {
+             // Check if video exists to avoid FK error
+             const videoExists = db.select({ id: videos.id }).from(videos).where(eq(videos.id, videoId)).get();
+             if (videoExists) {
+                 db.insert(collectionVideos).values({
+                    collectionId: collection.id,
+                    videoId: videoId,
+                 }).run();
+             }
+        }
+      }
+    });
+    return collection;
+  } catch (error) {
+    console.error("Error saving collection:", error);
+    throw error;
+  }
 }
 
-// Atomic update for a collection
 export function atomicUpdateCollection(
   id: string,
   updateFn: (collection: Collection) => Collection | null
 ): Collection | null {
-  let collections = getCollections();
-  const index = collections.findIndex((c) => c.id === id);
+  try {
+    const collection = getCollectionById(id);
+    if (!collection) return null;
 
-  if (index === -1) {
+    // Deep copy not strictly needed as we reconstruct, but good for safety if updateFn mutates
+    const collectionCopy = JSON.parse(JSON.stringify(collection));
+    const updatedCollection = updateFn(collectionCopy);
+
+    if (!updatedCollection) return null;
+
+    updatedCollection.updatedAt = new Date().toISOString();
+    saveCollection(updatedCollection);
+    return updatedCollection;
+  } catch (error) {
+    console.error("Error atomic updating collection:", error);
     return null;
   }
-
-  // Create a deep copy of the collection to avoid reference issues
-  const originalCollection = collections[index];
-  const collectionCopy: Collection = JSON.parse(
-    JSON.stringify(originalCollection)
-  );
-
-  // Apply the update function
-  const updatedCollection = updateFn(collectionCopy);
-
-  // If the update function returned null or undefined, abort the update
-  if (!updatedCollection) {
-    return null;
-  }
-
-  updatedCollection.updatedAt = new Date().toISOString();
-
-  // Update the collection in the array
-  collections[index] = updatedCollection;
-
-  // Write back to file synchronously
-  fs.writeFileSync(COLLECTIONS_DATA_PATH, JSON.stringify(collections, null, 2));
-
-  return updatedCollection;
 }
 
-// Delete a collection
 export function deleteCollection(id: string): boolean {
-  let collections = getCollections();
-  const updatedCollections = collections.filter((c) => c.id !== id);
-
-  if (updatedCollections.length === collections.length) {
+  try {
+    const result = db.delete(collections).where(eq(collections.id, id)).run();
+    return result.changes > 0;
+  } catch (error) {
+    console.error("Error deleting collection:", error);
     return false;
   }
-
-  fs.writeFileSync(
-    COLLECTIONS_DATA_PATH,
-    JSON.stringify(updatedCollections, null, 2)
-  );
-  return true;
 }
 
-// Helper to find where a video file currently resides
+// --- File Management Helpers ---
+
 function findVideoFile(filename: string): string | null {
-  // Check root
   const rootPath = path.join(VIDEOS_DIR, filename);
   if (fs.existsSync(rootPath)) return rootPath;
 
-  // Check collections
-  const collections = getCollections();
-  for (const collection of collections) {
+  const allCollections = getCollections();
+  for (const collection of allCollections) {
     const collectionName = collection.name || collection.title;
     if (collectionName) {
       const collectionPath = path.join(VIDEOS_DIR, collectionName, filename);
@@ -359,15 +469,12 @@ function findVideoFile(filename: string): string | null {
   return null;
 }
 
-// Helper to find where an image file currently resides
 function findImageFile(filename: string): string | null {
-  // Check root
   const rootPath = path.join(IMAGES_DIR, filename);
   if (fs.existsSync(rootPath)) return rootPath;
 
-  // Check collections
-  const collections = getCollections();
-  for (const collection of collections) {
+  const allCollections = getCollections();
+  for (const collection of allCollections) {
     const collectionName = collection.name || collection.title;
     if (collectionName) {
       const collectionPath = path.join(IMAGES_DIR, collectionName, filename);
@@ -377,7 +484,6 @@ function findImageFile(filename: string): string | null {
   return null;
 }
 
-// Helper to move a file
 function moveFile(sourcePath: string, destPath: string): void {
   try {
     if (fs.existsSync(sourcePath)) {
@@ -390,8 +496,10 @@ function moveFile(sourcePath: string, destPath: string): void {
   }
 }
 
-// Add video to collection and move files
+// --- Complex Operations ---
+
 export function addVideoToCollection(collectionId: string, videoId: string): Collection | null {
+  // Use atomicUpdateCollection to handle DB update
   const collection = atomicUpdateCollection(collectionId, (c) => {
     if (!c.videos.includes(videoId)) {
       c.videos.push(videoId);
@@ -407,7 +515,6 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
       const updates: Partial<Video> = {};
       let updated = false;
 
-      // Move video file
       if (video.videoFilename) {
         const currentVideoPath = findVideoFile(video.videoFilename);
         const targetVideoPath = path.join(VIDEOS_DIR, collectionName, video.videoFilename);
@@ -419,7 +526,6 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
         }
       }
 
-      // Move image file
       if (video.thumbnailFilename) {
         const currentImagePath = findImageFile(video.thumbnailFilename);
         const targetImagePath = path.join(IMAGES_DIR, collectionName, video.thumbnailFilename);
@@ -440,7 +546,6 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
   return collection;
 }
 
-// Remove video from collection and move files
 export function removeVideoFromCollection(collectionId: string, videoId: string): Collection | null {
   const collection = atomicUpdateCollection(collectionId, (c) => {
     c.videos = c.videos.filter((v) => v !== videoId);
@@ -473,7 +578,6 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
       const updates: Partial<Video> = {};
       let updated = false;
 
-      // Move video file
       if (video.videoFilename) {
         const currentVideoPath = findVideoFile(video.videoFilename);
         const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
@@ -485,7 +589,6 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
         }
       }
 
-      // Move image file
       if (video.thumbnailFilename) {
         const currentImagePath = findImageFile(video.thumbnailFilename);
         const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
@@ -506,19 +609,16 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
   return collection;
 }
 
-// Delete collection and move files back to root (or other collection)
 export function deleteCollectionWithFiles(collectionId: string): boolean {
   const collection = getCollectionById(collectionId);
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
   
-  // Move files for all videos in the collection
   if (collection.videos && collection.videos.length > 0) {
     collection.videos.forEach(videoId => {
       const video = getVideoById(videoId);
       if (video) {
-        // Check if video is in any OTHER collection (excluding the one being deleted)
         const allCollections = getCollections();
         const otherCollection = allCollections.find(c => c.videos.includes(videoId) && c.id !== collectionId);
 
@@ -540,9 +640,7 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
         const updates: Partial<Video> = {};
         let updated = false;
 
-        // Move video file
         if (video.videoFilename) {
-          // We know it should be in the collection folder being deleted, but use findVideoFile to be safe
           const currentVideoPath = findVideoFile(video.videoFilename);
           const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
           
@@ -553,7 +651,6 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
           }
         }
 
-        // Move image file
         if (video.thumbnailFilename) {
           const currentImagePath = findImageFile(video.thumbnailFilename);
           const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
@@ -572,10 +669,8 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
     });
   }
 
-  // Delete the collection from DB
   const success = deleteCollection(collectionId);
 
-  // Remove the collection directories if empty
   if (success && collectionName) {
     try {
       const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
@@ -595,26 +690,21 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   return success;
 }
 
-// Delete collection and all its videos
 export function deleteCollectionAndVideos(collectionId: string): boolean {
   const collection = getCollectionById(collectionId);
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
 
-  // Delete all videos in the collection
   if (collection.videos && collection.videos.length > 0) {
-    // Create a copy of the videos array to iterate over safely
     const videosToDelete = [...collection.videos];
     videosToDelete.forEach(videoId => {
       deleteVideo(videoId);
     });
   }
 
-  // Delete the collection from DB
   const success = deleteCollection(collectionId);
 
-  // Remove the collection directories
   if (success && collectionName) {
     try {
       const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
@@ -633,3 +723,4 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
 
   return success;
 }
+

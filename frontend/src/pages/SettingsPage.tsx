@@ -217,6 +217,42 @@ const SettingsPage: React.FC = () => {
                             </Box>
                         </Grid>
 
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* Database Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>Database</Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                Migrate data from legacy JSON files to the new SQLite database.
+                                This action is safe to run multiple times (duplicates will be skipped).
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={async () => {
+                                    if (window.confirm('Are you sure you want to migrate data? This may take a few moments.')) {
+                                        setSaving(true);
+                                        try {
+                                            const res = await axios.post(`${API_URL}/settings/migrate`);
+                                            console.log('Migration results:', res.data.results);
+                                            setMessage({ text: 'Migration completed successfully!', type: 'success' });
+                                        } catch (error: any) {
+                                            console.error('Migration failed:', error);
+                                            setMessage({
+                                                text: `Migration failed: ${error.response?.data?.details || error.message}`,
+                                                type: 'error'
+                                            });
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }
+                                }}
+                                disabled={saving}
+                            >
+                                Migrate Data from JSON
+                            </Button>
+                        </Grid>
+
                         <Grid size={12}>
                             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                                 <Button

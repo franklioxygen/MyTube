@@ -1,10 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
-import fs from 'fs-extra';
-import path from 'path';
 import downloadManager from '../services/downloadManager';
-
-const SETTINGS_FILE = path.join(__dirname, '../../data/settings.json');
+import * as storageService from '../services/storageService';
 
 interface Settings {
     loginEnabled: boolean;
@@ -26,18 +23,34 @@ const defaultSettings: Settings = {
 
 export const getSettings = async (req: Request, res: Response) => {
     try {
-        if (!fs.existsSync(SETTINGS_FILE)) {
-            await fs.writeJson(SETTINGS_FILE, defaultSettings, { spaces: 2 });
+        const settings = storageService.getSettings();
+        
+        // If empty (first run), save defaults
+        if (Object.keys(settings).length === 0) {
+            storageService.saveSettings(defaultSettings);
             return res.json(defaultSettings);
         }
 
-        const settings = await fs.readJson(SETTINGS_FILE);
+        // Merge with defaults to ensure all fields exist
+        const mergedSettings = { ...defaultSettings, ...settings };
+
         // Do not send the hashed password to the frontend
-        const { password, ...safeSettings } = settings;
+        const { password, ...safeSettings } = mergedSettings;
         res.json({ ...safeSettings, isPasswordSet: !!password });
     } catch (error) {
         console.error('Error reading settings:', error);
         res.status(500).json({ error: 'Failed to read settings' });
+    }
+};
+
+export const migrateData = async (req: Request, res: Response) => {
+    try {
+        const { runMigration } = await import('../services/migrationService');
+        const results = await runMigration();
+        res.json({ success: true, results });
+    } catch (error: any) {
+        console.error('Error running migration:', error);
+        res.status(500).json({ error: 'Failed to run migration', details: error.message });
     }
 };
 
@@ -56,14 +69,12 @@ export const updateSettings = async (req: Request, res: Response) => {
             const salt = await bcrypt.genSalt(10);
             newSettings.password = await bcrypt.hash(newSettings.password, salt);
         } else {
-            // If password is empty/not provided, keep existing password if file exists
-            if (fs.existsSync(SETTINGS_FILE)) {
-                const existingSettings = await fs.readJson(SETTINGS_FILE);
-                newSettings.password = existingSettings.password;
-            }
+            // If password is empty/not provided, keep existing password
+            const existingSettings = storageService.getSettings();
+            newSettings.password = existingSettings.password;
         }
 
-        await fs.writeJson(SETTINGS_FILE, newSettings, { spaces: 2 });
+        storageService.saveSettings(newSettings);
 
         // Apply settings immediately where possible
         downloadManager.setMaxConcurrentDownloads(newSettings.maxConcurrentDownloads);
@@ -79,23 +90,19 @@ export const verifyPassword = async (req: Request, res: Response) => {
     try {
         const { password } = req.body;
         
-        if (!fs.existsSync(SETTINGS_FILE)) {
-            return res.json({ success: true });
-        }
-
-        const settings = await fs.readJson(SETTINGS_FILE);
+        const settings = storageService.getSettings();
+        const mergedSettings = { ...defaultSettings, ...settings };
         
-        if (!settings.loginEnabled) {
+        if (!mergedSettings.loginEnabled) {
             return res.json({ success: true });
         }
 
-        if (!settings.password) {
-            // If no password set but login enabled, allow access (or force set password?)
-            // For now, allow access
+        if (!mergedSettings.password) {
+            // If no password set but login enabled, allow access
             return res.json({ success: true });
         }
 
-        const isMatch = await bcrypt.compare(password, settings.password);
+        const isMatch = await bcrypt.compare(password, mergedSettings.password);
 
         if (isMatch) {
             res.json({ success: true });

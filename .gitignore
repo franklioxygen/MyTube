@@ -47,3 +47,7 @@ backend/uploads/images/*
 # Ignore the videos database
 backend/data/videos.json
 backend/data/collections.json
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/status.json
+backend/data/settings.json
