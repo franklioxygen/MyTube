@@ -27,6 +27,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import ConsoleManager from '../utils/consoleManager';
 import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -52,7 +53,19 @@ const SettingsPage: React.FC = () => {
     });
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+
+    // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
+    const [showMigrateConfirmModal, setShowMigrateConfirmModal] = useState(false);
+    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'info'
+    });
+
+    const [debugMode, setDebugMode] = useState(ConsoleManager.getDebugMode());
+
     const { t, setLanguage } = useLanguage();
 
     useEffect(() => {
@@ -231,58 +244,43 @@ const SettingsPage: React.FC = () => {
                             <Button
                                 variant="outlined"
                                 color="warning"
-                                onClick={async () => {
-                                    if (window.confirm(t('migrateConfirmation'))) {
-                                        setSaving(true);
-                                        try {
-                                            const res = await axios.post(`${API_URL}/settings/migrate`);
-                                            const results = res.data.results;
-                                            console.log('Migration results:', results);
-
-                                            let msg = `${t('migrationReport')}:\n`;
-                                            let hasData = false;
-
-                                            if (results.warnings && results.warnings.length > 0) {
-                                                msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
-                                            }
-
-                                            const categories = ['videos', 'collections', 'settings', 'downloads'];
-                                            categories.forEach(cat => {
-                                                const data = results[cat];
-                                                if (data) {
-                                                    if (data.found) {
-                                                        msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
-                                                        hasData = true;
-                                                    } else {
-                                                        msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
-                                                    }
-                                                }
-                                            });
-
-                                            if (results.errors && results.errors.length > 0) {
-                                                msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
-                                            }
-
-                                            if (!hasData && (!results.errors || results.errors.length === 0)) {
-                                                msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
-                                            }
-
-                                            alert(msg);
-                                            setMessage({ text: hasData ? t('migrationSuccess') : t('migrationNoData'), type: hasData ? 'success' : 'warning' });
-                                        } catch (error: any) {
-                                            console.error('Migration failed:', error);
-                                            setMessage({
-                                                text: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
-                                                type: 'error'
-                                            });
-                                        } finally {
-                                            setSaving(false);
-                                        }
-                                    }
-                                }}
+                                onClick={() => setShowMigrateConfirmModal(true)}
                                 disabled={saving}
                             >
                                 {t('migrateDataButton')}
+                            </Button>
+
+                            <Button
+                                variant="outlined"
+                                color="primary"
+                                onClick={async () => {
+                                    setSaving(true);
+                                    try {
+                                        const res = await axios.post(`${API_URL}/scan-files`);
+                                        const { addedCount } = res.data;
+
+                                        setInfoModal({
+                                            isOpen: true,
+                                            title: t('success'),
+                                            message: t('scanFilesSuccess').replace('{count}', addedCount.toString()),
+                                            type: 'success'
+                                        });
+                                    } catch (error: any) {
+                                        console.error('Scan failed:', error);
+                                        setInfoModal({
+                                            isOpen: true,
+                                            title: t('error'),
+                                            message: `${t('scanFilesFailed')}: ${error.response?.data?.details || error.message}`,
+                                            type: 'error'
+                                        });
+                                    } finally {
+                                        setSaving(false);
+                                    }
+                                }}
+                                disabled={saving}
+                                sx={{ ml: 2 }}
+                            >
+                                {t('scanFiles')}
                             </Button>
 
                             <Box sx={{ mt: 3 }}>
@@ -299,6 +297,28 @@ const SettingsPage: React.FC = () => {
                                     {t('deleteLegacyDataButton')}
                                 </Button>
                             </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* Advanced Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('debugMode')}</Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                {t('debugModeDescription')}
+                            </Typography>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={debugMode}
+                                        onChange={(e) => {
+                                            setDebugMode(e.target.checked);
+                                            ConsoleManager.setDebugMode(e.target.checked);
+                                        }}
+                                    />
+                                }
+                                label={t('debugMode')}
+                            />
                         </Grid>
 
                         <Grid size={12}>
@@ -346,12 +366,22 @@ const SettingsPage: React.FC = () => {
                             msg += `\nFailed: ${results.failed.join(', ')}`;
                         }
 
-                        alert(msg);
-                        setMessage({ text: t('legacyDataDeleted'), type: 'success' });
+                        if (results.failed.length > 0) {
+                            msg += `\nFailed: ${results.failed.join(', ')}`;
+                        }
+
+                        setInfoModal({
+                            isOpen: true,
+                            title: t('success'),
+                            message: msg,
+                            type: 'success'
+                        });
                     } catch (error: any) {
                         console.error('Failed to delete legacy data:', error);
-                        setMessage({
-                            text: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
+                        setInfoModal({
+                            isOpen: true,
+                            title: t('error'),
+                            message: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
                             type: 'error'
                         });
                     } finally {
@@ -361,7 +391,83 @@ const SettingsPage: React.FC = () => {
                 title={t('removeLegacyDataConfirmTitle')}
                 message={t('removeLegacyDataConfirmMessage')}
                 confirmText={t('delete')}
+                cancelText={t('cancel')}
                 isDanger={true}
+            />
+
+            {/* Migrate Data Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showMigrateConfirmModal}
+                onClose={() => setShowMigrateConfirmModal(false)}
+                onConfirm={async () => {
+                    setSaving(true);
+                    try {
+                        const res = await axios.post(`${API_URL}/settings/migrate`);
+                        const results = res.data.results;
+                        console.log('Migration results:', results);
+
+                        let msg = `${t('migrationReport')}:\n`;
+                        let hasData = false;
+
+                        if (results.warnings && results.warnings.length > 0) {
+                            msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
+                        }
+
+                        const categories = ['videos', 'collections', 'settings', 'downloads'];
+                        categories.forEach(cat => {
+                            const data = results[cat];
+                            if (data) {
+                                if (data.found) {
+                                    msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
+                                    hasData = true;
+                                } else {
+                                    msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
+                                }
+                            }
+                        });
+
+                        if (results.errors && results.errors.length > 0) {
+                            msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
+                        }
+
+                        if (!hasData && (!results.errors || results.errors.length === 0)) {
+                            msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
+                        }
+
+                        setInfoModal({
+                            isOpen: true,
+                            title: hasData ? t('migrationResults') : t('migrationNoData'),
+                            message: msg,
+                            type: hasData ? 'success' : 'warning'
+                        });
+                    } catch (error: any) {
+                        console.error('Migration failed:', error);
+                        setInfoModal({
+                            isOpen: true,
+                            title: t('error'),
+                            message: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
+                            type: 'error'
+                        });
+                    } finally {
+                        setSaving(false);
+                    }
+                }}
+                title={t('migrateDataButton')}
+                message={t('migrateConfirmation')}
+                confirmText={t('confirm')}
+                cancelText={t('cancel')}
+            />
+
+            {/* Info/Result Modal */}
+            <ConfirmationModal
+                isOpen={infoModal.isOpen}
+                onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+                title={infoModal.title}
+                message={infoModal.message}
+                confirmText="OK"
+                showCancel={false}
+                isDanger={infoModal.type === 'error'}
             />
         </Container>
     );

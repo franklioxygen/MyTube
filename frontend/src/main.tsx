@@ -6,6 +6,11 @@ import VERSION from './version';
 
 import { SnackbarProvider } from './contexts/SnackbarContext';
 
+import ConsoleManager from './utils/consoleManager';
+
+// Initialize console manager
+ConsoleManager.init();
+
 // Display version information
 VERSION.displayVersion();
 

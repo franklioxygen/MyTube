@@ -496,3 +496,35 @@ export const rateVideo = (req: Request, res: Response): any => {
   }
 };
 
+// Update video details
+export const updateVideoDetails = (req: Request, res: Response): any => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Filter allowed updates
+    const allowedUpdates: any = {};
+    if (updates.title !== undefined) allowedUpdates.title = updates.title;
+    // Add other allowed fields here if needed in the future
+
+    if (Object.keys(allowedUpdates).length === 0) {
+      return res.status(400).json({ error: "No valid updates provided" });
+    }
+
+    const updatedVideo = storageService.updateVideo(id, allowedUpdates);
+
+    if (!updatedVideo) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Video updated successfully",
+      video: updatedVideo
+    });
+  } catch (error) {
+    console.error("Error updating video:", error);
+    res.status(500).json({ error: "Failed to update video" });
+  }
+};
+

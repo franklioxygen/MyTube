@@ -47,11 +47,16 @@ export const translations = {
         backToManage: "Back to Manage",
         settingsSaved: "Settings saved successfully",
         settingsFailed: "Failed to save settings",
+        debugMode: "Debug Mode",
+        debugModeDescription: "Show or hide console messages (requires refresh)",
         
         // Database
         database: "Database",
         migrateDataDescription: "Migrate data from legacy JSON files to the new SQLite database. This action is safe to run multiple times (duplicates will be skipped).",
         migrateDataButton: "Migrate Data from JSON",
+        scanFiles: "Scan Files",
+        scanFilesSuccess: "Scan complete. Added {count} new videos.",
+        scanFilesFailed: "Scan failed",
         migrateConfirmation: "Are you sure you want to migrate data? This may take a few moments.",
         migrationResults: "Migration Results",
         migrationReport: "Migration Report",
@@ -128,6 +133,9 @@ export const translations = {
         rateThisVideo: "Rate this video",
         enterFullscreen: "Enter Fullscreen",
         exitFullscreen: "Exit Fullscreen",
+        editTitle: "Edit Title",
+        titleUpdated: "Title updated successfully",
+        titleUpdateFailed: "Failed to update title",
         
         // Login
         signIn: "Sign in",
@@ -160,6 +168,7 @@ export const translations = {
         success: "Success",
         cancel: "Cancel",
         confirm: "Confirm",
+        save: "Save",
         on: "On",
         off: "Off",
         
@@ -243,11 +252,16 @@ export const translations = {
         backToManage: "返回管理",
         settingsSaved: "设置保存成功",
         settingsFailed: "保存设置失败",
+        debugMode: "调试模式",
+        debugModeDescription: "显示或隐藏控制台消息（需要刷新）",
         
         // Database
         database: "数据库",
         migrateDataDescription: "从旧版 JSON 文件迁移数据到新的 SQLite 数据库。此操作可以安全地多次运行（将跳过重复项）。",
         migrateDataButton: "从 JSON 迁移数据",
+        scanFiles: "扫描文件",
+        scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
+        scanFilesFailed: "扫描失败",
         migrateConfirmation: "确定要迁移数据吗？这可能需要一些时间。",
         migrationResults: "迁移结果",
         migrationReport: "迁移报告",
@@ -324,6 +338,9 @@ export const translations = {
         rateThisVideo: "给视频评分",
         enterFullscreen: "全屏",
         exitFullscreen: "退出全屏",
+        editTitle: "编辑标题",
+        titleUpdated: "标题更新成功",
+        titleUpdateFailed: "更新标题失败",
         
         // Login
         signIn: "登录",
@@ -356,6 +373,7 @@ export const translations = {
         success: "成功",
         cancel: "取消",
         confirm: "确认",
+        save: "保存",
         on: "开启",
         off: "关闭",
         

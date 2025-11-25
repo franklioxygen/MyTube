@@ -1,5 +1,6 @@
 import express from "express";
 import * as collectionController from "../controllers/collectionController";
+import * as scanController from "../controllers/scanController";
 import * as videoController from "../controllers/videoController";
 
 const router = express.Router();
@@ -10,9 +11,12 @@ router.post("/download", videoController.downloadVideo);
 router.post("/upload", videoController.upload.single("video"), videoController.uploadVideo);
 router.get("/videos", videoController.getVideos);
 router.get("/videos/:id", videoController.getVideoById);
+router.put("/videos/:id", videoController.updateVideoDetails);
 router.delete("/videos/:id", videoController.deleteVideo);
 router.get("/videos/:id/comments", videoController.getVideoComments);
 router.post("/videos/:id/rate", videoController.rateVideo);
+
+router.post("/scan-files", scanController.scanFiles);
 
 router.get("/download-status", videoController.getDownloadStatus);
 router.get("/check-bilibili-parts", videoController.checkBilibiliParts);

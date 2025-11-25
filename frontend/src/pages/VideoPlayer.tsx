@@ -1,8 +1,11 @@
 import {
     Add,
     CalendarToday,
+    Check,
+    Close,
     Delete,
     Download,
+    Edit,
     FastForward,
     FastRewind,
     Folder,
@@ -50,6 +53,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { Collection, Comment, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -77,6 +81,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
 
     const [video, setVideo] = useState<Video | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -96,6 +101,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [isLooping, setIsLooping] = useState<boolean>(false);
 
+    // Title editing state
+    const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
+    const [editedTitle, setEditedTitle] = useState<string>('');
+
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
         isOpen: false,
@@ -103,6 +112,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         message: '',
         onConfirm: () => { },
         confirmText: t('confirm'),
+        cancelText: t('cancel'),
         isDanger: false
     });
 
@@ -310,6 +320,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             message: t('confirmDelete'),
             onConfirm: executeDelete,
             confirmText: t('delete'),
+            cancelText: t('cancel'),
             isDanger: true
         });
     };
@@ -368,11 +379,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             message: t('confirmRemoveFromCollection'),
             onConfirm: executeRemoveFromCollection,
             confirmText: t('remove'),
+            cancelText: t('cancel'),
             isDanger: true
         });
     };
 
-    const handleRatingChange = async (event: React.SyntheticEvent, newValue: number | null) => {
+    const handleRatingChange = async (_: React.SyntheticEvent, newValue: number | null) => {
         if (!newValue || !id) return;
 
         try {
@@ -380,6 +392,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             setVideo(prev => prev ? { ...prev, rating: newValue } : null);
         } catch (error) {
             console.error('Error updating rating:', error);
+        }
+    };
+
+    const handleStartEditingTitle = () => {
+        if (video) {
+            setEditedTitle(video.title);
+            setIsEditingTitle(true);
+        }
+    };
+
+    const handleCancelEditingTitle = () => {
+        setIsEditingTitle(false);
+        setEditedTitle('');
+    };
+
+    const handleSaveTitle = async () => {
+        if (!id || !editedTitle.trim()) return;
+
+        try {
+            const response = await axios.put(`${API_URL}/videos/${id}`, { title: editedTitle });
+            if (response.data.success) {
+                setVideo(prev => prev ? { ...prev, title: editedTitle } : null);
+                setIsEditingTitle(false);
+                showSnackbar(t('titleUpdated'));
+            }
+        } catch (error) {
+            console.error('Error updating title:', error);
+            showSnackbar(t('titleUpdateFailed'), 'error');
         }
     };
 
@@ -498,9 +538,54 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </Box>
                     {/* Info Column */}
                     <Box sx={{ mt: 2 }}>
-                        <Typography variant="h5" component="h1" fontWeight="bold" gutterBottom>
-                            {video.title}
-                        </Typography>
+                        {isEditingTitle ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
+                                <TextField
+                                    fullWidth
+                                    value={editedTitle}
+                                    onChange={(e) => setEditedTitle(e.target.value)}
+                                    variant="outlined"
+                                    size="small"
+                                    autoFocus
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleSaveTitle();
+                                        }
+                                    }}
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleSaveTitle}
+                                    sx={{ minWidth: 'auto', p: 0.5 }}
+                                >
+                                    <Check />
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    onClick={handleCancelEditingTitle}
+                                    sx={{ minWidth: 'auto', p: 0.5 }}
+                                >
+                                    <Close />
+                                </Button>
+                            </Box>
+                        ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="h5" component="h1" fontWeight="bold" sx={{ mr: 1 }}>
+                                    {video.title}
+                                </Typography>
+                                <Tooltip title={t('editTitle')}>
+                                    <Button
+                                        size="small"
+                                        onClick={handleStartEditingTitle}
+                                        sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
+                                    >
+                                        <Edit fontSize="small" />
+                                    </Button>
+                                </Tooltip>
+                            </Box>
+                        )}
 
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                             <Rating
@@ -813,6 +898,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 title={confirmationModal.title}
                 message={confirmationModal.message}
                 confirmText={confirmationModal.confirmText}
+                cancelText={confirmationModal.cancelText}
                 isDanger={confirmationModal.isDanger}
             />
         </Container>

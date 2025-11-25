@@ -261,6 +261,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 title={t('deleteVideo')}
                 message={`${t('confirmDelete')} "${video.title}"?`}
                 confirmText={t('delete')}
+                cancelText={t('cancel')}
                 isDanger={true}
             />
         </>

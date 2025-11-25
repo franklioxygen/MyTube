@@ -20,6 +20,7 @@ interface ConfirmationModalProps {
     confirmText?: string;
     cancelText?: string;
     isDanger?: boolean;
+    showCancel?: boolean;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -30,7 +31,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     message,
     confirmText = 'Confirm',
     cancelText = 'Cancel',
-    isDanger = false
+    isDanger = false,
+    showCancel = true
 }) => {
     return (
         <Dialog
@@ -62,14 +64,16 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                 </IconButton>
             </DialogTitle>
             <DialogContent dividers>
-                <DialogContentText id="alert-dialog-description">
+                <DialogContentText id="alert-dialog-description" sx={{ whiteSpace: 'pre-wrap' }}>
                     {message}
                 </DialogContentText>
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
-                <Button onClick={onClose} color="inherit" variant="text">
-                    {cancelText}
-                </Button>
+                {showCancel && (
+                    <Button onClick={onClose} color="inherit" variant="text">
+                        {cancelText}
+                    </Button>
+                )}
                 <Button
                     onClick={() => {
                         onConfirm();

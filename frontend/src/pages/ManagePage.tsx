@@ -159,6 +159,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                 title={t('deleteVideo')}
                 message={t('confirmDelete')}
                 confirmText={t('delete')}
+                cancelText={t('cancel')}
                 isDanger={true}
             />
 
