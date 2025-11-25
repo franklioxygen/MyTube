@@ -1,3 +1,28 @@
 node_modules
 dist
 .env
+
+# Testing
+src/__tests__
+coverage
+vitest.config.ts
+*.test.ts
+*.spec.ts
+
+# Development
+.git
+.gitignore
+README.md
+*.md
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+npm-debug.log*
