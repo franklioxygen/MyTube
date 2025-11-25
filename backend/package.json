@@ -6,6 +6,7 @@
     "start": "ts-node src/server.ts",
     "dev": "nodemon src/server.ts",
     "build": "tsc",
+    "generate": "drizzle-kit generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

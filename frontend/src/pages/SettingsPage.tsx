@@ -234,8 +234,39 @@ const SettingsPage: React.FC = () => {
                                         setSaving(true);
                                         try {
                                             const res = await axios.post(`${API_URL}/settings/migrate`);
-                                            console.log('Migration results:', res.data.results);
-                                            setMessage({ text: 'Migration completed successfully!', type: 'success' });
+                                            const results = res.data.results;
+                                            console.log('Migration results:', results);
+
+                                            let msg = 'Migration Report:\n';
+                                            let hasData = false;
+
+                                            if (results.warnings && results.warnings.length > 0) {
+                                                msg += `\n⚠️ WARNINGS:\n${results.warnings.join('\n')}\n`;
+                                            }
+
+                                            const categories = ['videos', 'collections', 'settings', 'downloads'];
+                                            categories.forEach(cat => {
+                                                const data = results[cat];
+                                                if (data) {
+                                                    if (data.found) {
+                                                        msg += `\n✅ ${cat}: ${data.count} items migrated`;
+                                                        hasData = true;
+                                                    } else {
+                                                        msg += `\n❌ ${cat}: File not found at ${data.path}`;
+                                                    }
+                                                }
+                                            });
+
+                                            if (results.errors && results.errors.length > 0) {
+                                                msg += `\n\n⛔ ERRORS:\n${results.errors.join('\n')}`;
+                                            }
+
+                                            if (!hasData && (!results.errors || results.errors.length === 0)) {
+                                                msg += '\n\n⚠️ No data files were found to migrate. Please check your volume mappings.';
+                                            }
+
+                                            alert(msg);
+                                            setMessage({ text: hasData ? 'Migration completed. See details in alert.' : 'Migration finished but no data found.', type: hasData ? 'success' : 'warning' });
                                         } catch (error: any) {
                                             console.error('Migration failed:', error);
                                             setMessage({

@@ -24,6 +24,10 @@ app.use(express.urlencoded({ extended: true }));
 // Initialize storage (create directories, etc.)
 storageService.initializeStorage();
 
+// Run database migrations
+import { runMigrations } from "./db/migrate";
+runMigrations();
+
 // Serve static files
 app.use("/videos", express.static(VIDEOS_DIR));
 app.use("/images", express.static(IMAGES_DIR));

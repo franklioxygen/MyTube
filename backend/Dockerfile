@@ -1,4 +1,4 @@
-FROM node:21-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -24,4 +24,4 @@ RUN mkdir -p uploads/videos uploads/images data
 
 EXPOSE 5551
 
-CMD ["node", "dist/server.js"] 
+CMD ["node", "dist/src/server.js"] 
