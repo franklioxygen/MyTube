@@ -15,6 +15,7 @@ export interface Video {
   totalParts?: number;
   seriesTitle?: string;
   rating?: number;
+  tags?: string[];
   [key: string]: any;
 }
 

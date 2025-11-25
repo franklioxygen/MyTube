@@ -49,6 +49,9 @@ export const translations = {
         settingsFailed: "Failed to save settings",
         debugMode: "Debug Mode",
         debugModeDescription: "Show or hide console messages (requires refresh)",
+        tagsManagement: "Tags Management",
+        newTag: "New Tag",
+        tags: "Tags",
         
         // Database
         database: "Database",
@@ -254,6 +257,9 @@ export const translations = {
         settingsFailed: "保存设置失败",
         debugMode: "调试模式",
         debugModeDescription: "显示或隐藏控制台消息（需要刷新）",
+        tagsManagement: "标签管理",
+        newTag: "新标签",
+        tags: "标签",
         
         // Database
         database: "数据库",

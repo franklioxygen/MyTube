@@ -777,7 +777,7 @@ function App() {
                                 type={bilibiliPartsInfo.type}
                             />
 
-                            <Box component="main" sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', px: { xs: 2, md: 4, lg: 8 } }}>
+                            <Box component="main" sx={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', px: { xs: 1, md: 2, lg: 4 } }}>
                                 <AnimatedRoutes
                                     videos={videos}
                                     loading={loading}

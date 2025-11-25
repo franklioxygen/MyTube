@@ -14,10 +14,12 @@ import {
     Pagination,
     Typography
 } from '@mui/material';
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
+import TagsList from '../components/TagsList';
 import VideoCard from '../components/VideoCard';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
@@ -62,9 +64,27 @@ const Home: React.FC<HomeProps> = ({
     onDownload,
     onResetSearch
 }) => {
+    const API_URL = import.meta.env.VITE_API_URL;
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
     const { t } = useLanguage();
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    // Fetch tags
+    useEffect(() => {
+        const fetchTags = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings`);
+                if (response.data.tags) {
+                    setAvailableTags(response.data.tags);
+                }
+            } catch (error) {
+                console.error('Error fetching tags:', error);
+            }
+        };
+        fetchTags();
+    }, []);
 
     // Reset page when filters change (though currently no filters other than search which is separate)
     useEffect(() => {
@@ -94,6 +114,13 @@ const Home: React.FC<HomeProps> = ({
 
     // Filter videos to only show the first video from each collection
     const filteredVideos = videoArray.filter(video => {
+        // Tag filtering
+        if (selectedTags.length > 0) {
+            const videoTags = video.tags || [];
+            const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
+            if (!hasMatchingTag) return false;
+        }
+
         // If the video is not in any collection, show it
         const videoCollections = collections.filter(collection =>
             collection.videos.includes(video.id)
@@ -112,6 +139,15 @@ const Home: React.FC<HomeProps> = ({
         });
     });
 
+    const handleTagToggle = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag)
+                ? prev.filter(t => t !== tag)
+                : [...prev, tag]
+        );
+        setPage(1); // Reset to first page when filter changes
+    };
+
     // Pagination logic
     const totalPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
     const displayedVideos = filteredVideos.slice(
@@ -119,7 +155,7 @@ const Home: React.FC<HomeProps> = ({
         page * ITEMS_PER_PAGE
     );
 
-    const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setPage(value);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -272,10 +308,17 @@ const Home: React.FC<HomeProps> = ({
                 </Box>
             ) : (
                 <Grid container spacing={4}>
-                    {/* Sidebar container for Collections and Authors */}
+                    {/* Sidebar container for Collections, Authors, and Tags */}
                     <Grid size={{ xs: 12, md: 3 }} sx={{ display: { xs: 'none', md: 'block' } }}>
                         <Box sx={{ position: 'sticky', top: 80 }}>
                             <Collections collections={collections} />
+                            <Box sx={{ mt: 2 }}>
+                                <TagsList
+                                    availableTags={availableTags}
+                                    selectedTags={selectedTags}
+                                    onTagToggle={handleTagToggle}
+                                />
+                            </Box>
                             <Box sx={{ mt: 2 }}>
                                 <AuthorsList videos={videoArray} />
                             </Box>
