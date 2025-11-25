@@ -25,7 +25,9 @@ import {
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -49,7 +51,8 @@ const SettingsPage: React.FC = () => {
         language: 'en'
     });
     const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+    const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+    const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
     const { t, setLanguage } = useLanguage();
 
     useEffect(() => {
@@ -90,10 +93,10 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleChange = (field: keyof Settings, value: any) => {
+    const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
         if (field === 'language') {
-            setLanguage(value);
+            setLanguage(value as Language);
         }
     };
 
@@ -221,27 +224,26 @@ const SettingsPage: React.FC = () => {
 
                         {/* Database Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>Database</Typography>
+                            <Typography variant="h6" gutterBottom>{t('database')}</Typography>
                             <Typography variant="body2" color="text.secondary" paragraph>
-                                Migrate data from legacy JSON files to the new SQLite database.
-                                This action is safe to run multiple times (duplicates will be skipped).
+                                {t('migrateDataDescription')}
                             </Typography>
                             <Button
                                 variant="outlined"
                                 color="warning"
                                 onClick={async () => {
-                                    if (window.confirm('Are you sure you want to migrate data? This may take a few moments.')) {
+                                    if (window.confirm(t('migrateConfirmation'))) {
                                         setSaving(true);
                                         try {
                                             const res = await axios.post(`${API_URL}/settings/migrate`);
                                             const results = res.data.results;
                                             console.log('Migration results:', results);
 
-                                            let msg = 'Migration Report:\n';
+                                            let msg = `${t('migrationReport')}:\n`;
                                             let hasData = false;
 
                                             if (results.warnings && results.warnings.length > 0) {
-                                                msg += `\n⚠️ WARNINGS:\n${results.warnings.join('\n')}\n`;
+                                                msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
                                             }
 
                                             const categories = ['videos', 'collections', 'settings', 'downloads'];
@@ -249,28 +251,28 @@ const SettingsPage: React.FC = () => {
                                                 const data = results[cat];
                                                 if (data) {
                                                     if (data.found) {
-                                                        msg += `\n✅ ${cat}: ${data.count} items migrated`;
+                                                        msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
                                                         hasData = true;
                                                     } else {
-                                                        msg += `\n❌ ${cat}: File not found at ${data.path}`;
+                                                        msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
                                                     }
                                                 }
                                             });
 
                                             if (results.errors && results.errors.length > 0) {
-                                                msg += `\n\n⛔ ERRORS:\n${results.errors.join('\n')}`;
+                                                msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
                                             }
 
                                             if (!hasData && (!results.errors || results.errors.length === 0)) {
-                                                msg += '\n\n⚠️ No data files were found to migrate. Please check your volume mappings.';
+                                                msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
                                             }
 
                                             alert(msg);
-                                            setMessage({ text: hasData ? 'Migration completed. See details in alert.' : 'Migration finished but no data found.', type: hasData ? 'success' : 'warning' });
+                                            setMessage({ text: hasData ? t('migrationSuccess') : t('migrationNoData'), type: hasData ? 'success' : 'warning' });
                                         } catch (error: any) {
                                             console.error('Migration failed:', error);
                                             setMessage({
-                                                text: `Migration failed: ${error.response?.data?.details || error.message}`,
+                                                text: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
                                                 type: 'error'
                                             });
                                         } finally {
@@ -280,8 +282,23 @@ const SettingsPage: React.FC = () => {
                                 }}
                                 disabled={saving}
                             >
-                                Migrate Data from JSON
+                                {t('migrateDataButton')}
                             </Button>
+
+                            <Box sx={{ mt: 3 }}>
+                                <Typography variant="h6" gutterBottom>{t('removeLegacyData')}</Typography>
+                                <Typography variant="body2" color="text.secondary" paragraph>
+                                    {t('removeLegacyDataDescription')}
+                                </Typography>
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => setShowDeleteLegacyModal(true)}
+                                    disabled={saving}
+                                >
+                                    {t('deleteLegacyDataButton')}
+                                </Button>
+                            </Box>
                         </Grid>
 
                         <Grid size={12}>
@@ -311,6 +328,41 @@ const SettingsPage: React.FC = () => {
                     {message?.text}
                 </Alert>
             </Snackbar>
+            <ConfirmationModal
+                isOpen={showDeleteLegacyModal}
+                onClose={() => setShowDeleteLegacyModal(false)}
+                onConfirm={async () => {
+                    setSaving(true);
+                    try {
+                        const res = await axios.post(`${API_URL}/settings/delete-legacy`);
+                        const results = res.data.results;
+                        console.log('Delete legacy results:', results);
+
+                        let msg = `${t('legacyDataDeleted')}\n`;
+                        if (results.deleted.length > 0) {
+                            msg += `\nDeleted: ${results.deleted.join(', ')}`;
+                        }
+                        if (results.failed.length > 0) {
+                            msg += `\nFailed: ${results.failed.join(', ')}`;
+                        }
+
+                        alert(msg);
+                        setMessage({ text: t('legacyDataDeleted'), type: 'success' });
+                    } catch (error: any) {
+                        console.error('Failed to delete legacy data:', error);
+                        setMessage({
+                            text: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
+                            type: 'error'
+                        });
+                    } finally {
+                        setSaving(false);
+                    }
+                }}
+                title={t('removeLegacyDataConfirmTitle')}
+                message={t('removeLegacyDataConfirmMessage')}
+                confirmText={t('delete')}
+                isDanger={true}
+            />
         </Container>
     );
 };

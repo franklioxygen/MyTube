@@ -1,4 +1,4 @@
-CREATE TABLE `collection_videos` (
+CREATE TABLE IF NOT EXISTS `collection_videos` (
 	`collection_id` text NOT NULL,
 	`video_id` text NOT NULL,
 	`order` integer,
@@ -7,7 +7,7 @@ CREATE TABLE `collection_videos` (
 	FOREIGN KEY (`video_id`) REFERENCES `videos`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `collections` (
+CREATE TABLE IF NOT EXISTS `collections` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`title` text,
@@ -15,7 +15,7 @@ CREATE TABLE `collections` (
 	`updated_at` text
 );
 --> statement-breakpoint
-CREATE TABLE `downloads` (
+CREATE TABLE IF NOT EXISTS `downloads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
 	`timestamp` integer,
@@ -27,12 +27,12 @@ CREATE TABLE `downloads` (
 	`status` text DEFAULT 'active' NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `settings` (
+CREATE TABLE IF NOT EXISTS `settings` (
 	`key` text PRIMARY KEY NOT NULL,
 	`value` text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `videos` (
+CREATE TABLE IF NOT EXISTS `videos` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text NOT NULL,
 	`author` text,
