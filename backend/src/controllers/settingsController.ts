@@ -13,6 +13,7 @@ interface Settings {
     defaultAutoLoop: boolean;
     maxConcurrentDownloads: number;
     language: string;
+    tags?: string[];
 }
 
 const defaultSettings: Settings = {
@@ -109,6 +110,28 @@ export const updateSettings = async (req: Request, res: Response) => {
             // If password is empty/not provided, keep existing password
             const existingSettings = storageService.getSettings();
             newSettings.password = existingSettings.password;
+        }
+
+        // Check for deleted tags and remove them from all videos
+        const existingSettings = storageService.getSettings();
+        const oldTags: string[] = existingSettings.tags || [];
+        const newTagsList: string[] = newSettings.tags || [];
+        
+        const deletedTags = oldTags.filter(tag => !newTagsList.includes(tag));
+        
+        if (deletedTags.length > 0) {
+            console.log('Tags deleted:', deletedTags);
+            const allVideos = storageService.getVideos();
+            let videosUpdatedCount = 0;
+            
+            for (const video of allVideos) {
+                if (video.tags && video.tags.some(tag => deletedTags.includes(tag))) {
+                    const updatedTags = video.tags.filter(tag => !deletedTags.includes(tag));
+                    storageService.updateVideo(video.id, { tags: updatedTags });
+                    videosUpdatedCount++;
+                }
+            }
+            console.log(`Removed deleted tags from ${videosUpdatedCount} videos`);
         }
 
         storageService.saveSettings(newSettings);
