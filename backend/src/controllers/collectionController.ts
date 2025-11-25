@@ -30,13 +30,21 @@ export const createCollection = (req: Request, res: Response): any => {
     const newCollection: Collection = {
       id: Date.now().toString(),
       name,
-      videos: videoId ? [videoId] : [],
+      videos: [], // Initialize with empty videos
       createdAt: new Date().toISOString(),
       title: name, // Ensure title is also set as it's required by the interface
     };
 
     // Save the new collection
     storageService.saveCollection(newCollection);
+
+    // If videoId is provided, add it to the collection (this handles file moving)
+    if (videoId) {
+      const updatedCollection = storageService.addVideoToCollection(newCollection.id, videoId);
+      if (updatedCollection) {
+        return res.status(201).json(updatedCollection);
+      }
+    }
 
     res.status(201).json(newCollection);
   } catch (error) {
@@ -53,32 +61,30 @@ export const updateCollection = (req: Request, res: Response): any => {
     const { id } = req.params;
     const { name, videoId, action } = req.body;
 
-    // Update the collection atomically
-    const updatedCollection = storageService.atomicUpdateCollection(
-      id,
-      (collection) => {
-        // Update the collection
-        if (name) {
-          collection.name = name;
-          collection.title = name; // Update title as well
-        }
+    let updatedCollection: Collection | null | undefined;
 
-        // Add or remove a video
-        if (videoId) {
-          if (action === "add") {
-            // Add the video if it's not already in the collection
-            if (!collection.videos.includes(videoId)) {
-              collection.videos.push(videoId);
-            }
-          } else if (action === "remove") {
-            // Remove the video
-            collection.videos = collection.videos.filter((v) => v !== videoId);
-          }
-        }
-
+    // Handle name update first
+    if (name) {
+      updatedCollection = storageService.atomicUpdateCollection(id, (collection) => {
+        collection.name = name;
+        collection.title = name;
         return collection;
+      });
+    }
+
+    // Handle video add/remove
+    if (videoId) {
+      if (action === "add") {
+        updatedCollection = storageService.addVideoToCollection(id, videoId);
+      } else if (action === "remove") {
+        updatedCollection = storageService.removeVideoFromCollection(id, videoId);
       }
-    );
+    }
+
+    // If no changes requested but id exists, return current collection
+    if (!name && !videoId) {
+      updatedCollection = storageService.getCollectionById(id);
+    }
 
     if (!updatedCollection) {
       return res
@@ -101,17 +107,15 @@ export const deleteCollection = (req: Request, res: Response): any => {
     const { id } = req.params;
     const { deleteVideos } = req.query;
 
+    let success = false;
+
     // If deleteVideos is true, delete all videos in the collection first
     if (deleteVideos === 'true') {
-      const collection = storageService.getCollectionById(id);
-      if (collection && collection.videos && collection.videos.length > 0) {
-        collection.videos.forEach((videoId) => {
-          storageService.deleteVideo(videoId);
-        });
-      }
+      success = storageService.deleteCollectionAndVideos(id);
+    } else {
+      // Default: Move files back to root/other, then delete collection
+      success = storageService.deleteCollectionWithFiles(id);
     }
-
-    const success = storageService.deleteCollection(id);
 
     if (!success) {
       return res
