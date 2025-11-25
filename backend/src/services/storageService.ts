@@ -25,6 +25,7 @@ export interface Collection {
   title: string;
   videos: string[];
   updatedAt?: string;
+  name?: string; // Add name property
   [key: string]: any;
 }
 
@@ -240,23 +241,20 @@ export function deleteVideo(id: string): boolean {
     return false;
   }
 
-  // Remove the video file from the videos directory
+  // Remove the video file
   if (videoToDelete.videoFilename) {
-    const videoFilePath = path.join(VIDEOS_DIR, videoToDelete.videoFilename);
-    if (fs.existsSync(videoFilePath)) {
-      fs.unlinkSync(videoFilePath);
+    const actualPath = findVideoFile(videoToDelete.videoFilename);
+    if (actualPath && fs.existsSync(actualPath)) {
+        fs.unlinkSync(actualPath);
     }
   }
 
-  // Remove the thumbnail file from the images directory
+  // Remove the thumbnail file
   if (videoToDelete.thumbnailFilename) {
-    const thumbnailFilePath = path.join(
-      IMAGES_DIR,
-      videoToDelete.thumbnailFilename
-    );
-    if (fs.existsSync(thumbnailFilePath)) {
-      fs.unlinkSync(thumbnailFilePath);
-    }
+      const actualPath = findImageFile(videoToDelete.thumbnailFilename);
+      if (actualPath && fs.existsSync(actualPath)) {
+          fs.unlinkSync(actualPath);
+      }
   }
 
   // Filter out the deleted video from the videos array
@@ -341,4 +339,297 @@ export function deleteCollection(id: string): boolean {
     JSON.stringify(updatedCollections, null, 2)
   );
   return true;
+}
+
+// Helper to find where a video file currently resides
+function findVideoFile(filename: string): string | null {
+  // Check root
+  const rootPath = path.join(VIDEOS_DIR, filename);
+  if (fs.existsSync(rootPath)) return rootPath;
+
+  // Check collections
+  const collections = getCollections();
+  for (const collection of collections) {
+    const collectionName = collection.name || collection.title;
+    if (collectionName) {
+      const collectionPath = path.join(VIDEOS_DIR, collectionName, filename);
+      if (fs.existsSync(collectionPath)) return collectionPath;
+    }
+  }
+  return null;
+}
+
+// Helper to find where an image file currently resides
+function findImageFile(filename: string): string | null {
+  // Check root
+  const rootPath = path.join(IMAGES_DIR, filename);
+  if (fs.existsSync(rootPath)) return rootPath;
+
+  // Check collections
+  const collections = getCollections();
+  for (const collection of collections) {
+    const collectionName = collection.name || collection.title;
+    if (collectionName) {
+      const collectionPath = path.join(IMAGES_DIR, collectionName, filename);
+      if (fs.existsSync(collectionPath)) return collectionPath;
+    }
+  }
+  return null;
+}
+
+// Helper to move a file
+function moveFile(sourcePath: string, destPath: string): void {
+  try {
+    if (fs.existsSync(sourcePath)) {
+      fs.ensureDirSync(path.dirname(destPath));
+      fs.moveSync(sourcePath, destPath, { overwrite: true });
+      console.log(`Moved file from ${sourcePath} to ${destPath}`);
+    }
+  } catch (error) {
+    console.error(`Error moving file from ${sourcePath} to ${destPath}:`, error);
+  }
+}
+
+// Add video to collection and move files
+export function addVideoToCollection(collectionId: string, videoId: string): Collection | null {
+  const collection = atomicUpdateCollection(collectionId, (c) => {
+    if (!c.videos.includes(videoId)) {
+      c.videos.push(videoId);
+    }
+    return c;
+  });
+
+  if (collection) {
+    const video = getVideoById(videoId);
+    const collectionName = collection.name || collection.title;
+
+    if (video && collectionName) {
+      const updates: Partial<Video> = {};
+      let updated = false;
+
+      // Move video file
+      if (video.videoFilename) {
+        const currentVideoPath = findVideoFile(video.videoFilename);
+        const targetVideoPath = path.join(VIDEOS_DIR, collectionName, video.videoFilename);
+        
+        if (currentVideoPath && currentVideoPath !== targetVideoPath) {
+          moveFile(currentVideoPath, targetVideoPath);
+          updates.videoPath = `/videos/${collectionName}/${video.videoFilename}`;
+          updated = true;
+        }
+      }
+
+      // Move image file
+      if (video.thumbnailFilename) {
+        const currentImagePath = findImageFile(video.thumbnailFilename);
+        const targetImagePath = path.join(IMAGES_DIR, collectionName, video.thumbnailFilename);
+
+        if (currentImagePath && currentImagePath !== targetImagePath) {
+          moveFile(currentImagePath, targetImagePath);
+          updates.thumbnailPath = `/images/${collectionName}/${video.thumbnailFilename}`;
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        updateVideo(videoId, updates);
+      }
+    }
+  }
+
+  return collection;
+}
+
+// Remove video from collection and move files
+export function removeVideoFromCollection(collectionId: string, videoId: string): Collection | null {
+  const collection = atomicUpdateCollection(collectionId, (c) => {
+    c.videos = c.videos.filter((v) => v !== videoId);
+    return c;
+  });
+
+  if (collection) {
+    const video = getVideoById(videoId);
+    
+    if (video) {
+      // Check if video is in any other collection
+      const allCollections = getCollections();
+      const otherCollection = allCollections.find(c => c.videos.includes(videoId) && c.id !== collectionId);
+      
+      let targetVideoDir = VIDEOS_DIR;
+      let targetImageDir = IMAGES_DIR;
+      let videoPathPrefix = '/videos';
+      let imagePathPrefix = '/images';
+
+      if (otherCollection) {
+        const otherName = otherCollection.name || otherCollection.title;
+        if (otherName) {
+          targetVideoDir = path.join(VIDEOS_DIR, otherName);
+          targetImageDir = path.join(IMAGES_DIR, otherName);
+          videoPathPrefix = `/videos/${otherName}`;
+          imagePathPrefix = `/images/${otherName}`;
+        }
+      }
+
+      const updates: Partial<Video> = {};
+      let updated = false;
+
+      // Move video file
+      if (video.videoFilename) {
+        const currentVideoPath = findVideoFile(video.videoFilename);
+        const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
+        
+        if (currentVideoPath && currentVideoPath !== targetVideoPath) {
+          moveFile(currentVideoPath, targetVideoPath);
+          updates.videoPath = `${videoPathPrefix}/${video.videoFilename}`;
+          updated = true;
+        }
+      }
+
+      // Move image file
+      if (video.thumbnailFilename) {
+        const currentImagePath = findImageFile(video.thumbnailFilename);
+        const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+
+        if (currentImagePath && currentImagePath !== targetImagePath) {
+          moveFile(currentImagePath, targetImagePath);
+          updates.thumbnailPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        updateVideo(videoId, updates);
+      }
+    }
+  }
+
+  return collection;
+}
+
+// Delete collection and move files back to root (or other collection)
+export function deleteCollectionWithFiles(collectionId: string): boolean {
+  const collection = getCollectionById(collectionId);
+  if (!collection) return false;
+
+  const collectionName = collection.name || collection.title;
+  
+  // Move files for all videos in the collection
+  if (collection.videos && collection.videos.length > 0) {
+    collection.videos.forEach(videoId => {
+      const video = getVideoById(videoId);
+      if (video) {
+        // Check if video is in any OTHER collection (excluding the one being deleted)
+        const allCollections = getCollections();
+        const otherCollection = allCollections.find(c => c.videos.includes(videoId) && c.id !== collectionId);
+
+        let targetVideoDir = VIDEOS_DIR;
+        let targetImageDir = IMAGES_DIR;
+        let videoPathPrefix = '/videos';
+        let imagePathPrefix = '/images';
+
+        if (otherCollection) {
+          const otherName = otherCollection.name || otherCollection.title;
+          if (otherName) {
+            targetVideoDir = path.join(VIDEOS_DIR, otherName);
+            targetImageDir = path.join(IMAGES_DIR, otherName);
+            videoPathPrefix = `/videos/${otherName}`;
+            imagePathPrefix = `/images/${otherName}`;
+          }
+        }
+
+        const updates: Partial<Video> = {};
+        let updated = false;
+
+        // Move video file
+        if (video.videoFilename) {
+          // We know it should be in the collection folder being deleted, but use findVideoFile to be safe
+          const currentVideoPath = findVideoFile(video.videoFilename);
+          const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
+          
+          if (currentVideoPath && currentVideoPath !== targetVideoPath) {
+            moveFile(currentVideoPath, targetVideoPath);
+            updates.videoPath = `${videoPathPrefix}/${video.videoFilename}`;
+            updated = true;
+          }
+        }
+
+        // Move image file
+        if (video.thumbnailFilename) {
+          const currentImagePath = findImageFile(video.thumbnailFilename);
+          const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+
+          if (currentImagePath && currentImagePath !== targetImagePath) {
+            moveFile(currentImagePath, targetImagePath);
+            updates.thumbnailPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
+            updated = true;
+          }
+        }
+
+        if (updated) {
+          updateVideo(videoId, updates);
+        }
+      }
+    });
+  }
+
+  // Delete the collection from DB
+  const success = deleteCollection(collectionId);
+
+  // Remove the collection directories if empty
+  if (success && collectionName) {
+    try {
+      const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
+      const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
+
+      if (fs.existsSync(videoCollectionDir) && fs.readdirSync(videoCollectionDir).length === 0) {
+        fs.rmdirSync(videoCollectionDir);
+      }
+      if (fs.existsSync(imageCollectionDir) && fs.readdirSync(imageCollectionDir).length === 0) {
+        fs.rmdirSync(imageCollectionDir);
+      }
+    } catch (error) {
+      console.error("Error removing collection directories:", error);
+    }
+  }
+
+  return success;
+}
+
+// Delete collection and all its videos
+export function deleteCollectionAndVideos(collectionId: string): boolean {
+  const collection = getCollectionById(collectionId);
+  if (!collection) return false;
+
+  const collectionName = collection.name || collection.title;
+
+  // Delete all videos in the collection
+  if (collection.videos && collection.videos.length > 0) {
+    // Create a copy of the videos array to iterate over safely
+    const videosToDelete = [...collection.videos];
+    videosToDelete.forEach(videoId => {
+      deleteVideo(videoId);
+    });
+  }
+
+  // Delete the collection from DB
+  const success = deleteCollection(collectionId);
+
+  // Remove the collection directories
+  if (success && collectionName) {
+    try {
+      const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
+      const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
+
+      if (fs.existsSync(videoCollectionDir)) {
+        fs.rmdirSync(videoCollectionDir);
+      }
+      if (fs.existsSync(imageCollectionDir)) {
+        fs.rmdirSync(imageCollectionDir);
+      }
+    } catch (error) {
+      console.error("Error removing collection directories:", error);
+    }
+  }
+
+  return success;
 }
