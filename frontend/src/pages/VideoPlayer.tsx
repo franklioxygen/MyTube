@@ -567,7 +567,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     variant="outlined"
                                     size="small"
                                     autoFocus
-                                    onKeyPress={(e) => {
+                                    onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             handleSaveTitle();
                                         }

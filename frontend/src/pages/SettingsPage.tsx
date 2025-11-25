@@ -254,7 +254,7 @@ const SettingsPage: React.FC = () => {
                                     onChange={(e) => setNewTag(e.target.value)}
                                     size="small"
                                     fullWidth
-                                    onKeyPress={(e) => {
+                                    onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
                                             handleAddTag();
                                         }
