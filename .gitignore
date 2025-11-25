@@ -36,6 +36,10 @@ lerna-debug.log*
 *.sw?
 
 # Backend specific
+# Test coverage reports
+backend/coverage
+frontend/coverage
+
 # Ignore all files in uploads directory and subdirectories
 backend/uploads/*
 backend/uploads/videos/*
