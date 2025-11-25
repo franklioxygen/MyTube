@@ -133,6 +133,16 @@ MyTube allows you to organize your videos into collections:
 - **Add to Collections**: Add videos to one or more collections directly from the video player or manage page.
 - **Remove from Collections**: Remove videos from collections easily.
 - **Browse Collections**: View all your collections in the sidebar and browse videos by collection.
+- **Delete Options**: Choose to delete just the collection grouping or delete the collection along with all its video files from the disk.
+
+## Data Migration
+
+MyTube now uses a SQLite database for better performance and reliability. If you are upgrading from an older version that used JSON files:
+
+1. Go to **Settings**.
+2. Scroll down to the **Database** section.
+3. Click **Migrate Data from JSON**.
+4. The tool will import your existing videos, collections, and download history into the new database.
 
 ## User Interface
 

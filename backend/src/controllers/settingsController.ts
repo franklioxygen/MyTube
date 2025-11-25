@@ -1,5 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
+import fs from 'fs-extra';
+import path from 'path';
+import { COLLECTIONS_DATA_PATH, STATUS_DATA_PATH, VIDEOS_DATA_PATH } from '../config/paths';
 import downloadManager from '../services/downloadManager';
 import * as storageService from '../services/storageService';
 
@@ -51,6 +54,40 @@ export const migrateData = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error running migration:', error);
         res.status(500).json({ error: 'Failed to run migration', details: error.message });
+    }
+};
+
+export const deleteLegacyData = async (req: Request, res: Response) => {
+    try {
+        const SETTINGS_DATA_PATH = path.join(path.dirname(VIDEOS_DATA_PATH), 'settings.json');
+        const filesToDelete = [
+            VIDEOS_DATA_PATH,
+            COLLECTIONS_DATA_PATH,
+            STATUS_DATA_PATH,
+            SETTINGS_DATA_PATH
+        ];
+
+        const results: { deleted: string[], failed: string[] } = {
+            deleted: [],
+            failed: []
+        };
+
+        for (const file of filesToDelete) {
+            if (fs.existsSync(file)) {
+                try {
+                    fs.unlinkSync(file);
+                    results.deleted.push(path.basename(file));
+                } catch (err) {
+                    console.error(`Failed to delete ${file}:`, err);
+                    results.failed.push(path.basename(file));
+                }
+            }
+        }
+
+        res.json({ success: true, results });
+    } catch (error: any) {
+        console.error('Error deleting legacy data:', error);
+        res.status(500).json({ error: 'Failed to delete legacy data', details: error.message });
     }
 };
 
