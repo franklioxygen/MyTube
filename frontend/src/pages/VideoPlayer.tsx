@@ -1,59 +1,24 @@
 import {
-    Add,
-    CalendarToday,
-    Check,
-    Close,
-    Delete,
-    Download,
-    Edit,
-    FastForward,
-    FastRewind,
-    Folder,
-    Forward10,
-    Fullscreen,
-    FullscreenExit,
-    Link as LinkIcon,
-    LocalOffer,
-    Loop,
-    Pause,
-    PlayArrow,
-    Replay10,
-    VideoLibrary
-} from '@mui/icons-material';
-import {
     Alert,
-    Autocomplete,
-    Avatar,
     Box,
-    Button,
     Card,
     CardContent,
     CardMedia,
     Chip,
     CircularProgress,
     Container,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControl,
     Grid,
-    InputLabel,
-    MenuItem,
-    Rating,
-    Select,
     Stack,
-    TextField,
-    Tooltip,
-    Typography,
-    useMediaQuery,
-    useTheme
+    Typography
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
+import CollectionModal from '../components/VideoPlayer/CollectionModal';
+import CommentsSection from '../components/VideoPlayer/CommentsSection';
+import VideoControls from '../components/VideoPlayer/VideoControls';
+import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { Collection, Comment, Video } from '../types';
@@ -80,8 +45,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
 
@@ -91,22 +54,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
-    const [newCollectionName, setNewCollectionName] = useState<string>('');
-    const [selectedCollection, setSelectedCollection] = useState<string>('');
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
     const [comments, setComments] = useState<Comment[]>([]);
     const [loadingComments, setLoadingComments] = useState<boolean>(false);
     const [showComments, setShowComments] = useState<boolean>(false);
     const [commentsLoaded, setCommentsLoaded] = useState<boolean>(false);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
-
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [isPlaying, setIsPlaying] = useState<boolean>(false);
-    const [isLooping, setIsLooping] = useState<boolean>(false);
-
-    // Title editing state
-    const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
-    const [editedTitle, setEditedTitle] = useState<string>('');
+    const [autoPlay, setAutoPlay] = useState<boolean>(false);
+    const [autoLoop, setAutoLoop] = useState<boolean>(false);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -118,56 +73,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         cancelText: t('cancel'),
         isDanger: false
     });
-
-    const handlePlayPause = () => {
-        if (videoRef.current) {
-            if (isPlaying) {
-                videoRef.current.pause();
-            } else {
-                videoRef.current.play();
-            }
-            setIsPlaying(!isPlaying);
-        }
-    };
-
-    const handleToggleLoop = () => {
-        if (videoRef.current) {
-            videoRef.current.loop = !isLooping;
-            setIsLooping(!isLooping);
-        }
-    };
-
-    const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-
-    const handleToggleFullscreen = () => {
-        const videoContainer = videoRef.current?.parentElement;
-        if (!videoContainer) return;
-
-        if (!document.fullscreenElement) {
-            videoContainer.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            document.exitFullscreen();
-        }
-    };
-
-    useEffect(() => {
-        const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
-        };
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => {
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-        };
-    }, []);
-
-    const handleSeek = (seconds: number) => {
-        if (videoRef.current) {
-            videoRef.current.currentTime += seconds;
-        }
-    };
 
     useEffect(() => {
         // Don't try to fetch the video if it's being deleted
@@ -206,7 +111,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         };
 
         fetchVideo();
-        fetchVideo();
     }, [id, videos, navigate, isDeleting]);
 
     // Fetch settings and apply defaults
@@ -216,20 +120,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 const response = await axios.get(`${API_URL}/settings`);
                 const { defaultAutoPlay, defaultAutoLoop } = response.data;
 
-                if (videoRef.current) {
-                    if (defaultAutoPlay) {
-                        videoRef.current.autoplay = true;
-                        setIsPlaying(true);
-                    }
-                    if (defaultAutoLoop) {
-                        videoRef.current.loop = true;
-                        setIsLooping(true);
-                    }
-                }
+                setAutoPlay(!!defaultAutoPlay);
+                setAutoLoop(!!defaultAutoLoop);
 
-                console.log('Fetched settings in VideoPlayer:', response.data);
                 setAvailableTags(response.data.tags || []);
-                console.log('Setting available tags:', response.data.tags || []);
             } catch (error) {
                 console.error('Error fetching settings:', error);
             }
@@ -338,31 +232,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const handleCloseModal = () => {
         setShowCollectionModal(false);
-        setNewCollectionName('');
-        setSelectedCollection('');
     };
 
-    const handleCreateCollection = async () => {
-        if (!newCollectionName.trim() || !id) {
-            return;
-        }
-
+    const handleCreateCollection = async (name: string) => {
+        if (!id) return;
         try {
-            await onCreateCollection(newCollectionName, id);
-            handleCloseModal();
+            await onCreateCollection(name, id);
         } catch (error) {
             console.error('Error creating collection:', error);
         }
     };
 
-    const handleAddToExistingCollection = async () => {
-        if (!selectedCollection || !id) {
-            return;
-        }
-
+    const handleAddToExistingCollection = async (collectionId: string) => {
+        if (!id) return;
         try {
-            await onAddToCollection(selectedCollection, id);
-            handleCloseModal();
+            await onAddToCollection(collectionId, id);
         } catch (error) {
             console.error('Error adding to collection:', error);
         }
@@ -373,7 +257,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         try {
             await onRemoveFromCollection(id);
-            handleCloseModal();
         } catch (error) {
             console.error('Error removing from collection:', error);
         }
@@ -391,8 +274,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
     };
 
-    const handleRatingChange = async (_: React.SyntheticEvent, newValue: number | null) => {
-        if (!newValue || !id) return;
+    const handleRatingChange = async (newValue: number) => {
+        if (!id) return;
 
         try {
             await axios.post(`${API_URL}/videos/${id}/rate`, { rating: newValue });
@@ -402,26 +285,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
     };
 
-    const handleStartEditingTitle = () => {
-        if (video) {
-            setEditedTitle(video.title);
-            setIsEditingTitle(true);
-        }
-    };
-
-    const handleCancelEditingTitle = () => {
-        setIsEditingTitle(false);
-        setEditedTitle('');
-    };
-
-    const handleSaveTitle = async () => {
-        if (!id || !editedTitle.trim()) return;
+    const handleSaveTitle = async (newTitle: string) => {
+        if (!id) return;
 
         try {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { title: editedTitle });
+            const response = await axios.put(`${API_URL}/videos/${id}`, { title: newTitle });
             if (response.data.success) {
-                setVideo(prev => prev ? { ...prev, title: editedTitle } : null);
-                setIsEditingTitle(false);
+                setVideo(prev => prev ? { ...prev, title: newTitle } : null);
                 showSnackbar(t('titleUpdated'));
             }
         } catch (error) {
@@ -468,352 +338,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <Grid container spacing={4}>
                 {/* Main Content Column */}
                 <Grid size={{ xs: 12, lg: 8 }}>
-                    <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', boxShadow: 4 }}>
-                        <video
-                            ref={videoRef}
-                            style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
-                            controls
-                            src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
-                            playsInline
-                        >
-                            Your browser does not support the video tag.
-                        </video>
+                    <VideoControls
+                        src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
+                        autoPlay={autoPlay}
+                        autoLoop={autoLoop}
+                    />
 
-                        {/* Custom Controls Area */}
-                        <Box sx={{
-                            p: 1,
-                            bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
-                            opacity: isFullscreen ? 0.3 : 1,
-                            transition: 'opacity 0.3s',
-                            '&:hover': { opacity: 1 }
-                        }}>
-                            <Stack
-                                direction={{ xs: 'column', sm: 'row' }}
-                                alignItems="center"
-                                justifyContent="center"
-                                spacing={{ xs: 2, sm: 2 }}
-                            >
-                                {/* Row 1 on Mobile: Play/Pause and Loop */}
-                                <Stack direction="row" spacing={2} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
-                                    <Tooltip title={isPlaying ? t('paused') : t('playing')}>
-                                        <Button
-                                            variant="contained"
-                                            color={isPlaying ? "warning" : "primary"}
-                                            onClick={handlePlayPause}
-                                            fullWidth={isMobile}
-                                        >
-                                            {isPlaying ? <Pause /> : <PlayArrow />}
-                                        </Button>
-                                    </Tooltip>
+                    <VideoInfo
+                        video={video}
+                        onTitleSave={handleSaveTitle}
+                        onRatingChange={handleRatingChange}
+                        onAuthorClick={handleAuthorClick}
+                        onAddToCollection={handleAddToCollection}
+                        onDelete={handleDelete}
+                        isDeleting={isDeleting}
+                        deleteError={deleteError}
+                        videoCollections={videoCollections}
+                        onCollectionClick={handleCollectionClick}
+                        availableTags={availableTags}
+                        onTagsUpdate={handleUpdateTags}
+                    />
 
-                                    <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`}>
-                                        <Button
-                                            variant={isLooping ? "contained" : "outlined"}
-                                            color="secondary"
-                                            onClick={handleToggleLoop}
-                                            fullWidth={isMobile}
-                                        >
-                                            <Loop />
-                                        </Button>
-                                    </Tooltip>
-
-                                    <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={handleToggleFullscreen}
-                                            fullWidth={isMobile}
-                                        >
-                                            {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
-                                        </Button>
-                                    </Tooltip>
-                                </Stack>
-
-                                {/* Row 2 on Mobile: Seek Controls */}
-                                <Stack direction="row" spacing={1} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
-                                    <Tooltip title="-1m">
-                                        <Button variant="outlined" onClick={() => handleSeek(-60)}>
-                                            <FastRewind />
-                                        </Button>
-                                    </Tooltip>
-                                    <Tooltip title="-10s">
-                                        <Button variant="outlined" onClick={() => handleSeek(-10)}>
-                                            <Replay10 />
-                                        </Button>
-                                    </Tooltip>
-                                    <Tooltip title="+10s">
-                                        <Button variant="outlined" onClick={() => handleSeek(10)}>
-                                            <Forward10 />
-                                        </Button>
-                                    </Tooltip>
-                                    <Tooltip title="+1m">
-                                        <Button variant="outlined" onClick={() => handleSeek(60)}>
-                                            <FastForward />
-                                        </Button>
-                                    </Tooltip>
-                                </Stack>
-                            </Stack>
-                        </Box>
-                    </Box>
-                    {/* Info Column */}
-                    <Box sx={{ mt: 2 }}>
-                        {isEditingTitle ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-                                <TextField
-                                    fullWidth
-                                    value={editedTitle}
-                                    onChange={(e) => setEditedTitle(e.target.value)}
-                                    variant="outlined"
-                                    size="small"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleSaveTitle();
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    onClick={handleSaveTitle}
-                                    sx={{ minWidth: 'auto', p: 0.5 }}
-                                >
-                                    <Check />
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    color="secondary"
-                                    onClick={handleCancelEditingTitle}
-                                    sx={{ minWidth: 'auto', p: 0.5 }}
-                                >
-                                    <Close />
-                                </Button>
-                            </Box>
-                        ) : (
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="h5" component="h1" fontWeight="bold" sx={{ mr: 1 }}>
-                                    {video.title}
-                                </Typography>
-                                <Tooltip title={t('editTitle')}>
-                                    <Button
-                                        size="small"
-                                        onClick={handleStartEditingTitle}
-                                        sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
-                                    >
-                                        <Edit fontSize="small" />
-                                    </Button>
-                                </Tooltip>
-                            </Box>
-                        )}
-
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                            <Rating
-                                value={video.rating || 0}
-                                onChange={handleRatingChange}
-                            />
-                            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                                {video.rating ? `(${video.rating})` : t('rateThisVideo')}
-                            </Typography>
-                        </Box>
-
-                        <Stack
-                            direction={{ xs: 'column', sm: 'row' }}
-                            justifyContent="space-between"
-                            alignItems={{ xs: 'flex-start', sm: 'center' }}
-                            spacing={2}
-                            sx={{ mb: 2 }}
-                        >
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-                                    {video.author ? video.author.charAt(0).toUpperCase() : 'A'}
-                                </Avatar>
-                                <Box>
-                                    <Typography
-                                        variant="subtitle1"
-                                        fontWeight="bold"
-                                        onClick={handleAuthorClick}
-                                        sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
-                                    >
-                                        {video.author}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {formatDate(video.date)}
-                                    </Typography>
-                                </Box>
-                            </Box>
-
-                            <Stack direction="row" spacing={1}>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<Add />}
-                                    onClick={handleAddToCollection}
-                                >
-                                    {t('addToCollection')}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    startIcon={<Delete />}
-                                    onClick={handleDelete}
-                                    disabled={isDeleting}
-                                >
-                                    {isDeleting ? t('deleting') : t('delete')}
-                                </Button>
-                            </Stack>
-                        </Stack>
-
-
-                        {deleteError && (
-                            <Alert severity="error" sx={{ mb: 2 }}>
-                                {deleteError}
-                            </Alert>
-                        )}
-
-                        <Divider sx={{ my: 2 }} />
-
-                        <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
-                            <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap">
-                                {video.sourceUrl && (
-                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                                            <LinkIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                            <strong>{t('originalLink')}</strong>
-                                        </a>
-                                    </Typography>
-                                )}
-                                {video.videoPath && (
-                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <a href={`${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                                            <Download fontSize="small" sx={{ mr: 0.5 }} />
-                                            <strong>{t('download')}</strong>
-                                        </a>
-                                    </Typography>
-                                )}
-                                <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <VideoLibrary fontSize="small" sx={{ mr: 0.5 }} />
-                                    <strong>{t('source')}</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
-                                </Typography>
-                                {video.addedAt && (
-                                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
-                                        <strong>{t('addedDate')}</strong> {new Date(video.addedAt).toLocaleDateString()}
-                                    </Typography>
-                                )}
-                            </Stack>
-
-
-
-                            {videoCollections.length > 0 && (
-                                <Box sx={{ mt: 2 }}>
-                                    <Typography variant="subtitle2" gutterBottom>{t('collections')}:</Typography>
-                                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                                        {videoCollections.map(c => (
-                                            <Chip
-                                                key={c.id}
-                                                icon={<Folder />}
-                                                label={c.name}
-                                                onClick={() => handleCollectionClick(c.id)}
-                                                color="secondary"
-                                                variant="outlined"
-                                                clickable
-                                                sx={{ mb: 1 }}
-                                            />
-                                        ))}
-                                    </Stack>
-                                </Box>
-                            )}
-                        </Box>
-
-                        {/* Tags Section */}
-                        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LocalOffer color="action" fontSize="small" />
-                            <Autocomplete
-                                multiple
-                                options={availableTags}
-                                value={video.tags || []}
-                                isOptionEqualToValue={(option, value) => option === value}
-                                onChange={(_, newValue) => handleUpdateTags(newValue)}
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        variant="standard"
-                                        placeholder={!video.tags || video.tags.length === 0 ? (t('tags') || 'Tags') : ''}
-                                        sx={{ minWidth: 200 }}
-                                        InputProps={{ ...params.InputProps, disableUnderline: true }}
-                                    />
-                                )}
-                                renderTags={(value, getTagProps) =>
-                                    value.map((option, index) => {
-                                        const { key, ...tagProps } = getTagProps({ index });
-                                        return (
-                                            <Chip
-                                                key={key}
-                                                variant="outlined"
-                                                label={option}
-                                                size="small"
-                                                {...tagProps}
-                                            />
-                                        );
-                                    })
-                                }
-                                sx={{ flexGrow: 1 }}
-                            />
-                        </Box>
-
-                        {/* Comments Section */}
-                        <Box sx={{ mt: 4 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                <Typography variant="h6" fontWeight="bold">
-                                    {t('latestComments')}
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    onClick={handleToggleComments}
-                                    size="small"
-                                >
-                                    {showComments ? "Hide Comments" : "Show Comments"}
-                                </Button>
-                            </Box>
-
-                            {showComments && (
-                                <>
-                                    {loadingComments ? (
-                                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                                            <CircularProgress size={24} />
-                                        </Box>
-                                    ) : comments.length > 0 ? (
-                                        <Stack spacing={2}>
-                                            {comments.map((comment) => (
-                                                <Box key={comment.id} sx={{ display: 'flex', gap: 2 }}>
-                                                    <Avatar src={comment.avatar} alt={comment.author}>
-                                                        {comment.author.charAt(0).toUpperCase()}
-                                                    </Avatar>
-                                                    <Box sx={{ flex: 1 }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                                                            <Typography variant="subtitle2" fontWeight="bold">
-                                                                {comment.author}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {comment.date}
-                                                            </Typography>
-                                                        </Box>
-                                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                                                            {comment.content}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                            ))}
-                                        </Stack>
-                                    ) : (
-                                        <Typography variant="body2" color="text.secondary">
-                                            {t('noComments')}
-                                        </Typography>
-                                    )}
-                                </>
-                            )}
-                        </Box>
-                    </Box>
+                    <CommentsSection
+                        comments={comments}
+                        loading={loadingComments}
+                        showComments={showComments}
+                        onToggleComments={handleToggleComments}
+                    />
                 </Grid>
 
                 {/* Sidebar Column - Up Next */}
@@ -874,81 +425,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </Grid>
             </Grid>
 
-            {/* Collection Modal */}
-            <Dialog open={showCollectionModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-                <DialogTitle>{t('addToCollection')}</DialogTitle>
-                <DialogContent dividers>
-                    {videoCollections.length > 0 && (
-                        <Alert severity="info" sx={{ mb: 3 }} action={
-                            <Button color="error" size="small" onClick={handleRemoveFromCollection}>
-                                {t('remove')}
-                            </Button>
-                        }>
-                            {t('currentlyIn')} <strong>{videoCollections[0].name}</strong>
-                            <Typography variant="caption" display="block">
-                                {t('collectionWarning')}
-                            </Typography>
-                        </Alert>
-                    )}
-
-                    {collections && collections.length > 0 && (
-                        <Box sx={{ mb: 4 }}>
-                            <Typography variant="subtitle2" gutterBottom>{t('addToExistingCollection')}</Typography>
-                            <Stack direction="row" spacing={2}>
-                                <FormControl fullWidth size="small">
-                                    <InputLabel>{t('selectCollection')}</InputLabel>
-                                    <Select
-                                        value={selectedCollection}
-                                        label={t('selectCollection')}
-                                        onChange={(e) => setSelectedCollection(e.target.value)}
-                                    >
-                                        {collections.map(collection => (
-                                            <MenuItem
-                                                key={collection.id}
-                                                value={collection.id}
-                                                disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
-                                            >
-                                                {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? t('current') : ''}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <Button
-                                    variant="contained"
-                                    onClick={handleAddToExistingCollection}
-                                    disabled={!selectedCollection}
-                                >
-                                    {t('add')}
-                                </Button>
-                            </Stack>
-                        </Box>
-                    )}
-
-                    <Box>
-                        <Typography variant="subtitle2" gutterBottom>{t('createNewCollection')}</Typography>
-                        <Stack direction="row" spacing={2}>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label={t('collectionName')}
-                                value={newCollectionName}
-                                onChange={(e) => setNewCollectionName(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreateCollection()}
-                            />
-                            <Button
-                                variant="contained"
-                                onClick={handleCreateCollection}
-                                disabled={!newCollectionName.trim()}
-                            >
-                                {t('create')}
-                            </Button>
-                        </Stack>
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseModal} color="inherit">{t('cancel')}</Button>
-                </DialogActions>
-            </Dialog>
+            <CollectionModal
+                open={showCollectionModal}
+                onClose={handleCloseModal}
+                videoCollections={videoCollections}
+                collections={collections}
+                onAddToCollection={handleAddToExistingCollection}
+                onCreateCollection={handleCreateCollection}
+                onRemoveFromCollection={handleRemoveFromCollection}
+            />
 
             <ConfirmationModal
                 isOpen={confirmationModal.isOpen}

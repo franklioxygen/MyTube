@@ -52,6 +52,7 @@ export const translations = {
         tagsManagement: "Tags Management",
         newTag: "New Tag",
         tags: "Tags",
+        tagsManagementNote: "Please remember to click \"Save Settings\" after adding or removing tags to apply changes.",
         
         // Database
         database: "Database",
@@ -260,6 +261,7 @@ export const translations = {
         tagsManagement: "标签管理",
         newTag: "新标签",
         tags: "标签",
+        tagsManagementNote: "添加或删除标签后，请记得点击“保存设置”以应用更改。",
         
         // Database
         database: "数据库",

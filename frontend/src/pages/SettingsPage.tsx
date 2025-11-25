@@ -238,6 +238,9 @@ const SettingsPage: React.FC = () => {
                         {/* Tags Management */}
                         <Grid size={12}>
                             <Typography variant="h6" gutterBottom>{t('tagsManagement') || 'Tags Management'}</Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                {t('tagsManagementNote') || 'Please remember to click "Save Settings" after adding or removing tags to apply changes.'}
+                            </Typography>
                             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                                 {settings.tags && settings.tags.map((tag) => (
                                     <Chip
