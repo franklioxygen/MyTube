@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AuthorVideos from '../pages/AuthorVideos';
 import CollectionPage from '../pages/CollectionPage';
 import Home from '../pages/Home';
@@ -152,6 +152,10 @@ const AnimatedRoutes = ({
                         </PageTransition>
                     }
                 />
+                {/* Redirect /login to home if already authenticated (or login disabled) */}
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                {/* Catch all - redirect to home */}
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </AnimatePresence>
     );

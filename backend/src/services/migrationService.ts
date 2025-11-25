@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { COLLECTIONS_DATA_PATH, STATUS_DATA_PATH, VIDEOS_DATA_PATH } from '../config/paths';
+import { COLLECTIONS_DATA_PATH, DATA_DIR, STATUS_DATA_PATH, VIDEOS_DATA_PATH } from '../config/paths';
 import { db } from '../db';
 import { collections, collectionVideos, downloads, settings, videos } from '../db/schema';
 
@@ -10,21 +10,42 @@ const SETTINGS_DATA_PATH = path.join(path.dirname(VIDEOS_DATA_PATH), 'settings.j
 export async function runMigration() {
   console.log('Starting migration...');
   const results = {
-    videos: 0,
-    collections: 0,
-    settings: 0,
-    downloads: 0,
-    errors: [] as string[]
+    videos: { count: 0, path: VIDEOS_DATA_PATH, found: false },
+    collections: { count: 0, path: COLLECTIONS_DATA_PATH, found: false },
+    settings: { count: 0, path: SETTINGS_DATA_PATH, found: false },
+    downloads: { count: 0, path: STATUS_DATA_PATH, found: false },
+    errors: [] as string[],
+    warnings: [] as string[]
   };
+
+  // Check for common misconfiguration (nested data directory)
+  const nestedDataPath = path.join(DATA_DIR, 'data');
+  if (fs.existsSync(nestedDataPath)) {
+      results.warnings.push(`Found nested data directory at ${nestedDataPath}. Your volume mount might be incorrect (mounting /data to /app/data instead of /app/data contents).`);
+  }
 
   // Migrate Videos
   if (fs.existsSync(VIDEOS_DATA_PATH)) {
+    results.videos.found = true;
     try {
       const videosData = fs.readJSONSync(VIDEOS_DATA_PATH);
       console.log(`Found ${videosData.length} videos to migrate.`);
 
       for (const video of videosData) {
         try {
+          // Fix for missing createdAt in legacy data
+          let createdAt = video.createdAt;
+          if (!createdAt) {
+              if (video.addedAt) {
+                  createdAt = video.addedAt;
+              } else if (video.id && /^\d{13}$/.test(video.id)) {
+                  // If ID is a timestamp (13 digits), use it
+                  createdAt = new Date(parseInt(video.id)).toISOString();
+              } else {
+                  createdAt = new Date().toISOString();
+              }
+          }
+
           await db.insert(videos).values({
             id: video.id,
             title: video.title,
@@ -38,7 +59,7 @@ export async function runMigration() {
             thumbnailPath: video.thumbnailPath,
             thumbnailUrl: video.thumbnailUrl,
             addedAt: video.addedAt,
-            createdAt: video.createdAt,
+            createdAt: createdAt,
             updatedAt: video.updatedAt,
             partNumber: video.partNumber,
             totalParts: video.totalParts,
@@ -48,7 +69,7 @@ export async function runMigration() {
             viewCount: video.viewCount,
             duration: video.duration,
           }).onConflictDoNothing();
-          results.videos++;
+          results.videos.count++;
         } catch (error: any) {
           console.error(`Error migrating video ${video.id}:`, error);
           results.errors.push(`Video ${video.id}: ${error.message}`);
@@ -61,6 +82,7 @@ export async function runMigration() {
 
   // Migrate Collections
   if (fs.existsSync(COLLECTIONS_DATA_PATH)) {
+    results.collections.found = true;
     try {
       const collectionsData = fs.readJSONSync(COLLECTIONS_DATA_PATH);
       console.log(`Found ${collectionsData.length} collections to migrate.`);
@@ -75,7 +97,7 @@ export async function runMigration() {
             createdAt: collection.createdAt || new Date().toISOString(),
             updatedAt: collection.updatedAt,
           }).onConflictDoNothing();
-          results.collections++;
+          results.collections.count++;
 
           // Insert Collection Videos
           if (collection.videos && collection.videos.length > 0) {
@@ -103,6 +125,7 @@ export async function runMigration() {
 
   // Migrate Settings
   if (fs.existsSync(SETTINGS_DATA_PATH)) {
+    results.settings.found = true;
     try {
       const settingsData = fs.readJSONSync(SETTINGS_DATA_PATH);
       console.log('Found settings.json to migrate.');
@@ -115,7 +138,7 @@ export async function runMigration() {
           target: settings.key,
           set: { value: JSON.stringify(value) },
         });
-        results.settings++;
+        results.settings.count++;
       }
     } catch (error: any) {
       console.error('Error migrating settings:', error);
@@ -125,6 +148,7 @@ export async function runMigration() {
 
   // Migrate Status (Downloads)
   if (fs.existsSync(STATUS_DATA_PATH)) {
+    results.downloads.found = true;
     try {
       const statusData = fs.readJSONSync(STATUS_DATA_PATH);
       console.log('Found status.json to migrate.');
@@ -155,7 +179,7 @@ export async function runMigration() {
               status: 'active',
             }
           });
-          results.downloads++;
+          results.downloads.count++;
         }
       }
 
@@ -175,7 +199,7 @@ export async function runMigration() {
               status: 'queued',
             }
           });
-          results.downloads++;
+          results.downloads.count++;
         }
       }
     } catch (error: any) {
