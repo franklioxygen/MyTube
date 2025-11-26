@@ -60,6 +60,33 @@ export interface CollectionDownloadResult {
 }
 
 export class BilibiliDownloader {
+    // Get video info without downloading
+    static async getVideoInfo(videoId: string): Promise<{ title: string; author: string; date: string; thumbnailUrl: string }> {
+        try {
+            const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+            const response = await axios.get(apiUrl);
+
+            if (response.data && response.data.data) {
+                const videoInfo = response.data.data;
+                return {
+                    title: videoInfo.title || "Bilibili Video",
+                    author: videoInfo.owner?.name || "Bilibili User",
+                    date: new Date(videoInfo.pubdate * 1000).toISOString().slice(0, 10).replace(/-/g, ""),
+                    thumbnailUrl: videoInfo.pic,
+                };
+            }
+            throw new Error("No data found");
+        } catch (error) {
+            console.error("Error fetching Bilibili video info:", error);
+            return {
+                title: "Bilibili Video",
+                author: "Bilibili User",
+                date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+                thumbnailUrl: "",
+            };
+        }
+    }
+
     // Helper function to download Bilibili video
     static async downloadVideo(
         url: string,

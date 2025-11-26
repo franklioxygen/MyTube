@@ -44,8 +44,36 @@ export class YouTubeDownloader {
         return formattedResults;
     }
 
+    // Get video info without downloading
+    static async getVideoInfo(url: string): Promise<{ title: string; author: string; date: string; thumbnailUrl: string }> {
+        try {
+            const info = await youtubedl(url, {
+                dumpSingleJson: true,
+                noWarnings: true,
+                callHome: false,
+                preferFreeFormats: true,
+                youtubeSkipDashManifest: true,
+            } as any);
+
+            return {
+                title: info.title || "YouTube Video",
+                author: info.uploader || "YouTube User",
+                date: info.upload_date || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+                thumbnailUrl: info.thumbnail,
+            };
+        } catch (error) {
+            console.error("Error fetching YouTube video info:", error);
+            return {
+                title: "YouTube Video",
+                author: "YouTube User",
+                date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+                thumbnailUrl: "",
+            };
+        }
+    }
+
     // Download YouTube video
-    static async downloadVideo(videoUrl: string, downloadId?: string): Promise<Video> {
+    static async downloadVideo(videoUrl: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
         console.log("Detected YouTube URL");
 
         // Create a safe base filename (without extension)
@@ -126,6 +154,40 @@ export class YouTubeDownloader {
                     'User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
                 ]
             } as any);
+
+            if (onStart) {
+                onStart(() => {
+                    console.log("Killing subprocess for download:", downloadId);
+                    subprocess.kill();
+                    
+                    // Clean up partial files
+                    console.log("Cleaning up partial files...");
+                    try {
+                        // youtube-dl creates .part files during download
+                        const partVideoPath = `${newVideoPath}.part`;
+                        const partThumbnailPath = `${newThumbnailPath}.part`;
+                        
+                        if (fs.existsSync(partVideoPath)) {
+                            fs.unlinkSync(partVideoPath);
+                            console.log("Deleted partial video file:", partVideoPath);
+                        }
+                        if (fs.existsSync(newVideoPath)) {
+                            fs.unlinkSync(newVideoPath);
+                            console.log("Deleted partial video file:", newVideoPath);
+                        }
+                        if (fs.existsSync(partThumbnailPath)) {
+                            fs.unlinkSync(partThumbnailPath);
+                            console.log("Deleted partial thumbnail file:", partThumbnailPath);
+                        }
+                        if (fs.existsSync(newThumbnailPath)) {
+                            fs.unlinkSync(newThumbnailPath);
+                            console.log("Deleted partial thumbnail file:", newThumbnailPath);
+                        }
+                    } catch (cleanupError) {
+                        console.error("Error cleaning up partial files:", cleanupError);
+                    }
+                });
+            }
 
             subprocess.stdout?.on('data', (data: Buffer) => {
                 const output = data.toString();

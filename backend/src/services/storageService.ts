@@ -9,7 +9,7 @@ import {
     VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
-import { collections, collectionVideos, downloads, settings, videos } from "../db/schema";
+import { collections, collectionVideos, downloadHistory, downloads, settings, videos } from "../db/schema";
 
 export interface Video {
   id: string;
@@ -44,6 +44,19 @@ export interface DownloadInfo {
   speed?: string;
 }
 
+export interface DownloadHistoryItem {
+  id: string;
+  title: string;
+  author?: string;
+  sourceUrl?: string;
+  finishedAt: number;
+  status: 'success' | 'failed';
+  error?: string;
+  videoPath?: string;
+  thumbnailPath?: string;
+  totalSize?: string;
+}
+
 export interface DownloadStatus {
   activeDownloads: DownloadInfo[];
   queuedDownloads: DownloadInfo[];
@@ -76,6 +89,14 @@ export function initializeStorage(): void {
         JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
       );
     }
+  }
+
+  // Clean up active downloads from database on startup
+  try {
+    db.delete(downloads).where(eq(downloads.status, 'active')).run();
+    console.log("Cleared active downloads from database on startup");
+  } catch (error) {
+    console.error("Error clearing active downloads from database:", error);
   }
 
   // Check and migrate tags column if needed
@@ -234,6 +255,62 @@ export function getDownloadStatus(): DownloadStatus {
   } catch (error) {
     console.error("Error reading download status:", error);
     return { activeDownloads: [], queuedDownloads: [] };
+  }
+}
+
+// --- Download History ---
+
+export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
+  try {
+    db.insert(downloadHistory).values({
+      id: item.id,
+      title: item.title,
+      author: item.author,
+      sourceUrl: item.sourceUrl,
+      finishedAt: item.finishedAt,
+      status: item.status,
+      error: item.error,
+      videoPath: item.videoPath,
+      thumbnailPath: item.thumbnailPath,
+      totalSize: item.totalSize,
+    }).run();
+  } catch (error) {
+    console.error("Error adding download history item:", error);
+  }
+}
+
+export function getDownloadHistory(): DownloadHistoryItem[] {
+  try {
+    const history = db.select().from(downloadHistory).orderBy(desc(downloadHistory.finishedAt)).all();
+    return history.map(h => ({
+      ...h,
+      status: h.status as 'success' | 'failed',
+      author: h.author || undefined,
+      sourceUrl: h.sourceUrl || undefined,
+      error: h.error || undefined,
+      videoPath: h.videoPath || undefined,
+      thumbnailPath: h.thumbnailPath || undefined,
+      totalSize: h.totalSize || undefined,
+    }));
+  } catch (error) {
+    console.error("Error getting download history:", error);
+    return [];
+  }
+}
+
+export function removeDownloadHistoryItem(id: string): void {
+  try {
+    db.delete(downloadHistory).where(eq(downloadHistory.id, id)).run();
+  } catch (error) {
+    console.error("Error removing download history item:", error);
+  }
+}
+
+export function clearDownloadHistory(): void {
+  try {
+    db.delete(downloadHistory).run();
+  } catch (error) {
+    console.error("Error clearing download history:", error);
   }
 }
 

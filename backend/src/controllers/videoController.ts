@@ -79,25 +79,35 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
 
     // Determine initial title for the download task
     let initialTitle = "Video";
-    if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-      initialTitle = "YouTube Video";
-    } else if (isBilibiliUrl(videoUrl)) {
-      initialTitle = "Bilibili Video";
-    } else if (videoUrl.includes("missav")) {
-      initialTitle = "MissAV Video";
+    try {
+      // Resolve shortened URLs (like b23.tv) first to get correct info
+      if (videoUrl.includes("b23.tv")) {
+        videoUrl = await resolveShortUrl(videoUrl);
+        console.log("Resolved shortened URL to:", videoUrl);
+      }
+
+      if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be") || isBilibiliUrl(videoUrl) || videoUrl.includes("missav")) {
+         console.log("Fetching video info for title...");
+         const info = await downloadService.getVideoInfo(videoUrl);
+         if (info && info.title) {
+             initialTitle = info.title;
+             console.log("Fetched initial title:", initialTitle);
+         }
+      }
+    } catch (err) {
+        console.warn("Failed to fetch video info for title, using default:", err);
+        if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+            initialTitle = "YouTube Video";
+        } else if (isBilibiliUrl(videoUrl)) {
+            initialTitle = "Bilibili Video";
+        }
     }
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
 
     // Define the download task function
-    const downloadTask = async () => {
-      // Resolve shortened URLs (like b23.tv)
-      if (videoUrl.includes("b23.tv")) {
-        videoUrl = await resolveShortUrl(videoUrl);
-        console.log("Resolved shortened URL to:", videoUrl);
-      }
-
+    const downloadTask = async (registerCancel: (cancel: () => void) => void) => {
       // Trim Bilibili URL if needed
       if (isBilibiliUrl(videoUrl)) {
         videoUrl = trimBilibiliUrl(videoUrl);
@@ -217,11 +227,11 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
         }
       } else if (videoUrl.includes("missav")) {
         // MissAV download
-        const videoData = await downloadService.downloadMissAVVideo(videoUrl, downloadId);
+        const videoData = await downloadService.downloadMissAVVideo(videoUrl, downloadId, registerCancel);
         return { success: true, video: videoData };
       } else {
         // YouTube download
-        const videoData = await downloadService.downloadYouTubeVideo(videoUrl, downloadId);
+        const videoData = await downloadService.downloadYouTubeVideo(videoUrl, downloadId, registerCancel);
         return { success: true, video: videoData };
       }
     };

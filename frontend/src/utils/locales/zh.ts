@@ -77,6 +77,13 @@ export const zh = {
     removeLegacyDataConfirmMessage: "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
     legacyDataDeleted: "旧数据删除成功。",
     deleteLegacyDataButton: "删除旧数据",
+    cleanupTempFiles: "清理临时文件",
+    cleanupTempFilesDescription: "从上传目录中删除所有临时下载文件（.ytdl、.part）。这有助于释放未完成或已取消下载占用的磁盘空间。",
+    cleanupTempFilesConfirmTitle: "清理临时文件？",
+    cleanupTempFilesConfirmMessage: "这将永久删除上传目录中的所有.ytdl和.part文件。请确保没有正在进行的下载。",
+    cleanupTempFilesActiveDownloads: "有活动下载时无法清理。请等待所有下载完成或取消它们。",
+    cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
+    cleanupTempFilesFailed: "清理临时文件失败",
     
     // Manage
     manageContent: "内容管理",
@@ -217,5 +224,27 @@ export const zh = {
     allPartsAddedToCollection: "所有分P将被添加到此合集",
     allVideosAddedToCollection: "所有视频将被添加到此合集",
     queued: "已排队",
-    waitingInQueue: "等待中"
+    waitingInQueue: "等待中",
+
+    // Downloads
+    downloads: "下载",
+    activeDownloads: "进行中",
+    manageDownloads: "管理下载",
+    queuedDownloads: "排队中",
+    downloadHistory: "下载历史",
+    clearQueue: "清空队列",
+    clearHistory: "清空历史",
+    noActiveDownloads: "暂无进行中的下载",
+    noQueuedDownloads: "暂无排队的下载",
+    noDownloadHistory: "暂无下载历史",
+    downloadCancelled: "下载已取消",
+    queueCleared: "队列已清空",
+    historyCleared: "历史已清空",
+    removedFromQueue: "已从队列移除",
+    removedFromHistory: "已从历史移除",
+    status: "状态",
+    progress: "进度",
+    speed: "速度",
+    finishedAt: "完成时间",
+    failed: "失败",
 };

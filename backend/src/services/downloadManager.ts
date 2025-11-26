@@ -1,24 +1,23 @@
-import fs from "fs-extra";
-import path from "path";
 import * as storageService from "./storageService";
 
-const SETTINGS_FILE = path.join(__dirname, "../../data/settings.json");
-
 interface DownloadTask {
-  downloadFn: () => Promise<any>;
+  downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>;
   id: string;
   title: string;
   resolve: (value: any) => void;
   reject: (reason?: any) => void;
+  cancelFn?: () => void;
 }
 
 class DownloadManager {
   private queue: DownloadTask[];
+  private activeTasks: Map<string, DownloadTask>;
   private activeDownloads: number;
   private maxConcurrentDownloads: number;
 
   constructor() {
     this.queue = [];
+    this.activeTasks = new Map();
     this.activeDownloads = 0;
     this.maxConcurrentDownloads = 3; // Default
     this.loadSettings();
@@ -26,12 +25,10 @@ class DownloadManager {
 
   private async loadSettings() {
     try {
-      if (await fs.pathExists(SETTINGS_FILE)) {
-        const settings = await fs.readJson(SETTINGS_FILE);
-        if (settings.maxConcurrentDownloads) {
-          this.maxConcurrentDownloads = settings.maxConcurrentDownloads;
-          console.log(`Loaded maxConcurrentDownloads: ${this.maxConcurrentDownloads}`);
-        }
+      const settings = storageService.getSettings();
+      if (settings.maxConcurrentDownloads) {
+        this.maxConcurrentDownloads = settings.maxConcurrentDownloads;
+        console.log(`Loaded maxConcurrentDownloads from database: ${this.maxConcurrentDownloads}`);
       }
     } catch (error) {
       console.error("Error loading settings in DownloadManager:", error);
@@ -62,7 +59,7 @@ class DownloadManager {
    * @returns - Resolves when the download is complete
    */
   async addDownload(
-    downloadFn: () => Promise<any>,
+    downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>,
     id: string,
     title: string
   ): Promise<any> {
@@ -79,6 +76,73 @@ class DownloadManager {
       this.updateQueuedDownloads();
       this.processQueue();
     });
+  }
+
+  /**
+   * Cancel an active download
+   * @param id - ID of the download to cancel
+   */
+  cancelDownload(id: string): void {
+    const task = this.activeTasks.get(id);
+    if (task) {
+      console.log(`Cancelling active download: ${task.title} (${id})`);
+      
+      // Call the cancel function if available
+      if (task.cancelFn) {
+        try {
+          task.cancelFn();
+        } catch (error) {
+          console.error(`Error calling cancel function for ${id}:`, error);
+        }
+      }
+      
+      // Explicitly remove from database and clean up state
+      // This ensures cleanup happens even if cancelFn doesn't properly reject
+      storageService.removeActiveDownload(id);
+      
+      // Add to history as cancelled/failed
+      storageService.addDownloadHistoryItem({
+        id: task.id,
+        title: task.title,
+        finishedAt: Date.now(),
+        status: 'failed',
+        error: 'Download cancelled by user',
+      });
+      
+      // Clean up internal state
+      this.activeTasks.delete(id);
+      this.activeDownloads--;
+      
+      // Reject the promise
+      task.reject(new Error('Download cancelled by user'));
+      
+      // Process next item in queue
+      this.processQueue();
+    } else {
+      // Check if it's in the queue and remove it
+      const inQueue = this.queue.some(t => t.id === id);
+      if (inQueue) {
+        console.log(`Removing queued download: ${id}`);
+        this.removeFromQueue(id);
+      }
+    }
+  }
+
+  /**
+   * Remove a download from the queue
+   * @param id - ID of the download to remove
+   */
+  removeFromQueue(id: string): void {
+    this.queue = this.queue.filter(task => task.id !== id);
+    this.updateQueuedDownloads();
+  }
+
+  /**
+   * Clear the download queue
+   */
+  clearQueue(): void {
+    this.queue = [];
+    this.updateQueuedDownloads();
   }
 
   /**
@@ -109,26 +173,71 @@ class DownloadManager {
 
     this.updateQueuedDownloads();
     this.activeDownloads++;
+    this.activeTasks.set(task.id, task);
 
     // Update status in storage
     storageService.addActiveDownload(task.id, task.title);
 
     try {
       console.log(`Starting download: ${task.title} (${task.id})`);
-      const result = await task.downloadFn();
+      const result = await task.downloadFn((cancel) => {
+        task.cancelFn = cancel;
+      });
 
       // Download complete
       storageService.removeActiveDownload(task.id);
-      this.activeDownloads--;
+      
+      // Extract video data from result
+      // videoController returns { success: true, video: ... }
+      // But some downloaders might return the video object directly or different structure
+      const videoData = result.video || result;
+
+      console.log(`Download finished for ${task.title}. Result title: ${videoData.title}`);
+
+      // Determine best title
+      let finalTitle = videoData.title;
+      const genericTitles = ["YouTube Video", "Bilibili Video", "MissAV Video", "Video"];
+      if (!finalTitle || genericTitles.includes(finalTitle)) {
+          if (task.title && !genericTitles.includes(task.title)) {
+              finalTitle = task.title;
+          }
+      }
+
+      // Add to history
+      storageService.addDownloadHistoryItem({
+        id: task.id,
+        title: finalTitle || task.title,
+        finishedAt: Date.now(),
+        status: 'success',
+        videoPath: videoData.videoPath,
+        thumbnailPath: videoData.thumbnailPath,
+        sourceUrl: videoData.sourceUrl,
+        author: videoData.author,
+      });
+
       task.resolve(result);
     } catch (error) {
       console.error(`Error downloading ${task.title}:`, error);
 
       // Download failed
       storageService.removeActiveDownload(task.id);
-      this.activeDownloads--;
+
+      // Add to history
+      storageService.addDownloadHistoryItem({
+        id: task.id,
+        title: task.title,
+        finishedAt: Date.now(),
+        status: 'failed',
+        error: error instanceof Error ? error.message : String(error),
+      });
+
       task.reject(error);
     } finally {
+      // Only clean up if the task wasn't already cleaned up by cancelDownload
+      if (this.activeTasks.has(task.id)) {
+        this.activeTasks.delete(task.id);
+        this.activeDownloads--;
+      }
       // Process next item in queue
       this.processQueue();
     }

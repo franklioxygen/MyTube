@@ -1,3 +1,4 @@
+import { extractBilibiliVideoId, isBilibiliUrl } from "../utils/helpers";
 import {
     BilibiliCollectionCheckResult,
     BilibiliDownloader,
@@ -82,11 +83,33 @@ export async function searchYouTube(query: string): Promise<any[]> {
 }
 
 // Download YouTube video
-export async function downloadYouTubeVideo(videoUrl: string, downloadId?: string): Promise<Video> {
-  return YouTubeDownloader.downloadVideo(videoUrl, downloadId);
+export async function downloadYouTubeVideo(videoUrl: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
+  return YouTubeDownloader.downloadVideo(videoUrl, downloadId, onStart);
 }
 
 // Helper function to download MissAV video
-export async function downloadMissAVVideo(url: string, downloadId?: string): Promise<Video> {
-  return MissAVDownloader.downloadVideo(url, downloadId);
+export async function downloadMissAVVideo(url: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
+  return MissAVDownloader.downloadVideo(url, downloadId, onStart);
+}
+
+// Helper function to get video info without downloading
+export async function getVideoInfo(url: string): Promise<{ title: string; author: string; date: string; thumbnailUrl: string }> {
+  if (isBilibiliUrl(url)) {
+    const videoId = extractBilibiliVideoId(url);
+    if (videoId) {
+      return BilibiliDownloader.getVideoInfo(videoId);
+    }
+  } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return YouTubeDownloader.getVideoInfo(url);
+  } else if (url.includes("missav")) {
+    return MissAVDownloader.getVideoInfo(url);
+  }
+  
+  // Default fallback
+  return {
+    title: "Video",
+    author: "Unknown",
+    date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+    thumbnailUrl: "",
+  };
 }

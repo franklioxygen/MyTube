@@ -88,3 +88,16 @@ export const downloads = sqliteTable('downloads', {
   speed: text('speed'),
   status: text('status').notNull().default('active'), // 'active' or 'queued'
 });
+
+export const downloadHistory = sqliteTable('download_history', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  author: text('author'),
+  sourceUrl: text('source_url'),
+  finishedAt: integer('finished_at').notNull(), // Timestamp
+  status: text('status').notNull(), // 'success' or 'failed'
+  error: text('error'), // Error message if failed
+  videoPath: text('video_path'), // Path to video file if successful
+  thumbnailPath: text('thumbnail_path'), // Path to thumbnail if successful
+  totalSize: text('total_size'),
+});

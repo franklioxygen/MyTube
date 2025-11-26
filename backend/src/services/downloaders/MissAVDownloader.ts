@@ -10,8 +10,46 @@ import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
 export class MissAVDownloader {
+    // Get video info without downloading
+    static async getVideoInfo(url: string): Promise<{ title: string; author: string; date: string; thumbnailUrl: string }> {
+        try {
+            console.log("Fetching MissAV page content with Puppeteer...");
+
+            const browser = await puppeteer.launch({
+                headless: true,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
+            await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+            const html = await page.content();
+            await browser.close();
+
+            const $ = cheerio.load(html);
+            const pageTitle = $('meta[property="og:title"]').attr('content');
+            const ogImage = $('meta[property="og:image"]').attr('content');
+
+            return {
+                title: pageTitle || "MissAV Video",
+                author: "MissAV",
+                date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+                thumbnailUrl: ogImage || "",
+            };
+        } catch (error) {
+            console.error("Error fetching MissAV video info:", error);
+            return {
+                title: "MissAV Video",
+                author: "MissAV",
+                date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+                thumbnailUrl: "",
+            };
+        }
+    }
+
     // Helper function to download MissAV video
-    static async downloadVideo(url: string, downloadId?: string): Promise<Video> {
+    static async downloadVideo(url: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
         console.log("Detected MissAV URL:", url);
 
         const timestamp = Date.now();
@@ -118,6 +156,40 @@ export class MissAVDownloader {
                     'User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 ]
             });
+
+            if (onStart) {
+                onStart(() => {
+                    console.log("Killing subprocess for download:", downloadId);
+                    subprocess.kill();
+                    
+                    // Clean up partial files
+                    console.log("Cleaning up partial files...");
+                    try {
+                        // youtube-dl creates .part files during download
+                        const partVideoPath = `${videoPath}.part`;
+                        const partThumbnailPath = `${thumbnailPath}.part`;
+                        
+                        if (fs.existsSync(partVideoPath)) {
+                            fs.unlinkSync(partVideoPath);
+                            console.log("Deleted partial video file:", partVideoPath);
+                        }
+                        if (fs.existsSync(videoPath)) {
+                            fs.unlinkSync(videoPath);
+                            console.log("Deleted partial video file:", videoPath);
+                        }
+                        if (fs.existsSync(partThumbnailPath)) {
+                            fs.unlinkSync(partThumbnailPath);
+                            console.log("Deleted partial thumbnail file:", partThumbnailPath);
+                        }
+                        if (fs.existsSync(thumbnailPath)) {
+                            fs.unlinkSync(thumbnailPath);
+                            console.log("Deleted partial thumbnail file:", thumbnailPath);
+                        }
+                    } catch (cleanupError) {
+                        console.error("Error cleaning up partial files:", cleanupError);
+                    }
+                });
+            }
 
             subprocess.stdout?.on('data', (data: Buffer) => {
                 const output = data.toString();
