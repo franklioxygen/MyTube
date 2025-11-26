@@ -228,9 +228,9 @@ export const zh = {
 
     // Downloads
     downloads: "下载",
-    activeDownloads: "进行中",
+    activeDownloads: "进行中的下载",
     manageDownloads: "管理下载",
-    queuedDownloads: "排队中",
+    queuedDownloads: "排队中的下载",
     downloadHistory: "下载历史",
     clearQueue: "清空队列",
     clearHistory: "清空历史",

@@ -26,6 +26,7 @@ export const videos = sqliteTable('videos', {
   duration: text('duration'),
   tags: text('tags'), // JSON stringified array of strings
   progress: integer('progress'), // Playback progress in seconds
+  fileSize: text('file_size'),
 });
 
 export const collections = sqliteTable('collections', {
