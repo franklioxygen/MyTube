@@ -3,8 +3,16 @@ set -e
 
 DOCKER_PATH="/Applications/Docker.app/Contents/Resources/bin/docker"
 USERNAME="franklioxygen"
-BACKEND_IMAGE="$USERNAME/mytube:backend-latest"
-FRONTEND_IMAGE="$USERNAME/mytube:frontend-latest"
+VERSION=$1
+
+BACKEND_LATEST="$USERNAME/mytube:backend-latest"
+FRONTEND_LATEST="$USERNAME/mytube:frontend-latest"
+
+if [ -n "$VERSION" ]; then
+  echo "🔖 Version specified: $VERSION"
+  BACKEND_VERSION_TAG="$USERNAME/mytube:backend-$VERSION"
+  FRONTEND_VERSION_TAG="$USERNAME/mytube:frontend-$VERSION"
+fi
 
 # Default build arguments (can be overridden by environment variables)
 VITE_API_URL=${VITE_API_URL:-"http://localhost:5551/api"}
@@ -18,7 +26,10 @@ echo "✅ Docker is running!"
 # Build backend image with no-cache to force rebuild
 echo "🏗️ Building backend image..."
 cd backend
-$DOCKER_PATH build --no-cache --platform linux/amd64 -t $BACKEND_IMAGE .
+$DOCKER_PATH build --no-cache --platform linux/amd64 -t $BACKEND_LATEST .
+if [ -n "$VERSION" ]; then
+  $DOCKER_PATH tag $BACKEND_LATEST $BACKEND_VERSION_TAG
+fi
 cd ..
 
 # Build frontend image with no-cache to force rebuild
@@ -27,17 +38,31 @@ cd frontend
 $DOCKER_PATH build --no-cache --platform linux/amd64 \
   --build-arg VITE_API_URL="$VITE_API_URL" \
   --build-arg VITE_BACKEND_URL="$VITE_BACKEND_URL" \
-  -t $FRONTEND_IMAGE .
+  -t $FRONTEND_LATEST .
+
+if [ -n "$VERSION" ]; then
+  $DOCKER_PATH tag $FRONTEND_LATEST $FRONTEND_VERSION_TAG
+fi
 cd ..
 
 # Push images to Docker Hub
 echo "🚀 Pushing images to Docker Hub..."
-$DOCKER_PATH push $BACKEND_IMAGE
-$DOCKER_PATH push $FRONTEND_IMAGE
+$DOCKER_PATH push $BACKEND_LATEST
+$DOCKER_PATH push $FRONTEND_LATEST
+
+if [ -n "$VERSION" ]; then
+  echo "🚀 Pushing versioned images..."
+  $DOCKER_PATH push $BACKEND_VERSION_TAG
+  $DOCKER_PATH push $FRONTEND_VERSION_TAG
+fi
 
 echo "✅ Successfully built and pushed images to Docker Hub!"
-echo "Backend image: $BACKEND_IMAGE"
-echo "Frontend image: $FRONTEND_IMAGE"
+echo "Backend image: $BACKEND_LATEST"
+echo "Frontend image: $FRONTEND_LATEST"
+if [ -n "$VERSION" ]; then
+  echo "Backend version: $BACKEND_VERSION_TAG"
+  echo "Frontend version: $FRONTEND_VERSION_TAG"
+fi
 echo ""
 echo "To deploy to your server or QNAP Container Station:"
 echo "1. Upload the docker-compose.yml file to your server"
