@@ -77,6 +77,13 @@ export const pt = {
     removeLegacyDataConfirmMessage: "Tem certeza de que deseja excluir os arquivos de dados JSON legados? Esta ação não pode ser desfeita.",
     legacyDataDeleted: "Dados legados excluídos com sucesso.",
     deleteLegacyDataButton: "Excluir Dados Legados",
+    cleanupTempFiles: "Limpar Arquivos Temporários",
+    cleanupTempFilesDescription: "Remover todos os arquivos temporários de download (.ytdl, .part) do diretório de uploads. Isto ajuda a liberar espaço em disco de downloads incompletos ou cancelados.",
+    cleanupTempFilesConfirmTitle: "Limpar Arquivos Temporários?",
+    cleanupTempFilesConfirmMessage: "Isto excluirá permanentemente todos os arquivos .ytdl e .part no diretório de uploads. Certifique-se de que não há downloads ativos antes de continuar.",
+    cleanupTempFilesActiveDownloads: "Não é possível limpar enquanto houver downloads ativos. Aguarde a conclusão de todos os downloads ou cancele-os primeiro.",
+    cleanupTempFilesSuccess: "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
+    cleanupTempFilesFailed: "Falha ao limpar arquivos temporários",
     
     // Manage
     manageContent: "Gerenciar Conteúdo",

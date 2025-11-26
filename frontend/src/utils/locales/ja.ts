@@ -77,6 +77,13 @@ export const ja = {
     removeLegacyDataConfirmMessage: "レガシーJSONデータファイルを削除してもよろしいですか？この操作は元に戻せません。",
     legacyDataDeleted: "レガシーデータが正常に削除されました。",
     deleteLegacyDataButton: "レガシーデータを削除",
+    cleanupTempFiles: "一時ファイルをクリーンアップ",
+    cleanupTempFilesDescription: "アップロードディレクトリからすべての一時ダウンロードファイル（.ytdl、.part）を削除します。不完全またはキャンセルされたダウンロードのディスク容量を解放するのに役立ちます。",
+    cleanupTempFilesConfirmTitle: "一時ファイルをクリーンアップしますか？",
+    cleanupTempFilesConfirmMessage: "これにより、アップロードディレクトリ内のすべての.ytdlおよび.partファイルが永久に削除されます。続行する前に、アクティブなダウンロードがないことを確認してください。",
+    cleanupTempFilesActiveDownloads: "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
+    cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
+    cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
     
     // Manage
     manageContent: "コンテンツの管理",

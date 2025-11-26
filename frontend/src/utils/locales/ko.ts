@@ -77,6 +77,13 @@ export const ko = {
     removeLegacyDataConfirmMessage: "레거시 JSON 데이터 파일을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
     legacyDataDeleted: "레거시 데이터가 성공적으로 삭제되었습니다.",
     deleteLegacyDataButton: "레거시 데이터 삭제",
+    cleanupTempFiles: "임시 파일 정리",
+    cleanupTempFilesDescription: "업로드 디렉토리에서 모든 임시 다운로드 파일(.ytdl, .part)을 제거합니다. 불완전하거나 취소된 다운로드의 디스크 공간을 확보하는 데 도움이 됩니다.",
+    cleanupTempFilesConfirmTitle: "임시 파일을 정리하시겠습니까?",
+    cleanupTempFilesConfirmMessage: "업로드 디렉토리의 모든 .ytdl 및 .part 파일이 영구적으로 삭제됩니다. 계속하기 전에 활성 다운로드가 없는지 확인하세요.",
+    cleanupTempFilesActiveDownloads: "다운로드가 활성화된 동안에는 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하세요.",
+    cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
+    cleanupTempFilesFailed: "임시 파일 정리 실패",
     
     // Manage
     manageContent: "콘텐츠 관리",

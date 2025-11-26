@@ -77,6 +77,13 @@ export const ru = {
     removeLegacyDataConfirmMessage: "Вы уверены, что хотите удалить устаревшие файлы данных JSON? Это действие нельзя отменить.",
     legacyDataDeleted: "Устаревшие данные успешно удалены.",
     deleteLegacyDataButton: "Удалить устаревшие данные",
+    cleanupTempFiles: "Очистить временные файлы",
+    cleanupTempFilesDescription: "Удалить все временные файлы загрузки (.ytdl, .part) из каталога загрузок. Это помогает освободить место на диске от незавершенных или отмененных загрузок.",
+    cleanupTempFilesConfirmTitle: "Очистить временные файлы?",
+    cleanupTempFilesConfirmMessage: "Это навсегда удалит все файлы .ytdl и .part в каталоге загрузок. Убедитесь, что нет активных загрузок перед продолжением.",
+    cleanupTempFilesActiveDownloads: "Невозможно очистить, пока активны загрузки. Пожалуйста, дождитесь завершения всех загрузок или сначала отмените их.",
+    cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
+    cleanupTempFilesFailed: "Не удалось очистить временные файлы",
     
     // Manage
     manageContent: "Управление контентом",
