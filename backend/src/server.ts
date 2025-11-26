@@ -39,4 +39,10 @@ app.use('/api/settings', settingsRoutes);
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Run duration backfill in background
+  import("./services/metadataService").then(service => {
+    service.backfillDurations();
+  }).catch(err => console.error("Failed to start metadata service:", err));
 });
+
