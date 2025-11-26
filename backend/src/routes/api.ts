@@ -15,6 +15,7 @@ router.put("/videos/:id", videoController.updateVideoDetails);
 router.delete("/videos/:id", videoController.deleteVideo);
 router.get("/videos/:id/comments", videoController.getVideoComments);
 router.post("/videos/:id/rate", videoController.rateVideo);
+router.post("/videos/:id/refresh-thumbnail", videoController.refreshThumbnail);
 
 router.post("/scan-files", scanController.scanFiles);
 

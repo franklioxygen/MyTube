@@ -1,7 +1,11 @@
 import {
     ArrowBack,
+    Check,
+    Close,
     Delete,
+    Edit,
     Folder,
+    Refresh,
     Search,
     VideoLibrary
 } from '@mui/icons-material';
@@ -30,6 +34,7 @@ import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -44,11 +49,18 @@ interface ManagePageProps {
 const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collections = [], onDeleteCollection }) => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const { t } = useLanguage();
+    const { refreshThumbnail, updateVideo } = useVideo();
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [refreshingId, setRefreshingId] = useState<string | null>(null);
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
+
+    // Editing state
+    const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+    const [editTitle, setEditTitle] = useState<string>('');
+    const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
 
     // Pagination state
     const [collectionPage, setCollectionPage] = useState(1);
@@ -115,6 +127,32 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
         await onDeleteCollection(collectionToDelete.id, true);
         setIsDeletingCollection(false);
         setCollectionToDelete(null);
+    };
+
+    const handleRefreshThumbnail = async (id: string) => {
+        setRefreshingId(id);
+        await refreshThumbnail(id);
+        setRefreshingId(null);
+    };
+
+    const handleEditClick = (video: Video) => {
+        setEditingVideoId(video.id);
+        setEditTitle(video.title);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingVideoId(null);
+        setEditTitle('');
+    };
+
+    const handleSaveTitle = async (id: string) => {
+        if (!editTitle.trim()) return;
+
+        setIsSavingTitle(true);
+        await updateVideo(id, { title: editTitle });
+        setIsSavingTitle(false);
+        setEditingVideoId(null);
+        setEditTitle('');
     };
 
     const getThumbnailSrc = (video: Video) => {
@@ -259,15 +297,90 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
                                 {displayedVideos.map(video => (
                                     <TableRow key={video.id} hover>
                                         <TableCell sx={{ width: 140 }}>
-                                            <Box
-                                                component="img"
-                                                src={getThumbnailSrc(video)}
-                                                alt={video.title}
-                                                sx={{ width: 120, height: 68, objectFit: 'cover', borderRadius: 1 }}
-                                            />
+                                            <Box sx={{ position: 'relative', width: 120, height: 68 }}>
+                                                <Box
+                                                    component="img"
+                                                    src={getThumbnailSrc(video)}
+                                                    alt={video.title}
+                                                    sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+                                                />
+                                                <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleRefreshThumbnail(video.id)}
+                                                        disabled={refreshingId === video.id}
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            right: 0,
+                                                            bgcolor: 'rgba(0,0,0,0.5)',
+                                                            color: 'white',
+                                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                            p: 0.5,
+                                                            width: 24,
+                                                            height: 24
+                                                        }}
+                                                    >
+                                                        {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 500 }}>
-                                            {video.title}
+                                        <TableCell sx={{ fontWeight: 500, maxWidth: 400 }}>
+                                            {editingVideoId === video.id ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <TextField
+                                                        value={editTitle}
+                                                        onChange={(e) => setEditTitle(e.target.value)}
+                                                        size="small"
+                                                        fullWidth
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleSaveTitle(video.id);
+                                                            if (e.key === 'Escape') handleCancelEdit();
+                                                        }}
+                                                    />
+                                                    <IconButton
+                                                        size="small"
+                                                        color="primary"
+                                                        onClick={() => handleSaveTitle(video.id)}
+                                                        disabled={isSavingTitle}
+                                                    >
+                                                        {isSavingTitle ? <CircularProgress size={20} /> : <Check />}
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        onClick={handleCancelEdit}
+                                                        disabled={isSavingTitle}
+                                                    >
+                                                        <Close />
+                                                    </IconButton>
+                                                </Box>
+                                            ) : (
+                                                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleEditClick(video)}
+                                                        sx={{ mr: 1, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                    >
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            display: '-webkit-box',
+                                                            WebkitLineClamp: 2,
+                                                            WebkitBoxOrient: 'vertical',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            lineHeight: 1.4
+                                                        }}
+                                                    >
+                                                        {video.title}
+                                                    </Typography>
+                                                </Box>
+                                            )}
                                         </TableCell>
                                         <TableCell>{video.author}</TableCell>
                                         <TableCell align="right">

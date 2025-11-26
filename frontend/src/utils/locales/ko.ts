@@ -140,6 +140,17 @@ export const ko = {
     editTitle: "제목 편집",
     titleUpdated: "제목이 성공적으로 업데이트됨",
     titleUpdateFailed: "제목 업데이트 실패",
+    refreshThumbnail: "썸네일 새로고침",
+    thumbnailRefreshed: "썸네일이 새로고침되었습니다",
+    thumbnailRefreshFailed: "썸네일 새로고침 실패",
+    videoUpdated: "비디오가 업데이트되었습니다",
+    videoUpdateFailed: "비디오 업데이트 실패",
+    failedToLoadVideos: "비디오를 불러오지 못했습니다. 나중에 다시 시도해주세요.",
+    videoRemovedSuccessfully: "비디오가 삭제되었습니다",
+    failedToDeleteVideo: "비디오 삭제 실패",
+    pleaseEnterSearchTerm: "검색어를 입력해주세요",
+    failedToSearch: "검색 실패. 다시 시도해주세요.",
+    searchCancelled: "검색이 취소되었습니다",
     
     // Login
     signIn: "로그인",

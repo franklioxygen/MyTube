@@ -101,6 +101,7 @@ export const en = {
     deleteCollection: "Delete Collection",
     deleteVideo: "Delete Video",
     noVideosFoundMatching: "No videos found matching your search.",
+    refreshThumbnail: "Refresh Thumbnail",
     
     // Video Player
     playing: "Play",
@@ -140,6 +141,16 @@ export const en = {
     editTitle: "Edit Title",
     titleUpdated: "Title updated successfully",
     titleUpdateFailed: "Failed to update title",
+    thumbnailRefreshed: "Thumbnail refreshed successfully",
+    thumbnailRefreshFailed: "Failed to refresh thumbnail",
+    videoUpdated: "Video updated successfully",
+    videoUpdateFailed: "Failed to update video",
+    failedToLoadVideos: "Failed to load videos. Please try again later.",
+    videoRemovedSuccessfully: "Video removed successfully",
+    failedToDeleteVideo: "Failed to delete video",
+    pleaseEnterSearchTerm: "Please enter a search term",
+    failedToSearch: "Failed to search. Please try again.",
+    searchCancelled: "Search was cancelled",
     
     // Login
     signIn: "Sign in",

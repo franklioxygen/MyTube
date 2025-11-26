@@ -140,6 +140,17 @@ export const ru = {
     editTitle: "Редактировать название",
     titleUpdated: "Название успешно обновлено",
     titleUpdateFailed: "Не удалось обновить название",
+    refreshThumbnail: "Обновить миниатюру",
+    thumbnailRefreshed: "Миниатюра успешно обновлена",
+    thumbnailRefreshFailed: "Не удалось обновить миниатюру",
+    videoUpdated: "Видео успешно обновлено",
+    videoUpdateFailed: "Не удалось обновить видео",
+    failedToLoadVideos: "Не удалось загрузить видео. Пожалуйста, попробуйте позже.",
+    videoRemovedSuccessfully: "Видео успешно удалено",
+    failedToDeleteVideo: "Не удалось удалить видео",
+    pleaseEnterSearchTerm: "Пожалуйста, введите поисковый запрос",
+    failedToSearch: "Поиск не удался. Пожалуйста, попробуйте снова.",
+    searchCancelled: "Поиск отменен",
     
     // Login
     signIn: "Войти",

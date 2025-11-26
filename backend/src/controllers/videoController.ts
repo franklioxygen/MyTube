@@ -8,12 +8,12 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    extractUrlFromText,
-    isBilibiliUrl,
-    isValidUrl,
-    resolveShortUrl,
-    trimBilibiliUrl
+  extractBilibiliVideoId,
+  extractUrlFromText,
+  isBilibiliUrl,
+  isValidUrl,
+  resolveShortUrl,
+  trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -529,3 +529,94 @@ export const updateVideoDetails = (req: Request, res: Response): any => {
   }
 };
 
+
+// Refresh video thumbnail
+export const refreshThumbnail = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const video = storageService.getVideoById(id);
+
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    // Construct paths
+    let videoFilePath: string;
+    if (video.videoPath && video.videoPath.startsWith('/videos/')) {
+        const relativePath = video.videoPath.replace(/^\/videos\//, '');
+        // Split by / to handle the web path separators and join with system separator
+        videoFilePath = path.join(VIDEOS_DIR, ...relativePath.split('/'));
+    } else if (video.videoFilename) {
+        videoFilePath = path.join(VIDEOS_DIR, video.videoFilename);
+    } else {
+        return res.status(400).json({ error: "Video file path not found in record" });
+    }
+
+    if (!fs.existsSync(videoFilePath)) {
+        return res.status(404).json({ error: "Video file not found on disk" });
+    }
+
+    // Determine thumbnail path on disk
+    let thumbnailAbsolutePath: string;
+    let needsDbUpdate = false;
+    let newThumbnailFilename = video.thumbnailFilename;
+    let newThumbnailPath = video.thumbnailPath;
+
+    if (video.thumbnailPath && video.thumbnailPath.startsWith('/images/')) {
+        // Local file exists (or should exist) - preserve the existing path (e.g. inside a collection folder)
+        const relativePath = video.thumbnailPath.replace(/^\/images\//, '');
+        thumbnailAbsolutePath = path.join(IMAGES_DIR, ...relativePath.split('/'));
+    } else {
+        // Remote URL or missing - create a new local file in the root images directory
+        if (!newThumbnailFilename) {
+             const videoName = path.parse(path.basename(videoFilePath)).name;
+             newThumbnailFilename = `${videoName}.jpg`;
+        }
+        thumbnailAbsolutePath = path.join(IMAGES_DIR, newThumbnailFilename);
+        newThumbnailPath = `/images/${newThumbnailFilename}`;
+        needsDbUpdate = true;
+    }
+
+    // Ensure directory exists
+    fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
+
+    // Generate thumbnail
+    await new Promise<void>((resolve, reject) => {
+      // -y to overwrite existing file
+      exec(`ffmpeg -i "${videoFilePath}" -ss 00:00:00 -vframes 1 "${thumbnailAbsolutePath}" -y`, (error) => {
+        if (error) {
+          console.error("Error generating thumbnail:", error);
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Update video record if needed (switching from remote to local, or creating new)
+    if (needsDbUpdate) {
+        const updates: any = {
+            thumbnailFilename: newThumbnailFilename,
+            thumbnailPath: newThumbnailPath,
+            thumbnailUrl: newThumbnailPath
+        };
+        storageService.updateVideo(id, updates);
+    }
+
+    // Return success with timestamp to bust cache
+    const thumbnailUrl = `${newThumbnailPath}?t=${Date.now()}`;
+
+    res.status(200).json({
+      success: true,
+      message: "Thumbnail refreshed successfully",
+      thumbnailUrl: thumbnailUrl
+    });
+
+  } catch (error: any) {
+    console.error("Error refreshing thumbnail:", error);
+    res.status(500).json({
+      error: "Failed to refresh thumbnail",
+      details: error.message
+    });
+  }
+};

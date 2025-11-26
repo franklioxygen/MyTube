@@ -140,6 +140,17 @@ export const ar = {
     editTitle: "تعديل العنوان",
     titleUpdated: "تم تحديث العنوان بنجاح",
     titleUpdateFailed: "فشل تحديث العنوان",
+    refreshThumbnail: "تحديث الصورة المصغرة",
+    thumbnailRefreshed: "تم تحديث الصورة المصغرة بنجاح",
+    thumbnailRefreshFailed: "فشل تحديث الصورة المصغرة",
+    videoUpdated: "تم تحديث الفيديو بنجاح",
+    videoUpdateFailed: "فشل تحديث الفيديو",
+    failedToLoadVideos: "فشل تحميل مقاطع الفيديو. يرجى المحاولة مرة أخرى لاحقًا.",
+    videoRemovedSuccessfully: "تم حذف الفيديو بنجاح",
+    failedToDeleteVideo: "فشل حذف الفيديو",
+    pleaseEnterSearchTerm: "الرجاء إدخال مصطلح البحث",
+    failedToSearch: "فشل البحث. يرجى المحاولة مرة أخرى.",
+    searchCancelled: "تم إلغاء البحث",
     
     // Login
     signIn: "تسجيل الدخول",
