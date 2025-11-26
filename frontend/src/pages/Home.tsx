@@ -16,7 +16,6 @@ import {
     ToggleButtonGroup,
     Typography
 } from '@mui/material';
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
@@ -24,6 +23,7 @@ import Collections from '../components/Collections';
 import TagsList from '../components/TagsList';
 import VideoCard from '../components/VideoCard';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
 interface SearchResult {
@@ -70,32 +70,16 @@ const Home: React.FC<HomeProps> = ({
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
     const { t } = useLanguage();
-    const [availableTags, setAvailableTags] = useState<string[]>([]);
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const { availableTags, selectedTags, handleTagToggle } = useVideo();
     const [viewMode, setViewMode] = useState<'collections' | 'all-videos'>(() => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as 'collections' | 'all-videos') || 'collections';
     });
 
-    // Fetch tags
-    useEffect(() => {
-        const fetchTags = async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`);
-                if (response.data.tags) {
-                    setAvailableTags(response.data.tags);
-                }
-            } catch (error) {
-                console.error('Error fetching tags:', error);
-            }
-        };
-        fetchTags();
-    }, []);
-
-    // Reset page when filters change (though currently no filters other than search which is separate)
+    // Reset page when filters change
     useEffect(() => {
         setPage(1);
-    }, [videos, collections]);
+    }, [videos, collections, selectedTags]);
 
 
     // Add default empty array to ensure videos is always an array
@@ -155,14 +139,7 @@ const Home: React.FC<HomeProps> = ({
             });
         });
 
-    const handleTagToggle = (tag: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tag)
-                ? prev.filter(t => t !== tag)
-                : [...prev, tag]
-        );
-        setPage(1); // Reset to first page when filter changes
-    };
+
 
     const handleViewModeChange = (mode: 'collections' | 'all-videos') => {
         setViewMode(mode);

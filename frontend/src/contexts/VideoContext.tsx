@@ -24,6 +24,9 @@ interface VideoContextType {
     resetSearch: () => void;
     setVideos: React.Dispatch<React.SetStateAction<Video[]>>;
     setIsSearchMode: React.Dispatch<React.SetStateAction<boolean>>;
+    availableTags: string[];
+    selectedTags: string[];
+    handleTagToggle: (tag: string) => void;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -165,9 +168,33 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
-    // Fetch videos on mount
+    // Tags state
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    const fetchTags = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/settings`);
+            if (response.data.tags) {
+                setAvailableTags(response.data.tags);
+            }
+        } catch (error) {
+            console.error('Error fetching tags:', error);
+        }
+    };
+
+    const handleTagToggle = (tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag)
+                ? prev.filter(t => t !== tag)
+                : [...prev, tag]
+        );
+    };
+
+    // Fetch videos and tags on mount
     useEffect(() => {
         fetchVideos();
+        fetchTags();
     }, []);
 
     // Cleanup search on unmount
@@ -234,7 +261,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             handleSearch,
             resetSearch,
             setVideos,
-            setIsSearchMode
+            setIsSearchMode,
+            availableTags,
+            selectedTags,
+            handleTagToggle
         }}>
             {children}
         </VideoContext.Provider>
