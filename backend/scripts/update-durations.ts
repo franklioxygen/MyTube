@@ -49,7 +49,7 @@ async function updateDurations() {
 
     try {
         const duration = await new Promise<string>((resolve, reject) => {
-            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${fsPath}"`, (error, stdout, stderr) => {
+            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${fsPath}"`, (error, stdout, _stderr) => {
                 if (error) {
                     reject(error);
                 } else {

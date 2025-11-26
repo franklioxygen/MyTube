@@ -40,12 +40,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             onClose={onClose}
             aria-labelledby="alert-dialog-title"
             aria-describedby="alert-dialog-description"
-            PaperProps={{
-                sx: {
-                    borderRadius: 2,
-                    minWidth: 300,
-                    maxWidth: 500,
-                    backgroundImage: 'none'
+            slotProps={{
+                paper: {
+                    sx: {
+                        borderRadius: 2,
+                        minWidth: 300,
+                        maxWidth: 500,
+                        backgroundImage: 'none'
+                    }
                 }
             }}
         >

@@ -154,7 +154,7 @@ describe('DownloadManager', () => {
       (fsMock.pathExists as any).mockResolvedValue(false);
 
       // Should not throw
-      const dm = (await import('../../services/downloadManager')).default;
+      (await import('../../services/downloadManager'));
       
       await new Promise(resolve => setTimeout(resolve, 50));
       
@@ -169,7 +169,7 @@ describe('DownloadManager', () => {
       (fsMock.readJson as any).mockRejectedValue(new Error('JSON parse error'));
 
       // Should not throw
-      const dm = (await import('../../services/downloadManager')).default;
+      (await import('../../services/downloadManager'));
       
       await new Promise(resolve => setTimeout(resolve, 50));
     });

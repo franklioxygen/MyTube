@@ -6,23 +6,24 @@ import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
+import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    extractUrlFromText,
-    isBilibiliUrl,
-    isValidUrl,
-    resolveShortUrl,
-    trimBilibiliUrl
+  extractBilibiliVideoId,
+  extractUrlFromText,
+  isBilibiliUrl,
+  isValidUrl,
+  resolveShortUrl,
+  trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     fs.ensureDirSync(VIDEOS_DIR);
     cb(null, VIDEOS_DIR);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
@@ -250,7 +251,7 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
 };
 
 // Get all videos
-export const getVideos = (req: Request, res: Response): void => {
+export const getVideos = (_req: Request, res: Response): void => {
   try {
     const videos = storageService.getVideos();
     res.status(200).json(videos);
@@ -297,7 +298,7 @@ export const deleteVideo = (req: Request, res: Response): any => {
 };
 
 // Get download status
-export const getDownloadStatus = (req: Request, res: Response): void => {
+export const getDownloadStatus = (_req: Request, res: Response): void => {
   try {
     const status = storageService.getDownloadStatus();
     res.status(200).json(status);
@@ -425,7 +426,7 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
 
     // Generate thumbnail
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve, _reject) => {
       exec(`ffmpeg -i "${videoPath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`, (error) => {
         if (error) {
           console.error("Error generating thumbnail:", error);
@@ -436,6 +437,9 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
         }
       });
     });
+
+    // Get video duration
+    const duration = await getVideoDuration(videoPath);
 
     const newVideo = {
       id: videoId,
@@ -448,6 +452,7 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
       videoPath: `/videos/${videoFilename}`,
       thumbnailPath: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
       thumbnailUrl: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
+      duration: duration ? duration.toString() : undefined,
       createdAt: new Date().toISOString(),
       date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
       addedAt: new Date().toISOString(),

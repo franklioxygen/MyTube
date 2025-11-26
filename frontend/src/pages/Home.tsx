@@ -66,7 +66,7 @@ const Home: React.FC<HomeProps> = ({
     onDownload,
     onResetSearch
 }) => {
-    const API_URL = import.meta.env.VITE_API_URL;
+
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
     const { t } = useLanguage();

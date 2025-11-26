@@ -188,6 +188,18 @@ export class MissAVDownloader {
                 finalThumbnailFilename = newThumbnailFilename;
             }
 
+            // Get video duration
+            let duration: string | undefined;
+            try {
+                const { getVideoDuration } = await import("../../services/metadataService");
+                const durationSec = await getVideoDuration(newVideoPath);
+                if (durationSec) {
+                    duration = durationSec.toString();
+                }
+            } catch (e) {
+                console.error("Failed to extract duration from MissAV video:", e);
+            }
+
             // 7. Save metadata
             const videoData: Video = {
                 id: timestamp.toString(),
@@ -201,6 +213,7 @@ export class MissAVDownloader {
                 thumbnailUrl: thumbnailUrl || undefined,
                 videoPath: `/videos/${finalVideoFilename}`,
                 thumbnailPath: thumbnailSaved ? `/images/${finalThumbnailFilename}` : null,
+                duration: duration,
                 addedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
             };

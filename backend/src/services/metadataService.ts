@@ -6,6 +6,31 @@ import { VIDEOS_DIR } from '../config/paths';
 import { db } from '../db';
 import { videos } from '../db/schema';
 
+export const getVideoDuration = async (filePath: string): Promise<number | null> => {
+    try {
+        const duration = await new Promise<string>((resolve, reject) => {
+            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (error, stdout, _stderr) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(stdout.trim());
+                }
+            });
+        });
+
+        if (duration) {
+            const durationSec = parseFloat(duration);
+            if (!isNaN(durationSec)) {
+                return Math.round(durationSec);
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error getting duration for ${filePath}:`, error);
+        return null;
+    }
+};
+
 export const backfillDurations = async () => {
   console.log('Starting duration backfill...');
   
@@ -36,29 +61,14 @@ export const backfillDurations = async () => {
           continue;
       }
 
-      try {
-          const duration = await new Promise<string>((resolve, reject) => {
-              exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${fsPath}"`, (error, stdout, stderr) => {
-                  if (error) {
-                      reject(error);
-                  } else {
-                      resolve(stdout.trim());
-                  }
-              });
-          });
+      const duration = await getVideoDuration(fsPath);
 
-          if (duration) {
-              const durationSec = parseFloat(duration);
-              if (!isNaN(durationSec)) {
-                  await db.update(videos)
-                      .set({ duration: Math.round(durationSec).toString() })
-                      .where(eq(videos.id, video.id));
-                  console.log(`Updated duration for ${video.title}: ${Math.round(durationSec)}s`);
-                  updatedCount++;
-              }
-          }
-      } catch (error) {
-          console.error(`Error getting duration for ${video.title}:`, error);
+      if (duration !== null) {
+          await db.update(videos)
+              .set({ duration: duration.toString() })
+              .where(eq(videos.id, video.id));
+          console.log(`Updated duration for ${video.title}: ${duration}s`);
+          updatedCount++;
       }
     }
 

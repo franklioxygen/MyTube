@@ -24,7 +24,7 @@ const getFilesRecursively = (dir: string): string[] => {
   return results;
 };
 
-export const scanFiles = async (req: Request, res: Response): Promise<any> => {
+export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
   try {
     console.log("Starting file scan...");
     
@@ -121,7 +121,7 @@ export const scanFiles = async (req: Request, res: Response): Promise<any> => {
       let duration = undefined;
       try {
         const durationOutput = await new Promise<string>((resolve, reject) => {
-            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (error, stdout, stderr) => {
+            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (error, stdout, _stderr) => {
                 if (error) {
                     reject(error);
                 } else {

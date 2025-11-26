@@ -38,8 +38,10 @@ const DeleteCollectionModal: React.FC<DeleteCollectionModalProps> = ({
             onClose={onClose}
             maxWidth="sm"
             fullWidth
-            PaperProps={{
-                sx: { borderRadius: 2 }
+            slotProps={{
+                paper: {
+                    sx: { borderRadius: 2 }
+                }
             }}
         >
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
