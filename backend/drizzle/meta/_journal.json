@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1764043254513,
+      "tag": "0000_known_guardsmen",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1764182291372,
+      "tag": "0001_worthless_blur",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1764190450949,
+      "tag": "0002_romantic_colossus",
+      "breakpoints": true
+    }
+  ]
+}
