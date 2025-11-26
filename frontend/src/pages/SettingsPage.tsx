@@ -167,7 +167,15 @@ const SettingsPage: React.FC = () => {
                                         onChange={(e) => handleChange('language', e.target.value)}
                                     >
                                         <MenuItem value="en">English</MenuItem>
-                                        <MenuItem value="zh">Chinese</MenuItem>
+                                        <MenuItem value="zh">中文 (Chinese)</MenuItem>
+                                        <MenuItem value="es">Español (Spanish)</MenuItem>
+                                        <MenuItem value="de">Deutsch (German)</MenuItem>
+                                        <MenuItem value="ja">日本語 (Japanese)</MenuItem>
+                                        <MenuItem value="fr">Français (French)</MenuItem>
+                                        <MenuItem value="ko">한국어 (Korean)</MenuItem>
+                                        <MenuItem value="ar">العربية (Arabic)</MenuItem>
+                                        <MenuItem value="pt">Português (Portuguese)</MenuItem>
+                                        <MenuItem value="ru">Русский (Russian)</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Box>
