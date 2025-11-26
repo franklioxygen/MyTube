@@ -60,6 +60,24 @@ const VideoCard: React.FC<VideoCardProps> = ({
         return `${year}-${month}-${day}`;
     };
 
+    // Format duration (seconds or MM:SS)
+    const formatDuration = (duration: string | number | undefined) => {
+        if (!duration) return null;
+
+        // If it's already a string with colon, assume it's formatted
+        if (typeof duration === 'string' && duration.includes(':')) {
+            return duration;
+        }
+
+        // Otherwise treat as seconds
+        const seconds = typeof duration === 'string' ? parseInt(duration, 10) : duration;
+        if (isNaN(seconds)) return null;
+
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
     // Use local thumbnail if available, otherwise fall back to the original URL
     const thumbnailSrc = video.thumbnailPath
         ? `${BACKEND_URL}${video.thumbnailPath}`
@@ -183,7 +201,23 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 label={`${t('part')} ${video.partNumber}/${video.totalParts}`}
                                 size="small"
                                 color="primary"
-                                sx={{ position: 'absolute', bottom: 8, right: 8 }}
+                                sx={{ position: 'absolute', bottom: 36, right: 8 }}
+                            />
+                        )}
+
+                        {video.duration && (
+                            <Chip
+                                label={formatDuration(video.duration)}
+                                size="small"
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: 8,
+                                    right: 8,
+                                    height: 20,
+                                    fontSize: '0.75rem',
+                                    bgcolor: 'rgba(0,0,0,0.8)',
+                                    color: 'white'
+                                }}
                             />
                         )}
 
@@ -225,6 +259,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                                 {formatDate(video.date)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                {video.viewCount || 0} {t('views')}
                             </Typography>
                         </Box>
                     </CardContent>

@@ -37,9 +37,35 @@ async function migrate() {
           seriesTitle: video.seriesTitle,
           rating: video.rating,
           description: video.description,
-          viewCount: video.viewCount,
+          viewCount: video.viewCount || 0,
+          progress: video.progress || 0,
           duration: video.duration,
-        }).onConflictDoNothing();
+        }).onConflictDoUpdate({
+          target: videos.id,
+          set: {
+            title: video.title,
+            author: video.author,
+            date: video.date,
+            source: video.source,
+            sourceUrl: video.sourceUrl,
+            videoFilename: video.videoFilename,
+            thumbnailFilename: video.thumbnailFilename,
+            videoPath: video.videoPath,
+            thumbnailPath: video.thumbnailPath,
+            thumbnailUrl: video.thumbnailUrl,
+            addedAt: video.addedAt,
+            createdAt: video.createdAt,
+            updatedAt: video.updatedAt,
+            partNumber: video.partNumber,
+            totalParts: video.totalParts,
+            seriesTitle: video.seriesTitle,
+            rating: video.rating,
+            description: video.description,
+            viewCount: video.viewCount || 0,
+            progress: video.progress || 0,
+            duration: video.duration,
+          }
+        });
       } catch (error) {
         console.error(`Error migrating video ${video.id}:`, error);
       }

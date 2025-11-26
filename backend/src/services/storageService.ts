@@ -19,6 +19,8 @@ export interface Video {
   thumbnailFilename?: string;
   createdAt: string;
   tags?: string[];
+  viewCount?: number;
+  progress?: number;
   [key: string]: any;
 }
 
@@ -88,6 +90,32 @@ export function initializeStorage(): void {
     }
   } catch (error) {
     console.error("Error checking/migrating tags column:", error);
+  }
+
+  // Check and migrate viewCount and progress columns if needed
+  try {
+    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
+    const columns = (tableInfo as any[]).map((col: any) => col.name);
+    
+    if (!columns.includes('view_count')) {
+      console.log("Migrating database: Adding view_count column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN view_count INTEGER DEFAULT 0").run();
+      console.log("Migration successful: view_count added.");
+    }
+
+    if (!columns.includes('progress')) {
+      console.log("Migrating database: Adding progress column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN progress INTEGER DEFAULT 0").run();
+      console.log("Migration successful: progress added.");
+    }
+
+    if (!columns.includes('duration')) {
+      console.log("Migrating database: Adding duration column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN duration TEXT").run();
+      console.log("Migration successful: duration added.");
+    }
+  } catch (error) {
+    console.error("Error checking/migrating viewCount/progress/duration columns:", error);
   }
 }
 

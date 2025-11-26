@@ -3,7 +3,7 @@ export interface Video {
   title: string;
   author: string;
   date: string;
-  source: 'youtube' | 'bilibili' | 'local';
+  source: 'youtube' | 'bilibili' | 'local' | 'missav';
   sourceUrl: string;
   videoFilename?: string;
   thumbnailFilename?: string;
@@ -16,6 +16,9 @@ export interface Video {
   seriesTitle?: string;
   rating?: number;
   tags?: string[];
+  viewCount?: number;
+  progress?: number;
+  duration?: string;
   [key: string]: any;
 }
 
