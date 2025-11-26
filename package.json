@@ -1,6 +1,6 @@
 {
   "name": "mytube",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "YouTube video downloader and player application",
   "main": "index.js",
   "scripts": {
