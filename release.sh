@@ -23,10 +23,10 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
-# Ensure we are on main branch
+# Ensure we are on master branch
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$CURRENT_BRANCH" != "main" ]; then
-  echo "⚠️  You are not on the main branch (current: $CURRENT_BRANCH)."
+if [ "$CURRENT_BRANCH" != "master" ]; then
+  echo "⚠️  You are not on the master branch (current: $CURRENT_BRANCH)."
   read -p "Do you want to continue? (y/N) " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
