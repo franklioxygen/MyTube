@@ -25,7 +25,7 @@ const defaultSettings: Settings = {
     language: 'en'
 };
 
-export const getSettings = async (req: Request, res: Response) => {
+export const getSettings = async (_req: Request, res: Response) => {
     try {
         const settings = storageService.getSettings();
         
@@ -47,7 +47,7 @@ export const getSettings = async (req: Request, res: Response) => {
     }
 };
 
-export const migrateData = async (req: Request, res: Response) => {
+export const migrateData = async (_req: Request, res: Response) => {
     try {
         const { runMigration } = await import('../services/migrationService');
         const results = await runMigration();
@@ -58,7 +58,7 @@ export const migrateData = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteLegacyData = async (req: Request, res: Response) => {
+export const deleteLegacyData = async (_req: Request, res: Response) => {
     try {
         const SETTINGS_DATA_PATH = path.join(path.dirname(VIDEOS_DATA_PATH), 'settings.json');
         const filesToDelete = [

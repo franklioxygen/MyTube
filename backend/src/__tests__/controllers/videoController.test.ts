@@ -120,7 +120,7 @@ describe('VideoController', () => {
       (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({ success: true, videoData: { id: 'v1' } });
       (downloadService.downloadRemainingBilibiliParts as any).mockImplementation(() => {});
       (storageService.saveCollection as any).mockImplementation(() => {});
-      (storageService.atomicUpdateCollection as any).mockImplementation((id: string, fn: Function) => fn({ videos: [] }));
+      (storageService.atomicUpdateCollection as any).mockImplementation((_id: string, fn: Function) => fn({ videos: [] }));
 
       await downloadVideo(req as Request, res as Response);
 
@@ -384,7 +384,7 @@ describe('VideoController', () => {
       (fs.existsSync as any).mockReturnValue(true);
       
       const { exec } = await import('child_process');
-      (exec as any).mockImplementation((cmd: any, cb: any) => cb(null));
+      (exec as any).mockImplementation((_cmd: any, cb: any) => cb(null));
 
       await import('../../controllers/videoController').then(m => m.uploadVideo(req as Request, res as Response));
 

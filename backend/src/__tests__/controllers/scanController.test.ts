@@ -35,7 +35,7 @@ describe('ScanController', () => {
         isDirectory: () => false,
         birthtime: new Date(),
       });
-      (exec as any).mockImplementation((cmd: string, cb: (error: Error | null) => void) => cb(null));
+      (exec as any).mockImplementation((_cmd: string, cb: (error: Error | null) => void) => cb(null));
 
       await scanFiles(req as Request, res as Response);
 

@@ -193,32 +193,34 @@ const Header: React.FC<HeaderProps> = ({
                         anchorEl={anchorEl}
                         open={Boolean(anchorEl)}
                         onClose={handleDownloadsClose}
-                        PaperProps={{
-                            elevation: 0,
-                            sx: {
-                                overflow: 'visible',
-                                filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                                mt: 1.5,
-                                width: 320,
-                                '& .MuiAvatar-root': {
-                                    width: 32,
-                                    height: 32,
-                                    ml: -0.5,
-                                    mr: 1,
+                        slotProps={{
+                            paper: {
+                                elevation: 0,
+                                sx: {
+                                    overflow: 'visible',
+                                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                                    mt: 1.5,
+                                    width: 320,
+                                    '& .MuiAvatar-root': {
+                                        width: 32,
+                                        height: 32,
+                                        ml: -0.5,
+                                        mr: 1,
+                                    },
+                                    '&:before': {
+                                        content: '""',
+                                        display: 'block',
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 14,
+                                        width: 10,
+                                        height: 10,
+                                        bgcolor: 'background.paper',
+                                        transform: 'translateY(-50%) rotate(45deg)',
+                                        zIndex: 0,
+                                    },
                                 },
-                                '&:before': {
-                                    content: '""',
-                                    display: 'block',
-                                    position: 'absolute',
-                                    top: 0,
-                                    right: 14,
-                                    width: 10,
-                                    height: 10,
-                                    bgcolor: 'background.paper',
-                                    transform: 'translateY(-50%) rotate(45deg)',
-                                    zIndex: 0,
-                                },
-                            },
+                            }
                         }}
                         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
@@ -305,25 +307,27 @@ const Header: React.FC<HeaderProps> = ({
                 anchorEl={manageAnchorEl}
                 open={Boolean(manageAnchorEl)}
                 onClose={handleManageClose}
-                PaperProps={{
-                    elevation: 0,
-                    sx: {
-                        overflow: 'visible',
-                        filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                        mt: 1.5,
-                        '&:before': {
-                            content: '""',
-                            display: 'block',
-                            position: 'absolute',
-                            top: 0,
-                            right: 14,
-                            width: 10,
-                            height: 10,
-                            bgcolor: 'background.paper',
-                            transform: 'translateY(-50%) rotate(45deg)',
-                            zIndex: 0,
+                slotProps={{
+                    paper: {
+                        elevation: 0,
+                        sx: {
+                            overflow: 'visible',
+                            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                            mt: 1.5,
+                            '&:before': {
+                                content: '""',
+                                display: 'block',
+                                position: 'absolute',
+                                top: 0,
+                                right: 14,
+                                width: 10,
+                                height: 10,
+                                bgcolor: 'background.paper',
+                                transform: 'translateY(-50%) rotate(45deg)',
+                                zIndex: 0,
+                            },
                         },
-                    },
+                    }
                 }}
                 transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
@@ -350,25 +354,27 @@ const Header: React.FC<HeaderProps> = ({
                 error={!!error}
                 helperText={error}
                 size="small"
-                InputProps={{
-                    endAdornment: (
-                        <InputAdornment position="end">
-                            {isSearchMode && searchTerm && (
-                                <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
-                                    <Clear />
-                                </IconButton>
-                            )}
-                            <Button
-                                type="submit"
-                                variant="contained"
-                                disabled={isSubmitting}
-                                sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
-                            >
-                                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
-                            </Button>
-                        </InputAdornment>
-                    ),
-                    sx: { pr: 0, borderRadius: 2 }
+                slotProps={{
+                    input: {
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                {isSearchMode && searchTerm && (
+                                    <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
+                                        <Clear />
+                                    </IconButton>
+                                )}
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    disabled={isSubmitting}
+                                    sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
+                                >
+                                    {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}
+                                </Button>
+                            </InputAdornment>
+                        ),
+                        sx: { pr: 0, borderRadius: 2 }
+                    }
                 }}
             />
         </Box>
@@ -479,11 +485,7 @@ const Header: React.FC<HeaderProps> = ({
                     onClose={() => setUploadModalOpen(false)}
                     onUploadSuccess={handleUploadSuccess}
                 />
-                <UploadModal
-                    open={uploadModalOpen}
-                    onClose={() => setUploadModalOpen(false)}
-                    onUploadSuccess={handleUploadSuccess}
-                />
+
             </AppBar>
         </ClickAwayListener>
     );

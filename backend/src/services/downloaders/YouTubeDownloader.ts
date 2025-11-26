@@ -57,8 +57,8 @@ export class YouTubeDownloader {
         const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
         // Set full paths for video and thumbnail
-        const videoPath = path.join(VIDEOS_DIR, videoFilename);
-        const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
+
+
 
         let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
         let finalVideoFilename = videoFilename;
@@ -201,9 +201,26 @@ export class YouTubeDownloader {
             thumbnailPath: thumbnailSaved
                 ? `/images/${finalThumbnailFilename}`
                 : null,
+            duration: undefined, // Will be populated below
             addedAt: new Date().toISOString(),
             createdAt: new Date().toISOString(),
         };
+
+        // If duration is missing from info, try to extract it from file
+        // We need to reconstruct the path because newVideoPath is not in scope here if we are outside the try block
+        // But wait, finalVideoFilename is available.
+        const finalVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
+        
+        try {
+             // Dynamic import to avoid circular dependency if any, though here it's fine
+             const { getVideoDuration } = await import("../../services/metadataService");
+             const duration = await getVideoDuration(finalVideoPath);
+             if (duration) {
+                 videoData.duration = duration.toString();
+             }
+        } catch (e) {
+             console.error("Failed to extract duration from downloaded file:", e);
+        }
 
         // Save the video
         storageService.saveVideo(videoData);

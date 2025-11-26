@@ -747,10 +747,10 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
       const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
 
       if (fs.existsSync(videoCollectionDir) && fs.readdirSync(videoCollectionDir).length === 0) {
-        fs.rmdirSync(videoCollectionDir);
+        fs.rmSync(videoCollectionDir, { recursive: true, force: true });
       }
       if (fs.existsSync(imageCollectionDir) && fs.readdirSync(imageCollectionDir).length === 0) {
-        fs.rmdirSync(imageCollectionDir);
+        fs.rmSync(imageCollectionDir, { recursive: true, force: true });
       }
     } catch (error) {
       console.error("Error removing collection directories:", error);
@@ -781,10 +781,10 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
       const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
 
       if (fs.existsSync(videoCollectionDir)) {
-        fs.rmdirSync(videoCollectionDir);
+        fs.rmSync(videoCollectionDir, { recursive: true, force: true });
       }
       if (fs.existsSync(imageCollectionDir)) {
-        fs.rmdirSync(imageCollectionDir);
+        fs.rmSync(imageCollectionDir, { recursive: true, force: true });
       }
     } catch (error) {
       console.error("Error removing collection directories:", error);

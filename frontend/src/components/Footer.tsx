@@ -3,7 +3,7 @@ import { Box, Container, Link, Typography, useTheme } from '@mui/material';
 
 const Footer = () => {
     const theme = useTheme();
-    const currentYear = new Date().getFullYear();
+
 
     return (
         <Box

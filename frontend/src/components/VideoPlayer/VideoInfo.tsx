@@ -28,7 +28,6 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useSnackbar } from '../../contexts/SnackbarContext';
 import { Collection, Video } from '../../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -64,7 +63,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
-    const { showSnackbar } = useSnackbar();
+
 
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
@@ -285,29 +284,20 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     value={video.tags || []}
                     isOptionEqualToValue={(option, value) => option === value}
                     onChange={(_, newValue) => onTagsUpdate(newValue)}
+                    slotProps={{
+                        chip: { variant: 'outlined', size: 'small' }
+                    }}
                     renderInput={(params) => (
                         <TextField
                             {...params}
                             variant="standard"
                             placeholder={!video.tags || video.tags.length === 0 ? (t('tags') || 'Tags') : ''}
                             sx={{ minWidth: 200 }}
-                            InputProps={{ ...params.InputProps, disableUnderline: true }}
+                            slotProps={{
+                                input: { ...params.InputProps, disableUnderline: true }
+                            }}
                         />
                     )}
-                    renderTags={(value, getTagProps) =>
-                        value.map((option, index) => {
-                            const { key, ...tagProps } = getTagProps({ index });
-                            return (
-                                <Chip
-                                    key={key}
-                                    variant="outlined"
-                                    label={option}
-                                    size="small"
-                                    {...tagProps}
-                                />
-                            );
-                        })
-                    }
                     sx={{ flexGrow: 1 }}
                 />
             </Box>

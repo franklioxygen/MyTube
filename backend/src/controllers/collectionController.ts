@@ -3,7 +3,7 @@ import * as storageService from "../services/storageService";
 import { Collection } from "../services/storageService";
 
 // Get all collections
-export const getCollections = (req: Request, res: Response): void => {
+export const getCollections = (_req: Request, res: Response): void => {
   try {
     const collections = storageService.getCollections();
     res.json(collections);

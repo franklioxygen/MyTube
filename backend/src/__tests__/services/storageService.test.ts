@@ -436,7 +436,7 @@ describe('StorageService', () => {
 
   describe('deleteCollection', () => {
     it('should delete collection', () => {
-      const mockRun = vi.fn();
+
       (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
           run: vi.fn().mockReturnValue({ changes: 1 }),
@@ -463,7 +463,7 @@ describe('StorageService', () => {
       });
       
       // Mock getVideoById
-      const mockVideo = { id: 'v1', videoFilename: 'vid.mp4' };
+
       // We need to handle multiple select calls differently or just return compatible mocks
       // Since we already mocked select for collection, we need to be careful.
       // But vi.fn() returns the same mock object unless we use mockImplementation.
@@ -601,7 +601,7 @@ describe('StorageService', () => {
       (db.transaction as any).mockImplementation((cb: Function) => cb());
       
       const mockCollection = { id: '1', title: 'Col 1', videos: [] };
-      const mockVideo = { id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' };
+
 
       // This test requires complex mocking of multiple db.select calls
       // For now, we'll just verify the function completes without error
@@ -682,7 +682,7 @@ describe('StorageService', () => {
         }),
       });
 
-      const result = storageService.removeVideoFromCollection('1', 'v1');
+      storageService.removeVideoFromCollection('1', 'v1');
       
       // Just verify function completes without error
       // Complex mocking makes specific assertions unreliable
