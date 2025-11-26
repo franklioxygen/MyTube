@@ -1,4 +1,4 @@
-import { ArrowBack, Download, OndemandVideo, YouTube } from '@mui/icons-material';
+import { ArrowBack, Collections as CollectionsIcon, Download, GridView, OndemandVideo, YouTube } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -12,6 +12,8 @@ import {
     Container,
     Grid,
     Pagination,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography
 } from '@mui/material';
 import axios from 'axios';
@@ -70,6 +72,10 @@ const Home: React.FC<HomeProps> = ({
     const { t } = useLanguage();
     const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [viewMode, setViewMode] = useState<'collections' | 'all-videos'>(() => {
+        const saved = localStorage.getItem('homeViewMode');
+        return (saved as 'collections' | 'all-videos') || 'collections';
+    });
 
     // Fetch tags
     useEffect(() => {
@@ -112,32 +118,42 @@ const Home: React.FC<HomeProps> = ({
         );
     }
 
-    // Filter videos to only show the first video from each collection
-    const filteredVideos = videoArray.filter(video => {
-        // Tag filtering
-        if (selectedTags.length > 0) {
-            const videoTags = video.tags || [];
-            const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
-            if (!hasMatchingTag) return false;
-        }
-
-        // If the video is not in any collection, show it
-        const videoCollections = collections.filter(collection =>
-            collection.videos.includes(video.id)
-        );
-
-        if (videoCollections.length === 0) {
+    // Filter videos based on view mode
+    const filteredVideos = viewMode === 'all-videos'
+        ? videoArray.filter(video => {
+            // In all-videos mode, only apply tag filtering
+            if (selectedTags.length > 0) {
+                const videoTags = video.tags || [];
+                return selectedTags.every(tag => videoTags.includes(tag));
+            }
             return true;
-        }
+        })
+        : videoArray.filter(video => {
+            // In collections mode, show only first video from each collection
+            // Tag filtering
+            if (selectedTags.length > 0) {
+                const videoTags = video.tags || [];
+                const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
+                if (!hasMatchingTag) return false;
+            }
 
-        // For each collection this video is in, check if it's the first video
-        return videoCollections.some(collection => {
-            // Get the first video ID in this collection
-            const firstVideoId = collection.videos[0];
-            // Show this video if it's the first in at least one collection
-            return video.id === firstVideoId;
+            // If the video is not in any collection, show it
+            const videoCollections = collections.filter(collection =>
+                collection.videos.includes(video.id)
+            );
+
+            if (videoCollections.length === 0) {
+                return true;
+            }
+
+            // For each collection this video is in, check if it's the first video
+            return videoCollections.some(collection => {
+                // Get the first video ID in this collection
+                const firstVideoId = collection.videos[0];
+                // Show this video if it's the first in at least one collection
+                return video.id === firstVideoId;
+            });
         });
-    });
 
     const handleTagToggle = (tag: string) => {
         setSelectedTags(prev =>
@@ -146,6 +162,12 @@ const Home: React.FC<HomeProps> = ({
                 : [...prev, tag]
         );
         setPage(1); // Reset to first page when filter changes
+    };
+
+    const handleViewModeChange = (mode: 'collections' | 'all-videos') => {
+        setViewMode(mode);
+        localStorage.setItem('homeViewMode', mode);
+        setPage(1); // Reset pagination
     };
 
     // Pagination logic
@@ -327,9 +349,43 @@ const Home: React.FC<HomeProps> = ({
 
                     {/* Videos grid */}
                     <Grid size={{ xs: 12, md: 9 }}>
+                        {/* View mode toggle */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                            <Typography variant="h5" fontWeight="bold">
+                                {t('videos')}
+                            </Typography>
+                            <ToggleButtonGroup
+                                value={viewMode}
+                                exclusive
+                                onChange={(_, newMode) => newMode && handleViewModeChange(newMode)}
+                                size="small"
+                            >
+                                <ToggleButton value="collections">
+                                    <CollectionsIcon fontSize="small" sx={{ mr: 1 }} />
+                                    {t('collections')}
+                                </ToggleButton>
+                                <ToggleButton value="all-videos">
+                                    <GridView fontSize="small" sx={{ mr: 1 }} />
+                                    {t('allVideos')}
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                        </Box>
                         <Grid container spacing={3}>
                             {displayedVideos.map(video => {
-                                // Check if this video is the first in a collection
+                                // In all-videos mode, ALWAYS render as VideoCard
+                                if (viewMode === 'all-videos') {
+                                    return (
+                                        <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
+                                            <VideoCard
+                                                video={video}
+                                                collections={collections}
+                                                disableCollectionGrouping={true}
+                                            />
+                                        </Grid>
+                                    );
+                                }
+
+                                // In collections mode, check if this video is the first in a collection
                                 const collection = collections.find(c => c.videos[0] === video.id);
 
                                 // If it is, render CollectionCard
@@ -344,7 +400,7 @@ const Home: React.FC<HomeProps> = ({
                                     );
                                 }
 
-                                // Otherwise render VideoCard
+                                // Otherwise render VideoCard for non-collection videos
                                 return (
                                     <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 3 }} key={video.id}>
                                         <VideoCard
