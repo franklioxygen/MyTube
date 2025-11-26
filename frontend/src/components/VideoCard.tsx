@@ -160,7 +160,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     display: 'flex',
                     flexDirection: 'column',
                     position: 'relative',
-                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s, border-color 0.3s',
                     '&:hover': {
                         transform: 'translateY(-4px)',
                         boxShadow: theme.shadows[8],

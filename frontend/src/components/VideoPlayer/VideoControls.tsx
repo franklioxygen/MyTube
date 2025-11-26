@@ -170,7 +170,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 p: 1,
                 bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
                 opacity: isFullscreen ? 0.3 : 1,
-                transition: 'opacity 0.3s',
+                transition: 'opacity 0.3s, background-color 0.3s',
                 '&:hover': { opacity: 1 }
             }}>
                 <Stack

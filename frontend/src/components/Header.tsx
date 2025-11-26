@@ -33,9 +33,11 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import AuthorsList from './AuthorsList';
 import Collections from './Collections';
+import TagsList from './TagsList';
 import UploadModal from './UploadModal';
 
 interface DownloadInfo {
@@ -87,6 +89,7 @@ const Header: React.FC<HeaderProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
+    const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
 
     const isDownloading = activeDownloads.length > 0 || queuedDownloads.length > 0;
@@ -451,6 +454,13 @@ const Header: React.FC<HeaderProps> = ({
                                             collections={collections}
                                             onItemClick={() => setMobileMenuOpen(false)}
                                         />
+                                        <Box sx={{ mt: 2 }}>
+                                            <TagsList
+                                                availableTags={availableTags}
+                                                selectedTags={selectedTags}
+                                                onTagToggle={handleTagToggle}
+                                            />
+                                        </Box>
                                         <Box sx={{ mt: 2 }}>
                                             <AuthorsList
                                                 videos={videos}

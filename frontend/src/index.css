@@ -36,3 +36,10 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition-property: background-color, color, border-color, fill, stroke, box-shadow;
+  transition-duration: 0.3s;
+  transition-timing-function: ease-out;
+}
