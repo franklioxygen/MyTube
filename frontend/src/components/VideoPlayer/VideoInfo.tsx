@@ -163,6 +163,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                     {video.rating ? `(${video.rating})` : t('rateThisVideo')}
                 </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                    {video.viewCount || 0} {t('views')}
+                </Typography>
             </Box>
 
             <Stack

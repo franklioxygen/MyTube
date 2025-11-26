@@ -117,6 +117,28 @@ export const scanFiles = async (req: Request, res: Response): Promise<any> => {
         });
       });
 
+      // Get duration
+      let duration = undefined;
+      try {
+        const durationOutput = await new Promise<string>((resolve, reject) => {
+            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (error, stdout, stderr) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(stdout.trim());
+                }
+            });
+        });
+        if (durationOutput) {
+            const durationSec = parseFloat(durationOutput);
+            if (!isNaN(durationSec)) {
+                duration = Math.round(durationSec).toString();
+            }
+        }
+      } catch (err) {
+        console.error("Error getting duration:", err);
+      }
+
       const newVideo = {
         id: videoId,
         title: path.parse(filename).name,
@@ -131,6 +153,7 @@ export const scanFiles = async (req: Request, res: Response): Promise<any> => {
         createdAt: createdDate.toISOString(),
         addedAt: new Date().toISOString(),
         date: createdDate.toISOString().split('T')[0].replace(/-/g, ''),
+        duration: duration,
       };
 
       storageService.saveVideo(newVideo);

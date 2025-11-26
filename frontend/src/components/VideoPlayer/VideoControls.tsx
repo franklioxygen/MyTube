@@ -24,12 +24,18 @@ interface VideoControlsProps {
     src: string;
     autoPlay?: boolean;
     autoLoop?: boolean;
+    onTimeUpdate?: (currentTime: number) => void;
+    onLoadedMetadata?: (duration: number) => void;
+    startTime?: number;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
     src,
     autoPlay = false,
-    autoLoop = false
+    autoLoop = false,
+    onTimeUpdate,
+    onLoadedMetadata,
+    startTime = 0
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -59,9 +65,28 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             setIsFullscreen(!!document.fullscreenElement);
         };
 
+        const handleWebkitBeginFullscreen = () => {
+            setIsFullscreen(true);
+        };
+
+        const handleWebkitEndFullscreen = () => {
+            setIsFullscreen(false);
+        };
+
+        const videoElement = videoRef.current;
+
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        if (videoElement) {
+            videoElement.addEventListener('webkitbeginfullscreen', handleWebkitBeginFullscreen);
+            videoElement.addEventListener('webkitendfullscreen', handleWebkitEndFullscreen);
+        }
+
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            if (videoElement) {
+                videoElement.removeEventListener('webkitbeginfullscreen', handleWebkitBeginFullscreen);
+                videoElement.removeEventListener('webkitendfullscreen', handleWebkitEndFullscreen);
+            }
         };
     }, []);
 
@@ -85,14 +110,25 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
     const handleToggleFullscreen = () => {
         const videoContainer = videoRef.current?.parentElement;
-        if (!videoContainer) return;
+        const videoElement = videoRef.current;
+
+        if (!videoContainer || !videoElement) return;
 
         if (!document.fullscreenElement) {
-            videoContainer.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable fullscreen: ${err.message}`);
-            });
+            // Try standard fullscreen first (for Desktop, Android, iPad)
+            if (videoContainer.requestFullscreen) {
+                videoContainer.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            }
+            // Fallback for iPhone Safari
+            else if ((videoElement as any).webkitEnterFullscreen) {
+                (videoElement as any).webkitEnterFullscreen();
+            }
         } else {
-            document.exitFullscreen();
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
         }
     };
 
@@ -107,7 +143,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <video
                 ref={videoRef}
                 style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
-                controls={false} // We use custom controls, but maybe we should keep native controls as fallback or overlay? The original had controls={true} AND custom controls.
+                controls={true} // Enable native controls as requested
                 // The original code had `controls` attribute on the video tag, which enables native controls.
                 // But it also rendered custom controls below it.
                 // Let's keep it consistent with original: native controls enabled.
@@ -115,6 +151,15 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 src={src}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onTimeUpdate={(e) => onTimeUpdate && onTimeUpdate(e.currentTarget.currentTime)}
+                onLoadedMetadata={(e) => {
+                    if (startTime > 0) {
+                        e.currentTarget.currentTime = startTime;
+                    }
+                    if (onLoadedMetadata) {
+                        onLoadedMetadata(e.currentTarget.duration);
+                    }
+                }}
                 playsInline
             >
                 Your browser does not support the video tag.

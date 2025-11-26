@@ -12,7 +12,7 @@ import {
     Typography
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import CollectionModal from '../components/VideoPlayer/CollectionModal';
@@ -313,6 +313,50 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
     };
 
+    const [hasViewed, setHasViewed] = useState<boolean>(false);
+    const lastProgressSave = useRef<number>(0);
+    const currentTimeRef = useRef<number>(0);
+
+    // Reset hasViewed when video changes
+    useEffect(() => {
+        setHasViewed(false);
+        currentTimeRef.current = 0;
+    }, [id]);
+
+    // Save progress on unmount
+    useEffect(() => {
+        return () => {
+            if (id && currentTimeRef.current > 0) {
+                axios.put(`${API_URL}/videos/${id}/progress`, { progress: Math.floor(currentTimeRef.current) })
+                    .catch(err => console.error('Error saving progress on unmount:', err));
+            }
+        };
+    }, [id]);
+
+    const handleTimeUpdate = (currentTime: number) => {
+        currentTimeRef.current = currentTime;
+
+        // Increment view count after 10 seconds
+        if (currentTime > 10 && !hasViewed && id) {
+            setHasViewed(true);
+            axios.post(`${API_URL}/videos/${id}/view`)
+                .then(res => {
+                    if (res.data.success && video) {
+                        setVideo({ ...video, viewCount: res.data.viewCount });
+                    }
+                })
+                .catch(err => console.error('Error incrementing view count:', err));
+        }
+
+        // Save progress every 5 seconds
+        const now = Date.now();
+        if (now - lastProgressSave.current > 5000 && id) {
+            lastProgressSave.current = now;
+            axios.put(`${API_URL}/videos/${id}/progress`, { progress: Math.floor(currentTime) })
+                .catch(err => console.error('Error saving progress:', err));
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -342,6 +386,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
+                        onTimeUpdate={handleTimeUpdate}
+                        startTime={video.progress || 0}
                     />
 
                     <VideoInfo
@@ -415,6 +461,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                                     <Typography variant="caption" display="block" color="text.secondary">
                                         {formatDate(relatedVideo.date)}
                                     </Typography>
+                                    {relatedVideo.viewCount !== undefined && (
+                                        <Typography variant="caption" display="block" color="text.secondary">
+                                            {relatedVideo.viewCount} {t('views')}
+                                        </Typography>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))}

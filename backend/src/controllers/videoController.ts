@@ -8,12 +8,12 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl
+    extractBilibiliVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -615,8 +615,55 @@ export const refreshThumbnail = async (req: Request, res: Response): Promise<any
   } catch (error: any) {
     console.error("Error refreshing thumbnail:", error);
     res.status(500).json({
-      error: "Failed to refresh thumbnail",
-      details: error.message
     });
+  }
+};
+
+// Increment view count
+export const incrementViewCount = (req: Request, res: Response): any => {
+  try {
+    const { id } = req.params;
+    const video = storageService.getVideoById(id);
+
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    const currentViews = video.viewCount || 0;
+    const updatedVideo = storageService.updateVideo(id, { viewCount: currentViews + 1 });
+
+    res.status(200).json({
+      success: true,
+      viewCount: updatedVideo?.viewCount
+    });
+  } catch (error) {
+    console.error("Error incrementing view count:", error);
+    res.status(500).json({ error: "Failed to increment view count" });
+  }
+};
+
+// Update progress
+export const updateProgress = (req: Request, res: Response): any => {
+  try {
+    const { id } = req.params;
+    const { progress } = req.body;
+
+    if (typeof progress !== 'number') {
+      return res.status(400).json({ error: "Progress must be a number" });
+    }
+
+    const updatedVideo = storageService.updateVideo(id, { progress });
+
+    if (!updatedVideo) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      progress: updatedVideo.progress
+    });
+  } catch (error) {
+    console.error("Error updating progress:", error);
+    res.status(500).json({ error: "Failed to update progress" });
   }
 };
