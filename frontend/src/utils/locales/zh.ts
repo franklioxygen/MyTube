@@ -140,6 +140,17 @@ export const zh = {
     editTitle: "编辑标题",
     titleUpdated: "标题更新成功",
     titleUpdateFailed: "更新标题失败",
+    refreshThumbnail: "刷新缩略图",
+    thumbnailRefreshed: "缩略图刷新成功",
+    thumbnailRefreshFailed: "刷新缩略图失败",
+    videoUpdated: "视频更新成功",
+    videoUpdateFailed: "更新视频失败",
+    failedToLoadVideos: "加载视频失败。请稍后再试。",
+    videoRemovedSuccessfully: "视频删除成功",
+    failedToDeleteVideo: "删除视频失败",
+    pleaseEnterSearchTerm: "请输入搜索词",
+    failedToSearch: "搜索失败。请稍后再试。",
+    searchCancelled: "搜索已取消",
     
     // Login
     signIn: "登录",

@@ -140,6 +140,17 @@ export const pt = {
     editTitle: "Editar Título",
     titleUpdated: "Título atualizado com sucesso",
     titleUpdateFailed: "Falha ao atualizar título",
+    refreshThumbnail: "Atualizar miniatura",
+    thumbnailRefreshed: "Miniatura atualizada com sucesso",
+    thumbnailRefreshFailed: "Falha ao atualizar miniatura",
+    videoUpdated: "Vídeo atualizado com sucesso",
+    videoUpdateFailed: "Falha ao atualizar vídeo",
+    failedToLoadVideos: "Falha ao carregar vídeos. Por favor, tente novamente mais tarde.",
+    videoRemovedSuccessfully: "Vídeo removido com sucesso",
+    failedToDeleteVideo: "Falha ao remover vídeo",
+    pleaseEnterSearchTerm: "Por favor, insira um termo de pesquisa",
+    failedToSearch: "Falha na pesquisa. Por favor, tente novamente.",
+    searchCancelled: "Pesquisa cancelada",
     
     // Login
     signIn: "Entrar",

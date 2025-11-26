@@ -140,6 +140,17 @@ export const ja = {
     editTitle: "タイトルを編集",
     titleUpdated: "タイトルが正常に更新されました",
     titleUpdateFailed: "タイトルの更新に失敗しました",
+    refreshThumbnail: "サムネイルを更新",
+    thumbnailRefreshed: "サムネイルを更新しました",
+    thumbnailRefreshFailed: "サムネイルの更新に失敗しました",
+    videoUpdated: "動画を更新しました",
+    videoUpdateFailed: "動画の更新に失敗しました",
+    failedToLoadVideos: "動画の読み込みに失敗しました。後でもう一度お試しください。",
+    videoRemovedSuccessfully: "動画を削除しました",
+    failedToDeleteVideo: "動画の削除に失敗しました",
+    pleaseEnterSearchTerm: "検索語を入力してください",
+    failedToSearch: "検索に失敗しました。もう一度お試しください。",
+    searchCancelled: "検索がキャンセルされました",
     
     // Login
     signIn: "サインイン",

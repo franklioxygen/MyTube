@@ -1,6 +1,7 @@
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Video } from '../types';
+import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -11,6 +12,8 @@ interface VideoContextType {
     error: string | null;
     fetchVideos: () => Promise<void>;
     deleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
+    updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
+    refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     searchLocalVideos: (query: string) => Video[];
     searchResults: any[];
     localSearchResults: Video[];
@@ -35,6 +38,7 @@ export const useVideo = () => {
 
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
+    const { t } = useLanguage();
     const [videos, setVideos] = useState<Video[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -57,7 +61,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setError(null);
         } catch (err) {
             console.error('Error fetching videos:', err);
-            setError('Failed to load videos. Please try again later.');
+            setError(t('failedToLoadVideos'));
         } finally {
             setLoading(false);
         }
@@ -69,12 +73,12 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             await axios.delete(`${API_URL}/videos/${id}`);
             setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
             setLoading(false);
-            showSnackbar('Video removed successfully');
+            showSnackbar(t('videoRemovedSuccessfully'));
             return { success: true };
         } catch (error) {
             console.error('Error deleting video:', error);
             setLoading(false);
-            return { success: false, error: 'Failed to delete video' };
+            return { success: false, error: t('failedToDeleteVideo') };
         }
     };
 
@@ -102,7 +106,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const handleSearch = async (query: string): Promise<any> => {
         if (!query || query.trim() === '') {
             resetSearch();
-            return { success: false, error: 'Please enter a search term' };
+            return { success: false, error: t('pleaseEnterSearchTerm') };
         }
 
         try {
@@ -151,9 +155,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     setSearchTerm(query);
                     return { success: true };
                 }
-                return { success: false, error: 'Failed to search. Please try again.' };
+                return { success: false, error: t('failedToSearch') };
             }
-            return { success: false, error: 'Search was cancelled' };
+            return { success: false, error: t('searchCancelled') };
         } finally {
             if (searchAbortController.current && !searchAbortController.current.signal.aborted) {
                 setLoading(false);
@@ -176,6 +180,42 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
     }, []);
 
+    const refreshThumbnail = async (id: string) => {
+        try {
+            const response = await axios.post(`${API_URL}/videos/${id}/refresh-thumbnail`);
+            if (response.data.success) {
+                setVideos(prevVideos => prevVideos.map(video =>
+                    video.id === id
+                        ? { ...video, thumbnailUrl: response.data.thumbnailUrl, thumbnailPath: response.data.thumbnailUrl }
+                        : video
+                ));
+                showSnackbar(t('thumbnailRefreshed'));
+                return { success: true };
+            }
+            return { success: false, error: t('thumbnailRefreshFailed') };
+        } catch (error) {
+            console.error('Error refreshing thumbnail:', error);
+            return { success: false, error: t('thumbnailRefreshFailed') };
+        }
+    };
+
+    const updateVideo = async (id: string, updates: Partial<Video>) => {
+        try {
+            const response = await axios.put(`${API_URL}/videos/${id}`, updates);
+            if (response.data.success) {
+                setVideos(prevVideos => prevVideos.map(video =>
+                    video.id === id ? { ...video, ...updates } : video
+                ));
+                showSnackbar(t('videoUpdated'));
+                return { success: true };
+            }
+            return { success: false, error: t('videoUpdateFailed') };
+        } catch (error) {
+            console.error('Error updating video:', error);
+            return { success: false, error: t('videoUpdateFailed') };
+        }
+    };
+
     return (
         <VideoContext.Provider value={{
             videos,
@@ -183,6 +223,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             error,
             fetchVideos,
             deleteVideo,
+            updateVideo,
+            refreshThumbnail,
             searchLocalVideos,
             searchResults,
             localSearchResults,

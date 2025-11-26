@@ -101,6 +101,7 @@ export const fr = {
     deleteCollection: "Supprimer la collection",
     deleteVideo: "Supprimer la vidéo",
     noVideosFoundMatching: "Aucune vidéo ne correspond à votre recherche.",
+    refreshThumbnail: "Actualiser la miniature",
     
     // Video Player
     playing: "Lecture",
@@ -140,6 +141,16 @@ export const fr = {
     editTitle: "Modifier le titre",
     titleUpdated: "Titre mis à jour avec succès",
     titleUpdateFailed: "Échec de la mise à jour du titre",
+    thumbnailRefreshed: "Miniature actualisée avec succès",
+    thumbnailRefreshFailed: "Échec de l'actualisation de la miniature",
+    videoUpdated: "Vidéo mise à jour avec succès",
+    videoUpdateFailed: "Échec de la mise à jour de la vidéo",
+    failedToLoadVideos: "Échec du chargement des vidéos. Veuillez réessayer plus tard.",
+    videoRemovedSuccessfully: "Vidéo supprimée avec succès",
+    failedToDeleteVideo: "Échec de la suppression de la vidéo",
+    pleaseEnterSearchTerm: "Veuillez entrer un terme de recherche",
+    failedToSearch: "Échec de la recherche. Veuillez réessayer.",
+    searchCancelled: "Recherche annulée",
     
     // Login
     signIn: "Se connecter",
