@@ -261,6 +261,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
             </Box>
 
             <Box>
+                {/* Videos List */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
                         <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />

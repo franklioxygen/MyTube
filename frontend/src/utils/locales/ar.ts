@@ -77,6 +77,13 @@ export const ar = {
     removeLegacyDataConfirmMessage: "هل أنت متأكد أنك تريد حذف ملفات بيانات JSON القديمة؟ لا يمكن التراجع عن هذا الإجراء.",
     legacyDataDeleted: "تم حذف البيانات القديمة بنجاح.",
     deleteLegacyDataButton: "حذف البيانات القديمة",
+    cleanupTempFiles: "تنظيف الملفات المؤقتة",
+    cleanupTempFilesDescription: "إزالة جميع ملفات التنزيل المؤقتة (.ytdl، .part) من دليل التحميلات. يساعد هذا في تحرير مساحة القرص من التنزيلات غير المكتملة أو الملغاة.",
+    cleanupTempFilesConfirmTitle: "تنظيف الملفات المؤقتة؟",
+    cleanupTempFilesConfirmMessage: "سيؤدي هذا إلى حذف جميع ملفات .ytdl و .part في دليل التحميلات نهائيًا. تأكد من عدم وجود تنزيلات نشطة قبل المتابعة.",
+    cleanupTempFilesActiveDownloads: "لا يمكن التنظيف أثناء وجود تنزيلات نشطة. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
+    cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
+    cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
     
     // Manage
     manageContent: "إدارة المحتوى",

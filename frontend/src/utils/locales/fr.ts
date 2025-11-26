@@ -77,6 +77,13 @@ export const fr = {
     removeLegacyDataConfirmMessage: "Êtes-vous sûr de vouloir supprimer les fichiers de données JSON hérités ? Cette action est irréversible.",
     legacyDataDeleted: "Données héritées supprimées avec succès.",
     deleteLegacyDataButton: "Supprimer les données héritées",
+    cleanupTempFiles: "Nettoyer les fichiers temporaires",
+    cleanupTempFilesDescription: "Supprimer tous les fichiers de téléchargement temporaires (.ytdl, .part) du répertoire des téléversements. Cela aide à libérer de l'espace disque des téléchargements incomplets ou annulés.",
+    cleanupTempFilesConfirmTitle: "Nettoyer les fichiers temporaires?",
+    cleanupTempFilesConfirmMessage: "Cela supprimera définitivement tous les fichiers .ytdl et .part dans le répertoire des téléversements. Assurez-vous qu'il n'y a pas de téléchargements actifs avant de continuer.",
+    cleanupTempFilesActiveDownloads: "Impossible de nettoyer pendant que des téléchargements sont actifs. Veuillez attendre la fin de tous les téléchargements ou les annuler d'abord.",
+    cleanupTempFilesSuccess: "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
+    cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
     
     // Manage
     manageContent: "Gérer le contenu",
