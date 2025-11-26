@@ -27,6 +27,7 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import ConsoleManager from '../utils/consoleManager';
 import { Language } from '../utils/translations';
@@ -61,6 +62,7 @@ const SettingsPage: React.FC = () => {
     // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
     const [showMigrateConfirmModal, setShowMigrateConfirmModal] = useState(false);
+    const [showCleanupTempFilesModal, setShowCleanupTempFilesModal] = useState(false);
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({
         isOpen: false,
         title: '',
@@ -71,6 +73,7 @@ const SettingsPage: React.FC = () => {
     const [debugMode, setDebugMode] = useState(ConsoleManager.getDebugMode());
 
     const { t, setLanguage } = useLanguage();
+    const { activeDownloads } = useDownload();
 
     useEffect(() => {
         fetchSettings();
@@ -295,6 +298,26 @@ const SettingsPage: React.FC = () => {
                                     marks
                                     valueLabelDisplay="auto"
                                 />
+                            </Box>
+
+                            <Box sx={{ mt: 3 }}>
+                                <Typography variant="h6" gutterBottom>{t('cleanupTempFiles')}</Typography>
+                                <Typography variant="body2" color="text.secondary" paragraph>
+                                    {t('cleanupTempFilesDescription')}
+                                </Typography>
+                                {activeDownloads.length > 0 && (
+                                    <Alert severity="warning" sx={{ mb: 2, maxWidth: 600 }}>
+                                        {t('cleanupTempFilesActiveDownloads')}
+                                    </Alert>
+                                )}
+                                <Button
+                                    variant="outlined"
+                                    color="warning"
+                                    onClick={() => setShowCleanupTempFilesModal(true)}
+                                    disabled={saving || activeDownloads.length > 0}
+                                >
+                                    {t('cleanupTempFiles')}
+                                </Button>
                             </Box>
                         </Grid>
 
@@ -523,6 +546,50 @@ const SettingsPage: React.FC = () => {
                 cancelText={t('cancel')}
             />
 
+            {/* Cleanup Temp Files Modal */}
+            <ConfirmationModal
+                isOpen={showCleanupTempFilesModal}
+                onClose={() => setShowCleanupTempFilesModal(false)}
+                onConfirm={async () => {
+                    setSaving(true);
+                    try {
+                        const res = await axios.post(`${API_URL}/cleanup-temp-files`);
+                        const { deletedCount, errors } = res.data;
+
+                        let msg = t('cleanupTempFilesSuccess').replace('{count}', deletedCount.toString());
+                        if (errors && errors.length > 0) {
+                            msg += `\n\nErrors:\n${errors.join('\n')}`;
+                        }
+
+                        setInfoModal({
+                            isOpen: true,
+                            title: t('success'),
+                            message: msg,
+                            type: errors && errors.length > 0 ? 'warning' : 'success'
+                        });
+                    } catch (error: any) {
+                        console.error('Cleanup failed:', error);
+                        const errorMsg = error.response?.data?.error === "Cannot clean up while downloads are active"
+                            ? t('cleanupTempFilesActiveDownloads')
+                            : `${t('cleanupTempFilesFailed')}: ${error.response?.data?.details || error.message}`;
+
+                        setInfoModal({
+                            isOpen: true,
+                            title: t('error'),
+                            message: errorMsg,
+                            type: 'error'
+                        });
+                    } finally {
+                        setSaving(false);
+                    }
+                }}
+                title={t('cleanupTempFilesConfirmTitle')}
+                message={t('cleanupTempFilesConfirmMessage')}
+                confirmText={t('confirm')}
+                cancelText={t('cancel')}
+                isDanger={true}
+            />
+
             {/* Info/Result Modal */}
             <ConfirmationModal
                 isOpen={infoModal.isOpen}
@@ -534,7 +601,7 @@ const SettingsPage: React.FC = () => {
                 showCancel={false}
                 isDanger={infoModal.type === 'error'}
             />
-        </Container>
+        </Container >
     );
 };
 

@@ -17,6 +17,7 @@ import {
     CircularProgress,
     ClickAwayListener,
     Collapse,
+    Divider,
     IconButton,
     InputAdornment,
     Menu,
@@ -182,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({
                 </IconButton>
             </Tooltip>
 
-            {isDownloading && (
+            {(
                 <>
                     <IconButton color="inherit" onClick={handleDownloadsClick}>
                         <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">
@@ -258,34 +259,38 @@ const Header: React.FC<HeaderProps> = ({
                             </MenuItem>
                         ))}
 
-                        {queuedDownloads.length > 0 && (
-                            <>
-                                <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
-                                    <Typography variant="caption" color="text.secondary" fontWeight="bold">
-                                        {t('queued')} ({queuedDownloads.length})
-                                    </Typography>
-                                </Box>
-                                {queuedDownloads.map((download) => (
-                                    <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5, opacity: 0.7 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                            <CircularProgress
-                                                variant="indeterminate"
-                                                size={16}
-                                                sx={{ mr: 2, flexShrink: 0, color: 'text.disabled' }}
-                                            />
-                                            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-                                                <Typography variant="body2" noWrap>
-                                                    {download.title}
-                                                </Typography>
-                                                <Typography variant="caption" color="text.secondary">
-                                                    {t('waitingInQueue')}
-                                                </Typography>
-                                            </Box>
+                        {queuedDownloads.length > 0 && [
+                            <Box key="queued-header" sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
+                                <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                                    {t('queued')} ({queuedDownloads.length})
+                                </Typography>
+                            </Box>,
+                            ...queuedDownloads.map((download) => (
+                                <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5, opacity: 0.7 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                        <CircularProgress
+                                            variant="indeterminate"
+                                            size={16}
+                                            sx={{ mr: 2, flexShrink: 0, color: 'text.disabled' }}
+                                        />
+                                        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                                            <Typography variant="body2" noWrap>
+                                                {download.title}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {t('waitingInQueue')}
+                                            </Typography>
                                         </Box>
-                                    </MenuItem>
-                                ))}
-                            </>
-                        )}
+                                    </Box>
+                                </MenuItem>
+                            ))
+                        ]}
+                        <Divider />
+                        <MenuItem onClick={() => { handleDownloadsClose(); navigate('/downloads'); }}>
+                            <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold', width: '100%', textAlign: 'center' }}>
+                                {t('manageDownloads') || 'Manage Downloads'}
+                            </Typography>
+                        </MenuItem>
                     </Menu>
                 </>
             )}

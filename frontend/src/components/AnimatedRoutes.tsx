@@ -2,6 +2,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AuthorVideos from '../pages/AuthorVideos';
 import CollectionPage from '../pages/CollectionPage';
+import DownloadPage from '../pages/DownloadPage';
 import Home from '../pages/Home';
 import ManagePage from '../pages/ManagePage';
 import SearchResults from '../pages/SearchResults';
@@ -141,6 +142,14 @@ const AnimatedRoutes = ({
                                 collections={collections}
                                 onDeleteCollection={onDeleteCollection}
                             />
+                        </PageTransition>
+                    }
+                />
+                <Route
+                    path="/downloads"
+                    element={
+                        <PageTransition>
+                            <DownloadPage />
                         </PageTransition>
                     }
                 />

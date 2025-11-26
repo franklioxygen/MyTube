@@ -77,6 +77,13 @@ export const en = {
     removeLegacyDataConfirmMessage: "Are you sure you want to delete the legacy JSON data files? This action cannot be undone.",
     legacyDataDeleted: "Legacy data deleted successfully.",
     deleteLegacyDataButton: "Delete Legacy Data",
+    cleanupTempFiles: "Clean Up Temp Files",
+    cleanupTempFilesDescription: "Remove all temporary download files (.ytdl, .part) from the uploads directory. This helps free up disk space from incomplete or cancelled downloads.",
+    cleanupTempFilesConfirmTitle: "Clean Up Temporary Files?",
+    cleanupTempFilesConfirmMessage: "This will permanently delete all .ytdl and .part files in the uploads directory. Make sure there are no active downloads before proceeding.",
+    cleanupTempFilesActiveDownloads: "Cannot clean up while downloads are active. Please wait for all downloads to complete or cancel them first.",
+    cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
+    cleanupTempFilesFailed: "Failed to clean up temporary files",
     
     // Manage
     manageContent: "Manage Content",
@@ -217,5 +224,27 @@ export const en = {
     allPartsAddedToCollection: "All parts will be added to this collection",
     allVideosAddedToCollection: "All videos will be added to this collection",
     queued: "Queued",
-    waitingInQueue: "Waiting in queue"
+    waitingInQueue: "Waiting in queue",
+
+    // Downloads
+    downloads: "Downloads",
+    activeDownloads: "Active Downloads",
+    manageDownloads: "Manage Downloads",
+    queuedDownloads: "Queued Downloads",
+    downloadHistory: "Download History",
+    clearQueue: "Clear Queue",
+    clearHistory: "Clear History",
+    noActiveDownloads: "No active downloads",
+    noQueuedDownloads: "No queued downloads",
+    noDownloadHistory: "No download history",
+    downloadCancelled: "Download cancelled",
+    queueCleared: "Queue cleared",
+    historyCleared: "History cleared",
+    removedFromQueue: "Removed from queue",
+    removedFromHistory: "Removed from history",
+    status: "Status",
+    progress: "Progress",
+    speed: "Speed",
+    finishedAt: "Finished At",
+    failed: "Failed",
 };
