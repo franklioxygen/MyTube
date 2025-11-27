@@ -35,6 +35,11 @@ export interface DownloadInfo {
   id: string;
   title: string;
   timestamp?: number;
+  progress?: number;
+  speed?: string;
+  totalSize?: string;
+  downloadedSize?: string;
+  filename?: string;
 }
 
 export interface Comment {

@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Video } from '../types';
@@ -42,9 +43,27 @@ export const useVideo = () => {
 export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
-    const [videos, setVideos] = useState<Video[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    const queryClient = useQueryClient();
+
+    // Videos Query
+    const { data: videos = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
+        queryKey: ['videos'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/videos`);
+            return response.data as Video[];
+        },
+    });
+
+    // Tags Query
+    const { data: availableTags = [] } = useQuery({
+        queryKey: ['tags'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/settings`);
+            return response.data.tags || [];
+        },
+    });
+
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     // Search state
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -56,31 +75,43 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
 
+    // Wrapper for refetch to match interface
     const fetchVideos = async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get(`${API_URL}/videos`);
-            setVideos(response.data);
-            setError(null);
-        } catch (err) {
-            console.error('Error fetching videos:', err);
-            setError(t('failedToLoadVideos'));
-        } finally {
-            setLoading(false);
-        }
+        await refetchVideos();
     };
+
+    // Emulate setVideos for compatibility
+    const setVideos: React.Dispatch<React.SetStateAction<Video[]>> = (updater) => {
+        queryClient.setQueryData(['videos'], (oldVideos: Video[] | undefined) => {
+            const currentVideos = oldVideos || [];
+            if (typeof updater === 'function') {
+                return updater(currentVideos);
+            }
+            return updater;
+        });
+    };
+
+    const deleteVideoMutation = useMutation({
+        mutationFn: async (id: string) => {
+            await axios.delete(`${API_URL}/videos/${id}`);
+            return id;
+        },
+        onSuccess: (id) => {
+            queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                old ? old.filter(video => video.id !== id) : []
+            );
+            showSnackbar(t('videoRemovedSuccessfully'));
+        },
+        onError: (error) => {
+            console.error('Error deleting video:', error);
+        }
+    });
 
     const deleteVideo = async (id: string) => {
         try {
-            setLoading(true);
-            await axios.delete(`${API_URL}/videos/${id}`);
-            setVideos(prevVideos => prevVideos.filter(video => video.id !== id));
-            setLoading(false);
-            showSnackbar(t('videoRemovedSuccessfully'));
+            await deleteVideoMutation.mutateAsync(id);
             return { success: true };
         } catch (error) {
-            console.error('Error deleting video:', error);
-            setLoading(false);
             return { success: false, error: t('failedToDeleteVideo') };
         }
     };
@@ -161,25 +192,6 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 return { success: false, error: t('failedToSearch') };
             }
             return { success: false, error: t('searchCancelled') };
-        } finally {
-            if (searchAbortController.current && !searchAbortController.current.signal.aborted) {
-                setLoading(false);
-            }
-        }
-    };
-
-    // Tags state
-    const [availableTags, setAvailableTags] = useState<string[]>([]);
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
-
-    const fetchTags = async () => {
-        try {
-            const response = await axios.get(`${API_URL}/settings`);
-            if (response.data.tags) {
-                setAvailableTags(response.data.tags);
-            }
-        } catch (error) {
-            console.error('Error fetching tags:', error);
         }
     };
 
@@ -191,12 +203,6 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
     };
 
-    // Fetch videos and tags on mount
-    useEffect(() => {
-        fetchVideos();
-        fetchTags();
-    }, []);
-
     // Cleanup search on unmount
     useEffect(() => {
         return () => {
@@ -207,38 +213,68 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
     }, []);
 
+    const refreshThumbnailMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await axios.post(`${API_URL}/videos/${id}/refresh-thumbnail`);
+            return { id, data: response.data };
+        },
+        onSuccess: ({ id, data }) => {
+            if (data.success) {
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                    old ? old.map(video =>
+                        video.id === id
+                            ? { ...video, thumbnailUrl: data.thumbnailUrl, thumbnailPath: data.thumbnailUrl }
+                            : video
+                    ) : []
+                );
+                showSnackbar(t('thumbnailRefreshed'));
+            }
+        },
+        onError: (error) => {
+            console.error('Error refreshing thumbnail:', error);
+        }
+    });
+
     const refreshThumbnail = async (id: string) => {
         try {
-            const response = await axios.post(`${API_URL}/videos/${id}/refresh-thumbnail`);
-            if (response.data.success) {
-                setVideos(prevVideos => prevVideos.map(video =>
-                    video.id === id
-                        ? { ...video, thumbnailUrl: response.data.thumbnailUrl, thumbnailPath: response.data.thumbnailUrl }
-                        : video
-                ));
-                showSnackbar(t('thumbnailRefreshed'));
+            const result = await refreshThumbnailMutation.mutateAsync(id);
+            if (result.data.success) {
                 return { success: true };
             }
             return { success: false, error: t('thumbnailRefreshFailed') };
         } catch (error) {
-            console.error('Error refreshing thumbnail:', error);
             return { success: false, error: t('thumbnailRefreshFailed') };
         }
     };
 
+    const updateVideoMutation = useMutation({
+        mutationFn: async ({ id, updates }: { id: string; updates: Partial<Video> }) => {
+            const response = await axios.put(`${API_URL}/videos/${id}`, updates);
+            return { id, updates, data: response.data };
+        },
+        onSuccess: ({ id, updates, data }) => {
+            if (data.success) {
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                    old ? old.map(video =>
+                        video.id === id ? { ...video, ...updates } : video
+                    ) : []
+                );
+                showSnackbar(t('videoUpdated'));
+            }
+        },
+        onError: (error) => {
+            console.error('Error updating video:', error);
+        }
+    });
+
     const updateVideo = async (id: string, updates: Partial<Video>) => {
         try {
-            const response = await axios.put(`${API_URL}/videos/${id}`, updates);
-            if (response.data.success) {
-                setVideos(prevVideos => prevVideos.map(video =>
-                    video.id === id ? { ...video, ...updates } : video
-                ));
-                showSnackbar(t('videoUpdated'));
+            const result = await updateVideoMutation.mutateAsync({ id, updates });
+            if (result.data.success) {
                 return { success: true };
             }
             return { success: false, error: t('videoUpdateFailed') };
         } catch (error) {
-            console.error('Error updating video:', error);
             return { success: false, error: t('videoUpdateFailed') };
         }
     };
@@ -246,8 +282,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <VideoContext.Provider value={{
             videos,
-            loading,
-            error,
+            loading: videosLoading,
+            error: videosError ? (videosError as Error).message : null,
             fetchVideos,
             deleteVideo,
             updateVideo,

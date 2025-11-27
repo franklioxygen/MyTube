@@ -194,19 +194,25 @@ function AppContent() {
     );
 }
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
+
 function App() {
     return (
-        <LanguageProvider>
-            <SnackbarProvider>
-                <VideoProvider>
-                    <CollectionProvider>
-                        <DownloadProvider>
-                            <AppContent />
-                        </DownloadProvider>
-                    </CollectionProvider>
-                </VideoProvider>
-            </SnackbarProvider>
-        </LanguageProvider>
+        <QueryClientProvider client={queryClient}>
+            <LanguageProvider>
+                <SnackbarProvider>
+                    <VideoProvider>
+                        <CollectionProvider>
+                            <DownloadProvider>
+                                <AppContent />
+                            </DownloadProvider>
+                        </CollectionProvider>
+                    </VideoProvider>
+                </SnackbarProvider>
+            </LanguageProvider>
+        </QueryClientProvider>
     );
 }
 

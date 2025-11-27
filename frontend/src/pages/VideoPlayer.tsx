@@ -11,6 +11,7 @@ import {
     Stack,
     Typography
 } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,7 +22,7 @@ import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { Collection, Comment, Video } from '../types';
+import { Collection, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -47,21 +48,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const navigate = useNavigate();
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const queryClient = useQueryClient();
 
-    const [video, setVideo] = useState<Video | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isDeleting, setIsDeleting] = useState<boolean>(false);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
-    const [comments, setComments] = useState<Comment[]>([]);
-    const [loadingComments, setLoadingComments] = useState<boolean>(false);
     const [showComments, setShowComments] = useState<boolean>(false);
-    const [commentsLoaded, setCommentsLoaded] = useState<boolean>(false);
-    const [availableTags, setAvailableTags] = useState<string[]>([]);
-    const [autoPlay, setAutoPlay] = useState<boolean>(false);
-    const [autoLoop, setAutoLoop] = useState<boolean>(false);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -74,84 +65,54 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         isDanger: false
     });
 
+    // Fetch video details
+    const { data: video, isLoading: loading, error } = useQuery({
+        queryKey: ['video', id],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/videos/${id}`);
+            return response.data;
+        },
+        initialData: () => {
+            return videos.find(v => v.id === id);
+        },
+        enabled: !!id,
+        retry: false
+    });
+
+    // Handle error redirect
     useEffect(() => {
-        // Don't try to fetch the video if it's being deleted
-        if (isDeleting) {
-            return;
+        if (error) {
+            const timer = setTimeout(() => {
+                navigate('/');
+            }, 3000);
+            return () => clearTimeout(timer);
         }
+    }, [error, navigate]);
 
-        const fetchVideo = async () => {
-            if (!id) return;
+    // Fetch settings
+    const { data: settings } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/settings`);
+            return response.data;
+        }
+    });
 
-            // First check if the video is in the videos prop
-            const foundVideo = videos.find(v => v.id === id);
+    const autoPlay = settings?.defaultAutoPlay || false;
+    const autoLoop = settings?.defaultAutoLoop || false;
+    const availableTags = settings?.tags || [];
 
-            if (foundVideo) {
-                setVideo(foundVideo);
-                setLoading(false);
-                return;
-            }
-
-            // If not found in props, try to fetch from API
-            try {
-                const response = await axios.get(`${API_URL}/videos/${id}`);
-                setVideo(response.data);
-                setError(null);
-            } catch (err) {
-                console.error('Error fetching video:', err);
-                setError(t('videoNotFoundOrLoaded'));
-
-                // Redirect to home after 3 seconds if video not found
-                setTimeout(() => {
-                    navigate('/');
-                }, 3000);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchVideo();
-    }, [id, videos, navigate, isDeleting]);
-
-    // Fetch settings and apply defaults
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`);
-                const { defaultAutoPlay, defaultAutoLoop } = response.data;
-
-                setAutoPlay(!!defaultAutoPlay);
-                setAutoLoop(!!defaultAutoLoop);
-
-                setAvailableTags(response.data.tags || []);
-            } catch (error) {
-                console.error('Error fetching settings:', error);
-            }
-        };
-
-        fetchSettings();
-    }, [id]); // Re-run when video changes
-
-    const fetchComments = async () => {
-        if (!id) return;
-
-        setLoadingComments(true);
-        try {
+    // Fetch comments
+    const { data: comments = [], isLoading: loadingComments } = useQuery({
+        queryKey: ['comments', id],
+        queryFn: async () => {
             const response = await axios.get(`${API_URL}/videos/${id}/comments`);
-            setComments(response.data);
-            setCommentsLoaded(true);
-        } catch (err) {
-            console.error('Error fetching comments:', err);
-            // We don't set a global error here as comments are secondary
-        } finally {
-            setLoadingComments(false);
-        }
-    };
+            return response.data;
+        },
+        enabled: showComments && !!id
+    });
 
     const handleToggleComments = () => {
-        if (!showComments && !commentsLoaded) {
-            fetchComments();
-        }
         setShowComments(!showComments);
     };
 
@@ -191,27 +152,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         navigate(`/collection/${collectionId}`);
     };
 
+    // Delete mutation
+    const deleteMutation = useMutation({
+        mutationFn: async (videoId: string) => {
+            return await onDeleteVideo(videoId);
+        },
+        onSuccess: (result) => {
+            if (result.success) {
+                navigate('/', { replace: true });
+            }
+        }
+    });
+
     const executeDelete = async () => {
         if (!id) return;
-
-        setIsDeleting(true);
-        setDeleteError(null);
-
-        try {
-            const result = await onDeleteVideo(id);
-
-            if (result.success) {
-                // Navigate to home immediately after successful deletion
-                navigate('/', { replace: true });
-            } else {
-                setDeleteError(result.error || t('deleteFailed'));
-                setIsDeleting(false);
-            }
-        } catch (err) {
-            setDeleteError(t('unexpectedErrorOccurred'));
-            console.error(err);
-            setIsDeleting(false);
-        }
+        await deleteMutation.mutateAsync(id);
     };
 
     const handleDelete = () => {
@@ -274,43 +229,63 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
     };
 
+    // Rating mutation
+    const ratingMutation = useMutation({
+        mutationFn: async (newValue: number) => {
+            await axios.post(`${API_URL}/videos/${id}/rate`, { rating: newValue });
+            return newValue;
+        },
+        onSuccess: (newValue) => {
+            queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, rating: newValue } : old);
+        }
+    });
+
     const handleRatingChange = async (newValue: number) => {
         if (!id) return;
-
-        try {
-            await axios.post(`${API_URL}/videos/${id}/rate`, { rating: newValue });
-            setVideo(prev => prev ? { ...prev, rating: newValue } : null);
-        } catch (error) {
-            console.error('Error updating rating:', error);
-        }
+        await ratingMutation.mutateAsync(newValue);
     };
+
+    // Title mutation
+    const titleMutation = useMutation({
+        mutationFn: async (newTitle: string) => {
+            const response = await axios.put(`${API_URL}/videos/${id}`, { title: newTitle });
+            return response.data;
+        },
+        onSuccess: (data, newTitle) => {
+            if (data.success) {
+                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, title: newTitle } : old);
+                showSnackbar(t('titleUpdated'));
+            }
+        },
+        onError: () => {
+            showSnackbar(t('titleUpdateFailed'), 'error');
+        }
+    });
 
     const handleSaveTitle = async (newTitle: string) => {
         if (!id) return;
-
-        try {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { title: newTitle });
-            if (response.data.success) {
-                setVideo(prev => prev ? { ...prev, title: newTitle } : null);
-                showSnackbar(t('titleUpdated'));
-            }
-        } catch (error) {
-            console.error('Error updating title:', error);
-            showSnackbar(t('titleUpdateFailed'), 'error');
-        }
+        await titleMutation.mutateAsync(newTitle);
     };
+
+    // Tags mutation
+    const tagsMutation = useMutation({
+        mutationFn: async (newTags: string[]) => {
+            const response = await axios.put(`${API_URL}/videos/${id}`, { tags: newTags });
+            return response.data;
+        },
+        onSuccess: (data, newTags) => {
+            if (data.success) {
+                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, tags: newTags } : old);
+            }
+        },
+        onError: () => {
+            showSnackbar(t('error'), 'error');
+        }
+    });
 
     const handleUpdateTags = async (newTags: string[]) => {
         if (!id) return;
-        try {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { tags: newTags });
-            if (response.data.success) {
-                setVideo(prev => prev ? { ...prev, tags: newTags } : null);
-            }
-        } catch (error) {
-            console.error('Error updating tags:', error);
-            showSnackbar(t('error'), 'error');
-        }
+        await tagsMutation.mutateAsync(newTags);
     };
 
     const [hasViewed, setHasViewed] = useState<boolean>(false);
@@ -342,7 +317,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             axios.post(`${API_URL}/videos/${id}/view`)
                 .then(res => {
                     if (res.data.success && video) {
-                        setVideo({ ...video, viewCount: res.data.viewCount });
+                        queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, viewCount: res.data.viewCount } : old);
                     }
                 })
                 .catch(err => console.error('Error incrementing view count:', err));
@@ -369,7 +344,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (error || !video) {
         return (
             <Container sx={{ mt: 4 }}>
-                <Alert severity="error">{error || t('videoNotFound')}</Alert>
+                <Alert severity="error">{t('videoNotFoundOrLoaded')}</Alert>
             </Container>
         );
     }
@@ -397,8 +372,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                         onAuthorClick={handleAuthorClick}
                         onAddToCollection={handleAddToCollection}
                         onDelete={handleDelete}
-                        isDeleting={isDeleting}
-                        deleteError={deleteError}
+                        isDeleting={deleteMutation.isPending}
+                        deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
                         videoCollections={videoCollections}
                         onCollectionClick={handleCollectionClick}
                         availableTags={availableTags}
