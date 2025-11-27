@@ -1,3 +1,4 @@
+import { createDownloadTask } from "./downloadService";
 import * as storageService from "./storageService";
 
 interface DownloadTask {
@@ -7,6 +8,8 @@ interface DownloadTask {
   resolve: (value: any) => void;
   reject: (reason?: any) => void;
   cancelFn?: () => void;
+  sourceUrl?: string;
+  type?: string;
 }
 
 class DownloadManager {
@@ -36,6 +39,58 @@ class DownloadManager {
   }
 
   /**
+   * Initialize the download manager and restore queued tasks
+   */
+  initialize(): void {
+    try {
+      console.log("Initializing DownloadManager...");
+      const status = storageService.getDownloadStatus();
+      const queuedDownloads = status.queuedDownloads;
+
+      if (queuedDownloads && queuedDownloads.length > 0) {
+        console.log(`Restoring ${queuedDownloads.length} queued downloads...`);
+        
+        for (const download of queuedDownloads) {
+          if (download.sourceUrl && download.type) {
+            console.log(`Restoring task: ${download.title} (${download.id})`);
+            
+            // Reconstruct the download function
+            const downloadFn = createDownloadTask(
+              download.type,
+              download.sourceUrl,
+              download.id
+            );
+
+            // Add to queue without persisting (since it's already in DB)
+            // We need to manually construct the task and push to queue
+            // We can't use addDownload because it returns a promise that we can't easily attach to
+            // But for restored tasks, we don't have a client waiting for the promise anyway.
+            
+            const task: DownloadTask = {
+              downloadFn,
+              id: download.id,
+              title: download.title,
+              sourceUrl: download.sourceUrl,
+              type: download.type,
+              resolve: (val) => console.log(`Restored task ${download.id} completed`, val),
+              reject: (err) => console.error(`Restored task ${download.id} failed`, err),
+            };
+
+            this.queue.push(task);
+          } else {
+            console.warn(`Skipping restoration of task ${download.id} due to missing sourceUrl or type`);
+          }
+        }
+        
+        // Trigger processing
+        this.processQueue();
+      }
+    } catch (error) {
+      console.error("Error initializing DownloadManager:", error);
+    }
+  }
+
+  /**
    * Set the maximum number of concurrent downloads
    * @param limit - Maximum number of concurrent downloads
    */
@@ -49,19 +104,16 @@ class DownloadManager {
    * @param downloadFn - Async function that performs the download
    * @param id - Unique ID for the download
    * @param title - Title of the video being downloaded
-   * @returns - Resolves when the download is complete
-   */
-  /**
-   * Add a download task to the manager
-   * @param downloadFn - Async function that performs the download
-   * @param id - Unique ID for the download
-   * @param title - Title of the video being downloaded
+   * @param sourceUrl - Source URL of the video
+   * @param type - Type of the download (youtube, bilibili, missav)
    * @returns - Resolves when the download is complete
    */
   async addDownload(
     downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>,
     id: string,
-    title: string
+    title: string,
+    sourceUrl?: string,
+    type?: string
   ): Promise<any> {
     return new Promise((resolve, reject) => {
       const task: DownloadTask = {
@@ -70,6 +122,8 @@ class DownloadManager {
         title,
         resolve,
         reject,
+        sourceUrl,
+        type,
       };
 
       this.queue.push(task);
@@ -107,6 +161,7 @@ class DownloadManager {
         finishedAt: Date.now(),
         status: 'failed',
         error: 'Download cancelled by user',
+        sourceUrl: task.sourceUrl,
       });
       
       // Clean up internal state
@@ -152,7 +207,9 @@ class DownloadManager {
     const queuedDownloads = this.queue.map(task => ({
       id: task.id,
       title: task.title,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sourceUrl: task.sourceUrl,
+      type: task.type,
     }));
     storageService.setQueuedDownloads(queuedDownloads);
   }
@@ -177,6 +234,13 @@ class DownloadManager {
 
     // Update status in storage
     storageService.addActiveDownload(task.id, task.title);
+    // Update with extra info if available
+    if (task.sourceUrl || task.type) {
+        storageService.updateActiveDownload(task.id, {
+            sourceUrl: task.sourceUrl,
+            type: task.type
+        });
+    }
 
     try {
       console.log(`Starting download: ${task.title} (${task.id})`);
@@ -211,7 +275,7 @@ class DownloadManager {
         status: 'success',
         videoPath: videoData.videoPath,
         thumbnailPath: videoData.thumbnailPath,
-        sourceUrl: videoData.sourceUrl,
+        sourceUrl: videoData.sourceUrl || task.sourceUrl,
         author: videoData.author,
       });
 
@@ -229,6 +293,7 @@ class DownloadManager {
         finishedAt: Date.now(),
         status: 'failed',
         error: error instanceof Error ? error.message : String(error),
+        sourceUrl: task.sourceUrl,
       });
 
       task.reject(error);

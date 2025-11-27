@@ -9,12 +9,12 @@ import * as downloadService from "../services/downloadService";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    extractUrlFromText,
-    isBilibiliUrl,
-    isValidUrl,
-    resolveShortUrl,
-    trimBilibiliUrl
+  extractBilibiliVideoId,
+  extractUrlFromText,
+  isBilibiliUrl,
+  isValidUrl,
+  resolveShortUrl,
+  trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -236,8 +236,16 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
       }
     };
 
+    // Determine type
+    let type = 'youtube';
+    if (videoUrl.includes("missav")) {
+      type = 'missav';
+    } else if (isBilibiliUrl(videoUrl)) {
+      type = 'bilibili';
+    }
+
     // Add to download manager
-    downloadManager.addDownload(downloadTask, downloadId, initialTitle)
+    downloadManager.addDownload(downloadTask, downloadId, initialTitle, videoUrl, type)
       .then((result: any) => {
         console.log("Download completed successfully:", result);
       })

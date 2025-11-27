@@ -183,6 +183,15 @@ export const ar = {
     deleteCollectionConfirmation: "هل أنت متأكد أنك تريد حذف المجموعة",
     collectionContains: "تحتوي هذه المجموعة على",
     deleteCollectionOnly: "حذف المجموعة فقط",
+
+    // Snackbar Messages
+    videoDownloading: "جاري تنزيل الفيديو",
+    downloadStartedSuccessfully: "بدأ التنزيل بنجاح",
+    collectionCreatedSuccessfully: "تم إنشاء المجموعة بنجاح",
+    videoAddedToCollection: "تمت إضافة الفيديو إلى المجموعة",
+    videoRemovedFromCollection: "تمت إزالة الفيديو من المجموعة",
+    collectionDeletedSuccessfully: "تم حذف المجموعة بنجاح",
+    failedToDeleteCollection: "فشل حذف المجموعة",
     deleteCollectionAndVideos: "حذف المجموعة وكل الفيديوهات",
     
     // Common

@@ -113,3 +113,23 @@ export async function getVideoInfo(url: string): Promise<{ title: string; author
     thumbnailUrl: "",
   };
 }
+
+// Factory function to create a download task
+export function createDownloadTask(
+  type: string,
+  url: string,
+  downloadId: string
+): (registerCancel: (cancel: () => void) => void) => Promise<any> {
+  return async (registerCancel: (cancel: () => void) => void) => {
+    if (type === 'missav') {
+      return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
+    } else if (type === 'bilibili') {
+      // For restored tasks, we assume single video download for now
+      // Complex collection handling would require persisting more state
+      return BilibiliDownloader.downloadSinglePart(url, 1, 1, "");
+    } else {
+      // Default to YouTube
+      return YouTubeDownloader.downloadVideo(url, downloadId, registerCancel);
+    }
+  };
+}

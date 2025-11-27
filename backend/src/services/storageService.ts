@@ -2,11 +2,11 @@ import { desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-    DATA_DIR,
-    IMAGES_DIR,
-    STATUS_DATA_PATH,
-    UPLOADS_DIR,
-    VIDEOS_DIR,
+  DATA_DIR,
+  IMAGES_DIR,
+  STATUS_DATA_PATH,
+  UPLOADS_DIR,
+  VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import { collections, collectionVideos, downloadHistory, downloads, settings, videos } from "../db/schema";
@@ -43,6 +43,8 @@ export interface DownloadInfo {
   downloadedSize?: string;
   progress?: number;
   speed?: string;
+  sourceUrl?: string;
+  type?: string;
 }
 
 export interface DownloadHistoryItem {
@@ -149,6 +151,22 @@ export function initializeStorage(): void {
       console.log("Migration successful: last_played_at added.");
     }
 
+    // Check downloads table columns
+    const downloadsTableInfo = sqlite.prepare("PRAGMA table_info(downloads)").all();
+    const downloadsColumns = (downloadsTableInfo as any[]).map((col: any) => col.name);
+
+    if (!downloadsColumns.includes('source_url')) {
+      console.log("Migrating database: Adding source_url column to downloads table...");
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN source_url TEXT").run();
+      console.log("Migration successful: source_url added.");
+    }
+
+    if (!downloadsColumns.includes('type')) {
+      console.log("Migrating database: Adding type column to downloads table...");
+      sqlite.prepare("ALTER TABLE downloads ADD COLUMN type TEXT").run();
+      console.log("Migration successful: type added.");
+    }
+
     // Populate fileSize for existing videos
     const allVideos = db.select().from(videos).all();
     let updatedCount = 0;
@@ -184,6 +202,11 @@ export function addActiveDownload(id: string, title: string): void {
       title,
       timestamp: now,
       status: 'active',
+      // We might want to pass sourceUrl and type here too if available, 
+      // but addActiveDownload signature currently only has id and title.
+      // We will update the signature in a separate step or let updateActiveDownload handle it.
+      // Actually, let's update the signature now to be safe, but that breaks callers.
+      // For now, let's just insert what we have.
     }).onConflictDoUpdate({
       target: downloads.id,
       set: {
@@ -205,6 +228,8 @@ export function updateActiveDownload(id: string, updates: Partial<DownloadInfo>)
     // Map fields to DB columns if necessary (though they match mostly)
     if (updates.totalSize) updateData.totalSize = updates.totalSize;
     if (updates.downloadedSize) updateData.downloadedSize = updates.downloadedSize;
+    if (updates.sourceUrl) updateData.sourceUrl = updates.sourceUrl;
+    if (updates.type) updateData.type = updates.type;
     
     db.update(downloads)
       .set(updateData)
@@ -238,12 +263,16 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
           title: download.title,
           timestamp: download.timestamp,
           status: 'queued',
+          sourceUrl: download.sourceUrl,
+          type: download.type,
         }).onConflictDoUpdate({
             target: downloads.id,
             set: {
                 title: download.title,
                 timestamp: download.timestamp,
-                status: 'queued'
+                status: 'queued',
+                sourceUrl: download.sourceUrl,
+                type: download.type,
             }
         }).run();
       }
@@ -274,6 +303,8 @@ export function getDownloadStatus(): DownloadStatus {
         downloadedSize: d.downloadedSize || undefined,
         progress: d.progress || undefined,
         speed: d.speed || undefined,
+        sourceUrl: d.sourceUrl || undefined,
+        type: d.type || undefined,
       }));
 
     const queuedDownloads = allDownloads
@@ -282,6 +313,8 @@ export function getDownloadStatus(): DownloadStatus {
         id: d.id,
         title: d.title,
         timestamp: d.timestamp || 0,
+        sourceUrl: d.sourceUrl || undefined,
+        type: d.type || undefined,
       }));
 
     return { activeDownloads, queuedDownloads };
@@ -799,45 +832,28 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
     collection.videos.forEach(videoId => {
       const video = getVideoById(videoId);
       if (video) {
-        const allCollections = getCollections();
-        const otherCollection = allCollections.find(c => c.videos.includes(videoId) && c.id !== collectionId);
-
-        let targetVideoDir = VIDEOS_DIR;
-        let targetImageDir = IMAGES_DIR;
-        let videoPathPrefix = '/videos';
-        let imagePathPrefix = '/images';
-
-        if (otherCollection) {
-          const otherName = otherCollection.name || otherCollection.title;
-          if (otherName) {
-            targetVideoDir = path.join(VIDEOS_DIR, otherName);
-            targetImageDir = path.join(IMAGES_DIR, otherName);
-            videoPathPrefix = `/videos/${otherName}`;
-            imagePathPrefix = `/images/${otherName}`;
-          }
-        }
-
+        // Move files back to root
         const updates: Partial<Video> = {};
         let updated = false;
 
         if (video.videoFilename) {
           const currentVideoPath = findVideoFile(video.videoFilename);
-          const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
+          const targetVideoPath = path.join(VIDEOS_DIR, video.videoFilename);
           
           if (currentVideoPath && currentVideoPath !== targetVideoPath) {
             moveFile(currentVideoPath, targetVideoPath);
-            updates.videoPath = `${videoPathPrefix}/${video.videoFilename}`;
+            updates.videoPath = `/videos/${video.videoFilename}`;
             updated = true;
           }
         }
 
         if (video.thumbnailFilename) {
           const currentImagePath = findImageFile(video.thumbnailFilename);
-          const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+          const targetImagePath = path.join(IMAGES_DIR, video.thumbnailFilename);
 
           if (currentImagePath && currentImagePath !== targetImagePath) {
             moveFile(currentImagePath, targetImagePath);
-            updates.thumbnailPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
+            updates.thumbnailPath = `/images/${video.thumbnailFilename}`;
             updated = true;
           }
         }
@@ -849,25 +865,24 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
     });
   }
 
-  const success = deleteCollection(collectionId);
-
-  if (success && collectionName) {
+  // Delete collection directory if exists and empty
+  if (collectionName) {
+    const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
+    const collectionImageDir = path.join(IMAGES_DIR, collectionName);
+    
     try {
-      const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
-      const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
-
-      if (fs.existsSync(videoCollectionDir) && fs.readdirSync(videoCollectionDir).length === 0) {
-        fs.rmSync(videoCollectionDir, { recursive: true, force: true });
+      if (fs.existsSync(collectionVideoDir) && fs.readdirSync(collectionVideoDir).length === 0) {
+        fs.rmdirSync(collectionVideoDir);
       }
-      if (fs.existsSync(imageCollectionDir) && fs.readdirSync(imageCollectionDir).length === 0) {
-        fs.rmSync(imageCollectionDir, { recursive: true, force: true });
+      if (fs.existsSync(collectionImageDir) && fs.readdirSync(collectionImageDir).length === 0) {
+        fs.rmdirSync(collectionImageDir);
       }
-    } catch (error) {
-      console.error("Error removing collection directories:", error);
+    } catch (e) {
+      console.error("Error removing collection directories:", e);
     }
   }
 
-  return success;
+  return deleteCollection(collectionId);
 }
 
 export function deleteCollectionAndVideos(collectionId: string): boolean {
@@ -875,32 +890,30 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
-
+  
+  // Delete all videos in the collection
   if (collection.videos && collection.videos.length > 0) {
-    const videosToDelete = [...collection.videos];
-    videosToDelete.forEach(videoId => {
+    collection.videos.forEach(videoId => {
       deleteVideo(videoId);
     });
   }
 
-  const success = deleteCollection(collectionId);
-
-  if (success && collectionName) {
+  // Delete collection directory if exists
+  if (collectionName) {
+    const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
+    const collectionImageDir = path.join(IMAGES_DIR, collectionName);
+    
     try {
-      const videoCollectionDir = path.join(VIDEOS_DIR, collectionName);
-      const imageCollectionDir = path.join(IMAGES_DIR, collectionName);
-
-      if (fs.existsSync(videoCollectionDir)) {
-        fs.rmSync(videoCollectionDir, { recursive: true, force: true });
+      if (fs.existsSync(collectionVideoDir)) {
+        fs.rmdirSync(collectionVideoDir);
       }
-      if (fs.existsSync(imageCollectionDir)) {
-        fs.rmSync(imageCollectionDir, { recursive: true, force: true });
+      if (fs.existsSync(collectionImageDir)) {
+        fs.rmdirSync(collectionImageDir);
       }
-    } catch (error) {
-      console.error("Error removing collection directories:", error);
+    } catch (e) {
+      console.error("Error removing collection directories:", e);
     }
   }
 
-  return success;
+  return deleteCollection(collectionId);
 }
-

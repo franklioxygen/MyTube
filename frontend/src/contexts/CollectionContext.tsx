@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
+import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -27,6 +28,7 @@ export const useCollection = () => {
 
 export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
+    const { t } = useLanguage();
     const queryClient = useQueryClient();
 
     const { data: collections = [], refetch: fetchCollectionsQuery } = useQuery({
@@ -51,7 +53,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
-            showSnackbar('Collection created successfully');
+            showSnackbar(t('collectionCreatedSuccessfully'));
         },
         onError: (error) => {
             console.error('Error creating collection:', error);
@@ -76,7 +78,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
-            showSnackbar('Video added to collection');
+            showSnackbar(t('videoAddedToCollection'));
         },
         onError: (error) => {
             console.error('Error adding video to collection:', error);
@@ -105,7 +107,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             ));
 
             queryClient.invalidateQueries({ queryKey: ['collections'] });
-            showSnackbar('Video removed from collection');
+            showSnackbar(t('videoRemovedFromCollection'));
             return true;
         } catch (error) {
             console.error('Error removing video from collection:', error);
@@ -125,11 +127,11 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (deleteVideos) {
                 queryClient.invalidateQueries({ queryKey: ['videos'] });
             }
-            showSnackbar('Collection deleted successfully');
+            showSnackbar(t('collectionDeletedSuccessfully'));
         },
         onError: (error) => {
             console.error('Error deleting collection:', error);
-            showSnackbar('Failed to delete collection', 'error');
+            showSnackbar(t('failedToDeleteCollection'), 'error');
         }
     });
 

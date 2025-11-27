@@ -89,6 +89,8 @@ export const downloads = sqliteTable('downloads', {
   progress: integer('progress'), // Using integer for percentage (0-100) or similar
   speed: text('speed'),
   status: text('status').notNull().default('active'), // 'active' or 'queued'
+  sourceUrl: text('source_url'),
+  type: text('type'),
 });
 
 export const downloadHistory = sqliteTable('download_history', {

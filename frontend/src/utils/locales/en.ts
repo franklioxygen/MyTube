@@ -248,4 +248,13 @@ export const en = {
     speed: "Speed",
     finishedAt: "Finished At",
     failed: "Failed",
+    
+    // Snackbar Messages
+    videoDownloading: "Video downloading",
+    downloadStartedSuccessfully: "Download started successfully",
+    collectionCreatedSuccessfully: "Collection created successfully",
+    videoAddedToCollection: "Video added to collection",
+    videoRemovedFromCollection: "Video removed from collection",
+    collectionDeletedSuccessfully: "Collection deleted successfully",
+    failedToDeleteCollection: "Failed to delete collection",
 };

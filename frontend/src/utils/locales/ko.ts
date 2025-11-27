@@ -185,6 +185,15 @@ export const ko = {
     deleteCollectionOnly: "컬렉션만 삭제",
     deleteCollectionAndVideos: "컬렉션 및 모든 동영상 삭제",
     
+    // Snackbar Messages
+    videoDownloading: "비디오 다운로드 중",
+    downloadStartedSuccessfully: "다운로드가 성공적으로 시작되었습니다",
+    collectionCreatedSuccessfully: "컬렉션이 성공적으로 생성되었습니다",
+    videoAddedToCollection: "비디오가 컬렉션에 추가되었습니다",
+    videoRemovedFromCollection: "비디오가 컬렉션에서 제거되었습니다",
+    collectionDeletedSuccessfully: "컬렉션이 성공적으로 삭제되었습니다",
+    failedToDeleteCollection: "컬렉션 삭제 실패",
+    
     // Common
     loading: "로드 중...",
     error: "오류",

@@ -173,6 +173,15 @@ export const zh = {
     noVideosInCollection: "此合集中没有视频。",
     back: "返回",
     
+    // Snackbar Messages
+    videoDownloading: "视频下载中",
+    downloadStartedSuccessfully: "下载已成功开始",
+    collectionCreatedSuccessfully: "集合创建成功",
+    videoAddedToCollection: "视频已添加到集合",
+    videoRemovedFromCollection: "视频已从集合中移除",
+    collectionDeletedSuccessfully: "集合删除成功",
+    failedToDeleteCollection: "删除集合失败",
+    
     // Author Videos
     loadVideosError: "加载视频失败，请稍后再试。",
     unknownAuthor: "未知",

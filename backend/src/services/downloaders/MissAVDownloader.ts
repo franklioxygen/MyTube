@@ -1,10 +1,10 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
-import youtubedl from "youtube-dl-exec";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -57,6 +57,10 @@ export class MissAVDownloader {
         const videoFilename = `${safeBaseFilename}.mp4`;
         const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
+        // Ensure directories exist
+        fs.ensureDirSync(VIDEOS_DIR);
+        fs.ensureDirSync(IMAGES_DIR);
+
         const videoPath = path.join(VIDEOS_DIR, videoFilename);
         const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
 
@@ -65,10 +69,11 @@ export class MissAVDownloader {
         let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
         let thumbnailUrl: string | null = null;
         let thumbnailSaved = false;
+        let m3u8Url: string | null = null;
 
         try {
-            // 1. Fetch the page content using Puppeteer to bypass Cloudflare
-            console.log("Fetching MissAV page content with Puppeteer...");
+            // 1. Fetch the page content using Puppeteer to bypass Cloudflare and capture m3u8 URL
+            console.log("Launching Puppeteer to capture m3u8 URL...");
 
             const browser = await puppeteer.launch({
                 headless: true,
@@ -78,8 +83,21 @@ export class MissAVDownloader {
             const page = await browser.newPage();
 
             // Set a real user agent
-            await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+            const userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            await page.setUserAgent(userAgent);
 
+            // Setup request listener to find m3u8
+            page.on('request', (request) => {
+                const reqUrl = request.url();
+                if (reqUrl.includes('.m3u8') && !reqUrl.includes('preview')) {
+                    console.log("Found m3u8 URL via network interception:", reqUrl);
+                    if (!m3u8Url) {
+                        m3u8Url = reqUrl;
+                    }
+                }
+            });
+
+            console.log("Navigating to:", url);
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
             const html = await page.content();
@@ -99,44 +117,38 @@ export class MissAVDownloader {
 
             console.log("Extracted metadata:", { title: videoTitle, thumbnail: thumbnailUrl });
 
-            // 3. Extract the m3u8 URL
-            // Logic ported from: https://github.com/smalltownjj/yt-dlp-plugin-missav/blob/main/yt_dlp_plugins/extractor/missav.py
+            // 3. If m3u8 URL was not found via network, try regex extraction as fallback
+            if (!m3u8Url) {
+                console.log("m3u8 URL not found via network, trying regex extraction...");
+                
+                // Logic ported from: https://github.com/smalltownjj/yt-dlp-plugin-missav/blob/main/yt_dlp_plugins/extractor/missav.py
+                const m3u8Match = html.match(/m3u8\|[^"]+\|playlist\|source/);
 
-            // Look for the obfuscated string pattern
-            // The pattern seems to be: m3u8|...|playlist|source
-            const m3u8Match = html.match(/m3u8\|[^"]+\|playlist\|source/);
+                if (m3u8Match) {
+                    const matchString = m3u8Match[0];
+                    const cleanString = matchString.replace("m3u8|", "").replace("|playlist|source", "");
+                    const urlWords = cleanString.split("|");
 
-            if (!m3u8Match) {
-                throw new Error("Could not find m3u8 URL pattern in page source");
+                    const videoIndex = urlWords.indexOf("video");
+                    if (videoIndex !== -1) {
+                        const protocol = urlWords[videoIndex - 1];
+                        const videoFormat = urlWords[videoIndex + 1];
+                        const m3u8UrlPath = urlWords.slice(0, 5).reverse().join("-");
+                        const baseUrlPath = urlWords.slice(5, videoIndex - 1).reverse().join(".");
+                        m3u8Url = `${protocol}://${baseUrlPath}/${m3u8UrlPath}/${videoFormat}/${urlWords[videoIndex]}.m3u8`;
+                        console.log("Reconstructed m3u8 URL via regex:", m3u8Url);
+                    }
+                }
             }
 
-            const matchString = m3u8Match[0];
-            // Remove "m3u8|" from start and "|playlist|source" from end
-            const cleanString = matchString.replace("m3u8|", "").replace("|playlist|source", "");
-            const urlWords = cleanString.split("|");
-
-            // Find "video" index
-            const videoIndex = urlWords.indexOf("video");
-            if (videoIndex === -1) {
-                throw new Error("Could not parse m3u8 URL structure");
+            if (!m3u8Url) {
+                const debugFile = path.join(DATA_DIR, `missav_debug_${timestamp}.html`);
+                fs.writeFileSync(debugFile, html);
+                console.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
+                throw new Error("Could not find m3u8 URL in page source or network requests");
             }
 
-            const protocol = urlWords[videoIndex - 1];
-            const videoFormat = urlWords[videoIndex + 1];
-
-            // Reconstruct parts
-            // m3u8_url_path = "-".join((url_words[0:5])[::-1])
-            const m3u8UrlPath = urlWords.slice(0, 5).reverse().join("-");
-
-            // base_url_path = ".".join((url_words[5:video_index-1])[::-1])
-            const baseUrlPath = urlWords.slice(5, videoIndex - 1).reverse().join(".");
-
-            // formatted_url = "{0}://{1}/{2}/{3}/{4}.m3u8".format(protocol, base_url_path, m3u8_url_path, video_format, url_words[video_index])
-            const m3u8Url = `${protocol}://${baseUrlPath}/${m3u8UrlPath}/${videoFormat}/${urlWords[videoIndex]}.m3u8`;
-
-            console.log("Reconstructed m3u8 URL:", m3u8Url);
-
-            // 4. Download the video using yt-dlp
+            // 4. Download the video using ffmpeg directly
             console.log("Downloading video stream to:", videoPath);
 
             if (downloadId) {
@@ -146,70 +158,116 @@ export class MissAVDownloader {
                 });
             }
 
-            const subprocess = youtubedl.exec(m3u8Url, {
-                output: videoPath,
-                format: "mp4",
-                noCheckCertificates: true,
-                // Add headers to mimic browser
-                addHeader: [
-                    'Referer:https://missav.ai/',
-                    'User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                ]
-            });
+            await new Promise<void>((resolve, reject) => {
+                const ffmpegArgs = [
+                    '-user_agent', userAgent,
+                    '-headers', 'Referer: https://missav.ai/',
+                    '-i', m3u8Url!,
+                    '-c', 'copy',
+                    '-bsf:a', 'aac_adtstoasc',
+                    '-y', // Overwrite output file
+                    videoPath
+                ];
 
-            if (onStart) {
-                onStart(() => {
-                    console.log("Killing subprocess for download:", downloadId);
-                    subprocess.kill();
-                    
-                    // Clean up partial files
-                    console.log("Cleaning up partial files...");
-                    try {
-                        // youtube-dl creates .part files during download
-                        const partVideoPath = `${videoPath}.part`;
-                        const partThumbnailPath = `${thumbnailPath}.part`;
+                console.log("Spawning ffmpeg with args:", ffmpegArgs.join(" "));
+
+                const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+                let totalDurationSec = 0;
+
+                if (onStart) {
+                    onStart(() => {
+                        console.log("Killing ffmpeg process for download:", downloadId);
+                        ffmpeg.kill('SIGKILL');
                         
-                        if (fs.existsSync(partVideoPath)) {
-                            fs.unlinkSync(partVideoPath);
-                            console.log("Deleted partial video file:", partVideoPath);
+                        // Cleanup
+                        try {
+                            if (fs.existsSync(videoPath)) {
+                                fs.unlinkSync(videoPath);
+                                console.log("Deleted partial video file:", videoPath);
+                            }
+                            if (fs.existsSync(thumbnailPath)) {
+                                fs.unlinkSync(thumbnailPath);
+                                console.log("Deleted partial thumbnail file:", thumbnailPath);
+                            }
+                        } catch (e) {
+                            console.error("Error cleaning up partial files:", e);
                         }
-                        if (fs.existsSync(videoPath)) {
-                            fs.unlinkSync(videoPath);
-                            console.log("Deleted partial video file:", videoPath);
-                        }
-                        if (fs.existsSync(partThumbnailPath)) {
-                            fs.unlinkSync(partThumbnailPath);
-                            console.log("Deleted partial thumbnail file:", partThumbnailPath);
-                        }
-                        if (fs.existsSync(thumbnailPath)) {
-                            fs.unlinkSync(thumbnailPath);
-                            console.log("Deleted partial thumbnail file:", thumbnailPath);
-                        }
-                    } catch (cleanupError) {
-                        console.error("Error cleaning up partial files:", cleanupError);
-                    }
-                });
-            }
-
-            subprocess.stdout?.on('data', (data: Buffer) => {
-                const output = data.toString();
-                // Parse progress: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
-                const progressMatch = output.match(/(\d+\.?\d*)%\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/);
-
-                if (progressMatch && downloadId) {
-                    const percentage = parseFloat(progressMatch[1]);
-                    const totalSize = progressMatch[2];
-                    const speed = progressMatch[3];
-
-                    storageService.updateActiveDownload(downloadId, {
-                        progress: percentage,
-                        totalSize: totalSize,
-                        speed: speed
                     });
                 }
-            });
 
-            await subprocess;
+                ffmpeg.stderr.on('data', (data) => {
+                    const output = data.toString();
+                    // console.log("ffmpeg stderr:", output); // Uncomment for verbose debug
+
+                    // Try to parse duration if not set
+                    if (totalDurationSec === 0) {
+                        const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+                        if (durationMatch) {
+                            const hours = parseInt(durationMatch[1]);
+                            const minutes = parseInt(durationMatch[2]);
+                            const seconds = parseInt(durationMatch[3]);
+                            totalDurationSec = hours * 3600 + minutes * 60 + seconds;
+                            console.log("Detected total duration:", totalDurationSec);
+                        }
+                    }
+
+                    // Parse progress
+                    // size=   12345kB time=00:01:23.45 bitrate= 1234.5kbits/s speed=1.23x
+                    const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+                    const sizeMatch = output.match(/size=\s*(\d+)([kMG]?B)/);
+                    const speedMatch = output.match(/speed=\s*(\d+\.?\d*)x/);
+
+                    if (timeMatch && downloadId) {
+                        const hours = parseInt(timeMatch[1]);
+                        const minutes = parseInt(timeMatch[2]);
+                        const seconds = parseInt(timeMatch[3]);
+                        const currentTimeSec = hours * 3600 + minutes * 60 + seconds;
+
+                        let percentage = 0;
+                        if (totalDurationSec > 0) {
+                            percentage = Math.min(100, (currentTimeSec / totalDurationSec) * 100);
+                        }
+
+                        let totalSizeStr = "0B";
+                        if (sizeMatch) {
+                            totalSizeStr = `${sizeMatch[1]}${sizeMatch[2]}`;
+                        }
+
+                        let speedStr = "0x";
+                        if (speedMatch) {
+                            speedStr = `${speedMatch[1]}x`;
+                        }
+
+                        storageService.updateActiveDownload(downloadId, {
+                            progress: parseFloat(percentage.toFixed(1)),
+                            totalSize: totalSizeStr,
+                            speed: speedStr
+                        });
+                    }
+                });
+
+                ffmpeg.on('close', (code) => {
+                    if (code === 0) {
+                        console.log("ffmpeg process finished successfully");
+                        resolve();
+                    } else {
+                        console.error(`ffmpeg process exited with code ${code}`);
+                        // If killed (null code) or error
+                        if (code === null) {
+                             // Likely killed by user, reject? Or resolve if handled?
+                             // If killed by onStart callback, we might want to reject to stop flow
+                             reject(new Error("Download cancelled"));
+                        } else {
+                            reject(new Error(`ffmpeg exited with code ${code}`));
+                        }
+                    }
+                });
+
+                ffmpeg.on('error', (err) => {
+                    console.error("Failed to start ffmpeg:", err);
+                    reject(err);
+                });
+            });
 
             console.log("Video download complete");
 
