@@ -6,22 +6,30 @@
 
 ![Nov-23-2025 21-19-25](https://github.com/user-attachments/assets/0f8761c9-893d-48df-8add-47f3f19357df)
 
+## 在线演示
+
+🌐 **访问在线演示(只读): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
+
 ## 功能特点
 
 - **视频下载**：通过简单的 URL 输入下载 YouTube、Bilibili 和 MissAV 视频。
 - **视频上传**：直接上传本地视频文件到您的库，并自动生成缩略图。
 - **Bilibili 支持**：支持下载单个视频、多P视频以及整个合集/系列。
 - **并行下载**：支持队列下载，可同时追踪多个下载任务的进度。
+- **并发下载限制**：设置同时下载的数量限制以管理带宽。
 - **本地库**：自动保存视频缩略图和元数据，提供丰富的浏览体验。
 - **视频播放器**：自定义播放器，支持播放/暂停、循环、快进/快退、全屏和调光控制。
 - **搜索功能**：支持在本地库中搜索视频，或在线搜索 YouTube 视频。
 - **收藏夹**：创建自定义收藏夹以整理您的视频。
 - **现代化 UI**：响应式深色主题界面，包含“返回主页”功能和玻璃拟态效果。
-- **主题支持**：支持在明亮和深色模式之间切换。
+- **主题支持**：支持在明亮和深色模式之间切换，支持平滑过渡。
 - **登录保护**：通过密码登录页面保护您的应用。
-- **语言切换**：支持英语和中文语言切换。
+- **国际化**：支持多种语言，包括英语、中文、西班牙语、法语、德语、日语、韩语、阿拉伯语和葡萄牙语。
 - **分页功能**：支持分页浏览，高效管理大量视频。
 - **视频评分**：使用 5 星评级系统为您的视频评分。
+- **移动端优化**：移动端友好的标签菜单和针对小屏幕优化的布局。
+- **临时文件清理**：直接从设置中清理临时下载文件以管理存储空间。
+- **视图模式**：在主页上切换收藏夹视图和视频视图。
 
 ## 目录结构
 
@@ -31,6 +39,7 @@ mytube/
 │   ├── src/             # 源代码
 │   │   ├── config/      # 配置文件
 │   │   ├── controllers/ # 路由控制器
+│   │   ├── db/          # 数据库迁移和设置
 │   │   ├── routes/      # API 路由
 │   │   ├── services/    # 业务逻辑服务
 │   │   ├── utils/       # 工具函数
@@ -43,12 +52,15 @@ mytube/
 │   ├── src/             # 源代码
 │   │   ├── assets/      # 图片和样式
 │   │   ├── components/  # React 组件
+│   │   ├── contexts/    # React 上下文
 │   │   ├── pages/       # 页面组件
+│   │   ├── utils/       # 工具和多语言文件
 │   │   └── theme.ts     # 主题配置
 │   └── package.json     # 前端依赖
 ├── build-and-push.sh    # Docker 构建脚本
 ├── docker-compose.yml   # Docker Compose 配置
 ├── DEPLOYMENT.md        # 部署指南
+├── CONTRIBUTING.md      # 贡献指南
 └── package.json         # 运行两个应用的根 package.json
 ```
 
@@ -98,6 +110,8 @@ npm run dev       # 以开发模式启动前端和后端
 ```bash
 npm run start     # 以生产模式启动前端和后端
 npm run build     # 为生产环境构建前端
+npm run lint      # 运行前端代码检查
+npm run lint:fix  # 修复前端代码检查错误
 ```
 
 ### 访问应用
@@ -112,17 +126,40 @@ npm run build     # 为生产环境构建前端
 - `POST /api/upload` - 上传本地视频文件
 - `GET /api/videos` - 获取所有已下载的视频
 - `GET /api/videos/:id` - 获取特定视频
+- `PUT /api/videos/:id` - 更新视频详情
 - `DELETE /api/videos/:id` - 删除视频
+- `GET /api/videos/:id/comments` - 获取视频评论
+- `POST /api/videos/:id/rate` - 评价视频
+- `POST /api/videos/:id/refresh-thumbnail` - 刷新视频缩略图
+- `POST /api/videos/:id/view` - 增加观看次数
+- `PUT /api/videos/:id/progress` - 更新播放进度
 - `GET /api/search` - 在线搜索视频
 - `GET /api/download-status` - 获取当前下载状态
 - `GET /api/check-bilibili-parts` - 检查 Bilibili 视频是否包含多个分P
 - `GET /api/check-bilibili-collection` - 检查 Bilibili URL 是否为合集/系列
+
+### 下载管理
+- `POST /api/downloads/cancel/:id` - 取消下载
+- `DELETE /api/downloads/queue/:id` - 从队列中移除
+- `DELETE /api/downloads/queue` - 清空队列
+- `GET /api/downloads/history` - 获取下载历史
+- `DELETE /api/downloads/history/:id` - 从历史中移除
+- `DELETE /api/downloads/history` - 清空历史
 
 ### 收藏夹
 - `GET /api/collections` - 获取所有收藏夹
 - `POST /api/collections` - 创建新收藏夹
 - `PUT /api/collections/:id` - 更新收藏夹 (添加/移除视频)
 - `DELETE /api/collections/:id` - 删除收藏夹
+
+### 设置与系统
+- `GET /api/settings` - 获取应用设置
+- `POST /api/settings` - 更新应用设置
+- `POST /api/settings/verify-password` - 验证登录密码
+- `POST /api/settings/migrate` - 从 JSON 迁移数据到 SQLite
+- `POST /api/settings/delete-legacy` - 删除旧的 JSON 数据
+- `POST /api/scan-files` - 扫描现有文件
+- `POST /api/cleanup-temp-files` - 清理临时下载文件
 
 ## 收藏夹功能
 
@@ -176,6 +213,10 @@ MAX_FILE_SIZE=500000000
 ```
 
 复制前端和后端目录中的 `.env.example` 文件以创建您自己的 `.env` 文件。
+
+## 贡献
+
+我们欢迎贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解如何开始、我们的开发工作流程以及代码质量指南。
 
 ## 部署
 
