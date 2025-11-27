@@ -13,19 +13,17 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-interface LoginPageProps {
-    onLoginSuccess: () => void;
-}
-
-const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { t } = useLanguage();
+    const { login } = useAuth();
 
     // Use dark theme for login page to match app style
     const theme = getTheme('dark');
@@ -37,7 +35,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         },
         onSuccess: (data) => {
             if (data.success) {
-                onLoginSuccess();
+                login();
             } else {
                 setError(t('incorrectPassword'));
             }

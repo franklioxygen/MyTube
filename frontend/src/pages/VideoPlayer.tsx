@@ -20,35 +20,29 @@ import CollectionModal from '../components/VideoPlayer/CollectionModal';
 import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
+import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-interface VideoPlayerProps {
-    videos: Video[];
-    onDeleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
-    collections: Collection[];
-    onAddToCollection: (collectionId: string, videoId: string) => Promise<void>;
-    onCreateCollection: (name: string, videoId: string) => Promise<void>;
-    onRemoveFromCollection: (videoId: string) => Promise<any>;
-}
-
-const VideoPlayer: React.FC<VideoPlayerProps> = ({
-    videos,
-    onDeleteVideo,
-    collections,
-    onAddToCollection,
-    onCreateCollection,
-    onRemoveFromCollection
-}) => {
+const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
+
+    const { videos, deleteVideo } = useVideo();
+    const {
+        collections,
+        addToCollection,
+        createCollection,
+        removeFromCollection
+    } = useCollection();
 
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
@@ -155,7 +149,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async (videoId: string) => {
-            return await onDeleteVideo(videoId);
+            return await deleteVideo(videoId);
         },
         onSuccess: (result) => {
             if (result.success) {
@@ -192,7 +186,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleCreateCollection = async (name: string) => {
         if (!id) return;
         try {
-            await onCreateCollection(name, id);
+            await createCollection(name, id);
         } catch (error) {
             console.error('Error creating collection:', error);
         }
@@ -201,7 +195,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleAddToExistingCollection = async (collectionId: string) => {
         if (!id) return;
         try {
-            await onAddToCollection(collectionId, id);
+            await addToCollection(collectionId, id);
         } catch (error) {
             console.error('Error adding to collection:', error);
         }
@@ -211,7 +205,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         if (!id) return;
 
         try {
-            await onRemoveFromCollection(id);
+            await removeFromCollection(id);
         } catch (error) {
             console.error('Error removing from collection:', error);
         }

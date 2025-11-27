@@ -22,55 +22,34 @@ import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
 import TagsList from '../components/TagsList';
 import VideoCard from '../components/VideoCard';
+import { useCollection } from '../contexts/CollectionContext';
+import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
-import { Collection, Video } from '../types';
 
-interface SearchResult {
-    id: string;
-    title: string;
-    author: string;
-    thumbnailUrl: string;
-    duration?: number;
-    viewCount?: number;
-    source: 'youtube' | 'bilibili';
-    sourceUrl: string;
-}
-
-interface HomeProps {
-    videos: Video[];
-    loading: boolean;
-    error: string | null;
-    onDeleteVideo: (id: string) => Promise<any>;
-    collections: Collection[];
-    isSearchMode: boolean;
-    searchTerm: string;
-    localSearchResults: Video[];
-    youtubeLoading: boolean;
-    searchResults: SearchResult[];
-    onDownload: (url: string, title?: string) => void;
-    onResetSearch: () => void;
-}
-
-const Home: React.FC<HomeProps> = ({
-    videos = [],
-    loading,
-    error,
-    onDeleteVideo,
-    collections = [],
-    isSearchMode = false,
-    searchTerm = '',
-    localSearchResults = [],
-    youtubeLoading = false,
-    searchResults = [],
-    onDownload,
-    onResetSearch
-}) => {
+const Home: React.FC = () => {
+    const { t } = useLanguage();
+    const {
+        videos,
+        loading,
+        error,
+        deleteVideo,
+        availableTags,
+        selectedTags,
+        handleTagToggle,
+        isSearchMode,
+        searchTerm,
+        localSearchResults,
+        searchResults,
+        youtubeLoading,
+        setIsSearchMode,
+        resetSearch
+    } = useVideo();
+    const { collections } = useCollection();
+    const { handleVideoSubmit } = useDownload();
 
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
-    const { t } = useLanguage();
-    const { availableTags, selectedTags, handleTagToggle } = useVideo();
     const [viewMode, setViewMode] = useState<'collections' | 'all-videos'>(() => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as 'collections' | 'all-videos') || 'collections';
@@ -81,6 +60,14 @@ const Home: React.FC<HomeProps> = ({
         setPage(1);
     }, [videos, collections, selectedTags]);
 
+    const handleDownload = async (url: string) => {
+        try {
+            setIsSearchMode(false);
+            await handleVideoSubmit(url);
+        } catch (error) {
+            console.error('Error downloading from search:', error);
+        }
+    };
 
     // Add default empty array to ensure videos is always an array
     const videoArray = Array.isArray(videos) ? videos : [];
@@ -139,8 +126,6 @@ const Home: React.FC<HomeProps> = ({
             });
         });
 
-
-
     const handleViewModeChange = (mode: 'collections' | 'all-videos') => {
         setViewMode(mode);
         localStorage.setItem('homeViewMode', mode);
@@ -158,8 +143,6 @@ const Home: React.FC<HomeProps> = ({
         setPage(value);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
-
-
 
     // Helper function to format duration in seconds to MM:SS
     const formatDuration = (seconds?: number) => {
@@ -188,11 +171,11 @@ const Home: React.FC<HomeProps> = ({
                     <Typography variant="h4" component="h1" fontWeight="bold">
                         {t('searchResultsFor')} "{searchTerm}"
                     </Typography>
-                    {onResetSearch && (
+                    {resetSearch && (
                         <Button
                             variant="outlined"
                             startIcon={<ArrowBack />}
-                            onClick={onResetSearch}
+                            onClick={resetSearch}
                         >
                             {t('backToHome')}
                         </Button>
@@ -211,7 +194,7 @@ const Home: React.FC<HomeProps> = ({
                                     <VideoCard
                                         video={video}
                                         collections={collections}
-                                        onDeleteVideo={onDeleteVideo}
+                                        onDeleteVideo={deleteVideo}
                                         showDeleteButton={true}
                                     />
                                 </Grid>
@@ -279,7 +262,7 @@ const Home: React.FC<HomeProps> = ({
                                                 fullWidth
                                                 variant="contained"
                                                 startIcon={<Download />}
-                                                onClick={() => onDownload(result.sourceUrl, result.title)}
+                                                onClick={() => handleDownload(result.sourceUrl)}
                                             >
                                                 {t('download')}
                                             </Button>

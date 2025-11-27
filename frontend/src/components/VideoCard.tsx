@@ -28,7 +28,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 interface VideoCardProps {
     video: Video;
     collections?: Collection[];
-    onDeleteVideo?: (id: string) => Promise<void>;
+    onDeleteVideo?: (id: string) => Promise<any>;
     showDeleteButton?: boolean;
     disableCollectionGrouping?: boolean;
 }
