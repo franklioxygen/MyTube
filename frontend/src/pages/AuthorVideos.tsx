@@ -9,62 +9,41 @@ import {
     Grid,
     Typography
 } from '@mui/material';
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL;
-
 interface AuthorVideosProps {
-    videos: Video[];
+    videos?: Video[]; // Make optional since we can get from context
     onDeleteVideo: (id: string) => Promise<any>;
     collections: Collection[];
 }
 
-const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDeleteVideo, collections = [] }) => {
+const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: propVideos, onDeleteVideo, collections = [] }) => {
     const { t } = useLanguage();
     const { author } = useParams<{ author: string }>();
     const navigate = useNavigate();
+    const { videos: contextVideos, loading: contextLoading } = useVideo();
+
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+
+    // Use prop videos if available, otherwise context videos
+    const videos = propVideos && propVideos.length > 0 ? propVideos : contextVideos;
+    const loading = (propVideos && propVideos.length > 0) ? false : contextLoading;
 
     useEffect(() => {
         if (!author) return;
 
-        // If videos are passed as props, filter them
-        if (allVideos && allVideos.length > 0) {
-            const filteredVideos = allVideos.filter(
+        if (videos) {
+            const filteredVideos = videos.filter(
                 video => video.author === author
             );
             setAuthorVideos(filteredVideos);
-            setLoading(false);
-            return;
         }
-
-        // Otherwise fetch from API
-        const fetchVideos = async () => {
-            try {
-                const response = await axios.get(`${API_URL}/videos`);
-                // Filter videos by author
-                const filteredVideos = response.data.filter(
-                    (video: Video) => video.author === author
-                );
-                setAuthorVideos(filteredVideos);
-                setError(null);
-            } catch (err) {
-                console.error('Error fetching videos:', err);
-                setError('Failed to load videos. Please try again later.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchVideos();
-    }, [author, allVideos]);
+    }, [author, videos]);
 
     const handleBack = () => {
         navigate(-1);
@@ -76,14 +55,6 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: allVideos, onDelete
                 <CircularProgress />
                 <Typography sx={{ ml: 2 }}>{t('loadingVideos')}</Typography>
             </Box>
-        );
-    }
-
-    if (error) {
-        return (
-            <Container sx={{ mt: 4 }}>
-                <Alert severity="error">{t('loadVideosError')}</Alert>
-            </Container>
         );
     }
 

@@ -10,6 +10,7 @@ import {
     ThemeProvider,
     Typography
 } from '@mui/material';
+import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -24,34 +25,37 @@ interface LoginPageProps {
 const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
     const { t } = useLanguage();
 
     // Use dark theme for login page to match app style
     const theme = getTheme('dark');
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-
-        try {
+    const loginMutation = useMutation({
+        mutationFn: async (password: string) => {
             const response = await axios.post(`${API_URL}/settings/verify-password`, { password });
-            if (response.data.success) {
+            return response.data;
+        },
+        onSuccess: (data) => {
+            if (data.success) {
                 onLoginSuccess();
             } else {
                 setError(t('incorrectPassword'));
             }
-        } catch (err: any) {
+        },
+        onError: (err: any) => {
             console.error('Login error:', err);
             if (err.response && err.response.status === 401) {
                 setError(t('incorrectPassword'));
             } else {
                 setError(t('loginFailed'));
             }
-        } finally {
-            setLoading(false);
         }
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        loginMutation.mutate(password);
     };
 
     return (
@@ -97,9 +101,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                             fullWidth
                             variant="contained"
                             sx={{ mt: 3, mb: 2 }}
-                            disabled={loading}
+                            disabled={loginMutation.isPending}
                         >
-                            {loading ? t('verifying') : t('signIn')}
+                            {loginMutation.isPending ? t('verifying') : t('signIn')}
                         </Button>
                     </Box>
                 </Box>

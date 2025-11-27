@@ -1,8 +1,8 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
 import { useSnackbar } from './SnackbarContext';
-import { useVideo } from './VideoContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -27,46 +27,66 @@ export const useCollection = () => {
 
 export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
-    const { fetchVideos } = useVideo();
-    const [collections, setCollections] = useState<Collection[]>([]);
+    const queryClient = useQueryClient();
+
+    const { data: collections = [], refetch: fetchCollectionsQuery } = useQuery({
+        queryKey: ['collections'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/collections`);
+            return response.data as Collection[];
+        }
+    });
 
     const fetchCollections = async () => {
-        try {
-            const response = await axios.get(`${API_URL}/collections`);
-            setCollections(response.data);
-        } catch (error) {
-            console.error('Error fetching collections:', error);
-        }
+        await fetchCollectionsQuery();
     };
 
-    const createCollection = async (name: string, videoId: string) => {
-        try {
+    const createCollectionMutation = useMutation({
+        mutationFn: async ({ name, videoId }: { name: string, videoId: string }) => {
             const response = await axios.post(`${API_URL}/collections`, {
                 name,
                 videoId
             });
-            setCollections(prevCollections => [...prevCollections, response.data]);
-            showSnackbar('Collection created successfully');
             return response.data;
-        } catch (error) {
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
+            showSnackbar('Collection created successfully');
+        },
+        onError: (error) => {
             console.error('Error creating collection:', error);
+        }
+    });
+
+    const createCollection = async (name: string, videoId: string) => {
+        try {
+            return await createCollectionMutation.mutateAsync({ name, videoId });
+        } catch {
             return null;
         }
     };
 
-    const addToCollection = async (collectionId: string, videoId: string) => {
-        try {
+    const addToCollectionMutation = useMutation({
+        mutationFn: async ({ collectionId, videoId }: { collectionId: string, videoId: string }) => {
             const response = await axios.put(`${API_URL}/collections/${collectionId}`, {
                 videoId,
                 action: "add"
             });
-            setCollections(prevCollections => prevCollections.map(collection =>
-                collection.id === collectionId ? response.data : collection
-            ));
-            showSnackbar('Video added to collection');
             return response.data;
-        } catch (error) {
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
+            showSnackbar('Video added to collection');
+        },
+        onError: (error) => {
             console.error('Error adding video to collection:', error);
+        }
+    });
+
+    const addToCollection = async (collectionId: string, videoId: string) => {
+        try {
+            return await addToCollectionMutation.mutateAsync({ collectionId, videoId });
+        } catch {
             return null;
         }
     };
@@ -77,18 +97,14 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 collection.videos.includes(videoId)
             );
 
-            for (const collection of collectionsWithVideo) {
-                await axios.put(`${API_URL}/collections/${collection.id}`, {
+            await Promise.all(collectionsWithVideo.map(collection =>
+                axios.put(`${API_URL}/collections/${collection.id}`, {
                     videoId,
                     action: "remove"
-                });
-            }
+                })
+            ));
 
-            setCollections(prevCollections => prevCollections.map(collection => ({
-                ...collection,
-                videos: collection.videos.filter(v => v !== videoId)
-            })));
-
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
             showSnackbar('Video removed from collection');
             return true;
         } catch (error) {
@@ -97,33 +113,34 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     };
 
-    const deleteCollection = async (collectionId: string, deleteVideos = false) => {
-        try {
+    const deleteCollectionMutation = useMutation({
+        mutationFn: async ({ collectionId, deleteVideos }: { collectionId: string, deleteVideos: boolean }) => {
             await axios.delete(`${API_URL}/collections/${collectionId}`, {
                 params: { deleteVideos: deleteVideos ? 'true' : 'false' }
             });
-
-            setCollections(prevCollections =>
-                prevCollections.filter(collection => collection.id !== collectionId)
-            );
-
+            return { collectionId, deleteVideos };
+        },
+        onSuccess: ({ deleteVideos }) => {
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
             if (deleteVideos) {
-                await fetchVideos();
+                queryClient.invalidateQueries({ queryKey: ['videos'] });
             }
-
             showSnackbar('Collection deleted successfully');
-            return { success: true };
-        } catch (error) {
+        },
+        onError: (error) => {
             console.error('Error deleting collection:', error);
             showSnackbar('Failed to delete collection', 'error');
+        }
+    });
+
+    const deleteCollection = async (collectionId: string, deleteVideos = false) => {
+        try {
+            await deleteCollectionMutation.mutateAsync({ collectionId, deleteVideos });
+            return { success: true };
+        } catch {
             return { success: false, error: 'Failed to delete collection' };
         }
     };
-
-    // Fetch collections on mount
-    useEffect(() => {
-        fetchCollections();
-    }, []);
 
     return (
         <CollectionContext.Provider value={{

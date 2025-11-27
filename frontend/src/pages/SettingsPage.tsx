@@ -23,6 +23,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -46,6 +47,10 @@ interface Settings {
 }
 
 const SettingsPage: React.FC = () => {
+    const queryClient = useQueryClient();
+    const { t, setLanguage } = useLanguage();
+    const { activeDownloads } = useDownload();
+
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
         password: '',
@@ -56,7 +61,6 @@ const SettingsPage: React.FC = () => {
         tags: []
     });
     const [newTag, setNewTag] = useState('');
-    const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
     // Modal states
@@ -72,50 +76,190 @@ const SettingsPage: React.FC = () => {
 
     const [debugMode, setDebugMode] = useState(ConsoleManager.getDebugMode());
 
-    const { t, setLanguage } = useLanguage();
-    const { activeDownloads } = useDownload();
+    // Fetch settings
+    const { data: settingsData } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/settings`);
+            return response.data;
+        }
+    });
 
     useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    const fetchSettings = async () => {
-        try {
-            const response = await axios.get(`${API_URL}/settings`);
+        if (settingsData) {
             setSettings({
-                ...response.data,
-                tags: response.data.tags || []
+                ...settingsData,
+                tags: settingsData.tags || []
             });
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            setMessage({ text: t('settingsFailed'), type: 'error' });
-        } finally {
-            // Loading finished
         }
-    };
+    }, [settingsData]);
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
+    // Save settings mutation
+    const saveMutation = useMutation({
+        mutationFn: async (newSettings: Settings) => {
             // Only send password if it has been changed (is not empty)
-            const settingsToSend = { ...settings };
+            const settingsToSend = { ...newSettings };
             if (!settingsToSend.password) {
                 delete settingsToSend.password;
             }
-
-            console.log('Saving settings:', settingsToSend);
             await axios.post(`${API_URL}/settings`, settingsToSend);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['settings'] });
             setMessage({ text: t('settingsSaved'), type: 'success' });
-
             // Clear password field after save
             setSettings(prev => ({ ...prev, password: '', isPasswordSet: true }));
-        } catch (error) {
-            console.error('Error saving settings:', error);
+        },
+        onError: () => {
             setMessage({ text: t('settingsFailed'), type: 'error' });
-        } finally {
-            setSaving(false);
         }
+    });
+
+    const handleSave = () => {
+        saveMutation.mutate(settings);
     };
+
+    // Scan files mutation
+    const scanMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/scan-files`);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: t('scanFilesSuccess').replace('{count}', data.addedCount.toString()),
+                type: 'success'
+            });
+        },
+        onError: (error: any) => {
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: `${t('scanFilesFailed')}: ${error.response?.data?.details || error.message}`,
+                type: 'error'
+            });
+        }
+    });
+
+    // Migrate data mutation
+    const migrateMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/settings/migrate`);
+            return res.data.results;
+        },
+        onSuccess: (results) => {
+            let msg = `${t('migrationReport')}:\n`;
+            let hasData = false;
+
+            if (results.warnings && results.warnings.length > 0) {
+                msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
+            }
+
+            const categories = ['videos', 'collections', 'settings', 'downloads'];
+            categories.forEach(cat => {
+                const data = results[cat];
+                if (data) {
+                    if (data.found) {
+                        msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
+                        hasData = true;
+                    } else {
+                        msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
+                    }
+                }
+            });
+
+            if (results.errors && results.errors.length > 0) {
+                msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
+            }
+
+            if (!hasData && (!results.errors || results.errors.length === 0)) {
+                msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
+            }
+
+            setInfoModal({
+                isOpen: true,
+                title: hasData ? t('migrationResults') : t('migrationNoData'),
+                message: msg,
+                type: hasData ? 'success' : 'warning'
+            });
+        },
+        onError: (error: any) => {
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
+                type: 'error'
+            });
+        }
+    });
+
+    // Cleanup temp files mutation
+    const cleanupMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/cleanup-temp-files`);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            const { deletedCount, errors } = data;
+            let msg = t('cleanupTempFilesSuccess').replace('{count}', deletedCount.toString());
+            if (errors && errors.length > 0) {
+                msg += `\n\nErrors:\n${errors.join('\n')}`;
+            }
+
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: msg,
+                type: errors && errors.length > 0 ? 'warning' : 'success'
+            });
+        },
+        onError: (error: any) => {
+            const errorMsg = error.response?.data?.error === "Cannot clean up while downloads are active"
+                ? t('cleanupTempFilesActiveDownloads')
+                : `${t('cleanupTempFilesFailed')}: ${error.response?.data?.details || error.message}`;
+
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: errorMsg,
+                type: 'error'
+            });
+        }
+    });
+
+    // Delete legacy data mutation
+    const deleteLegacyMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/settings/delete-legacy`);
+            return res.data.results;
+        },
+        onSuccess: (results) => {
+            let msg = `${t('legacyDataDeleted')}\n`;
+            if (results.deleted.length > 0) {
+                msg += `\nDeleted: ${results.deleted.join(', ')}`;
+            }
+            if (results.failed.length > 0) {
+                msg += `\nFailed: ${results.failed.join(', ')}`;
+            }
+
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: msg,
+                type: 'success'
+            });
+        },
+        onError: (error: any) => {
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
+                type: 'error'
+            });
+        }
+    });
 
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
@@ -136,6 +280,8 @@ const SettingsPage: React.FC = () => {
         const updatedTags = settings.tags.filter(tag => tag !== tagToDelete);
         setSettings(prev => ({ ...prev, tags: updatedTags }));
     };
+
+    const isSaving = saveMutation.isPending || scanMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -314,7 +460,7 @@ const SettingsPage: React.FC = () => {
                                     variant="outlined"
                                     color="warning"
                                     onClick={() => setShowCleanupTempFilesModal(true)}
-                                    disabled={saving || activeDownloads.length > 0}
+                                    disabled={isSaving || activeDownloads.length > 0}
                                 >
                                     {t('cleanupTempFiles')}
                                 </Button>
@@ -333,7 +479,7 @@ const SettingsPage: React.FC = () => {
                                 variant="outlined"
                                 color="warning"
                                 onClick={() => setShowMigrateConfirmModal(true)}
-                                disabled={saving}
+                                disabled={isSaving}
                             >
                                 {t('migrateDataButton')}
                             </Button>
@@ -341,31 +487,8 @@ const SettingsPage: React.FC = () => {
                             <Button
                                 variant="outlined"
                                 color="primary"
-                                onClick={async () => {
-                                    setSaving(true);
-                                    try {
-                                        const res = await axios.post(`${API_URL}/scan-files`);
-                                        const { addedCount } = res.data;
-
-                                        setInfoModal({
-                                            isOpen: true,
-                                            title: t('success'),
-                                            message: t('scanFilesSuccess').replace('{count}', addedCount.toString()),
-                                            type: 'success'
-                                        });
-                                    } catch (error: any) {
-                                        console.error('Scan failed:', error);
-                                        setInfoModal({
-                                            isOpen: true,
-                                            title: t('error'),
-                                            message: `${t('scanFilesFailed')}: ${error.response?.data?.details || error.message}`,
-                                            type: 'error'
-                                        });
-                                    } finally {
-                                        setSaving(false);
-                                    }
-                                }}
-                                disabled={saving}
+                                onClick={() => scanMutation.mutate()}
+                                disabled={isSaving}
                                 sx={{ ml: 2 }}
                             >
                                 {t('scanFiles')}
@@ -380,7 +503,7 @@ const SettingsPage: React.FC = () => {
                                     variant="outlined"
                                     color="error"
                                     onClick={() => setShowDeleteLegacyModal(true)}
-                                    disabled={saving}
+                                    disabled={isSaving}
                                 >
                                     {t('deleteLegacyDataButton')}
                                 </Button>
@@ -416,9 +539,9 @@ const SettingsPage: React.FC = () => {
                                     size="large"
                                     startIcon={<Save />}
                                     onClick={handleSave}
-                                    disabled={saving}
+                                    disabled={isSaving}
                                 >
-                                    {saving ? t('saving') : t('saveSettings')}
+                                    {isSaving ? t('saving') : t('saveSettings')}
                                 </Button>
                             </Box>
                         </Grid>
@@ -439,42 +562,9 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showDeleteLegacyModal}
                 onClose={() => setShowDeleteLegacyModal(false)}
-                onConfirm={async () => {
-                    setSaving(true);
-                    try {
-                        const res = await axios.post(`${API_URL}/settings/delete-legacy`);
-                        const results = res.data.results;
-                        console.log('Delete legacy results:', results);
-
-                        let msg = `${t('legacyDataDeleted')}\n`;
-                        if (results.deleted.length > 0) {
-                            msg += `\nDeleted: ${results.deleted.join(', ')}`;
-                        }
-                        if (results.failed.length > 0) {
-                            msg += `\nFailed: ${results.failed.join(', ')}`;
-                        }
-
-                        if (results.failed.length > 0) {
-                            msg += `\nFailed: ${results.failed.join(', ')}`;
-                        }
-
-                        setInfoModal({
-                            isOpen: true,
-                            title: t('success'),
-                            message: msg,
-                            type: 'success'
-                        });
-                    } catch (error: any) {
-                        console.error('Failed to delete legacy data:', error);
-                        setInfoModal({
-                            isOpen: true,
-                            title: t('error'),
-                            message: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
-                            type: 'error'
-                        });
-                    } finally {
-                        setSaving(false);
-                    }
+                onConfirm={() => {
+                    setShowDeleteLegacyModal(false);
+                    deleteLegacyMutation.mutate();
                 }}
                 title={t('removeLegacyDataConfirmTitle')}
                 message={t('removeLegacyDataConfirmMessage')}
@@ -487,58 +577,9 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showMigrateConfirmModal}
                 onClose={() => setShowMigrateConfirmModal(false)}
-                onConfirm={async () => {
-                    setSaving(true);
-                    try {
-                        const res = await axios.post(`${API_URL}/settings/migrate`);
-                        const results = res.data.results;
-                        console.log('Migration results:', results);
-
-                        let msg = `${t('migrationReport')}:\n`;
-                        let hasData = false;
-
-                        if (results.warnings && results.warnings.length > 0) {
-                            msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
-                        }
-
-                        const categories = ['videos', 'collections', 'settings', 'downloads'];
-                        categories.forEach(cat => {
-                            const data = results[cat];
-                            if (data) {
-                                if (data.found) {
-                                    msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
-                                    hasData = true;
-                                } else {
-                                    msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
-                                }
-                            }
-                        });
-
-                        if (results.errors && results.errors.length > 0) {
-                            msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
-                        }
-
-                        if (!hasData && (!results.errors || results.errors.length === 0)) {
-                            msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
-                        }
-
-                        setInfoModal({
-                            isOpen: true,
-                            title: hasData ? t('migrationResults') : t('migrationNoData'),
-                            message: msg,
-                            type: hasData ? 'success' : 'warning'
-                        });
-                    } catch (error: any) {
-                        console.error('Migration failed:', error);
-                        setInfoModal({
-                            isOpen: true,
-                            title: t('error'),
-                            message: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
-                            type: 'error'
-                        });
-                    } finally {
-                        setSaving(false);
-                    }
+                onConfirm={() => {
+                    setShowMigrateConfirmModal(false);
+                    migrateMutation.mutate();
                 }}
                 title={t('migrateDataButton')}
                 message={t('migrateConfirmation')}
@@ -550,38 +591,9 @@ const SettingsPage: React.FC = () => {
             <ConfirmationModal
                 isOpen={showCleanupTempFilesModal}
                 onClose={() => setShowCleanupTempFilesModal(false)}
-                onConfirm={async () => {
-                    setSaving(true);
-                    try {
-                        const res = await axios.post(`${API_URL}/cleanup-temp-files`);
-                        const { deletedCount, errors } = res.data;
-
-                        let msg = t('cleanupTempFilesSuccess').replace('{count}', deletedCount.toString());
-                        if (errors && errors.length > 0) {
-                            msg += `\n\nErrors:\n${errors.join('\n')}`;
-                        }
-
-                        setInfoModal({
-                            isOpen: true,
-                            title: t('success'),
-                            message: msg,
-                            type: errors && errors.length > 0 ? 'warning' : 'success'
-                        });
-                    } catch (error: any) {
-                        console.error('Cleanup failed:', error);
-                        const errorMsg = error.response?.data?.error === "Cannot clean up while downloads are active"
-                            ? t('cleanupTempFilesActiveDownloads')
-                            : `${t('cleanupTempFilesFailed')}: ${error.response?.data?.details || error.message}`;
-
-                        setInfoModal({
-                            isOpen: true,
-                            title: t('error'),
-                            message: errorMsg,
-                            type: 'error'
-                        });
-                    } finally {
-                        setSaving(false);
-                    }
+                onConfirm={() => {
+                    setShowCleanupTempFilesModal(false);
+                    cleanupMutation.mutate();
                 }}
                 title={t('cleanupTempFilesConfirmTitle')}
                 message={t('cleanupTempFilesConfirmMessage')}

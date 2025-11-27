@@ -12,6 +12,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
+import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -29,7 +30,6 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
     const [file, setFile] = useState<File | null>(null);
     const [title, setTitle] = useState<string>('');
     const [author, setAuthor] = useState<string>('Admin');
-    const [uploading, setUploading] = useState<boolean>(false);
     const [progress, setProgress] = useState<number>(0);
     const [error, setError] = useState<string>('');
 
@@ -43,22 +43,8 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
         }
     };
 
-    const handleUpload = async () => {
-        if (!file) {
-            setError(t('pleaseSelectVideo'));
-            return;
-        }
-
-        setUploading(true);
-        setError('');
-        setProgress(0);
-
-        const formData = new FormData();
-        formData.append('video', file);
-        formData.append('title', title);
-        formData.append('author', author);
-
-        try {
+    const uploadMutation = useMutation({
+        mutationFn: async (formData: FormData) => {
             await axios.post(`${API_URL}/upload`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
@@ -68,15 +54,32 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                     setProgress(percentCompleted);
                 },
             });
-
+        },
+        onSuccess: () => {
             onUploadSuccess();
             handleClose();
-        } catch (err: any) {
+        },
+        onError: (err: any) => {
             console.error('Upload failed:', err);
             setError(err.response?.data?.error || t('failedToUpload'));
-        } finally {
-            setUploading(false);
         }
+    });
+
+    const handleUpload = () => {
+        if (!file) {
+            setError(t('pleaseSelectVideo'));
+            return;
+        }
+
+        setError('');
+        setProgress(0);
+
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('title', title);
+        formData.append('author', author);
+
+        uploadMutation.mutate(formData);
     };
 
     const handleClose = () => {
@@ -89,7 +92,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
     };
 
     return (
-        <Dialog open={open} onClose={!uploading ? handleClose : undefined} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={!uploadMutation.isPending ? handleClose : undefined} maxWidth="sm" fullWidth>
             <DialogTitle>{t('uploadVideo')}</DialogTitle>
             <DialogContent>
                 <Stack spacing={3} sx={{ mt: 1 }}>
@@ -114,7 +117,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         fullWidth
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        disabled={uploading}
+                        disabled={uploadMutation.isPending}
                     />
 
                     <TextField
@@ -122,7 +125,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         fullWidth
                         value={author}
                         onChange={(e) => setAuthor(e.target.value)}
-                        disabled={uploading}
+                        disabled={uploadMutation.isPending}
                     />
 
                     {error && (
@@ -131,7 +134,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                         </Typography>
                     )}
 
-                    {uploading && (
+                    {uploadMutation.isPending && (
                         <Box sx={{ width: '100%' }}>
                             <LinearProgress variant="determinate" value={progress} />
                             <Typography variant="caption" color="text.secondary" align="center" display="block" sx={{ mt: 1 }}>
@@ -142,13 +145,13 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                 </Stack>
             </DialogContent>
             <DialogActions>
-                <Button onClick={handleClose} disabled={uploading}>{t('cancel')}</Button>
+                <Button onClick={handleClose} disabled={uploadMutation.isPending}>{t('cancel')}</Button>
                 <Button
                     onClick={handleUpload}
                     variant="contained"
-                    disabled={!file || uploading}
+                    disabled={!file || uploadMutation.isPending}
                 >
-                    {uploading ? <CircularProgress size={24} /> : t('upload')}
+                    {uploadMutation.isPending ? <CircularProgress size={24} /> : t('upload')}
                 </Button>
             </DialogActions>
         </Dialog>

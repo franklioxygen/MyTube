@@ -20,23 +20,14 @@ import {
     Tabs,
     Typography
 } from '@mui/material';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
-
-interface DownloadInfo {
-    id: string;
-    title: string;
-    timestamp: number;
-    filename?: string;
-    totalSize?: string;
-    downloadedSize?: string;
-    progress?: number;
-    speed?: string;
-}
 
 interface DownloadHistoryItem {
     id: string;
@@ -80,102 +71,114 @@ function CustomTabPanel(props: TabPanelProps) {
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const { activeDownloads, queuedDownloads } = useDownload();
+    const queryClient = useQueryClient();
     const [tabValue, setTabValue] = useState(0);
-    const [activeDownloads, setActiveDownloads] = useState<DownloadInfo[]>([]);
-    const [queuedDownloads, setQueuedDownloads] = useState<DownloadInfo[]>([]);
-    const [history, setHistory] = useState<DownloadHistoryItem[]>([]);
 
-    const fetchStatus = async () => {
-        try {
-            const response = await axios.get(`${API_URL}/download-status`);
-            setActiveDownloads(response.data.activeDownloads);
-            setQueuedDownloads(response.data.queuedDownloads);
-        } catch (error) {
-            console.error('Error fetching download status:', error);
-        }
-    };
-
-    const fetchHistory = async () => {
-        try {
+    // Fetch history with polling
+    const { data: history = [] } = useQuery({
+        queryKey: ['downloadHistory'],
+        queryFn: async () => {
             const response = await axios.get(`${API_URL}/downloads/history`);
-            setHistory(response.data);
-        } catch (error) {
-            console.error('Error fetching history:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchStatus();
-        fetchHistory();
-        const interval = setInterval(() => {
-            fetchStatus();
-            fetchHistory();
-        }, 1000);
-        return () => clearInterval(interval);
-    }, []);
+            return response.data;
+        },
+        refetchInterval: 2000
+    });
 
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
 
-    const handleCancelDownload = async (id: string) => {
-        try {
+    // Cancel download mutation
+    const cancelMutation = useMutation({
+        mutationFn: async (id: string) => {
             await axios.post(`${API_URL}/downloads/cancel/${id}`);
+        },
+        onSuccess: () => {
             showSnackbar(t('downloadCancelled') || 'Download cancelled');
-            fetchStatus();
-        } catch (error) {
-            console.error('Error cancelling download:', error);
+            // DownloadContext handles active/queued updates via its own polling
+            // But we might want to invalidate to be sure
+            queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+        },
+        onError: () => {
             showSnackbar(t('error') || 'Error');
         }
+    });
+
+    const handleCancelDownload = (id: string) => {
+        cancelMutation.mutate(id);
     };
 
-    const handleRemoveFromQueue = async (id: string) => {
-        try {
+    // Remove from queue mutation
+    const removeFromQueueMutation = useMutation({
+        mutationFn: async (id: string) => {
             await axios.delete(`${API_URL}/downloads/queue/${id}`);
+        },
+        onSuccess: () => {
             showSnackbar(t('removedFromQueue') || 'Removed from queue');
-            fetchStatus();
-        } catch (error) {
-            console.error('Error removing from queue:', error);
+            queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+        },
+        onError: () => {
             showSnackbar(t('error') || 'Error');
         }
+    });
+
+    const handleRemoveFromQueue = (id: string) => {
+        removeFromQueueMutation.mutate(id);
     };
 
-    const handleClearQueue = async () => {
-        try {
+    // Clear queue mutation
+    const clearQueueMutation = useMutation({
+        mutationFn: async () => {
             await axios.delete(`${API_URL}/downloads/queue`);
+        },
+        onSuccess: () => {
             showSnackbar(t('queueCleared') || 'Queue cleared');
-            fetchStatus();
-        } catch (error) {
-            console.error('Error clearing queue:', error);
+            queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+        },
+        onError: () => {
             showSnackbar(t('error') || 'Error');
         }
+    });
+
+    const handleClearQueue = () => {
+        clearQueueMutation.mutate();
     };
 
-    const handleRemoveFromHistory = async (id: string) => {
-        try {
+    // Remove from history mutation
+    const removeFromHistoryMutation = useMutation({
+        mutationFn: async (id: string) => {
             await axios.delete(`${API_URL}/downloads/history/${id}`);
+        },
+        onSuccess: () => {
             showSnackbar(t('removedFromHistory') || 'Removed from history');
-            fetchHistory();
-        } catch (error) {
-            console.error('Error removing from history:', error);
+            queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+        },
+        onError: () => {
             showSnackbar(t('error') || 'Error');
         }
+    });
+
+    const handleRemoveFromHistory = (id: string) => {
+        removeFromHistoryMutation.mutate(id);
     };
 
-    const handleClearHistory = async () => {
-        try {
+    // Clear history mutation
+    const clearHistoryMutation = useMutation({
+        mutationFn: async () => {
             await axios.delete(`${API_URL}/downloads/history`);
+        },
+        onSuccess: () => {
             showSnackbar(t('historyCleared') || 'History cleared');
-            fetchHistory();
-        } catch (error) {
-            console.error('Error clearing history:', error);
+            queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+        },
+        onError: () => {
             showSnackbar(t('error') || 'Error');
         }
-    };
+    });
 
-    const formatBytes = (bytes?: string | number) => {
-        if (!bytes) return '-';
-        return bytes.toString(); // Simplified, ideally use a helper
+    const handleClearHistory = () => {
+        clearHistoryMutation.mutate();
     };
 
     const formatDate = (timestamp: number) => {
@@ -279,7 +282,7 @@ const DownloadPage: React.FC = () => {
                     <Typography color="textSecondary">{t('noDownloadHistory') || 'No download history'}</Typography>
                 ) : (
                     <List>
-                        {history.map((item) => (
+                        {history.map((item: DownloadHistoryItem) => (
                             <Paper key={item.id} sx={{ mb: 2, p: 2 }}>
                                 <ListItem disableGutters>
                                     <ListItemText

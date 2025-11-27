@@ -93,7 +93,7 @@ const Header: React.FC<HeaderProps> = ({
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
 
-    const isDownloading = activeDownloads.length > 0 || queuedDownloads.length > 0;
+
 
     useEffect(() => {
         console.log('Header props:', { activeDownloads, queuedDownloads });
