@@ -185,6 +185,15 @@ export const ja = {
     deleteCollectionOnly: "コレクションのみ削除",
     deleteCollectionAndVideos: "コレクションとすべての動画を削除",
     
+    // Snackbar Messages
+    videoDownloading: "動画をダウンロード中",
+    downloadStartedSuccessfully: "ダウンロードが正常に開始されました",
+    collectionCreatedSuccessfully: "コレクションが正常に作成されました",
+    videoAddedToCollection: "動画がコレクションに追加されました",
+    videoRemovedFromCollection: "動画がコレクションから削除されました",
+    collectionDeletedSuccessfully: "コレクションが正常に削除されました",
+    failedToDeleteCollection: "コレクションの削除に失敗しました",
+    
     // Common
     loading: "読み込み中...",
     error: "エラー",

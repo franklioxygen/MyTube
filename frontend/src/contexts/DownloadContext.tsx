@@ -3,6 +3,7 @@ import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { DownloadInfo } from '../types';
 import { useCollection } from './CollectionContext';
+import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
 
@@ -64,6 +65,7 @@ const getStoredDownloadStatus = () => {
 
 export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
+    const { t } = useLanguage();
     const { fetchVideos, handleSearch, setVideos } = useVideo();
     const { fetchCollections } = useCollection();
     const queryClient = useQueryClient();
@@ -207,7 +209,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 setVideos(prevVideos => [response.data.video, ...prevVideos]);
             }
 
-            showSnackbar('Video downloading');
+            showSnackbar(t('videoDownloading'));
             return { success: true };
         } catch (err: any) {
             console.error('Error downloading video:', err);
@@ -247,7 +249,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 await fetchCollections();
             }
 
-            showSnackbar('Download started successfully');
+            showSnackbar(t('downloadStartedSuccessfully'));
             return { success: true };
         } catch (err: any) {
             console.error('Error downloading Bilibili parts/collection:', err);

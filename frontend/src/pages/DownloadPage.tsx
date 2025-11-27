@@ -219,9 +219,23 @@ const DownloadPage: React.FC = () => {
                                         secondary={
                                             <Box sx={{ mt: 1 }}>
                                                 <LinearProgress variant="determinate" value={download.progress || 0} sx={{ mb: 1 }} />
-                                                <Typography variant="caption" color="textSecondary">
-                                                    {download.progress?.toFixed(1)}% • {download.speed || '0 B/s'} • {download.downloadedSize || '0'} / {download.totalSize || '?'}
-                                                </Typography>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                                    <Typography variant="body2" fontWeight="bold" color="primary">
+                                                        {download.progress?.toFixed(1)}%
+                                                    </Typography>
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        •
+                                                    </Typography>
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        {download.speed || '0 B/s'}
+                                                    </Typography>
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        •
+                                                    </Typography>
+                                                    <Typography variant="caption" color="textSecondary">
+                                                        {download.downloadedSize || '0'} / {download.totalSize || '?'}
+                                                    </Typography>
+                                                </Box>
                                             </Box>
                                         }
                                     />

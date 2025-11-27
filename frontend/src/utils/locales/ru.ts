@@ -171,6 +171,15 @@ export const ru = {
     loadingCollection: "Загрузка коллекции...",
     collectionNotFound: "Коллекция не найдена",
     noVideosInCollection: "В этой коллекции нет видео.",
+
+    // Snackbar Messages
+    videoDownloading: "Видео скачивается",
+    downloadStartedSuccessfully: "Загрузка успешно началась",
+    collectionCreatedSuccessfully: "Коллекция успешно создана",
+    videoAddedToCollection: "Видео добавлено в коллекцию",
+    videoRemovedFromCollection: "Видео удалено из коллекции",
+    collectionDeletedSuccessfully: "Коллекция успешно удалена",
+    failedToDeleteCollection: "Не удалось удалить коллекцию",
     back: "Назад",
     
     // Author Videos

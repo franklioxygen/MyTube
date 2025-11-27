@@ -7,6 +7,7 @@ import express from "express";
 import { IMAGES_DIR, VIDEOS_DIR } from "./config/paths";
 import apiRoutes from "./routes/api";
 import settingsRoutes from './routes/settingsRoutes';
+import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { VERSION } from "./version";
 
@@ -27,6 +28,9 @@ storageService.initializeStorage();
 // Run database migrations
 import { runMigrations } from "./db/migrate";
 runMigrations();
+
+// Initialize download manager (restore queued tasks)
+downloadManager.initialize();
 
 // Serve static files
 app.use("/videos", express.static(VIDEOS_DIR));
