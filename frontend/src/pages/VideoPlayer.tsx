@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import CollectionModal from '../components/VideoPlayer/CollectionModal';
@@ -25,6 +25,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
+import { getRecommendations } from '../utils/recommendations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -343,8 +344,15 @@ const VideoPlayer: React.FC = () => {
         );
     }
 
-    // Get related videos (exclude current video)
-    const relatedVideos = videos.filter(v => v.id !== id).slice(0, 10);
+    // Get related videos using recommendation algorithm
+    const relatedVideos = useMemo(() => {
+        if (!video) return [];
+        return getRecommendations({
+            currentVideo: video,
+            allVideos: videos,
+            collections: collections
+        }).slice(0, 10);
+    }, [video, videos, collections]);
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
