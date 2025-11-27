@@ -657,7 +657,10 @@ export const incrementViewCount = (req: Request, res: Response): any => {
     }
 
     const currentViews = video.viewCount || 0;
-    const updatedVideo = storageService.updateVideo(id, { viewCount: currentViews + 1 });
+    const updatedVideo = storageService.updateVideo(id, { 
+      viewCount: currentViews + 1,
+      lastPlayedAt: Date.now()
+    });
 
     res.status(200).json({
       success: true,
@@ -679,7 +682,10 @@ export const updateProgress = (req: Request, res: Response): any => {
       return res.status(400).json({ error: "Progress must be a number" });
     }
 
-    const updatedVideo = storageService.updateVideo(id, { progress });
+    const updatedVideo = storageService.updateVideo(id, { 
+      progress,
+      lastPlayedAt: Date.now()
+    });
 
     if (!updatedVideo) {
       return res.status(404).json({ error: "Video not found" });

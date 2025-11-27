@@ -143,6 +143,12 @@ export function initializeStorage(): void {
       console.log("Migration successful: file_size added.");
     }
 
+    if (!columns.includes('last_played_at')) {
+      console.log("Migrating database: Adding last_played_at column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER").run();
+      console.log("Migration successful: last_played_at added.");
+    }
+
     // Populate fileSize for existing videos
     const allVideos = db.select().from(videos).all();
     let updatedCount = 0;

@@ -20,6 +20,7 @@ export interface Video {
   progress?: number;
   duration?: string;
   fileSize?: string; // Size in bytes as string
+  lastPlayedAt?: number;
   [key: string]: any;
 }
 
