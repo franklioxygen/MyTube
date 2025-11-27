@@ -104,6 +104,7 @@ export const ru = {
     authors: "Авторы",
     created: "Создано",
     name: "Имя",
+    size: "Размер",
     actions: "Действия",
     deleteCollection: "Удалить коллекцию",
     deleteVideo: "Удалить видео",

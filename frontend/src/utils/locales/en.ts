@@ -104,6 +104,7 @@ export const en = {
     authors: "Authors",
     created: "Created",
     name: "Name",
+    size: "Size",
     actions: "Actions",
     deleteCollection: "Delete Collection",
     deleteVideo: "Delete Video",

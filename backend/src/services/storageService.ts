@@ -21,6 +21,7 @@ export interface Video {
   tags?: string[];
   viewCount?: number;
   progress?: number;
+  fileSize?: string;
   [key: string]: any;
 }
 
@@ -135,8 +136,34 @@ export function initializeStorage(): void {
       sqlite.prepare("ALTER TABLE videos ADD COLUMN duration TEXT").run();
       console.log("Migration successful: duration added.");
     }
+
+    if (!columns.includes('file_size')) {
+      console.log("Migrating database: Adding file_size column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN file_size TEXT").run();
+      console.log("Migration successful: file_size added.");
+    }
+
+    // Populate fileSize for existing videos
+    const allVideos = db.select().from(videos).all();
+    let updatedCount = 0;
+    for (const video of allVideos) {
+        if (!video.fileSize && video.videoFilename) {
+             const videoPath = findVideoFile(video.videoFilename);
+             if (videoPath && fs.existsSync(videoPath)) {
+                 const stats = fs.statSync(videoPath);
+                 db.update(videos)
+                   .set({ fileSize: stats.size.toString() })
+                   .where(eq(videos.id, video.id))
+                   .run();
+                 updatedCount++;
+             }
+        }
+    }
+    if (updatedCount > 0) {
+        console.log(`Populated fileSize for ${updatedCount} videos.`);
+    }
   } catch (error) {
-    console.error("Error checking/migrating viewCount/progress/duration columns:", error);
+    console.error("Error checking/migrating viewCount/progress/duration/fileSize columns:", error);
   }
 }
 

@@ -104,6 +104,7 @@ export const pt = {
     authors: "Autores",
     created: "Criado",
     name: "Nome",
+    size: "Tamanho",
     actions: "Ações",
     deleteCollection: "Excluir Coleção",
     deleteVideo: "Excluir Vídeo",

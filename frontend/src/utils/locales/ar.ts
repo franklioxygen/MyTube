@@ -104,6 +104,7 @@ export const ar = {
     authors: "المؤلفون",
     created: "تاريخ الإنشاء",
     name: "الاسم",
+    size: "الحجم",
     actions: "إجراءات",
     deleteCollection: "حذف المجموعة",
     deleteVideo: "حذف الفيديو",

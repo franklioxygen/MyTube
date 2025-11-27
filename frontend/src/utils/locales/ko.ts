@@ -104,6 +104,7 @@ export const ko = {
     authors: "작성자 목록",
     created: "생성일",
     name: "이름",
+    size: "크기",
     actions: "작업",
     deleteCollection: "컬렉션 삭제",
     deleteVideo: "동영상 삭제",

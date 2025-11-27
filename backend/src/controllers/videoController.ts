@@ -9,12 +9,12 @@ import * as downloadService from "../services/downloadService";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl
+    extractBilibiliVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -451,6 +451,17 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     // Get video duration
     const duration = await getVideoDuration(videoPath);
 
+    // Get file size
+    let fileSize: string | undefined;
+    try {
+        if (fs.existsSync(videoPath)) {
+            const stats = fs.statSync(videoPath);
+            fileSize = stats.size.toString();
+        }
+    } catch (e) {
+        console.error("Failed to get file size:", e);
+    }
+
     const newVideo = {
       id: videoId,
       title: title || req.file.originalname,
@@ -463,6 +474,7 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
       thumbnailPath: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
       thumbnailUrl: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
       duration: duration ? duration.toString() : undefined,
+      fileSize: fileSize,
       createdAt: new Date().toISOString(),
       date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
       addedAt: new Date().toISOString(),
