@@ -13,7 +13,6 @@ import {
     LinearProgress,
     List,
     ListItem,
-    ListItemSecondaryAction,
     ListItemText,
     Paper,
     Tab,
@@ -206,7 +205,14 @@ const DownloadPage: React.FC = () => {
                     <List>
                         {activeDownloads.map((download) => (
                             <Paper key={download.id} sx={{ mb: 2, p: 2 }}>
-                                <ListItem disableGutters>
+                                <ListItem
+                                    disableGutters
+                                    secondaryAction={
+                                        <IconButton edge="end" aria-label="cancel" onClick={() => handleCancelDownload(download.id)}>
+                                            <CancelIcon />
+                                        </IconButton>
+                                    }
+                                >
                                     <ListItemText
                                         primary={download.title}
                                         secondaryTypographyProps={{ component: 'div' }}
@@ -219,11 +225,6 @@ const DownloadPage: React.FC = () => {
                                             </Box>
                                         }
                                     />
-                                    <ListItemSecondaryAction>
-                                        <IconButton edge="end" aria-label="cancel" onClick={() => handleCancelDownload(download.id)}>
-                                            <CancelIcon />
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
                                 </ListItem>
                             </Paper>
                         ))}
@@ -249,16 +250,18 @@ const DownloadPage: React.FC = () => {
                     <List>
                         {queuedDownloads.map((download) => (
                             <Paper key={download.id} sx={{ mb: 2, p: 2 }}>
-                                <ListItem disableGutters>
+                                <ListItem
+                                    disableGutters
+                                    secondaryAction={
+                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromQueue(download.id)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    }
+                                >
                                     <ListItemText
                                         primary={download.title}
                                         secondary={t('queued') || 'Queued'}
                                     />
-                                    <ListItemSecondaryAction>
-                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromQueue(download.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
                                 </ListItem>
                             </Paper>
                         ))}
@@ -284,7 +287,14 @@ const DownloadPage: React.FC = () => {
                     <List>
                         {history.map((item: DownloadHistoryItem) => (
                             <Paper key={item.id} sx={{ mb: 2, p: 2 }}>
-                                <ListItem disableGutters>
+                                <ListItem
+                                    disableGutters
+                                    secondaryAction={
+                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromHistory(item.id)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    }
+                                >
                                     <ListItemText
                                         primary={item.title}
                                         secondaryTypographyProps={{ component: 'div' }}
@@ -301,18 +311,13 @@ const DownloadPage: React.FC = () => {
                                             </Box>
                                         }
                                     />
-                                    <Box sx={{ mr: 2 }}>
+                                    <Box sx={{ mr: 8 }}>
                                         {item.status === 'success' ? (
                                             <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
                                         ) : (
                                             <Chip icon={<ErrorIcon />} label={t('failed') || 'Failed'} color="error" size="small" />
                                         )}
                                     </Box>
-                                    <ListItemSecondaryAction>
-                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromHistory(item.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
                                 </ListItem>
                             </Paper>
                         ))}

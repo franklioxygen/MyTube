@@ -4,59 +4,34 @@ import {
     Avatar,
     Box,
     Button,
-    CircularProgress,
     Container,
     Grid,
     Pagination,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import VideoCard from '../components/VideoCard';
+import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Collection, Video } from '../types';
+import { useVideo } from '../contexts/VideoContext';
 
-interface CollectionPageProps {
-    collections: Collection[];
-    videos: Video[];
-    onDeleteVideo: (id: string) => Promise<any>;
-    onDeleteCollection: (id: string, deleteVideos: boolean) => Promise<any>;
-}
-
-const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, onDeleteVideo, onDeleteCollection }) => {
+const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const [collection, setCollection] = useState<Collection | null>(null);
-    const [collectionVideos, setCollectionVideos] = useState<Video[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const { collections, deleteCollection } = useCollection();
+    const { videos, deleteVideo } = useVideo();
+
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
 
-    useEffect(() => {
-        if (collections && collections.length > 0 && id) {
-            const foundCollection = collections.find(c => c.id === id);
-
-            if (foundCollection) {
-                setCollection(foundCollection);
-
-                // Find all videos that are in this collection
-                const videosInCollection = videos.filter(video =>
-                    foundCollection.videos.includes(video.id)
-                );
-
-                setCollectionVideos(videosInCollection);
-            } else {
-                // Collection not found, redirect to home
-                navigate('/');
-            }
-        }
-
-        setLoading(false);
-        setLoading(false);
-    }, [id, collections, videos, navigate]);
+    const collection = collections.find(c => c.id === id);
+    const collectionVideos = collection
+        ? videos.filter(video => collection.videos.includes(video.id))
+        : [];
 
     // Pagination logic
     const totalPages = Math.ceil(collectionVideos.length / ITEMS_PER_PAGE);
@@ -80,8 +55,8 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
 
     const handleDeleteCollectionOnly = async () => {
         if (!id) return;
-        const success = await onDeleteCollection(id, false);
-        if (success) {
+        const result = await deleteCollection(id, false);
+        if (result.success) {
             navigate('/');
         }
         setShowDeleteModal(false);
@@ -89,26 +64,25 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
 
     const handleDeleteCollectionAndVideos = async () => {
         if (!id) return;
-        const success = await onDeleteCollection(id, true);
-        if (success) {
+        const result = await deleteCollection(id, true);
+        if (result.success) {
             navigate('/');
         }
         setShowDeleteModal(false);
     };
 
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-                <CircularProgress />
-                <Typography sx={{ ml: 2 }}>{t('loadingCollection')}</Typography>
-            </Box>
-        );
-    }
-
     if (!collection) {
         return (
             <Container sx={{ mt: 4 }}>
                 <Alert severity="error">{t('collectionNotFound')}</Alert>
+                <Button
+                    variant="outlined"
+                    startIcon={<ArrowBack />}
+                    onClick={handleBack}
+                    sx={{ mt: 2 }}
+                >
+                    {t('back')}
+                </Button>
             </Container>
         );
     }
@@ -148,7 +122,7 @@ const CollectionPage: React.FC<CollectionPageProps> = ({ collections, videos, on
                                 <VideoCard
                                     video={video}
                                     collections={collections}
-                                    onDeleteVideo={onDeleteVideo}
+                                    onDeleteVideo={deleteVideo}
                                     showDeleteButton={true}
                                     disableCollectionGrouping={true}
                                 />

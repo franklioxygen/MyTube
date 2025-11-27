@@ -12,27 +12,19 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
+import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
-import { Collection, Video } from '../types';
+import { Video } from '../types';
 
-interface AuthorVideosProps {
-    videos?: Video[]; // Make optional since we can get from context
-    onDeleteVideo: (id: string) => Promise<any>;
-    collections: Collection[];
-}
-
-const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: propVideos, onDeleteVideo, collections = [] }) => {
+const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
     const { author } = useParams<{ author: string }>();
     const navigate = useNavigate();
-    const { videos: contextVideos, loading: contextLoading } = useVideo();
+    const { videos, loading, deleteVideo } = useVideo();
+    const { collections } = useCollection();
 
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
-
-    // Use prop videos if available, otherwise context videos
-    const videos = propVideos && propVideos.length > 0 ? propVideos : contextVideos;
-    const loading = (propVideos && propVideos.length > 0) ? false : contextLoading;
 
     useEffect(() => {
         if (!author) return;
@@ -112,7 +104,7 @@ const AuthorVideos: React.FC<AuthorVideosProps> = ({ videos: propVideos, onDelet
                             <VideoCard
                                 video={video}
                                 collections={collections}
-                                onDeleteVideo={onDeleteVideo}
+                                onDeleteVideo={deleteVideo}
                                 showDeleteButton={true}
                             />
                         </Grid>

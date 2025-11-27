@@ -33,23 +33,18 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
+import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-interface ManagePageProps {
-    videos: Video[];
-    onDeleteVideo: (id: string) => Promise<any>;
-    collections: Collection[];
-    onDeleteCollection: (id: string, deleteVideos: boolean) => Promise<any>;
-}
-
-const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collections = [], onDeleteCollection }) => {
+const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const { t } = useLanguage();
-    const { refreshThumbnail, updateVideo } = useVideo();
+    const { videos, deleteVideo, refreshThumbnail, updateVideo } = useVideo();
+    const { collections, deleteCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
@@ -98,7 +93,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
         if (!videoToDelete) return;
 
         setDeletingId(videoToDelete);
-        await onDeleteVideo(videoToDelete);
+        await deleteVideo(videoToDelete);
         setDeletingId(null);
         setVideoToDelete(null);
         setShowVideoDeleteModal(false); // Close the modal after deletion
@@ -116,7 +111,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
     const handleCollectionDeleteOnly = async () => {
         if (!collectionToDelete) return;
         setIsDeletingCollection(true);
-        await onDeleteCollection(collectionToDelete.id, false);
+        await deleteCollection(collectionToDelete.id, false);
         setIsDeletingCollection(false);
         setCollectionToDelete(null);
     };
@@ -124,7 +119,7 @@ const ManagePage: React.FC<ManagePageProps> = ({ videos, onDeleteVideo, collecti
     const handleCollectionDeleteAll = async () => {
         if (!collectionToDelete) return;
         setIsDeletingCollection(true);
-        await onDeleteCollection(collectionToDelete.id, true);
+        await deleteCollection(collectionToDelete.id, true);
         setIsDeletingCollection(false);
         setCollectionToDelete(null);
     };

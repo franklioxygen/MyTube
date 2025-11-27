@@ -1,53 +1,17 @@
-import { AnimatePresence } from 'framer-motion';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import React from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import AuthorVideos from '../pages/AuthorVideos';
 import CollectionPage from '../pages/CollectionPage';
 import DownloadPage from '../pages/DownloadPage';
 import Home from '../pages/Home';
+import LoginPage from '../pages/LoginPage';
 import ManagePage from '../pages/ManagePage';
 import SearchResults from '../pages/SearchResults';
 import SettingsPage from '../pages/SettingsPage';
 import VideoPlayer from '../pages/VideoPlayer';
-import { Collection, Video } from '../types';
-import PageTransition from './PageTransition';
 
-interface AnimatedRoutesProps {
-    videos: Video[];
-    loading: boolean;
-    error: string | null;
-    onDeleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
-    collections: Collection[];
-    isSearchMode: boolean;
-    searchTerm: string;
-    localSearchResults: Video[];
-    youtubeLoading: boolean;
-    searchResults: any[];
-    onDownload: (videoUrl: string) => Promise<any>;
-    onResetSearch: () => void;
-    onAddToCollection: (collectionId: string, videoId: string) => Promise<any>;
-    onCreateCollection: (name: string, videoId: string) => Promise<any>;
-    onRemoveFromCollection: (videoId: string) => Promise<boolean>;
-    onDeleteCollection: (collectionId: string, deleteVideos?: boolean) => Promise<{ success: boolean; error?: string }>;
-}
-
-const AnimatedRoutes = ({
-    videos,
-    loading,
-    error,
-    onDeleteVideo,
-    collections,
-    isSearchMode,
-    searchTerm,
-    localSearchResults,
-    youtubeLoading,
-    searchResults,
-    onDownload,
-    onResetSearch,
-    onAddToCollection,
-    onCreateCollection,
-    onRemoveFromCollection,
-    onDeleteCollection
-}: AnimatedRoutesProps) => {
+const AnimatedRoutes: React.FC = () => {
     const location = useLocation();
 
     return (
@@ -56,115 +20,120 @@ const AnimatedRoutes = ({
                 <Route
                     path="/"
                     element={
-                        <PageTransition>
-                            <Home
-                                videos={videos}
-                                loading={loading}
-                                error={error}
-                                onDeleteVideo={onDeleteVideo}
-                                collections={collections}
-                                isSearchMode={isSearchMode}
-                                searchTerm={searchTerm}
-                                localSearchResults={localSearchResults}
-                                youtubeLoading={youtubeLoading}
-                                searchResults={searchResults}
-                                onDownload={onDownload}
-                                onResetSearch={onResetSearch}
-                            />
-                        </PageTransition>
-                    }
-                />
-                <Route
-                    path="/video/:id"
-                    element={
-                        <PageTransition>
-                            <VideoPlayer
-                                videos={videos}
-                                onDeleteVideo={onDeleteVideo}
-                                collections={collections}
-                                onAddToCollection={onAddToCollection}
-                                onCreateCollection={onCreateCollection}
-                                onRemoveFromCollection={onRemoveFromCollection}
-                            />
-                        </PageTransition>
-                    }
-                />
-                <Route
-                    path="/author/:author"
-                    element={
-                        <PageTransition>
-                            <AuthorVideos
-                                videos={videos}
-                                onDeleteVideo={onDeleteVideo}
-                                collections={collections}
-                            />
-                        </PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <Home />
+                        </motion.div>
                     }
                 />
                 <Route
                     path="/collection/:id"
                     element={
-                        <PageTransition>
-                            <CollectionPage
-                                collections={collections}
-                                videos={videos}
-                                onDeleteVideo={onDeleteVideo}
-                                onDeleteCollection={onDeleteCollection}
-                            />
-                        </PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <CollectionPage />
+                        </motion.div>
                     }
                 />
                 <Route
-                    path="/search"
+                    path="/video/:id"
                     element={
-                        <PageTransition>
-                            <SearchResults
-                                results={searchResults}
-                                localResults={localSearchResults}
-                                youtubeLoading={youtubeLoading}
-                                loading={loading}
-                                onDownload={onDownload}
-                                onResetSearch={onResetSearch}
-                                onDeleteVideo={onDeleteVideo}
-                                collections={collections}
-                                searchTerm={searchTerm}
-                            />
-                        </PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <VideoPlayer />
+                        </motion.div>
                     }
                 />
                 <Route
-                    path="/manage"
+                    path="/author/:authorName"
                     element={
-                        <PageTransition>
-                            <ManagePage
-                                videos={videos}
-                                onDeleteVideo={onDeleteVideo}
-                                collections={collections}
-                                onDeleteCollection={onDeleteCollection}
-                            />
-                        </PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <AuthorVideos />
+                        </motion.div>
                     }
                 />
                 <Route
                     path="/downloads"
                     element={
-                        <PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
                             <DownloadPage />
-                        </PageTransition>
+                        </motion.div>
                     }
                 />
                 <Route
                     path="/settings"
                     element={
-                        <PageTransition>
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
                             <SettingsPage />
-                        </PageTransition>
+                        </motion.div>
                     }
                 />
-                {/* Redirect /login to home if already authenticated (or login disabled) */}
-                <Route path="/login" element={<Navigate to="/" replace />} />
-                {/* Catch all - redirect to home */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route
+                    path="/manage"
+                    element={
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <ManagePage />
+                        </motion.div>
+                    }
+                />
+                <Route
+                    path="/search"
+                    element={
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <SearchResults />
+                        </motion.div>
+                    }
+                />
+                <Route
+                    path="/login"
+                    element={
+                        <motion.div
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
+                            <LoginPage />
+                        </motion.div>
+                    }
+                />
             </Routes>
         </AnimatePresence>
     );

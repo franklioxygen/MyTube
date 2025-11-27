@@ -16,56 +16,45 @@ import {
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
-import { Collection, Video } from '../types';
+import { useCollection } from '../contexts/CollectionContext';
+import { useDownload } from '../contexts/DownloadContext';
+import { useVideo } from '../contexts/VideoContext';
 
-interface SearchResult {
-    id: string;
-    title: string;
-    author: string;
-    thumbnailUrl: string;
-    duration?: number;
-    viewCount?: number;
-    source: 'youtube' | 'bilibili';
-    sourceUrl: string;
-}
-
-interface SearchResultsProps {
-    results: SearchResult[];
-    localResults: Video[];
-    searchTerm: string;
-    loading: boolean;
-    youtubeLoading: boolean;
-    onDownload: (url: string, title?: string) => void;
-    onDeleteVideo: (id: string) => Promise<any>;
-    onResetSearch: () => void;
-    collections: Collection[];
-}
-
-const SearchResults: React.FC<SearchResultsProps> = ({
-    results,
-    localResults,
-    searchTerm,
-    loading,
-    youtubeLoading,
-    onDownload,
-    onDeleteVideo,
-    onResetSearch,
-    collections = []
-}) => {
+const SearchResults: React.FC = () => {
     const navigate = useNavigate();
+    const {
+        searchResults,
+        localSearchResults,
+        searchTerm,
+        loading,
+        youtubeLoading,
+        deleteVideo,
+        resetSearch,
+        setIsSearchMode
+    } = useVideo();
+    const { collections } = useCollection();
+    const { handleVideoSubmit } = useDownload();
 
     // If search term is empty, reset search and go back to home
     useEffect(() => {
         if (!searchTerm || searchTerm.trim() === '') {
-            if (onResetSearch) {
-                onResetSearch();
+            if (resetSearch) {
+                resetSearch();
             }
         }
-    }, [searchTerm, onResetSearch]);
+    }, [searchTerm, resetSearch]);
 
-    const handleDownload = async (videoUrl: string, title: string) => {
+    const handleDownload = async (videoUrl: string) => {
         try {
-            await onDownload(videoUrl, title);
+            // We need to stop the search mode before downloading?
+            // Actually App.tsx implementation was:
+            // setIsSearchMode(false);
+            // await handleVideoSubmit(videoUrl);
+            // Let's replicate that behavior if we want to exit search on download
+            // Or maybe just download and stay on search results?
+            // The original implementation in App.tsx exited search mode.
+            setIsSearchMode(false);
+            await handleVideoSubmit(videoUrl);
         } catch (error) {
             console.error('Error downloading from search results:', error);
         }
@@ -73,8 +62,8 @@ const SearchResults: React.FC<SearchResultsProps> = ({
 
     const handleBackClick = () => {
         // Call the onResetSearch function to reset search mode
-        if (onResetSearch) {
-            onResetSearch();
+        if (resetSearch) {
+            resetSearch();
         } else {
             // Fallback to navigate if onResetSearch is not provided
             navigate('/');
@@ -96,8 +85,8 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         );
     }
 
-    const hasLocalResults = localResults && localResults.length > 0;
-    const hasYouTubeResults = results && results.length > 0;
+    const hasLocalResults = localSearchResults && localSearchResults.length > 0;
+    const hasYouTubeResults = searchResults && searchResults.length > 0;
     const noResults = !hasLocalResults && !hasYouTubeResults && !youtubeLoading;
 
     // Helper function to format duration in seconds to MM:SS
@@ -158,11 +147,11 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                 </Typography>
                 {hasLocalResults ? (
                     <Grid container spacing={3}>
-                        {localResults.map((video) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                        {localSearchResults.map((video) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
                             <VideoCard
                                 video={video}
                                 collections={collections}
-                                onDeleteVideo={onDeleteVideo}
+                                onDeleteVideo={deleteVideo}
                                 showDeleteButton={true}
                             />
                         </Grid>
@@ -186,7 +175,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                     </Box>
                 ) : hasYouTubeResults ? (
                     <Grid container spacing={3}>
-                        {results.map((result) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
+                        {searchResults.map((result) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
                             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                                 <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
                                     <CardMedia
@@ -229,7 +218,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                                         fullWidth
                                         variant="contained"
                                         startIcon={<Download />}
-                                        onClick={() => handleDownload(result.sourceUrl, result.title)}
+                                        onClick={() => handleDownload(result.sourceUrl)}
                                     >
                                         Download
                                     </Button>
