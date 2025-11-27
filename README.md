@@ -4,11 +4,11 @@ A YouTube/Bilibili/MissAV video downloader and player application that allows yo
 
 [中文](README-zh.md)
 
-![Nov-23-2025 21-19-25](https://github.com/user-attachments/assets/0f8761c9-893d-48df-8add-47f3f19357df)
-
 ## Demo
 
 🌐 **Try the live demo (read only): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
+
+![Nov-23-2025 21-19-25](https://github.com/user-attachments/assets/0f8761c9-893d-48df-8add-47f3f19357df)
 
 
 ## Features
