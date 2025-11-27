@@ -104,6 +104,7 @@ export const fr = {
     authors: "Auteurs",
     created: "Créé",
     name: "Nom",
+    size: "Taille",
     actions: "Actions",
     deleteCollection: "Supprimer la collection",
     deleteVideo: "Supprimer la vidéo",

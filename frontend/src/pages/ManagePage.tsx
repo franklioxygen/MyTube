@@ -25,6 +25,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TableSortLabel,
     TextField,
     Tooltip,
     Typography
@@ -62,10 +63,79 @@ const ManagePage: React.FC = () => {
     const [videoPage, setVideoPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
+    // Sorting state
+    const [orderBy, setOrderBy] = useState<keyof Video | 'fileSize'>('addedAt');
+    const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+
+    const handleRequestSort = (property: keyof Video | 'fileSize') => {
+        const isAsc = orderBy === property && order === 'asc';
+        setOrder(isAsc ? 'desc' : 'asc');
+        setOrderBy(property);
+    };
+
+    const formatDuration = (duration: string | undefined) => {
+        if (!duration) return '';
+        const seconds = parseInt(duration, 10);
+        if (isNaN(seconds)) return duration;
+
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+
+        if (h > 0) {
+            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
     const filteredVideos = videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.author.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ).sort((a, b) => {
+        let aValue: any = a[orderBy as keyof Video];
+        let bValue: any = b[orderBy as keyof Video];
+
+        if (orderBy === 'fileSize') {
+            aValue = a.fileSize ? parseInt(a.fileSize, 10) : 0;
+            bValue = b.fileSize ? parseInt(b.fileSize, 10) : 0;
+        }
+
+        if (bValue < aValue) {
+            return order === 'asc' ? 1 : -1;
+        }
+        if (bValue > aValue) {
+            return order === 'asc' ? -1 : 1;
+        }
+        return 0;
+    });
+
+    const formatSize = (bytes: string | number | undefined) => {
+        if (!bytes) return '0 B';
+        const size = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
+        if (isNaN(size)) return '0 B';
+
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(size) / Math.log(k));
+        return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const totalSize = filteredVideos.reduce((acc, video) => {
+        const size = video.fileSize ? parseInt(video.fileSize, 10) : 0;
+        return acc + (isNaN(size) ? 0 : size);
+    }, 0);
+
+    const getCollectionSize = (collectionVideoIds: string[]) => {
+        const totalBytes = collectionVideoIds.reduce((acc, videoId) => {
+            const video = videos.find(v => v.id === videoId);
+            if (video && video.fileSize) {
+                const size = parseInt(video.fileSize, 10);
+                return acc + (isNaN(size) ? 0 : size);
+            }
+            return acc;
+        }, 0);
+        return formatSize(totalBytes);
+    };
 
     // Pagination logic
     const totalCollectionPages = Math.ceil(collections.length / ITEMS_PER_PAGE);
@@ -209,6 +279,7 @@ const ManagePage: React.FC = () => {
                                 <TableRow>
                                     <TableCell>{t('name')}</TableCell>
                                     <TableCell>{t('videos')}</TableCell>
+                                    <TableCell>{t('size')}</TableCell>
                                     <TableCell>{t('created')}</TableCell>
                                     <TableCell align="right">{t('actions')}</TableCell>
                                 </TableRow>
@@ -220,6 +291,7 @@ const ManagePage: React.FC = () => {
                                             {collection.name}
                                         </TableCell>
                                         <TableCell>{collection.videos.length} videos</TableCell>
+                                        <TableCell>{getCollectionSize(collection.videos)}</TableCell>
                                         <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell align="right">
                                             <Tooltip title={t('deleteCollection')}>
@@ -260,7 +332,7 @@ const ManagePage: React.FC = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center' }}>
                         <VideoLibrary sx={{ mr: 1, color: 'primary.main' }} />
-                        {t('videos')} ({filteredVideos.length})
+                        {t('videos')} ({filteredVideos.length}) - {formatSize(totalSize)}
                     </Typography>
                     <TextField
                         placeholder="Search videos..."
@@ -286,8 +358,33 @@ const ManagePage: React.FC = () => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>{t('thumbnail')}</TableCell>
-                                    <TableCell>{t('title')}</TableCell>
-                                    <TableCell>{t('author')}</TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={orderBy === 'title'}
+                                            direction={orderBy === 'title' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('title')}
+                                        >
+                                            {t('title')}
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={orderBy === 'author'}
+                                            direction={orderBy === 'author' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('author')}
+                                        >
+                                            {t('author')}
+                                        </TableSortLabel>
+                                    </TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={orderBy === 'fileSize'}
+                                            direction={orderBy === 'fileSize' ? order : 'asc'}
+                                            onClick={() => handleRequestSort('fileSize')}
+                                        >
+                                            {t('size')}
+                                        </TableSortLabel>
+                                    </TableCell>
                                     <TableCell align="right">{t('actions')}</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -296,12 +393,14 @@ const ManagePage: React.FC = () => {
                                     <TableRow key={video.id} hover>
                                         <TableCell sx={{ width: 140 }}>
                                             <Box sx={{ position: 'relative', width: 120, height: 68 }}>
-                                                <Box
-                                                    component="img"
-                                                    src={getThumbnailSrc(video)}
-                                                    alt={video.title}
-                                                    sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
-                                                />
+                                                <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
+                                                    <Box
+                                                        component="img"
+                                                        src={getThumbnailSrc(video)}
+                                                        alt={video.title}
+                                                        sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+                                                    />
+                                                </Link>
                                                 <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>
                                                     <IconButton
                                                         size="small"
@@ -323,6 +422,9 @@ const ManagePage: React.FC = () => {
                                                     </IconButton>
                                                 </Tooltip>
                                             </Box>
+                                            <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary', textAlign: 'center' }}>
+                                                {formatDuration(video.duration)}
+                                            </Typography>
                                         </TableCell>
                                         <TableCell sx={{ fontWeight: 500, maxWidth: 400 }}>
                                             {editingVideoId === video.id ? (
@@ -380,7 +482,22 @@ const ManagePage: React.FC = () => {
                                                 </Box>
                                             )}
                                         </TableCell>
-                                        <TableCell>{video.author}</TableCell>
+                                        <TableCell>
+                                            <Link
+                                                to={`/author/${encodeURIComponent(video.author)}`}
+                                                style={{ textDecoration: 'none', color: 'inherit' }}
+                                            >
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        '&:hover': { textDecoration: 'underline', color: 'primary.main' }
+                                                    }}
+                                                >
+                                                    {video.author}
+                                                </Typography>
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>{formatSize(video.fileSize)}</TableCell>
                                         <TableCell align="right">
                                             <Tooltip title={t('deleteVideo')}>
                                                 <IconButton

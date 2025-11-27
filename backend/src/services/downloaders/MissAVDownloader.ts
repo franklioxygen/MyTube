@@ -272,6 +272,17 @@ export class MissAVDownloader {
                 console.error("Failed to extract duration from MissAV video:", e);
             }
 
+            // Get file size
+            let fileSize: string | undefined;
+            try {
+                if (fs.existsSync(newVideoPath)) {
+                    const stats = fs.statSync(newVideoPath);
+                    fileSize = stats.size.toString();
+                }
+            } catch (e) {
+                console.error("Failed to get file size:", e);
+            }
+
             // 7. Save metadata
             const videoData: Video = {
                 id: timestamp.toString(),
@@ -286,6 +297,7 @@ export class MissAVDownloader {
                 videoPath: `/videos/${finalVideoFilename}`,
                 thumbnailPath: thumbnailSaved ? `/images/${finalThumbnailFilename}` : null,
                 duration: duration,
+                fileSize: fileSize,
                 addedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
             };

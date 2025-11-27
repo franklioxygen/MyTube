@@ -284,6 +284,16 @@ export class YouTubeDownloader {
              console.error("Failed to extract duration from downloaded file:", e);
         }
 
+        // Get file size
+        try {
+            if (fs.existsSync(finalVideoPath)) {
+                const stats = fs.statSync(finalVideoPath);
+                videoData.fileSize = stats.size.toString();
+            }
+        } catch (e) {
+            console.error("Failed to get file size:", e);
+        }
+
         // Save the video
         storageService.saveVideo(videoData);
 

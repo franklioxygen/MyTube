@@ -507,6 +507,17 @@ export class BilibiliDownloader {
                 console.error("Failed to extract duration from Bilibili video:", e);
             }
 
+            // Get file size
+            let fileSize: string | undefined;
+            try {
+                if (fs.existsSync(newVideoPath)) {
+                    const stats = fs.statSync(newVideoPath);
+                    fileSize = stats.size.toString();
+                }
+            } catch (e) {
+                console.error("Failed to get file size:", e);
+            }
+
             // Create metadata for the video
             const videoData: Video = {
                 id: timestamp.toString(),
@@ -523,6 +534,7 @@ export class BilibiliDownloader {
                     ? `/images/${finalThumbnailFilename}`
                     : null,
                 duration: duration,
+                fileSize: fileSize,
                 addedAt: new Date().toISOString(),
                 partNumber: partNumber,
                 totalParts: totalParts,

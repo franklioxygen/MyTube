@@ -104,6 +104,7 @@ export const ja = {
     authors: "作成者一覧",
     created: "作成日",
     name: "名前",
+    size: "サイズ",
     actions: "アクション",
     deleteCollection: "コレクションを削除",
     deleteVideo: "動画を削除",

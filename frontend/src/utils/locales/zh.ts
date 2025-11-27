@@ -104,6 +104,7 @@ export const zh = {
     authors: "作者列表",
     created: "创建时间",
     name: "名称",
+    size: "大小",
     actions: "操作",
     deleteCollection: "删除合集",
     deleteVideo: "删除视频",

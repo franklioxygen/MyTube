@@ -19,6 +19,7 @@ export interface Video {
   viewCount?: number;
   progress?: number;
   duration?: string;
+  fileSize?: string; // Size in bytes as string
   [key: string]: any;
 }
 
