@@ -93,15 +93,40 @@ const DownloadPage: React.FC = () => {
         mutationFn: async (id: string) => {
             await axios.post(`${API_URL}/downloads/cancel/${id}`);
         },
-        onSuccess: () => {
-            showSnackbar(t('downloadCancelled') || 'Download cancelled');
-            // DownloadContext handles active/queued updates via its own polling
-            // But we might want to invalidate to be sure
+        onMutate: async (id: string) => {
+            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+            await queryClient.cancelQueries({ queryKey: ['downloadStatus'] });
+
+            // Snapshot the previous value
+            const previousStatus = queryClient.getQueryData(['downloadStatus']);
+
+            // Optimistically update to the new value
+            queryClient.setQueryData(['downloadStatus'], (old: any) => {
+                if (!old) return old;
+                return {
+                    ...old,
+                    activeDownloads: old.activeDownloads.filter((d: any) => d.id !== id),
+                    queuedDownloads: old.queuedDownloads.filter((d: any) => d.id !== id),
+                };
+            });
+
+            // Return a context object with the snapshotted value
+            return { previousStatus };
+        },
+        onError: (_err, _id, context) => {
+            // If the mutation fails, use the context returned from onMutate to roll back
+            if (context?.previousStatus) {
+                queryClient.setQueryData(['downloadStatus'], context.previousStatus);
+            }
+            showSnackbar(t('error') || 'Error');
+        },
+        onSettled: () => {
+            // Always refetch after error or success:
             queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
         },
-        onError: () => {
-            showSnackbar(t('error') || 'Error');
-        }
+        onSuccess: () => {
+            showSnackbar(t('downloadCancelled') || 'Download cancelled');
+        },
     });
 
     const handleCancelDownload = (id: string) => {

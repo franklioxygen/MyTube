@@ -23,6 +23,9 @@ const Footer = () => {
 
                     <Box sx={{ display: 'flex', alignItems: 'center', mt: { xs: 1, sm: 0 } }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                            v{import.meta.env.VITE_APP_VERSION}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
                             Created by franklioxygen
                         </Typography>
                         <Link

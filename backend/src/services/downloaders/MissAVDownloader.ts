@@ -215,7 +215,7 @@ export class MissAVDownloader {
                     // size=   12345kB time=00:01:23.45 bitrate= 1234.5kbits/s speed=1.23x
                     const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
                     const sizeMatch = output.match(/size=\s*(\d+)([kMG]?B)/);
-                    const speedMatch = output.match(/speed=\s*(\d+\.?\d*)x/);
+                    const bitrateMatch = output.match(/bitrate=\s*(\d+\.?\d*)kbits\/s/);
 
                     if (timeMatch && downloadId) {
                         const hours = parseInt(timeMatch[1]);
@@ -233,9 +233,17 @@ export class MissAVDownloader {
                             totalSizeStr = `${sizeMatch[1]}${sizeMatch[2]}`;
                         }
 
-                        let speedStr = "0x";
-                        if (speedMatch) {
-                            speedStr = `${speedMatch[1]}x`;
+                        let speedStr = "0 B/s";
+                        if (bitrateMatch) {
+                            const bitrateKbps = parseFloat(bitrateMatch[1]);
+                            // Convert kbits/s to KB/s (approximate, usually bitrate is bits, so /8)
+                            // But ffmpeg reports kbits/s. 1 byte = 8 bits.
+                            const speedKBps = bitrateKbps / 8;
+                            if (speedKBps > 1024) {
+                                speedStr = `${(speedKBps / 1024).toFixed(2)} MB/s`;
+                            } else {
+                                speedStr = `${speedKBps.toFixed(2)} KB/s`;
+                            }
                         }
 
                         storageService.updateActiveDownload(downloadId, {
