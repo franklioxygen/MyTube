@@ -1,6 +1,6 @@
 # MyTube
 
-A YouTube/Bilibili/MissAV video downloader and player application that allows you to download and save videos locally, along with their thumbnails. Organize your videos into collections for easy access and management.
+A YouTube/Bilibili/MissAV video downloader and player application that allows you to download and save videos locally, along with their thumbnails. Organize your videos into collections for easy access and management. Now supports [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##), including Weibo, Xiaohongshu, X.com, etc.
 
 [中文](README-zh.md)
 
