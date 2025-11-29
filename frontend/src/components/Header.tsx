@@ -123,10 +123,9 @@ const Header: React.FC<HeaderProps> = ({
             return;
         }
 
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
-        const bilibiliRegex = /^(https?:\/\/)?(www\.)?(bilibili\.com|b23\.tv)\/.+$/;
-        const missavRegex = /^(https?:\/\/)?(www\.)?(missav\.(ai|ws|com))\/.+$/;
-        const isUrl = youtubeRegex.test(videoUrl) || bilibiliRegex.test(videoUrl) || missavRegex.test(videoUrl);
+        // Generic URL check
+        const urlRegex = /^(https?:\/\/[^\s]+)/;
+        const isUrl = urlRegex.test(videoUrl);
 
         setError('');
         setIsSubmitting(true);

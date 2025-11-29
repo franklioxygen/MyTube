@@ -9,12 +9,12 @@ import * as downloadService from "../services/downloadService";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl
+    extractBilibiliVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -86,13 +86,12 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
         console.log("Resolved shortened URL to:", videoUrl);
       }
 
-      if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be") || isBilibiliUrl(videoUrl) || videoUrl.includes("missav")) {
-         console.log("Fetching video info for title...");
-         const info = await downloadService.getVideoInfo(videoUrl);
-         if (info && info.title) {
-             initialTitle = info.title;
-             console.log("Fetched initial title:", initialTitle);
-         }
+      // Try to fetch video info for all URLs
+      console.log("Fetching video info for title...");
+      const info = await downloadService.getVideoInfo(videoUrl);
+      if (info && info.title) {
+          initialTitle = info.title;
+          console.log("Fetched initial title:", initialTitle);
       }
     } catch (err) {
         console.warn("Failed to fetch video info for title, using default:", err);

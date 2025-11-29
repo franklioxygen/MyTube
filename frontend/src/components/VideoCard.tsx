@@ -1,9 +1,6 @@
 import {
     Delete,
-    Folder,
-    Movie,
-    OndemandVideo,
-    YouTube
+    Folder
 } from '@mui/icons-material';
 import {
     Box,
@@ -140,17 +137,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
         }
     };
 
-    // Get source icon
-    const getSourceIcon = () => {
-        if (video.source === 'bilibili') {
-            return <OndemandVideo sx={{ color: '#23ade5' }} />; // Bilibili blue
-        } else if (video.source === 'local') {
-            return <Folder sx={{ color: '#4caf50' }} />; // Local green (using Folder as generic local icon, or maybe VideoFile if available)
-        } else if (video.source === 'missav') {
-            return <Movie sx={{ color: '#ff4081' }} />; // Pink for MissAV
-        }
-        return <YouTube sx={{ color: '#ff0000' }} />; // YouTube red
-    };
+
 
     return (
         <>
@@ -192,9 +179,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             }}
                         />
 
-                        <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
-                            {getSourceIcon()}
-                        </Box>
+
 
                         {video.partNumber && video.totalParts && video.totalParts > 1 && (
                             <Chip
@@ -276,7 +261,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                         sx={{
                             position: 'absolute',
                             top: 8,
-                            right: 40, // Positioned to the left of the source icon
+                            right: 8,
                             bgcolor: 'rgba(0,0,0,0.6)',
                             color: 'white',
                             opacity: 0, // Hidden by default, shown on hover

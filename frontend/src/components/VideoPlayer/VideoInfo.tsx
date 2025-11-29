@@ -242,7 +242,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     )}
                     <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                         <VideoLibrary fontSize="small" sx={{ mr: 0.5 }} />
-                        <strong>{t('source')}</strong> {video.source === 'bilibili' ? 'Bilibili' : (video.source === 'local' ? 'Local Upload' : 'YouTube')}
+                        <strong>{t('source')}</strong> {video.source ? video.source.charAt(0).toUpperCase() + video.source.slice(1) : 'Unknown'}
                     </Typography>
                     {video.addedAt && (
                         <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
