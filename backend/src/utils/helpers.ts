@@ -108,9 +108,13 @@ export function sanitizeFilename(filename: string): string {
 
   // Replace only unsafe characters for filesystems
   // This preserves non-Latin characters like Chinese, Japanese, Korean, etc.
-  return withoutHashtags
+  const sanitized = withoutHashtags
     .replace(/[\/\\:*?"<>|]/g, "_") // Replace unsafe filesystem characters
     .replace(/\s+/g, "_"); // Replace spaces with underscores
+
+  // Truncate to 200 characters to avoid ENAMETOOLONG errors (filesystem limit is usually 255 bytes)
+  // We use 200 to leave room for timestamp suffix and extension
+  return sanitized.slice(0, 200);
 }
 
 // Helper function to extract user mid from Bilibili URL
