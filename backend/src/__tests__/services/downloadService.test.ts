@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as downloadService from '../../services/downloadService';
 import { BilibiliDownloader } from '../../services/downloaders/BilibiliDownloader';
 import { MissAVDownloader } from '../../services/downloaders/MissAVDownloader';
-import { YouTubeDownloader } from '../../services/downloaders/YouTubeDownloader';
+import { YtDlpDownloader } from '../../services/downloaders/YtDlpDownloader';
 
 vi.mock('../../services/downloaders/BilibiliDownloader');
-vi.mock('../../services/downloaders/YouTubeDownloader');
+vi.mock('../../services/downloaders/YtDlpDownloader');
 vi.mock('../../services/downloaders/MissAVDownloader');
 
 describe('DownloadService', () => {
@@ -56,22 +56,22 @@ describe('DownloadService', () => {
     });
   });
 
-  describe('YouTube', () => {
-    it('should call YouTubeDownloader.search', async () => {
+  describe('YouTube/Generic', () => {
+    it('should call YtDlpDownloader.search', async () => {
       await downloadService.searchYouTube('query');
-      expect(YouTubeDownloader.search).toHaveBeenCalledWith('query');
+      expect(YtDlpDownloader.search).toHaveBeenCalledWith('query');
     });
 
-    it('should call YouTubeDownloader.downloadVideo', async () => {
+    it('should call YtDlpDownloader.downloadVideo', async () => {
       await downloadService.downloadYouTubeVideo('url', 'id');
-      expect(YouTubeDownloader.downloadVideo).toHaveBeenCalledWith('url', 'id');
+      expect(YtDlpDownloader.downloadVideo).toHaveBeenCalledWith('url', 'id', undefined);
     });
   });
 
   describe('MissAV', () => {
     it('should call MissAVDownloader.downloadVideo', async () => {
       await downloadService.downloadMissAVVideo('url', 'id');
-      expect(MissAVDownloader.downloadVideo).toHaveBeenCalledWith('url', 'id');
+      expect(MissAVDownloader.downloadVideo).toHaveBeenCalledWith('url', 'id', undefined);
     });
   });
 });

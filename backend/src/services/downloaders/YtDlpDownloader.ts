@@ -7,12 +7,48 @@ import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
-export class YouTubeDownloader {
-    // Search for videos on YouTube
+// Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
+async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
+    try {
+        console.log("Attempting to extract XiaoHongShu author from webpage...");
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            timeout: 10000
+        });
+        
+        const html = response.data;
+        
+        // Try to find author name in the JSON data embedded in the page
+        // XiaoHongShu embeds data in window.__INITIAL_STATE__
+        const match = html.match(/"nickname":"([^"]+)"/);
+        if (match && match[1]) {
+            console.log("Found XiaoHongShu author:", match[1]);
+            return match[1];
+        }
+        
+        // Alternative: try to find in user info
+        const userMatch = html.match(/"user":\{[^}]*"nickname":"([^"]+)"/);
+        if (userMatch && userMatch[1]) {
+            console.log("Found XiaoHongShu author (user):", userMatch[1]);
+            return userMatch[1];
+        }
+        
+        console.log("Could not extract XiaoHongShu author from webpage");
+        return null;
+    } catch (error) {
+        console.error("Error extracting XiaoHongShu author:", error);
+        return null;
+    }
+}
+
+export class YtDlpDownloader {
+    // Search for videos (primarily for YouTube, but could be adapted)
     static async search(query: string): Promise<any[]> {
         console.log("Processing search request for query:", query);
 
-        // Use youtube-dl to search for videos
+        // Use ytsearch for searching
         const searchResults = await youtubedl(`ytsearch5:${query}`, {
             dumpSingleJson: true,
             noWarnings: true,
@@ -33,7 +69,7 @@ export class YouTubeDownloader {
             thumbnailUrl: entry.thumbnail,
             duration: entry.duration,
             viewCount: entry.view_count,
-            sourceUrl: `https://www.youtube.com/watch?v=${entry.id}`,
+            sourceUrl: `https://www.youtube.com/watch?v=${entry.id}`, // Default to YT for search results
             source: "youtube",
         }));
 
@@ -52,29 +88,29 @@ export class YouTubeDownloader {
                 noWarnings: true,
                 callHome: false,
                 preferFreeFormats: true,
-                youtubeSkipDashManifest: true,
+                // youtubeSkipDashManifest: true, // Specific to YT, might want to keep or make conditional
             } as any);
 
             return {
-                title: info.title || "YouTube Video",
-                author: info.uploader || "YouTube User",
+                title: info.title || "Video",
+                author: info.uploader || "Unknown",
                 date: info.upload_date || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
                 thumbnailUrl: info.thumbnail,
             };
         } catch (error) {
-            console.error("Error fetching YouTube video info:", error);
+            console.error("Error fetching video info:", error);
             return {
-                title: "YouTube Video",
-                author: "YouTube User",
+                title: "Video",
+                author: "Unknown",
                 date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
                 thumbnailUrl: "",
             };
         }
     }
 
-    // Download YouTube video
+    // Download video
     static async downloadVideo(videoUrl: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
-        console.log("Detected YouTube URL");
+        console.log("Detected URL:", videoUrl);
 
         // Create a safe base filename (without extension)
         const timestamp = Date.now();
@@ -84,36 +120,41 @@ export class YouTubeDownloader {
         const videoFilename = `${safeBaseFilename}.mp4`;
         const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
-        // Set full paths for video and thumbnail
-
-
-
-        let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
+        let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved, source;
         let finalVideoFilename = videoFilename;
         let finalThumbnailFilename = thumbnailFilename;
 
         try {
-            // Get YouTube video info first
+            // Get video info first
             const info = await youtubedl(videoUrl, {
                 dumpSingleJson: true,
                 noWarnings: true,
                 callHome: false,
                 preferFreeFormats: true,
-                youtubeSkipDashManifest: true,
             } as any);
 
-            console.log("YouTube video info:", {
+            console.log("Video info:", {
                 title: info.title,
                 uploader: info.uploader,
                 upload_date: info.upload_date,
+                extractor: info.extractor,
             });
 
-            videoTitle = info.title || "YouTube Video";
-            videoAuthor = info.uploader || "YouTube User";
+            videoTitle = info.title || "Video";
+            videoAuthor = info.uploader || "Unknown";
+            
+            // If author is unknown and it's a XiaoHongShu video, try custom extraction
+            if ((!info.uploader || info.uploader === "Unknown") && info.extractor === "XiaoHongShu") {
+                const customAuthor = await extractXiaoHongShuAuthor(videoUrl);
+                if (customAuthor) {
+                    videoAuthor = customAuthor;
+                }
+            }
             videoDate =
                 info.upload_date ||
                 new Date().toISOString().slice(0, 10).replace(/-/g, "");
             thumbnailUrl = info.thumbnail;
+            source = info.extractor || "generic";
 
             // Update the safe base filename with the actual title
             const newSafeBaseFilename = `${sanitizeFilename(
@@ -130,8 +171,8 @@ export class YouTubeDownloader {
             const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
             const newThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
 
-            // Download the YouTube video
-            console.log("Downloading YouTube video to:", newVideoPath);
+            // Download the video
+            console.log("Downloading video to:", newVideoPath);
 
             if (downloadId) {
                 storageService.updateActiveDownload(downloadId, {
@@ -140,20 +181,25 @@ export class YouTubeDownloader {
                 });
             }
 
-            // Use exec to capture stdout for progress
-            // Format selection prioritizes Safari-compatible codecs (H.264/AAC)
-            // avc1 is the H.264 variant that Safari supports best
-            // Use Android client to avoid SABR streaming issues and JS runtime requirements
-            const subprocess = youtubedl.exec(videoUrl, {
+            // Prepare flags
+            const flags: any = {
                 output: newVideoPath,
-                format: "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 mergeOutputFormat: "mp4",
-                'extractor-args': "youtube:player_client=android",
-                addHeader: [
+            };
+
+            // Add YouTube specific flags if it's a YouTube URL
+            if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+                 flags.format = "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+                 flags['extractor-args'] = "youtube:player_client=android";
+                 flags.addHeader = [
                     'Referer:https://www.youtube.com/',
                     'User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-                ]
-            } as any);
+                ];
+            }
+
+            // Use exec to capture stdout for progress
+            const subprocess = youtubedl.exec(videoUrl, flags);
 
             if (onStart) {
                 onStart(() => {
@@ -163,7 +209,6 @@ export class YouTubeDownloader {
                     // Clean up partial files
                     console.log("Cleaning up partial files...");
                     try {
-                        // youtube-dl creates .part files during download
                         const partVideoPath = `${newVideoPath}.part`;
                         const partThumbnailPath = `${newThumbnailPath}.part`;
                         
@@ -209,12 +254,11 @@ export class YouTubeDownloader {
 
             await subprocess;
 
-            console.log("YouTube video downloaded successfully");
+            console.log("Video downloaded successfully");
 
             // Download and save the thumbnail
             thumbnailSaved = false;
 
-            // Download the thumbnail image
             if (thumbnailUrl) {
                 try {
                     console.log("Downloading thumbnail from:", thumbnailUrl);
@@ -242,9 +286,9 @@ export class YouTubeDownloader {
                     // Continue even if thumbnail download fails
                 }
             }
-        } catch (youtubeError) {
-            console.error("Error in YouTube download process:", youtubeError);
-            throw youtubeError;
+        } catch (error) {
+            console.error("Error in download process:", error);
+            throw error;
         }
 
         // Create metadata for the video
@@ -254,7 +298,7 @@ export class YouTubeDownloader {
             author: videoAuthor || "Unknown",
             date:
                 videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-            source: "youtube",
+            source: source, // Use extracted source
             sourceUrl: videoUrl,
             videoFilename: finalVideoFilename,
             thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
@@ -269,12 +313,9 @@ export class YouTubeDownloader {
         };
 
         // If duration is missing from info, try to extract it from file
-        // We need to reconstruct the path because newVideoPath is not in scope here if we are outside the try block
-        // But wait, finalVideoFilename is available.
         const finalVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
         
         try {
-             // Dynamic import to avoid circular dependency if any, though here it's fine
              const { getVideoDuration } = await import("../../services/metadataService");
              const duration = await getVideoDuration(finalVideoPath);
              if (duration) {

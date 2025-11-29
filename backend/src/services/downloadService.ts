@@ -9,7 +9,7 @@ import {
     DownloadResult
 } from "./downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "./downloaders/MissAVDownloader";
-import { YouTubeDownloader } from "./downloaders/YouTubeDownloader";
+import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
 import { Video } from "./storageService";
 
 // Re-export types for compatibility
@@ -77,14 +77,14 @@ export async function downloadRemainingBilibiliParts(
   return BilibiliDownloader.downloadRemainingParts(baseUrl, startPart, totalParts, seriesTitle, collectionId, downloadId);
 }
 
-// Search for videos on YouTube
+// Search for videos on YouTube (using yt-dlp)
 export async function searchYouTube(query: string): Promise<any[]> {
-  return YouTubeDownloader.search(query);
+  return YtDlpDownloader.search(query);
 }
 
-// Download YouTube video
+// Download generic video (using yt-dlp)
 export async function downloadYouTubeVideo(videoUrl: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
-  return YouTubeDownloader.downloadVideo(videoUrl, downloadId, onStart);
+  return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart);
 }
 
 // Helper function to download MissAV video
@@ -99,19 +99,12 @@ export async function getVideoInfo(url: string): Promise<{ title: string; author
     if (videoId) {
       return BilibiliDownloader.getVideoInfo(videoId);
     }
-  } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    return YouTubeDownloader.getVideoInfo(url);
   } else if (url.includes("missav")) {
     return MissAVDownloader.getVideoInfo(url);
   }
   
-  // Default fallback
-  return {
-    title: "Video",
-    author: "Unknown",
-    date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-    thumbnailUrl: "",
-  };
+  // Default fallback to yt-dlp for everything else
+  return YtDlpDownloader.getVideoInfo(url);
 }
 
 // Factory function to create a download task
@@ -128,8 +121,8 @@ export function createDownloadTask(
       // Complex collection handling would require persisting more state
       return BilibiliDownloader.downloadSinglePart(url, 1, 1, "");
     } else {
-      // Default to YouTube
-      return YouTubeDownloader.downloadVideo(url, downloadId, registerCancel);
+      // Default to yt-dlp
+      return YtDlpDownloader.downloadVideo(url, downloadId, registerCancel);
     }
   };
 }
