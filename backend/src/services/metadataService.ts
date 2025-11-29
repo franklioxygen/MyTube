@@ -64,9 +64,10 @@ export const backfillDurations = async () => {
       const duration = await getVideoDuration(fsPath);
 
       if (duration !== null) {
-          await db.update(videos)
+          db.update(videos)
               .set({ duration: duration.toString() })
-              .where(eq(videos.id, video.id));
+              .where(eq(videos.id, video.id))
+              .run();
           console.log(`Updated duration for ${video.title}: ${duration}s`);
           updatedCount++;
       }

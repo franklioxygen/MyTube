@@ -68,7 +68,7 @@ export async function runMigration() {
             description: video.description,
             viewCount: video.viewCount,
             duration: video.duration,
-          }).onConflictDoNothing();
+          }).onConflictDoNothing().run();
           results.videos.count++;
         } catch (error: any) {
           console.error(`Error migrating video ${video.id}:`, error);
@@ -96,7 +96,7 @@ export async function runMigration() {
             title: collection.title,
             createdAt: collection.createdAt || new Date().toISOString(),
             updatedAt: collection.updatedAt,
-          }).onConflictDoNothing();
+          }).onConflictDoNothing().run();
           results.collections.count++;
 
           // Insert Collection Videos
@@ -106,7 +106,7 @@ export async function runMigration() {
                   await db.insert(collectionVideos).values({
                       collectionId: collection.id,
                       videoId: videoId,
-                  }).onConflictDoNothing();
+                  }).onConflictDoNothing().run();
               } catch (err: any) {
                   console.error(`Error linking video ${videoId} to collection ${collection.id}:`, err);
                   results.errors.push(`Link ${videoId}->${collection.id}: ${err.message}`);
@@ -137,7 +137,7 @@ export async function runMigration() {
         }).onConflictDoUpdate({
           target: settings.key,
           set: { value: JSON.stringify(value) },
-        });
+          }).run();
         results.settings.count++;
       }
     } catch (error: any) {
@@ -178,7 +178,7 @@ export async function runMigration() {
               speed: download.speed,
               status: 'active',
             }
-          });
+          }).run();
           results.downloads.count++;
         }
       }
@@ -198,7 +198,7 @@ export async function runMigration() {
               timestamp: download.timestamp,
               status: 'queued',
             }
-          });
+          }).run();
           results.downloads.count++;
         }
       }

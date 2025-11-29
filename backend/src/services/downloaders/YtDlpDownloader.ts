@@ -52,7 +52,6 @@ export class YtDlpDownloader {
         const searchResults = await youtubedl(`ytsearch5:${query}`, {
             dumpSingleJson: true,
             noWarnings: true,
-            noCallHome: true,
             skipDownload: true,
             playlistEnd: 5, // Limit to 5 results
         } as any);
@@ -86,7 +85,6 @@ export class YtDlpDownloader {
             const info = await youtubedl(url, {
                 dumpSingleJson: true,
                 noWarnings: true,
-                callHome: false,
                 preferFreeFormats: true,
                 // youtubeSkipDashManifest: true, // Specific to YT, might want to keep or make conditional
             } as any);
@@ -129,7 +127,6 @@ export class YtDlpDownloader {
             const info = await youtubedl(videoUrl, {
                 dumpSingleJson: true,
                 noWarnings: true,
-                callHome: false,
                 preferFreeFormats: true,
             } as any);
 
