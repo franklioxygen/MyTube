@@ -14,6 +14,10 @@ interface Settings {
     maxConcurrentDownloads: number;
     language: string;
     tags?: string[];
+    cloudDriveEnabled?: boolean;
+    openListApiUrl?: string;
+    openListToken?: string;
+    cloudDrivePath?: string;
 }
 
 const defaultSettings: Settings = {
@@ -22,7 +26,11 @@ const defaultSettings: Settings = {
     defaultAutoPlay: false,
     defaultAutoLoop: false,
     maxConcurrentDownloads: 3,
-    language: 'en'
+    language: 'en',
+    cloudDriveEnabled: false,
+    openListApiUrl: '',
+    openListToken: '',
+    cloudDrivePath: ''
 };
 
 export const getSettings = async (_req: Request, res: Response) => {

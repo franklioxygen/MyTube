@@ -19,7 +19,8 @@ import { Video } from '../types';
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
-    const { author } = useParams<{ author: string }>();
+    const { authorName } = useParams<{ authorName: string }>();
+    const author = authorName;
     const navigate = useNavigate();
     const { videos, loading, deleteVideo } = useVideo();
     const { collections } = useCollection();
@@ -79,7 +80,7 @@ const AuthorVideos: React.FC = () => {
                     </Avatar>
                     <Box>
                         <Typography variant="h4" component="h1" fontWeight="bold">
-                            {author ? decodeURIComponent(author) : t('unknownAuthor')}
+                            {author || t('unknownAuthor')}
                         </Typography>
                         <Typography variant="subtitle1" color="text.secondary">
                             {authorVideos.length} {t('videos')}

@@ -1,3 +1,4 @@
+import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
 import * as storageService from "./storageService";
 
@@ -278,6 +279,16 @@ class DownloadManager {
         sourceUrl: videoData.sourceUrl || task.sourceUrl,
         author: videoData.author,
       });
+
+      // Trigger Cloud Upload (Async, don't await to block queue processing?)
+      // Actually, we might want to await it if we want to ensure it's done before resolving,
+      // but that would block the download queue.
+      // Let's run it in background but log it.
+      CloudStorageService.uploadVideo({
+        ...videoData,
+        title: finalTitle || task.title,
+        sourceUrl: task.sourceUrl
+      }).catch(err => console.error("Background cloud upload failed:", err));
 
       task.resolve(result);
     } catch (error) {

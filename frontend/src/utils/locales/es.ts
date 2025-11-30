@@ -40,6 +40,16 @@ export const es = {
     cleanupTempFilesActiveDownloads: "No se puede limpiar mientras hay descargas activas. Espera a que todas las descargas terminen o cancélalas primero.",
     cleanupTempFilesSuccess: "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
     cleanupTempFilesFailed: "Error al limpiar archivos temporales",
+
+    // Cloud Drive
+    cloudDriveSettings: "Almacenamiento en la Nube (OpenList)",
+    enableAutoSave: "Habilitar guardado automático en la nube",
+    apiUrl: "URL de la API",
+    apiUrlHelper: "ej. https://your-alist-instance.com/api/fs/put",
+    token: "Token",
+    uploadPath: "Ruta de carga",
+    cloudDrivePathHelper: "Ruta del directorio en la nube, ej. /mytube-uploads",
+    
     manageContent: "Gestionar Contenido", videos: "Videos", collections: "Colecciones", allVideos: "Todos los Videos",
     delete: "Eliminar", backToHome: "Volver a Inicio", confirmDelete: "¿Está seguro de que desea eliminar esto?",
     deleteSuccess: "Eliminado exitosamente", deleteFailed: "Error al eliminar", noVideos: "No se encontraron videos",

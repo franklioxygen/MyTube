@@ -84,6 +84,15 @@ export const fr = {
     cleanupTempFilesActiveDownloads: "Impossible de nettoyer pendant que des téléchargements sont actifs. Veuillez attendre la fin de tous les téléchargements ou les annuler d'abord.",
     cleanupTempFilesSuccess: "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
     cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
+
+    // Cloud Drive
+    cloudDriveSettings: "Stockage Cloud (OpenList)",
+    enableAutoSave: "Activer la sauvegarde automatique sur le Cloud",
+    apiUrl: "URL de l'API",
+    apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
+    token: "Jeton (Token)",
+    uploadPath: "Chemin de téléchargement",
+    cloudDrivePathHelper: "Chemin du répertoire dans le cloud, ex. /mytube-uploads",
     
     // Manage
     manageContent: "Gérer le contenu",

@@ -84,6 +84,15 @@ export const ar = {
     cleanupTempFilesActiveDownloads: "لا يمكن التنظيف أثناء وجود تنزيلات نشطة. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
     cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
     cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
+
+    // Cloud Drive
+    cloudDriveSettings: "التخزين السحابي (OpenList)",
+    enableAutoSave: "تمكين الحفظ التلقائي في السحابة",
+    apiUrl: "رابط API",
+    apiUrlHelper: "مثال: https://your-alist-instance.com/api/fs/put",
+    token: "الرمز المميز (Token)",
+    uploadPath: "مسار التحميل",
+    cloudDrivePathHelper: "مسار الدليل في التخزين السحابي، مثال: /mytube-uploads",
     
     // Manage
     manageContent: "إدارة المحتوى",

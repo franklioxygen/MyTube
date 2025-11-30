@@ -84,6 +84,15 @@ export const ru = {
     cleanupTempFilesActiveDownloads: "Невозможно очистить, пока активны загрузки. Пожалуйста, дождитесь завершения всех загрузок или сначала отмените их.",
     cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
     cleanupTempFilesFailed: "Не удалось очистить временные файлы",
+
+    // Cloud Drive
+    cloudDriveSettings: "Облачное хранилище (OpenList)",
+    enableAutoSave: "Включить автосохранение в облако",
+    apiUrl: "URL API",
+    apiUrlHelper: "напр. https://your-alist-instance.com/api/fs/put",
+    token: "Токен",
+    uploadPath: "Путь загрузки",
+    cloudDrivePathHelper: "Путь к каталогу в облаке, напр. /mytube-uploads",
     
     // Manage
     manageContent: "Управление контентом",

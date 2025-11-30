@@ -84,6 +84,15 @@ export const pt = {
     cleanupTempFilesActiveDownloads: "Não é possível limpar enquanto houver downloads ativos. Aguarde a conclusão de todos os downloads ou cancele-os primeiro.",
     cleanupTempFilesSuccess: "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
     cleanupTempFilesFailed: "Falha ao limpar arquivos temporários",
+
+    // Cloud Drive
+    cloudDriveSettings: "Armazenamento em Nuvem (OpenList)",
+    enableAutoSave: "Ativar salvamento automático na nuvem",
+    apiUrl: "URL da API",
+    apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
+    token: "Token",
+    uploadPath: "Caminho de upload",
+    cloudDrivePathHelper: "Caminho do diretório na nuvem, ex. /mytube-uploads",
     
     // Manage
     manageContent: "Gerenciar Conteúdo",
@@ -150,6 +159,12 @@ export const pt = {
     titleUpdateFailed: "Falha ao atualizar título",
     refreshThumbnail: "Atualizar miniatura",
     thumbnailRefreshed: "Miniatura atualizada com sucesso",
+    thumbnailRefreshFailed: "Falha ao atualizar miniatura",
+    videoUpdated: "Vídeo atualizado com sucesso",
+    videoUpdateFailed: "Falha ao atualizar vídeo",
+    failedToLoadVideos: "Falha ao carregar vídeos. Por favor, tente novamente mais tarde.",
+    videoRemovedSuccessfully: "Vídeo removido com sucesso",
+    failedToDeleteVideo: "Falha ao excluir vídeo",
     // Snackbar Messages
     videoDownloading: "Baixando vídeo",
     downloadStartedSuccessfully: "Download iniciado com sucesso",
