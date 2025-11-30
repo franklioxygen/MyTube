@@ -84,6 +84,15 @@ export const ko = {
     cleanupTempFilesActiveDownloads: "다운로드가 활성화된 동안에는 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하세요.",
     cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
     cleanupTempFilesFailed: "임시 파일 정리 실패",
+
+    // Cloud Drive
+    cloudDriveSettings: "클라우드 드라이브 (OpenList)",
+    enableAutoSave: "클라우드 자동 저장 활성화",
+    apiUrl: "API URL",
+    apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
+    token: "토큰",
+    uploadPath: "업로드 경로",
+    cloudDrivePathHelper: "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
     
     // Manage
     manageContent: "콘텐츠 관리",

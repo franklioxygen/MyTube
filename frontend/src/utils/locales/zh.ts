@@ -84,6 +84,15 @@ export const zh = {
     cleanupTempFilesActiveDownloads: "有活动下载时无法清理。请等待所有下载完成或取消它们。",
     cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
     cleanupTempFilesFailed: "清理临时文件失败",
+
+    // Cloud Drive
+    cloudDriveSettings: "云端存储 (OpenList)",
+    enableAutoSave: "启用自动保存到云端",
+    apiUrl: "API 地址",
+    apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
+    token: "Token",
+    uploadPath: "上传路径",
+    cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
     
     // Manage
     manageContent: "内容管理",

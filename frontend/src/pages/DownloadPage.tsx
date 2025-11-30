@@ -339,6 +339,11 @@ const DownloadPage: React.FC = () => {
                                         secondaryTypographyProps={{ component: 'div' }}
                                         secondary={
                                             <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                {item.sourceUrl && (
+                                                    <Typography variant="caption" color="primary" component="a" href={item.sourceUrl} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                                        {item.sourceUrl}
+                                                    </Typography>
+                                                )}
                                                 <Typography variant="caption" component="span">
                                                     {formatDate(item.finishedAt)}
                                                 </Typography>

@@ -84,6 +84,15 @@ export const ja = {
     cleanupTempFilesActiveDownloads: "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
     cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
     cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
+
+    // Cloud Drive
+    cloudDriveSettings: "クラウドストレージ (OpenList)",
+    enableAutoSave: "クラウドへの自動保存を有効にする",
+    apiUrl: "API URL",
+    apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
+    token: "トークン",
+    uploadPath: "アップロードパス",
+    cloudDrivePathHelper: "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
     
     // Manage
     manageContent: "コンテンツの管理",

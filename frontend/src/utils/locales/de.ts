@@ -42,6 +42,16 @@ export const de = {
     cleanupTempFilesActiveDownloads: "Bereinigung nicht möglich, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie ab.",
     cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
     cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
+
+    // Cloud Drive
+    cloudDriveSettings: "Cloud-Speicher (OpenList)",
+    enableAutoSave: "Automatisches Speichern in der Cloud aktivieren",
+    apiUrl: "API-URL",
+    apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
+    token: "Token",
+    uploadPath: "Upload-Pfad",
+    cloudDrivePathHelper: "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
+    
     manageContent: "Inhalte Verwalten", videos: "Videos", collections: "Sammlungen", allVideos: "Alle Videos",
     delete: "Löschen", backToHome: "Zurück zur Startseite", confirmDelete: "Sind Sie sicher, dass Sie dies löschen möchten?",
     deleteSuccess: "Erfolgreich gelöscht", deleteFailed: "Löschen fehlgeschlagen", noVideos: "Keine Videos gefunden",

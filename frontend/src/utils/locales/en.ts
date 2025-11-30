@@ -84,6 +84,15 @@ export const en = {
     cleanupTempFilesActiveDownloads: "Cannot clean up while downloads are active. Please wait for all downloads to complete or cancel them first.",
     cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
     cleanupTempFilesFailed: "Failed to clean up temporary files",
+
+    // Cloud Drive
+    cloudDriveSettings: "Cloud Drive (OpenList)",
+    enableAutoSave: "Enable Auto Save to Cloud",
+    apiUrl: "API URL",
+    apiUrlHelper: "e.g. https://your-alist-instance.com/api/fs/put",
+    token: "Token",
+    uploadPath: "Upload Path",
+    cloudDrivePathHelper: "Directory path in cloud drive, e.g. /mytube-uploads",
     
     // Manage
     manageContent: "Manage Content",

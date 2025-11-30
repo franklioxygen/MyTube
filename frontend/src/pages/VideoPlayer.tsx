@@ -354,9 +354,14 @@ const VideoPlayer: React.FC = () => {
         }).slice(0, 10);
     }, [video, videos, collections]);
 
+    // Scroll to top when video ID changes
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [id]);
+
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Grid container spacing={4}>
+        <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
+            <Grid container spacing={{ xs: 0, md: 4 }}>
                 {/* Main Content Column */}
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
@@ -367,31 +372,33 @@ const VideoPlayer: React.FC = () => {
                         startTime={video.progress || 0}
                     />
 
-                    <VideoInfo
-                        video={video}
-                        onTitleSave={handleSaveTitle}
-                        onRatingChange={handleRatingChange}
-                        onAuthorClick={handleAuthorClick}
-                        onAddToCollection={handleAddToCollection}
-                        onDelete={handleDelete}
-                        isDeleting={deleteMutation.isPending}
-                        deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
-                        videoCollections={videoCollections}
-                        onCollectionClick={handleCollectionClick}
-                        availableTags={availableTags}
-                        onTagsUpdate={handleUpdateTags}
-                    />
+                    <Box sx={{ px: { xs: 2, md: 0 } }}>
+                        <VideoInfo
+                            video={video}
+                            onTitleSave={handleSaveTitle}
+                            onRatingChange={handleRatingChange}
+                            onAuthorClick={handleAuthorClick}
+                            onAddToCollection={handleAddToCollection}
+                            onDelete={handleDelete}
+                            isDeleting={deleteMutation.isPending}
+                            deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
+                            videoCollections={videoCollections}
+                            onCollectionClick={handleCollectionClick}
+                            availableTags={availableTags}
+                            onTagsUpdate={handleUpdateTags}
+                        />
 
-                    <CommentsSection
-                        comments={comments}
-                        loading={loadingComments}
-                        showComments={showComments}
-                        onToggleComments={handleToggleComments}
-                    />
+                        <CommentsSection
+                            comments={comments}
+                            loading={loadingComments}
+                            showComments={showComments}
+                            onToggleComments={handleToggleComments}
+                        />
+                    </Box>
                 </Grid>
 
                 {/* Sidebar Column - Up Next */}
-                <Grid size={{ xs: 12, lg: 4 }}>
+                <Grid size={{ xs: 12, lg: 4 }} sx={{ p: { xs: 2, md: 0 }, pt: { xs: 2, md: 0 } }}>
                     <Typography variant="h6" gutterBottom fontWeight="bold">{t('upNext')}</Typography>
                     <Stack spacing={2}>
                         {relatedVideos.map(relatedVideo => (

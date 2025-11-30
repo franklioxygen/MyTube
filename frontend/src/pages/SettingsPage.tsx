@@ -44,6 +44,10 @@ interface Settings {
     maxConcurrentDownloads: number;
     language: string;
     tags: string[];
+    cloudDriveEnabled: boolean;
+    openListApiUrl: string;
+    openListToken: string;
+    cloudDrivePath: string;
 }
 
 const SettingsPage: React.FC = () => {
@@ -58,7 +62,11 @@ const SettingsPage: React.FC = () => {
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,
         language: 'en',
-        tags: []
+        tags: [],
+        cloudDriveEnabled: false,
+        openListApiUrl: '',
+        openListToken: '',
+        cloudDrivePath: ''
     });
     const [newTag, setNewTag] = useState('');
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
@@ -465,6 +473,48 @@ const SettingsPage: React.FC = () => {
                                     {t('cleanupTempFiles')}
                                 </Button>
                             </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* Cloud Drive Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')}</Typography>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={settings.cloudDriveEnabled || false}
+                                        onChange={(e) => handleChange('cloudDriveEnabled', e.target.checked)}
+                                    />
+                                }
+                                label={t('enableAutoSave')}
+                            />
+
+                            {settings.cloudDriveEnabled && (
+                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 600 }}>
+                                    <TextField
+                                        label={t('apiUrl')}
+                                        value={settings.openListApiUrl || ''}
+                                        onChange={(e) => handleChange('openListApiUrl', e.target.value)}
+                                        helperText={t('apiUrlHelper')}
+                                        fullWidth
+                                    />
+                                    <TextField
+                                        label={t('token')}
+                                        value={settings.openListToken || ''}
+                                        onChange={(e) => handleChange('openListToken', e.target.value)}
+                                        type="password"
+                                        fullWidth
+                                    />
+                                    <TextField
+                                        label={t('uploadPath')}
+                                        value={settings.cloudDrivePath || ''}
+                                        onChange={(e) => handleChange('cloudDrivePath', e.target.value)}
+                                        helperText={t('cloudDrivePathHelper')}
+                                        fullWidth
+                                    />
+                                </Box>
+                            )}
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>

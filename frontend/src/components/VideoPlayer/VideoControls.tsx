@@ -4,6 +4,8 @@ import {
     Forward10,
     Fullscreen,
     FullscreenExit,
+    KeyboardDoubleArrowLeft,
+    KeyboardDoubleArrowRight,
     Loop,
     Pause,
     PlayArrow,
@@ -139,7 +141,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     };
 
     return (
-        <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: 2, overflow: 'hidden', boxShadow: 4, position: 'relative' }}>
+        <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: { xs: 0, sm: 2 }, overflow: 'hidden', boxShadow: 4, position: 'relative' }}>
             <video
                 ref={videoRef}
                 style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
@@ -216,6 +218,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
                     {/* Row 2 on Mobile: Seek Controls */}
                     <Stack direction="row" spacing={1} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
+                        <Tooltip title="-10m">
+                            <Button variant="outlined" onClick={() => handleSeek(-600)}>
+                                <KeyboardDoubleArrowLeft />
+                            </Button>
+                        </Tooltip>
                         <Tooltip title="-1m">
                             <Button variant="outlined" onClick={() => handleSeek(-60)}>
                                 <FastRewind />
@@ -234,6 +241,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         <Tooltip title="+1m">
                             <Button variant="outlined" onClick={() => handleSeek(60)}>
                                 <FastForward />
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title="+10m">
+                            <Button variant="outlined" onClick={() => handleSeek(600)}>
+                                <KeyboardDoubleArrowRight />
                             </Button>
                         </Tooltip>
                     </Stack>
