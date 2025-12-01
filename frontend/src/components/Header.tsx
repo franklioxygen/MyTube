@@ -2,7 +2,6 @@ import {
     Brightness4,
     Brightness7,
     Clear,
-    CloudUpload,
     Download,
     Menu as MenuIcon,
     Search,
@@ -17,7 +16,7 @@ import {
     CircularProgress,
     ClickAwayListener,
     Collapse,
-    Divider,
+    Fade,
     IconButton,
     InputAdornment,
     Menu,
@@ -39,7 +38,7 @@ import { Collection, Video } from '../types';
 import AuthorsList from './AuthorsList';
 import Collections from './Collections';
 import TagsList from './TagsList';
-import UploadModal from './UploadModal';
+
 
 interface DownloadInfo {
     id: string;
@@ -84,7 +83,6 @@ const Header: React.FC<HeaderProps> = ({
     const [error, setError] = useState<string>('');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [manageAnchorEl, setManageAnchorEl] = useState<null | HTMLElement>(null);
-    const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
     const navigate = useNavigate();
     const theme = useTheme();
@@ -166,21 +164,11 @@ const Header: React.FC<HeaderProps> = ({
         }
     };
 
-    const handleUploadSuccess = () => {
-        if (window.location.pathname === '/') {
-            window.location.reload();
-        } else {
-            navigate('/');
-        }
-    };
+
 
     const renderActionButtons = () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Tooltip title={t('uploadVideo')}>
-                <IconButton color="inherit" onClick={() => setUploadModalOpen(true)}>
-                    <CloudUpload />
-                </IconButton>
-            </Tooltip>
+
 
             {(
                 <>
@@ -201,6 +189,8 @@ const Header: React.FC<HeaderProps> = ({
                                     filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                                     mt: 1.5,
                                     width: 320,
+                                    maxHeight: '50vh',
+                                    overflowY: 'auto',
                                     '& .MuiAvatar-root': {
                                         width: 32,
                                         height: 32,
@@ -224,7 +214,17 @@ const Header: React.FC<HeaderProps> = ({
                         }}
                         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                        slots={{ transition: Fade }}
                     >
+                        <MenuItem onClick={() => { handleDownloadsClose(); navigate('/downloads'); }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', color: 'primary.main' }}>
+                                <Download sx={{ mr: 1, fontSize: 20 }} />
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                    {t('manageDownloads') || 'Manage Downloads'}
+                                </Typography>
+                            </Box>
+                        </MenuItem>
+
                         {activeDownloads.map((download) => (
                             <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -284,12 +284,6 @@ const Header: React.FC<HeaderProps> = ({
                                 </MenuItem>
                             ))
                         ]}
-                        <Divider />
-                        <MenuItem onClick={() => { handleDownloadsClose(); navigate('/downloads'); }}>
-                            <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold', width: '100%', textAlign: 'center' }}>
-                                {t('manageDownloads') || 'Manage Downloads'}
-                            </Typography>
-                        </MenuItem>
                     </Menu>
                 </>
             )}
@@ -318,6 +312,7 @@ const Header: React.FC<HeaderProps> = ({
                             overflow: 'visible',
                             filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                             mt: 1.5,
+                            width: 320,
                             '&:before': {
                                 content: '""',
                                 display: 'block',
@@ -335,6 +330,7 @@ const Header: React.FC<HeaderProps> = ({
                 }}
                 transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                 anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                slots={{ transition: Fade }}
             >
                 <MenuItem onClick={() => { handleManageClose(); navigate('/manage'); }}>
                     <VideoLibrary sx={{ mr: 2 }} /> {t('manageContent')}
@@ -484,11 +480,7 @@ const Header: React.FC<HeaderProps> = ({
                     )}
                 </Toolbar>
 
-                <UploadModal
-                    open={uploadModalOpen}
-                    onClose={() => setUploadModalOpen(false)}
-                    onUploadSuccess={handleUploadSuccess}
-                />
+
 
             </AppBar>
         </ClickAwayListener>

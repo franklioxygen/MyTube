@@ -265,4 +265,12 @@ export const ja = {
     speed: "速度",
     finishedAt: "完了日時",
     failed: "失敗",
+
+    // Batch Download
+    batchDownload: "一括ダウンロード",
+    batchDownloadDescription: "以下に複数のURLを1行に1つずつ貼り付けてください。",
+    urls: "URL",
+    addToQueue: "キューに追加",
+    batchTasksAdded: "{count} 件のタスクを追加しました",
+    addBatchTasks: "一括タスクを追加",
 };

@@ -388,12 +388,14 @@ const VideoPlayer: React.FC = () => {
                             onTagsUpdate={handleUpdateTags}
                         />
 
-                        <CommentsSection
-                            comments={comments}
-                            loading={loadingComments}
-                            showComments={showComments}
-                            onToggleComments={handleToggleComments}
-                        />
+                        {(video.source === 'youtube' || video.source === 'bilibili') && (
+                            <CommentsSection
+                                comments={comments}
+                                loading={loadingComments}
+                                showComments={showComments}
+                                onToggleComments={handleToggleComments}
+                            />
+                        )}
                     </Box>
                 </Grid>
 
@@ -435,8 +437,8 @@ const VideoPlayer: React.FC = () => {
                                         />
                                     )}
                                 </Box>
-                                <CardContent sx={{ flex: '1 0 auto', p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 } }}>
+                                    <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
                                         {relatedVideo.title}
                                     </Typography>
                                     <Typography variant="caption" display="block" color="text.secondary">
@@ -445,11 +447,9 @@ const VideoPlayer: React.FC = () => {
                                     <Typography variant="caption" display="block" color="text.secondary">
                                         {formatDate(relatedVideo.date)}
                                     </Typography>
-                                    {relatedVideo.viewCount !== undefined && (
-                                        <Typography variant="caption" display="block" color="text.secondary">
-                                            {relatedVideo.viewCount} {t('views')}
-                                        </Typography>
-                                    )}
+                                    <Typography variant="caption" display="block" color="text.secondary">
+                                        {relatedVideo.viewCount || 0} {t('views')}
+                                    </Typography>
                                 </CardContent>
                             </Card>
                         ))}

@@ -17,6 +17,7 @@ A YouTube/Bilibili/MissAV video downloader and player application that allows yo
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
 - **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
+- **Batch Download**: Add multiple video URLs at once to the download queue.
 - **Concurrent Download Limit**: Set a limit on the number of simultaneous downloads to manage bandwidth.
 - **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
 - **Video Player**: Custom player with Play/Pause, Loop, Seek, Full-screen, and Dimming controls.

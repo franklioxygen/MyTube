@@ -92,6 +92,26 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         };
     }, []);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input or textarea
+            if (document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                handleSeek(-10);
+            } else if (e.key === 'ArrowRight') {
+                handleSeek(10);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
     const handlePlayPause = () => {
         if (videoRef.current) {
             if (isPlaying) {
@@ -217,7 +237,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     </Stack>
 
                     {/* Row 2 on Mobile: Seek Controls */}
-                    <Stack direction="row" spacing={1} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
+                    <Stack direction="row" spacing={0.5} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
                         <Tooltip title="-10m">
                             <Button variant="outlined" onClick={() => handleSeek(-600)}>
                                 <KeyboardDoubleArrowLeft />

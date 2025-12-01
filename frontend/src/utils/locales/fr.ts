@@ -264,4 +264,12 @@ export const fr = {
     speed: "Vitesse",
     finishedAt: "Terminé à",
     failed: "Échoué",
+
+    // Batch Download
+    batchDownload: "Téléchargement par lot",
+    batchDownloadDescription: "Collez plusieurs URL ci-dessous, une par ligne.",
+    urls: "URLs",
+    addToQueue: "Ajouter à la file d'attente",
+    batchTasksAdded: "{count} tâches ajoutées",
+    addBatchTasks: "Ajouter des tâches par lot",
 };

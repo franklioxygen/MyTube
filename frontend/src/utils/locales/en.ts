@@ -266,4 +266,12 @@ export const en = {
     videoRemovedFromCollection: "Video removed from collection",
     collectionDeletedSuccessfully: "Collection deleted successfully",
     failedToDeleteCollection: "Failed to delete collection",
+
+    // Batch Download
+    batchDownload: "Batch Download",
+    batchDownloadDescription: "Paste multiple URLs below, one per line.",
+    urls: "URLs",
+    addToQueue: "Add to Queue",
+    batchTasksAdded: "{count} tasks added",
+    addBatchTasks: "Add batch tasks",
 };
