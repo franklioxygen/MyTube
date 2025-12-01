@@ -48,6 +48,7 @@ interface Settings {
     openListApiUrl: string;
     openListToken: string;
     cloudDrivePath: string;
+    homeSidebarOpen?: boolean;
 }
 
 const SettingsPage: React.FC = () => {
