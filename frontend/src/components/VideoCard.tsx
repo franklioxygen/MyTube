@@ -44,6 +44,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     // Helper to parse duration to seconds
@@ -72,6 +73,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
     const handleMouseLeave = () => {
         setIsHovered(false);
+        setIsVideoPlaying(false);
     };
 
     // Format the date (assuming format YYYYMMDD from youtube-dl)
@@ -195,27 +197,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
                 >
                     <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
-                        <CardMedia
-                            component="img"
-                            image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
-                            alt={`${video.title} thumbnail`}
-                            sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                opacity: isHovered ? 0 : 1,
-                                transition: 'opacity 0.2s'
-                            }}
-                            onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
-                            }}
-                        />
-
                         {isHovered && video.videoPath && (
                             <Box
                                 component="video"
@@ -224,6 +205,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 muted
                                 autoPlay
                                 playsInline
+                                onPlaying={() => setIsVideoPlaying(true)}
                                 sx={{
                                     position: 'absolute',
                                     top: 0,
@@ -253,6 +235,28 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 }}
                             />
                         )}
+
+                        <CardMedia
+                            component="img"
+                            image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                            alt={`${video.title} thumbnail`}
+                            sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                opacity: (isHovered && isVideoPlaying) ? 0 : 1,
+                                transition: 'opacity 0.2s',
+                                pointerEvents: 'none' // Ensure hover events pass through to the video if needed, though parent handles it
+                            }}
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                            }}
+                        />
 
 
 
