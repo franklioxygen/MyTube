@@ -59,7 +59,9 @@ export const pt = {
     migrateDataButton: "Migrar Dados do JSON",
     scanFiles: "Escanear Arquivos",
     scanFilesSuccess: "Escaneamento completo. {count} novos vídeos adicionados.",
-    scanFilesFailed: "Falha no escaneamento",
+    scanFilesFailed: "A verificação falhou",
+    scanFilesConfirmMessage: "O sistema verificará a pasta raiz do caminho do vídeo para encontrar arquivos de vídeo não documentados.",
+    scanning: "Verificando...",
     migrateConfirmation: "Tem certeza de que deseja migrar os dados? Isso pode levar alguns instantes.",
     migrationResults: "Resultados da Migração",
     migrationReport: "Relatório de Migração",
@@ -211,6 +213,7 @@ export const pt = {
     save: "Salvar",
     on: "Ligado",
     off: "Desligado",
+    continue: "Continuar",
     
     // Video Card
     unknownDate: "Data desconhecida",

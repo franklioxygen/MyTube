@@ -60,6 +60,8 @@ export const ko = {
     scanFiles: "파일 스캔",
     scanFilesSuccess: "스캔 완료. {count}개의 새 동영상이 추가되었습니다.",
     scanFilesFailed: "스캔 실패",
+    scanFilesConfirmMessage: "시스템이 비디오 경로의 루트 폴더를 스캔하여 문서화되지 않은 비디오 파일을 찾습니다.",
+    scanning: "스캔 중...",
     migrateConfirmation: "데이터를 마이그레이션하시겠습니까? 잠시 시간이 걸릴 수 있습니다.",
     migrationResults: "마이그레이션 결과",
     migrationReport: "마이그레이션 보고서",
@@ -212,6 +214,7 @@ export const ko = {
     save: "저장",
     on: "켜기",
     off: "끄기",
+    continue: "계속",
     
     // Video Card
     unknownDate: "알 수 없는 날짜",

@@ -60,7 +60,9 @@ export const zh = {
     scanFiles: "扫描文件",
     scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
     scanFilesFailed: "扫描失败",
-    migrateConfirmation: "确定要迁移数据吗？这可能需要一些时间。",
+    scanFilesConfirmMessage: "系统将扫描视频路径的根文件夹以查找未记录的视频文件。",
+    scanning: "扫描中...",
+    migrateConfirmation: "您确定要迁移数据吗？这可能需要一些时间。",
     migrationResults: "迁移结果",
     migrationReport: "迁移报告",
     migrationSuccess: "迁移完成。请查看警报中的详细信息。",
@@ -211,7 +213,8 @@ export const zh = {
     confirm: "确认",
     save: "保存",
     on: "开启",
-    off: "关闭",
+    off: "关",
+    continue: "继续",
     
     // Video Card
     unknownDate: "未知日期",

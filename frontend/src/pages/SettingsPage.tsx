@@ -127,29 +127,7 @@ const SettingsPage: React.FC = () => {
         saveMutation.mutate(settings);
     };
 
-    // Scan files mutation
-    const scanMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/scan-files`);
-            return res.data;
-        },
-        onSuccess: (data) => {
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: t('scanFilesSuccess').replace('{count}', data.addedCount.toString()),
-                type: 'success'
-            });
-        },
-        onError: (error: any) => {
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: `${t('scanFilesFailed')}: ${error.response?.data?.details || error.message}`,
-                type: 'error'
-            });
-        }
-    });
+
 
     // Migrate data mutation
     const migrateMutation = useMutation({
@@ -289,7 +267,7 @@ const SettingsPage: React.FC = () => {
         setSettings(prev => ({ ...prev, tags: updatedTags }));
     };
 
-    const isSaving = saveMutation.isPending || scanMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending;
+    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -534,15 +512,7 @@ const SettingsPage: React.FC = () => {
                                 {t('migrateDataButton')}
                             </Button>
 
-                            <Button
-                                variant="outlined"
-                                color="primary"
-                                onClick={() => scanMutation.mutate()}
-                                disabled={isSaving}
-                                sx={{ ml: 2 }}
-                            >
-                                {t('scanFiles')}
-                            </Button>
+
 
                             <Box sx={{ mt: 3 }}>
                                 <Typography variant="h6" gutterBottom>{t('removeLegacyData')}</Typography>

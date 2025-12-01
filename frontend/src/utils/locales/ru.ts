@@ -59,7 +59,9 @@ export const ru = {
     migrateDataButton: "Перенести данные из JSON",
     scanFiles: "Сканировать файлы",
     scanFilesSuccess: "Сканирование завершено. Добавлено {count} новых видео.",
-    scanFilesFailed: "Ошибка сканирования",
+    scanFilesFailed: "Сканирование не удалось",
+    scanFilesConfirmMessage: "Система просканирует корневую папку с видео, чтобы найти недовкументированные видеофайлы.",
+    scanning: "Сканирование...",
     migrateConfirmation: "Вы уверены, что хотите перенести данные? Это может занять некоторое время.",
     migrationResults: "Результаты миграции",
     migrationReport: "Отчет о миграции",
@@ -211,7 +213,8 @@ export const ru = {
     confirm: "Подтвердить",
     save: "Сохранить",
     on: "Вкл.",
-    off: "Выкл.",
+    off: "Выкл",
+    continue: "Продолжить",
     
     // Video Card
     unknownDate: "Неизвестная дата",

@@ -2,7 +2,7 @@ import {
     ArrowBack,
     Check,
     Close,
-    CloudUpload,
+
     Delete,
     Edit,
     Folder,
@@ -35,7 +35,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
-import UploadModal from '../components/UploadModal';
+
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
@@ -54,7 +54,7 @@ const ManagePage: React.FC = () => {
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
-    const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
+
 
     // Editing state
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -230,9 +230,7 @@ const ManagePage: React.FC = () => {
         return video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
     };
 
-    const handleUploadSuccess = () => {
-        window.location.reload();
-    };
+
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -241,13 +239,7 @@ const ManagePage: React.FC = () => {
                     {t('manageContent')}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        startIcon={<CloudUpload />}
-                        onClick={() => setUploadModalOpen(true)}
-                    >
-                        {t('uploadVideo')}
-                    </Button>
+
                     <Button
                         component={Link}
                         to="/"
@@ -259,11 +251,7 @@ const ManagePage: React.FC = () => {
                 </Box>
             </Box>
 
-            <UploadModal
-                open={uploadModalOpen}
-                onClose={() => setUploadModalOpen(false)}
-                onUploadSuccess={handleUploadSuccess}
-            />
+
 
             <DeleteCollectionModal
                 isOpen={!!collectionToDelete}

@@ -59,8 +59,10 @@ export const ar = {
     migrateDataButton: "نقل البيانات من JSON",
     scanFiles: "فحص الملفات",
     scanFilesSuccess: "اكتمل الفحص. تمت إضافة {count} فيديوهات جديدة.",
-    scanFilesFailed: "فشل الفحص",
-    migrateConfirmation: "هل أنت متأكد أنك تريد نقل البيانات؟ قد يستغرق هذا بضع لحظات.",
+    scanFilesFailed: "فشل المسح",
+    scanFilesConfirmMessage: "سيقوم النظام بفحص المجلد الجذر لمسار الفيديو للعثور على ملفات الفيديو غير الموثقة.",
+    scanning: "جارٍ المسح...",
+    migrateConfirmation: "هل أنت متأكد أنك تريد ترحيل البيانات؟ قد يستغرق هذا بضع لحظات.",
     migrationResults: "نتائج النقل",
     migrationReport: "تقرير النقل",
     migrationSuccess: "اكتمل النقل. انظر التفاصيل في التنبيه.",
@@ -212,6 +214,7 @@ export const ar = {
     save: "حفظ",
     on: "تشغيل",
     off: "إيقاف",
+    continue: "متابعة",
     
     // Video Card
     unknownDate: "تاريخ غير معروف",
