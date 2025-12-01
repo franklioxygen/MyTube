@@ -217,12 +217,7 @@ const Header: React.FC<HeaderProps> = ({
                         slots={{ transition: Fade }}
                     >
                         <MenuItem onClick={() => { handleDownloadsClose(); navigate('/downloads'); }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', color: 'primary.main' }}>
-                                <Download sx={{ mr: 1, fontSize: 20 }} />
-                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                    {t('manageDownloads') || 'Manage Downloads'}
-                                </Typography>
-                            </Box>
+                            <Download sx={{ mr: 2 }} /> {t('manageDownloads') || 'Manage Downloads'}
                         </MenuItem>
 
                         {activeDownloads.map((download) => (
