@@ -18,6 +18,7 @@ interface Settings {
     openListApiUrl?: string;
     openListToken?: string;
     cloudDrivePath?: string;
+    homeSidebarOpen?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -30,7 +31,8 @@ const defaultSettings: Settings = {
     cloudDriveEnabled: false,
     openListApiUrl: '',
     openListToken: '',
-    cloudDrivePath: ''
+    cloudDrivePath: '',
+    homeSidebarOpen: true
 };
 
 export const getSettings = async (_req: Request, res: Response) => {

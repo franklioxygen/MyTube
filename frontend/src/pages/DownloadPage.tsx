@@ -17,6 +17,7 @@ import {
     List,
     ListItem,
     ListItemText,
+    Pagination,
     Paper,
     Tab,
     Tabs,
@@ -33,6 +34,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
+const ITEMS_PER_PAGE = 20;
 
 interface DownloadHistoryItem {
     id: string;
@@ -82,6 +84,8 @@ const DownloadPage: React.FC = () => {
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [showScanConfirmModal, setShowScanConfirmModal] = useState(false);
+    const [queuePage, setQueuePage] = useState(1);
+    const [historyPage, setHistoryPage] = useState(1);
 
     // Scan files mutation
     const scanMutation = useMutation({
@@ -366,25 +370,39 @@ const DownloadPage: React.FC = () => {
                 {queuedDownloads.length === 0 ? (
                     <Typography color="textSecondary">{t('noQueuedDownloads') || 'No queued downloads'}</Typography>
                 ) : (
-                    <List>
-                        {queuedDownloads.map((download) => (
-                            <Paper key={download.id} sx={{ mb: 2, p: 2 }}>
-                                <ListItem
-                                    disableGutters
-                                    secondaryAction={
-                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromQueue(download.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    }
-                                >
-                                    <ListItemText
-                                        primary={download.title}
-                                        secondary={t('queued') || 'Queued'}
-                                    />
-                                </ListItem>
-                            </Paper>
-                        ))}
-                    </List>
+                    <>
+                        <List>
+                            {queuedDownloads
+                                .slice((queuePage - 1) * ITEMS_PER_PAGE, queuePage * ITEMS_PER_PAGE)
+                                .map((download) => (
+                                    <Paper key={download.id} sx={{ mb: 2, p: 2 }}>
+                                        <ListItem
+                                            disableGutters
+                                            secondaryAction={
+                                                <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromQueue(download.id)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            }
+                                        >
+                                            <ListItemText
+                                                primary={download.title}
+                                                secondary={t('queued') || 'Queued'}
+                                            />
+                                        </ListItem>
+                                    </Paper>
+                                ))}
+                        </List>
+                        {queuedDownloads.length > ITEMS_PER_PAGE && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                                <Pagination
+                                    count={Math.ceil(queuedDownloads.length / ITEMS_PER_PAGE)}
+                                    page={queuePage}
+                                    onChange={(_: React.ChangeEvent<unknown>, page: number) => setQueuePage(page)}
+                                    color="primary"
+                                />
+                            </Box>
+                        )}
+                    </>
                 )}
             </CustomTabPanel>
 
@@ -403,49 +421,63 @@ const DownloadPage: React.FC = () => {
                 {history.length === 0 ? (
                     <Typography color="textSecondary">{t('noDownloadHistory') || 'No download history'}</Typography>
                 ) : (
-                    <List>
-                        {history.map((item: DownloadHistoryItem) => (
-                            <Paper key={item.id} sx={{ mb: 2, p: 2 }}>
-                                <ListItem
-                                    disableGutters
-                                    secondaryAction={
-                                        <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromHistory(item.id)}>
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    }
-                                >
-                                    <ListItemText
-                                        primary={item.title}
-                                        secondaryTypographyProps={{ component: 'div' }}
-                                        secondary={
-                                            <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                                {item.sourceUrl && (
-                                                    <Typography variant="caption" color="primary" component="a" href={item.sourceUrl} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                                                        {item.sourceUrl}
-                                                    </Typography>
-                                                )}
-                                                <Typography variant="caption" component="span">
-                                                    {formatDate(item.finishedAt)}
-                                                </Typography>
-                                                {item.error && (
-                                                    <Typography variant="caption" color="error" component="span">
-                                                        {item.error}
-                                                    </Typography>
+                    <>
+                        <List>
+                            {history
+                                .slice((historyPage - 1) * ITEMS_PER_PAGE, historyPage * ITEMS_PER_PAGE)
+                                .map((item: DownloadHistoryItem) => (
+                                    <Paper key={item.id} sx={{ mb: 2, p: 2 }}>
+                                        <ListItem
+                                            disableGutters
+                                            secondaryAction={
+                                                <IconButton edge="end" aria-label="remove" onClick={() => handleRemoveFromHistory(item.id)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            }
+                                        >
+                                            <ListItemText
+                                                primary={item.title}
+                                                secondaryTypographyProps={{ component: 'div' }}
+                                                secondary={
+                                                    <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                                        {item.sourceUrl && (
+                                                            <Typography variant="caption" color="primary" component="a" href={item.sourceUrl} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                                                {item.sourceUrl}
+                                                            </Typography>
+                                                        )}
+                                                        <Typography variant="caption" component="span">
+                                                            {formatDate(item.finishedAt)}
+                                                        </Typography>
+                                                        {item.error && (
+                                                            <Typography variant="caption" color="error" component="span">
+                                                                {item.error}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                }
+                                            />
+                                            <Box sx={{ mr: 8 }}>
+                                                {item.status === 'success' ? (
+                                                    <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
+                                                ) : (
+                                                    <Chip icon={<ErrorIcon />} label={t('failed') || 'Failed'} color="error" size="small" />
                                                 )}
                                             </Box>
-                                        }
-                                    />
-                                    <Box sx={{ mr: 8 }}>
-                                        {item.status === 'success' ? (
-                                            <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
-                                        ) : (
-                                            <Chip icon={<ErrorIcon />} label={t('failed') || 'Failed'} color="error" size="small" />
-                                        )}
-                                    </Box>
-                                </ListItem>
-                            </Paper>
-                        ))}
-                    </List>
+                                        </ListItem>
+                                    </Paper>
+                                ))}
+                        </List>
+                        {history.length > ITEMS_PER_PAGE && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                                <Pagination
+                                    count={Math.ceil(history.length / ITEMS_PER_PAGE)}
+                                    page={historyPage}
+                                    onChange={(_: React.ChangeEvent<unknown>, page: number) => setHistoryPage(page)}
+                                    color="primary"
+                                />
+                            </Box>
+                        )}
+                    </>
                 )}
             </CustomTabPanel>
 
