@@ -60,6 +60,7 @@ const Home: React.FC = () => {
         return (saved as 'collections' | 'all-videos') || 'collections';
     });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
 
     // Fetch settings on mount
     useEffect(() => {
@@ -71,6 +72,8 @@ const Home: React.FC = () => {
                 }
             } catch (error) {
                 console.error('Failed to fetch settings:', error);
+            } finally {
+                setSettingsLoaded(true);
             }
         };
         fetchSettings();
@@ -121,7 +124,7 @@ const Home: React.FC = () => {
     // Add default empty array to ensure videos is always an array
     const videoArray = Array.isArray(videos) ? videos : [];
 
-    if (loading && videoArray.length === 0 && !isSearchMode) {
+    if (!settingsLoaded || (loading && videoArray.length === 0 && !isSearchMode)) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
