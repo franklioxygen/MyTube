@@ -14,7 +14,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
@@ -43,6 +43,36 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Helper to parse duration to seconds
+    const parseDuration = (duration: string | number | undefined): number => {
+        if (!duration) return 0;
+        if (typeof duration === 'number') return duration;
+
+        if (duration.includes(':')) {
+            const parts = duration.split(':').map(part => parseInt(part, 10));
+            if (parts.length === 3) {
+                return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+                return parts[0] * 60 + parts[1];
+            }
+        }
+
+        const parsed = parseInt(duration, 10);
+        return isNaN(parsed) ? 0 : parsed;
+    };
+
+    const handleMouseEnter = () => {
+        if (!isMobile && video.videoPath) {
+            setIsHovered(true);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setIsHovered(false);
+    };
 
     // Format the date (assuming format YYYYMMDD from youtube-dl)
     const formatDate = (dateString: string) => {
@@ -158,7 +188,12 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     border: isFirstInAnyCollection ? `1px solid ${theme.palette.primary.main}` : 'none'
                 }}
             >
-                <CardActionArea onClick={handleVideoNavigation} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+                <CardActionArea
+                    onClick={handleVideoNavigation}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
+                >
                     <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
                         <CardMedia
                             component="img"
@@ -170,7 +205,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 left: 0,
                                 width: '100%',
                                 height: '100%',
-                                objectFit: 'cover'
+                                objectFit: 'cover',
+                                opacity: isHovered ? 0 : 1,
+                                transition: 'opacity 0.2s'
                             }}
                             onError={(e) => {
                                 const target = e.target as HTMLImageElement;
@@ -178,6 +215,44 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
                             }}
                         />
+
+                        {isHovered && video.videoPath && (
+                            <Box
+                                component="video"
+                                ref={videoRef}
+                                src={`${BACKEND_URL}${video.videoPath}`}
+                                muted
+                                autoPlay
+                                playsInline
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    bgcolor: 'black'
+                                }}
+                                onLoadedMetadata={(e) => {
+                                    const videoEl = e.target as HTMLVideoElement;
+                                    const duration = parseDuration(video.duration);
+                                    if (duration > 5) {
+                                        videoEl.currentTime = Math.max(0, (duration / 2) - 2.5);
+                                    }
+                                }}
+                                onTimeUpdate={(e) => {
+                                    const videoEl = e.target as HTMLVideoElement;
+                                    const duration = parseDuration(video.duration);
+                                    const startTime = Math.max(0, (duration / 2) - 2.5);
+                                    const endTime = startTime + 5;
+
+                                    if (videoEl.currentTime >= endTime) {
+                                        videoEl.currentTime = startTime;
+                                        videoEl.play();
+                                    }
+                                }}
+                            />
+                        )}
 
 
 
