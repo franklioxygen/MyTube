@@ -60,6 +60,8 @@ export const en = {
     scanFiles: "Scan Files",
     scanFilesSuccess: "Scan complete. Added {count} new videos.",
     scanFilesFailed: "Scan failed",
+    scanFilesConfirmMessage: "The system will scan the root folder of the video path to find undocumented video files.",
+    scanning: "Scanning...",
     migrateConfirmation: "Are you sure you want to migrate data? This may take a few moments.",
     migrationResults: "Migration Results",
     migrationReport: "Migration Report",
@@ -203,6 +205,7 @@ export const en = {
     save: "Save",
     on: "On",
     off: "Off",
+    continue: "Continue",
     
     // Video Card
     unknownDate: "Unknown date",

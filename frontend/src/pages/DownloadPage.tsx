@@ -2,8 +2,10 @@ import {
     Cancel as CancelIcon,
     CheckCircle as CheckCircleIcon,
     ClearAll as ClearAllIcon,
+    CloudUpload,
     Delete as DeleteIcon,
     Error as ErrorIcon,
+    FindInPage,
     PlaylistAdd as PlaylistAddIcon
 } from '@mui/icons-material';
 import {
@@ -24,6 +26,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
 import BatchDownloadModal from '../components/BatchDownloadModal';
+import ConfirmationModal from '../components/ConfirmationModal';
+import UploadModal from '../components/UploadModal';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -76,6 +80,26 @@ const DownloadPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [tabValue, setTabValue] = useState(0);
     const [showBatchModal, setShowBatchModal] = useState(false);
+    const [uploadModalOpen, setUploadModalOpen] = useState(false);
+    const [showScanConfirmModal, setShowScanConfirmModal] = useState(false);
+
+    // Scan files mutation
+    const scanMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/scan-files`);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            showSnackbar(t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`);
+        },
+        onError: (error: any) => {
+            showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.details || error.message}`);
+        }
+    });
+
+    const handleUploadSuccess = () => {
+        window.location.reload();
+    };
 
     const handleBatchSubmit = async (urls: string[]) => {
         // We'll process them sequentially to be safe, or just fire them all.
@@ -230,18 +254,44 @@ const DownloadPage: React.FC = () => {
 
     return (
         <Box sx={{ width: '100%', p: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                mb: 2,
+                gap: { xs: 2, sm: 0 }
+            }}>
                 <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
                     {t('downloads') || 'Downloads'}
                 </Typography>
-                <Button
-                    variant="contained"
-                    size="small"
-                    startIcon={<PlaylistAddIcon />}
-                    onClick={() => setShowBatchModal(true)}
-                >
-                    {t('addBatchTasks') || 'Add batch tasks'}
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FindInPage />}
+                        onClick={() => setShowScanConfirmModal(true)}
+                        disabled={scanMutation.isPending}
+                    >
+                        {scanMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<PlaylistAddIcon />}
+                        onClick={() => setShowBatchModal(true)}
+                    >
+                        {t('addBatchTasks') || 'Add batch tasks'}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        startIcon={<CloudUpload />}
+                        onClick={() => setUploadModalOpen(true)}
+                    >
+                        {t('uploadVideo') || 'Upload Video'}
+                    </Button>
+                </Box>
             </Box>
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -403,6 +453,23 @@ const DownloadPage: React.FC = () => {
                 open={showBatchModal}
                 onClose={() => setShowBatchModal(false)}
                 onConfirm={handleBatchSubmit}
+            />
+            <UploadModal
+                open={uploadModalOpen}
+                onClose={() => setUploadModalOpen(false)}
+                onUploadSuccess={handleUploadSuccess}
+            />
+            <ConfirmationModal
+                isOpen={showScanConfirmModal}
+                onClose={() => setShowScanConfirmModal(false)}
+                onConfirm={() => {
+                    setShowScanConfirmModal(false);
+                    scanMutation.mutate();
+                }}
+                title={t('scanFiles') || 'Scan Files'}
+                message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path to find undocumented video files.'}
+                confirmText={t('continue') || 'Continue'}
+                cancelText={t('cancel') || 'Cancel'}
             />
         </Box>
     );

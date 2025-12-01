@@ -60,6 +60,8 @@ export const ja = {
     scanFiles: "ファイルをスキャン",
     scanFilesSuccess: "スキャンが完了しました。{count}個の新しい動画を追加しました。",
     scanFilesFailed: "スキャンに失敗しました",
+    scanFilesConfirmMessage: "システムはビデオパスのルートフォルダをスキャンして、未登録のビデオファイルを検索します。",
+    scanning: "スキャン中...",
     migrateConfirmation: "データを移行してもよろしいですか？これには時間がかかる場合があります。",
     migrationResults: "移行結果",
     migrationReport: "移行レポート",
@@ -212,6 +214,7 @@ export const ja = {
     save: "保存",
     on: "オン",
     off: "オフ",
+    continue: "続行",
     
     // Video Card
     unknownDate: "不明な日付",
