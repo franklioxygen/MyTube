@@ -266,4 +266,12 @@ export const zh = {
     speed: "速度",
     finishedAt: "完成时间",
     failed: "失败",
+
+    // Batch Download
+    batchDownload: "批量下载",
+    batchDownloadDescription: "在下方粘贴多个链接，每行一个。",
+    urls: "链接",
+    addToQueue: "添加到队列",
+    batchTasksAdded: "已添加 {count} 个任务",
+    addBatchTasks: "添加批量任务",
 };

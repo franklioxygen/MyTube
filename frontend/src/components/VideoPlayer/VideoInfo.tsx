@@ -167,6 +167,33 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </Typography>
             </Box>
 
+            {/* Tags Section */}
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
+                <LocalOffer color="action" fontSize="small" />
+                <Autocomplete
+                    multiple
+                    options={availableTags}
+                    value={video.tags || []}
+                    isOptionEqualToValue={(option, value) => option === value}
+                    onChange={(_, newValue) => onTagsUpdate(newValue)}
+                    slotProps={{
+                        chip: { variant: 'outlined', size: 'small' }
+                    }}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            variant="standard"
+                            placeholder={!video.tags || video.tags.length === 0 ? (t('tags') || 'Tags') : ''}
+                            sx={{ minWidth: 200 }}
+                            slotProps={{
+                                input: { ...params.InputProps, disableUnderline: true }
+                            }}
+                        />
+                    )}
+                    sx={{ flexGrow: 1 }}
+                />
+            </Box>
+
             <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 justifyContent="space-between"
@@ -223,7 +250,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             <Divider sx={{ my: 2 }} />
 
             <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
-                <Stack direction="row" spacing={3} alignItems="center" flexWrap="wrap">
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 3 }} alignItems={{ xs: 'flex-start', sm: 'center' }} flexWrap="wrap">
                     {video.sourceUrl && (
                         <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                             <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
@@ -256,8 +283,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
                 {videoCollections.length > 0 && (
                     <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle2" gutterBottom>{t('collections')}:</Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <Typography variant="subtitle2" sx={{ mr: 1 }}>{t('collections')}:</Typography>
                             {videoCollections.map(c => (
                                 <Chip
                                     key={c.id}
@@ -267,39 +294,13 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                                     color="secondary"
                                     variant="outlined"
                                     clickable
-                                    sx={{ mb: 1 }}
+                                    size="small"
+                                    sx={{ my: 0.5 }}
                                 />
                             ))}
                         </Stack>
                     </Box>
                 )}
-            </Box>
-
-            {/* Tags Section */}
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
-                <LocalOffer color="action" fontSize="small" />
-                <Autocomplete
-                    multiple
-                    options={availableTags}
-                    value={video.tags || []}
-                    isOptionEqualToValue={(option, value) => option === value}
-                    onChange={(_, newValue) => onTagsUpdate(newValue)}
-                    slotProps={{
-                        chip: { variant: 'outlined', size: 'small' }
-                    }}
-                    renderInput={(params) => (
-                        <TextField
-                            {...params}
-                            variant="standard"
-                            placeholder={!video.tags || video.tags.length === 0 ? (t('tags') || 'Tags') : ''}
-                            sx={{ minWidth: 200 }}
-                            slotProps={{
-                                input: { ...params.InputProps, disableUnderline: true }
-                            }}
-                        />
-                    )}
-                    sx={{ flexGrow: 1 }}
-                />
             </Box>
         </Box>
     );

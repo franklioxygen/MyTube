@@ -265,4 +265,12 @@ export const ru = {
     speed: "Скорость",
     finishedAt: "Завершено в",
     failed: "Ошибка",
+
+    // Batch Download
+    batchDownload: "Пакетная загрузка",
+    batchDownloadDescription: "Вставьте несколько URL ниже, по одному в строке.",
+    urls: "URL",
+    addToQueue: "Добавить в очередь",
+    batchTasksAdded: "Добавлено {count} задач",
+    addBatchTasks: "Добавить пакетные задачи",
 };

@@ -2,6 +2,7 @@ import {
     ArrowBack,
     Check,
     Close,
+    CloudUpload,
     Delete,
     Edit,
     Folder,
@@ -34,6 +35,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
+import UploadModal from '../components/UploadModal';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
@@ -52,6 +54,7 @@ const ManagePage: React.FC = () => {
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
+    const [uploadModalOpen, setUploadModalOpen] = useState<boolean>(false);
 
     // Editing state
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -227,21 +230,40 @@ const ManagePage: React.FC = () => {
         return video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
     };
 
+    const handleUploadSuccess = () => {
+        window.location.reload();
+    };
+
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     {t('manageContent')}
                 </Typography>
-                <Button
-                    component={Link}
-                    to="/"
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                >
-                    {t('backToHome')}
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                        variant="contained"
+                        startIcon={<CloudUpload />}
+                        onClick={() => setUploadModalOpen(true)}
+                    >
+                        {t('uploadVideo')}
+                    </Button>
+                    <Button
+                        component={Link}
+                        to="/"
+                        variant="outlined"
+                        startIcon={<ArrowBack />}
+                    >
+                        {t('backToHome')}
+                    </Button>
+                </Box>
             </Box>
+
+            <UploadModal
+                open={uploadModalOpen}
+                onClose={() => setUploadModalOpen(false)}
+                onUploadSuccess={handleUploadSuccess}
+            />
 
             <DeleteCollectionModal
                 isOpen={!!collectionToDelete}

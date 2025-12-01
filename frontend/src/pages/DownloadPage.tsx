@@ -3,7 +3,8 @@ import {
     CheckCircle as CheckCircleIcon,
     ClearAll as ClearAllIcon,
     Delete as DeleteIcon,
-    Error as ErrorIcon
+    Error as ErrorIcon,
+    PlaylistAdd as PlaylistAddIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -22,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
+import BatchDownloadModal from '../components/BatchDownloadModal';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -70,9 +72,26 @@ function CustomTabPanel(props: TabPanelProps) {
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { activeDownloads, queuedDownloads } = useDownload();
+    const { activeDownloads, queuedDownloads, handleVideoSubmit } = useDownload();
     const queryClient = useQueryClient();
     const [tabValue, setTabValue] = useState(0);
+    const [showBatchModal, setShowBatchModal] = useState(false);
+
+    const handleBatchSubmit = async (urls: string[]) => {
+        // We'll process them sequentially to be safe, or just fire them all.
+        // Let's fire them all but with a small delay or just let the context handle it.
+        // Since handleVideoSubmit is async, we can await them.
+        let addedCount = 0;
+        for (const url of urls) {
+            if (url.trim()) {
+                await handleVideoSubmit(url.trim());
+                addedCount++;
+            }
+        }
+        if (addedCount > 0) {
+            showSnackbar(t('batchTasksAdded', { count: addedCount }) || `${addedCount} tasks added`);
+        }
+    };
 
     // Fetch history with polling
     const { data: history = [] } = useQuery({
@@ -211,9 +230,20 @@ const DownloadPage: React.FC = () => {
 
     return (
         <Box sx={{ width: '100%', p: 2 }}>
-            <Typography variant="h4" gutterBottom>
-                {t('downloads') || 'Downloads'}
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+                    {t('downloads') || 'Downloads'}
+                </Typography>
+                <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<PlaylistAddIcon />}
+                    onClick={() => setShowBatchModal(true)}
+                >
+                    {t('addBatchTasks') || 'Add batch tasks'}
+                </Button>
+            </Box>
+
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={tabValue} onChange={handleTabChange} aria-label="download tabs">
                     <Tab label={t('activeDownloads') || 'Active Downloads'} />
@@ -368,6 +398,12 @@ const DownloadPage: React.FC = () => {
                     </List>
                 )}
             </CustomTabPanel>
+
+            <BatchDownloadModal
+                open={showBatchModal}
+                onClose={() => setShowBatchModal(false)}
+                onConfirm={handleBatchSubmit}
+            />
         </Box>
     );
 };

@@ -265,4 +265,12 @@ export const ar = {
     speed: "السرعة",
     finishedAt: "انتهى في",
     failed: "فشل",
+
+    // Batch Download
+    batchDownload: "تحميل مجمع",
+    batchDownloadDescription: "الصق روابط متعددة أدناه، واحد في كل سطر.",
+    urls: "الروابط",
+    addToQueue: "إضافة إلى قائمة الانتظار",
+    batchTasksAdded: "تمت إضافة {count} مهام",
+    addBatchTasks: "إضافة مهام مجمعة",
 };

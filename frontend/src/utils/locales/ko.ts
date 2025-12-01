@@ -265,4 +265,12 @@ export const ko = {
     speed: "속도",
     finishedAt: "완료 시간",
     failed: "실패",
+
+    // Batch Download
+    batchDownload: "일괄 다운로드",
+    batchDownloadDescription: "아래에 여러 URL을 한 줄에 하나씩 붙여넣으세요.",
+    urls: "URL",
+    addToQueue: "대기열에 추가",
+    batchTasksAdded: "{count}개의 작업이 추가되었습니다",
+    addBatchTasks: "일괄 작업 추가",
 };
