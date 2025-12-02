@@ -3,6 +3,7 @@ import {
     Brightness7,
     Clear,
     Download,
+    Help,
     Menu as MenuIcon,
     Search,
     Settings,
@@ -336,6 +337,9 @@ const Header: React.FC<HeaderProps> = ({
                 </MenuItem>
                 <MenuItem onClick={() => { handleManageClose(); navigate('/settings'); }}>
                     <Settings sx={{ mr: 2 }} /> {t('settings')}
+                </MenuItem>
+                <MenuItem onClick={() => { handleManageClose(); navigate('/instruction'); }}>
+                    <Help sx={{ mr: 2 }} /> {t('instruction')}
                 </MenuItem>
             </Menu>
         </Box>
