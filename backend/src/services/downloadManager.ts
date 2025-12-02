@@ -11,6 +11,7 @@ interface DownloadTask {
   cancelFn?: () => void;
   sourceUrl?: string;
   type?: string;
+  cancelled?: boolean;
 }
 
 class DownloadManager {
@@ -141,6 +142,7 @@ class DownloadManager {
     const task = this.activeTasks.get(id);
     if (task) {
       console.log(`Cancelling active download: ${task.title} (${id})`);
+      task.cancelled = true;
       
       // Call the cancel function if available
       if (task.cancelFn) {
@@ -269,16 +271,18 @@ class DownloadManager {
       }
 
       // Add to history
-      storageService.addDownloadHistoryItem({
-        id: task.id,
-        title: finalTitle || task.title,
-        finishedAt: Date.now(),
-        status: 'success',
-        videoPath: videoData.videoPath,
-        thumbnailPath: videoData.thumbnailPath,
-        sourceUrl: videoData.sourceUrl || task.sourceUrl,
-        author: videoData.author,
-      });
+      if (!task.cancelled) {
+        storageService.addDownloadHistoryItem({
+          id: task.id,
+          title: finalTitle || task.title,
+          finishedAt: Date.now(),
+          status: 'success',
+          videoPath: videoData.videoPath,
+          thumbnailPath: videoData.thumbnailPath,
+          sourceUrl: videoData.sourceUrl || task.sourceUrl,
+          author: videoData.author,
+        });
+      }
 
       // Trigger Cloud Upload (Async, don't await to block queue processing?)
       // Actually, we might want to await it if we want to ensure it's done before resolving,
@@ -298,14 +302,16 @@ class DownloadManager {
       storageService.removeActiveDownload(task.id);
 
       // Add to history
-      storageService.addDownloadHistoryItem({
-        id: task.id,
-        title: task.title,
-        finishedAt: Date.now(),
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-        sourceUrl: task.sourceUrl,
-      });
+      if (!task.cancelled) {
+        storageService.addDownloadHistoryItem({
+          id: task.id,
+          title: task.title,
+          finishedAt: Date.now(),
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error),
+          sourceUrl: task.sourceUrl,
+        });
+      }
 
       task.reject(error);
     } finally {
