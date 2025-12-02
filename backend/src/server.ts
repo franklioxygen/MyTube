@@ -44,6 +44,11 @@ app.use('/api/settings', settingsRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   
+  // Start subscription scheduler
+  import("./services/subscriptionService").then(({ subscriptionService }) => {
+    subscriptionService.startScheduler();
+  }).catch(err => console.error("Failed to start subscription service:", err));
+
   // Run duration backfill in background
   import("./services/metadataService").then(service => {
     service.backfillDurations();

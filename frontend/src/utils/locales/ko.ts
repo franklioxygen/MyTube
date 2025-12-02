@@ -276,4 +276,22 @@ export const ko = {
     addToQueue: "대기열에 추가",
     batchTasksAdded: "{count}개의 작업이 추가되었습니다",
     addBatchTasks: "일괄 작업 추가",
+
+    // Subscriptions
+    subscribeToAuthor: "작가 구독",
+    subscribeConfirmationMessage: "{author}님을 구독하시겠습니까?",
+    subscribeDescription: "시스템이 자동으로 이 작가의 새 동영상을 확인하고 다운로드합니다.",
+    checkIntervalMinutes: "확인 간격 (분)",
+    subscribe: "구독",
+    subscriptions: "구독",
+    interval: "간격",
+    lastCheck: "마지막 확인",
+    platform: "플랫폼",
+    unsubscribe: "구독 취소",
+    confirmUnsubscribe: "{author}님의 구독을 취소하시겠습니까?",
+    subscribedSuccessfully: "구독 성공",
+    unsubscribedSuccessfully: "구독 취소 성공",
+    subscriptionAlreadyExists: "이미 구독 중인 작가입니다.",
+    minutes: "분",
+    never: "없음",
 };

@@ -144,4 +144,22 @@ export const es = {
     addToQueue: "Añadir a la cola",
     batchTasksAdded: "{count} tareas añadidas",
     addBatchTasks: "Añadir tareas por lotes",
+
+    // Subscriptions
+    subscribeToAuthor: "Suscribirse al autor",
+    subscribeConfirmationMessage: "¿Quieres suscribirte a {author}?",
+    subscribeDescription: "El sistema comprobará automáticamente si hay nuevos vídeos de este autor y los descargará.",
+    checkIntervalMinutes: "Intervalo de comprobación (minutos)",
+    subscribe: "Suscribirse",
+    subscriptions: "Suscripciones",
+    interval: "Intervalo",
+    lastCheck: "Última comprobación",
+    platform: "Plataforma",
+    unsubscribe: "Darse de baja",
+    confirmUnsubscribe: "¿Estás seguro de que quieres darte de baja de {author}?",
+    subscribedSuccessfully: "Suscrito con éxito",
+    unsubscribedSuccessfully: "Dado de baja con éxito",
+    subscriptionAlreadyExists: "Ya estás suscrito a este autor.",
+    minutes: "minutos",
+    never: "Nunca",
 };

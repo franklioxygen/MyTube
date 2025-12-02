@@ -1,6 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import AlertModal from '../components/AlertModal';
+import SubscribeModal from '../components/SubscribeModal';
 import { DownloadInfo } from '../types';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
@@ -141,6 +143,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false): Promise<any> => {
         try {
+            // Check for YouTube channel URL
+            // Regex for: @username, channel/ID, user/username, c/customURL
+            const channelRegex = /youtube\.com\/(?:@|channel\/|user\/|c\/)/;
+            if (channelRegex.test(videoUrl)) {
+                setSubscribeUrl(videoUrl);
+                setShowSubscribeModal(true);
+                return { success: true };
+            }
+
             // Check if it's a Bilibili URL
             if (videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv')) {
                 setIsCheckingParts(true);
@@ -267,6 +278,31 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return await handleVideoSubmit(bilibiliPartsInfo.url, true);
     };
 
+    // Subscription logic
+    const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+    const [subscribeUrl, setSubscribeUrl] = useState('');
+
+    const handleSubscribe = async (interval: number) => {
+        try {
+            await axios.post(`${API_URL}/subscriptions`, {
+                url: subscribeUrl,
+                interval
+            });
+            showSnackbar(t('subscribedSuccessfully'));
+            setShowSubscribeModal(false);
+            setSubscribeUrl('');
+        } catch (error: any) {
+            console.error('Error subscribing:', error);
+            if (error.response && error.response.status === 409) {
+                setShowSubscribeModal(false);
+                setShowDuplicateModal(true);
+            } else {
+                showSnackbar(t('error'));
+            }
+        }
+    };
+
     return (
         <DownloadContext.Provider value={{
             activeDownloads,
@@ -280,6 +316,18 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             handleDownloadCurrentBilibiliPart
         }}>
             {children}
+            <SubscribeModal
+                open={showSubscribeModal}
+                onClose={() => setShowSubscribeModal(false)}
+                onConfirm={handleSubscribe}
+                url={subscribeUrl}
+            />
+            <AlertModal
+                open={showDuplicateModal}
+                onClose={() => setShowDuplicateModal(false)}
+                title={t('error')}
+                message={t('subscriptionAlreadyExists')}
+            />
         </DownloadContext.Provider>
     );
 };

@@ -276,4 +276,22 @@ export const ja = {
     addToQueue: "キューに追加",
     batchTasksAdded: "{count} 件のタスクを追加しました",
     addBatchTasks: "一括タスクを追加",
+
+    // Subscriptions
+    subscribeToAuthor: "著者を購読する",
+    subscribeConfirmationMessage: "{author} を購読しますか？",
+    subscribeDescription: "システムはこの著者の新しい動画を自動的にチェックしてダウンロードします。",
+    checkIntervalMinutes: "チェック間隔（分）",
+    subscribe: "購読",
+    subscriptions: "購読",
+    interval: "間隔",
+    lastCheck: "前回のチェック",
+    platform: "プラットフォーム",
+    unsubscribe: "購読解除",
+    confirmUnsubscribe: "{author} の購読を解除してもよろしいですか？",
+    subscribedSuccessfully: "購読しました",
+    unsubscribedSuccessfully: "購読を解除しました",
+    subscriptionAlreadyExists: "この著者はすでに購読しています。",
+    minutes: "分",
+    never: "なし",
 };

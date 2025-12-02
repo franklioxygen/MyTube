@@ -275,4 +275,22 @@ export const pt = {
     addToQueue: "Adicionar à fila",
     batchTasksAdded: "{count} tarefas adicionadas",
     addBatchTasks: "Adicionar tarefas em lote",
+
+    // Subscriptions
+    subscribeToAuthor: "Inscrever-se no autor",
+    subscribeConfirmationMessage: "Deseja se inscrever em {author}?",
+    subscribeDescription: "O sistema verificará automaticamente novos vídeos deste autor e os baixará.",
+    checkIntervalMinutes: "Intervalo de verificação (minutos)",
+    subscribe: "Inscrever-se",
+    subscriptions: "Inscrições",
+    interval: "Intervalo",
+    lastCheck: "Última verificação",
+    platform: "Plataforma",
+    unsubscribe: "Cancelar inscrição",
+    confirmUnsubscribe: "Tem certeza de que deseja cancelar a inscrição de {author}?",
+    subscribedSuccessfully: "Inscrito com sucesso",
+    unsubscribedSuccessfully: "Inscrição cancelada com sucesso",
+    subscriptionAlreadyExists: "Você já está inscrito neste autor.",
+    minutes: "minutos",
+    never: "Nunca",
 };

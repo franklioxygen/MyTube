@@ -147,4 +147,22 @@ export const de = {
     addToQueue: "Zur Warteschlange hinzufügen",
     batchTasksAdded: "{count} Aufgaben hinzugefügt",
     addBatchTasks: "Stapelaufgaben hinzufügen",
+
+    // Subscriptions
+    subscribeToAuthor: "Autor abonnieren",
+    subscribeConfirmationMessage: "Möchten Sie {author} abonnieren?",
+    subscribeDescription: "Das System prüft automatisch auf neue Videos dieses Autors und lädt sie herunter.",
+    checkIntervalMinutes: "Prüfintervall (Minuten)",
+    subscribe: "Abonnieren",
+    subscriptions: "Abonnements",
+    interval: "Intervall",
+    lastCheck: "Letzte Prüfung",
+    platform: "Plattform",
+    unsubscribe: "Deabonnieren",
+    confirmUnsubscribe: "Sind Sie sicher, dass Sie {author} deabonnieren möchten?",
+    subscribedSuccessfully: "Erfolgreich abonniert",
+    unsubscribedSuccessfully: "Erfolgreich deabonniert",
+    subscriptionAlreadyExists: "Sie haben diesen Autor bereits abonniert.",
+    minutes: "Minuten",
+    never: "Nie",
 };

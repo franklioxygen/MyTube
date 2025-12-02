@@ -1,8 +1,7 @@
 import { Box, CssBaseline, ThemeProvider } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
-import AnimatedRoutes from './components/AnimatedRoutes';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
 import Footer from './components/Footer';
 import Header from './components/Header';
@@ -12,7 +11,15 @@ import { DownloadProvider, useDownload } from './contexts/DownloadContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
+import AuthorVideos from './pages/AuthorVideos';
+import CollectionPage from './pages/CollectionPage';
+import DownloadPage from './pages/DownloadPage';
+import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
+import ManagePage from './pages/ManagePage';
+import SettingsPage from './pages/SettingsPage';
+import SubscriptionsPage from './pages/SubscriptionsPage';
+import VideoPlayer from './pages/VideoPlayer';
 import getTheme from './theme';
 
 function AppContent() {
@@ -97,7 +104,16 @@ function AppContent() {
                         />
 
                         <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'hidden' }}>
-                            <AnimatedRoutes />
+                            <Routes>
+                                <Route path="/" element={<Home />} />
+                                <Route path="/manage" element={<ManagePage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
+                                <Route path="/downloads" element={<DownloadPage />} />
+                                <Route path="/collections/:id" element={<CollectionPage />} />
+                                <Route path="/author/:name" element={<AuthorVideos />} />
+                                <Route path="/video/:id" element={<VideoPlayer />} />
+                                <Route path="/subscriptions" element={<SubscriptionsPage />} />
+                            </Routes>
                         </Box>
 
                         <Footer />
