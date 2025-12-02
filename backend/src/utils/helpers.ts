@@ -109,7 +109,7 @@ export function sanitizeFilename(filename: string): string {
   // Replace only unsafe characters for filesystems
   // This preserves non-Latin characters like Chinese, Japanese, Korean, etc.
   const sanitized = withoutHashtags
-    .replace(/[\/\\:*?"<>|]/g, "_") // Replace unsafe filesystem characters
+    .replace(/[\/\\:*?"<>|%,'!;=+\$@^`{}~\[\]()&]/g, "_") // Replace unsafe filesystem and URL characters
     .replace(/\s+/g, "_"); // Replace spaces with underscores
 
   // Truncate to 200 characters to avoid ENAMETOOLONG errors (filesystem limit is usually 255 bytes)
