@@ -9,7 +9,14 @@ COPY package*.json ./
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 # Skip Python check for youtube-dl-exec during build
 ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=1
+RUN apk add --no-cache git
 RUN npm ci
+
+# Clone and build bgutil-ytdlp-pot-provider
+RUN git clone --single-branch --branch 1.2.2 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /app/bgutil-ytdlp-pot-provider
+WORKDIR /app/bgutil-ytdlp-pot-provider/server
+RUN npm install && npx tsc
+WORKDIR /app
 
 COPY . .
 RUN npm run build
@@ -27,8 +34,12 @@ RUN apk add --no-cache \
     chromium \
     ffmpeg \
     python3 \
-    py3-pip && \
+    py3-pip \
+    git && \
     ln -sf python3 /usr/bin/python
+
+# Install yt-dlp and bgutil-ytdlp-pot-provider
+RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider --break-system-packages
 
 # Environment variables
 ENV NODE_ENV=production
@@ -44,6 +55,8 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 # Copy drizzle migrations
 COPY --from=builder /app/drizzle ./drizzle
+# Copy bgutil-ytdlp-pot-provider
+COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
 
 # Create necessary directories
 RUN mkdir -p uploads/videos uploads/images data

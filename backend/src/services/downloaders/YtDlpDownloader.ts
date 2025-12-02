@@ -7,6 +7,9 @@ import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
+const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const PROVIDER_SCRIPT = process.env.BGUTIL_SCRIPT_PATH || path.join(process.cwd(), "bgutil-ytdlp-pot-provider/server/build/generate_once.js");
+
 // Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
 async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
     try {
@@ -54,7 +57,8 @@ export class YtDlpDownloader {
             noWarnings: true,
             skipDownload: true,
             playlistEnd: 5, // Limit to 5 results
-        } as any);
+            extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        } as any, { execPath: YT_DLP_PATH } as any);
 
         if (!searchResults || !(searchResults as any).entries) {
             return [];
@@ -87,7 +91,8 @@ export class YtDlpDownloader {
                 noWarnings: true,
                 preferFreeFormats: true,
                 // youtubeSkipDashManifest: true, // Specific to YT, might want to keep or make conditional
-            } as any);
+                extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            } as any, { execPath: YT_DLP_PATH } as any);
 
             return {
                 title: info.title || "Video",
@@ -127,7 +132,8 @@ export class YtDlpDownloader {
                 playlistEnd: 5,
                 noWarnings: true,
                 flatPlaylist: true, // We only need the ID/URL, not full info
-            } as any);
+                extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            } as any, { execPath: YT_DLP_PATH } as any);
 
             // If it's a playlist/channel, 'entries' will contain the videos
             if ((result as any).entries && (result as any).entries.length > 0) {
@@ -178,7 +184,8 @@ export class YtDlpDownloader {
                 dumpSingleJson: true,
                 noWarnings: true,
                 preferFreeFormats: true,
-            } as any);
+                extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            } as any, { execPath: YT_DLP_PATH } as any);
 
             console.log("Video info:", {
                 title: info.title,
@@ -245,8 +252,11 @@ export class YtDlpDownloader {
                 ];
             }
 
+            // Add PO Token provider args
+            flags.extractorArgs = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+
             // Use exec to capture stdout for progress
-            const subprocess = youtubedl.exec(videoUrl, flags);
+            const subprocess = youtubedl.exec(videoUrl, flags, { execPath: YT_DLP_PATH } as any);
 
             if (onStart) {
                 onStart(() => {
