@@ -8,7 +8,8 @@
     "build": "tsc",
     "generate": "drizzle-kit generate",
     "test": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "postinstall": "cd bgutil-ytdlp-pot-provider/server && npm install && npx tsc"
   },
   "keywords": [],
   "author": "",

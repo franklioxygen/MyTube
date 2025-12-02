@@ -74,6 +74,8 @@ mytube/
 - Node.js (v14 or higher)
 - npm (v6 or higher)
 - Docker (optional, for containerized deployment)
+- Python 3.8+ (for yt-dlp and PO Token provider)
+- yt-dlp (installed via pip/pipx)
 
 ### Installation
 
@@ -99,6 +101,16 @@ mytube/
    cd frontend && npm install
    cd ../backend && npm install
    ```
+
+    **Note**: The backend installation will automatically build the `bgutil-ytdlp-pot-provider` server. However, you must ensure `yt-dlp` and the `bgutil-ytdlp-pot-provider` python plugin are installed in your environment:
+
+    ```bash
+    # Install yt-dlp and the plugin
+    pip install yt-dlp bgutil-ytdlp-pot-provider
+    # OR using pipx (recommended)
+    pipx install yt-dlp
+    pipx inject yt-dlp bgutil-ytdlp-pot-provider
+    ```
 
 #### Using npm Scripts
 
