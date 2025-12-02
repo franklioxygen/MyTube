@@ -2,7 +2,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import youtubedl from "youtube-dl-exec";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -177,6 +177,7 @@ export class YtDlpDownloader {
         let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved, source;
         let finalVideoFilename = videoFilename;
         let finalThumbnailFilename = thumbnailFilename;
+        let subtitles: Array<{ language: string; filename: string; path: string }> = [];
 
         try {
             // Get video info first
@@ -240,6 +241,9 @@ export class YtDlpDownloader {
                 output: newVideoPath,
                 format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                 mergeOutputFormat: "mp4",
+                writeSubs: true,
+                writeAutoSubs: true,
+                convertSubs: "vtt",
             };
 
             // Add YouTube specific flags if it's a YouTube URL
@@ -343,6 +347,50 @@ export class YtDlpDownloader {
                     // Continue even if thumbnail download fails
                 }
             }
+            // Scan for subtitle files
+            try {
+                const baseFilename = newSafeBaseFilename;
+                const subtitleFiles = fs.readdirSync(VIDEOS_DIR).filter((file: string) => 
+                    file.startsWith(baseFilename) && file.endsWith(".vtt")
+                );
+
+                console.log(`Found ${subtitleFiles.length} subtitle files`);
+
+                for (const subtitleFile of subtitleFiles) {
+                    // Parse language from filename (e.g., video_123.en.vtt -> en)
+                    const match = subtitleFile.match(/\.([a-z]{2}(?:-[A-Z]{2})?)(?:\..*?)?\.vtt$/);
+                    const language = match ? match[1] : "unknown";
+
+                    // Move subtitle to subtitles directory
+                    const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+                    const destSubFilename = `${baseFilename}.${language}.vtt`;
+                    const destSubPath = path.join(SUBTITLES_DIR, destSubFilename);
+
+                    // Read VTT file and fix alignment for centering
+                    let vttContent = fs.readFileSync(sourceSubPath, 'utf-8');
+                    // Replace align:start with align:middle for centered subtitles
+                    // Also remove position:0% which forces left positioning
+                    vttContent = vttContent.replace(/ align:start/g, ' align:middle');
+                    vttContent = vttContent.replace(/ position:0%/g, '');
+                    
+                    // Write cleaned VTT to destination
+                    fs.writeFileSync(destSubPath, vttContent, 'utf-8');
+                    
+                    // Remove original file
+                    fs.unlinkSync(sourceSubPath);
+                    
+                    console.log(`Processed and moved subtitle ${subtitleFile} to ${destSubPath}`);
+
+                    subtitles.push({
+                        language,
+                        filename: destSubFilename,
+                        path: `/subtitles/${destSubFilename}`,
+                    });
+                }
+            } catch (subtitleError) {
+                console.error("Error processing subtitle files:", subtitleError);
+            }
+
         } catch (error) {
             console.error("Error in download process:", error);
             throw error;
@@ -364,6 +412,7 @@ export class YtDlpDownloader {
             thumbnailPath: thumbnailSaved
                 ? `/images/${finalThumbnailFilename}`
                 : null,
+            subtitles: subtitles.length > 0 ? subtitles : undefined,
             duration: undefined, // Will be populated below
             addedAt: new Date().toISOString(),
             createdAt: new Date().toISOString(),

@@ -19,6 +19,7 @@ interface Settings {
     openListToken?: string;
     cloudDrivePath?: string;
     homeSidebarOpen?: boolean;
+    subtitlesEnabled?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -32,7 +33,8 @@ const defaultSettings: Settings = {
     openListApiUrl: '',
     openListToken: '',
     cloudDrivePath: '',
-    homeSidebarOpen: true
+    homeSidebarOpen: true,
+    subtitlesEnabled: true
 };
 
 export const getSettings = async (_req: Request, res: Response) => {

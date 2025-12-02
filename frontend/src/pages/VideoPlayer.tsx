@@ -96,6 +96,7 @@ const VideoPlayer: React.FC = () => {
     const autoPlay = settings?.defaultAutoPlay || false;
     const autoLoop = settings?.defaultAutoLoop || false;
     const availableTags = settings?.tags || [];
+    const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
 
     // Fetch comments
     const { data: comments = [], isLoading: loadingComments } = useQuery({
@@ -283,6 +284,46 @@ const VideoPlayer: React.FC = () => {
         await tagsMutation.mutateAsync(newTags);
     };
 
+    // Subtitle preference mutation
+    const subtitlePreferenceMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            const response = await axios.post(`${API_URL}/settings`, { ...settings, subtitlesEnabled: enabled });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            if (data.success) {
+                queryClient.setQueryData(['settings'], (old: any) => old ? { ...old, subtitlesEnabled: data.settings.subtitlesEnabled } : old);
+            }
+        },
+        onError: () => {
+            showSnackbar(t('error'), 'error');
+        }
+    });
+
+    const handleSubtitlesToggle = async (enabled: boolean) => {
+        await subtitlePreferenceMutation.mutateAsync(enabled);
+    };
+
+    // Loop preference mutation
+    const loopPreferenceMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            const response = await axios.post(`${API_URL}/settings`, { ...settings, defaultAutoLoop: enabled });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            if (data.success) {
+                queryClient.setQueryData(['settings'], (old: any) => old ? { ...old, defaultAutoLoop: data.settings.defaultAutoLoop } : old);
+            }
+        },
+        onError: () => {
+            showSnackbar(t('error'), 'error');
+        }
+    });
+
+    const handleLoopToggle = async (enabled: boolean) => {
+        await loopPreferenceMutation.mutateAsync(enabled);
+    };
+
     const [hasViewed, setHasViewed] = useState<boolean>(false);
     const lastProgressSave = useRef<number>(0);
     const currentTimeRef = useRef<number>(0);
@@ -370,6 +411,10 @@ const VideoPlayer: React.FC = () => {
                         autoLoop={autoLoop}
                         onTimeUpdate={handleTimeUpdate}
                         startTime={video.progress || 0}
+                        subtitles={video.subtitles}
+                        subtitlesEnabled={subtitlesEnabled}
+                        onSubtitlesToggle={handleSubtitlesToggle}
+                        onLoopToggle={handleLoopToggle}
                     />
 
                     <Box sx={{ px: { xs: 2, md: 0 } }}>

@@ -9,7 +9,9 @@ import {
     Loop,
     Pause,
     PlayArrow,
-    Replay10
+    Replay10,
+    Subtitles,
+    SubtitlesOff
 } from '@mui/icons-material';
 import {
     Box,
@@ -29,6 +31,10 @@ interface VideoControlsProps {
     onTimeUpdate?: (currentTime: number) => void;
     onLoadedMetadata?: (duration: number) => void;
     startTime?: number;
+    subtitles?: Array<{ language: string; filename: string; path: string }>;
+    subtitlesEnabled?: boolean;
+    onSubtitlesToggle?: (enabled: boolean) => void;
+    onLoopToggle?: (enabled: boolean) => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -37,7 +43,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     autoLoop = false,
     onTimeUpdate,
     onLoadedMetadata,
-    startTime = 0
+    startTime = 0,
+    subtitles = [],
+    subtitlesEnabled: initialSubtitlesEnabled = true,
+    onSubtitlesToggle,
+    onLoopToggle
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -47,6 +57,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
     const [isLooping, setIsLooping] = useState<boolean>(autoLoop);
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+    const [subtitlesEnabled, setSubtitlesEnabled] = useState<boolean>(initialSubtitlesEnabled && subtitles.length > 0);
 
     useEffect(() => {
         if (videoRef.current) {
@@ -112,6 +123,20 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         };
     }, []);
 
+    // Sync subtitle tracks when preference changes or subtitles become available
+    useEffect(() => {
+        if (videoRef.current && subtitles.length > 0) {
+            const tracks = videoRef.current.textTracks;
+            const newState = initialSubtitlesEnabled && subtitles.length > 0;
+
+            for (let i = 0; i < tracks.length; i++) {
+                tracks[i].mode = newState ? 'showing' : 'hidden';
+            }
+
+            setSubtitlesEnabled(newState);
+        }
+    }, [initialSubtitlesEnabled, subtitles]);
+
     const handlePlayPause = () => {
         if (videoRef.current) {
             if (isPlaying) {
@@ -125,8 +150,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
     const handleToggleLoop = () => {
         if (videoRef.current) {
-            videoRef.current.loop = !isLooping;
-            setIsLooping(!isLooping);
+            const newState = !isLooping;
+            videoRef.current.loop = newState;
+            setIsLooping(newState);
+
+            // Call the callback to save preference to database
+            if (onLoopToggle) {
+                onLoopToggle(newState);
+            }
         }
     };
 
@@ -160,8 +191,52 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         }
     };
 
+    const handleToggleSubtitles = () => {
+        if (videoRef.current) {
+            const tracks = videoRef.current.textTracks;
+            const newState = !subtitlesEnabled;
+
+            for (let i = 0; i < tracks.length; i++) {
+                tracks[i].mode = newState ? 'showing' : 'hidden';
+            }
+
+            setSubtitlesEnabled(newState);
+
+            // Call the callback to save preference to database
+            if (onSubtitlesToggle) {
+                onSubtitlesToggle(newState);
+            }
+        }
+    };
+
     return (
         <Box sx={{ width: '100%', bgcolor: 'black', borderRadius: { xs: 0, sm: 2 }, overflow: 'hidden', boxShadow: 4, position: 'relative' }}>
+            {/* Global style for centering subtitles */}
+            <style>
+                {`
+                    video::cue {
+                        text-align: center !important;
+                        line-height: 1.5;
+                        background-color: rgba(0, 0, 0, 0.8);
+                    }
+                    
+                    video::-webkit-media-text-track-display {
+                        text-align: center !important;
+                    }
+                    
+                    video::-webkit-media-text-track-container {
+                        text-align: center !important;
+                        display: flex;
+                        justify-content: center;
+                        align-items: flex-end;
+                    }
+                    
+                    video::cue-region {
+                        text-align: center !important;
+                    }
+                `}
+            </style>
+
             <video
                 ref={videoRef}
                 style={{ width: '100%', aspectRatio: '16/9', display: 'block' }}
@@ -181,9 +256,26 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     if (onLoadedMetadata) {
                         onLoadedMetadata(e.currentTarget.duration);
                     }
+
+                    // Initialize subtitle tracks based on preference
+                    const tracks = e.currentTarget.textTracks;
+                    const shouldShow = initialSubtitlesEnabled && subtitles.length > 0;
+                    for (let i = 0; i < tracks.length; i++) {
+                        tracks[i].mode = shouldShow ? 'showing' : 'hidden';
+                    }
                 }}
                 playsInline
+                crossOrigin="anonymous"
             >
+                {subtitles && subtitles.map((subtitle) => (
+                    <track
+                        key={subtitle.language}
+                        kind="subtitles"
+                        src={`${import.meta.env.VITE_BACKEND_URL}${subtitle.path}`}
+                        srcLang={subtitle.language}
+                        label={subtitle.language.toUpperCase()}
+                    />
+                ))}
                 Your browser does not support the video tag.
             </video>
 
@@ -234,6 +326,18 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                             </Button>
                         </Tooltip>
+
+                        {subtitles && subtitles.length > 0 && (
+                            <Tooltip title={subtitlesEnabled ? 'Hide Subtitles' : 'Show Subtitles'}>
+                                <Button
+                                    variant={subtitlesEnabled ? "contained" : "outlined"}
+                                    onClick={handleToggleSubtitles}
+                                    fullWidth={isMobile}
+                                >
+                                    {subtitlesEnabled ? <Subtitles /> : <SubtitlesOff />}
+                                </Button>
+                            </Tooltip>
+                        )}
                     </Stack>
 
                     {/* Row 2 on Mobile: Seek Controls */}
