@@ -15,6 +15,7 @@ import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
 import DownloadPage from './pages/DownloadPage';
 import Home from './pages/Home';
+import InstructionPage from './pages/InstructionPage';
 import LoginPage from './pages/LoginPage';
 import ManagePage from './pages/ManagePage';
 import SettingsPage from './pages/SettingsPage';
@@ -113,6 +114,7 @@ function AppContent() {
                                 <Route path="/author/:name" element={<AuthorVideos />} />
                                 <Route path="/video/:id" element={<VideoPlayer />} />
                                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
+                                <Route path="/instruction" element={<InstructionPage />} />
                             </Routes>
                         </Box>
 

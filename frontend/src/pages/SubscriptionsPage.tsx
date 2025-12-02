@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
@@ -35,6 +36,8 @@ const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+    const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
+    const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
 
     useEffect(() => {
         fetchSubscriptions();
@@ -50,18 +53,24 @@ const SubscriptionsPage: React.FC = () => {
         }
     };
 
-    const handleUnsubscribe = async (id: string, author: string) => {
-        if (!window.confirm(t('confirmUnsubscribe', { author }))) {
-            return;
-        }
+    const handleUnsubscribeClick = (id: string, author: string) => {
+        setSelectedSubscription({ id, author });
+        setIsUnsubscribeModalOpen(true);
+    };
+
+    const handleConfirmUnsubscribe = async () => {
+        if (!selectedSubscription) return;
 
         try {
-            await axios.delete(`${API_URL}/subscriptions/${id}`);
+            await axios.delete(`${API_URL}/subscriptions/${selectedSubscription.id}`);
             showSnackbar(t('unsubscribedSuccessfully'));
             fetchSubscriptions();
         } catch (error) {
             console.error('Error unsubscribing:', error);
             showSnackbar(t('error'));
+        } finally {
+            setIsUnsubscribeModalOpen(false);
+            setSelectedSubscription(null);
         }
     };
 
@@ -117,7 +126,7 @@ const SubscriptionsPage: React.FC = () => {
                                     <TableCell align="right">
                                         <IconButton
                                             color="error"
-                                            onClick={() => handleUnsubscribe(sub.id, sub.author)}
+                                            onClick={() => handleUnsubscribeClick(sub.id, sub.author)}
                                             title={t('unsubscribe')}
                                         >
                                             <Delete />
@@ -129,7 +138,17 @@ const SubscriptionsPage: React.FC = () => {
                     </TableBody>
                 </Table>
             </TableContainer>
-        </Container>
+
+            <ConfirmationModal
+                isOpen={isUnsubscribeModalOpen}
+                onClose={() => setIsUnsubscribeModalOpen(false)}
+                onConfirm={handleConfirmUnsubscribe}
+                title={t('unsubscribe')}
+                message={t('confirmUnsubscribe', { author: selectedSubscription?.author || '' })}
+                confirmText={t('unsubscribe')}
+                isDanger
+            />
+        </Container >
     );
 };
 

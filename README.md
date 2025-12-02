@@ -28,6 +28,7 @@ A YouTube/Bilibili/MissAV video downloader and player application that allows yo
 - **Login Protection**: Secure your application with a password login page.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, and Portuguese.
 - **Pagination**: Efficiently browse large libraries with pagination support.
+- **Subscriptions**: Manage subscriptions to channels or creators to automatically download new content.
 - **Video Rating**: Rate your videos with a 5-star system.
 - **Mobile Optimizations**: Mobile-friendly tags menu and optimized layout for smaller screens.
 - **Temp Files Cleanup**: Manage storage by cleaning up temporary download files directly from settings.
@@ -154,6 +155,11 @@ npm run lint:fix  # Fix linting errors for frontend
 - `PUT /api/collections/:id` - Update a collection (add/remove videos)
 - `DELETE /api/collections/:id` - Delete a collection
 
+### Subscriptions
+- `GET /api/subscriptions` - Get all subscriptions
+- `POST /api/subscriptions` - Create a new subscription
+- `DELETE /api/subscriptions/:id` - Delete a subscription
+
 ### Settings & System
 - `GET /api/settings` - Get application settings
 - `POST /api/settings` - Update application settings
@@ -227,6 +233,16 @@ For detailed instructions on how to deploy MyTube using Docker or on QNAP Contai
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)
+
+## Disclaimer
+
+ - Purpose and Restrictions This software (including code and documentation) is intended solely for personal learning, research, and technical exchange. It is strictly prohibited to use this software for any commercial purposes or for any illegal activities that violate local laws and regulations.
+
+ - Liability The developer is unaware of and has no control over how users utilize this software. Any legal liabilities, disputes, or damages arising from the illegal or improper use of this software (including but not limited to copyright infringement) shall be borne solely by the user. The developer assumes no direct, indirect, or joint liability.
+
+ - Modifications and Distribution This project is open-source. Any individual or organization modifying or forking this code must comply with the open-source license. Important: If a third party modifies the code to bypass or remove the original user authentication/security mechanisms and distributes such versions, the modifier/distributor bears full responsibility for any consequences. We strongly discourage bypassing or tampering with any security verification mechanisms.
+
+ - Non-Profit Statement This is a completely free open-source project. The developer does not accept donations and has never published any donation pages. The software itself allows no charges and offers no paid services. Please be vigilant and beware of any scams or misleading information claiming to collect fees on behalf of this project.
 
 ## License
 

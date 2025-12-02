@@ -1,6 +1,6 @@
 # MyTube
 
-一个 YouTube/Bilibili/MissAV 视频下载和播放应用，允许您将视频及其缩略图本地保存。将您的视频整理到收藏夹中，以便轻松访问和管理。现已支持[yt-dlp所有网址](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##)，包括微博，小红书，x.com等。
+一个 YouTube/Bilibili/MissAV 视频下载和播放应用，允许您将视频及其缩略图本地保存并提供订阅下载功能。将您的视频整理到收藏夹中，以便轻松访问和管理。现已支持[yt-dlp所有网址](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##)，包括微博，小红书，x.com等。
 
 [English](README.md)
 
@@ -23,6 +23,7 @@
 - **视频播放器**：自定义播放器，支持播放/暂停、循环、快进/快退、全屏和调光控制。
 - **搜索功能**：支持在本地库中搜索视频，或在线搜索 YouTube 视频。
 - **收藏夹**：创建自定义收藏夹以整理您的视频。
+- **订阅功能**：订阅您喜爱的频道，并在新视频发布时收到通知。
 - **现代化 UI**：响应式深色主题界面，包含“返回主页”功能和玻璃拟态效果。
 - **主题支持**：支持在明亮和深色模式之间切换，支持平滑过渡。
 - **登录保护**：通过密码登录页面保护您的应用。
@@ -154,6 +155,11 @@ npm run lint:fix  # 修复前端代码检查错误
 - `PUT /api/collections/:id` - 更新收藏夹 (添加/移除视频)
 - `DELETE /api/collections/:id` - 删除收藏夹
 
+### 订阅
+- `GET /api/subscriptions` - 获取所有订阅
+- `POST /api/subscriptions` - 创建新订阅
+- `DELETE /api/subscriptions/:id` - 删除订阅
+
 ### 设置与系统
 - `GET /api/settings` - 获取应用设置
 - `POST /api/settings` - 更新应用设置
@@ -227,6 +233,16 @@ MAX_FILE_SIZE=500000000
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)
+
+## 免责声明
+
+ - 使用目的与限制 本软件（及相关代码、文档）仅供个人学习、研究及技术交流使用。严禁将本软件用于任何形式的商业用途，或利用本软件进行违反国家法律法规的犯罪活动。
+
+ - 责任界定 开发者对用户使用本软件的具体行为概不知情，亦无法控制。因用户非法或不当使用本软件（包括但不限于侵犯第三方版权、下载违规内容等）而产生的任何法律责任、纠纷或损失，均由用户自行承担，开发者不承担任何直接、间接或连带责任。
+
+ - 二次开发与分发 本项目代码开源，任何个人或组织基于本项目代码进行修改、二次开发时，应遵守开源协议。 特别声明： 若第三方人为修改代码以规避、去除本软件原有的用户认证机制/安全限制，并进行公开分发或传播，由此引发的一切责任事件及法律后果，需由该代码修改发布者承担全部责任。我们强烈不建议用户规避或篡改任何安全验证机制。
+
+ - 非盈利声明 本项目为完全免费的开源项目。开发者从未在任何平台发布捐赠信息，本软件本身不收取任何费用，亦不提供任何形式的付费增值服务。任何声称代表本项目收取费用、销售软件或寻求捐赠的信息均为虚假信息，请用户仔细甄别，谨防上当受骗。
 
 ## 许可证
 
