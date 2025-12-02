@@ -277,4 +277,22 @@ export const zh = {
     addToQueue: "添加到队列",
     batchTasksAdded: "已添加 {count} 个任务",
     addBatchTasks: "添加批量任务",
+
+    // Subscriptions
+    subscribeToAuthor: "订阅作者",
+    subscribeConfirmationMessage: "您确定要订阅 {author} 吗？",
+    subscribeDescription: "系统将自动检查此作者的新视频并下载。",
+    checkIntervalMinutes: "检查间隔（分钟）",
+    subscribe: "订阅",
+    subscriptions: "订阅",
+    interval: "间隔",
+    lastCheck: "上次检查",
+    platform: "平台",
+    unsubscribe: "取消订阅",
+    confirmUnsubscribe: "您确定要取消订阅 {author} 吗？",
+    subscribedSuccessfully: "订阅成功",
+    unsubscribedSuccessfully: "取消订阅成功",
+    subscriptionAlreadyExists: "您已订阅此作者。",
+    minutes: "分钟",
+    never: "从未",
 };

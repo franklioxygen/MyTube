@@ -6,6 +6,7 @@ import {
     Menu as MenuIcon,
     Search,
     Settings,
+    Subscriptions,
     VideoLibrary
 } from '@mui/icons-material';
 import {
@@ -329,6 +330,9 @@ const Header: React.FC<HeaderProps> = ({
             >
                 <MenuItem onClick={() => { handleManageClose(); navigate('/manage'); }}>
                     <VideoLibrary sx={{ mr: 2 }} /> {t('manageContent')}
+                </MenuItem>
+                <MenuItem onClick={() => { handleManageClose(); navigate('/subscriptions'); }}>
+                    <Subscriptions sx={{ mr: 2 }} /> {t('subscriptions')}
                 </MenuItem>
                 <MenuItem onClick={() => { handleManageClose(); navigate('/settings'); }}>
                     <Settings sx={{ mr: 2 }} /> {t('settings')}

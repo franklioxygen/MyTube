@@ -277,4 +277,22 @@ export const en = {
     addToQueue: "Add to Queue",
     batchTasksAdded: "{count} tasks added",
     addBatchTasks: "Add batch tasks",
+
+    // Subscriptions
+    subscribeToAuthor: "Subscribe to Author",
+    subscribeConfirmationMessage: "Do you want to subscribe to {author}?",
+    subscribeDescription: "The system will automatically check for new videos from this author and download them.",
+    checkIntervalMinutes: "Check Interval (minutes)",
+    subscribe: "Subscribe",
+    subscriptions: "Subscriptions",
+    interval: "Interval",
+    lastCheck: "Last Check",
+    platform: "Platform",
+    unsubscribe: "Unsubscribe",
+    confirmUnsubscribe: "Are you sure you want to unsubscribe from {author}?",
+    subscribedSuccessfully: "Subscribed successfully",
+    unsubscribedSuccessfully: "Unsubscribed successfully",
+    subscriptionAlreadyExists: "You are already subscribed to this author.",
+    minutes: "minutes",
+    never: "Never",
 };

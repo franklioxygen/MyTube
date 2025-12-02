@@ -105,3 +105,15 @@ export const downloadHistory = sqliteTable('download_history', {
   thumbnailPath: text('thumbnail_path'), // Path to thumbnail if successful
   totalSize: text('total_size'),
 });
+
+export const subscriptions = sqliteTable('subscriptions', {
+  id: text('id').primaryKey(),
+  author: text('author').notNull(),
+  authorUrl: text('author_url').notNull(),
+  interval: integer('interval').notNull(), // Check interval in minutes
+  lastVideoLink: text('last_video_link'),
+  lastCheck: integer('last_check'), // Timestamp
+  downloadCount: integer('download_count').default(0),
+  createdAt: integer('created_at').notNull(),
+  platform: text('platform').default('YouTube'),
+});

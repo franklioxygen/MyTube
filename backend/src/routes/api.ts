@@ -42,4 +42,10 @@ router.post("/collections", collectionController.createCollection);
 router.put("/collections/:id", collectionController.updateCollection);
 router.delete("/collections/:id", collectionController.deleteCollection);
 
+// Subscription routes
+import * as subscriptionController from "../controllers/subscriptionController";
+router.post("/subscriptions", subscriptionController.createSubscription);
+router.get("/subscriptions", subscriptionController.getSubscriptions);
+router.delete("/subscriptions/:id", subscriptionController.deleteSubscription);
+
 export default router;
