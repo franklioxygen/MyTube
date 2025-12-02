@@ -9,16 +9,15 @@ COPY package*.json ./
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 # Skip Python check for youtube-dl-exec during build
 ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=1
-RUN apk add --no-cache git
 RUN npm ci
 
-# Clone and build bgutil-ytdlp-pot-provider
-RUN git clone --single-branch --branch 1.2.2 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /app/bgutil-ytdlp-pot-provider
+COPY . .
+
+# Build bgutil-ytdlp-pot-provider
 WORKDIR /app/bgutil-ytdlp-pot-provider/server
 RUN npm install && npx tsc
 WORKDIR /app
 
-COPY . .
 RUN npm run build
 
 # Stage 2: Production
@@ -34,8 +33,7 @@ RUN apk add --no-cache \
     chromium \
     ffmpeg \
     python3 \
-    py3-pip \
-    git && \
+    py3-pip && \
     ln -sf python3 /usr/bin/python
 
 # Install yt-dlp and bgutil-ytdlp-pot-provider
