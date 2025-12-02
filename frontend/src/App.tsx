@@ -110,8 +110,8 @@ function AppContent() {
                                 <Route path="/manage" element={<ManagePage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
                                 <Route path="/downloads" element={<DownloadPage />} />
-                                <Route path="/collections/:id" element={<CollectionPage />} />
-                                <Route path="/author/:name" element={<AuthorVideos />} />
+                                <Route path="/collection/:id" element={<CollectionPage />} />
+                                <Route path="/author/:authorName" element={<AuthorVideos />} />
                                 <Route path="/video/:id" element={<VideoPlayer />} />
                                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
                                 <Route path="/instruction" element={<InstructionPage />} />
