@@ -5,6 +5,7 @@ import {
   DATA_DIR,
   IMAGES_DIR,
   STATUS_DATA_PATH,
+  SUBTITLES_DIR,
   UPLOADS_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
@@ -17,6 +18,7 @@ export interface Video {
   sourceUrl: string;
   videoFilename?: string;
   thumbnailFilename?: string;
+  subtitles?: Array<{ language: string; filename: string; path: string }>;
   createdAt: string;
   tags?: string[];
   viewCount?: number;
@@ -70,6 +72,7 @@ export function initializeStorage(): void {
   fs.ensureDirSync(UPLOADS_DIR);
   fs.ensureDirSync(VIDEOS_DIR);
   fs.ensureDirSync(IMAGES_DIR);
+  fs.ensureDirSync(SUBTITLES_DIR);
   fs.ensureDirSync(DATA_DIR);
 
   // Initialize status.json if it doesn't exist
@@ -149,6 +152,12 @@ export function initializeStorage(): void {
       console.log("Migrating database: Adding last_played_at column to videos table...");
       sqlite.prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER").run();
       console.log("Migration successful: last_played_at added.");
+    }
+
+    if (!columns.includes('subtitles')) {
+      console.log("Migrating database: Adding subtitles column to videos table...");
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN subtitles TEXT").run();
+      console.log("Migration successful: subtitles added.");
     }
 
     // Check downloads table columns
@@ -429,6 +438,7 @@ export function getVideos(): Video[] {
     return allVideos.map(v => ({
       ...v,
       tags: v.tags ? JSON.parse(v.tags) : [],
+      subtitles: v.subtitles ? JSON.parse(v.subtitles) : undefined,
     })) as Video[];
   } catch (error) {
     console.error("Error getting videos:", error);
@@ -443,6 +453,7 @@ export function getVideoById(id: string): Video | undefined {
       return {
         ...video,
         tags: video.tags ? JSON.parse(video.tags) : [],
+        subtitles: video.subtitles ? JSON.parse(video.subtitles) : undefined,
       } as Video;
     }
     return undefined;
@@ -457,6 +468,7 @@ export function saveVideo(videoData: Video): Video {
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
+      subtitles: videoData.subtitles ? JSON.stringify(videoData.subtitles) : undefined,
     };
     db.insert(videos).values(videoToSave as any).onConflictDoUpdate({
       target: videos.id,
@@ -474,6 +486,7 @@ export function updateVideo(id: string, updates: Partial<Video>): Video | null {
     const updatesToSave = {
       ...updates,
       tags: updates.tags ? JSON.stringify(updates.tags) : undefined,
+      subtitles: updates.subtitles ? JSON.stringify(updates.subtitles) : undefined,
     };
     // If tags is explicitly empty array, we might want to save it as '[]' or null. 
     // JSON.stringify([]) is '[]', which is fine.
@@ -484,6 +497,7 @@ export function updateVideo(id: string, updates: Partial<Video>): Video | null {
         return {
             ...result,
             tags: result.tags ? JSON.parse(result.tags) : [],
+            subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
         } as Video;
     }
     return null;
@@ -498,7 +512,7 @@ export function deleteVideo(id: string): boolean {
     const videoToDelete = getVideoById(id);
     if (!videoToDelete) return false;
 
-    // Remove files
+    // Remove video file
     if (videoToDelete.videoFilename) {
       const actualPath = findVideoFile(videoToDelete.videoFilename);
       if (actualPath && fs.existsSync(actualPath)) {
@@ -506,10 +520,22 @@ export function deleteVideo(id: string): boolean {
       }
     }
 
+    // Remove thumbnail file
     if (videoToDelete.thumbnailFilename) {
       const actualPath = findImageFile(videoToDelete.thumbnailFilename);
       if (actualPath && fs.existsSync(actualPath)) {
         fs.unlinkSync(actualPath);
+      }
+    }
+
+    // Remove subtitle files
+    if (videoToDelete.subtitles && videoToDelete.subtitles.length > 0) {
+      for (const subtitle of videoToDelete.subtitles) {
+        const subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
+        if (fs.existsSync(subtitlePath)) {
+          fs.unlinkSync(subtitlePath);
+          console.log(`Deleted subtitle file: ${subtitle.filename}`);
+        }
       }
     }
 

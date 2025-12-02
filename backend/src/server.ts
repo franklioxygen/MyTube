@@ -4,7 +4,7 @@ dotenv.config();
 
 import cors from "cors";
 import express from "express";
-import { IMAGES_DIR, VIDEOS_DIR } from "./config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "./config/paths";
 import apiRoutes from "./routes/api";
 import settingsRoutes from './routes/settingsRoutes';
 import downloadManager from "./services/downloadManager";
@@ -35,6 +35,7 @@ downloadManager.initialize();
 // Serve static files
 app.use("/videos", express.static(VIDEOS_DIR));
 app.use("/images", express.static(IMAGES_DIR));
+app.use("/subtitles", express.static(SUBTITLES_DIR));
 
 // API Routes
 app.use("/api", apiRoutes);

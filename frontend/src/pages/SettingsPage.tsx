@@ -365,15 +365,6 @@ const SettingsPage: React.FC = () => {
                                     }
                                     label={t('autoPlay')}
                                 />
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.defaultAutoLoop}
-                                            onChange={(e) => handleChange('defaultAutoLoop', e.target.checked)}
-                                        />
-                                    }
-                                    label={t('autoLoop')}
-                                />
                             </Box>
                         </Grid>
 
