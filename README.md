@@ -74,6 +74,10 @@ Copy the `.env.example` files in both frontend and backend directories to create
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started, our development workflow, and code quality guidelines.
 
+## Deployment
+
+For detailed instructions on how to deploy MyTube using Docker, please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)
