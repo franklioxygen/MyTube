@@ -74,6 +74,10 @@ MAX_FILE_SIZE=500000000
 
 我们欢迎贡献！请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 了解如何开始、我们的开发工作流程以及代码质量指南。
 
+## 部署
+
+有关如何使用 Docker 部署 MyTube 的详细说明，请参阅 [Docker 部署指南](documents/zh/docker-guide.md).
+
 ## 星标历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=franklioxygen/MyTube&type=date&legend=bottom-right)](https://www.star-history.com/#franklioxygen/MyTube&type=date&legend=bottom-right)

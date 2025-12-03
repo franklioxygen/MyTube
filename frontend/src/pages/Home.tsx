@@ -350,6 +350,7 @@ const Home: React.FC = () => {
                                     <Box sx={{
                                         position: 'sticky',
                                         maxHeight: 'calc(100% - 80px)',
+                                        minHeight: 'calc(100vh - 80px)',
                                         overflowY: 'auto',
                                         '&::-webkit-scrollbar': {
                                             width: '6px',
