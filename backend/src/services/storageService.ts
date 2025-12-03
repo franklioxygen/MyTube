@@ -9,7 +9,7 @@ import {
   UPLOADS_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
-import { db, sqlite } from "../db";
+import { db } from "../db";
 import { collections, collectionVideos, downloadHistory, downloads, settings, videos } from "../db/schema";
 
 export interface Video {
@@ -105,99 +105,9 @@ export function initializeStorage(): void {
     console.error("Error clearing active downloads from database:", error);
   }
 
-  // Check and migrate tags column if needed
-  try {
-    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const hasTags = (tableInfo as any[]).some((col: any) => col.name === 'tags');
-    
-    if (!hasTags) {
-      console.log("Migrating database: Adding tags column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN tags TEXT").run();
-      console.log("Migration successful.");
-    }
-  } catch (error) {
-    console.error("Error checking/migrating tags column:", error);
-  }
 
-  // Check and migrate viewCount and progress columns if needed
-  try {
-    const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const columns = (tableInfo as any[]).map((col: any) => col.name);
-    
-    if (!columns.includes('view_count')) {
-      console.log("Migrating database: Adding view_count column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN view_count INTEGER DEFAULT 0").run();
-      console.log("Migration successful: view_count added.");
-    }
 
-    if (!columns.includes('progress')) {
-      console.log("Migrating database: Adding progress column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN progress INTEGER DEFAULT 0").run();
-      console.log("Migration successful: progress added.");
-    }
 
-    if (!columns.includes('duration')) {
-      console.log("Migrating database: Adding duration column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN duration TEXT").run();
-      console.log("Migration successful: duration added.");
-    }
-
-    if (!columns.includes('file_size')) {
-      console.log("Migrating database: Adding file_size column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN file_size TEXT").run();
-      console.log("Migration successful: file_size added.");
-    }
-
-    if (!columns.includes('last_played_at')) {
-      console.log("Migrating database: Adding last_played_at column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER").run();
-      console.log("Migration successful: last_played_at added.");
-    }
-
-    if (!columns.includes('subtitles')) {
-      console.log("Migrating database: Adding subtitles column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN subtitles TEXT").run();
-      console.log("Migration successful: subtitles added.");
-    }
-
-    // Check downloads table columns
-    const downloadsTableInfo = sqlite.prepare("PRAGMA table_info(downloads)").all();
-    const downloadsColumns = (downloadsTableInfo as any[]).map((col: any) => col.name);
-
-    if (!downloadsColumns.includes('source_url')) {
-      console.log("Migrating database: Adding source_url column to downloads table...");
-      sqlite.prepare("ALTER TABLE downloads ADD COLUMN source_url TEXT").run();
-      console.log("Migration successful: source_url added.");
-    }
-
-    if (!downloadsColumns.includes('type')) {
-      console.log("Migrating database: Adding type column to downloads table...");
-      sqlite.prepare("ALTER TABLE downloads ADD COLUMN type TEXT").run();
-      console.log("Migration successful: type added.");
-    }
-
-    // Populate fileSize for existing videos
-    const allVideos = db.select().from(videos).all();
-    let updatedCount = 0;
-    for (const video of allVideos) {
-        if (!video.fileSize && video.videoFilename) {
-             const videoPath = findVideoFile(video.videoFilename);
-             if (videoPath && fs.existsSync(videoPath)) {
-                 const stats = fs.statSync(videoPath);
-                 db.update(videos)
-                   .set({ fileSize: stats.size.toString() })
-                   .where(eq(videos.id, video.id))
-                   .run();
-                 updatedCount++;
-             }
-        }
-    }
-    if (updatedCount > 0) {
-        console.log(`Populated fileSize for ${updatedCount} videos.`);
-    }
-  } catch (error) {
-    console.error("Error checking/migrating viewCount/progress/duration/fileSize columns:", error);
-  }
 }
 
 

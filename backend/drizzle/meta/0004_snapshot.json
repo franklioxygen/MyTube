@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e34144d1-add0-4bb0-b9d3-852c5fa0384e",
-  "prevId": "a4f15b55-7d41-46eb-a976-c89e80c42797",
+  "id": "99422252-1f8e-47dc-993c-07653d092ac9",
+  "prevId": "e34144d1-add0-4bb0-b9d3-852c5fa0384e",
   "tables": {
     "collection_videos": {
       "name": "collection_videos",
@@ -261,6 +261,20 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'active'"
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -518,8 +532,36 @@
           "notNull": false,
           "autoincrement": false
         },
+        "tags": {
+          "name": "tags",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "progress": {
+          "name": "progress",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "file_size": {
           "name": "file_size",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_played_at": {
+          "name": "last_played_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subtitles": {
+          "name": "subtitles",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
