@@ -21,6 +21,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **Concurrent Download Limit**: Set a limit on the number of simultaneous downloads to manage bandwidth.
 - **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
 - **Video Player**: Custom player with Play/Pause, Loop, Seek, Full-screen, and Dimming controls.
+- **Auto Subtitles**: Automatically download YouTube default language subtitles.
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
 - **Modern UI**: Responsive, dark-themed interface with a "Back to Home" feature and glassmorphism effects.
@@ -36,180 +37,15 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 
 ## Directory Structure
 
-```
-mytube/
-├── backend/             # Express.js backend (TypeScript)
-│   ├── src/             # Source code
-│   │   ├── config/      # Configuration files
-│   │   ├── controllers/ # Route controllers
-│   │   ├── db/          # Database migrations and setup
-│   │   ├── routes/      # API routes
-│   │   ├── services/    # Business logic services
-│   │   ├── utils/       # Utility functions
-│   │   └── server.ts    # Main server file
-│   ├── uploads/         # Uploaded files directory
-│   │   ├── videos/      # Downloaded videos
-│   │   └── images/      # Downloaded thumbnails
-│   └── package.json     # Backend dependencies
-├── frontend/            # React.js frontend (Vite + TypeScript)
-│   ├── src/             # Source code
-│   │   ├── assets/      # Images and styles
-│   │   ├── components/  # React components
-│   │   ├── contexts/    # React contexts
-│   │   ├── pages/       # Page components
-│   │   ├── utils/       # Utilities and locales
-│   │   └── theme.ts     # Theme configuration
-│   └── package.json     # Frontend dependencies
-├── build-and-push.sh    # Docker build script
-├── docker-compose.yml   # Docker Compose configuration
-├── DEPLOYMENT.md        # Deployment guide
-├── CONTRIBUTING.md      # Contributing guidelines
-└── package.json         # Root package.json for running both apps
-```
+For a detailed breakdown of the project structure, please refer to [Directory Structure](documents/en/directory-structure.md).
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js (v14 or higher)
-- npm (v6 or higher)
-- Docker (optional, for containerized deployment)
-- Python 3.8+ (for yt-dlp and PO Token provider)
-- yt-dlp (installed via pip/pipx)
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repository-url>
-   cd mytube
-   ```
-
-2. Install dependencies:
-
-   You can install all dependencies for the root, frontend, and backend with a single command:
-
-   ```bash
-   npm run install:all
-   ```
-
-   Or manually:
-
-   ```bash
-   npm install
-   cd frontend && npm install
-   cd ../backend && npm install
-   ```
-
-    **Note**: The backend installation will automatically build the `bgutil-ytdlp-pot-provider` server. However, you must ensure `yt-dlp` and the `bgutil-ytdlp-pot-provider` python plugin are installed in your environment:
-
-    ```bash
-    # Install yt-dlp and the plugin
-    pip install yt-dlp bgutil-ytdlp-pot-provider
-    # OR using pipx (recommended)
-    pipx install yt-dlp
-    pipx inject yt-dlp bgutil-ytdlp-pot-provider
-    ```
-
-#### Using npm Scripts
-
-You can use npm scripts from the root directory:
-
-```bash
-npm run dev       # Start both frontend and backend in development mode
-```
-
-Other available scripts:
-
-```bash
-npm run start     # Start both frontend and backend in production mode
-npm run build     # Build the frontend for production
-npm run lint      # Run linting for frontend
-npm run lint:fix  # Fix linting errors for frontend
-```
-
-### Accessing the Application
-
-- Frontend: http://localhost:5556
-- Backend API: http://localhost:5551
+For installation and setup instructions, please refer to [Getting Started](documents/en/getting-started.md).
 
 ## API Endpoints
 
-### Videos
-- `POST /api/download` - Download a video (YouTube or Bilibili)
-- `POST /api/upload` - Upload a local video file
-- `GET /api/videos` - Get all downloaded videos
-- `GET /api/videos/:id` - Get a specific video
-- `PUT /api/videos/:id` - Update video details
-- `DELETE /api/videos/:id` - Delete a video
-- `GET /api/videos/:id/comments` - Get video comments
-- `POST /api/videos/:id/rate` - Rate a video
-- `POST /api/videos/:id/refresh-thumbnail` - Refresh video thumbnail
-- `POST /api/videos/:id/view` - Increment view count
-- `PUT /api/videos/:id/progress` - Update playback progress
-- `GET /api/search` - Search for videos online
-- `GET /api/download-status` - Get status of active downloads
-- `GET /api/check-bilibili-parts` - Check if a Bilibili video has multiple parts
-- `GET /api/check-bilibili-collection` - Check if a Bilibili URL is a collection/series
-
-### Download Management
-- `POST /api/downloads/cancel/:id` - Cancel a download
-- `DELETE /api/downloads/queue/:id` - Remove from queue
-- `DELETE /api/downloads/queue` - Clear queue
-- `GET /api/downloads/history` - Get download history
-- `DELETE /api/downloads/history/:id` - Remove from history
-- `DELETE /api/downloads/history` - Clear history
-
-### Collections
-- `GET /api/collections` - Get all collections
-- `POST /api/collections` - Create a new collection
-- `PUT /api/collections/:id` - Update a collection (add/remove videos)
-- `DELETE /api/collections/:id` - Delete a collection
-
-### Subscriptions
-- `GET /api/subscriptions` - Get all subscriptions
-- `POST /api/subscriptions` - Create a new subscription
-- `DELETE /api/subscriptions/:id` - Delete a subscription
-
-### Settings & System
-- `GET /api/settings` - Get application settings
-- `POST /api/settings` - Update application settings
-- `POST /api/settings/verify-password` - Verify login password
-- `POST /api/settings/migrate` - Migrate data from JSON to SQLite
-- `POST /api/settings/delete-legacy` - Delete legacy JSON data
-- `POST /api/scan-files` - Scan for existing files
-- `POST /api/cleanup-temp-files` - Cleanup temporary download files
-
-## Collections Feature
-
-MyTube allows you to organize your videos into collections:
-
-- **Create Collections**: Create custom collections to categorize your videos.
-- **Add to Collections**: Add videos to one or more collections directly from the video player or manage page.
-- **Remove from Collections**: Remove videos from collections easily.
-- **Browse Collections**: View all your collections in the sidebar and browse videos by collection.
-- **Delete Options**: Choose to delete just the collection grouping or delete the collection along with all its video files from the disk.
-
-## Data Migration
-
-MyTube now uses a SQLite database for better performance and reliability. If you are upgrading from an older version that used JSON files:
-
-1. Go to **Settings**.
-2. Scroll down to the **Database** section.
-3. Click **Migrate Data from JSON**.
-4. The tool will import your existing videos, collections, and download history into the new database.
-
-## User Interface
-
-The application features a modern, premium UI with:
-
-- **Dark/Light Mode**: Toggle between themes to suit your preference.
-- **Responsive Design**: Works seamlessly on desktop and mobile devices, with mobile-specific optimizations.
-- **Video Grid**: Easy-to-browse grid layout for your video library.
-- **Confirmation Modals**: Safe deletion with custom confirmation dialogs.
-- **Search**: Integrated search bar for finding local and online content.
-- **Snackbar Notifications**: Visual feedback for actions like adding/removing videos.
+For a list of available API endpoints, please refer to [API Endpoints](documents/en/api-endpoints.md).
 
 ## Environment Variables
 
@@ -237,10 +73,6 @@ Copy the `.env.example` files in both frontend and backend directories to create
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started, our development workflow, and code quality guidelines.
-
-## Deployment
-
-For detailed instructions on how to deploy MyTube using Docker or on QNAP Container Station, please refer to [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Star History
 
