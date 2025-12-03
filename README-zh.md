@@ -8,7 +8,7 @@
 
 🌐 **访问在线演示(只读): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
 
-![Nov-23-2025 21-19-25](https://github.com/user-attachments/assets/0f8761c9-893d-48df-8add-47f3f19357df)
+[![Watch the video](https://img.youtube.com/vi/O5rMqYffXpg/maxresdefault.jpg)](https://youtu.be/O5rMqYffXpg)
 
 
 ## 功能特点
