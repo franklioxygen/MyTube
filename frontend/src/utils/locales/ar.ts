@@ -336,4 +336,10 @@ export const ar = {
     instructionSection3Sub4: "الخدمات الموسعة:",
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراص السحابية.",
+    // Cookie Upload
+    cookieUpload: "تحميل ملفات تعريف الارتباط",
+    cookieUploadDescription: "قم بتحميل ملف cookies.txt للمصادقة على yt-dlp. هذا مطلوب لبعض المواقع لتجنب اكتشاف الروبوت.",
+    selectFile: "اختر ملف",
+    cookieUploadSuccess: "تم تحميل ملفات تعريف الارتباط بنجاح",
+    cookieUploadFailed: "فشل تحميل ملفات تعريف الارتباط",
 };

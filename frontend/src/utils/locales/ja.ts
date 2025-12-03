@@ -336,4 +336,10 @@ export const ja = {
     instructionSection3Sub4: "拡張サービス：",
     instructionSection3Item3Label: "OpenList クラウドドライブ：",
     instructionSection3Item3Text: "（開発中）ユーザーがデプロイした OpenList サービスへの接続をサポートします。ここで構成を追加して、クラウドドライブ統合を有効にします。",
+    // Cookie Upload
+    cookieUpload: "Cookie アップロード",
+    cookieUploadDescription: "yt-dlp を認証するために cookies.txt ファイルをアップロードします。これは、一部のサイトでボット検出を回避するために必要です。",
+    selectFile: "ファイルを選択",
+    cookieUploadSuccess: "Cookie のアップロードに成功しました",
+    cookieUploadFailed: "Cookie のアップロードに失敗しました",
 };

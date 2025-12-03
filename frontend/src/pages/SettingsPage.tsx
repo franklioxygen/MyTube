@@ -352,6 +352,48 @@ const SettingsPage: React.FC = () => {
 
                         <Grid size={12}><Divider /></Grid>
 
+                        {/* Cookie Upload Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('cookieUpload') || 'Cookie Upload'}</Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                {t('cookieUploadDescription') || 'Upload a cookies.txt file to authenticate yt-dlp. This is required for some sites to avoid bot detection.'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Button
+                                    variant="outlined"
+                                    component="label"
+                                >
+                                    {t('selectFile') || 'Select File'}
+                                    <input
+                                        type="file"
+                                        hidden
+                                        accept=".txt"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                const formData = new FormData();
+                                                formData.append('file', file);
+
+                                                axios.post(`${API_URL}/settings/upload-cookies`, formData, {
+                                                    headers: {
+                                                        'Content-Type': 'multipart/form-data'
+                                                    }
+                                                })
+                                                    .then(() => {
+                                                        setMessage({ text: t('cookieUploadSuccess') || 'Cookies uploaded successfully', type: 'success' });
+                                                    })
+                                                    .catch((error) => {
+                                                        setMessage({ text: error.response?.data?.error || t('cookieUploadFailed') || 'Failed to upload cookies', type: 'error' });
+                                                    });
+                                            }
+                                        }}
+                                    />
+                                </Button>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
                         {/* Video Defaults */}
                         <Grid size={12}>
                             <Typography variant="h6" gutterBottom>{t('videoDefaults')}</Typography>

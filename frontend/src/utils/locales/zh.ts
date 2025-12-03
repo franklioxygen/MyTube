@@ -338,4 +338,10 @@ export const zh = {
     instructionSection3Sub4: "扩展服务：",
     instructionSection3Item3Label: "OpenList 云盘：",
     instructionSection3Item3Text: "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
+    // Cookie Upload
+    cookieUpload: "Cookie 上传",
+    cookieUploadDescription: "上传 cookies.txt 文件以验证 yt-dlp。这是某些站点避免被检测为机器人所必需的。",
+    selectFile: "选择文件",
+    cookieUploadSuccess: "Cookie 上传成功",
+    cookieUploadFailed: "Cookie 上传失败",
 };

@@ -335,4 +335,10 @@ export const pt = {
     instructionSection3Sub4: "Serviços Estendidos:",
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(Em Desenvolvimento) Suporta conexão com serviços OpenList implantados pelo usuário. Adicione a configuração aqui para habilitar a integração da unidade de nuvem.",
+    // Cookie Upload
+    cookieUpload: "Upload de Cookies",
+    cookieUploadDescription: "Faça o upload de um arquivo cookies.txt para autenticar o yt-dlp. Isso é necessário para alguns sites para evitar a detecção de bots.",
+    selectFile: "Selecionar Arquivo",
+    cookieUploadSuccess: "Cookies enviados com sucesso",
+    cookieUploadFailed: "Falha ao enviar cookies",
 };

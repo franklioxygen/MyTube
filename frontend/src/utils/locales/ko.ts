@@ -336,4 +336,10 @@ export const ko = {
     instructionSection3Sub4: "확장 서비스:",
     instructionSection3Item3Label: "OpenList 클라우드 드라이브:",
     instructionSection3Item3Text: "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
+    // Cookie Upload
+    cookieUpload: "쿠키 업로드",
+    cookieUploadDescription: "yt-dlp 인증을 위해 cookies.txt 파일을 업로드하세요. 일부 사이트에서는 봇 감지를 피하기 위해 이 파일이 필요합니다.",
+    selectFile: "파일 선택",
+    cookieUploadSuccess: "쿠키 업로드 성공",
+    cookieUploadFailed: "쿠키 업로드 실패",
 };

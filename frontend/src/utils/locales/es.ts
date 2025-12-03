@@ -204,4 +204,10 @@ export const es = {
     instructionSection3Sub4: "Servicios Extendidos:",
     instructionSection3Item3Label: "Nube OpenList:",
     instructionSection3Item3Text: "(En Desarrollo) Admite conectar servicios OpenList implementados por el usuario. Agregue configuración aquí para habilitar la integración de la unidad en la nube.",
+    // Cookie Upload
+    cookieUpload: "Subida de Cookies",
+    cookieUploadDescription: "Sube un archivo cookies.txt para autenticar yt-dlp. Esto es necesario para algunos sitios para evitar la detección de bots.",
+    selectFile: "Seleccionar Archivo",
+    cookieUploadSuccess: "Cookies subidas exitosamente",
+    cookieUploadFailed: "Error al subir cookies",
 };

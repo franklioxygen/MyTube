@@ -336,4 +336,10 @@ export const ru = {
     instructionSection3Sub4: "Расширенные сервисы:",
     instructionSection3Item3Label: "Облачный диск OpenList:",
     instructionSection3Item3Text: "(В разработке) Поддерживает подключение к развернутым пользователем сервисам OpenList. Добавьте конфигурацию здесь, чтобы включить интеграцию с облачным диском.",
+    // Cookie Upload
+    cookieUpload: "Загрузка Cookie",
+    cookieUploadDescription: "Загрузите файл cookies.txt для аутентификации yt-dlp. Это требуется для некоторых сайтов, чтобы избежать обнаружения ботов.",
+    selectFile: "Выбрать файл",
+    cookieUploadSuccess: "Cookie успешно загружены",
+    cookieUploadFailed: "Не удалось загрузить Cookie",
 };

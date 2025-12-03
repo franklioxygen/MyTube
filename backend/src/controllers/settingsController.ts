@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import path from 'path';
-import { COLLECTIONS_DATA_PATH, STATUS_DATA_PATH, VIDEOS_DATA_PATH } from '../config/paths';
+import { COLLECTIONS_DATA_PATH, DATA_DIR, STATUS_DATA_PATH, VIDEOS_DATA_PATH } from '../config/paths';
 import downloadManager from '../services/downloadManager';
 import * as storageService from '../services/storageService';
 
@@ -184,5 +184,37 @@ export const verifyPassword = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error verifying password:', error);
         res.status(500).json({ error: 'Failed to verify password' });
+    }
+};
+
+export const uploadCookies = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        if (!req.file.originalname.endsWith('.txt')) {
+            // Clean up the uploaded file if it's not a txt file
+            if (req.file.path) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ error: 'Only .txt files are allowed' });
+        }
+
+        const COOKIES_PATH = path.join(DATA_DIR, 'cookies.txt');
+        
+        // Move the file to data/cookies.txt
+        await fs.move(req.file.path, COOKIES_PATH, { overwrite: true });
+        
+        res.json({ success: true, message: 'Cookies uploaded successfully' });
+    } catch (error: any) {
+        console.error('Error uploading cookies:', error);
+        // Try to clean up temp file if it exists
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            try {
+                fs.unlinkSync(req.file.path);
+            } catch (e) {
+                console.error('Failed to cleanup temp file:', e);
+            }
+        }
+        res.status(500).json({ error: 'Failed to upload cookies', details: error.message });
     }
 };

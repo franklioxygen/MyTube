@@ -207,4 +207,10 @@ export const de = {
     instructionSection3Sub4: "Erweiterte Dienste:",
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
+    // Cookie Upload
+    cookieUpload: "Cookie-Upload",
+    cookieUploadDescription: "Laden Sie eine cookies.txt-Datei hoch, um yt-dlp zu authentifizieren. Dies ist für einige Websites erforderlich, um die Bot-Erkennung zu vermeiden.",
+    selectFile: "Datei auswählen",
+    cookieUploadSuccess: "Cookies erfolgreich hochgeladen",
+    cookieUploadFailed: "Fehler beim Hochladen der Cookies",
 };

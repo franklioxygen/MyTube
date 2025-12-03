@@ -2,13 +2,23 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import youtubedl from "youtube-dl-exec";
-import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { DATA_DIR, IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const PROVIDER_SCRIPT = process.env.BGUTIL_SCRIPT_PATH || path.join(process.cwd(), "bgutil-ytdlp-pot-provider/server/build/generate_once.js");
+const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+
+// Helper to get cookie arguments if cookies file exists
+function getCookieArgs(): any {
+    if (fs.existsSync(COOKIES_PATH)) {
+        console.log("Using cookies from:", COOKIES_PATH);
+        return { cookies: COOKIES_PATH };
+    }
+    return {};
+}
 
 // Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
 async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
@@ -58,6 +68,7 @@ export class YtDlpDownloader {
             skipDownload: true,
             playlistEnd: 5, // Limit to 5 results
             extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            ...getCookieArgs(),
         } as any, { execPath: YT_DLP_PATH } as any);
 
         if (!searchResults || !(searchResults as any).entries) {
@@ -92,6 +103,7 @@ export class YtDlpDownloader {
                 preferFreeFormats: true,
                 // youtubeSkipDashManifest: true, // Specific to YT, might want to keep or make conditional
                 extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+                ...getCookieArgs(),
             } as any, { execPath: YT_DLP_PATH } as any);
 
             return {
@@ -133,6 +145,7 @@ export class YtDlpDownloader {
                 noWarnings: true,
                 flatPlaylist: true, // We only need the ID/URL, not full info
                 extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+                ...getCookieArgs(),
             } as any, { execPath: YT_DLP_PATH } as any);
 
             // If it's a playlist/channel, 'entries' will contain the videos
@@ -186,6 +199,7 @@ export class YtDlpDownloader {
                 noWarnings: true,
                 preferFreeFormats: true,
                 extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+                ...getCookieArgs(),
             } as any, { execPath: YT_DLP_PATH } as any);
 
             console.log("Video info:", {
@@ -258,6 +272,12 @@ export class YtDlpDownloader {
 
             // Add PO Token provider args
             flags.extractorArgs = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+
+            // Add cookies if available
+            const cookieArgs = getCookieArgs();
+            if (cookieArgs.cookies) {
+                flags.cookies = cookieArgs.cookies;
+            }
 
             // Use exec to capture stdout for progress
             const subprocess = youtubedl.exec(videoUrl, flags, { execPath: YT_DLP_PATH } as any);

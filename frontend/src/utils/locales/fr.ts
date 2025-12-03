@@ -334,4 +334,10 @@ export const fr = {
     instructionSection3Sub4: "Services Étendus :",
     instructionSection3Item3Label: "OpenList Cloud Drive :",
     instructionSection3Item3Text: "(En Développement) Prend en charge la connexion aux services OpenList déployés par l'utilisateur. Ajoutez la configuration ici pour activer l'intégration du lecteur cloud.",
+    // Cookie Upload
+    cookieUpload: "Téléchargement de Cookies",
+    cookieUploadDescription: "Téléchargez un fichier cookies.txt pour authentifier yt-dlp. Cela est requis pour certains sites afin d'éviter la détection de bots.",
+    selectFile: "Sélectionner un fichier",
+    cookieUploadSuccess: "Cookies téléchargés avec succès",
+    cookieUploadFailed: "Échec du téléchargement des cookies",
 };
