@@ -158,6 +158,40 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
 
       storageService.saveVideo(newVideo);
       addedCount++;
+
+      // Check if video is in a subfolder
+      const dirName = path.dirname(relativePath);
+      console.log(`DEBUG: relativePath='${relativePath}', dirName='${dirName}'`);
+      if (dirName !== '.') {
+        const collectionName = dirName.split(path.sep)[0];
+        
+        // Find existing collection by name
+        let collectionId: string | undefined;
+        const allCollections = storageService.getCollections();
+        const existingCollection = allCollections.find(c => (c.title === collectionName || c.name === collectionName));
+        
+        if (existingCollection) {
+          collectionId = existingCollection.id;
+        } else {
+          // Create new collection
+          collectionId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
+          const newCollection = {
+            id: collectionId,
+            title: collectionName,
+            name: collectionName,
+            videos: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          storageService.saveCollection(newCollection);
+          console.log(`Created new collection from folder: ${collectionName}`);
+        }
+
+        if (collectionId) {
+          storageService.addVideoToCollection(collectionId, newVideo.id);
+          console.log(`Added video ${newVideo.title} to collection ${collectionName}`);
+        }
+      }
     }
 
     console.log(`Scan complete. Added ${addedCount} new videos.`);
