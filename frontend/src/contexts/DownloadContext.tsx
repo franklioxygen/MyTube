@@ -141,7 +141,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
     };
 
-    const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false): Promise<any> => {
+    const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false, skipPartsCheck = false): Promise<any> => {
         try {
             // Check for YouTube channel URL
             // Regex for: @username, channel/ID, user/username, c/customURL
@@ -183,22 +183,25 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     }
 
                     // If not a collection/series (or check was skipped), check if it has multiple parts
-                    const partsResponse = await axios.get(`${API_URL}/check-bilibili-parts`, {
-                        params: { url: videoUrl }
-                    });
-
-                    if (partsResponse.data.success && partsResponse.data.videosNumber > 1) {
-                        // Show modal to ask user if they want to download all parts
-                        setBilibiliPartsInfo({
-                            videosNumber: partsResponse.data.videosNumber,
-                            title: partsResponse.data.title,
-                            url: videoUrl,
-                            type: 'parts',
-                            collectionInfo: null
+                    // Only check if not explicitly skipped
+                    if (!skipPartsCheck) {
+                        const partsResponse = await axios.get(`${API_URL}/check-bilibili-parts`, {
+                            params: { url: videoUrl }
                         });
-                        setShowBilibiliPartsModal(true);
-                        setIsCheckingParts(false);
-                        return { success: true };
+
+                        if (partsResponse.data.success && partsResponse.data.videosNumber > 1) {
+                            // Show modal to ask user if they want to download all parts
+                            setBilibiliPartsInfo({
+                                videosNumber: partsResponse.data.videosNumber,
+                                title: partsResponse.data.title,
+                                url: videoUrl,
+                                type: 'parts',
+                                collectionInfo: null
+                            });
+                            setShowBilibiliPartsModal(true);
+                            setIsCheckingParts(false);
+                            return { success: true };
+                        }
                     }
                 } catch (err) {
                     console.error('Error checking Bilibili parts/collection:', err);
@@ -274,8 +277,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleDownloadCurrentBilibiliPart = async () => {
         setShowBilibiliPartsModal(false);
-        // Pass true to skip collection/series check since we already know about it
-        return await handleVideoSubmit(bilibiliPartsInfo.url, true);
+        // Pass true to skip collection/series check AND parts check since we already know about it
+        return await handleVideoSubmit(bilibiliPartsInfo.url, true, true);
     };
 
     // Subscription logic
