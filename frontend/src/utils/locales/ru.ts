@@ -87,6 +87,14 @@ export const ru = {
     cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
     cleanupTempFilesFailed: "Не удалось очистить временные файлы",
 
+    // Cookie Settings
+    cookieSettings: "Настройки Cookie",
+    cookieUploadDescription: "Загрузите cookies.txt, чтобы пройти проверку ботов YouTube и включить скачивание субтитров Bilibili. Файл будет автоматически переименован в cookies.txt. (Пример: используйте расширение \"Get cookies.txt LOCALLY\" для экспорта cookie)",
+    uploadCookies: "Загрузить Cookie",
+    onlyTxtFilesAllowed: "Разрешены только файлы .txt",
+    cookiesUploadedSuccess: "Cookie успешно загружены",
+    cookiesUploadFailed: "Не удалось загрузить cookie",
+
     // Cloud Drive
     cloudDriveSettings: "Облачное хранилище (OpenList)",
     enableAutoSave: "Включить автосохранение в облако",

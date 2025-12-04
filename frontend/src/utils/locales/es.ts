@@ -43,6 +43,14 @@ export const es = {
     cleanupTempFilesSuccess: "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
     cleanupTempFilesFailed: "Error al limpiar archivos temporales",
 
+    // Cookie Settings
+    cookieSettings: "Configuración de Cookies",
+    cookieUploadDescription: "Sube cookies.txt para pasar las comprobaciones de bots de YouTube y habilitar la descarga de subtítulos de Bilibili. El archivo se renombrará automáticamente a cookies.txt. (Ejemplo: use la extensión \"Get cookies.txt LOCALLY\" para exportar cookies)",
+    uploadCookies: "Subir Cookies",
+    onlyTxtFilesAllowed: "Solo se permiten archivos .txt",
+    cookiesUploadedSuccess: "Cookies subidas con éxito",
+    cookiesUploadFailed: "Error al subir cookies",
+
     // Cloud Drive
     cloudDriveSettings: "Almacenamiento en la Nube (OpenList)",
     enableAutoSave: "Habilitar guardado automático en la nube",

@@ -87,6 +87,14 @@ export const ja = {
     cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
     cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 
+    // Cookie Settings
+    cookieSettings: "Cookie設定",
+    cookieUploadDescription: "YouTubeのボットチェックを通過し、Bilibiliの字幕ダウンロードを有効にするためにcookies.txtをアップロードしてください。ファイルは自動的にcookies.txtにリネームされます。(例：\"Get cookies.txt LOCALLY\" 拡張機能を使用してクッキーをエクスポート)",
+    uploadCookies: "Cookieをアップロード",
+    onlyTxtFilesAllowed: ".txtファイルのみ許可されています",
+    cookiesUploadedSuccess: "Cookieが正常にアップロードされました",
+    cookiesUploadFailed: "Cookieのアップロードに失敗しました",
+
     // Cloud Drive
     cloudDriveSettings: "クラウドストレージ (OpenList)",
     enableAutoSave: "クラウドへの自動保存を有効にする",

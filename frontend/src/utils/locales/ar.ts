@@ -87,6 +87,14 @@ export const ar = {
     cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
     cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
 
+    // Cookie Settings
+    cookieSettings: "إعدادات ملفات تعريف الارتباط",
+    cookieUploadDescription: "قم بتحميل cookies.txt لتجاوز فحوصات الروبوت في YouTube وتمكين تنزيل ترجمات Bilibili. ستتم إعادة تسمية الملف تلقائيًا إلى cookies.txt. (مثال: استخدم إضافة \"Get cookies.txt LOCALLY\" لتصدير ملفات تعريف الارتباط)",
+    uploadCookies: "تحميل ملفات تعريف الارتباط",
+    onlyTxtFilesAllowed: "يسمح فقط بملفات .txt",
+    cookiesUploadedSuccess: "تم تحميل ملفات تعريف الارتباط بنجاح",
+    cookiesUploadFailed: "فشل تحميل ملفات تعريف الارتباط",
+
     // Cloud Drive
     cloudDriveSettings: "التخزين السحابي (OpenList)",
     enableAutoSave: "تمكين الحفظ التلقائي في السحابة",

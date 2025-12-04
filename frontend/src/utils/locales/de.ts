@@ -45,6 +45,14 @@ export const de = {
     cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
     cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 
+    // Cookie Settings
+    cookieSettings: "Cookie-Einstellungen",
+    cookieUploadDescription: "Laden Sie cookies.txt hoch, um YouTube-Bot-Prüfungen zu bestehen und Bilibili-Untertitel-Downloads zu aktivieren. Die Datei wird automatisch in cookies.txt umbenannt. (Beispiel: Verwenden Sie die Erweiterung \"Get cookies.txt LOCALLY\" zum Exportieren von Cookies)",
+    uploadCookies: "Cookies hochladen",
+    onlyTxtFilesAllowed: "Nur .txt-Dateien erlaubt",
+    cookiesUploadedSuccess: "Cookies erfolgreich hochgeladen",
+    cookiesUploadFailed: "Fehler beim Hochladen der Cookies",
+
     // Cloud Drive
     cloudDriveSettings: "Cloud-Speicher (OpenList)",
     enableAutoSave: "Automatisches Speichern in der Cloud aktivieren",

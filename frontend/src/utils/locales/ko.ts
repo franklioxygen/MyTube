@@ -87,6 +87,14 @@ export const ko = {
     cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
     cleanupTempFilesFailed: "임시 파일 정리 실패",
 
+    // Cookie Settings
+    cookieSettings: "쿠키 설정",
+    cookieUploadDescription: "YouTube 봇 확인을 통과하고 Bilibili 자막 다운로드를 활성화하려면 cookies.txt를 업로드하세요. 파일 이름은 자동으로 cookies.txt로 변경됩니다. (예: \"Get cookies.txt LOCALLY\" 확장 프로그램을 사용하여 쿠키 내보내기)",
+    uploadCookies: "쿠키 업로드",
+    onlyTxtFilesAllowed: ".txt 파일만 허용됩니다",
+    cookiesUploadedSuccess: "쿠키가 성공적으로 업로드되었습니다",
+    cookiesUploadFailed: "쿠키 업로드 실패",
+
     // Cloud Drive
     cloudDriveSettings: "클라우드 드라이브 (OpenList)",
     enableAutoSave: "클라우드 자동 저장 활성화",
