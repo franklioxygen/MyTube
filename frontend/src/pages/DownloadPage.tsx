@@ -299,7 +299,14 @@ const DownloadPage: React.FC = () => {
             </Box>
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={tabValue} onChange={handleTabChange} aria-label="download tabs">
+                <Tabs
+                    value={tabValue}
+                    onChange={handleTabChange}
+                    aria-label="download tabs"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                >
                     <Tab label={t('activeDownloads') || 'Active Downloads'} />
                     <Tab label={t('queuedDownloads') || 'Queue'} />
                     <Tab label={t('downloadHistory') || 'History'} />
