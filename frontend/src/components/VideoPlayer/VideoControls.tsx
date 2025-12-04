@@ -16,6 +16,8 @@ import {
 import {
     Box,
     Button,
+    Menu,
+    MenuItem,
     Stack,
     Tooltip,
     useMediaQuery,
@@ -58,6 +60,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     const [isLooping, setIsLooping] = useState<boolean>(autoLoop);
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
     const [subtitlesEnabled, setSubtitlesEnabled] = useState<boolean>(initialSubtitlesEnabled && subtitles.length > 0);
+
+    const [subtitleMenuAnchor, setSubtitleMenuAnchor] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
         if (videoRef.current) {
@@ -127,13 +131,23 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     useEffect(() => {
         if (videoRef.current && subtitles.length > 0) {
             const tracks = videoRef.current.textTracks;
-            const newState = initialSubtitlesEnabled && subtitles.length > 0;
+            // If enabled, show the first track by default if none selected, or keep current
+            // Actually, let's just respect the boolean for now.
+            // If we want to support specific language selection persistence, we'd need more state.
+            // For now, just show the first one if enabled.
 
+            const newState = initialSubtitlesEnabled;
+            setSubtitlesEnabled(newState);
+
+            // Hide all first
             for (let i = 0; i < tracks.length; i++) {
-                tracks[i].mode = newState ? 'showing' : 'hidden';
+                tracks[i].mode = 'hidden';
             }
 
-            setSubtitlesEnabled(newState);
+            // If enabled, show the first one (or the one matching browser lang if we were fancy, but let's stick to simple)
+            if (newState && tracks.length > 0) {
+                tracks[0].mode = 'showing';
+            }
         }
     }, [initialSubtitlesEnabled, subtitles]);
 
@@ -191,22 +205,33 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         }
     };
 
-    const handleToggleSubtitles = () => {
+    const handleSubtitleClick = (event: React.MouseEvent<HTMLElement>) => {
+        setSubtitleMenuAnchor(event.currentTarget);
+    };
+
+    const handleCloseSubtitleMenu = () => {
+        setSubtitleMenuAnchor(null);
+    };
+
+    const handleSelectSubtitle = (index: number) => {
         if (videoRef.current) {
             const tracks = videoRef.current.textTracks;
-            const newState = !subtitlesEnabled;
 
+            // Hide all tracks first
             for (let i = 0; i < tracks.length; i++) {
-                tracks[i].mode = newState ? 'showing' : 'hidden';
+                tracks[i].mode = 'hidden';
             }
 
-            setSubtitlesEnabled(newState);
-
-            // Call the callback to save preference to database
-            if (onSubtitlesToggle) {
-                onSubtitlesToggle(newState);
+            if (index >= 0 && index < tracks.length) {
+                tracks[index].mode = 'showing';
+                setSubtitlesEnabled(true);
+                if (onSubtitlesToggle) onSubtitlesToggle(true);
+            } else {
+                setSubtitlesEnabled(false);
+                if (onSubtitlesToggle) onSubtitlesToggle(false);
             }
         }
+        handleCloseSubtitleMenu();
     };
 
     return (
@@ -260,8 +285,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     // Initialize subtitle tracks based on preference
                     const tracks = e.currentTarget.textTracks;
                     const shouldShow = initialSubtitlesEnabled && subtitles.length > 0;
+
                     for (let i = 0; i < tracks.length; i++) {
-                        tracks[i].mode = shouldShow ? 'showing' : 'hidden';
+                        tracks[i].mode = 'hidden';
+                    }
+
+                    if (shouldShow && tracks.length > 0) {
+                        tracks[0].mode = 'showing';
                     }
                 }}
                 playsInline
@@ -328,15 +358,31 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         </Tooltip>
 
                         {subtitles && subtitles.length > 0 && (
-                            <Tooltip title={subtitlesEnabled ? 'Hide Subtitles' : 'Show Subtitles'}>
-                                <Button
-                                    variant={subtitlesEnabled ? "contained" : "outlined"}
-                                    onClick={handleToggleSubtitles}
-                                    fullWidth={isMobile}
+                            <>
+                                <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'}>
+                                    <Button
+                                        variant={subtitlesEnabled ? "contained" : "outlined"}
+                                        onClick={handleSubtitleClick}
+                                        fullWidth={isMobile}
+                                    >
+                                        {subtitlesEnabled ? <Subtitles /> : <SubtitlesOff />}
+                                    </Button>
+                                </Tooltip>
+                                <Menu
+                                    anchorEl={subtitleMenuAnchor}
+                                    open={Boolean(subtitleMenuAnchor)}
+                                    onClose={handleCloseSubtitleMenu}
                                 >
-                                    {subtitlesEnabled ? <Subtitles /> : <SubtitlesOff />}
-                                </Button>
-                            </Tooltip>
+                                    <MenuItem onClick={() => handleSelectSubtitle(-1)}>
+                                        {t('off') || 'Off'}
+                                    </MenuItem>
+                                    {subtitles.map((subtitle, index) => (
+                                        <MenuItem key={subtitle.language} onClick={() => handleSelectSubtitle(index)}>
+                                            {subtitle.language.toUpperCase()}
+                                        </MenuItem>
+                                    ))}
+                                </Menu>
+                            </>
                         )}
                     </Stack>
 

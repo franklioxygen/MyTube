@@ -820,7 +820,7 @@ export class BilibiliDownloader {
             }
 
             // Get subtitles
-            const playerApiUrl = `https://api.bilibili.com/x/player/v2?bvid=${videoId}&cid=${cid}`;
+            const playerApiUrl = `https://api.bilibili.com/x/player/wbi/v2?bvid=${videoId}&cid=${cid}`;
             console.log(`Fetching subtitles from: ${playerApiUrl}`);
             const playerResponse = await axios.get(playerApiUrl, { headers });
             
