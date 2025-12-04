@@ -201,8 +201,22 @@ export const uploadCookies = async (req: Request, res: Response) => {
 
         const COOKIES_PATH = path.join(DATA_DIR, 'cookies.txt');
         
-        // Move the file to data/cookies.txt
-        await fs.move(req.file.path, COOKIES_PATH, { overwrite: true });
+        // Read the uploaded file
+        let content = await fs.readFile(req.file.path, 'utf8');
+        
+        // Convert CRLF to LF
+        content = content.replace(/\r\n/g, '\n');
+        
+        // Ensure Netscape header exists
+        if (!content.startsWith('# Netscape HTTP Cookie File') && !content.startsWith('# HTTP Cookie File')) {
+            content = '# Netscape HTTP Cookie File\n\n' + content;
+        }
+        
+        // Write sanitized content to data/cookies.txt
+        await fs.writeFile(COOKIES_PATH, content, 'utf8');
+        
+        // Clean up temp file
+        await fs.unlink(req.file.path);
         
         res.json({ success: true, message: 'Cookies uploaded successfully' });
     } catch (error: any) {

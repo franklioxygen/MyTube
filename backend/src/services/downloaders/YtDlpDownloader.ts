@@ -261,13 +261,14 @@ export class YtDlpDownloader {
             };
 
             // Add YouTube specific flags if it's a YouTube URL
+            // Add YouTube specific flags if it's a YouTube URL
             if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-                 flags.format = "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-                 flags['extractor-args'] = "youtube:player_client=android";
+                 // Use a more generic format selection that works well with cookies
+                 flags.format = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
                  flags.addHeader = [
                     'Referer:https://www.youtube.com/',
-                    'User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
-                ];
+                    'User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                 ];
             }
 
             // Add PO Token provider args
