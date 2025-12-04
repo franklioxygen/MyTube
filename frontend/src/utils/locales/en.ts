@@ -88,6 +88,14 @@ export const en = {
     cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
     cleanupTempFilesFailed: "Failed to clean up temporary files",
 
+    // Cookie Settings
+    cookieSettings: "Cookie Settings",
+    cookieUploadDescription: "Upload cookies.txt to pass YouTube bot checks and enable Bilibili subtitle downloads. The file will be renamed to cookies.txt automatically. (Example: use \"Get cookies.txt LOCALLY\" extension to export cookies)",
+    uploadCookies: "Upload Cookies",
+    onlyTxtFilesAllowed: "Only .txt files are allowed",
+    cookiesUploadedSuccess: "Cookies uploaded successfully",
+    cookiesUploadFailed: "Failed to upload cookies",
+
     // Cloud Drive
     cloudDriveSettings: "Cloud Drive (OpenList)",
     enableAutoSave: "Enable Auto Save to Cloud",

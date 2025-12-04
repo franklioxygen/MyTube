@@ -3,7 +3,8 @@ import fs from "fs-extra";
 import path from "path";
 // @ts-ignore
 import { downloadByVedioPath } from "bilibili-save-nodejs";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { bccToVtt } from "../../utils/bccToVtt";
 import {
     extractBilibiliVideoId,
     sanitizeFilename
@@ -518,6 +519,16 @@ export class BilibiliDownloader {
                 console.error("Failed to get file size:", e);
             }
 
+            // Download subtitles
+            let subtitles: Array<{ language: string; filename: string; path: string }> = [];
+            try {
+                console.log("Attempting to download subtitles...");
+                subtitles = await BilibiliDownloader.downloadSubtitles(url, newSafeBaseFilename);
+                console.log(`Downloaded ${subtitles.length} subtitles`);
+            } catch (e) {
+                console.error("Error downloading subtitles:", e);
+            }
+
             // Create metadata for the video
             const videoData: Video = {
                 id: timestamp.toString(),
@@ -528,6 +539,7 @@ export class BilibiliDownloader {
                 sourceUrl: url,
                 videoFilename: finalVideoFilename,
                 thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
+                subtitles: subtitles.length > 0 ? subtitles : undefined,
                 thumbnailUrl: thumbnailUrl || undefined,
                 videoPath: `/videos/${finalVideoFilename}`,
                 thumbnailPath: thumbnailSaved
@@ -747,6 +759,145 @@ export class BilibiliDownloader {
             if (downloadId) {
                 storageService.removeActiveDownload(downloadId);
             }
+        }
+    }
+
+    // Helper function to get cookies from cookies.txt
+    static getCookieHeader(): string {
+        try {
+            const { DATA_DIR } = require("../../config/paths");
+            const cookiesPath = path.join(DATA_DIR, "cookies.txt");
+            if (fs.existsSync(cookiesPath)) {
+                const content = fs.readFileSync(cookiesPath, "utf8");
+                const lines = content.split("\n");
+                const cookies = [];
+                for (const line of lines) {
+                    if (line.startsWith("#") || !line.trim()) continue;
+                    const parts = line.split("\t");
+                    if (parts.length >= 7) {
+                        const name = parts[5];
+                        const value = parts[6].trim();
+                        cookies.push(`${name}=${value}`);
+                    }
+                }
+                return cookies.join("; ");
+            }
+        } catch (e) {
+            console.error("Error reading cookies.txt:", e);
+        }
+        return "";
+    }
+
+    // Helper function to download subtitles
+    static async downloadSubtitles(videoUrl: string, baseFilename: string): Promise<Array<{ language: string; filename: string; path: string }>> {
+        try {
+            const videoId = extractBilibiliVideoId(videoUrl);
+            if (!videoId) return [];
+
+            const cookieHeader = BilibiliDownloader.getCookieHeader();
+            if (!cookieHeader) {
+                console.warn("WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login.");
+            } else {
+                console.log(`Cookie header length: ${cookieHeader.length}`);
+                // Log first few chars to verify it's not empty/malformed
+                console.log(`Cookie header start: ${cookieHeader.substring(0, 20)}...`);
+            }
+            
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://www.bilibili.com',
+                ...(cookieHeader ? { 'Cookie': cookieHeader } : {})
+            };
+
+            // Get CID first
+            const viewApiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+            const viewResponse = await axios.get(viewApiUrl, { headers });
+            const cid = viewResponse.data?.data?.cid;
+
+            if (!cid) {
+                console.log("Could not find CID for video");
+                return [];
+            }
+
+            // Get subtitles
+            const playerApiUrl = `https://api.bilibili.com/x/player/v2?bvid=${videoId}&cid=${cid}`;
+            console.log(`Fetching subtitles from: ${playerApiUrl}`);
+            const playerResponse = await axios.get(playerApiUrl, { headers });
+            
+            if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
+                console.warn("WARNING: SESSDATA cookie not found! This is required for Bilibili authentication.");
+            }
+
+            let subtitlesData = playerResponse.data?.data?.subtitle?.subtitles;
+
+            // Fallback: Check if subtitles are in the view response (sometimes they are)
+            if (!subtitlesData || subtitlesData.length === 0) {
+                console.log("No subtitles in player API, checking view API response...");
+                // We already fetched viewResponse earlier to get CID
+                const viewSubtitles = viewResponse.data?.data?.subtitle?.list;
+                if (viewSubtitles && viewSubtitles.length > 0) {
+                    console.log(`Found ${viewSubtitles.length} subtitles in view API`);
+                    subtitlesData = viewSubtitles;
+                }
+            }
+
+            if (!subtitlesData) {
+                 console.log("No subtitle field in response data");
+            } else if (!Array.isArray(subtitlesData)) {
+                 console.log("Subtitles field is not an array");
+            } else {
+                 console.log(`Found ${subtitlesData.length} subtitles`);
+            }
+
+            if (!subtitlesData || !Array.isArray(subtitlesData)) {
+                console.log("No subtitles found in API response");
+                return [];
+            }
+
+            const savedSubtitles = [];
+
+            // Ensure subtitles directory exists
+            fs.ensureDirSync(SUBTITLES_DIR);
+
+            for (const sub of subtitlesData) {
+                const lang = sub.lan;
+                const subUrl = sub.subtitle_url;
+                if (!subUrl) continue;
+
+                // Ensure URL is absolute (sometimes it starts with //)
+                const absoluteSubUrl = subUrl.startsWith('//') ? `https:${subUrl}` : subUrl;
+
+                console.log(`Downloading subtitle (${lang}): ${absoluteSubUrl}`);
+                
+                // Do NOT send cookies to the subtitle CDN (hdslb.com) as it can cause 400 Bad Request (Header too large)
+                // and they are not needed for the CDN file itself.
+                const cdnHeaders = {
+                    'User-Agent': headers['User-Agent'],
+                    'Referer': headers['Referer']
+                };
+
+                const subResponse = await axios.get(absoluteSubUrl, { headers: cdnHeaders });
+                const vttContent = bccToVtt(subResponse.data);
+
+                if (vttContent) {
+                    const subFilename = `${baseFilename}.${lang}.vtt`;
+                    const subPath = path.join(SUBTITLES_DIR, subFilename);
+
+                    fs.writeFileSync(subPath, vttContent);
+
+                    savedSubtitles.push({
+                        language: lang,
+                        filename: subFilename,
+                        path: `/subtitles/${subFilename}`
+                    });
+                }
+            }
+
+            return savedSubtitles;
+
+        } catch (error) {
+            console.error("Error in downloadSubtitles:", error);
+            return [];
         }
     }
 }

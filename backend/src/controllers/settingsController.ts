@@ -186,3 +186,27 @@ export const verifyPassword = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to verify password' });
     }
 };
+
+export const uploadCookies = async (req: Request, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const { DATA_DIR } = require('../config/paths');
+        const targetPath = path.join(DATA_DIR, 'cookies.txt');
+
+        // Move the file to the target location
+        fs.moveSync(req.file.path, targetPath, { overwrite: true });
+
+        console.log(`Cookies uploaded and saved to ${targetPath}`);
+        res.json({ success: true, message: 'Cookies uploaded successfully' });
+    } catch (error: any) {
+        console.error('Error uploading cookies:', error);
+        // Clean up temp file if it exists
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Failed to upload cookies', details: error.message });
+    }
+};

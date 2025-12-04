@@ -87,6 +87,14 @@ export const fr = {
     cleanupTempFilesSuccess: "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
     cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
 
+    // Cookie Settings
+    cookieSettings: "Paramètres des Cookies",
+    cookieUploadDescription: "Téléchargez cookies.txt pour passer les vérifications de robots YouTube et activer le téléchargement des sous-titres Bilibili. Le fichier sera automatiquement renommé en cookies.txt. (Exemple : utilisez l'extension \"Get cookies.txt LOCALLY\" pour exporter les cookies)",
+    uploadCookies: "Télécharger les Cookies",
+    onlyTxtFilesAllowed: "Seuls les fichiers .txt sont autorisés",
+    cookiesUploadedSuccess: "Cookies téléchargés avec succès",
+    cookiesUploadFailed: "Échec du téléchargement des cookies",
+
     // Cloud Drive
     cloudDriveSettings: "Stockage Cloud (OpenList)",
     enableAutoSave: "Activer la sauvegarde automatique sur le Cloud",

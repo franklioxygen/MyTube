@@ -1,6 +1,9 @@
+
 import fs from "fs-extra";
 import { SUBTITLES_DIR } from "../config/paths";
+import { BilibiliDownloader } from "../services/downloaders/BilibiliDownloader";
 import * as storageService from "../services/storageService";
+import { sanitizeFilename } from "../utils/helpers";
 
 /**
  * Scan subtitle directory and update video records with subtitle metadata
@@ -30,7 +33,31 @@ async function rescanSubtitles() {
                 continue;
             }
             
-            // Look for subtitle files matching this video
+            // If it's a Bilibili video, try to download subtitles
+            if (video.source === 'bilibili' && video.sourceUrl) {
+                console.log(`Attempting to download subtitles for Bilibili video: ${video.title}`);
+                try {
+                    // We need to reconstruct the base filename used during download
+                    // Usually it's sanitizeFilename(title)_timestamp
+                    // But we can just use the video ID (timestamp) as the base for subtitles
+                    // to match the pattern expected by the system
+                    const timestamp = video.id;
+                    const safeBaseFilename = `${sanitizeFilename(video.title)}_${timestamp}`;
+                    
+                    const downloadedSubtitles = await BilibiliDownloader.downloadSubtitles(video.sourceUrl, safeBaseFilename);
+                    
+                    if (downloadedSubtitles.length > 0) {
+                        storageService.updateVideo(video.id, { subtitles: downloadedSubtitles });
+                        console.log(`Downloaded and linked ${downloadedSubtitles.length} subtitles for ${video.title}`);
+                        updatedCount++;
+                        continue; // Skip the local file check since we just downloaded them
+                    }
+                } catch (e) {
+                    console.error(`Failed to download subtitles for ${video.title}:`, e);
+                }
+            }
+            
+            // Look for existing subtitle files matching this video (fallback)
             const videoTimestamp = video.id;
             const matchingSubtitles = subtitleFiles.filter((file) => file.includes(videoTimestamp));
             

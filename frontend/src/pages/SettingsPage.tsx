@@ -1,5 +1,6 @@
 import {
     ArrowBack,
+    CloudUpload,
     Save
 } from '@mui/icons-material';
 import {
@@ -319,6 +320,57 @@ const SettingsPage: React.FC = () => {
 
                         <Grid size={12}><Divider /></Grid>
 
+                        {/* Cookie Upload Settings */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom>{t('cookieSettings') || 'Cookie Settings'}</Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                {t('cookieUploadDescription') || 'Upload cookies.txt to pass YouTube bot checks and enable Bilibili subtitle downloads. The file will be renamed to cookies.txt automatically. (Example: use "Get cookies.txt LOCALLY" extension to export cookies)'}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Button
+                                    variant="outlined"
+                                    component="label"
+                                    startIcon={<CloudUpload />}
+                                >
+                                    {t('uploadCookies') || 'Upload Cookies'}
+                                    <input
+                                        type="file"
+                                        hidden
+                                        accept=".txt"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            if (!file.name.endsWith('.txt')) {
+                                                setMessage({ text: t('onlyTxtFilesAllowed') || 'Only .txt files are allowed', type: 'error' });
+                                                return;
+                                            }
+
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+
+                                            try {
+                                                await axios.post(`${API_URL}/settings/upload-cookies`, formData, {
+                                                    headers: {
+                                                        'Content-Type': 'multipart/form-data'
+                                                    }
+                                                });
+                                                setMessage({ text: t('cookiesUploadedSuccess') || 'Cookies uploaded successfully', type: 'success' });
+                                            } catch (error) {
+                                                console.error('Error uploading cookies:', error);
+                                                setMessage({ text: t('cookiesUploadFailed') || 'Failed to upload cookies', type: 'error' });
+                                            }
+
+                                            // Reset input
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                </Button>
+                            </Box>
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
                         {/* Security Settings */}
                         <Grid size={12}>
                             <Typography variant="h6" gutterBottom>{t('security')}</Typography>
@@ -449,7 +501,7 @@ const SettingsPage: React.FC = () => {
 
                         {/* Cloud Drive Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')}</Typography>
+                            <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')} (beta)</Typography>
                             <FormControlLabel
                                 control={
                                     <Switch

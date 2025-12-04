@@ -88,6 +88,14 @@ export const zh = {
     cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
     cleanupTempFilesFailed: "清理临时文件失败",
 
+    // Cookie Settings
+    cookieSettings: "Cookie 设置",
+    cookieUploadDescription: "上传 cookies.txt 以通过 YouTube 机器人检测并启用 Bilibili 字幕下载。文件将自动重命名为 cookies.txt。(例如：使用 \"Get cookies.txt LOCALLY\" 扩展导出 cookies)",
+    uploadCookies: "上传 Cookie",
+    onlyTxtFilesAllowed: "仅允许 .txt 文件",
+    cookiesUploadedSuccess: "Cookie 上传成功",
+    cookiesUploadFailed: "Cookie 上传失败",
+
     // Cloud Drive
     cloudDriveSettings: "云端存储 (OpenList)",
     enableAutoSave: "启用自动保存到云端",
