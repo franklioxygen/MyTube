@@ -3,7 +3,7 @@ import path from 'path';
 import { ROOT_DIR } from '../config/paths';
 import { db } from './index';
 
-export function runMigrations() {
+export async function runMigrations() {
   try {
     console.log('Running database migrations...');
     // In production/docker, the drizzle folder is copied to the root or src/drizzle
@@ -14,6 +14,28 @@ export function runMigrations() {
     
     migrate(db, { migrationsFolder });
     console.log('Database migrations completed successfully.');
+
+    // Check for legacy data files and run data migration if found
+    const { runMigration: runDataMigration } = await import('../services/migrationService');
+    const { VIDEOS_DATA_PATH, COLLECTIONS_DATA_PATH, STATUS_DATA_PATH } = await import('../config/paths');
+    const fs = await import('fs-extra');
+
+    // Hardcoded path for settings as in migrationService
+    const SETTINGS_DATA_PATH = path.join(path.dirname(VIDEOS_DATA_PATH), 'settings.json');
+
+    const hasLegacyData = 
+      fs.existsSync(VIDEOS_DATA_PATH) || 
+      fs.existsSync(COLLECTIONS_DATA_PATH) || 
+      fs.existsSync(STATUS_DATA_PATH) || 
+      fs.existsSync(SETTINGS_DATA_PATH);
+
+    if (hasLegacyData) {
+      console.log('Legacy data files found. Running data migration...');
+      await runDataMigration();
+    } else {
+      console.log('No legacy data files found. Skipping data migration.');
+    }
+
   } catch (error) {
     console.error('Error running database migrations:', error);
     // Don't throw, as we might want the app to start even if migration fails (though it might be broken)
