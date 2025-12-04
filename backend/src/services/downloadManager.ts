@@ -25,7 +25,6 @@ class DownloadManager {
     this.activeTasks = new Map();
     this.activeDownloads = 0;
     this.maxConcurrentDownloads = 3; // Default
-    this.loadSettings();
   }
 
   private async loadSettings() {
@@ -46,6 +45,7 @@ class DownloadManager {
   initialize(): void {
     try {
       console.log("Initializing DownloadManager...");
+      this.loadSettings();
       const status = storageService.getDownloadStatus();
       const queuedDownloads = status.queuedDownloads;
 
