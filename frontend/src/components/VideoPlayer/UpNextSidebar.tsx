@@ -12,7 +12,9 @@ import {
     Stack,
     Switch,
     Tooltip,
-    Typography
+    Typography,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -38,6 +40,8 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
 }) => {
     const { t } = useLanguage();
     const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     const handleAddToCollectionClick = (e: React.MouseEvent, videoId: string) => {
         e.stopPropagation();
@@ -114,7 +118,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 </Typography>
                             </Box>
 
-                            {hoveredVideoId === relatedVideo.id && (
+                            {hoveredVideoId === relatedVideo.id && !isMobile && (
                                 <Tooltip title={t('addToCollection')}>
                                     <IconButton
                                         size="small"
