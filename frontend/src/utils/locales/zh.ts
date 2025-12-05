@@ -363,4 +363,5 @@ export const zh = {
     instructionSection3Sub4: "扩展服务：",
     instructionSection3Item3Label: "OpenList 云盘：",
     instructionSection3Item3Text: "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
+    history: '历史',
 };

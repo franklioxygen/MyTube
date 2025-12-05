@@ -361,4 +361,5 @@ export const ar = {
     instructionSection3Sub4: "الخدمات الموسعة:",
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراص السحابية.",
+    history: 'سجل',
 };

@@ -1,5 +1,5 @@
 
-import { Collections as CollectionsIcon, GridView, ViewSidebar } from '@mui/icons-material';
+import { Collections as CollectionsIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -41,9 +41,9 @@ const Home: React.FC = () => {
 
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
-    const [viewMode, setViewMode] = useState<'collections' | 'all-videos'>(() => {
+    const [viewMode, setViewMode] = useState<'collections' | 'all-videos' | 'history'>(() => {
         const saved = localStorage.getItem('homeViewMode');
-        return (saved as 'collections' | 'all-videos') || 'collections';
+        return (saved as 'collections' | 'all-videos' | 'history') || 'collections';
     });
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -130,34 +130,38 @@ const Home: React.FC = () => {
             }
             return true;
         })
-        : videoArray.filter(video => {
-            // In collections mode, show only first video from each collection
-            // Tag filtering
-            if (selectedTags.length > 0) {
-                const videoTags = video.tags || [];
-                const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
-                if (!hasMatchingTag) return false;
-            }
+        : viewMode === 'history'
+            ? videoArray
+                .filter(video => video.lastPlayedAt)
+                .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0))
+            : videoArray.filter(video => {
+                // In collections mode, show only first video from each collection
+                // Tag filtering
+                if (selectedTags.length > 0) {
+                    const videoTags = video.tags || [];
+                    const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
+                    if (!hasMatchingTag) return false;
+                }
 
-            // If the video is not in any collection, show it
-            const videoCollections = collections.filter(collection =>
-                collection.videos.includes(video.id)
-            );
+                // If the video is not in any collection, show it
+                const videoCollections = collections.filter(collection =>
+                    collection.videos.includes(video.id)
+                );
 
-            if (videoCollections.length === 0) {
-                return true;
-            }
+                if (videoCollections.length === 0) {
+                    return false;
+                }
 
-            // For each collection this video is in, check if it's the first video
-            return videoCollections.some(collection => {
-                // Get the first video ID in this collection
-                const firstVideoId = collection.videos[0];
-                // Show this video if it's the first in at least one collection
-                return video.id === firstVideoId;
+                // For each collection this video is in, check if it's the first video
+                return videoCollections.some(collection => {
+                    // Get the first video ID in this collection
+                    const firstVideoId = collection.videos[0];
+                    // Show this video if it's the first in at least one collection
+                    return video.id === firstVideoId;
+                });
             });
-        });
 
-    const handleViewModeChange = (mode: 'collections' | 'all-videos') => {
+    const handleViewModeChange = (mode: 'collections' | 'all-videos' | 'history') => {
         setViewMode(mode);
         localStorage.setItem('homeViewMode', mode);
         setPage(1); // Reset pagination
@@ -245,7 +249,16 @@ const Home: React.FC = () => {
                                 >
                                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                                 </Button>
-                                {t('videos')}
+                                <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                    {t('videos')}
+                                </Box>
+                                <Box component="span" sx={{ display: { xs: 'block', md: 'none' } }}>
+                                    {{
+                                        'collections': t('collections'),
+                                        'all-videos': t('allVideos'),
+                                        'history': t('history')
+                                    }[viewMode]}
+                                </Box>
                             </Typography>
                             <ToggleButtonGroup
                                 value={viewMode}
@@ -253,13 +266,23 @@ const Home: React.FC = () => {
                                 onChange={(_, newMode) => newMode && handleViewModeChange(newMode)}
                                 size="small"
                             >
-                                <ToggleButton value="collections">
-                                    <CollectionsIcon fontSize="small" sx={{ mr: 1 }} />
-                                    {t('collections')}
+                                <ToggleButton value="all-videos" sx={{ px: { xs: 3, md: 2 } }}>
+                                    <GridView fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                        {t('allVideos')}
+                                    </Box>
                                 </ToggleButton>
-                                <ToggleButton value="all-videos">
-                                    <GridView fontSize="small" sx={{ mr: 1 }} />
-                                    {t('allVideos')}
+                                <ToggleButton value="collections" sx={{ px: { xs: 3, md: 2 } }}>
+                                    <CollectionsIcon fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                        {t('collections')}
+                                    </Box>
+                                </ToggleButton>
+                                <ToggleButton value="history" sx={{ px: { xs: 3, md: 2 } }}>
+                                    <History fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                        {t('history')}
+                                    </Box>
                                 </ToggleButton>
                             </ToggleButtonGroup>
                         </Box>
@@ -269,8 +292,8 @@ const Home: React.FC = () => {
                                     ? { xs: 12, sm: 6, lg: 4, xl: 3 }
                                     : { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
 
-                                // In all-videos mode, ALWAYS render as VideoCard
-                                if (viewMode === 'all-videos') {
+                                // In all-videos and history mode, ALWAYS render as VideoCard
+                                if (viewMode === 'all-videos' || viewMode === 'history') {
                                     return (
                                         <Grid size={gridProps} key={video.id}>
                                             <VideoCard
@@ -326,7 +349,8 @@ const Home: React.FC = () => {
                         )}
                     </Box>
                 </Box >
-            )}
+            )
+            }
         </Container >
     );
 };

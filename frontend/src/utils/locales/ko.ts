@@ -361,4 +361,5 @@ export const ko = {
     instructionSection3Sub4: "확장 서비스:",
     instructionSection3Item3Label: "OpenList 클라우드 드라이브:",
     instructionSection3Item3Text: "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
+    history: '기록',
 };

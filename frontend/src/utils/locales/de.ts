@@ -229,4 +229,5 @@ export const de = {
     instructionSection3Sub4: "Erweiterte Dienste:",
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
+    history: 'Verlauf',
 };
