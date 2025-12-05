@@ -146,6 +146,8 @@ export const pt = {
     originalLink: "Link Original",
     source: "Fonte:",
     addedDate: "Data de Adição:",
+    hideComments: 'Ocultar comentários',
+    showComments: 'Mostrar comentários',
     latestComments: "Últimos Comentários",
     noComments: "Nenhum comentário disponível.",
     upNext: "A Seguir",

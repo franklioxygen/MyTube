@@ -146,6 +146,8 @@ export const ar = {
     originalLink: "الرابط الأصلي",
     source: "المصدر:",
     addedDate: "تاريخ الإضافة:",
+    hideComments: "إخفاء التعليقات",
+    showComments: "عرض التعليقات",
     latestComments: "أحدث التعليقات",
     noComments: "لا توجد تعليقات متاحة.",
     upNext: "التالي",
