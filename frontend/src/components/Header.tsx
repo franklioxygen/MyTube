@@ -69,7 +69,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({
     onSubmit,
-    onSearch,
     activeDownloads = [],
     queuedDownloads = [],
     isSearchMode = false,

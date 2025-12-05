@@ -1,5 +1,4 @@
 import {
-    CloudUpload,
     Save
 } from '@mui/icons-material';
 import {
@@ -8,47 +7,32 @@ import {
     Button,
     Card,
     CardContent,
-    Chip,
     Container,
     Divider,
-    FormControl,
-    FormControlLabel,
     Grid,
-    InputLabel,
-    MenuItem,
-    Select,
-    Slider,
     Snackbar,
-    Switch,
-    TextField,
     Typography
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import AdvancedSettings from '../components/Settings/AdvancedSettings';
+import CloudDriveSettings from '../components/Settings/CloudDriveSettings';
+import CookieSettings from '../components/Settings/CookieSettings';
+import DatabaseSettings from '../components/Settings/DatabaseSettings';
+import DownloadSettings from '../components/Settings/DownloadSettings';
+import GeneralSettings from '../components/Settings/GeneralSettings';
+import SecuritySettings from '../components/Settings/SecuritySettings';
+import TagsSettings from '../components/Settings/TagsSettings';
+import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
-
-interface Settings {
-    loginEnabled: boolean;
-    password?: string;
-    isPasswordSet?: boolean;
-    defaultAutoPlay: boolean;
-    defaultAutoLoop: boolean;
-    maxConcurrentDownloads: number;
-    language: string;
-    tags: string[];
-    cloudDriveEnabled: boolean;
-    openListApiUrl: string;
-    openListToken: string;
-    cloudDrivePath: string;
-    homeSidebarOpen?: boolean;
-}
 
 const SettingsPage: React.FC = () => {
     const queryClient = useQueryClient();
@@ -68,7 +52,6 @@ const SettingsPage: React.FC = () => {
         openListToken: '',
         cloudDrivePath: ''
     });
-    const [newTag, setNewTag] = useState('');
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
     // Modal states
@@ -126,8 +109,6 @@ const SettingsPage: React.FC = () => {
     const handleSave = () => {
         saveMutation.mutate(settings);
     };
-
-
 
     // Migrate data mutation
     const migrateMutation = useMutation({
@@ -254,17 +235,8 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleAddTag = () => {
-        if (newTag && !settings.tags.includes(newTag)) {
-            const updatedTags = [...settings.tags, newTag];
-            setSettings(prev => ({ ...prev, tags: updatedTags }));
-            setNewTag('');
-        }
-    };
-
-    const handleDeleteTag = (tagToDelete: string) => {
-        const updatedTags = settings.tags.filter(tag => tag !== tagToDelete);
-        setSettings(prev => ({ ...prev, tags: updatedTags }));
+    const handleTagsChange = (newTags: string[]) => {
+        setSettings(prev => ({ ...prev, tags: newTags }));
     };
 
     const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending;
@@ -282,307 +254,93 @@ const SettingsPage: React.FC = () => {
                     <Grid container spacing={4}>
                         {/* General Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('general')}</Typography>
-                            <Box sx={{ maxWidth: 400 }}>
-                                <FormControl fullWidth>
-                                    <InputLabel id="language-select-label">{t('language')}</InputLabel>
-                                    <Select
-                                        labelId="language-select-label"
-                                        id="language-select"
-                                        value={settings.language || 'en'}
-                                        label={t('language')}
-                                        onChange={(e) => handleChange('language', e.target.value)}
-                                    >
-                                        <MenuItem value="en">English</MenuItem>
-                                        <MenuItem value="zh">中文 (Chinese)</MenuItem>
-                                        <MenuItem value="es">Español (Spanish)</MenuItem>
-                                        <MenuItem value="de">Deutsch (German)</MenuItem>
-                                        <MenuItem value="ja">日本語 (Japanese)</MenuItem>
-                                        <MenuItem value="fr">Français (French)</MenuItem>
-                                        <MenuItem value="ko">한국어 (Korean)</MenuItem>
-                                        <MenuItem value="ar">العربية (Arabic)</MenuItem>
-                                        <MenuItem value="pt">Português (Portuguese)</MenuItem>
-                                        <MenuItem value="ru">Русский (Russian)</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Box>
+                            <GeneralSettings
+                                language={settings.language}
+                                onChange={(val) => handleChange('language', val)}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Cookie Upload Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('cookieSettings') || 'Cookie Settings'}</Typography>
-                            <Typography variant="body2" color="text.secondary" paragraph>
-                                {t('cookieUploadDescription') || 'Upload cookies.txt to pass YouTube bot checks and enable Bilibili subtitle downloads. The file will be renamed to cookies.txt automatically. (Example: use "Get cookies.txt LOCALLY" extension to export cookies)'}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                                <Button
-                                    variant="outlined"
-                                    component="label"
-                                    startIcon={<CloudUpload />}
-                                >
-                                    {t('uploadCookies') || 'Upload Cookies'}
-                                    <input
-                                        type="file"
-                                        hidden
-                                        accept=".txt"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-
-                                            if (!file.name.endsWith('.txt')) {
-                                                setMessage({ text: t('onlyTxtFilesAllowed') || 'Only .txt files are allowed', type: 'error' });
-                                                return;
-                                            }
-
-                                            const formData = new FormData();
-                                            formData.append('file', file);
-
-                                            try {
-                                                await axios.post(`${API_URL}/settings/upload-cookies`, formData, {
-                                                    headers: {
-                                                        'Content-Type': 'multipart/form-data'
-                                                    }
-                                                });
-                                                setMessage({ text: t('cookiesUploadedSuccess') || 'Cookies uploaded successfully', type: 'success' });
-                                            } catch (error) {
-                                                console.error('Error uploading cookies:', error);
-                                                setMessage({ text: t('cookiesUploadFailed') || 'Failed to upload cookies', type: 'error' });
-                                            }
-
-                                            // Reset input
-                                            e.target.value = '';
-                                        }}
-                                    />
-                                </Button>
-                            </Box>
+                            <CookieSettings
+                                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                                onError={(msg) => setMessage({ text: msg, type: 'error' })}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Security Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('security')}</Typography>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={settings.loginEnabled}
-                                        onChange={(e) => handleChange('loginEnabled', e.target.checked)}
-                                    />
-                                }
-                                label={t('enableLogin')}
+                            <SecuritySettings
+                                settings={settings}
+                                onChange={handleChange}
                             />
-
-                            {settings.loginEnabled && (
-                                <Box sx={{ mt: 2, maxWidth: 400 }}>
-                                    <TextField
-                                        fullWidth
-                                        label={t('password')}
-                                        type="password"
-                                        value={settings.password || ''}
-                                        onChange={(e) => handleChange('password', e.target.value)}
-                                        helperText={
-                                            settings.isPasswordSet
-                                                ? t('passwordHelper')
-                                                : t('passwordSetHelper')
-                                        }
-                                    />
-                                </Box>
-                            )}
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Video Defaults */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('videoDefaults')}</Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.defaultAutoPlay}
-                                            onChange={(e) => handleChange('defaultAutoPlay', e.target.checked)}
-                                        />
-                                    }
-                                    label={t('autoPlay')}
-                                />
-                            </Box>
+                            <VideoDefaultSettings
+                                settings={settings}
+                                onChange={handleChange}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Tags Management */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('tagsManagement') || 'Tags Management'}</Typography>
-                            <Typography variant="body2" color="text.secondary" paragraph>
-                                {t('tagsManagementNote') || 'Please remember to click "Save Settings" after adding or removing tags to apply changes.'}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                                {settings.tags && settings.tags.map((tag) => (
-                                    <Chip
-                                        key={tag}
-                                        label={tag}
-                                        onDelete={() => handleDeleteTag(tag)}
-                                    />
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 1, maxWidth: 400 }}>
-                                <TextField
-                                    label={t('newTag') || 'New Tag'}
-                                    value={newTag}
-                                    onChange={(e) => setNewTag(e.target.value)}
-                                    size="small"
-                                    fullWidth
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handleAddTag();
-                                        }
-                                    }}
-                                />
-                                <Button variant="contained" onClick={handleAddTag}>
-                                    {t('add') || 'Add'}
-                                </Button>
-                            </Box>
+                            <TagsSettings
+                                tags={settings.tags}
+                                onTagsChange={handleTagsChange}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Download Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
-                            <Typography gutterBottom>
-                                {t('maxConcurrent')}: {settings.maxConcurrentDownloads}
-                            </Typography>
-                            <Box sx={{ maxWidth: 400, px: 2 }}>
-                                <Slider
-                                    value={settings.maxConcurrentDownloads}
-                                    onChange={(_, value) => handleChange('maxConcurrentDownloads', value)}
-                                    min={1}
-                                    max={10}
-                                    step={1}
-                                    marks
-                                    valueLabelDisplay="auto"
-                                />
-                            </Box>
-
-                            <Box sx={{ mt: 3 }}>
-                                <Typography variant="h6" gutterBottom>{t('cleanupTempFiles')}</Typography>
-                                <Typography variant="body2" color="text.secondary" paragraph>
-                                    {t('cleanupTempFilesDescription')}
-                                </Typography>
-                                {activeDownloads.length > 0 && (
-                                    <Alert severity="warning" sx={{ mb: 2, maxWidth: 600 }}>
-                                        {t('cleanupTempFilesActiveDownloads')}
-                                    </Alert>
-                                )}
-                                <Button
-                                    variant="outlined"
-                                    color="warning"
-                                    onClick={() => setShowCleanupTempFilesModal(true)}
-                                    disabled={isSaving || activeDownloads.length > 0}
-                                >
-                                    {t('cleanupTempFiles')}
-                                </Button>
-                            </Box>
+                            <DownloadSettings
+                                settings={settings}
+                                onChange={handleChange}
+                                activeDownloadsCount={activeDownloads.length}
+                                onCleanup={() => setShowCleanupTempFilesModal(true)}
+                                isSaving={isSaving}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Cloud Drive Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')} (beta)</Typography>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={settings.cloudDriveEnabled || false}
-                                        onChange={(e) => handleChange('cloudDriveEnabled', e.target.checked)}
-                                    />
-                                }
-                                label={t('enableAutoSave')}
+                            <CloudDriveSettings
+                                settings={settings}
+                                onChange={handleChange}
                             />
-
-                            {settings.cloudDriveEnabled && (
-                                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 600 }}>
-                                    <TextField
-                                        label={t('apiUrl')}
-                                        value={settings.openListApiUrl || ''}
-                                        onChange={(e) => handleChange('openListApiUrl', e.target.value)}
-                                        helperText={t('apiUrlHelper')}
-                                        fullWidth
-                                    />
-                                    <TextField
-                                        label={t('token')}
-                                        value={settings.openListToken || ''}
-                                        onChange={(e) => handleChange('openListToken', e.target.value)}
-                                        type="password"
-                                        fullWidth
-                                    />
-                                    <TextField
-                                        label={t('uploadPath')}
-                                        value={settings.cloudDrivePath || ''}
-                                        onChange={(e) => handleChange('cloudDrivePath', e.target.value)}
-                                        helperText={t('cloudDrivePathHelper')}
-                                        fullWidth
-                                    />
-                                </Box>
-                            )}
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Database Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('database')}</Typography>
-                            <Typography variant="body2" color="text.secondary" paragraph>
-                                {t('migrateDataDescription')}
-                            </Typography>
-                            <Button
-                                variant="outlined"
-                                color="warning"
-                                onClick={() => setShowMigrateConfirmModal(true)}
-                                disabled={isSaving}
-                            >
-                                {t('migrateDataButton')}
-                            </Button>
-
-
-
-                            <Box sx={{ mt: 3 }}>
-                                <Typography variant="h6" gutterBottom>{t('removeLegacyData')}</Typography>
-                                <Typography variant="body2" color="text.secondary" paragraph>
-                                    {t('removeLegacyDataDescription')}
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    onClick={() => setShowDeleteLegacyModal(true)}
-                                    disabled={isSaving}
-                                >
-                                    {t('deleteLegacyDataButton')}
-                                </Button>
-                            </Box>
+                            <DatabaseSettings
+                                onMigrate={() => setShowMigrateConfirmModal(true)}
+                                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                                isSaving={isSaving}
+                            />
                         </Grid>
 
                         <Grid size={12}><Divider /></Grid>
 
                         {/* Advanced Settings */}
                         <Grid size={12}>
-                            <Typography variant="h6" gutterBottom>{t('debugMode')}</Typography>
-                            <Typography variant="body2" color="text.secondary" paragraph>
-                                {t('debugModeDescription')}
-                            </Typography>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={debugMode}
-                                        onChange={(e) => {
-                                            setDebugMode(e.target.checked);
-                                            ConsoleManager.setDebugMode(e.target.checked);
-                                        }}
-                                    />
-                                }
-                                label={t('debugMode')}
+                            <AdvancedSettings
+                                debugMode={debugMode}
+                                onDebugModeChange={setDebugMode}
                             />
                         </Grid>
 

@@ -52,3 +52,20 @@ export interface Comment {
   date: string;
   avatar?: string;
 }
+
+export interface Settings {
+    loginEnabled: boolean;
+    password?: string;
+    isPasswordSet?: boolean;
+    defaultAutoPlay: boolean;
+    defaultAutoLoop: boolean;
+    maxConcurrentDownloads: number;
+    language: string;
+    tags: string[];
+    cloudDriveEnabled: boolean;
+    openListApiUrl: string;
+    openListToken: string;
+    cloudDrivePath: string;
+    homeSidebarOpen?: boolean;
+    subtitlesEnabled?: boolean;
+}

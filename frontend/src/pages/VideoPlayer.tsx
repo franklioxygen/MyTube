@@ -1,16 +1,9 @@
 import {
     Alert,
     Box,
-    Card,
-    CardContent,
-    CardMedia,
-    Chip,
     CircularProgress,
     Container,
-    FormControlLabel,
     Grid,
-    Stack,
-    Switch,
     Typography
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +13,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import CollectionModal from '../components/VideoPlayer/CollectionModal';
 import CommentsSection from '../components/VideoPlayer/CommentsSection';
+import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { useCollection } from '../contexts/CollectionContext';
@@ -27,7 +21,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
-import { formatDuration } from '../utils/formatUtils';
 import { getRecommendations } from '../utils/recommendations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -134,21 +127,6 @@ const VideoPlayer: React.FC = () => {
             setVideoCollections([]);
         }
     }, [collections, id]);
-
-    // Format the date (assuming format YYYYMMDD from youtube-dl)
-    const formatDate = (dateString?: string) => {
-        if (!dateString || dateString.length !== 8) {
-            return 'Unknown date';
-        }
-
-        const year = dateString.substring(0, 4);
-        const month = dateString.substring(4, 6);
-        const day = dateString.substring(6, 8);
-
-        return `${year}-${month}-${day}`;
-    };
-
-
 
     // Handle navigation to author videos page
     const handleAuthorClick = () => {
@@ -465,77 +443,13 @@ const VideoPlayer: React.FC = () => {
                 </Grid>
 
                 {/* Sidebar Column - Up Next */}
-                <Grid size={{ xs: 12, lg: 4 }} sx={{ p: { xs: 2, md: 0 }, pt: { xs: 2, md: 0 } }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0 }}>{t('upNext')}</Typography>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={autoPlayNext}
-                                    onChange={(e) => setAutoPlayNext(e.target.checked)}
-                                    size="small"
-                                />
-                            }
-                            label={<Typography variant="body2">{t('autoPlayNext')}</Typography>}
-                            labelPlacement="start"
-                            sx={{ ml: 0, mr: 0 }}
-                        />
-                    </Stack>
-                    <Stack spacing={2}>
-                        {relatedVideos.map(relatedVideo => (
-                            <Card
-                                key={relatedVideo.id}
-                                sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
-                                onClick={() => navigate(`/video/${relatedVideo.id}`)}
-                            >
-                                <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
-                                    <CardMedia
-                                        component="img"
-                                        sx={{ width: '100%', height: 94, objectFit: 'cover' }}
-                                        image={`${BACKEND_URL}${relatedVideo.thumbnailPath}`}
-                                        alt={relatedVideo.title}
-                                        onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            target.onerror = null;
-                                            target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
-                                        }}
-                                    />
-                                    {relatedVideo.duration && (
-                                        <Chip
-                                            label={formatDuration(relatedVideo.duration)}
-                                            size="small"
-                                            sx={{
-                                                position: 'absolute',
-                                                bottom: 4,
-                                                right: 4,
-                                                height: 20,
-                                                fontSize: '0.75rem',
-                                                bgcolor: 'rgba(0,0,0,0.8)',
-                                                color: 'white'
-                                            }}
-                                        />
-                                    )}
-                                </Box>
-                                <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 } }}>
-                                    <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-                                        {relatedVideo.title}
-                                    </Typography>
-                                    <Typography variant="caption" display="block" color="text.secondary">
-                                        {relatedVideo.author}
-                                    </Typography>
-                                    <Typography variant="caption" display="block" color="text.secondary">
-                                        {formatDate(relatedVideo.date)}
-                                    </Typography>
-                                    <Typography variant="caption" display="block" color="text.secondary">
-                                        {relatedVideo.viewCount || 0} {t('views')}
-                                    </Typography>
-                                </CardContent>
-                            </Card>
-                        ))}
-                        {relatedVideos.length === 0 && (
-                            <Typography variant="body2" color="text.secondary">{t('noOtherVideos')}</Typography>
-                        )}
-                    </Stack>
+                <Grid size={{ xs: 12, lg: 4 }}>
+                    <UpNextSidebar
+                        relatedVideos={relatedVideos}
+                        autoPlayNext={autoPlayNext}
+                        onAutoPlayNextChange={setAutoPlayNext}
+                        onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
+                    />
                 </Grid>
             </Grid>
 
