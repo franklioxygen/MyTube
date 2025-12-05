@@ -58,3 +58,18 @@ export const formatSize = (bytes: string | number | undefined): string => {
     const i = Math.floor(Math.log(size) / Math.log(k));
     return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
+
+/**
+ * Format date string YYYYMMDD to YYYY-MM-DD
+ */
+export const formatDate = (dateString?: string) => {
+    if (!dateString || dateString.length !== 8) {
+        return 'Unknown date';
+    }
+
+    const year = dateString.substring(0, 4);
+    const month = dateString.substring(4, 6);
+    const day = dateString.substring(6, 8);
+
+    return `${year}-${month}-${day}`;
+};

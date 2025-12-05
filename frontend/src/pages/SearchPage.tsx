@@ -13,7 +13,7 @@ import {
     Typography
 } from '@mui/material';
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
@@ -29,13 +29,11 @@ const SearchPage: React.FC = () => {
         searchResults,
         youtubeLoading,
         handleSearch,
-        resetSearch,
         searchTerm: contextSearchTerm
     } = useVideo();
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
     const [searchParams] = useSearchParams();
-    const navigate = useNavigate();
 
     const query = searchParams.get('q');
 
@@ -52,12 +50,6 @@ const SearchPage: React.FC = () => {
             console.error('Error downloading from search:', error);
         }
     };
-
-    const handleBack = () => {
-        resetSearch();
-        navigate('/');
-    };
-
 
 
     // Helper function to format view count

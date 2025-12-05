@@ -1,4 +1,4 @@
-import { ArrowBack, Download, OndemandVideo, YouTube } from '@mui/icons-material';
+import { Download, OndemandVideo, YouTube } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -14,7 +14,6 @@ import {
     Typography
 } from '@mui/material';
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
@@ -22,7 +21,6 @@ import { useVideo } from '../contexts/VideoContext';
 import { formatDuration } from '../utils/formatUtils';
 
 const SearchResults: React.FC = () => {
-    const navigate = useNavigate();
     const {
         searchResults,
         localSearchResults,
@@ -61,16 +59,6 @@ const SearchResults: React.FC = () => {
         }
     };
 
-    const handleBackClick = () => {
-        // Call the onResetSearch function to reset search mode
-        if (resetSearch) {
-            resetSearch();
-        } else {
-            // Fallback to navigate if onResetSearch is not provided
-            navigate('/');
-        }
-    };
-
     // If search term is empty, don't render search results
     if (!searchTerm || searchTerm.trim() === '') {
         return null;
@@ -105,13 +93,6 @@ const SearchResults: React.FC = () => {
                     <Typography variant="h4" component="h1" fontWeight="bold">
                         Search Results for "{searchTerm}"
                     </Typography>
-                    <Button
-                        variant="outlined"
-                        startIcon={<ArrowBack />}
-                        onClick={handleBackClick}
-                    >
-                        Back to Home
-                    </Button>
                 </Box>
                 <Alert severity="info" variant="outlined">No results found. Try a different search term.</Alert>
             </Container>
@@ -124,13 +105,6 @@ const SearchResults: React.FC = () => {
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     Search Results for "{searchTerm}"
                 </Typography>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                    onClick={handleBackClick}
-                >
-                    Back to Home
-                </Button>
             </Box>
 
             {/* Local Video Results */}

@@ -1,16 +1,14 @@
-import { ArrowBack } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
-    Button,
     CircularProgress,
     Container,
     Grid,
     Typography
 } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -21,7 +19,6 @@ const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
     const { authorName } = useParams<{ authorName: string }>();
     const author = authorName;
-    const navigate = useNavigate();
     const { videos, loading, deleteVideo } = useVideo();
     const { collections } = useCollection();
 
@@ -37,10 +34,6 @@ const AuthorVideos: React.FC = () => {
             setAuthorVideos(filteredVideos);
         }
     }, [author, videos]);
-
-    const handleBack = () => {
-        navigate(-1);
-    };
 
     if (loading) {
         return (
@@ -87,13 +80,6 @@ const AuthorVideos: React.FC = () => {
                         </Typography>
                     </Box>
                 </Box>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                    onClick={handleBack}
-                >
-                    {t('back')}
-                </Button>
             </Box>
 
             {authorVideos.length === 0 ? (

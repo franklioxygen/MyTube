@@ -49,7 +49,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     const t = (key: TranslationKey, replacements?: Record<string, string | number>): string => {
-        let text = translations[language][key] || key;
+        let text = (translations[language] as any)[key] || key;
         if (replacements) {
             Object.entries(replacements).forEach(([placeholder, value]) => {
                 text = text.replace(`{${placeholder}}`, String(value));

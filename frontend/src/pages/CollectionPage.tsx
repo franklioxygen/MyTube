@@ -1,9 +1,8 @@
-import { ArrowBack, Folder } from '@mui/icons-material';
+import { Folder } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
-    Button,
     Container,
     Grid,
     Pagination,
@@ -45,10 +44,6 @@ const CollectionPage: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleBack = () => {
-        navigate(-1);
-    };
-
     const handleCloseDeleteModal = () => {
         setShowDeleteModal(false);
     };
@@ -75,14 +70,6 @@ const CollectionPage: React.FC = () => {
         return (
             <Container sx={{ mt: 4 }}>
                 <Alert severity="error">{t('collectionNotFound')}</Alert>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                    onClick={handleBack}
-                    sx={{ mt: 2 }}
-                >
-                    {t('back')}
-                </Button>
             </Container>
         );
     }
@@ -103,13 +90,6 @@ const CollectionPage: React.FC = () => {
                         </Typography>
                     </Box>
                 </Box>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                    onClick={handleBack}
-                >
-                    {t('back')}
-                </Button>
             </Box>
 
             {collectionVideos.length === 0 ? (
