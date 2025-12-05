@@ -36,7 +36,7 @@ const CommentsSection: React.FC<CommentsSectionProps> = ({
                     onClick={onToggleComments}
                     size="small"
                 >
-                    {showComments ? "Hide Comments" : "Show Comments"}
+                    {showComments ? t('hideComments') : t('showComments')}
                 </Button>
             </Box>
 

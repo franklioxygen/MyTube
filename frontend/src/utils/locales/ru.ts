@@ -146,6 +146,8 @@ export const ru = {
     originalLink: "Оригинальная ссылка",
     source: "Источник:",
     addedDate: "Дата добавления:",
+    hideComments: "Скрыть комментарии",
+    showComments: "Показать комментарии",
     latestComments: "Последние комментарии",
     noComments: "Комментарии недоступны.",
     upNext: "Далее",

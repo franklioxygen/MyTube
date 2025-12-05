@@ -146,6 +146,8 @@ export const ko = {
     originalLink: "원본 링크",
     source: "출처:",
     addedDate: "추가 날짜:",
+    hideComments: '댓글 숨기기',
+    showComments: '댓글 표시',
     latestComments: "최신 댓글",
     noComments: "댓글이 없습니다.",
     upNext: "다음 재생",

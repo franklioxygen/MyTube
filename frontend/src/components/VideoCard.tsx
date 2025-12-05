@@ -290,12 +290,14 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             >
                                 {video.author}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                                {formatDate(video.date)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                {video.viewCount || 0} {t('views')}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    {formatDate(video.date)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    {video.viewCount || 0} {t('views')}
+                                </Typography>
+                            </Box>
                         </Box>
                     </CardContent>
                 </CardActionArea>

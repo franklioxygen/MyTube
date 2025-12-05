@@ -1,15 +1,20 @@
 import {
+    Add
+} from '@mui/icons-material';
+import {
     Box,
     Card,
     CardContent,
     CardMedia,
     Chip,
     FormControlLabel,
+    IconButton,
     Stack,
     Switch,
+    Tooltip,
     Typography
 } from '@mui/material';
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Video } from '../../types';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
@@ -21,15 +26,23 @@ interface UpNextSidebarProps {
     autoPlayNext: boolean;
     onAutoPlayNextChange: (checked: boolean) => void;
     onVideoClick: (videoId: string) => void;
+    onAddToCollection: (videoId: string) => void;
 }
 
 const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
     relatedVideos,
     autoPlayNext,
     onAutoPlayNextChange,
-    onVideoClick
+    onVideoClick,
+    onAddToCollection
 }) => {
     const { t } = useLanguage();
+    const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
+
+    const handleAddToCollectionClick = (e: React.MouseEvent, videoId: string) => {
+        e.stopPropagation();
+        onAddToCollection(videoId);
+    };
 
     return (
         <Box sx={{ p: { xs: 2, md: 0 }, pt: { xs: 2, md: 0 } }}>
@@ -52,8 +65,10 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                 {relatedVideos.map(relatedVideo => (
                     <Card
                         key={relatedVideo.id}
-                        sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                        sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, position: 'relative' }}
                         onClick={() => onVideoClick(relatedVideo.id)}
+                        onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
+                        onMouseLeave={() => setHoveredVideoId(null)}
                     >
                         <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
                             <CardMedia
@@ -83,19 +98,39 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 />
                             )}
                         </Box>
-                        <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 } }}>
-                            <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                        <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 }, position: 'relative' }}>
+                            <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {relatedVideo.title}
                             </Typography>
                             <Typography variant="caption" display="block" color="text.secondary">
                                 {relatedVideo.author}
                             </Typography>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                                {formatDate(relatedVideo.date)}
-                            </Typography>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                                {relatedVideo.viewCount || 0} {t('views')}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <Typography variant="caption" color="text.secondary">
+                                    {formatDate(relatedVideo.date)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    ·  {relatedVideo.viewCount || 0} {t('views')}
+                                </Typography>
+                            </Box>
+
+                            {hoveredVideoId === relatedVideo.id && (
+                                <Tooltip title={t('addToCollection')}>
+                                    <IconButton
+                                        size="small"
+                                        onClick={(e) => handleAddToCollectionClick(e, relatedVideo.id)}
+                                        sx={{
+                                            position: 'absolute',
+                                            bottom: 4,
+                                            right: 4,
+                                            padding: 0.5,
+                                            bgcolor: 'rgba(0,0,0,0.9)',
+                                        }}
+                                    >
+                                        <Add fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
                         </CardContent>
                     </Card>
                 ))}

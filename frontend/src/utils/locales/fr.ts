@@ -147,6 +147,8 @@ export const fr = {
     originalLink: "Lien original",
     source: "Source :",
     addedDate: "Date d'ajout :",
+    hideComments: 'Masquer les commentaires',
+    showComments: 'Afficher les commentaires',
     latestComments: "Derniers commentaires",
     noComments: "Aucun commentaire disponible.",
     upNext: "À suivre",

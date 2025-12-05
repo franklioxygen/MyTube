@@ -43,6 +43,7 @@ const VideoPlayer: React.FC = () => {
 
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
+    const [activeCollectionVideoId, setActiveCollectionVideoId] = useState<string | null>(null);
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
         const saved = localStorage.getItem('autoPlayNext');
@@ -116,7 +117,7 @@ const VideoPlayer: React.FC = () => {
         setShowComments(!showComments);
     };
 
-    // Find collections that contain this video
+    // Find collections that contain the current video (for VideoInfo)
     useEffect(() => {
         if (collections && collections.length > 0 && id) {
             const belongsToCollections = collections.filter(collection =>
@@ -127,6 +128,16 @@ const VideoPlayer: React.FC = () => {
             setVideoCollections([]);
         }
     }, [collections, id]);
+
+    // Calculate collections for the modal (can be current video or sidebar video)
+    const modalVideoCollections = useMemo(() => {
+        if (collections && collections.length > 0 && activeCollectionVideoId) {
+            return collections.filter(collection =>
+                collection.videos.includes(activeCollectionVideoId)
+            );
+        }
+        return [];
+    }, [collections, activeCollectionVideoId]);
 
     // Handle navigation to author videos page
     const handleAuthorClick = () => {
@@ -168,37 +179,39 @@ const VideoPlayer: React.FC = () => {
         });
     };
 
-    const handleAddToCollection = () => {
+    const handleAddToCollection = (videoId?: string) => {
+        setActiveCollectionVideoId(videoId || id || null);
         setShowCollectionModal(true);
     };
 
     const handleCloseModal = () => {
         setShowCollectionModal(false);
+        setActiveCollectionVideoId(null);
     };
 
     const handleCreateCollection = async (name: string) => {
-        if (!id) return;
+        if (!activeCollectionVideoId) return;
         try {
-            await createCollection(name, id);
+            await createCollection(name, activeCollectionVideoId);
         } catch (error) {
             console.error('Error creating collection:', error);
         }
     };
 
     const handleAddToExistingCollection = async (collectionId: string) => {
-        if (!id) return;
+        if (!activeCollectionVideoId) return;
         try {
-            await addToCollection(collectionId, id);
+            await addToCollection(collectionId, activeCollectionVideoId);
         } catch (error) {
             console.error('Error adding to collection:', error);
         }
     };
 
     const executeRemoveFromCollection = async () => {
-        if (!id) return;
+        if (!activeCollectionVideoId) return;
 
         try {
-            await removeFromCollection(id);
+            await removeFromCollection(activeCollectionVideoId);
         } catch (error) {
             console.error('Error removing from collection:', error);
         }
@@ -449,6 +462,7 @@ const VideoPlayer: React.FC = () => {
                         autoPlayNext={autoPlayNext}
                         onAutoPlayNextChange={setAutoPlayNext}
                         onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
+                        onAddToCollection={handleAddToCollection}
                     />
                 </Grid>
             </Grid>
@@ -456,7 +470,7 @@ const VideoPlayer: React.FC = () => {
             <CollectionModal
                 open={showCollectionModal}
                 onClose={handleCloseModal}
-                videoCollections={videoCollections}
+                videoCollections={modalVideoCollections}
                 collections={collections}
                 onAddToCollection={handleAddToExistingCollection}
                 onCreateCollection={handleCreateCollection}

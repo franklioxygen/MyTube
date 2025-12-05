@@ -149,6 +149,8 @@ export const zh = {
     addedDate: "添加日期：",
     latestComments: "最新评论",
     noComments: "暂无评论。",
+    hideComments: '隐藏评论',
+    showComments: '显示评论',
     upNext: "接下来播放",
     noOtherVideos: "没有其他视频",
     currentlyIn: "当前所在：",

@@ -11,6 +11,7 @@ import {
     Folder,
     Link as LinkIcon,
     LocalOffer,
+    Share,
     VideoLibrary
 } from '@mui/icons-material';
 import {
@@ -108,6 +109,27 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         }
     };
 
+    const handleShare = async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: video.title,
+                    text: `Check out this video: ${video.title}`,
+                    url: window.location.href,
+                });
+            } catch (error) {
+                console.error('Error sharing:', error);
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                // Optionally show a notification here
+            } catch (error) {
+                console.error('Error copying to clipboard:', error);
+            }
+        }
+    };
+
     // Format the date (assuming format YYYYMMDD from youtube-dl)
     const formatDate = (dateString?: string) => {
         if (!dateString || dateString.length !== 8) {
@@ -162,6 +184,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                         variant="h5"
                         component="h1"
                         fontWeight="bold"
+                        onClick={() => showExpandButton && setIsTitleExpanded(!isTitleExpanded)}
                         sx={{
                             mr: 1,
                             display: '-webkit-box',
@@ -169,7 +192,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                             WebkitBoxOrient: 'vertical',
                             WebkitLineClamp: isTitleExpanded ? 'unset' : 2,
                             wordBreak: 'break-word',
-                            flex: 1
+                            flex: 1,
+                            cursor: showExpandButton ? 'pointer' : 'default'
                         }}
                     >
                         {video.title}
@@ -222,7 +246,29 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     isOptionEqualToValue={(option, value) => option === value}
                     onChange={(_, newValue) => onTagsUpdate(newValue)}
                     slotProps={{
-                        chip: { variant: 'outlined', size: 'small' }
+                        chip: { variant: 'outlined', size: 'small' },
+                        listbox: {
+                            sx: {
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 0.5,
+                                p: 1
+                            }
+                        }
+                    }}
+                    renderOption={(props, option, { selected }) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                            <li key={key} {...otherProps} style={{ width: 'auto', padding: 0 }}>
+                                <Chip
+                                    label={option}
+                                    size="small"
+                                    variant={selected ? "filled" : "outlined"}
+                                    color={selected ? "primary" : "default"}
+                                    sx={{ pointerEvents: 'none' }}
+                                />
+                            </li>
+                        );
                     }}
                     renderInput={(params) => (
                         <TextField
@@ -240,9 +286,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             </Box>
 
             <Stack
-                direction={{ xs: 'column', sm: 'row' }}
+                direction="row"
                 justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', sm: 'center' }}
+                alignItems="center"
                 spacing={2}
                 sx={{ mb: 2 }}
             >
@@ -266,22 +312,35 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </Box>
 
                 <Stack direction="row" spacing={1}>
-                    <Button
-                        variant="outlined"
-                        startIcon={<Add />}
-                        onClick={onAddToCollection}
-                    >
-                        {t('addToCollection')}
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<Delete />}
-                        onClick={onDelete}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting ? t('deleting') : t('delete')}
-                    </Button>
+                    <Tooltip title={t('share')}>
+                        <Button
+                            variant="outlined"
+                            onClick={handleShare}
+                            sx={{ minWidth: 'auto', p: 1 }}
+                        >
+                            <Share />
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title={t('addToCollection')}>
+                        <Button
+                            variant="outlined"
+                            onClick={onAddToCollection}
+                            sx={{ minWidth: 'auto', p: 1 }}
+                        >
+                            <Add />
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title={t('delete')}>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={onDelete}
+                            disabled={isDeleting}
+                            sx={{ minWidth: 'auto', p: 1 }}
+                        >
+                            <Delete />
+                        </Button>
+                    </Tooltip>
                 </Stack>
             </Stack>
 
