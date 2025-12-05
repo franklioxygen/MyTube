@@ -110,7 +110,7 @@ export const es = {
     deleteCollectionTitle: "Eliminar Colección", deleteCollectionConfirmation: "¿Está seguro de que desea eliminar la colección",
     collectionContains: "Esta colección contiene", deleteCollectionOnly: "Eliminar Solo Colección",
     deleteCollectionAndVideos: "Eliminar Colección y Todos los Videos", loading: "Cargando...", error: "Error",
-    success: "Éxito", cancel: "Cancelar", confirm: "Confirmar", save: "Guardar", on: "Activado", off: "Desactivado",
+    success: "Éxito", cancel: "Cancelar", confirm: "Confirmar", save: "Guardar", on: "Activado", off: "Desactivado", expand: "Expandir", collapse: "Contraer",
     unknownDate: "Fecha desconocida", part: "Parte", collection: "Colección", selectVideoFile: "Seleccionar Archivo de Video",
     pleaseSelectVideo: "Por favor seleccione un archivo de video", uploadFailed: "Carga fallida",
     failedToUpload: "Error al cargar el video", uploading: "Cargando...", upload: "Subir",

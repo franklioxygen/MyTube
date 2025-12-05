@@ -221,6 +221,9 @@ export const fr = {
     save: "Enregistrer",
     on: "On",
     off: "Off",
+    continue: "Continuer",
+    expand: "Développer",
+    collapse: "Réduire",
     
     // Video Card
     unknownDate: "Date inconnue",
