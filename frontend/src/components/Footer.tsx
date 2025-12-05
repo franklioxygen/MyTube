@@ -19,25 +19,29 @@ const Footer = () => {
             }}
         >
             <Container maxWidth="lg">
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'center', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', mt: { xs: 1, sm: 0 } }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-                            v{import.meta.env.VITE_APP_VERSION}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-                            Created by franklioxygen
-                        </Typography>
                         <Link
                             href="https://github.com/franklioxygen/MyTube"
                             target="_blank"
                             rel="noopener noreferrer"
                             color="inherit"
+                            underline="none"
                             sx={{ display: 'flex', alignItems: 'center' }}
                         >
-                            <GitHub fontSize="small" sx={{ mr: 0.5 }} />
+                            <GitHub sx={{ fontSize: 16, mr: 0.5 }} />
+                            <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                                MyTube
+                            </Typography>
                         </Link>
+                        <Typography variant="body2" color="text.secondary">
+                            v{import.meta.env.VITE_APP_VERSION}
+                        </Typography>
                     </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Created by franklioxygen
+                    </Typography>
                 </Box>
             </Container>
         </Box>

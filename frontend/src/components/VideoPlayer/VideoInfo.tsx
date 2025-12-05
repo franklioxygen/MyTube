@@ -229,7 +229,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     onChange={handleRatingChangeInternal}
                 />
                 <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                    {video.rating ? `(${video.rating})` : t('rateThisVideo')}
+                    {video.rating ? `` : t('rateThisVideo')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
                     {video.viewCount || 0} {t('views')}
@@ -403,7 +403,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     {video.addedAt && (
                         <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                             <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
-                            {new Date(video.addedAt).toLocaleDateString()}
+                            {new Date(video.addedAt).toISOString().split('T')[0]}
                         </Typography>
                     )}
                 </Box>
