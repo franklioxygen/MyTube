@@ -95,6 +95,12 @@ export const fr = {
     onlyTxtFilesAllowed: "Seuls les fichiers .txt sont autorisés",
     cookiesUploadedSuccess: "Cookies téléchargés avec succès",
     cookiesUploadFailed: "Échec du téléchargement des cookies",
+    cookiesFound: "cookies.txt trouvé",
+    cookiesNotFound: "cookies.txt introuvable",
+    deleteCookies: "Supprimer les cookies",
+    confirmDeleteCookies: "Êtes-vous sûr de vouloir supprimer le fichier de cookies ? Cela affectera votre capacité à télécharger des vidéos soumises à une limite d'âge ou réservées aux membres.",
+    cookiesDeletedSuccess: "Cookies supprimés avec succès",
+    cookiesDeleteFailed: "Échec de la suppression des cookies",
 
     // Cloud Drive
     cloudDriveSettings: "Stockage Cloud (OpenList)",
@@ -177,6 +183,7 @@ export const fr = {
     rateThisVideo: "Noter cette vidéo",
     enterFullscreen: "Plein écran",
     exitFullscreen: "Quitter le plein écran",
+    share: "Partager",
     editTitle: "Modifier le titre",
     titleUpdated: "Titre mis à jour avec succès",
     titleUpdateFailed: "Échec de la mise à jour du titre",
@@ -197,6 +204,10 @@ export const fr = {
     incorrectPassword: "Mot de passe incorrect",
     loginFailed: "Échec de la vérification du mot de passe",
     defaultPasswordHint: "Mot de passe par défaut : 123",
+    checkingConnection: "Vérification de la connexion...",
+    connectionError: "Erreur de Connexion",
+    backendConnectionFailed: "Impossible de se connecter au serveur. Veuillez vérifier que le backend est en cours d'exécution et que le port est ouvert, puis réessayez.",
+    retry: "Réessayer",
 
     // Collection Page
     loadingCollection: "Chargement de la collection...",

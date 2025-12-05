@@ -95,6 +95,12 @@ export const ru = {
     onlyTxtFilesAllowed: "Разрешены только файлы .txt",
     cookiesUploadedSuccess: "Cookie успешно загружены",
     cookiesUploadFailed: "Не удалось загрузить cookie",
+    cookiesFound: "cookies.txt найден",
+    cookiesNotFound: "cookies.txt не найден",
+    deleteCookies: "Удалить Cookie",
+    confirmDeleteCookies: "Вы уверены, что хотите удалить файл cookie? Это повлияет на возможность скачивания видео с возрастными ограничениями или только для участников.",
+    cookiesDeletedSuccess: "Cookie успешно удалены",
+    cookiesDeleteFailed: "Не удалось удалить cookie",
 
     // Cloud Drive
     cloudDriveSettings: "Облачное хранилище (OpenList)",
@@ -168,6 +174,7 @@ export const ru = {
     rateThisVideo: "Оценить это видео",
     enterFullscreen: "На весь экран",
     exitFullscreen: "Выйти из полноэкранного режима",
+    share: "Поделиться",
     editTitle: "Редактировать название",
     titleUpdated: "Название успешно обновлено",
     titleUpdateFailed: "Не удалось обновить название",
@@ -189,6 +196,10 @@ export const ru = {
     incorrectPassword: "Неверный пароль",
     loginFailed: "Ошибка проверки пароля",
     defaultPasswordHint: "Пароль по умолчанию: 123",
+    checkingConnection: "Проверка соединения...",
+    connectionError: "Ошибка соединения",
+    backendConnectionFailed: "Не удалось подключиться к серверу. Убедитесь, что сервер запущен и порт открыт, затем повторите попытку.",
+    retry: "Повторить",
 
     // Collection Page
     loadingCollection: "Загрузка коллекции...",

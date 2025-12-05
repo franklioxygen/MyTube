@@ -95,6 +95,12 @@ export const ko = {
     onlyTxtFilesAllowed: ".txt 파일만 허용됩니다",
     cookiesUploadedSuccess: "쿠키가 성공적으로 업로드되었습니다",
     cookiesUploadFailed: "쿠키 업로드 실패",
+    cookiesFound: "cookies.txt를 찾았습니다",
+    cookiesNotFound: "cookies.txt를 찾을 수 없습니다",
+    deleteCookies: "쿠키 삭제",
+    confirmDeleteCookies: "쿠키 파일을 삭제하시겠습니까? 연령 제한 또는 회원 전용 비디오를 다운로드하는 데 영향을 줄 수 있습니다.",
+    cookiesDeletedSuccess: "쿠키가 성공적으로 삭제되었습니다",
+    cookiesDeleteFailed: "쿠키 삭제 실패",
 
     // Cloud Drive
     cloudDriveSettings: "클라우드 드라이브 (OpenList)",
@@ -168,6 +174,7 @@ export const ko = {
     rateThisVideo: "이 동영상 평가",
     enterFullscreen: "전체 화면",
     exitFullscreen: "전체 화면 종료",
+    share: "공유",
     editTitle: "제목 편집",
     titleUpdated: "제목이 성공적으로 업데이트됨",
     titleUpdateFailed: "제목 업데이트 실패",
@@ -189,6 +196,10 @@ export const ko = {
     incorrectPassword: "비밀번호가 올바르지 않습니다",
     loginFailed: "비밀번호 확인 실패",
     defaultPasswordHint: "기본 비밀번호: 123",
+    checkingConnection: "연결 확인 중...",
+    connectionError: "연결 오류",
+    backendConnectionFailed: "서버에 연결할 수 없습니다. 백엔드가 실행 중이고 포트가 열려 있는지 확인한 후 다시 시도하세요.",
+    retry: "다시 시도",
 
     // Collection Page
     loadingCollection: "컬렉션 로드 중...",

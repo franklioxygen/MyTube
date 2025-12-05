@@ -95,7 +95,13 @@ export const zh = {
     uploadCookies: "上传 Cookie",
     onlyTxtFilesAllowed: "仅允许 .txt 文件",
     cookiesUploadedSuccess: "Cookie 上传成功",
-    cookiesUploadFailed: "Cookie 上传失败",
+    cookiesUploadFailed: "上传 Cookies 失败",
+    cookiesFound: "已找到 cookies.txt",
+    cookiesNotFound: "未找到 cookies.txt",
+    deleteCookies: "删除 Cookies",
+    confirmDeleteCookies: "您确定要删除 cookies 文件吗？这将影响您下载有年龄限制或仅限会员视频的能力。",
+    cookiesDeletedSuccess: "Cookies 删除成功",
+    cookiesDeleteFailed: "删除 Cookies 失败",
 
     // Cloud Drive
     cloudDriveSettings: "云端存储 (OpenList)",
@@ -169,6 +175,7 @@ export const zh = {
     rateThisVideo: "给视频评分",
     enterFullscreen: "全屏",
     exitFullscreen: "退出全屏",
+    share: "分享",
     editTitle: "编辑标题",
     titleUpdated: "标题更新成功",
     titleUpdateFailed: "更新标题失败",
@@ -190,6 +197,10 @@ export const zh = {
     incorrectPassword: "密码错误",
     loginFailed: "验证密码失败",
     defaultPasswordHint: "默认密码：123",
+    checkingConnection: "正在检查连接...",
+    connectionError: "连接错误",
+    backendConnectionFailed: "无法连接到服务器。请检查后端是否正在运行并确保端口已开放，然后重试。",
+    retry: "重试",
 
     // Collection Page
     loadingCollection: "加载合集中...",

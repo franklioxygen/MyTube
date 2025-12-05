@@ -239,8 +239,8 @@ const Home: React.FC = () => {
                                         minWidth: 'auto',
                                         p: 1,
                                         display: { xs: 'none', md: 'inline-flex' },
-                                        color: 'text.primary',
-                                        borderColor: 'text.primary',
+                                        color: 'text.secondary',
+                                        borderColor: 'text.secondary',
                                     }}
                                 >
                                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />

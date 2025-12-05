@@ -95,6 +95,12 @@ export const ar = {
     onlyTxtFilesAllowed: "يسمح فقط بملفات .txt",
     cookiesUploadedSuccess: "تم تحميل ملفات تعريف الارتباط بنجاح",
     cookiesUploadFailed: "فشل تحميل ملفات تعريف الارتباط",
+    cookiesFound: "تم العثور على cookies.txt",
+    cookiesNotFound: "لم يتم العثور على cookies.txt",
+    deleteCookies: "حذف ملفات تعريف الارتباط",
+    confirmDeleteCookies: "هل أنت متأكد أنك تريد حذف ملف تعريف الارتباط؟ سيؤثر هذا على قدرتك على تنزيل مقاطع الفيديو المقيدة بالعمر أو الخاصة بالأعضاء فقط.",
+    cookiesDeletedSuccess: "تم حذف ملفات تعريف الارتباط بنجاح",
+    cookiesDeleteFailed: "فشل حذف ملفات تعريف الارتباط",
 
     // Cloud Drive
     cloudDriveSettings: "التخزين السحابي (OpenList)",
@@ -168,6 +174,7 @@ export const ar = {
     rateThisVideo: "قيم هذا الفيديو",
     enterFullscreen: "ملء الشاشة",
     exitFullscreen: "خروج من ملء الشاشة",
+    share: "مشاركة",
     editTitle: "تعديل العنوان",
     titleUpdated: "تم تحديث العنوان بنجاح",
     titleUpdateFailed: "فشل تحديث العنوان",
@@ -189,6 +196,10 @@ export const ar = {
     incorrectPassword: "كلمة المرور غير صحيحة",
     loginFailed: "فشل التحقق من كلمة المرور",
     defaultPasswordHint: "كلمة المرور الافتراضية: 123",
+    checkingConnection: "جارٍ التحقق من الاتصال...",
+    connectionError: "خطأ في الاتصال",
+    backendConnectionFailed: "تعذر الاتصال بالخادم. يرجى التحقق من تشغيل الخادم الخلفي ومن أن المنفذ مفتوح، ثم أعد المحاولة.",
+    retry: "إعادة المحاولة",
 
     // Collection Page
     loadingCollection: "جاري تحميل المجموعة...",

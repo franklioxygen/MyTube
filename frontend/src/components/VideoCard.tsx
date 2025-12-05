@@ -1,4 +1,5 @@
 import {
+    Add,
     Delete,
     Folder
 } from '@mui/icons-material';
@@ -16,9 +17,11 @@ import {
 } from '@mui/material';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
 import { formatDuration, parseDuration } from '../utils/formatUtils';
+import CollectionModal from './CollectionModal';
 import ConfirmationModal from './ConfirmationModal';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -140,6 +143,33 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
 
 
+    // Collections Logic (State and Handlers)
+    const { collections: allCollections, addToCollection, createCollection, removeFromCollection } = useCollection();
+    const [showCollectionModal, setShowCollectionModal] = useState(false);
+
+    const handleAddToCollection = async (collectionId: string) => {
+        if (!video.id) return;
+        await addToCollection(collectionId, video.id);
+    };
+
+    const handleCreateCollection = async (name: string) => {
+        if (!video.id) return;
+        await createCollection(name, video.id);
+    };
+
+    const handleRemoveFromCollection = async () => {
+        if (!video.id) return;
+        await removeFromCollection(video.id);
+    };
+
+    const handleAddClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowCollectionModal(true);
+    };
+
+    // Calculate collections that contain THIS video
+    const currentVideoCollections = allCollections.filter(c => c.videos.includes(video.id));
+
     return (
         <>
             <Card
@@ -153,6 +183,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
                         transform: 'translateY(-4px)',
                         boxShadow: theme.shadows[8],
                         '& .delete-btn': {
+                            opacity: 1
+                        },
+                        '& .add-btn': {
                             opacity: 1
                         }
                     },
@@ -263,6 +296,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 sx={{ position: 'absolute', top: 8, left: 8 }}
                             />
                         )}
+
+
                     </Box>
 
                     <CardContent sx={{ flexGrow: 1, p: 2 }}>
@@ -318,10 +353,34 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             transition: 'opacity 0.2s',
                             '&:hover': {
                                 bgcolor: 'error.main',
-                            }
+                            },
+                            zIndex: 2
                         }}
                     >
                         <Delete fontSize="small" />
+                    </IconButton>
+                )}
+
+                {!isMobile && (
+                    <IconButton
+                        className="add-btn"
+                        onClick={handleAddClick}
+                        size="small"
+                        sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: showDeleteButton ? 40 : 8, // Shift left if delete button is present
+                            bgcolor: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            opacity: 0, // Hidden by default, shown on hover
+                            transition: 'opacity 0.2s',
+                            '&:hover': {
+                                bgcolor: 'primary.main',
+                            },
+                            zIndex: 2
+                        }}
+                    >
+                        <Add fontSize="small" />
                     </IconButton>
                 )}
             </Card>
@@ -335,6 +394,16 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 confirmText={t('delete')}
                 cancelText={t('cancel')}
                 isDanger={true}
+            />
+
+            <CollectionModal
+                open={showCollectionModal}
+                onClose={() => setShowCollectionModal(false)}
+                videoCollections={currentVideoCollections}
+                collections={allCollections}
+                onAddToCollection={handleAddToCollection}
+                onCreateCollection={handleCreateCollection}
+                onRemoveFromCollection={handleRemoveFromCollection}
             />
         </>
     );

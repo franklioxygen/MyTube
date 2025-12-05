@@ -1,5 +1,6 @@
 import { Alert, AlertColor, Snackbar } from '@mui/material';
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import { createContext, ReactNode, useContext, useState } from 'react';
+import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 
 interface SnackbarContextType {
     showSnackbar: (message: string, severity?: AlertColor) => void;
@@ -42,7 +43,7 @@ export const SnackbarProvider: React.FC<SnackbarProviderProps> = ({ children }) 
             {children}
             <Snackbar
                 open={open}
-                autoHideDuration={3000}
+                autoHideDuration={SNACKBAR_AUTO_HIDE_DURATION}
                 onClose={handleClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
