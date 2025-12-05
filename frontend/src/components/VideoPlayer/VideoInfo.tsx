@@ -315,8 +315,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     <Tooltip title={t('share')}>
                         <Button
                             variant="outlined"
+                            color="inherit"
                             onClick={handleShare}
-                            sx={{ minWidth: 'auto', p: 1 }}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
                         >
                             <Share />
                         </Button>
@@ -324,8 +325,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     <Tooltip title={t('addToCollection')}>
                         <Button
                             variant="outlined"
+                            color="inherit"
                             onClick={() => onAddToCollection()}
-                            sx={{ minWidth: 'auto', p: 1 }}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
                         >
                             <Add />
                         </Button>
@@ -333,10 +335,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     <Tooltip title={t('delete')}>
                         <Button
                             variant="outlined"
-                            color="error"
+                            color="inherit"
                             onClick={onDelete}
                             disabled={isDeleting}
-                            sx={{ minWidth: 'auto', p: 1 }}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
                         >
                             <Delete />
                         </Button>
@@ -354,7 +356,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             <Divider sx={{ my: 2 }} />
 
             <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1, sm: 3 }} alignItems={{ xs: 'flex-start', sm: 'center' }} flexWrap="wrap">
+                <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 3, rowGap: 1 }}>
                     {video.sourceUrl && (
                         <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                             <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
@@ -371,40 +373,44 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                             </a>
                         </Typography>
                     )}
+                    {videoCollections.length > 0 && (
+                        <Box sx={{ display: 'inline', alignItems: 'center' }}>
+                            {videoCollections.map((c, index) => (
+                                <React.Fragment key={c.id}>
+                                    <span
+                                        onClick={() => onCollectionClick(c.id)}
+                                        style={{
+                                            cursor: 'pointer',
+                                            color: theme.palette.primary.main,
+                                            fontWeight: 'bold',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            verticalAlign: 'bottom'
+                                        }}
+                                    >
+                                        <Folder fontSize="small" sx={{ mr: 0.5 }} />
+                                        {c.name}
+                                    </span>
+                                    {index < videoCollections.length - 1 ? <span style={{ marginRight: '4px' }}>, </span> : ''}
+                                </React.Fragment>
+                            ))}
+                        </Box>
+                    )}
                     <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                         <VideoLibrary fontSize="small" sx={{ mr: 0.5 }} />
-                        <strong>{t('source')}</strong> {video.source ? video.source.charAt(0).toUpperCase() + video.source.slice(1) : 'Unknown'}
+                        {video.source ? video.source.charAt(0).toUpperCase() + video.source.slice(1) : 'Unknown'}
                     </Typography>
                     {video.addedAt && (
                         <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
                             <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
-                            <strong>{t('addedDate')}</strong> {new Date(video.addedAt).toLocaleDateString()}
+                            {new Date(video.addedAt).toLocaleDateString()}
                         </Typography>
                     )}
-                </Stack>
+                </Box>
 
 
 
-                {videoCollections.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                            <Typography variant="subtitle2" sx={{ mr: 1 }}>{t('collections')}:</Typography>
-                            {videoCollections.map(c => (
-                                <Chip
-                                    key={c.id}
-                                    icon={<Folder />}
-                                    label={c.name}
-                                    onClick={() => onCollectionClick(c.id)}
-                                    color="secondary"
-                                    variant="outlined"
-                                    clickable
-                                    size="small"
-                                    sx={{ my: 0.5 }}
-                                />
-                            ))}
-                        </Stack>
-                    </Box>
-                )}
+
             </Box>
         </Box>
     );
