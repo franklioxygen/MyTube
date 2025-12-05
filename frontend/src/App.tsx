@@ -1,4 +1,4 @@
-import { Box, CssBaseline, ThemeProvider } from '@mui/material';
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
@@ -72,7 +72,17 @@ function AppContent() {
             <CssBaseline />
             {!isAuthenticated && loginRequired ? (
                 checkingAuth ? (
-                    <div className="loading">Loading...</div>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '100vh',
+                            bgcolor: 'background.default'
+                        }}
+                    >
+                        <CircularProgress size={48} />
+                    </Box>
                 ) : (
                     <LoginPage />
                 )

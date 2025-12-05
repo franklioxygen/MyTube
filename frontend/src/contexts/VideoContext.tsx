@@ -49,9 +49,18 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: videos = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/videos`);
-            return response.data as Video[];
+            console.log('Fetching videos from:', `${API_URL}/videos`);
+            try {
+                const response = await axios.get(`${API_URL}/videos`);
+                console.log('Videos fetch success');
+                return response.data as Video[];
+            } catch (err) {
+                console.error('Videos fetch failed:', err);
+                throw err;
+            }
         },
+        retry: 10,
+        retryDelay: 1000,
     });
 
     // Tags Query
@@ -61,6 +70,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const response = await axios.get(`${API_URL}/settings`);
             return response.data.tags || [];
         },
+        retry: 10,
+        retryDelay: 1000,
     });
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);

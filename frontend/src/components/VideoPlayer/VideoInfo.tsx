@@ -324,7 +324,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     <Tooltip title={t('addToCollection')}>
                         <Button
                             variant="outlined"
-                            onClick={onAddToCollection}
+                            onClick={() => onAddToCollection()}
                             sx={{ minWidth: 'auto', p: 1 }}
                         >
                             <Add />

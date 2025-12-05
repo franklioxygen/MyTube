@@ -15,17 +15,17 @@ import {
     Typography
 } from '@mui/material';
 import React, { useState } from 'react';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { Collection } from '../../types';
+import { useLanguage } from '../contexts/LanguageContext';
+import { Collection } from '../types';
 
 interface CollectionModalProps {
     open: boolean;
     onClose: () => void;
-    videoCollections: Collection[];
-    collections: Collection[];
-    onAddToCollection: (collectionId: string) => Promise<void>;
-    onCreateCollection: (name: string) => Promise<void>;
-    onRemoveFromCollection: () => void;
+    videoCollections?: Collection[];
+    collections?: Collection[];
+    onAddToCollection?: (collectionId: string) => Promise<void>;
+    onCreateCollection?: (name: string) => Promise<void>;
+    onRemoveFromCollection?: () => void;
 }
 
 const CollectionModal: React.FC<CollectionModalProps> = ({
@@ -48,13 +48,13 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
     };
 
     const handleCreate = async () => {
-        if (!newCollectionName.trim()) return;
+        if (!newCollectionName.trim() || !onCreateCollection) return;
         await onCreateCollection(newCollectionName);
         handleClose();
     };
 
     const handleAdd = async () => {
-        if (!selectedCollection) return;
+        if (!selectedCollection || !onAddToCollection) return;
         await onAddToCollection(selectedCollection);
         handleClose();
     };
@@ -63,7 +63,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
             <DialogTitle>{t('addToCollection')}</DialogTitle>
             <DialogContent dividers>
-                {videoCollections.length > 0 && (
+                {videoCollections && videoCollections.length > 0 && onRemoveFromCollection && (
                     <Alert severity="info" sx={{ mb: 3 }} action={
                         <Button color="error" size="small" onClick={() => {
                             onRemoveFromCollection();
@@ -79,7 +79,7 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                     </Alert>
                 )}
 
-                {collections && collections.length > 0 && (
+                {collections && collections.length > 0 && onAddToCollection && (
                     <Box sx={{ mb: 4 }}>
                         <Typography variant="subtitle2" gutterBottom>{t('addToExistingCollection')}</Typography>
                         <Stack direction="row" spacing={2}>
@@ -94,9 +94,9 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                                         <MenuItem
                                             key={collection.id}
                                             value={collection.id}
-                                            disabled={videoCollections.length > 0 && videoCollections[0].id === collection.id}
+                                            disabled={videoCollections && videoCollections.length > 0 && videoCollections[0].id === collection.id}
                                         >
-                                            {collection.name} {videoCollections.length > 0 && videoCollections[0].id === collection.id ? t('current') : ''}
+                                            {collection.name} {videoCollections && videoCollections.length > 0 && videoCollections[0].id === collection.id ? t('current') : ''}
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -112,26 +112,28 @@ const CollectionModal: React.FC<CollectionModalProps> = ({
                     </Box>
                 )}
 
-                <Box>
-                    <Typography variant="subtitle2" gutterBottom>{t('createNewCollection')}</Typography>
-                    <Stack direction="row" spacing={2}>
-                        <TextField
-                            fullWidth
-                            size="small"
-                            label={t('collectionName')}
-                            value={newCollectionName}
-                            onChange={(e) => setNewCollectionName(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreate()}
-                        />
-                        <Button
-                            variant="contained"
-                            onClick={handleCreate}
-                            disabled={!newCollectionName.trim()}
-                        >
-                            {t('create')}
-                        </Button>
-                    </Stack>
-                </Box>
+                {onCreateCollection && (
+                    <Box>
+                        <Typography variant="subtitle2" gutterBottom>{t('createNewCollection')}</Typography>
+                        <Stack direction="row" spacing={2}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                label={t('collectionName')}
+                                value={newCollectionName}
+                                onChange={(e) => setNewCollectionName(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && newCollectionName.trim() && handleCreate()}
+                            />
+                            <Button
+                                variant="contained"
+                                onClick={handleCreate}
+                                disabled={!newCollectionName.trim()}
+                            >
+                                {t('create')}
+                            </Button>
+                        </Stack>
+                    </Box>
+                )}
             </DialogContent>
             <DialogActions>
                 <Button onClick={handleClose} color="inherit">{t('cancel')}</Button>

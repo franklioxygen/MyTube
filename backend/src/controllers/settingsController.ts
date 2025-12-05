@@ -158,6 +158,21 @@ export const updateSettings = async (req: Request, res: Response) => {
     }
 };
 
+export const getPasswordEnabled = async (_req: Request, res: Response) => {
+    try {
+        const settings = storageService.getSettings();
+        const mergedSettings = { ...defaultSettings, ...settings };
+        
+        // Return true only if login is enabled AND a password is set
+        const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password;
+        
+        res.json({ enabled: isEnabled });
+    } catch (error) {
+        console.error('Error checking password status:', error);
+        res.status(500).json({ error: 'Failed to check password status' });
+    }
+};
+
 export const verifyPassword = async (req: Request, res: Response) => {
     try {
         const { password } = req.body;
@@ -208,5 +223,34 @@ export const uploadCookies = async (req: Request, res: Response) => {
             fs.unlinkSync(req.file.path);
         }
         res.status(500).json({ error: 'Failed to upload cookies', details: error.message });
+    }
+};
+
+export const checkCookies = async (_req: Request, res: Response) => {
+    try {
+        const { DATA_DIR } = require('../config/paths');
+        const cookiesPath = path.join(DATA_DIR, 'cookies.txt');
+        const exists = fs.existsSync(cookiesPath);
+        res.json({ exists });
+    } catch (error) {
+        console.error('Error checking cookies:', error);
+        res.status(500).json({ error: 'Failed to check cookies' });
+    }
+};
+
+export const deleteCookies = async (_req: Request, res: Response) => {
+    try {
+        const { DATA_DIR } = require('../config/paths');
+        const cookiesPath = path.join(DATA_DIR, 'cookies.txt');
+        
+        if (fs.existsSync(cookiesPath)) {
+            fs.unlinkSync(cookiesPath);
+            res.json({ success: true, message: 'Cookies deleted successfully' });
+        } else {
+            res.status(404).json({ error: 'Cookies file not found' });
+        }
+    } catch (error) {
+        console.error('Error deleting cookies:', error);
+        res.status(500).json({ error: 'Failed to delete cookies' });
     }
 };

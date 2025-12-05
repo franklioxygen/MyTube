@@ -23,11 +23,9 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **Concurrent Download Limit**: Set a limit on the number of simultaneous downloads to manage bandwidth.
 - **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
 - **Video Player**: Custom player with Play/Pause, Loop, Seek, Full-screen, and Dimming controls.
-- **Auto Subtitles**: Automatically download YouTube default language subtitles.
+- **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
-- **Modern UI**: Responsive, dark-themed interface with a "Back to Home" feature and glassmorphism effects.
-- **Theme Support**: Toggle between Light and Dark modes with smooth transitions.
 - **Login Protection**: Secure your application with a password login page.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, and Portuguese.
 - **Pagination**: Efficiently browse large libraries with pagination support.

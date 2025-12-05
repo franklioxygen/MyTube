@@ -94,7 +94,13 @@ export const ja = {
     uploadCookies: "Cookieをアップロード",
     onlyTxtFilesAllowed: ".txtファイルのみ許可されています",
     cookiesUploadedSuccess: "Cookieが正常にアップロードされました",
-    cookiesUploadFailed: "Cookieのアップロードに失敗しました",
+    cookiesUploadFailed: "Cookiesのアップロードに失敗しました",
+    cookiesFound: "cookies.txtが見つかりました",
+    cookiesNotFound: "cookies.txtが見つかりません",
+    deleteCookies: "Cookiesを削除",
+    confirmDeleteCookies: "cookiesファイルを削除してもよろしいですか？年齢制限のある動画やメンバー限定動画のダウンロードに影響する可能性があります。",
+    cookiesDeletedSuccess: "Cookiesが正常に削除されました",
+    cookiesDeleteFailed: "Cookiesの削除に失敗しました",
 
     // Cloud Drive
     cloudDriveSettings: "クラウドストレージ (OpenList)",
@@ -166,6 +172,7 @@ export const ja = {
     rateThisVideo: "この動画を評価",
     enterFullscreen: "全画面表示",
     exitFullscreen: "全画面表示を終了",
+    share: "共有",
     editTitle: "タイトルを編集",
     titleUpdated: "タイトルが正常に更新されました",
     titleUpdateFailed: "タイトルの更新に失敗しました",
@@ -187,6 +194,10 @@ export const ja = {
     incorrectPassword: "パスワードが間違っています",
     loginFailed: "パスワードの確認に失敗しました",
     defaultPasswordHint: "デフォルトのパスワード: 123",
+    checkingConnection: "接続を確認中...",
+    connectionError: "接続エラー",
+    backendConnectionFailed: "サーバーに接続できません。バックエンドが実行されていること、およびポートが開いていることを確認してから、再試行してください。",
+    retry: "再試行",
 
     // Collection Page
     loadingCollection: "コレクションを読み込み中...",

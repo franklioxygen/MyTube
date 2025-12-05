@@ -25,7 +25,7 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange }) => {
     return (
         <Box>
             <Typography variant="h6" gutterBottom>{t('tagsManagement') || 'Tags Management'}</Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('tagsManagementNote') || 'Please remember to click "Save Settings" after adding or removing tags to apply changes.'}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>

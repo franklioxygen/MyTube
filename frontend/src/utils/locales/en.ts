@@ -96,6 +96,12 @@ export const en = {
     onlyTxtFilesAllowed: "Only .txt files are allowed",
     cookiesUploadedSuccess: "Cookies uploaded successfully",
     cookiesUploadFailed: "Failed to upload cookies",
+    cookiesFound: "cookies.txt found",
+    cookiesNotFound: "cookies.txt not found",
+    deleteCookies: "Delete Cookies",
+    confirmDeleteCookies: "Are you sure you want to delete the cookies file? This will affect your ability to download age-restricted or member-only videos.",
+    cookiesDeletedSuccess: "Cookies deleted successfully",
+    cookiesDeleteFailed: "Failed to delete cookies",
 
     // Cloud Drive
     cloudDriveSettings: "Cloud Drive (OpenList)",
@@ -191,6 +197,10 @@ export const en = {
     incorrectPassword: "Incorrect password",
     loginFailed: "Failed to verify password",
     defaultPasswordHint: "Default password: 123",
+    checkingConnection: "Checking connection...",
+    connectionError: "Connection Error",
+    backendConnectionFailed: "Unable to connect to the server. Please check if the backend is running and port is open, then try again.",
+    retry: "Retry",
 
     // Collection Page
     loadingCollection: "Loading collection...",

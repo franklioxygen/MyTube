@@ -14,7 +14,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDelete
     return (
         <Box>
             <Typography variant="h6" gutterBottom>{t('database')}</Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('migrateDataDescription')}
             </Typography>
             <Button
@@ -28,7 +28,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDelete
 
             <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" gutterBottom>{t('removeLegacyData')}</Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     {t('removeLegacyDataDescription')}
                 </Typography>
                 <Button

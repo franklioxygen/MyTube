@@ -13,7 +13,7 @@ const InstructionPage: React.FC = () => {
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                     {t('instructionSection1Title')}
                 </Typography>
-                <Typography variant="body1" paragraph color="text.secondary">
+                <Typography variant="body1" sx={{ mb: 2 }} color="text.secondary">
                     {t('instructionSection1Desc')}
                 </Typography>
 
@@ -80,7 +80,7 @@ const InstructionPage: React.FC = () => {
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                     {t('instructionSection2Title')}
                 </Typography>
-                <Typography variant="body1" paragraph color="text.secondary">
+                <Typography variant="body1" sx={{ mb: 2 }} color="text.secondary">
                     {t('instructionSection2Desc')}
                 </Typography>
 
@@ -108,7 +108,7 @@ const InstructionPage: React.FC = () => {
                 <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                     {t('instructionSection3Title')}
                 </Typography>
-                <Typography variant="body1" paragraph color="text.secondary">
+                <Typography variant="body1" sx={{ mb: 2 }} color="text.secondary">
                     {t('instructionSection3Desc')}
                 </Typography>
 

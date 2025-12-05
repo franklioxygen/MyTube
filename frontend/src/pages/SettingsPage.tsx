@@ -30,6 +30,7 @@ import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
+import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -363,7 +364,7 @@ const SettingsPage: React.FC = () => {
 
             <Snackbar
                 open={!!message}
-                autoHideDuration={6000}
+                autoHideDuration={SNACKBAR_AUTO_HIDE_DURATION}
                 onClose={() => setMessage(null)}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
             >
