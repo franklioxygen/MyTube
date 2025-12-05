@@ -61,7 +61,7 @@ export const ar = {
     scanFilesSuccess: "اكتمل المسح. تمت إضافة {count} مقاطع فيديو جديدة.",
     scanFilesDeleted: " تمت إزالة {count} ملفات مفقودة.",
     scanFilesFailed: "فشل المسح",
-    scanFilesConfirmMessage: "سيقوم النظام بفحص المجلد الجذر لمسار الفيديو للعثور على ملفات الفيديو غير الموثقة.",
+    scanFilesConfirmMessage: "سيقوم النظام بفحص المجلد الجذر لمسار الفيديو. سيتم إضافة ملفات جديدة، وستتم إزالة ملفات الفيديو المفقودة من النظام.",
     scanning: "جارٍ المسح...",
     migrateConfirmation: "هل أنت متأكد أنك تريد ترحيل البيانات؟ قد يستغرق هذا بضع لحظات.",
     migrationResults: "نتائج النقل",

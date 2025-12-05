@@ -61,7 +61,7 @@ export const pt = {
     scanFilesSuccess: "Verificação concluída. {count} novos vídeos adicionados.",
     scanFilesDeleted: " {count} arquivos ausentes removidos.",
     scanFilesFailed: "Falha na verificação",
-    scanFilesConfirmMessage: "O sistema verificará a pasta raiz do caminho do vídeo para encontrar arquivos de vídeo não documentados.",
+    scanFilesConfirmMessage: "O sistema verificará a pasta raiz do caminho do vídeo. Novos arquivos serão adicionados e arquivos de vídeo ausentes serão removidos do sistema.",
     scanning: "Verificando...",
     migrateConfirmation: "Tem certeza de que deseja migrar os dados? Isso pode levar alguns instantes.",
     migrationResults: "Resultados da Migração",

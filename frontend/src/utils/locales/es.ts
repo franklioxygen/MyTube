@@ -25,7 +25,7 @@ export const es = {
     scanFilesSuccess: "Escaneo completo. Se añadieron {count} videos nuevos.",
     scanFilesDeleted: " Se eliminaron {count} archivos faltantes.",
     scanFilesFailed: "Escaneo fallido",
-    scanFilesConfirmMessage: "El sistema escaneará la carpeta raíz de la ruta de video para encontrar archivos de video no documentados.",
+    scanFilesConfirmMessage: "El sistema escaneará la carpeta raíz de la ruta de video. Se añadirán los archivos nuevos y se eliminarán del sistema los archivos de video que falten.",
     scanning: "Escaneando...",
     migrateConfirmation: "¿Está seguro de que desea migrar los datos? Esto puede tardar unos momentos.",
     migrationResults: "Resultados de Migración", migrationReport: "Informe de Migración",
