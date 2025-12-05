@@ -223,6 +223,8 @@ export const ru = {
     on: "Вкл.",
     off: "Выкл",
     continue: "Продолжить",
+    expand: "Развернуть",
+    collapse: "Свернуть",
     
     // Video Card
     unknownDate: "Неизвестная дата",

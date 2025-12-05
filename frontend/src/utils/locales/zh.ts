@@ -224,6 +224,8 @@ export const zh = {
     on: "开启",
     off: "关",
     continue: "继续",
+    expand: "展开",
+    collapse: "收起",
     
     // Video Card
     unknownDate: "未知日期",

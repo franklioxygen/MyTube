@@ -222,6 +222,8 @@ export const pt = {
     on: "Ligado",
     off: "Desligado",
     continue: "Continuar",
+    expand: "Expandir",
+    collapse: "Recolher",
     
     // Video Card
     unknownDate: "Data desconhecida",

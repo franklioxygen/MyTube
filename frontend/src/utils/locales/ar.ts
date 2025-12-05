@@ -223,6 +223,8 @@ export const ar = {
     on: "تشغيل",
     off: "إيقاف",
     continue: "متابعة",
+    expand: "توسيع",
+    collapse: "طي",
     
     // Video Card
     unknownDate: "تاريخ غير معروف",

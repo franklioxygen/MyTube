@@ -104,7 +104,7 @@ export const de = {
     collectionContains: "Diese Sammlung enthält", deleteCollectionOnly: "Nur Sammlung Löschen",
     deleteCollectionAndVideos: "Sammlung und Alle Videos Löschen", loading: "Laden...", error: "Fehler",
     success: "Erfolg", cancel: "Abbrechen", confirm: "Bestätigen", save: "Speichern", on: "Ein",    off: "Aus",
-    continue: "Weiter",
+    continue: "Weiter", expand: "Erweitern", collapse: "Einklappen",
     unknownDate: "Unbekanntes Datum", part: "Teil", collection: "Sammlung", selectVideoFile: "Videodatei Auswählen",
     pleaseSelectVideo: "Bitte wählen Sie eine Videodatei aus", uploadFailed: "Upload fehlgeschlagen",
     failedToUpload: "Fehler beim Hochladen des Videos", uploading: "Hochladen...", upload: "Hochladen",

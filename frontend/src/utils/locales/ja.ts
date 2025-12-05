@@ -223,6 +223,8 @@ export const ja = {
     on: "オン",
     off: "オフ",
     continue: "続行",
+    expand: "展開",
+    collapse: "折りたたむ",
     
     // Video Card
     unknownDate: "不明な日付",

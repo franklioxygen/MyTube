@@ -223,6 +223,8 @@ export const ko = {
     on: "켜기",
     off: "끄기",
     continue: "계속",
+    expand: "확장",
+    collapse: "접기",
     
     // Video Card
     unknownDate: "알 수 없는 날짜",

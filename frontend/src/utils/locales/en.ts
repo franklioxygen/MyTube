@@ -215,6 +215,8 @@ export const en = {
     on: "On",
     off: "Off",
     continue: "Continue",
+    expand: "Expand",
+    collapse: "Collapse",
     
     // Video Card
     unknownDate: "Unknown date",

@@ -6,6 +6,8 @@ import {
     Delete,
     Download,
     Edit,
+    ExpandLess,
+    ExpandMore,
     Folder,
     Link as LinkIcon,
     LocalOffer,
@@ -26,7 +28,7 @@ import {
     Typography,
     useTheme
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Collection, Video } from '../../types';
 
@@ -67,6 +69,22 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
+    const [isTitleExpanded, setIsTitleExpanded] = useState(false);
+    const [showExpandButton, setShowExpandButton] = useState(false);
+    const titleRef = useRef<HTMLHeadingElement>(null);
+
+    useEffect(() => {
+        const checkOverflow = () => {
+            const element = titleRef.current;
+            if (element && !isTitleExpanded) {
+                setShowExpandButton(element.scrollHeight > element.clientHeight);
+            }
+        };
+
+        checkOverflow();
+        window.addEventListener('resize', checkOverflow);
+        return () => window.removeEventListener('resize', checkOverflow);
+    }, [video.title, isTitleExpanded]);
 
     const handleStartEditingTitle = () => {
         setEditedTitle(video.title);
@@ -138,19 +156,46 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     </Button>
                 </Box>
             ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h5" component="h1" fontWeight="bold" sx={{ mr: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+                    <Typography
+                        ref={titleRef}
+                        variant="h5"
+                        component="h1"
+                        fontWeight="bold"
+                        sx={{
+                            mr: 1,
+                            display: '-webkit-box',
+                            overflow: 'hidden',
+                            WebkitBoxOrient: 'vertical',
+                            WebkitLineClamp: isTitleExpanded ? 'unset' : 2,
+                            wordBreak: 'break-word',
+                            flex: 1
+                        }}
+                    >
                         {video.title}
                     </Typography>
-                    <Tooltip title={t('editTitle')}>
-                        <Button
-                            size="small"
-                            onClick={handleStartEditingTitle}
-                            sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
-                        >
-                            <Edit fontSize="small" />
-                        </Button>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Tooltip title={t('editTitle')}>
+                            <Button
+                                size="small"
+                                onClick={handleStartEditingTitle}
+                                sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
+                            >
+                                <Edit fontSize="small" />
+                            </Button>
+                        </Tooltip>
+                        {showExpandButton && (
+                            <Tooltip title={isTitleExpanded ? t('collapse') : t('expand')}>
+                                <Button
+                                    size="small"
+                                    onClick={() => setIsTitleExpanded(!isTitleExpanded)}
+                                    sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
+                                >
+                                    {isTitleExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                                </Button>
+                            </Tooltip>
+                        )}
+                    </Box>
                 </Box>
             )}
 
