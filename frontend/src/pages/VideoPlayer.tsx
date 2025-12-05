@@ -27,6 +27,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
+import { formatDuration } from '../utils/formatUtils';
 import { getRecommendations } from '../utils/recommendations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -147,23 +148,7 @@ const VideoPlayer: React.FC = () => {
         return `${year}-${month}-${day}`;
     };
 
-    // Format duration (seconds or MM:SS)
-    const formatDuration = (duration: string | number | undefined) => {
-        if (!duration) return '00:00';
 
-        // If it's already a string with colon, assume it's formatted
-        if (typeof duration === 'string' && duration.includes(':')) {
-            return duration;
-        }
-
-        // Otherwise treat as seconds
-        const seconds = typeof duration === 'string' ? parseInt(duration, 10) : duration;
-        if (isNaN(seconds)) return '00:00';
-
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
 
     // Handle navigation to author videos page
     const handleAuthorClick = () => {

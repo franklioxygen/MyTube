@@ -19,6 +19,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
+import { formatDuration } from '../utils/formatUtils';
 
 const SearchPage: React.FC = () => {
     const { t } = useLanguage();
@@ -57,13 +58,7 @@ const SearchPage: React.FC = () => {
         navigate('/');
     };
 
-    // Helper function to format duration in seconds to MM:SS
-    const formatDuration = (seconds?: number) => {
-        if (!seconds) return '';
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
+
 
     // Helper function to format view count
     const formatViewCount = (count?: number) => {

@@ -43,6 +43,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
+import { formatDuration, formatSize } from '../utils/formatUtils';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const API_URL = import.meta.env.VITE_API_URL;
@@ -98,20 +99,7 @@ const ManagePage: React.FC = () => {
         }
     });
 
-    const formatDuration = (duration: string | undefined) => {
-        if (!duration) return '';
-        const seconds = parseInt(duration, 10);
-        if (isNaN(seconds)) return duration;
 
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-
-        if (h > 0) {
-            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    };
 
     const filteredVideos = videos.filter(video =>
         video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,16 +122,7 @@ const ManagePage: React.FC = () => {
         return 0;
     });
 
-    const formatSize = (bytes: string | number | undefined) => {
-        if (!bytes) return '0 B';
-        const size = typeof bytes === 'string' ? parseInt(bytes, 10) : bytes;
-        if (isNaN(size)) return '0 B';
 
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(size) / Math.log(k));
-        return parseFloat((size / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
 
     const totalSize = filteredVideos.reduce((acc, video) => {
         const size = video.fileSize ? parseInt(video.fileSize, 10) : 0;

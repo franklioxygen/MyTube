@@ -19,6 +19,7 @@ import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useVideo } from '../contexts/VideoContext';
+import { formatDuration } from '../utils/formatUtils';
 
 const SearchResults: React.FC = () => {
     const navigate = useNavigate();
@@ -88,14 +89,6 @@ const SearchResults: React.FC = () => {
     const hasLocalResults = localSearchResults && localSearchResults.length > 0;
     const hasYouTubeResults = searchResults && searchResults.length > 0;
     const noResults = !hasLocalResults && !hasYouTubeResults && !youtubeLoading;
-
-    // Helper function to format duration in seconds to MM:SS
-    const formatDuration = (seconds?: number) => {
-        if (!seconds) return '';
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
 
     // Helper function to format view count
     const formatViewCount = (count?: number) => {
