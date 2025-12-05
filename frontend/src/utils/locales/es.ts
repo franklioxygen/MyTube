@@ -227,4 +227,5 @@ export const es = {
     instructionSection3Sub4: "Servicios Extendidos:",
     instructionSection3Item3Label: "Nube OpenList:",
     instructionSection3Item3Text: "(En Desarrollo) Admite conectar servicios OpenList implementados por el usuario. Agregue configuración aquí para habilitar la integración de la unidad en la nube.",
+    history: 'Historial',
 };

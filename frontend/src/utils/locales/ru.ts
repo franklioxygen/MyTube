@@ -361,4 +361,5 @@ export const ru = {
     instructionSection3Sub4: "Расширенные сервисы:",
     instructionSection3Item3Label: "Облачный диск OpenList:",
     instructionSection3Item3Text: "(В разработке) Поддерживает подключение к развернутым пользователем сервисам OpenList. Добавьте конфигурацию здесь, чтобы включить интеграцию с облачным диском.",
+    history: 'История',
 };

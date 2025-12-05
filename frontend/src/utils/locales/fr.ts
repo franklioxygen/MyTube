@@ -360,4 +360,5 @@ export const fr = {
     instructionSection3Sub4: "Services Étendus :",
     instructionSection3Item3Label: "OpenList Cloud Drive :",
     instructionSection3Item3Text: "(En Développement) Prend en charge la connexion aux services OpenList déployés par l'utilisateur. Ajoutez la configuration ici pour activer l'intégration du lecteur cloud.",
+    history: 'Historique',
 };
