@@ -1,5 +1,4 @@
 import {
-    ArrowBack,
     Check,
     Close,
 
@@ -269,14 +268,6 @@ const ManagePage: React.FC = () => {
                         disabled={scanMutation.isPending}
                     >
                         {scanMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
-                    </Button>
-                    <Button
-                        component={Link}
-                        to="/"
-                        variant="outlined"
-                        startIcon={<ArrowBack />}
-                    >
-                        {t('backToHome')}
                     </Button>
                 </Box>
             </Box>

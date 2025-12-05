@@ -137,26 +137,16 @@ const Header: React.FC<HeaderProps> = ({
                     setVideoUrl('');
                     setMobileMenuOpen(false);
                 } else if (result.isSearchTerm) {
-                    const searchResult = await onSearch(videoUrl);
-                    if (searchResult.success) {
-                        setVideoUrl('');
-                        setMobileMenuOpen(false);
-                        navigate('/');
-                    } else {
-                        setError(searchResult.error);
-                    }
+                    setVideoUrl('');
+                    setMobileMenuOpen(false);
+                    navigate(`/search?q=${encodeURIComponent(videoUrl)}`);
                 } else {
                     setError(result.error);
                 }
             } else {
-                const result = await onSearch(videoUrl);
-                if (result.success) {
-                    setVideoUrl('');
-                    setMobileMenuOpen(false);
-                    navigate('/');
-                } else {
-                    setError(result.error);
-                }
+                setVideoUrl('');
+                setMobileMenuOpen(false);
+                navigate(`/search?q=${encodeURIComponent(videoUrl)}`);
             }
         } catch (err) {
             setError(t('unexpectedErrorOccurred'));
