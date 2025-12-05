@@ -138,6 +138,7 @@ export const fr = {
     loop: "Boucle",
     autoPlayOn: "Lecture auto activée",
     autoPlayOff: "Lecture auto désactivée",
+    autoPlayNext: "Lecture automatique suivante",
     videoNotFound: "Vidéo non trouvée",
     videoNotFoundOrLoaded: "Vidéo non trouvée ou impossible à charger.",
     deleting: "Suppression...",

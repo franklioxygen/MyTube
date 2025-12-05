@@ -72,6 +72,7 @@ export const de = {
     deleteCollection: "Sammlung Löschen", deleteVideo: "Video Löschen", noVideosFoundMatching: "Keine Videos gefunden, die Ihrer Suche entsprechen.",
     playing: "Abspielen", paused: "Pause", next: "Weiter", previous: "Zurück", loop: "Schleife",
     autoPlayOn: "Automatische Wiedergabe Ein", autoPlayOff: "Automatische Wiedergabe Aus",
+    autoPlayNext: "Nächstes automatisch abspielen",
     videoNotFound: "Video nicht gefunden", videoNotFoundOrLoaded: "Video nicht gefunden oder konnte nicht geladen werden.",
     deleting: "Löschen...", addToCollection: "Zu Sammlung Hinzufügen", originalLink: "Originallink",
     source: "Quelle:", addedDate: "Hinzugefügt am:", latestComments: "Neueste Kommentare",

@@ -37,6 +37,7 @@ interface VideoControlsProps {
     subtitlesEnabled?: boolean;
     onSubtitlesToggle?: (enabled: boolean) => void;
     onLoopToggle?: (enabled: boolean) => void;
+    onEnded?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -49,7 +50,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     subtitles = [],
     subtitlesEnabled: initialSubtitlesEnabled = true,
     onSubtitlesToggle,
-    onLoopToggle
+    onLoopToggle,
+    onEnded
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -273,6 +275,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 src={src}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onEnded={onEnded}
                 onTimeUpdate={(e) => onTimeUpdate && onTimeUpdate(e.currentTarget.currentTime)}
                 onLoadedMetadata={(e) => {
                     if (startTime > 0) {
@@ -327,8 +330,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     <Stack direction="row" spacing={2} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
                         <Tooltip title={isPlaying ? t('paused') : t('playing')}>
                             <Button
-                                variant="contained"
-                                color={isPlaying ? "warning" : "primary"}
+                                variant={isPlaying ? "outlined" : "contained"}
+                                color={isPlaying ? "secondary" : "primary"}
                                 onClick={handlePlayPause}
                                 fullWidth={isMobile}
                             >
@@ -387,7 +390,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     </Stack>
 
                     {/* Row 2 on Mobile: Seek Controls */}
-                    <Stack direction="row" spacing={0.5} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
+                    <Stack direction="row" spacing={0.4} justifyContent="center" width={{ xs: '100%', sm: 'auto' }}>
                         <Tooltip title="-10m">
                             <Button variant="outlined" onClick={() => handleSeek(-600)}>
                                 <KeyboardDoubleArrowLeft />

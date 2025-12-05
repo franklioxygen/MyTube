@@ -137,6 +137,7 @@ export const ru = {
     loop: "Повтор",
     autoPlayOn: "Автовоспроизведение вкл.",
     autoPlayOff: "Автовоспроизведение выкл.",
+    autoPlayNext: "Автовоспроизведение следующего",
     videoNotFound: "Видео не найдено",
     videoNotFoundOrLoaded: "Видео не найдено или не может быть загружено.",
     deleting: "Удаление...",

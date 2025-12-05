@@ -7,8 +7,10 @@ import {
     Chip,
     CircularProgress,
     Container,
+    FormControlLabel,
     Grid,
     Stack,
+    Switch,
     Typography
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +50,14 @@ const VideoPlayer: React.FC = () => {
     const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
     const [showComments, setShowComments] = useState<boolean>(false);
+    const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
+        const saved = localStorage.getItem('autoPlayNext');
+        return saved !== null ? JSON.parse(saved) : false;
+    });
+
+    useEffect(() => {
+        localStorage.setItem('autoPlayNext', JSON.stringify(autoPlayNext));
+    }, [autoPlayNext]);
 
     // Confirmation Modal State
     const [confirmationModal, setConfirmationModal] = useState({
@@ -93,7 +103,7 @@ const VideoPlayer: React.FC = () => {
         }
     });
 
-    const autoPlay = settings?.defaultAutoPlay || false;
+    const autoPlay = autoPlayNext || settings?.defaultAutoPlay || false;
     const autoLoop = settings?.defaultAutoLoop || false;
     const availableTags = settings?.tags || [];
     const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
@@ -400,6 +410,12 @@ const VideoPlayer: React.FC = () => {
         window.scrollTo(0, 0);
     }, [id]);
 
+    const handleVideoEnded = () => {
+        if (autoPlayNext && relatedVideos.length > 0) {
+            navigate(`/video/${relatedVideos[0].id}`);
+        }
+    };
+
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
             <Grid container spacing={{ xs: 0, md: 4 }}>
@@ -415,6 +431,7 @@ const VideoPlayer: React.FC = () => {
                         subtitlesEnabled={subtitlesEnabled}
                         onSubtitlesToggle={handleSubtitlesToggle}
                         onLoopToggle={handleLoopToggle}
+                        onEnded={handleVideoEnded}
                     />
 
                     <Box sx={{ px: { xs: 2, md: 0 } }}>
@@ -446,7 +463,21 @@ const VideoPlayer: React.FC = () => {
 
                 {/* Sidebar Column - Up Next */}
                 <Grid size={{ xs: 12, lg: 4 }} sx={{ p: { xs: 2, md: 0 }, pt: { xs: 2, md: 0 } }}>
-                    <Typography variant="h6" gutterBottom fontWeight="bold">{t('upNext')}</Typography>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 0 }}>{t('upNext')}</Typography>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={autoPlayNext}
+                                    onChange={(e) => setAutoPlayNext(e.target.checked)}
+                                    size="small"
+                                />
+                            }
+                            label={<Typography variant="body2">{t('autoPlayNext')}</Typography>}
+                            labelPlacement="start"
+                            sx={{ ml: 0, mr: 0 }}
+                        />
+                    </Stack>
                     <Stack spacing={2}>
                         {relatedVideos.map(relatedVideo => (
                             <Card
