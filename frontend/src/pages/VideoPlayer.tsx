@@ -147,6 +147,24 @@ const VideoPlayer: React.FC = () => {
         return `${year}-${month}-${day}`;
     };
 
+    // Format duration (seconds or MM:SS)
+    const formatDuration = (duration: string | number | undefined) => {
+        if (!duration) return '00:00';
+
+        // If it's already a string with colon, assume it's formatted
+        if (typeof duration === 'string' && duration.includes(':')) {
+            return duration;
+        }
+
+        // Otherwise treat as seconds
+        const seconds = typeof duration === 'string' ? parseInt(duration, 10) : duration;
+        if (isNaN(seconds)) return '00:00';
+
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
     // Handle navigation to author videos page
     const handleAuthorClick = () => {
         if (video) {
@@ -499,7 +517,7 @@ const VideoPlayer: React.FC = () => {
                                     />
                                     {relatedVideo.duration && (
                                         <Chip
-                                            label={relatedVideo.duration || '00:00'}
+                                            label={formatDuration(relatedVideo.duration)}
                                             size="small"
                                             sx={{
                                                 position: 'absolute',

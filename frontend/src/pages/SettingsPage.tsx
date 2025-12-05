@@ -1,5 +1,4 @@
 import {
-    ArrowBack,
     CloudUpload,
     Save
 } from '@mui/icons-material';
@@ -27,7 +26,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -277,14 +275,6 @@ const SettingsPage: React.FC = () => {
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     {t('settings')}
                 </Typography>
-                <Button
-                    component={Link}
-                    to="/"
-                    variant="outlined"
-                    startIcon={<ArrowBack />}
-                >
-                    {t('backToHome')}
-                </Button>
             </Box>
 
             <Card variant="outlined">

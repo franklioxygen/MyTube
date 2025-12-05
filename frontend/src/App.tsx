@@ -18,6 +18,7 @@ import Home from './pages/Home';
 import InstructionPage from './pages/InstructionPage';
 import LoginPage from './pages/LoginPage';
 import ManagePage from './pages/ManagePage';
+import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import VideoPlayer from './pages/VideoPlayer';
@@ -107,6 +108,7 @@ function AppContent() {
                         <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'hidden' }}>
                             <Routes>
                                 <Route path="/" element={<Home />} />
+                                <Route path="/search" element={<SearchPage />} />
                                 <Route path="/manage" element={<ManagePage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
                                 <Route path="/downloads" element={<DownloadPage />} />
