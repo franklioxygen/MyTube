@@ -138,6 +138,7 @@ export const zh = {
     loop: "循环",
     autoPlayOn: "自动播放已开启",
     autoPlayOff: "自动播放已关闭",
+    autoPlayNext: "自动播放下一个",
     videoNotFound: "未找到视频",
     videoNotFoundOrLoaded: "未找到视频或无法加载。",
     deleting: "删除中...",

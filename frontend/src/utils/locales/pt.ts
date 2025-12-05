@@ -137,6 +137,7 @@ export const pt = {
     loop: "Repetir",
     autoPlayOn: "Reprodução Automática Ligada",
     autoPlayOff: "Reprodução Automática Desligada",
+    autoPlayNext: "Reprodução Automática do Próximo",
     videoNotFound: "Vídeo não encontrado",
     videoNotFoundOrLoaded: "Vídeo não encontrado ou não pôde ser carregado.",
     deleting: "Excluindo...",

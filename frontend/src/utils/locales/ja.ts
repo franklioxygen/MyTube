@@ -137,6 +137,7 @@ export const ja = {
     loop: "ループ",
     autoPlayOn: "自動再生 オン",
     autoPlayOff: "自動再生 オフ",
+    autoPlayNext: "次の動画を自動再生",
     videoNotFound: "動画が見つかりません",
     videoNotFoundOrLoaded: "動画が見つからないか、読み込めませんでした。",
     deleting: "削除中...",

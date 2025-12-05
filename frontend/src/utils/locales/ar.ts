@@ -137,6 +137,7 @@ export const ar = {
     loop: "تكرار",
     autoPlayOn: "تشغيل تلقائي مفعل",
     autoPlayOff: "تشغيل تلقائي معطل",
+    autoPlayNext: "تشغيل تلقائي للتالي",
     videoNotFound: "الفيديو غير موجود",
     videoNotFoundOrLoaded: "الفيديو غير موجود أو تعذر تحميله.",
     deleting: "جاري الحذف...",

@@ -139,6 +139,7 @@ export const en = {
     loop: "Loop",
     autoPlayOn: "Auto-play On",
     autoPlayOff: "Auto-play Off",
+    autoPlayNext: "Auto-play Next",
     videoNotFound: "Video not found",
     videoNotFoundOrLoaded: "Video not found or could not be loaded.",
     deleting: "Deleting...",

@@ -137,6 +137,7 @@ export const ko = {
     loop: "반복",
     autoPlayOn: "자동 재생 켜기",
     autoPlayOff: "자동 재생 끄기",
+    autoPlayNext: "다음 동영상 자동 재생",
     videoNotFound: "동영상을 찾을 수 없음",
     videoNotFoundOrLoaded: "동영상을 찾을 수 없거나 로드할 수 없습니다.",
     deleting: "삭제 중...",
