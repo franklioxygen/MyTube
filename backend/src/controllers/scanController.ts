@@ -33,51 +33,80 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
     const existingPaths = new Set<string>();
     const existingFilenames = new Set<string>();
     
-    existingVideos.forEach(v => {
+    // Track deleted videos
+    let deletedCount = 0;
+    const videosToDelete: string[] = [];
+
+    // Check for missing files
+    for (const v of existingVideos) {
       if (v.videoPath) existingPaths.add(v.videoPath);
-      if (v.videoFilename) existingFilenames.add(v.videoFilename);
-    });
+      if (v.videoFilename) {
+        existingFilenames.add(v.videoFilename);
+      }
+    }
 
     // 2. Recursively scan VIDEOS_DIR
     if (!fs.existsSync(VIDEOS_DIR)) {
       return res.status(200).json({ 
         success: true, 
         message: "Videos directory does not exist", 
-        addedCount: 0 
+        addedCount: 0,
+        deletedCount: 0
       });
     }
 
     const allFiles = getFilesRecursively(VIDEOS_DIR);
     const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
+    const actualFilesOnDisk = new Set<string>(); // Stores filenames (basename)
+    const actualFullPathsOnDisk = new Set<string>(); // Stores full absolute paths
+
+    for (const filePath of allFiles) {
+        const ext = path.extname(filePath).toLowerCase();
+        if (videoExtensions.includes(ext)) {
+            actualFilesOnDisk.add(path.basename(filePath));
+            actualFullPathsOnDisk.add(filePath);
+        }
+    }
+
+    // Now check for missing videos
+    for (const v of existingVideos) {
+        if (v.videoFilename) {
+            // If the filename is not found in ANY of the scanned files, it is missing.
+            if (!actualFilesOnDisk.has(v.videoFilename)) {
+                console.log(`Video missing: ${v.title} (${v.videoFilename})`);
+                videosToDelete.push(v.id);
+            }
+        } else {
+            // No filename? That's a bad record.
+            console.log(`Video record corrupted (no filename): ${v.title}`);
+            videosToDelete.push(v.id);
+        }
+    }
+
+    // Delete missing videos
+    for (const id of videosToDelete) {
+        if (storageService.deleteVideo(id)) {
+            deletedCount++;
+        }
+    }
+    console.log(`Deleted ${deletedCount} missing videos.`);
+
+
     let addedCount = 0;
 
-    // 3. Process each file
+    // 3. Process each file (Add new ones)
     for (const filePath of allFiles) {
       const ext = path.extname(filePath).toLowerCase();
       if (!videoExtensions.includes(ext)) continue;
 
       const filename = path.basename(filePath);
       const relativePath = path.relative(VIDEOS_DIR, filePath);
-      // Construct the web-accessible path (assuming /videos maps to VIDEOS_DIR)
-      // If the file is in a subdirectory, relativePath will be "subdir/file.mp4"
-      // We need to ensure we use forward slashes for URLs
       const webPath = `/videos/${relativePath.split(path.sep).join('/')}`;
 
-      // Check if exists
-      // We check both filename (for flat structure compatibility) and full web path
-      if (existingFilenames.has(filename)) continue;
-      
-      // Also check if we already have this specific path (in case of duplicate filenames in diff folders)
-      // But for now, let's assume filename uniqueness is preferred or at least check it.
-      // Actually, if we have "folder1/a.mp4" and "folder2/a.mp4", they are different videos.
-      // But existing logic often relies on filename. 
-      // Let's check if there is ANY video with this filename. 
-      // If the user wants to support duplicate filenames in different folders, we might need to relax this.
-      // For now, let's stick to the plan: check if it exists in DB.
-      
-      // Refined check:
-      // If we find a file that is NOT in the DB, we add it.
-      // We use the filename to check against existing records because `videoFilename` is often used as a key.
+      // Check if exists in DB
+      if (existingFilenames.has(filename)) {
+          continue;
+      }
       
       console.log(`Found new video file: ${relativePath}`);
 
@@ -87,24 +116,7 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
       
       // Generate thumbnail
       const thumbnailFilename = `${path.parse(filename).name}.jpg`;
-      // If video is in subdir, put thumbnail in same subdir structure in IMAGES_DIR?
-      // Or just flat in IMAGES_DIR? 
-      // videoController puts it in IMAGES_DIR flatly.
-      // But if we have subdirs, we might have name collisions.
-      // For now, let's follow videoController pattern: flat IMAGES_DIR.
-      // Wait, videoController uses uniqueSuffix for filename, so no collision.
-      // Here we use original filename.
-      // Let's try to mirror the structure if possible, or just use flat for now as per simple req.
-      // The user said "scan /uploads/videos structure".
-      // If I have videos/foo/bar.mp4, maybe I should put thumbnail in images/foo/bar.jpg?
-      // But IMAGES_DIR is a single path.
-      // Let's stick to flat IMAGES_DIR for simplicity, but maybe prepend subdir name to filename to avoid collision?
-      // Or just use the simple name as per request "take first frame as thumbnail".
-      
       const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
-      
-      // We need to await this, so we can't use forEach efficiently if we want to be async inside.
-      // We are in a for..of loop, so await is fine.
       
       await new Promise<void>((resolve) => {
         exec(`ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`, (error) => {
@@ -161,11 +173,9 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
 
       // Check if video is in a subfolder
       const dirName = path.dirname(relativePath);
-      console.log(`DEBUG: relativePath='${relativePath}', dirName='${dirName}'`);
       if (dirName !== '.') {
         const collectionName = dirName.split(path.sep)[0];
         
-        // Find existing collection by name
         let collectionId: string | undefined;
         const allCollections = storageService.getCollections();
         const existingCollection = allCollections.find(c => (c.title === collectionName || c.name === collectionName));
@@ -173,7 +183,6 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
         if (existingCollection) {
           collectionId = existingCollection.id;
         } else {
-          // Create new collection
           collectionId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
           const newCollection = {
             id: collectionId,
@@ -194,12 +203,13 @@ export const scanFiles = async (_req: Request, res: Response): Promise<any> => {
       }
     }
 
-    console.log(`Scan complete. Added ${addedCount} new videos.`);
+    console.log(`Scan complete. Added ${addedCount} new videos. Deleted ${deletedCount} missing videos.`);
 
     res.status(200).json({
       success: true,
-      message: `Scan complete. Added ${addedCount} new videos.`,
-      addedCount
+      message: `Scan complete. Added ${addedCount} new videos. Deleted ${deletedCount} missing videos.`,
+      addedCount,
+      deletedCount
     });
 
   } catch (error: any) {

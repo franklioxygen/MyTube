@@ -5,7 +5,6 @@ import {
     CloudUpload,
     Delete as DeleteIcon,
     Error as ErrorIcon,
-    FindInPage,
     PlaylistAdd as PlaylistAddIcon
 } from '@mui/icons-material';
 import {
@@ -27,7 +26,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
 import BatchDownloadModal from '../components/BatchDownloadModal';
-import ConfirmationModal from '../components/ConfirmationModal';
 import UploadModal from '../components/UploadModal';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -83,23 +81,12 @@ const DownloadPage: React.FC = () => {
     const [tabValue, setTabValue] = useState(0);
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
-    const [showScanConfirmModal, setShowScanConfirmModal] = useState(false);
+
     const [queuePage, setQueuePage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
 
     // Scan files mutation
-    const scanMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/scan-files`);
-            return res.data;
-        },
-        onSuccess: (data) => {
-            showSnackbar(t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`);
-        },
-        onError: (error: any) => {
-            showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.details || error.message}`);
-        }
-    });
+
 
     const handleUploadSuccess = () => {
         window.location.reload();
@@ -270,15 +257,7 @@ const DownloadPage: React.FC = () => {
                     {t('downloads') || 'Downloads'}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<FindInPage />}
-                        onClick={() => setShowScanConfirmModal(true)}
-                        disabled={scanMutation.isPending}
-                    >
-                        {scanMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
-                    </Button>
+
                     <Button
                         variant="contained"
                         size="small"
@@ -498,18 +477,7 @@ const DownloadPage: React.FC = () => {
                 onClose={() => setUploadModalOpen(false)}
                 onUploadSuccess={handleUploadSuccess}
             />
-            <ConfirmationModal
-                isOpen={showScanConfirmModal}
-                onClose={() => setShowScanConfirmModal(false)}
-                onConfirm={() => {
-                    setShowScanConfirmModal(false);
-                    scanMutation.mutate();
-                }}
-                title={t('scanFiles') || 'Scan Files'}
-                message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path to find undocumented video files.'}
-                confirmText={t('continue') || 'Continue'}
-                cancelText={t('cancel') || 'Cancel'}
-            />
+
         </Box>
     );
 };

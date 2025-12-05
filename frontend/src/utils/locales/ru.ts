@@ -59,6 +59,7 @@ export const ru = {
     migrateDataButton: "Перенести данные из JSON",
     scanFiles: "Сканировать файлы",
     scanFilesSuccess: "Сканирование завершено. Добавлено {count} новых видео.",
+    scanFilesDeleted: " Удалено {count} отсутствующих файлов.",
     scanFilesFailed: "Сканирование не удалось",
     scanFilesConfirmMessage: "Система просканирует корневую папку с видео, чтобы найти недовкументированные видеофайлы.",
     scanning: "Сканирование...",
