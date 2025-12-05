@@ -18,6 +18,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Collection, Video } from '../types';
+import { formatDuration, parseDuration } from '../utils/formatUtils';
 import ConfirmationModal from './ConfirmationModal';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -47,23 +48,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
-    // Helper to parse duration to seconds
-    const parseDuration = (duration: string | number | undefined): number => {
-        if (!duration) return 0;
-        if (typeof duration === 'number') return duration;
 
-        if (duration.includes(':')) {
-            const parts = duration.split(':').map(part => parseInt(part, 10));
-            if (parts.length === 3) {
-                return parts[0] * 3600 + parts[1] * 60 + parts[2];
-            } else if (parts.length === 2) {
-                return parts[0] * 60 + parts[1];
-            }
-        }
-
-        const parsed = parseInt(duration, 10);
-        return isNaN(parsed) ? 0 : parsed;
-    };
 
     const handleMouseEnter = () => {
         if (!isMobile && video.videoPath) {
@@ -89,23 +74,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
         return `${year}-${month}-${day}`;
     };
 
-    // Format duration (seconds or MM:SS)
-    const formatDuration = (duration: string | number | undefined) => {
-        if (!duration) return null;
 
-        // If it's already a string with colon, assume it's formatted
-        if (typeof duration === 'string' && duration.includes(':')) {
-            return duration;
-        }
-
-        // Otherwise treat as seconds
-        const seconds = typeof duration === 'string' ? parseInt(duration, 10) : duration;
-        if (isNaN(seconds)) return null;
-
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
 
     // Use local thumbnail if available, otherwise fall back to the original URL
     const thumbnailSrc = video.thumbnailPath
