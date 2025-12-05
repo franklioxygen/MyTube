@@ -62,7 +62,7 @@ export const zh = {
     scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
     scanFilesDeleted: " 移除了 {count} 个缺失文件。",
     scanFilesFailed: "扫描失败",
-    scanFilesConfirmMessage: "系统将扫描视频路径的根文件夹以查找未记录的视频文件。",
+    scanFilesConfirmMessage: "系统将扫描视频路径的根文件夹。新文件将被添加，缺失的视频文件将从系统中移除。",
     scanning: "扫描中...",
     migrateConfirmation: "您确定要迁移数据吗？这可能需要一些时间。",
     migrationResults: "迁移结果",

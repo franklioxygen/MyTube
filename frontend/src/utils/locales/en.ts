@@ -62,7 +62,7 @@ export const en = {
     scanFilesSuccess: "Scan complete. Added {count} new videos.",
     scanFilesDeleted: " {count} missing files removed.",
     scanFilesFailed: "Scan failed",
-    scanFilesConfirmMessage: "The system will scan the root folder of the video path to find undocumented video files.",
+    scanFilesConfirmMessage: "The system will scan the root folder of the video path. New files will be added, and missing video files will be removed from the system.",
     scanning: "Scanning...",
     migrateConfirmation: "Are you sure you want to migrate data? This may take a few moments.",
     migrationResults: "Migration Results",

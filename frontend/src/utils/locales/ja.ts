@@ -61,7 +61,7 @@ export const ja = {
     scanFilesSuccess: "スキャン完了。{count} 個の新しい動画が追加されました。",
     scanFilesDeleted: " {count} 個の不足ファイルが削除されました。",
     scanFilesFailed: "スキャンに失敗しました",
-    scanFilesConfirmMessage: "システムはビデオパスのルートフォルダをスキャンして、未登録のビデオファイルを検索します。",
+    scanFilesConfirmMessage: "システムはビデオパスのルートフォルダをスキャンします。新しいファイルが追加され、不足しているビデオファイルはシステムから削除されます。",
     scanning: "スキャン中...",
     migrateConfirmation: "データを移行してもよろしいですか？これには時間がかかる場合があります。",
     migrationResults: "移行結果",

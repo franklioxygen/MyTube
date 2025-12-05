@@ -61,7 +61,7 @@ export const fr = {
     scanFilesSuccess: "Analyse terminée. {count} nouvelles vidéos ajoutées.",
     scanFilesDeleted: " {count} fichiers manquants supprimés.",
     scanFilesFailed: "L'analyse a échoué",
-    scanFilesConfirmMessage: "Le système analysera le dossier racine du chemin vidéo pour trouver des fichiers vidéo non documentés.",
+    scanFilesConfirmMessage: "Le système analysera le dossier racine du chemin vidéo. Les nouveaux fichiers seront ajoutés et les fichiers vidéo manquants seront supprimés du système.",
     scanning: "Analyse en cours...",
     migrateConfirmation: "Êtes-vous sûr de vouloir migrer les données ? Cela peut prendre quelques instants.",
     migrationResults: "Résultats de la migration",

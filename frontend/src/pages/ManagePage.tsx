@@ -306,7 +306,7 @@ const ManagePage: React.FC = () => {
                     scanMutation.mutate();
                 }}
                 title={t('scanFiles') || 'Scan Files'}
-                message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path to find undocumented video files.'}
+                message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path. New files will be added, and missing video files will be removed from the system.'}
                 confirmText={t('continue') || 'Continue'}
                 cancelText={t('cancel') || 'Cancel'}
             />

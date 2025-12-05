@@ -61,7 +61,7 @@ export const ko = {
     scanFilesSuccess: "스캔 완료. {count}개의 새 동영상이 추가되었습니다.",
     scanFilesDeleted: " {count}개의 누락된 파일이 제거되었습니다.",
     scanFilesFailed: "스캔 실패",
-    scanFilesConfirmMessage: "시스템이 비디오 경로의 루트 폴더를 스캔하여 문서화되지 않은 비디오 파일을 찾습니다.",
+    scanFilesConfirmMessage: "시스템이 비디오 경로의 루트 폴더를 스캔합니다. 새 파일은 추가되고 누락된 비디오 파일은 시스템에서 제거됩니다.",
     scanning: "스캔 중...",
     migrateConfirmation: "데이터를 마이그레이션하시겠습니까? 잠시 시간이 걸릴 수 있습니다.",
     migrationResults: "마이그레이션 결과",

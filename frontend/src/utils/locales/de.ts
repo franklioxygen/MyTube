@@ -25,7 +25,7 @@ export const de = {
     scanFilesSuccess: "Scan abgeschlossen. {count} neue Videos hinzugefügt.",
     scanFilesDeleted: " {count} fehlende Dateien entfernt.",
     scanFilesFailed: "Scan fehlgeschlagen",
-    scanFilesConfirmMessage: "Das System scannt den Stammordner des Videopfads, um nicht dokumentierte Videodateien zu finden.",
+    scanFilesConfirmMessage: "Das System scannt den Stammordner des Videopfads. Neue Dateien werden hinzugefügt und fehlende Videodateien werden aus dem System entfernt.",
     scanning: "Scannen...",
     migrateConfirmation: "Sind Sie sicher, dass Sie Daten migrieren möchten? Dies kann einige Momente dauern.",
     migrationResults: "Migrationsergebnisse", migrationReport: "Migrationsbericht",
