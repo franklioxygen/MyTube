@@ -60,6 +60,7 @@ export const zh = {
     migrateDataButton: "从 JSON 迁移数据",
     scanFiles: "扫描文件",
     scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
+    scanFilesDeleted: " 移除了 {count} 个缺失文件。",
     scanFilesFailed: "扫描失败",
     scanFilesConfirmMessage: "系统将扫描视频路径的根文件夹以查找未记录的视频文件。",
     scanning: "扫描中...",

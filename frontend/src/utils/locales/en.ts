@@ -60,6 +60,7 @@ export const en = {
     migrateDataButton: "Migrate Data from JSON",
     scanFiles: "Scan Files",
     scanFilesSuccess: "Scan complete. Added {count} new videos.",
+    scanFilesDeleted: " {count} missing files removed.",
     scanFilesFailed: "Scan failed",
     scanFilesConfirmMessage: "The system will scan the root folder of the video path to find undocumented video files.",
     scanning: "Scanning...",

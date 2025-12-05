@@ -5,6 +5,7 @@ import {
 
     Delete,
     Edit,
+    FindInPage,
     Folder,
     Refresh,
     Search,
@@ -31,6 +32,8 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
+import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -38,14 +41,17 @@ import DeleteCollectionModal from '../components/DeleteCollectionModal';
 
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
     const { videos, deleteVideo, refreshThumbnail, updateVideo } = useVideo();
     const { collections, deleteCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,6 +60,7 @@ const ManagePage: React.FC = () => {
     const [isDeletingCollection, setIsDeletingCollection] = useState<boolean>(false);
     const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
     const [showVideoDeleteModal, setShowVideoDeleteModal] = useState<boolean>(false);
+    const [showScanConfirmModal, setShowScanConfirmModal] = useState(false);
 
 
     // Editing state
@@ -75,6 +82,22 @@ const ManagePage: React.FC = () => {
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
     };
+
+    // Scan files mutation
+    const scanMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/scan-files`);
+            return res.data;
+        },
+        onSuccess: (data) => {
+            const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
+            const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+            showSnackbar(addedMsg + deletedMsg);
+        },
+        onError: (error: any) => {
+            showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.details || error.message}`);
+        }
+    });
 
     const formatDuration = (duration: string | undefined) => {
         if (!duration) return '';
@@ -239,7 +262,14 @@ const ManagePage: React.FC = () => {
                     {t('manageContent')}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-
+                    <Button
+                        variant="outlined"
+                        startIcon={<FindInPage />}
+                        onClick={() => setShowScanConfirmModal(true)}
+                        disabled={scanMutation.isPending}
+                    >
+                        {scanMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
+                    </Button>
                     <Button
                         component={Link}
                         to="/"
@@ -273,7 +303,21 @@ const ManagePage: React.FC = () => {
                 message={t('confirmDelete')}
                 confirmText={t('delete')}
                 cancelText={t('cancel')}
+
                 isDanger={true}
+            />
+
+            <ConfirmationModal
+                isOpen={showScanConfirmModal}
+                onClose={() => setShowScanConfirmModal(false)}
+                onConfirm={() => {
+                    setShowScanConfirmModal(false);
+                    scanMutation.mutate();
+                }}
+                title={t('scanFiles') || 'Scan Files'}
+                message={t('scanFilesConfirmMessage') || 'The system will scan the root folder of the video path to find undocumented video files.'}
+                confirmText={t('continue') || 'Continue'}
+                cancelText={t('cancel') || 'Cancel'}
             />
 
             <Box sx={{ mb: 6 }}>
