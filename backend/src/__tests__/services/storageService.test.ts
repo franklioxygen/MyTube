@@ -60,7 +60,7 @@ describe('StorageService', () => {
     it('should ensure directories exist', () => {
       (fs.existsSync as any).mockReturnValue(false);
       storageService.initializeStorage();
-      expect(fs.ensureDirSync).toHaveBeenCalledTimes(4);
+      expect(fs.ensureDirSync).toHaveBeenCalledTimes(5);
     });
 
     it('should create status.json if not exists', () => {
@@ -558,10 +558,13 @@ describe('StorageService', () => {
       const mockCollection = { id: '1', title: 'Col 1', videos: ['v1'] };
       const mockVideo = { id: 'v1', videoFilename: 'vid.mp4' };
 
-      const selectSpy = vi.spyOn(db, 'select');
+      
+      // Reset db.select to avoid pollution
+      (db.select as any).mockReset();
+      const selectMock = db.select as any;
       
       // 1. getCollectionById
-      selectSpy.mockReturnValueOnce({
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
@@ -572,11 +575,20 @@ describe('StorageService', () => {
       } as any);
 
       // 2. deleteVideo -> getVideoById
-      selectSpy.mockReturnValueOnce({
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             get: vi.fn().mockReturnValue(mockVideo),
           }),
+        }),
+      } as any);
+
+      // 3. getCollections (called by findVideoFile)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+            leftJoin: vi.fn().mockReturnValue({
+                all: vi.fn().mockReturnValue([]),
+            }),
         }),
       } as any);
 
