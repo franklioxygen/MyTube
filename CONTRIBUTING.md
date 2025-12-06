@@ -85,7 +85,7 @@ npm run dev
 1.  Ensure your code builds and runs locally.
 2.  Update the `README.md` if you are adding new features or changing configuration.
 3.  Push your branch to your fork on GitHub.
-4.  Open a Pull Request against the `main` branch of the original repository.
+4.  Open a Pull Request against the `master` branch of the original repository.
 5.  Provide a clear description of the problem and solution.
 6.  Link to any related issues.
 

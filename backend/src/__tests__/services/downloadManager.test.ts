@@ -1,6 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as storageService from '../../services/storageService';
 
+vi.mock('../../db', () => ({
+  db: {
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    select: vi.fn(),
+    transaction: vi.fn(),
+  },
+  sqlite: {
+    prepare: vi.fn(),
+  },
+}));
+
 // Must mock before importing the module that uses it
 vi.mock('../../services/storageService');
 vi.mock('fs-extra', () => ({

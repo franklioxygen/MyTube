@@ -19,7 +19,7 @@ We use the `release.sh` script to automate the release process. This script hand
 
 ### Prerequisites
 
--   Ensure you are on the `main` branch.
+-   Ensure you are on the `master` branch.
 -   Ensure your working directory is clean (no uncommitted changes).
 -   Ensure you are logged in to Docker Hub (`docker login`).
 
