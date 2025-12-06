@@ -254,7 +254,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                     position: 'absolute',
                                     top: 0,
                                     left: 0,
-                                    bgcolor: 'grey.800'
+                                    bgcolor: 'grey.800',
+                                    zIndex: 2
                                 }}
                             />
                         )}
@@ -274,7 +275,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 objectFit: 'cover',
                                 opacity: (isImageLoaded && (!isHovered || !isVideoPlaying)) ? 1 : 0,
                                 transition: 'opacity 0.2s',
-                                pointerEvents: 'none' // Ensure hover events pass through
+                                pointerEvents: 'none', // Ensure hover events pass through
+                                zIndex: 2
                             }}
                             onError={(e) => {
                                 // If error, we can still show the placeholder or the fallback image
