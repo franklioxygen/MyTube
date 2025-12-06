@@ -14,6 +14,19 @@ import downloadManager from '../../services/downloadManager';
 import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
 
+vi.mock('../../db', () => ({
+  db: {
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    select: vi.fn(),
+    transaction: vi.fn(),
+  },
+  sqlite: {
+    prepare: vi.fn(),
+  },
+}));
+
 vi.mock('../../services/downloadService');
 vi.mock('../../services/storageService');
 vi.mock('../../services/downloadManager');
