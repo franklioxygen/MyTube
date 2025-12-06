@@ -7,7 +7,7 @@ export const en = {
     pleaseEnterUrlOrSearchTerm: "Please enter a video URL or search term",
     unexpectedErrorOccurred: "An unexpected error occurred. Please try again.",
     uploadVideo: "Upload Video",
-    enterUrlOrSearchTerm: "Enter YouTube/Bilibili URL or search term",
+    enterUrlOrSearchTerm: "Enter video URL or search term",
     manageVideos: "Manage Videos",
     instruction: "Instruction",
     
@@ -26,7 +26,7 @@ export const en = {
     fromYouTube: "From YouTube",
     loadingYouTubeResults: "Loading YouTube results...",
     noYouTubeResults: "No YouTube results found",
-    noVideosYet: "No videos yet. Submit a YouTube URL to download your first video!",
+    noVideosYet: "No videos yet. Submit a video URL to download your first one!",
     views: "views",
     
     // Settings
@@ -123,6 +123,7 @@ export const en = {
     deleteSuccess: "Deleted successfully",
     deleteFailed: "Failed to delete",
     noVideos: "No videos found",
+    noCollectionsFound: "No collections found",
     noCollections: "No collections found",
     searchVideos: "Search videos...",
     thumbnail: "Thumbnail",

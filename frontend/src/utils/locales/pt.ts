@@ -7,7 +7,7 @@ export const pt = {
     pleaseEnterUrlOrSearchTerm: "Por favor, insira uma URL de vídeo ou termo de pesquisa",
     unexpectedErrorOccurred: "Ocorreu um erro inesperado. Por favor, tente novamente.",
     uploadVideo: "Enviar Vídeo",
-    enterUrlOrSearchTerm: "Insira URL do YouTube/Bilibili ou termo de pesquisa",
+    enterUrlOrSearchTerm: "Insira o URL do vídeo ou termo de pesquisa",
     manageVideos: "Gerenciar Vídeos",
     
     // Home
@@ -25,7 +25,7 @@ export const pt = {
     fromYouTube: "Do YouTube",
     loadingYouTubeResults: "Carregando resultados do YouTube...",
     noYouTubeResults: "Nenhum resultado do YouTube encontrado",
-    noVideosYet: "Nenhum vídeo ainda. Envie uma URL do YouTube para baixar seu primeiro vídeo!",
+    noVideosYet: "Ainda sem vídeos. Envie um URL de vídeo para baixar o seu primeiro!",
     views: "visualizações",
     
     // Settings
@@ -122,6 +122,7 @@ export const pt = {
     deleteSuccess: "Excluído com sucesso",
     deleteFailed: "Falha ao excluir",
     noVideos: "Nenhum vídeo encontrado",
+    noCollectionsFound: "Nenhuma coleção encontrada",
     noCollections: "Nenhuma coleção encontrada",
     searchVideos: "Pesquisar vídeos...",
     thumbnail: "Miniatura",

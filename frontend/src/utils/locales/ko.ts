@@ -7,7 +7,7 @@ export const ko = {
     pleaseEnterUrlOrSearchTerm: "동영상 URL 또는 검색어를 입력하세요",
     unexpectedErrorOccurred: "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.",
     uploadVideo: "동영상 업로드",
-    enterUrlOrSearchTerm: "YouTube/Bilibili URL 또는 검색어 입력",
+    enterUrlOrSearchTerm: "동영상 URL 또는 검색어 입력",
     manageVideos: "동영상 관리",
     
     // Home
@@ -25,7 +25,7 @@ export const ko = {
     fromYouTube: "YouTube에서",
     loadingYouTubeResults: "YouTube 결과 로드 중...",
     noYouTubeResults: "YouTube 결과 없음",
-    noVideosYet: "아직 동영상이 없습니다. YouTube URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
+    noVideosYet: "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
     views: "조회수",
     
     // Settings
@@ -121,7 +121,8 @@ export const ko = {
     confirmDelete: "정말로 삭제하시겠습니까?",
     deleteSuccess: "성공적으로 삭제됨",
     deleteFailed: "삭제 실패",
-    noVideos: "동영상 없음",
+    noVideos: "동영상을 찾을 수 없습니다",
+    noCollectionsFound: "컬렉션을 찾을 수 없습니다",
     noCollections: "컬렉션 없음",
     searchVideos: "동영상 검색...",
     thumbnail: "썸네일",

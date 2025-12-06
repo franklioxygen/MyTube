@@ -7,7 +7,7 @@ export const ja = {
     pleaseEnterUrlOrSearchTerm: "動画のURLまたは検索語を入力してください",
     unexpectedErrorOccurred: "予期しないエラーが発生しました。もう一度お試しください。",
     uploadVideo: "動画をアップロード",
-    enterUrlOrSearchTerm: "YouTube/BilibiliのURLまたは検索語を入力",
+    enterUrlOrSearchTerm: "動画のURLまたは検索語を入力",
     manageVideos: "動画の管理",
     
     // Home
@@ -25,7 +25,7 @@ export const ja = {
     fromYouTube: "YouTubeから",
     loadingYouTubeResults: "YouTubeの結果を読み込み中...",
     noYouTubeResults: "YouTubeの結果が見つかりません",
-    noVideosYet: "動画はまだありません。YouTubeのURLを送信して最初の動画をダウンロードしましょう！",
+    noVideosYet: "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
     views: "回視聴",
     
     // Settings
@@ -122,6 +122,7 @@ export const ja = {
     deleteSuccess: "正常に削除されました",
     deleteFailed: "削除に失敗しました",
     noVideos: "動画が見つかりません",
+    noCollectionsFound: "コレクションが見つかりません",
     noCollections: "コレクションが見つかりません",
     searchVideos: "動画を検索...",
     thumbnail: "サムネイル",

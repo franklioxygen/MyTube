@@ -7,7 +7,7 @@ export const zh = {
     pleaseEnterUrlOrSearchTerm: "请输入视频链接或搜索关键词",
     unexpectedErrorOccurred: "发生意外错误，请重试",
     uploadVideo: "上传视频",
-    enterUrlOrSearchTerm: "输入 YouTube/Bilibili 链接或搜索关键词",
+    enterUrlOrSearchTerm: "输入视频链接或搜索关键词",
     manageVideos: "管理视频",
     instruction: "使用说明",
     
@@ -26,7 +26,7 @@ export const zh = {
     fromYouTube: "来自 YouTube",
     loadingYouTubeResults: "加载 YouTube 结果中...",
     noYouTubeResults: "未找到 YouTube 结果",
-    noVideosYet: "暂无视频。提交 YouTube 链接以下载您的第一个视频！",
+    noVideosYet: "暂无视频。提交视频链接以开始下载您的第一个视频！",
     views: "次观看",
     
     // Settings
@@ -123,6 +123,7 @@ export const zh = {
     deleteSuccess: "删除成功",
     deleteFailed: "删除失败",
     noVideos: "未找到视频",
+    noCollectionsFound: "未找到合集",
     noCollections: "未找到合集",
     searchVideos: "搜索视频...",
     thumbnail: "缩略图",

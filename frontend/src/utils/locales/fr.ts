@@ -7,7 +7,7 @@ export const fr = {
     pleaseEnterUrlOrSearchTerm: "Veuillez entrer une URL de vidéo ou un terme de recherche",
     unexpectedErrorOccurred: "Une erreur inattendue s'est produite. Veuillez réessayer.",
     uploadVideo: "Mettre en ligne une vidéo",
-    enterUrlOrSearchTerm: "Entrez une URL YouTube/Bilibili ou un terme de recherche",
+    enterUrlOrSearchTerm: "Entrez l'URL de la vidéo ou le terme de recherche",
     manageVideos: "Gérer les vidéos",
     
     // Home
@@ -25,7 +25,7 @@ export const fr = {
     fromYouTube: "De YouTube",
     loadingYouTubeResults: "Chargement des résultats YouTube...",
     noYouTubeResults: "Aucun résultat YouTube trouvé",
-    noVideosYet: "Aucune vidéo pour le moment. Soumettez une URL YouTube pour télécharger votre première vidéo !",
+    noVideosYet: "Pas encore de vidéos. Soumettez une URL de vidéo pour télécharger votre première !",
     views: "vues",
     
     // Settings
@@ -122,6 +122,7 @@ export const fr = {
     deleteSuccess: "Supprimé avec succès",
     deleteFailed: "Échec de la suppression",
     noVideos: "Aucune vidéo trouvée",
+    noCollectionsFound: "Aucune collection trouvée",
     noCollections: "Aucune collection trouvée",
     searchVideos: "Rechercher des vidéos...",
     thumbnail: "Miniature",

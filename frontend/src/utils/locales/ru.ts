@@ -7,7 +7,7 @@ export const ru = {
     pleaseEnterUrlOrSearchTerm: "Пожалуйста, введите URL видео или поисковый запрос",
     unexpectedErrorOccurred: "Произошла непредвиденная ошибка. Пожалуйста, попробуйте снова.",
     uploadVideo: "Загрузить видео",
-    enterUrlOrSearchTerm: "Введите URL YouTube/Bilibili или поисковый запрос",
+    enterUrlOrSearchTerm: "Введите URL видео или поисковый запрос",
     manageVideos: "Управление видео",
     
     // Home
@@ -25,7 +25,7 @@ export const ru = {
     fromYouTube: "С YouTube",
     loadingYouTubeResults: "Загрузка результатов YouTube...",
     noYouTubeResults: "Результаты YouTube не найдены",
-    noVideosYet: "Видео пока нет. Отправьте URL YouTube, чтобы скачать ваше первое видео!",
+    noVideosYet: "Видео пока нет. Отправьте URL видео, чтобы скачать первое!",
     views: "просмотров",
     
     // Settings
@@ -122,6 +122,7 @@ export const ru = {
     deleteSuccess: "Успешно удалено",
     deleteFailed: "Не удалось удалить",
     noVideos: "Видео не найдено",
+    noCollectionsFound: "Коллекции не найдены",
     noCollections: "Коллекции не найдены",
     searchVideos: "Поиск видео...",
     thumbnail: "Миниатюра",
