@@ -2,12 +2,12 @@ import { desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  DATA_DIR,
-  IMAGES_DIR,
-  STATUS_DATA_PATH,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    DATA_DIR,
+    IMAGES_DIR,
+    STATUS_DATA_PATH,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import { collections, collectionVideos, downloadHistory, downloads, settings, videos } from "../db/schema";
