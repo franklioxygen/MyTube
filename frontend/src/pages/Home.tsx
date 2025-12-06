@@ -286,51 +286,59 @@ const Home: React.FC = () => {
                                 </ToggleButton>
                             </ToggleButtonGroup>
                         </Box>
-                        <Grid container spacing={3}>
-                            {displayedVideos.map(video => {
-                                const gridProps = isSidebarOpen
-                                    ? { xs: 12, sm: 6, lg: 4, xl: 3 }
-                                    : { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
+                        {viewMode === 'collections' && displayedVideos.length === 0 ? (
+                            <Box sx={{ py: 8, textAlign: 'center' }}>
+                                <Typography variant="h6" color="text.secondary">
+                                    {t('noCollectionsFound')}
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <Grid container spacing={3}>
+                                {displayedVideos.map(video => {
+                                    const gridProps = isSidebarOpen
+                                        ? { xs: 12, sm: 6, lg: 4, xl: 3 }
+                                        : { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
 
-                                // In all-videos and history mode, ALWAYS render as VideoCard
-                                if (viewMode === 'all-videos' || viewMode === 'history') {
+                                    // In all-videos and history mode, ALWAYS render as VideoCard
+                                    if (viewMode === 'all-videos' || viewMode === 'history') {
+                                        return (
+                                            <Grid size={gridProps} key={video.id}>
+                                                <VideoCard
+                                                    video={video}
+                                                    collections={collections}
+                                                    disableCollectionGrouping={true}
+                                                />
+                                            </Grid>
+                                        );
+                                    }
+
+                                    // In collections mode, check if this video is the first in a collection
+                                    const collection = collections.find(c => c.videos[0] === video.id);
+
+                                    // If it is, render CollectionCard
+                                    if (collection) {
+                                        return (
+                                            <Grid size={gridProps} key={`collection-${collection.id}`}>
+                                                <CollectionCard
+                                                    collection={collection}
+                                                    videos={videoArray}
+                                                />
+                                            </Grid>
+                                        );
+                                    }
+
+                                    // Otherwise render VideoCard for non-collection videos
                                     return (
                                         <Grid size={gridProps} key={video.id}>
                                             <VideoCard
                                                 video={video}
                                                 collections={collections}
-                                                disableCollectionGrouping={true}
                                             />
                                         </Grid>
                                     );
-                                }
-
-                                // In collections mode, check if this video is the first in a collection
-                                const collection = collections.find(c => c.videos[0] === video.id);
-
-                                // If it is, render CollectionCard
-                                if (collection) {
-                                    return (
-                                        <Grid size={gridProps} key={`collection-${collection.id}`}>
-                                            <CollectionCard
-                                                collection={collection}
-                                                videos={videoArray}
-                                            />
-                                        </Grid>
-                                    );
-                                }
-
-                                // Otherwise render VideoCard for non-collection videos
-                                return (
-                                    <Grid size={gridProps} key={video.id}>
-                                        <VideoCard
-                                            video={video}
-                                            collections={collections}
-                                        />
-                                    </Grid>
-                                );
-                            })}
-                        </Grid>
+                                })}
+                            </Grid>
+                        )}
 
 
 

@@ -7,7 +7,7 @@ export const ar = {
     pleaseEnterUrlOrSearchTerm: "الرجاء إدخال رابط الفيديو أو مصطلح البحث",
     unexpectedErrorOccurred: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
     uploadVideo: "رفع فيديو",
-    enterUrlOrSearchTerm: "أدخل رابط YouTube/Bilibili أو مصطلح البحث",
+    enterUrlOrSearchTerm: "أدخل رابط الفيديو أو كلمة البحث",
     manageVideos: "إدارة الفيديوهات",
     
     // Home
@@ -25,7 +25,7 @@ export const ar = {
     fromYouTube: "من YouTube",
     loadingYouTubeResults: "جاري تحميل نتائج YouTube...",
     noYouTubeResults: "لم يتم العثور على نتائج YouTube",
-    noVideosYet: "لا توجد فيديوهات بعد. أرسل رابط YouTube لتحميل أول فيديو لك!",
+    noVideosYet: "لا توجد فيديوهات بعد. أرسل رابط فيديو لتنزيل أول فيديو لك!",
     views: "مشاهدات",
     
     // Settings
@@ -122,6 +122,7 @@ export const ar = {
     deleteSuccess: "تم الحذف بنجاح",
     deleteFailed: "فشل الحذف",
     noVideos: "لم يتم العثور على فيديوهات",
+    noCollectionsFound: "لم يتم العثور على مجموعات",
     noCollections: "لم يتم العثور على مجموعات",
     searchVideos: "بحث عن فيديوهات...",
     thumbnail: "صورة مصغرة",

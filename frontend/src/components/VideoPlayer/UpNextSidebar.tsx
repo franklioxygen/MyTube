@@ -9,6 +9,7 @@ import {
     Chip,
     FormControlLabel,
     IconButton,
+    Skeleton,
     Stack,
     Switch,
     Tooltip,
@@ -31,6 +32,64 @@ interface UpNextSidebarProps {
     onAddToCollection: (videoId: string) => void;
 }
 
+const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+    return (
+        <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
+            {!isImageLoaded && (
+                <Skeleton
+                    variant="rectangular"
+                    width="100%"
+                    height={94}
+                    animation="wave"
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        bgcolor: 'grey.800'
+                    }}
+                />
+            )}
+            <CardMedia
+                component="img"
+                sx={{
+                    width: '100%',
+                    height: 94,
+                    objectFit: 'cover',
+                    opacity: isImageLoaded ? 1 : 0,
+                    transition: 'opacity 0.2s',
+                    // The image is always rendered but hidden until loaded
+                }}
+                onLoad={() => setIsImageLoaded(true)}
+                image={`${BACKEND_URL}${video.thumbnailPath}`}
+                alt={video.title}
+                onError={(e) => {
+                    setIsImageLoaded(true);
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
+                }}
+            />
+            {video.duration && (
+                <Chip
+                    label={formatDuration(video.duration)}
+                    size="small"
+                    sx={{
+                        position: 'absolute',
+                        bottom: 4,
+                        right: 4,
+                        height: 20,
+                        fontSize: '0.75rem',
+                        bgcolor: 'rgba(0,0,0,0.8)',
+                        color: 'white'
+                    }}
+                />
+            )}
+        </Box>
+    );
+};
+
 const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
     relatedVideos,
     autoPlayNext,
@@ -42,6 +101,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
     const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     const handleAddToCollectionClick = (e: React.MouseEvent, videoId: string) => {
         e.stopPropagation();
@@ -74,34 +134,8 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                         onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
                         onMouseLeave={() => setHoveredVideoId(null)}
                     >
-                        <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
-                            <CardMedia
-                                component="img"
-                                sx={{ width: '100%', height: 94, objectFit: 'cover' }}
-                                image={`${BACKEND_URL}${relatedVideo.thumbnailPath}`}
-                                alt={relatedVideo.title}
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.onerror = null;
-                                    target.src = 'https://via.placeholder.com/168x94?text=No+Thumbnail';
-                                }}
-                            />
-                            {relatedVideo.duration && (
-                                <Chip
-                                    label={formatDuration(relatedVideo.duration)}
-                                    size="small"
-                                    sx={{
-                                        position: 'absolute',
-                                        bottom: 4,
-                                        right: 4,
-                                        height: 20,
-                                        fontSize: '0.75rem',
-                                        bgcolor: 'rgba(0,0,0,0.8)',
-                                        color: 'white'
-                                    }}
-                                />
-                            )}
-                        </Box>
+                        <SidebarThumbnail video={relatedVideo} />
+
                         <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 }, position: 'relative' }}>
                             <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                                 {relatedVideo.title}
@@ -118,7 +152,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 </Typography>
                             </Box>
 
-                            {hoveredVideoId === relatedVideo.id && !isMobile && (
+                            {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && (
                                 <Tooltip title={t('addToCollection')}>
                                     <IconButton
                                         size="small"

@@ -11,6 +11,7 @@ import {
     CardMedia,
     Chip,
     IconButton,
+    Skeleton,
     Typography,
     useMediaQuery,
     useTheme
@@ -45,10 +46,12 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
 
@@ -199,6 +202,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
                 >
                     <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
+                        {/* Video Element (only shown on hover) */}
                         {isHovered && video.videoPath && (
                             <Box
                                 component="video"
@@ -215,7 +219,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'cover',
-                                    bgcolor: 'black'
+                                    bgcolor: 'black',
+                                    zIndex: 1 // Ensure video is above thumbnail when playing
                                 }}
                                 onLoadedMetadata={(e) => {
                                     const videoEl = e.target as HTMLVideoElement;
@@ -238,10 +243,28 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             />
                         )}
 
+                        {/* Skeleton Placeholder */}
+                        {!isImageLoaded && (
+                            <Skeleton
+                                variant="rectangular"
+                                width="100%"
+                                height="100%"
+                                animation="wave"
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    bgcolor: 'grey.800'
+                                }}
+                            />
+                        )}
+
+                        {/* Thumbnail Image */}
                         <CardMedia
                             component="img"
                             image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
                             alt={`${video.title} thumbnail`}
+                            onLoad={() => setIsImageLoaded(true)}
                             sx={{
                                 position: 'absolute',
                                 top: 0,
@@ -249,11 +272,14 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 width: '100%',
                                 height: '100%',
                                 objectFit: 'cover',
-                                opacity: (isHovered && isVideoPlaying) ? 0 : 1,
+                                opacity: (isImageLoaded && (!isHovered || !isVideoPlaying)) ? 1 : 0,
                                 transition: 'opacity 0.2s',
-                                pointerEvents: 'none' // Ensure hover events pass through to the video if needed, though parent handles it
+                                pointerEvents: 'none' // Ensure hover events pass through
                             }}
                             onError={(e) => {
+                                // If error, we can still show the placeholder or the fallback image
+                                // For now, let's treat error as loaded so we see the fallback/alt text if any
+                                setIsImageLoaded(true);
                                 const target = e.target as HTMLImageElement;
                                 target.onerror = null;
                                 target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
@@ -361,7 +387,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     </IconButton>
                 )}
 
-                {!isMobile && (
+                {!isMobile && !isTouch && (
                     <IconButton
                         className="add-btn"
                         onClick={handleAddClick}
