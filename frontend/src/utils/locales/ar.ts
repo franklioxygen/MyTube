@@ -199,7 +199,7 @@ export const ar = {
     defaultPasswordHint: "كلمة المرور الافتراضية: 123",
     checkingConnection: "جارٍ التحقق من الاتصال...",
     connectionError: "خطأ في الاتصال",
-    backendConnectionFailed: "تعذر الاتصال بالخادم. يرجى التحقق من تشغيل الخادم الخلفي ومن أن المنفذ مفتوح، ثم أعد المحاولة.",
+    backendConnectionFailed: "لا يمكن الاتصال بالخادم. يرجى التحقق مما إذا كان الخادم يعمل والمنفذ مفتوح، ثم حاول مرة أخرى.",
     retry: "إعادة المحاولة",
 
     // Collection Page

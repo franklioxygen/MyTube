@@ -118,7 +118,7 @@ export const es = {
     loginFailed: "Error al verificar la contraseña", defaultPasswordHint: "Contraseña predeterminada: 123",
     checkingConnection: "Comprobando conexión...",
     connectionError: "Error de Conexión",
-    backendConnectionFailed: "No se puede conectar al servidor. Verifique que el backend esté en ejecución y que el puerto esté abierto, luego intente de nuevo.",
+    backendConnectionFailed: "No se puede conectar al servidor. Por favor, verifique si el backend está en ejecución y el puerto está abierto, luego intente nuevamente.",
     retry: "Reintentar",
     loadingCollection: "Cargando colección...", collectionNotFound: "Colección no encontrada",
     noVideosInCollection: "No hay videos en esta colección.", back: "Volver", loadVideosError: "Error al cargar los videos. Por favor, inténtelo más tarde.",

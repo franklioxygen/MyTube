@@ -111,7 +111,7 @@ export const de = {
     checkingConnection: "Verbindung wird überprüft...",
     connectionError: "Verbindungsfehler",
     backendConnectionFailed: "Verbindung zum Server nicht möglich. Bitte überprüfen Sie, ob das Backend läuft und der Port geöffnet ist, und versuchen Sie es erneut.",
-    retry: "Erneut versuchen",
+    retry: "Wiederholen",
     loadingCollection: "Sammlung wird geladen...", collectionNotFound: "Sammlung nicht gefunden",
     noVideosInCollection: "Keine Videos in dieser Sammlung.", back: "Zurück", loadVideosError: "Fehler beim Laden der Videos. Bitte versuchen Sie es später erneut.",
     unknownAuthor: "Unbekannt", noVideosForAuthor: "Keine Videos für diesen Autor gefunden.",

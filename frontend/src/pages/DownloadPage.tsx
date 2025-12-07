@@ -5,7 +5,8 @@ import {
     CloudUpload,
     Delete as DeleteIcon,
     Error as ErrorIcon,
-    PlaylistAdd as PlaylistAddIcon
+    PlaylistAdd as PlaylistAddIcon,
+    Replay as ReplayIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -442,7 +443,19 @@ const DownloadPage: React.FC = () => {
                                                     </Box>
                                                 }
                                             />
-                                            <Box sx={{ mr: 8 }}>
+                                            <Box sx={{ mr: 8, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {item.status === 'failed' && item.sourceUrl && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        size="small"
+                                                        startIcon={<ReplayIcon />}
+                                                        onClick={() => handleVideoSubmit(item.sourceUrl!)}
+                                                        sx={{ minWidth: '100px' }}
+                                                    >
+                                                        {t('retry') || 'Retry'}
+                                                    </Button>
+                                                )}
                                                 {item.status === 'success' ? (
                                                     <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
                                                 ) : (

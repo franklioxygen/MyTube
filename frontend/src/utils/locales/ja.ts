@@ -197,7 +197,7 @@ export const ja = {
     defaultPasswordHint: "デフォルトのパスワード: 123",
     checkingConnection: "接続を確認中...",
     connectionError: "接続エラー",
-    backendConnectionFailed: "サーバーに接続できません。バックエンドが実行されていること、およびポートが開いていることを確認してから、再試行してください。",
+    backendConnectionFailed: "サーバーに接続できません。バックエンドが実行中でポートが開いているか確認してから、もう一度お試しください。",
     retry: "再試行",
 
     // Collection Page
