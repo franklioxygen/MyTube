@@ -2,13 +2,13 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    deleteVideo,
-    downloadVideo,
-    getVideoById,
-    getVideos,
-    rateVideo,
-    searchVideos,
-    updateVideoDetails,
+  deleteVideo,
+  downloadVideo,
+  getVideoById,
+  getVideos,
+  rateVideo,
+  searchVideos,
+  updateVideoDetails,
 } from '../../controllers/videoController';
 import downloadManager from '../../services/downloadManager';
 import * as downloadService from '../../services/downloadService';
@@ -167,7 +167,8 @@ describe('VideoController', () => {
     it('should handle Bilibili single part download failure', async () => {
       req.body = { youtubeUrl: 'https://www.bilibili.com/video/BV1xx' };
       (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({ success: false, error: 'Failed' });
-      (downloadManager.addDownload as any).mockImplementation((fn: Function) => fn());
+      (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: false });
+      (downloadManager.addDownload as any).mockReturnValue(Promise.resolve());
 
       await downloadVideo(req as Request, res as Response);
 

@@ -16,7 +16,7 @@ describe('DownloadService', () => {
   describe('Bilibili', () => {
     it('should call BilibiliDownloader.downloadVideo', async () => {
       await downloadService.downloadBilibiliVideo('url', 'path', 'thumb');
-      expect(BilibiliDownloader.downloadVideo).toHaveBeenCalledWith('url', 'path', 'thumb');
+      expect(BilibiliDownloader.downloadVideo).toHaveBeenCalledWith('url', 'path', 'thumb', undefined);
     });
 
     it('should call BilibiliDownloader.checkVideoParts', async () => {
@@ -41,7 +41,7 @@ describe('DownloadService', () => {
 
     it('should call BilibiliDownloader.downloadSinglePart', async () => {
       await downloadService.downloadSingleBilibiliPart('url', 1, 2, 'title');
-      expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith('url', 1, 2, 'title');
+      expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith('url', 1, 2, 'title', undefined);
     });
 
     it('should call BilibiliDownloader.downloadCollection', async () => {
