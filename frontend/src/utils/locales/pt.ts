@@ -211,6 +211,8 @@ export const pt = {
     connectionError: "Erro de Conexão",
     backendConnectionFailed: "Não foi possível conectar ao servidor. Verifique se o backend está em execução e a porta está aberta, depois tente novamente.",
     retry: "Tentar Novamente",
+    linkCopied: "Link copiado para a área de transferência",
+    copyFailed: "Falha ao copiar link",
 
     // Collection Page
     loadingCollection: "Carregando coleção...",

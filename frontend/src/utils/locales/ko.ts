@@ -205,6 +205,8 @@ export const ko = {
     connectionError: "연결 오류",
     backendConnectionFailed: "서버에 연결할 수 없습니다. 백엔드가 실행 중이고 포트가 열려 있는지 확인한 후 다시 시도하세요.",
     retry: "다시 시도",
+    linkCopied: "링크가 클립보드에 복사되었습니다",
+    copyFailed: "링크 복사 실패",
 
     // Collection Page
     loadingCollection: "컬렉션 로드 중...",

@@ -204,6 +204,8 @@ export const ar = {
     connectionError: "خطأ في الاتصال",
     backendConnectionFailed: "لا يمكن الاتصال بالخادم. يرجى التحقق مما إذا كان الخادم يعمل والمنفذ مفتوح، ثم حاول مرة أخرى.",
     retry: "إعادة المحاولة",
+    linkCopied: "تم نسخ الرابط إلى الحافظة",
+    copyFailed: "فشل نسخ الرابط",
 
     // Collection Page
     loadingCollection: "جاري تحميل المجموعة...",

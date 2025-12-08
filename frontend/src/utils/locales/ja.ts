@@ -202,6 +202,8 @@ export const ja = {
     connectionError: "接続エラー",
     backendConnectionFailed: "サーバーに接続できません。バックエンドが実行中でポートが開いているか確認してから、もう一度お試しください。",
     retry: "再試行",
+    linkCopied: "リンクをクリップボードにコピーしました",
+    copyFailed: "リンクのコピーに失敗しました",
 
     // Collection Page
     loadingCollection: "コレクションを読み込み中...",

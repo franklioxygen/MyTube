@@ -214,6 +214,8 @@ export const zh = {
   backendConnectionFailed:
     "无法连接到服务器。请检查后端是否正在运行并确保端口已开放，然后重试。",
   retry: "重试",
+  linkCopied: "链接已复制到剪贴板",
+  copyFailed: "复制链接失败",
 
   // Collection Page
   loadingCollection: "加载合集中...",

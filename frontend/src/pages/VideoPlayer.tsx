@@ -22,7 +22,6 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
-
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -372,6 +371,21 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
+    // Get related videos using recommendation algorithm
+    const relatedVideos = useMemo(() => {
+        if (!video) return [];
+        return getRecommendations({
+            currentVideo: video,
+            allVideos: videos,
+            collections: collections
+        }).slice(0, 10);
+    }, [video, videos, collections]);
+
+    // Scroll to top when video ID changes
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [id]);
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -389,20 +403,7 @@ const VideoPlayer: React.FC = () => {
         );
     }
 
-    // Get related videos using recommendation algorithm
-    const relatedVideos = useMemo(() => {
-        if (!video) return [];
-        return getRecommendations({
-            currentVideo: video,
-            allVideos: videos,
-            collections: collections
-        }).slice(0, 10);
-    }, [video, videos, collections]);
 
-    // Scroll to top when video ID changes
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [id]);
 
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {

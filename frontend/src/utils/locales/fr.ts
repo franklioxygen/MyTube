@@ -214,6 +214,8 @@ export const fr = {
     connectionError: "Erreur de Connexion",
     backendConnectionFailed: "Impossible de se connecter au serveur. Veuillez vérifier que le backend est en cours d'exécution et que le port est ouvert, puis réessayez.",
     retry: "Réessayer",
+    linkCopied: "Lien copié dans le presse-papiers",
+    copyFailed: "Échec de la copie du lien",
 
     // Collection Page
     loadingCollection: "Chargement de la collection...",

@@ -123,7 +123,10 @@ export const es = {
     connectionError: "Error de Conexión",
     backendConnectionFailed: "No se puede conectar al servidor. Por favor, verifique si el backend está en ejecución y el puerto está abierto, luego intente nuevamente.",
     retry: "Reintentar",
-    loadingCollection: "Cargando colección...", collectionNotFound: "Colección no encontrada",
+    linkCopied: "Enlace copiado al portapapeles",
+    copyFailed: "Error al copiar enlace",
+
+    // Collection Page: "Cargando colección...", collectionNotFound: "Colección no encontrada",
     noVideosInCollection: "No hay videos en esta colección.", back: "Volver", loadVideosError: "Error al cargar los videos. Por favor, inténtelo más tarde.",
     unknownAuthor: "Desconocido", noVideosForAuthor: "No se encontraron videos para este autor.",
     deleteCollectionTitle: "Eliminar Colección", deleteCollectionConfirmation: "¿Está seguro de que desea eliminar la colección",

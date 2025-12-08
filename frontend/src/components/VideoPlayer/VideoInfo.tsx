@@ -31,6 +31,7 @@ import {
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { Collection, Video } from '../../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -66,7 +67,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
-
+    const { showSnackbar } = useSnackbar();
 
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
@@ -121,11 +122,37 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 console.error('Error sharing:', error);
             }
         } else {
-            try {
-                await navigator.clipboard.writeText(window.location.href);
-                // Optionally show a notification here
-            } catch (error) {
-                console.error('Error copying to clipboard:', error);
+            const url = window.location.href;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(url);
+                    showSnackbar(t('linkCopied'), 'success');
+                } catch (error) {
+                    console.error('Error copying to clipboard:', error);
+                    showSnackbar(t('copyFailed'), 'error');
+                }
+            } else {
+                // Fallback for secure context requirement or unsupported browsers
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                textArea.style.position = "fixed";  // Avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showSnackbar(t('linkCopied'), 'success');
+                    } else {
+                        showSnackbar(t('copyFailed'), 'error');
+                    }
+                } catch (err) {
+                    console.error('Fallback: Unable to copy', err);
+                    showSnackbar(t('copyFailed'), 'error');
+                }
+
+                document.body.removeChild(textArea);
             }
         }
     };

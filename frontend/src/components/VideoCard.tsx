@@ -295,7 +295,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 label={`${t('part')} ${video.partNumber}/${video.totalParts}`}
                                 size="small"
                                 color="primary"
-                                sx={{ position: 'absolute', bottom: 36, right: 8 }}
+                                sx={{ position: 'absolute', bottom: 36, right: 8, zIndex: 3 }}
                             />
                         )}
 
@@ -310,7 +310,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                     height: 20,
                                     fontSize: '0.75rem',
                                     bgcolor: 'rgba(0,0,0,0.8)',
-                                    color: 'white'
+                                    color: 'white',
+                                    zIndex: 3
                                 }}
                             />
                         )}
@@ -321,7 +322,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 label={firstInCollectionNames.length > 1 ? `${firstInCollectionNames[0]} +${firstInCollectionNames.length - 1}` : firstInCollectionNames[0]}
                                 color="secondary"
                                 size="small"
-                                sx={{ position: 'absolute', top: 8, left: 8 }}
+                                sx={{ position: 'absolute', top: 8, left: 8, zIndex: 3 }}
                             />
                         )}
 

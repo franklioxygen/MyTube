@@ -204,6 +204,8 @@ export const en = {
     connectionError: "Connection Error",
     backendConnectionFailed: "Unable to connect to the server. Please check if the backend is running and port is open, then try again.",
     retry: "Retry",
+    linkCopied: "Link copied to clipboard",
+    copyFailed: "Failed to copy link",
 
     // Collection Page
     loadingCollection: "Loading collection...",

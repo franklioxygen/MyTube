@@ -206,6 +206,8 @@ export const ru = {
     connectionError: "Ошибка соединения",
     backendConnectionFailed: "Не удалось подключиться к серверу. Убедитесь, что сервер запущен и порт открыт, затем повторите попытку.",
     retry: "Повторить",
+    linkCopied: "Ссылка скопирована в буфер обмена",
+    copyFailed: "Не удалось скопировать ссылку",
 
     // Collection Page
     loadingCollection: "Загрузка коллекции...",

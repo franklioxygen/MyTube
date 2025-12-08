@@ -114,6 +114,8 @@ export const de = {
     connectionError: "Verbindungsfehler",
     backendConnectionFailed: "Verbindung zum Server nicht möglich. Bitte überprüfen Sie, ob das Backend läuft und der Port geöffnet ist, und versuchen Sie es erneut.",
     retry: "Wiederholen",
+    linkCopied: "Link in die Zwischenablage kopiert",
+    copyFailed: "Link konnte nicht kopiert werden",
     loadingCollection: "Sammlung wird geladen...", collectionNotFound: "Sammlung nicht gefunden",
     noVideosInCollection: "Keine Videos in dieser Sammlung.", back: "Zurück", loadVideosError: "Fehler beim Laden der Videos. Bitte versuchen Sie es später erneut.",
     unknownAuthor: "Unbekannt", noVideosForAuthor: "Keine Videos für diesen Autor gefunden.",
