@@ -16,6 +16,7 @@
 - `GET /api/download-status` - Get status of active downloads
 - `GET /api/check-bilibili-parts` - Check if a Bilibili video has multiple parts
 - `GET /api/check-bilibili-collection` - Check if a Bilibili URL is a collection/series
+- `GET /api/check-video-download` - Check if a video has already been downloaded (by URL)
 
 ## Download Management
 - `POST /api/downloads/cancel/:id` - Cancel a download
@@ -44,3 +45,7 @@
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data
 - `POST /api/scan-files` - Scan for existing files
 - `POST /api/cleanup-temp-files` - Cleanup temporary download files
+- `GET /api/settings/password-enabled` - Check if password protection is enabled
+- `POST /api/settings/upload-cookies` - Upload cookies.txt for yt-dlp
+- `POST /api/settings/delete-cookies` - Delete cookies.txt
+- `GET /api/settings/check-cookies` - Check if cookies.txt exists

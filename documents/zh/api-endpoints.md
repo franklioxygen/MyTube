@@ -16,6 +16,7 @@
 - `GET /api/download-status` - 获取当前下载状态
 - `GET /api/check-bilibili-parts` - 检查 Bilibili 视频是否包含多个分P
 - `GET /api/check-bilibili-collection` - 检查 Bilibili URL 是否为合集/系列
+- `GET /api/check-video-download` - 检查视频是否已下载 (通过 URL)
 
 ## 下载管理
 - `POST /api/downloads/cancel/:id` - 取消下载
@@ -44,3 +45,7 @@
 - `POST /api/settings/delete-legacy` - 删除旧的 JSON 数据
 - `POST /api/scan-files` - 扫描现有文件
 - `POST /api/cleanup-temp-files` - 清理临时下载文件
+- `GET /api/settings/password-enabled` - 检查是否启用了密码保护
+- `POST /api/settings/upload-cookies` - 上传 cookies.txt 以供 yt-dlp 使用
+- `POST /api/settings/delete-cookies` - 删除 cookies.txt
+- `GET /api/settings/check-cookies` - 检查 cookies.txt 是否存在

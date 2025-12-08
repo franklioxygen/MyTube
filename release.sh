@@ -51,6 +51,7 @@ echo "📦 Committing and tagging..."
 git add package.json frontend/package.json backend/package.json
 git commit -m "chore(release): v$NEW_VERSION"
 git tag "v$NEW_VERSION"
+git push origin master
 
 echo "✅ Version bumped and tagged: v$NEW_VERSION"
 

@@ -1,23 +1,23 @@
-import { desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  DATA_DIR,
-  IMAGES_DIR,
-  STATUS_DATA_PATH,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    DATA_DIR,
+    IMAGES_DIR,
+    STATUS_DATA_PATH,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import {
-  collections,
-  collectionVideos,
-  downloadHistory,
-  downloads,
-  settings,
-  videoDownloads,
-  videos,
+    collections,
+    collectionVideos,
+    downloadHistory,
+    downloads,
+    settings,
+    videoDownloads,
+    videos,
 } from "../db/schema";
 
 export interface Video {
@@ -459,9 +459,16 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
 
 export function getDownloadStatus(): DownloadStatus {
   try {
-    // Clean up stale downloads (older than 30 mins)
-    const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
-    db.delete(downloads).where(lt(downloads.timestamp, thirtyMinsAgo)).run();
+    // Clean up stale ACTIVE downloads (older than 24 hours) - preserve queued downloads
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    db.delete(downloads)
+      .where(
+        and(
+          lt(downloads.timestamp, oneDayAgo), 
+          eq(downloads.status, "active")
+        )
+      )
+      .run();
 
     const allDownloads = db.select().from(downloads).all();
 
@@ -831,10 +838,9 @@ export function updateVideo(id: string, updates: Partial<Video>): Video | null {
   try {
     const updatesToSave = {
       ...updates,
-      tags: updates.tags ? JSON.stringify(updates.tags) : undefined,
-      subtitles: updates.subtitles
-        ? JSON.stringify(updates.subtitles)
-        : undefined,
+      // Only include tags/subtitles if they are explicitly in the updates object
+      ...(updates.tags !== undefined ? { tags: updates.tags ? JSON.stringify(updates.tags) : undefined } : {}),
+      ...(updates.subtitles !== undefined ? { subtitles: updates.subtitles ? JSON.stringify(updates.subtitles) : undefined } : {}),
     };
     // If tags is explicitly empty array, we might want to save it as '[]' or null.
     // JSON.stringify([]) is '[]', which is fine.

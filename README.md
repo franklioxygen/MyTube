@@ -38,6 +38,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **Mobile Optimizations**: Mobile-friendly tags menu and optimized layout for smaller screens.
 - **Temp Files Cleanup**: Manage storage by cleaning up temporary download files directly from settings.
 - **View Modes**: Toggle between Collection View and Video View on the home page.
+- **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 
 ## Directory Structure
 
