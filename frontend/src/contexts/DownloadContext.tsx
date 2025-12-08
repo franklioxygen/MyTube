@@ -21,6 +21,7 @@ interface BilibiliPartsInfo {
     collectionInfo: any;
 }
 
+
 interface DownloadContextType {
     activeDownloads: DownloadInfo[];
     queuedDownloads: DownloadInfo[];
@@ -110,6 +111,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     const [isCheckingParts, setIsCheckingParts] = useState<boolean>(false);
 
+
     // Reference to track current download IDs for detecting completion
     const currentDownloadIdsRef = useRef<Set<string>>(new Set());
 
@@ -152,7 +154,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
     };
 
-    const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false, skipPartsCheck = false): Promise<any> => {
+    const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false, skipPartsCheck = false, forceDownload = false): Promise<any> => {
         try {
             // Check for YouTube channel URL
             // Regex for: @username, channel/ID, user/username, c/customURL
@@ -223,7 +225,22 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Normal download flow
-            const response = await axios.post(`${API_URL}/download`, { youtubeUrl: videoUrl });
+            const response = await axios.post(`${API_URL}/download`, { 
+                youtubeUrl: videoUrl,
+                forceDownload: forceDownload 
+            });
+
+            // Check if video was skipped (already exists or previously deleted)
+            if (response.data.skipped) {
+                if (response.data.previouslyDeleted) {
+                    showSnackbar(t('videoSkippedDeleted') || 'Video was previously deleted, skipped download');
+                } else {
+                    showSnackbar(t('videoSkippedExists') || 'Video already exists, skipped download');
+                }
+                // Invalidate download history to show the skipped/deleted entry
+                queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });
+                return { success: true, skipped: true };
+            }
 
             // If the response contains a downloadId, it means it was queued/started
             if (response.data.downloadId) {
@@ -251,6 +268,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             };
         }
     };
+
 
     const handleDownloadAllBilibiliParts = async (collectionName: string) => {
         try {

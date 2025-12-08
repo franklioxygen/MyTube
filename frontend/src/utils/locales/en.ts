@@ -369,4 +369,18 @@ export const en = {
     disclaimerTitle: "Disclaimer",
     disclaimerText: "1. Purpose and Restrictions\nThis software (including code and documentation) is intended solely for personal learning, research, and technical exchange. It is strictly prohibited to use this software for any commercial purposes or for any illegal activities that violate local laws and regulations.\n\n2. Liability\nThe developer is unaware of and has no control over how users utilize this software. Any legal liabilities, disputes, or damages arising from the illegal or improper use of this software (including but not limited to copyright infringement) shall be borne solely by the user. The developer assumes no direct, indirect, or joint liability.\n\n3. Modifications and Distribution\nThis project is open-source. Any individual or organization modifying or forking this code must comply with the open-source license. Important: If a third party modifies the code to bypass or remove the original user authentication/security mechanisms and distributes such versions, the modifier/distributor bears full responsibility for any consequences. We strongly discourage bypassing or tampering with any security verification mechanisms.\n\n4. Non-Profit Statement\nThis is a completely free open-source project. The developer does not accept donations and has never published any donation pages. The software itself allows no charges and offers no paid services. Please be vigilant and beware of any scams or misleading information claiming to collect fees on behalf of this project.",
     history: 'History',
+
+    // Existing Video Detection
+    existingVideoDetected: "Existing Video Detected",
+    videoAlreadyDownloaded: "This video has already been downloaded.",
+    viewVideo: "View Video",
+    previouslyDeletedVideo: "Previously Deleted Video",
+    videoWasDeleted: "This video was previously downloaded but has been deleted.",
+    downloadAgain: "Download Again",
+    downloadedOn: "Downloaded on",
+    deletedOn: "Deleted on",
+    existingVideo: "Existing Video",
+    skipped: "Skipped",
+    videoSkippedExists: "Video already exists, skipped download",
+    videoSkippedDeleted: "Video was previously deleted, skipped download",
 };

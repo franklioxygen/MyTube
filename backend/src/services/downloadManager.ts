@@ -1,6 +1,7 @@
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
 import * as storageService from "./storageService";
+import { extractSourceVideoId } from "../utils/helpers";
 
 interface DownloadTask {
   downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>;
@@ -282,6 +283,35 @@ class DownloadManager {
           sourceUrl: videoData.sourceUrl || task.sourceUrl,
           author: videoData.author,
         });
+
+        // Record video download for future duplicate detection
+        const sourceUrl = videoData.sourceUrl || task.sourceUrl;
+        if (sourceUrl && videoData.id) {
+          const { id: sourceVideoId, platform } = extractSourceVideoId(sourceUrl);
+          if (sourceVideoId) {
+            // Check if this is a re-download of previously deleted video
+            const existingRecord = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+            if (existingRecord.found && existingRecord.status === "deleted") {
+              // Update existing record
+              storageService.updateVideoDownloadRecord(
+                sourceVideoId,
+                videoData.id,
+                finalTitle || task.title,
+                videoData.author
+              );
+            } else if (!existingRecord.found) {
+              // New download, create record
+              storageService.recordVideoDownload(
+                sourceVideoId,
+                sourceUrl,
+                platform,
+                videoData.id,
+                finalTitle || task.title,
+                videoData.author
+              );
+            }
+          }
+        }
       }
 
       // Trigger Cloud Upload (Async, don't await to block queue processing?)

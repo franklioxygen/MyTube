@@ -25,6 +25,7 @@ router.post("/scan-files", scanController.scanFiles);
 router.post("/cleanup-temp-files", cleanupController.cleanupTempFiles);
 
 router.get("/download-status", videoController.getDownloadStatus);
+router.get("/check-video-download", videoController.checkVideoDownloadStatus);
 router.get("/check-bilibili-parts", videoController.checkBilibiliParts);
 router.get("/check-bilibili-collection", videoController.checkBilibiliCollection);
 

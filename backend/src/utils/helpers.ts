@@ -101,6 +101,64 @@ export function extractBilibiliVideoId(url: string): string | null {
   return null;
 }
 
+// Helper function to extract video ID from YouTube URL
+export function extractYouTubeVideoId(url: string): string | null {
+  // Standard YouTube URL: youtube.com/watch?v=VIDEO_ID
+  const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (watchMatch && watchMatch[1]) {
+    return watchMatch[1];
+  }
+
+  // Short YouTube URL: youtu.be/VIDEO_ID
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch && shortMatch[1]) {
+    return shortMatch[1];
+  }
+
+  // Embed URL: youtube.com/embed/VIDEO_ID
+  const embedMatch = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (embedMatch && embedMatch[1]) {
+    return embedMatch[1];
+  }
+
+  // Shorts URL: youtube.com/shorts/VIDEO_ID
+  const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (shortsMatch && shortsMatch[1]) {
+    return shortsMatch[1];
+  }
+
+  return null;
+}
+
+// Helper function to extract video ID from MissAV/123AV URL
+export function extractMissAVVideoId(url: string): string | null {
+  // Extract video ID from MissAV URL pattern like /v/VIDEO_ID or /dm*/VIDEO_ID
+  const vidMatch = url.match(/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)/);
+  if (vidMatch && vidMatch[1]) {
+    return vidMatch[1];
+  }
+
+  return null;
+}
+
+// Helper function to extract source video ID from any supported URL
+export function extractSourceVideoId(url: string): { id: string | null; platform: string } {
+  if (isBilibiliUrl(url)) {
+    return { id: extractBilibiliVideoId(url), platform: "bilibili" };
+  }
+  
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return { id: extractYouTubeVideoId(url), platform: "youtube" };
+  }
+  
+  if (url.includes("missav") || url.includes("123av")) {
+    return { id: extractMissAVVideoId(url), platform: "missav" };
+  }
+
+  // For other URLs, use the full URL as ID (normalized)
+  return { id: url, platform: "other" };
+}
+
 // Helper function to create a safe filename that preserves non-Latin characters
 export function sanitizeFilename(filename: string): string {
   // Remove hashtags (e.g. #tag)

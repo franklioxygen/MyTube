@@ -16,6 +16,7 @@ import {
   downloadHistory,
   downloads,
   settings,
+  videoDownloads,
   videos,
 } from "../db/schema";
 
@@ -62,11 +63,37 @@ export interface DownloadHistoryItem {
   author?: string;
   sourceUrl?: string;
   finishedAt: number;
-  status: "success" | "failed";
+  status: "success" | "failed" | "skipped" | "deleted";
   error?: string;
   videoPath?: string;
   thumbnailPath?: string;
   totalSize?: string;
+  videoId?: string; // Reference to the video for skipped items
+  downloadedAt?: number; // Original download timestamp for deleted items
+  deletedAt?: number; // Deletion timestamp for deleted items
+}
+
+export interface VideoDownloadRecord {
+  id: string;
+  sourceVideoId: string;
+  sourceUrl: string;
+  platform: string;
+  videoId?: string;
+  title?: string;
+  author?: string;
+  status: "exists" | "deleted";
+  downloadedAt: number;
+  deletedAt?: number;
+}
+
+export interface VideoDownloadCheckResult {
+  found: boolean;
+  status?: "exists" | "deleted";
+  videoId?: string;
+  title?: string;
+  author?: string;
+  downloadedAt?: number;
+  deletedAt?: number;
 }
 
 export interface DownloadStatus {
@@ -209,6 +236,86 @@ export function initializeStorage(): void {
       );
       sqlite.prepare("ALTER TABLE downloads ADD COLUMN type TEXT").run();
       console.log("Migration successful: type added.");
+    }
+
+    // Create video_downloads table if it doesn't exist
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS video_downloads (
+        id TEXT PRIMARY KEY NOT NULL,
+        source_video_id TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        video_id TEXT,
+        title TEXT,
+        author TEXT,
+        status TEXT DEFAULT 'exists' NOT NULL,
+        downloaded_at INTEGER NOT NULL,
+        deleted_at INTEGER
+      )
+    `
+      )
+      .run();
+
+    // Create indexes for video_downloads
+    try {
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS video_downloads_source_video_id_idx ON video_downloads (source_video_id)`
+        )
+        .run();
+      sqlite
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS video_downloads_source_url_idx ON video_downloads (source_url)`
+        )
+        .run();
+    } catch (indexError) {
+      // Indexes might already exist, ignore error
+    }
+
+    // Check download_history table for video_id, downloaded_at, deleted_at columns
+    const downloadHistoryTableInfo = sqlite
+      .prepare("PRAGMA table_info(download_history)")
+      .all();
+    const downloadHistoryColumns = (downloadHistoryTableInfo as any[]).map(
+      (col: any) => col.name
+    );
+
+    if (!downloadHistoryColumns.includes("video_id")) {
+      console.log(
+        "Migrating database: Adding video_id column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN video_id TEXT")
+        .run();
+      console.log("Migration successful: video_id added to download_history.");
+    }
+
+    if (!downloadHistoryColumns.includes("downloaded_at")) {
+      console.log(
+        "Migrating database: Adding downloaded_at column to download_history table..."
+      );
+      sqlite
+        .prepare(
+          "ALTER TABLE download_history ADD COLUMN downloaded_at INTEGER"
+        )
+        .run();
+      console.log(
+        "Migration successful: downloaded_at added to download_history."
+      );
+    }
+
+    if (!downloadHistoryColumns.includes("deleted_at")) {
+      console.log(
+        "Migrating database: Adding deleted_at column to download_history table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE download_history ADD COLUMN deleted_at INTEGER")
+        .run();
+      console.log(
+        "Migration successful: deleted_at added to download_history."
+      );
     }
 
     // Populate fileSize for existing videos
@@ -409,6 +516,9 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
         videoPath: item.videoPath,
         thumbnailPath: item.thumbnailPath,
         totalSize: item.totalSize,
+        videoId: item.videoId,
+        downloadedAt: item.downloadedAt,
+        deletedAt: item.deletedAt,
       })
       .run();
   } catch (error) {
@@ -425,13 +535,16 @@ export function getDownloadHistory(): DownloadHistoryItem[] {
       .all();
     return history.map((h) => ({
       ...h,
-      status: h.status as "success" | "failed",
+      status: h.status as "success" | "failed" | "skipped" | "deleted",
       author: h.author || undefined,
       sourceUrl: h.sourceUrl || undefined,
       error: h.error || undefined,
       videoPath: h.videoPath || undefined,
       thumbnailPath: h.thumbnailPath || undefined,
       totalSize: h.totalSize || undefined,
+      videoId: h.videoId || undefined,
+      downloadedAt: h.downloadedAt || undefined,
+      deletedAt: h.deletedAt || undefined,
     }));
   } catch (error) {
     console.error("Error getting download history:", error);
@@ -452,6 +565,161 @@ export function clearDownloadHistory(): void {
     db.delete(downloadHistory).run();
   } catch (error) {
     console.error("Error clearing download history:", error);
+  }
+}
+
+// --- Video Download Tracking ---
+
+/**
+ * Check if a video has been downloaded before by its source video ID
+ */
+export function checkVideoDownloadBySourceId(
+  sourceVideoId: string
+): VideoDownloadCheckResult {
+  try {
+    const record = db
+      .select()
+      .from(videoDownloads)
+      .where(eq(videoDownloads.sourceVideoId, sourceVideoId))
+      .get();
+
+    if (record) {
+      return {
+        found: true,
+        status: record.status as "exists" | "deleted",
+        videoId: record.videoId || undefined,
+        title: record.title || undefined,
+        author: record.author || undefined,
+        downloadedAt: record.downloadedAt,
+        deletedAt: record.deletedAt || undefined,
+      };
+    }
+
+    return { found: false };
+  } catch (error) {
+    console.error("Error checking video download by source ID:", error);
+    return { found: false };
+  }
+}
+
+/**
+ * Check if a video has been downloaded before by its source URL
+ */
+export function checkVideoDownloadByUrl(
+  sourceUrl: string
+): VideoDownloadCheckResult {
+  try {
+    const record = db
+      .select()
+      .from(videoDownloads)
+      .where(eq(videoDownloads.sourceUrl, sourceUrl))
+      .get();
+
+    if (record) {
+      return {
+        found: true,
+        status: record.status as "exists" | "deleted",
+        videoId: record.videoId || undefined,
+        title: record.title || undefined,
+        author: record.author || undefined,
+        downloadedAt: record.downloadedAt,
+        deletedAt: record.deletedAt || undefined,
+      };
+    }
+
+    return { found: false };
+  } catch (error) {
+    console.error("Error checking video download by URL:", error);
+    return { found: false };
+  }
+}
+
+/**
+ * Record a new video download
+ */
+export function recordVideoDownload(
+  sourceVideoId: string,
+  sourceUrl: string,
+  platform: string,
+  videoId: string,
+  title?: string,
+  author?: string
+): void {
+  try {
+    const id = `${platform}-${sourceVideoId}-${Date.now()}`;
+    db.insert(videoDownloads)
+      .values({
+        id,
+        sourceVideoId,
+        sourceUrl,
+        platform,
+        videoId,
+        title,
+        author,
+        status: "exists",
+        downloadedAt: Date.now(),
+      })
+      .onConflictDoUpdate({
+        target: videoDownloads.id,
+        set: {
+          videoId,
+          title,
+          author,
+          status: "exists",
+          deletedAt: null,
+        },
+      })
+      .run();
+    console.log(
+      `Recorded video download: ${title || sourceVideoId} (${platform})`
+    );
+  } catch (error) {
+    console.error("Error recording video download:", error);
+  }
+}
+
+/**
+ * Mark a video as deleted in the download history
+ */
+export function markVideoDownloadDeleted(videoId: string): void {
+  try {
+    db.update(videoDownloads)
+      .set({
+        status: "deleted",
+        deletedAt: Date.now(),
+        videoId: null,
+      })
+      .where(eq(videoDownloads.videoId, videoId))
+      .run();
+    console.log(`Marked video download as deleted: ${videoId}`);
+  } catch (error) {
+    console.error("Error marking video download as deleted:", error);
+  }
+}
+
+/**
+ * Update video download record when re-downloading a previously deleted video
+ */
+export function updateVideoDownloadRecord(
+  sourceVideoId: string,
+  newVideoId: string,
+  title?: string,
+  author?: string
+): void {
+  try {
+    db.update(videoDownloads)
+      .set({
+        videoId: newVideoId,
+        title,
+        author,
+        status: "exists",
+        deletedAt: null,
+      })
+      .where(eq(videoDownloads.sourceVideoId, sourceVideoId))
+      .run();
+    console.log(`Updated video download record: ${title || sourceVideoId}`);
+  } catch (error) {
+    console.error("Error updating video download record:", error);
   }
 }
 
@@ -623,6 +891,9 @@ export function deleteVideo(id: string): boolean {
         }
       }
     }
+
+    // Mark video as deleted in download history
+    markVideoDownloadDeleted(id);
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();

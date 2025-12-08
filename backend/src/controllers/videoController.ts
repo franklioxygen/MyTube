@@ -10,6 +10,7 @@ import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  extractSourceVideoId,
   extractUrlFromText,
   isBilibiliUrl,
   isValidUrl,
@@ -54,6 +55,83 @@ export const searchVideos = async (
   }
 };
 
+// Check video download status
+export const checkVideoDownloadStatus = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
+  try {
+    const { url } = req.query;
+
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "URL is required" });
+    }
+
+    let videoUrl = extractUrlFromText(url);
+
+    // Resolve shortened URLs
+    if (videoUrl.includes("b23.tv")) {
+      videoUrl = await resolveShortUrl(videoUrl);
+    }
+
+    // Extract source video ID
+    const { id: sourceVideoId, platform } = extractSourceVideoId(videoUrl);
+
+    if (!sourceVideoId) {
+      return res.status(200).json({ found: false });
+    }
+
+    // Check if video was previously downloaded
+    const downloadCheck = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+
+    if (downloadCheck.found) {
+      // If status is "exists", verify the video still exists in the database
+      if (downloadCheck.status === "exists" && downloadCheck.videoId) {
+        const existingVideo = storageService.getVideoById(downloadCheck.videoId);
+        if (!existingVideo) {
+          // Video was deleted but not marked in download history, update it
+          storageService.markVideoDownloadDeleted(downloadCheck.videoId);
+          return res.status(200).json({
+            found: true,
+            status: "deleted",
+            title: downloadCheck.title,
+            author: downloadCheck.author,
+            downloadedAt: downloadCheck.downloadedAt,
+          });
+        }
+
+        return res.status(200).json({
+          found: true,
+          status: "exists",
+          videoId: downloadCheck.videoId,
+          title: downloadCheck.title || existingVideo.title,
+          author: downloadCheck.author || existingVideo.author,
+          downloadedAt: downloadCheck.downloadedAt,
+          videoPath: existingVideo.videoPath,
+          thumbnailPath: existingVideo.thumbnailPath,
+        });
+      }
+
+      return res.status(200).json({
+        found: true,
+        status: downloadCheck.status,
+        title: downloadCheck.title,
+        author: downloadCheck.author,
+        downloadedAt: downloadCheck.downloadedAt,
+        deletedAt: downloadCheck.deletedAt,
+      });
+    }
+
+    return res.status(200).json({ found: false });
+  } catch (error: any) {
+    console.error("Error checking video download status:", error);
+    res.status(500).json({
+      error: "Failed to check video download status",
+      details: error.message,
+    });
+  }
+};
+
 // Download video
 export const downloadVideo = async (
   req: Request,
@@ -66,6 +144,7 @@ export const downloadVideo = async (
       collectionName,
       downloadCollection,
       collectionInfo,
+      forceDownload, // Allow re-download of deleted videos
     } = req.body;
     let videoUrl = youtubeUrl;
 
@@ -87,6 +166,79 @@ export const downloadVideo = async (
         isSearchTerm: true,
         searchTerm: videoUrl,
       });
+    }
+
+    // Resolve shortened URLs first to get the real URL for checking
+    let resolvedUrl = videoUrl;
+    if (videoUrl.includes("b23.tv")) {
+      resolvedUrl = await resolveShortUrl(videoUrl);
+      console.log("Resolved shortened URL to:", resolvedUrl);
+    }
+
+    // Extract source video ID for checking download history
+    const { id: sourceVideoId, platform } = extractSourceVideoId(resolvedUrl);
+
+    // Check if video was previously downloaded (skip for collections/multi-part)
+    if (sourceVideoId && !downloadAllParts && !downloadCollection) {
+      const downloadCheck = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+
+      if (downloadCheck.found) {
+        if (downloadCheck.status === "exists" && downloadCheck.videoId) {
+          // Verify the video still exists
+          const existingVideo = storageService.getVideoById(downloadCheck.videoId);
+          if (existingVideo) {
+            // Video exists, add to download history as "skipped" and return success
+            storageService.addDownloadHistoryItem({
+              id: Date.now().toString(),
+              title: downloadCheck.title || existingVideo.title,
+              author: downloadCheck.author || existingVideo.author,
+              sourceUrl: resolvedUrl,
+              finishedAt: Date.now(),
+              status: "skipped",
+              videoPath: existingVideo.videoPath,
+              thumbnailPath: existingVideo.thumbnailPath,
+              videoId: existingVideo.id,
+            });
+
+            return res.status(200).json({
+              success: true,
+              skipped: true,
+              videoId: downloadCheck.videoId,
+              title: downloadCheck.title || existingVideo.title,
+              author: downloadCheck.author || existingVideo.author,
+              videoPath: existingVideo.videoPath,
+              message: "Video already exists, skipped download",
+            });
+          }
+          // Video was deleted but not marked, update the record
+          storageService.markVideoDownloadDeleted(downloadCheck.videoId);
+        }
+
+        if (downloadCheck.status === "deleted" && !forceDownload) {
+          // Video was previously downloaded but deleted - add to history and skip
+          storageService.addDownloadHistoryItem({
+            id: Date.now().toString(),
+            title: downloadCheck.title || "Unknown Title",
+            author: downloadCheck.author,
+            sourceUrl: resolvedUrl,
+            finishedAt: Date.now(),
+            status: "deleted",
+            downloadedAt: downloadCheck.downloadedAt,
+            deletedAt: downloadCheck.deletedAt,
+          });
+
+          return res.status(200).json({
+            success: true,
+            skipped: true,
+            previouslyDeleted: true,
+            title: downloadCheck.title,
+            author: downloadCheck.author,
+            downloadedAt: downloadCheck.downloadedAt,
+            deletedAt: downloadCheck.deletedAt,
+            message: "Video was previously downloaded but deleted, skipped download",
+          });
+        }
+      }
     }
 
     // Determine initial title for the download task

@@ -100,11 +100,14 @@ export const downloadHistory = sqliteTable('download_history', {
   author: text('author'),
   sourceUrl: text('source_url'),
   finishedAt: integer('finished_at').notNull(), // Timestamp
-  status: text('status').notNull(), // 'success' or 'failed'
+  status: text('status').notNull(), // 'success', 'failed', 'skipped', or 'deleted'
   error: text('error'), // Error message if failed
   videoPath: text('video_path'), // Path to video file if successful
   thumbnailPath: text('thumbnail_path'), // Path to thumbnail if successful
   totalSize: text('total_size'),
+  videoId: text('video_id'), // Reference to video for skipped items
+  downloadedAt: integer('downloaded_at'), // Original download timestamp for deleted items
+  deletedAt: integer('deleted_at'), // Deletion timestamp for deleted items
 });
 
 export const subscriptions = sqliteTable('subscriptions', {
@@ -117,4 +120,18 @@ export const subscriptions = sqliteTable('subscriptions', {
   downloadCount: integer('download_count').default(0),
   createdAt: integer('created_at').notNull(),
   platform: text('platform').default('YouTube'),
+});
+
+// Track downloaded video IDs to prevent re-downloading
+export const videoDownloads = sqliteTable('video_downloads', {
+  id: text('id').primaryKey(), // Unique identifier
+  sourceVideoId: text('source_video_id').notNull(), // Video ID from source (YouTube ID, Bilibili BV ID, etc.)
+  sourceUrl: text('source_url').notNull(), // Original source URL
+  platform: text('platform').notNull(), // YouTube, Bilibili, MissAV, etc.
+  videoId: text('video_id'), // Reference to local video ID (null if deleted)
+  title: text('title'), // Video title for display
+  author: text('author'), // Video author
+  status: text('status').notNull().default('exists'), // 'exists' or 'deleted'
+  downloadedAt: integer('downloaded_at').notNull(), // Timestamp of first download
+  deletedAt: integer('deleted_at'), // Timestamp when video was deleted (nullable)
 });

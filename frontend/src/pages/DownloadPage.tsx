@@ -5,8 +5,11 @@ import {
     CloudUpload,
     Delete as DeleteIcon,
     Error as ErrorIcon,
+    PlayArrow as PlayArrowIcon,
     PlaylistAdd as PlaylistAddIcon,
-    Replay as ReplayIcon
+    Replay as ReplayIcon,
+    SkipNext as SkipNextIcon,
+    Warning as WarningIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -41,11 +44,14 @@ interface DownloadHistoryItem {
     author?: string;
     sourceUrl?: string;
     finishedAt: number;
-    status: 'success' | 'failed';
+    status: 'success' | 'failed' | 'skipped' | 'deleted';
     error?: string;
     videoPath?: string;
     thumbnailPath?: string;
     totalSize?: string;
+    videoId?: string;
+    downloadedAt?: number;
+    deletedAt?: number;
 }
 
 interface TabPanelProps {
@@ -220,6 +226,27 @@ const DownloadPage: React.FC = () => {
 
     const handleRemoveFromHistory = (id: string) => {
         removeFromHistoryMutation.mutate(id);
+    };
+
+    // Re-download deleted video
+    const handleReDownload = async (sourceUrl: string) => {
+        if (!sourceUrl) return;
+        
+        try {
+            // Call download with forceDownload flag
+            const response = await axios.post(`${API_URL}/download`, {
+                youtubeUrl: sourceUrl,
+                forceDownload: true
+            });
+
+            if (response.data.downloadId) {
+                showSnackbar(t('videoDownloading') || 'Video downloading');
+                queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+            }
+        } catch (error: any) {
+            console.error('Error re-downloading video:', error);
+            showSnackbar(t('error') || 'Error');
+        }
     };
 
     // Clear history mutation
@@ -432,9 +459,24 @@ const DownloadPage: React.FC = () => {
                                                                 {item.sourceUrl}
                                                             </Typography>
                                                         )}
-                                                        <Typography variant="caption" component="span">
-                                                            {formatDate(item.finishedAt)}
-                                                        </Typography>
+                                                        {item.status === 'deleted' ? (
+                                                            <>
+                                                                {item.downloadedAt && (
+                                                                    <Typography variant="caption" component="span">
+                                                                        {t('downloadedOn') || 'Downloaded on'}: {formatDate(item.downloadedAt)}
+                                                                    </Typography>
+                                                                )}
+                                                                {item.deletedAt && (
+                                                                    <Typography variant="caption" component="span">
+                                                                        {t('deletedOn') || 'Deleted on'}: {formatDate(item.deletedAt)}
+                                                                    </Typography>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <Typography variant="caption" component="span">
+                                                                {formatDate(item.finishedAt)}
+                                                            </Typography>
+                                                        )}
                                                         {item.error && (
                                                             <Typography variant="caption" color="error" component="span">
                                                                 {item.error}
@@ -456,8 +498,36 @@ const DownloadPage: React.FC = () => {
                                                         {t('retry') || 'Retry'}
                                                     </Button>
                                                 )}
+                                                {item.status === 'skipped' && item.videoId && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        size="small"
+                                                        startIcon={<PlayArrowIcon />}
+                                                        onClick={() => window.location.href = `/video/${item.videoId}`}
+                                                        sx={{ minWidth: '100px' }}
+                                                    >
+                                                        {t('viewVideo') || 'View Video'}
+                                                    </Button>
+                                                )}
+                                                {item.status === 'deleted' && item.sourceUrl && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        size="small"
+                                                        startIcon={<ReplayIcon />}
+                                                        onClick={() => handleReDownload(item.sourceUrl!)}
+                                                        sx={{ minWidth: '120px' }}
+                                                    >
+                                                        {t('downloadAgain') || 'Download Again'}
+                                                    </Button>
+                                                )}
                                                 {item.status === 'success' ? (
                                                     <Chip icon={<CheckCircleIcon />} label={t('success') || 'Success'} color="success" size="small" />
+                                                ) : item.status === 'skipped' ? (
+                                                    <Chip icon={<SkipNextIcon />} label={t('skipped') || 'Skipped'} color="info" size="small" />
+                                                ) : item.status === 'deleted' ? (
+                                                    <Chip icon={<WarningIcon />} label={t('previouslyDeleted') || 'Previously Deleted'} color="warning" size="small" />
                                                 ) : (
                                                     <Chip icon={<ErrorIcon />} label={t('failed') || 'Failed'} color="error" size="small" />
                                                 )}
