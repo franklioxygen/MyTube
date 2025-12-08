@@ -251,8 +251,8 @@ export const downloadVideo = async (
             );
           }
         }
-      } else if (videoUrl.includes("missav")) {
-        // MissAV download
+      } else if (videoUrl.includes("missav") || videoUrl.includes("123av")) {
+        // MissAV/123av download
         const videoData = await downloadService.downloadMissAVVideo(
           videoUrl,
           downloadId,
@@ -272,7 +272,7 @@ export const downloadVideo = async (
 
     // Determine type
     let type = "youtube";
-    if (videoUrl.includes("missav")) {
+    if (videoUrl.includes("missav") || videoUrl.includes("123av")) {
       type = "missav";
     } else if (isBilibiliUrl(videoUrl)) {
       type = "bilibili";

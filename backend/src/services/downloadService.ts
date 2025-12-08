@@ -1,12 +1,12 @@
 import { extractBilibiliVideoId, isBilibiliUrl } from "../utils/helpers";
 import {
-    BilibiliCollectionCheckResult,
-    BilibiliDownloader,
-    BilibiliPartsCheckResult,
-    BilibiliVideoInfo,
-    BilibiliVideosResult,
-    CollectionDownloadResult,
-    DownloadResult
+  BilibiliCollectionCheckResult,
+  BilibiliDownloader,
+  BilibiliPartsCheckResult,
+  BilibiliVideoInfo,
+  BilibiliVideosResult,
+  CollectionDownloadResult,
+  DownloadResult
 } from "./downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "./downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
@@ -14,7 +14,7 @@ import { Video } from "./storageService";
 
 // Re-export types for compatibility
 export type {
-    BilibiliCollectionCheckResult, BilibiliPartsCheckResult, BilibiliVideoInfo, BilibiliVideosResult, CollectionDownloadResult, DownloadResult
+  BilibiliCollectionCheckResult, BilibiliPartsCheckResult, BilibiliVideoInfo, BilibiliVideosResult, CollectionDownloadResult, DownloadResult
 };
 
 // Helper function to download Bilibili video
@@ -99,7 +99,7 @@ export async function getVideoInfo(url: string): Promise<{ title: string; author
     if (videoId) {
       return BilibiliDownloader.getVideoInfo(videoId);
     }
-  } else if (url.includes("missav")) {
+  } else if (url.includes("missav") || url.includes("123av")) {
     return MissAVDownloader.getVideoInfo(url);
   }
   
