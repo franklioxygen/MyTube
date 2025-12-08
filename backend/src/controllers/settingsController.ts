@@ -20,6 +20,7 @@ interface Settings {
     cloudDrivePath?: string;
     homeSidebarOpen?: boolean;
     subtitlesEnabled?: boolean;
+    websiteName?: string;
 }
 
 const defaultSettings: Settings = {
@@ -34,7 +35,8 @@ const defaultSettings: Settings = {
     openListToken: '',
     cloudDrivePath: '',
     homeSidebarOpen: true,
-    subtitlesEnabled: true
+    subtitlesEnabled: true,
+    websiteName: 'MyTube'
 };
 
 export const getSettings = async (_req: Request, res: Response) => {
@@ -111,6 +113,10 @@ export const updateSettings = async (req: Request, res: Response) => {
         // Validate settings if needed
         if (newSettings.maxConcurrentDownloads < 1) {
             newSettings.maxConcurrentDownloads = 1;
+        }
+
+        if (newSettings.websiteName && newSettings.websiteName.length > 15) {
+            newSettings.websiteName = newSettings.websiteName.substring(0, 15);
         }
 
         // Handle password hashing

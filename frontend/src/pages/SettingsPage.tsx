@@ -257,7 +257,8 @@ const SettingsPage: React.FC = () => {
                         <Grid size={12}>
                             <GeneralSettings
                                 language={settings.language}
-                                onChange={(val) => handleChange('language', val)}
+                                websiteName={settings.websiteName}
+                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>
 

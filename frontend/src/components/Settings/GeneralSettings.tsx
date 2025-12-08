@@ -1,19 +1,20 @@
-import { Box, FormControl, InputLabel, MenuItem, Select, Typography } from '@mui/material';
+import { Box, FormControl, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface GeneralSettingsProps {
     language: string;
-    onChange: (value: string) => void;
+    websiteName?: string;
+    onChange: (field: string, value: string) => void;
 }
 
-const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, onChange }) => {
+const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, websiteName, onChange }) => {
     const { t } = useLanguage();
 
     return (
         <Box>
             <Typography variant="h6" gutterBottom>{t('general')}</Typography>
-            <Box sx={{ maxWidth: 400 }}>
+            <Box sx={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <FormControl fullWidth>
                     <InputLabel id="language-select-label">{t('language')}</InputLabel>
                     <Select
@@ -21,7 +22,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, onChange })
                         id="language-select"
                         value={language || 'en'}
                         label={t('language')}
-                        onChange={(e) => onChange(e.target.value)}
+                        onChange={(e) => onChange('language', e.target.value)}
                     >
                         <MenuItem value="en">English</MenuItem>
                         <MenuItem value="zh">中文 (Chinese)</MenuItem>
@@ -35,6 +36,16 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, onChange })
                         <MenuItem value="ru">Русский (Russian)</MenuItem>
                     </Select>
                 </FormControl>
+
+                <TextField
+                    fullWidth
+                    label="Website Name"
+                    value={websiteName || ''}
+                    onChange={(e) => onChange('websiteName', e.target.value)}
+                    placeholder="MyTube"
+                    helperText={`${(websiteName || '').length}/15 characters (Default: MyTube)`}
+                    slotProps={{ htmlInput: { maxLength: 15 } }}
+                />
             </Box>
         </Box>
     );

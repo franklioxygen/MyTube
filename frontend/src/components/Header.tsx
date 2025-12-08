@@ -372,6 +372,24 @@ const Header: React.FC<HeaderProps> = ({
         </Box>
     );
 
+    const [websiteName, setWebsiteName] = useState('MyTube');
+
+    useEffect(() => {
+        // Fetch settings to get website name
+        const fetchSettings = async () => {
+            try {
+                const API_URL = import.meta.env.VITE_API_URL;
+                const response = await import('axios').then(axios => axios.default.get(`${API_URL}/settings`));
+                if (response.data && response.data.websiteName) {
+                    setWebsiteName(response.data.websiteName);
+                }
+            } catch (error) {
+                console.error('Failed to fetch settings for header:', error);
+            }
+        };
+        fetchSettings();
+    }, []);
+
     return (
         <ClickAwayListener onClickAway={() => setMobileMenuOpen(false)}>
             <AppBar position="sticky" color="default" elevation={0} sx={{ bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
@@ -380,9 +398,16 @@ const Header: React.FC<HeaderProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto', flexGrow: isMobile ? 0 : 0, mr: isMobile ? 0 : 2 }}>
                         <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>
                             <img src={logo} alt="MyTube Logo" height={40} />
-                            <Typography variant="h5" sx={{ ml: 1, fontWeight: 'bold' }}>
-                                {t('myTube')}
-                            </Typography>
+                            <Box sx={{ ml: 1, display: 'flex', flexDirection: 'column' }}>
+                                <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                                    {websiteName}
+                                </Typography>
+                                {websiteName !== 'MyTube' && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
+                                        Powered by MyTube
+                                    </Typography>
+                                )}
+                            </Box>
                         </Link>
 
                         {isMobile && (

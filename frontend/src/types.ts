@@ -68,4 +68,5 @@ export interface Settings {
     cloudDrivePath: string;
     homeSidebarOpen?: boolean;
     subtitlesEnabled?: boolean;
+    websiteName?: string;
 }
