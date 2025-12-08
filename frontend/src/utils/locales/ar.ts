@@ -84,7 +84,9 @@ export const ar = {
     cleanupTempFilesDescription: "إزالة جميع ملفات التنزيل المؤقتة (.ytdl، .part) من دليل التحميلات. يساعد هذا في تحرير مساحة القرص من التنزيلات غير المكتملة أو الملغاة.",
     cleanupTempFilesConfirmTitle: "تنظيف الملفات المؤقتة؟",
     cleanupTempFilesConfirmMessage: "سيؤدي هذا إلى حذف جميع ملفات .ytdl و .part في دليل التحميلات نهائيًا. تأكد من عدم وجود تنزيلات نشطة قبل المتابعة.",
-    cleanupTempFilesActiveDownloads: "لا يمكن التنظيف أثناء وجود تنزيلات نشطة. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
+    cleanupTempFilesActiveDownloads: "لا يمكن التنظيف أثناء نشاط التنزيلات. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
+    itemsPerPage: "عناصر لكل صفحة",
+    itemsPerPageHelper: "عدد مقاطع الفيديو المعروضة في كل صفحة (الافتراضي: 12)",
     cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
     cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
 

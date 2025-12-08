@@ -93,6 +93,8 @@ export const zh = {
     "这将永久删除上传目录中的所有.ytdl和.part文件。请确保没有正在进行的下载。",
   cleanupTempFilesActiveDownloads:
     "有活动下载时无法清理。请等待所有下载完成或取消它们。",
+  itemsPerPage: "每页显示数量",
+  itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
   cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
   cleanupTempFilesFailed: "清理临时文件失败",
 

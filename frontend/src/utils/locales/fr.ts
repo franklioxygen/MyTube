@@ -88,6 +88,8 @@ export const fr = {
     cleanupTempFilesConfirmTitle: "Nettoyer les fichiers temporaires?",
     cleanupTempFilesConfirmMessage: "Cela supprimera définitivement tous les fichiers .ytdl et .part dans le répertoire des téléversements. Assurez-vous qu'il n'y a pas de téléchargements actifs avant de continuer.",
     cleanupTempFilesActiveDownloads: "Impossible de nettoyer pendant que des téléchargements sont actifs. Veuillez attendre la fin de tous les téléchargements ou les annuler d'abord.",
+    itemsPerPage: "Éléments par page",
+    itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
     cleanupTempFilesSuccess: "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
     cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
 

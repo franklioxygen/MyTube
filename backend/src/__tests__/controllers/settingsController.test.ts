@@ -72,6 +72,19 @@ describe('SettingsController', () => {
 
       expect(bcrypt.hash).toHaveBeenCalledWith('pass', 'salt');
     });
+
+    it('should validate and update itemsPerPage', async () => {
+      req.body = { itemsPerPage: -5 };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ itemsPerPage: 12 }));
+      
+      req.body = { itemsPerPage: 20 };
+      await updateSettings(req as Request, res as Response);
+      expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ itemsPerPage: 20 }));
+    });
   });
 
   describe('verifyPassword', () => {

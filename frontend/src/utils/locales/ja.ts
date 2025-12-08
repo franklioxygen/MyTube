@@ -85,6 +85,8 @@ export const ja = {
     cleanupTempFilesConfirmTitle: "一時ファイルをクリーンアップしますか？",
     cleanupTempFilesConfirmMessage: "これにより、アップロードディレクトリ内のすべての.ytdlおよび.partファイルが永久に削除されます。続行する前に、アクティブなダウンロードがないことを確認してください。",
     cleanupTempFilesActiveDownloads: "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
+    itemsPerPage: "1ページあたりの項目数",
+    itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
     cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
     cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 

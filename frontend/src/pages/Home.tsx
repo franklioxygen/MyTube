@@ -14,7 +14,8 @@ import {
     Typography
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
@@ -39,8 +40,10 @@ const Home: React.FC = () => {
     const { collections } = useCollection();
 
 
-    const [page, setPage] = useState(1);
-    const ITEMS_PER_PAGE = 12;
+    const [searchParams, setSearchParams] = useSearchParams();
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const [itemsPerPage, setItemsPerPage] = useState(12);
+
     const [viewMode, setViewMode] = useState<'collections' | 'all-videos' | 'history'>(() => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as 'collections' | 'all-videos' | 'history') || 'collections';
@@ -53,8 +56,13 @@ const Home: React.FC = () => {
         const fetchSettings = async () => {
             try {
                 const response = await axios.get(`${API_URL}/settings`);
-                if (response.data && typeof response.data.homeSidebarOpen !== 'undefined') {
-                    setIsSidebarOpen(response.data.homeSidebarOpen);
+                if (response.data) {
+                    if (typeof response.data.homeSidebarOpen !== 'undefined') {
+                        setIsSidebarOpen(response.data.homeSidebarOpen);
+                    }
+                    if (typeof response.data.itemsPerPage !== 'undefined') {
+                        setItemsPerPage(response.data.itemsPerPage);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch settings:', error);
@@ -95,9 +103,33 @@ const Home: React.FC = () => {
 
     // Reset page when filters change
     useEffect(() => {
-        setPage(1);
-    }, [videos, collections, selectedTags]);
+        // Only reset to page 1 if we are not already on page 1
+        // This effect might run on mount too, so we need to be careful not to overwrite the URL param if it was just set
+        // However, if videos/collections changes, we generally DO want to reset to page 1 as the data changed.
+        // But if we just navigated back, videos might be re-fetched.
+        // If the data is stable, we shouldn't reset.
+        // Actually, preventing reset on initial load is hard if we depend on `videos`.
+        // Let's rely on the user manual action for now, OR better:
+        // When videos change, if the current page is out of bounds, reset it.
+        // Or if the user changes tags, definitely reset.
+        // But for just 'videos' update (like background refresh), maybe we shouldn't reset unless necessary.
 
+        // For now, let's ONLY reset if tags change.
+    }, [selectedTags]);
+
+    // Reset page when switching view modes or tags
+    // We use a ref to track previous tags so we don't reset on mount (when navigating back)
+    const prevTagsRef = useRef(selectedTags);
+    useEffect(() => {
+        if (prevTagsRef.current !== selectedTags) {
+            prevTagsRef.current = selectedTags;
+            setSearchParams((prev: URLSearchParams) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('page', '1');
+                return newParams;
+            });
+        }
+    }, [selectedTags, setSearchParams]);
 
 
     // Add default empty array to ensure videos is always an array
@@ -164,18 +196,26 @@ const Home: React.FC = () => {
     const handleViewModeChange = (mode: 'collections' | 'all-videos' | 'history') => {
         setViewMode(mode);
         localStorage.setItem('homeViewMode', mode);
-        setPage(1); // Reset pagination
+        setSearchParams((prev: URLSearchParams) => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('page', '1');
+            return newParams;
+        });
     };
 
     // Pagination logic
-    const totalPages = Math.ceil(filteredVideos.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(filteredVideos.length / itemsPerPage);
     const displayedVideos = filteredVideos.slice(
-        (page - 1) * ITEMS_PER_PAGE,
-        page * ITEMS_PER_PAGE
+        (page - 1) * itemsPerPage,
+        page * itemsPerPage
     );
 
     const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
-        setPage(value);
+        setSearchParams((prev: URLSearchParams) => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('page', value.toString());
+            return newParams;
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 

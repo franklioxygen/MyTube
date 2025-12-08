@@ -51,7 +51,8 @@ const SettingsPage: React.FC = () => {
         cloudDriveEnabled: false,
         openListApiUrl: '',
         openListToken: '',
-        cloudDrivePath: ''
+        cloudDrivePath: '',
+        itemsPerPage: 12
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -258,6 +259,7 @@ const SettingsPage: React.FC = () => {
                             <GeneralSettings
                                 language={settings.language}
                                 websiteName={settings.websiteName}
+                                itemsPerPage={settings.itemsPerPage}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>

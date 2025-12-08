@@ -21,6 +21,7 @@ interface Settings {
     homeSidebarOpen?: boolean;
     subtitlesEnabled?: boolean;
     websiteName?: string;
+    itemsPerPage?: number;
 }
 
 const defaultSettings: Settings = {
@@ -36,7 +37,8 @@ const defaultSettings: Settings = {
     cloudDrivePath: '',
     homeSidebarOpen: true,
     subtitlesEnabled: true,
-    websiteName: 'MyTube'
+    websiteName: 'MyTube',
+    itemsPerPage: 12
 };
 
 export const getSettings = async (_req: Request, res: Response) => {
@@ -117,6 +119,10 @@ export const updateSettings = async (req: Request, res: Response) => {
 
         if (newSettings.websiteName && newSettings.websiteName.length > 15) {
             newSettings.websiteName = newSettings.websiteName.substring(0, 15);
+        }
+
+        if (newSettings.itemsPerPage && newSettings.itemsPerPage < 1) {
+            newSettings.itemsPerPage = 12; // Default fallback if invalid
         }
 
         // Handle password hashing

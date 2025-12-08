@@ -69,4 +69,5 @@ export interface Settings {
     homeSidebarOpen?: boolean;
     subtitlesEnabled?: boolean;
     websiteName?: string;
+    itemsPerPage?: number;
 }

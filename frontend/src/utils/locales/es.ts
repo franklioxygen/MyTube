@@ -42,6 +42,8 @@ export const es = {
     cleanupTempFilesConfirmTitle: "¿Limpiar Archivos Temporales?",
     cleanupTempFilesConfirmMessage: "Esto eliminará permanentemente todos los archivos .ytdl y .part en el directorio de cargas. Asegúrate de que no haya descargas activas antes de continuar.",
     cleanupTempFilesActiveDownloads: "No se puede limpiar mientras hay descargas activas. Espera a que todas las descargas terminen o cancélalas primero.",
+    itemsPerPage: "Elementos por página",
+    itemsPerPageHelper: "Número de videos para mostrar por página (Predeterminado: 12)",
     cleanupTempFilesSuccess: "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
     cleanupTempFilesFailed: "Error al limpiar archivos temporales",
 

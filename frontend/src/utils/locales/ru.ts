@@ -85,6 +85,8 @@ export const ru = {
     cleanupTempFilesConfirmTitle: "Очистить временные файлы?",
     cleanupTempFilesConfirmMessage: "Это навсегда удалит все файлы .ytdl и .part в каталоге загрузок. Убедитесь, что нет активных загрузок перед продолжением.",
     cleanupTempFilesActiveDownloads: "Невозможно очистить, пока активны загрузки. Пожалуйста, дождитесь завершения всех загрузок или сначала отмените их.",
+    itemsPerPage: "Элементов на странице",
+    itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
     cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
     cleanupTempFilesFailed: "Не удалось очистить временные файлы",
 

@@ -85,7 +85,9 @@ export const en = {
     cleanupTempFilesDescription: "Remove all temporary download files (.ytdl, .part) from the uploads directory. This helps free up disk space from incomplete or cancelled downloads.",
     cleanupTempFilesConfirmTitle: "Clean Up Temporary Files?",
     cleanupTempFilesConfirmMessage: "This will permanently delete all .ytdl and .part files in the uploads directory. Make sure there are no active downloads before proceeding.",
-    cleanupTempFilesActiveDownloads: "Cannot clean up while downloads are active. Please wait for all downloads to complete or cancel them first.",
+    cleanupTempFilesActiveDownloads: "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
+    itemsPerPage: "Items Per Page",
+    itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
     cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
     cleanupTempFilesFailed: "Failed to clean up temporary files",
 

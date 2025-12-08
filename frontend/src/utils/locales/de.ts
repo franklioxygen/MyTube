@@ -44,6 +44,8 @@ export const de = {
     cleanupTempFilesConfirmTitle: "Temporäre Dateien bereinigen?",
     cleanupTempFilesConfirmMessage: "Dadurch werden alle .ytdl- und .part-Dateien im Upload-Verzeichnis dauerhaft gelöscht. Stellen Sie sicher, dass keine aktiven Downloads vorhanden sind, bevor Sie fortfahren.",
     cleanupTempFilesActiveDownloads: "Bereinigung nicht möglich, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie ab.",
+    itemsPerPage: "Elemente pro Seite",
+    itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
     cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
     cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 

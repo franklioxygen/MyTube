@@ -5,10 +5,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 interface GeneralSettingsProps {
     language: string;
     websiteName?: string;
-    onChange: (field: string, value: string) => void;
+    itemsPerPage?: number;
+    onChange: (field: string, value: string | number) => void;
 }
 
-const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, websiteName, onChange }) => {
+const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
+    const { language, websiteName, onChange } = props;
     const { t } = useLanguage();
 
     return (
@@ -45,6 +47,21 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({ language, websiteName
                     placeholder="MyTube"
                     helperText={`${(websiteName || '').length}/15 characters (Default: MyTube)`}
                     slotProps={{ htmlInput: { maxLength: 15 } }}
+                />
+
+                <TextField
+                    fullWidth
+                    label={t('itemsPerPage') || "Items Per Page"}
+                    type="number"
+                    value={props.itemsPerPage || 12}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val) && val > 0) {
+                            onChange('itemsPerPage', val);
+                        }
+                    }}
+                    helperText={t('itemsPerPageHelper') || "Number of videos to show per page (Default: 12)"}
+                    slotProps={{ htmlInput: { min: 1 } }}
                 />
             </Box>
         </Box>
