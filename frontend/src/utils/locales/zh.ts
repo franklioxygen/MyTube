@@ -338,6 +338,7 @@ export const zh = {
   videoAlreadyDownloaded: "此视频已下载过。",
   viewVideo: "查看视频",
   previouslyDeletedVideo: "曾下载并删除的视频",
+  previouslyDeleted: "已删除",
   videoWasDeleted: "此视频曾经下载过，但已被删除。",
   downloadAgain: "再次下载",
   downloadedOn: "下载时间",

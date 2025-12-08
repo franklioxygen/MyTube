@@ -148,10 +148,9 @@ export const de = {
     historyCleared: "Verlauf gelöscht",
     removedFromQueue: "Aus der Warteschlange entfernt",
     removedFromHistory: "Aus dem Verlauf entfernt",
-    status: "Status",
-
-    // Snackbar Messages
-    videoDownloading: "Video wird heruntergeladen",
+    previouslyDeletedVideo: "Zuvor gelöschtes Video",
+    previouslyDeleted: "Zuvor gelöscht",
+    videoWasDeleted: "Dieses Video wurde bereits heruntergeladen, aber gelöscht.",
     downloadStartedSuccessfully: "Download erfolgreich gestartet",
     collectionCreatedSuccessfully: "Sammlung erfolgreich erstellt",
     videoAddedToCollection: "Video zur Sammlung hinzugefügt",

@@ -375,6 +375,7 @@ export const en = {
     videoAlreadyDownloaded: "This video has already been downloaded.",
     viewVideo: "View Video",
     previouslyDeletedVideo: "Previously Deleted Video",
+    previouslyDeleted: "Previously Deleted",
     videoWasDeleted: "This video was previously downloaded but has been deleted.",
     downloadAgain: "Download Again",
     downloadedOn: "Downloaded on",
