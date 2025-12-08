@@ -21,9 +21,10 @@ export type {
 export async function downloadBilibiliVideo(
   url: string,
   videoPath: string,
-  thumbnailPath: string
+  thumbnailPath: string,
+  downloadId?: string
 ): Promise<BilibiliVideoInfo> {
-  return BilibiliDownloader.downloadVideo(url, videoPath, thumbnailPath);
+  return BilibiliDownloader.downloadVideo(url, videoPath, thumbnailPath, downloadId);
 }
 
 // Helper function to check if a Bilibili video has multiple parts
@@ -51,9 +52,10 @@ export async function downloadSingleBilibiliPart(
   url: string,
   partNumber: number,
   totalParts: number,
-  seriesTitle: string
+  seriesTitle: string,
+  downloadId?: string
 ): Promise<DownloadResult> {
-  return BilibiliDownloader.downloadSinglePart(url, partNumber, totalParts, seriesTitle);
+  return BilibiliDownloader.downloadSinglePart(url, partNumber, totalParts, seriesTitle, downloadId);
 }
 
 // Helper function to download all videos from a Bilibili collection or series

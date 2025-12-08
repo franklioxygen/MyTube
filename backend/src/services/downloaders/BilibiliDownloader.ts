@@ -88,11 +88,21 @@ export class BilibiliDownloader {
         }
     }
 
+    // Helper function to format bytes
+    private static formatBytes(bytes: number): string {
+        if (bytes === 0) return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KiB", "MiB", "GiB", "TiB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+    }
+
     // Helper function to download Bilibili video
     static async downloadVideo(
         url: string,
         videoPath: string,
-        thumbnailPath: string
+        thumbnailPath: string,
+        downloadId?: string
     ): Promise<BilibiliVideoInfo> {
         const tempDir = path.join(VIDEOS_DIR, `temp_${Date.now()}_${Math.floor(Math.random() * 10000)}`);
 
@@ -102,12 +112,63 @@ export class BilibiliDownloader {
 
             console.log("Downloading Bilibili video to temp directory:", tempDir);
 
+            // Start monitoring progress
+            let progressInterval: NodeJS.Timeout | undefined;
+            if (downloadId) {
+                let lastSize = 0;
+                let lastUpdateTime = Date.now();
+                
+                progressInterval = setInterval(() => {
+                    try {
+                        const files = fs.readdirSync(tempDir);
+                        const videoFile = files.find((file: string) => file.endsWith(".mp4"));
+                        
+                        if (videoFile) {
+                            const filePath = path.join(tempDir, videoFile);
+                            if (fs.existsSync(filePath)) {
+                                const stats = fs.statSync(filePath);
+                                const currentSize = stats.size;
+                                const currentTime = Date.now();
+                                const timeDiff = (currentTime - lastUpdateTime) / 1000; // seconds
+
+                                if (timeDiff > 0 && currentSize > lastSize) {
+                                    // Calculate speed (bytes per second)
+                                    const bytesPerSecond = (currentSize - lastSize) / timeDiff;
+                                    
+                                    // Format speed
+                                    const speedStr = this.formatBytes(bytesPerSecond) + "/s";
+                                    
+                                    // Format downloaded size
+                                    const downloadedSizeStr = this.formatBytes(currentSize);
+                                    
+                                    // Update progress
+                                    storageService.updateActiveDownload(downloadId, {
+                                        downloadedSize: downloadedSizeStr,
+                                        speed: speedStr,
+                                    });
+                                }
+
+                                lastSize = currentSize;
+                                lastUpdateTime = currentTime;
+                            }
+                        }
+                    } catch (error) {
+                        // Ignore errors during monitoring
+                    }
+                }, 500);
+            }
+
             // Download the video using the package
             await downloadByVedioPath({
                 url: url,
                 type: "mp4",
                 folder: tempDir,
             });
+
+            // Stop progress monitoring
+            if (progressInterval) {
+                clearInterval(progressInterval);
+            }
 
             console.log("Download completed, checking for video file");
 
@@ -123,8 +184,20 @@ export class BilibiliDownloader {
 
             console.log("Found video file:", videoFile);
 
-            // Move the file to the desired location
+            // Get final file size for progress update
             const tempVideoPath = path.join(tempDir, videoFile);
+            if (downloadId && fs.existsSync(tempVideoPath)) {
+                const stats = fs.statSync(tempVideoPath);
+                const finalSize = this.formatBytes(stats.size);
+                storageService.updateActiveDownload(downloadId, {
+                    downloadedSize: finalSize,
+                    totalSize: finalSize,
+                    progress: 100,
+                    speed: "0 B/s",
+                });
+            }
+
+            // Move the file to the desired location
             fs.moveSync(tempVideoPath, videoPath, { overwrite: true });
 
             console.log("Moved video file to:", videoPath);
@@ -424,7 +497,8 @@ export class BilibiliDownloader {
         url: string,
         partNumber: number,
         totalParts: number,
-        seriesTitle: string
+        seriesTitle: string,
+        downloadId?: string
     ): Promise<DownloadResult> {
         try {
             console.log(
@@ -451,7 +525,8 @@ export class BilibiliDownloader {
             const bilibiliInfo = await BilibiliDownloader.downloadVideo(
                 url,
                 videoPath,
-                thumbnailPath
+                thumbnailPath,
+                downloadId
             );
 
             if (!bilibiliInfo) {
@@ -642,7 +717,8 @@ export class BilibiliDownloader {
                         videoUrl,
                         videoNumber,
                         videos.length,
-                        title || "Collection"
+                        title || "Collection",
+                        downloadId
                     );
 
                     // If download was successful, add to collection
@@ -721,7 +797,8 @@ export class BilibiliDownloader {
                     partUrl,
                     part,
                     totalParts,
-                    seriesTitle
+                    seriesTitle,
+                    downloadId
                 );
 
                 // If download was successful and we have a collection ID, add to collection

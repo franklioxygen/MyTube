@@ -198,7 +198,8 @@ export const downloadVideo = async (
               firstPartUrl,
               1,
               videosNumber,
-              title || "Bilibili Video"
+              title || "Bilibili Video",
+              downloadId
             );
 
           // Add to collection if needed
@@ -240,7 +241,8 @@ export const downloadVideo = async (
             videoUrl,
             1,
             1,
-            "" // seriesTitle not used when totalParts is 1
+            "", // seriesTitle not used when totalParts is 1
+            downloadId
           );
 
           if (result.success) {
