@@ -9,12 +9,12 @@ import * as downloadService from "../services/downloadService";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    extractUrlFromText,
-    isBilibiliUrl,
-    isValidUrl,
-    resolveShortUrl,
-    trimBilibiliUrl
+  extractBilibiliVideoId,
+  extractUrlFromText,
+  isBilibiliUrl,
+  isValidUrl,
+  resolveShortUrl,
+  trimBilibiliUrl,
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -24,15 +24,18 @@ const storage = multer.diskStorage({
     cb(null, VIDEOS_DIR);
   },
   filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+  },
 });
 
 export const upload = multer({ storage: storage });
 
 // Search for videos
-export const searchVideos = async (req: Request, res: Response): Promise<any> => {
+export const searchVideos = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     const { query } = req.query;
 
@@ -52,9 +55,18 @@ export const searchVideos = async (req: Request, res: Response): Promise<any> =>
 };
 
 // Download video
-export const downloadVideo = async (req: Request, res: Response): Promise<any> => {
+export const downloadVideo = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
-    const { youtubeUrl, downloadAllParts, collectionName, downloadCollection, collectionInfo } = req.body;
+    const {
+      youtubeUrl,
+      downloadAllParts,
+      collectionName,
+      downloadCollection,
+      collectionInfo,
+    } = req.body;
     let videoUrl = youtubeUrl;
 
     if (!videoUrl) {
@@ -90,23 +102,25 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
       console.log("Fetching video info for title...");
       const info = await downloadService.getVideoInfo(videoUrl);
       if (info && info.title) {
-          initialTitle = info.title;
-          console.log("Fetched initial title:", initialTitle);
+        initialTitle = info.title;
+        console.log("Fetched initial title:", initialTitle);
       }
     } catch (err) {
-        console.warn("Failed to fetch video info for title, using default:", err);
-        if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-            initialTitle = "YouTube Video";
-        } else if (isBilibiliUrl(videoUrl)) {
-            initialTitle = "Bilibili Video";
-        }
+      console.warn("Failed to fetch video info for title, using default:", err);
+      if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+        initialTitle = "YouTube Video";
+      } else if (isBilibiliUrl(videoUrl)) {
+        initialTitle = "Bilibili Video";
+      }
     }
 
     // Generate a unique ID for this download task
     const downloadId = Date.now().toString();
 
     // Define the download task function
-    const downloadTask = async (registerCancel: (cancel: () => void) => void) => {
+    const downloadTask = async (
+      registerCancel: (cancel: () => void) => void
+    ) => {
       // Trim Bilibili URL if needed
       if (isBilibiliUrl(videoUrl)) {
         videoUrl = trimBilibiliUrl(videoUrl);
@@ -115,7 +129,7 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
         // If downloadCollection is true, handle collection/series download
         if (downloadCollection && collectionInfo) {
           console.log("Downloading Bilibili collection/series");
-          
+
           const result = await downloadService.downloadBilibiliCollection(
             collectionInfo,
             collectionName,
@@ -127,10 +141,12 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
               success: true,
               collectionId: result.collectionId,
               videosDownloaded: result.videosDownloaded,
-              isCollection: true
+              isCollection: true,
             };
           } else {
-            throw new Error(result.error || "Failed to download collection/series");
+            throw new Error(
+              result.error || "Failed to download collection/series"
+            );
           }
         }
 
@@ -142,16 +158,21 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
           }
 
           // Get video info to determine number of parts
-          const partsInfo = await downloadService.checkBilibiliVideoParts(videoId);
+          const partsInfo = await downloadService.checkBilibiliVideoParts(
+            videoId
+          );
 
           if (!partsInfo.success) {
             throw new Error("Failed to get video parts information");
           }
 
           const { videosNumber, title } = partsInfo;
-          
+
           // Update title in storage
-          storageService.addActiveDownload(downloadId, title || "Bilibili Video");
+          storageService.addActiveDownload(
+            downloadId,
+            title || "Bilibili Video"
+          );
 
           // Create a collection for the multi-part video if collectionName is provided
           let collectionId: string | null = null;
@@ -172,19 +193,23 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
           const firstPartUrl = `${baseUrl}?p=1`;
 
           // Download the first part
-          const firstPartResult = await downloadService.downloadSingleBilibiliPart(
-            firstPartUrl,
-            1,
-            videosNumber,
-            title || "Bilibili Video"
-          );
+          const firstPartResult =
+            await downloadService.downloadSingleBilibiliPart(
+              firstPartUrl,
+              1,
+              videosNumber,
+              title || "Bilibili Video"
+            );
 
           // Add to collection if needed
           if (collectionId && firstPartResult.videoData) {
-            storageService.atomicUpdateCollection(collectionId, (collection) => {
-              collection.videos.push(firstPartResult.videoData!.id);
-              return collection;
-            });
+            storageService.atomicUpdateCollection(
+              collectionId,
+              (collection) => {
+                collection.videos.push(firstPartResult.videoData!.id);
+                return collection;
+              }
+            );
           }
 
           // Set up background download for remaining parts
@@ -210,7 +235,7 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
         } else {
           // Regular single video download for Bilibili
           console.log("Downloading single Bilibili video part");
-          
+
           const result = await downloadService.downloadSingleBilibiliPart(
             videoUrl,
             1,
@@ -221,30 +246,41 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
           if (result.success) {
             return { success: true, video: result.videoData };
           } else {
-            throw new Error(result.error || "Failed to download Bilibili video");
+            throw new Error(
+              result.error || "Failed to download Bilibili video"
+            );
           }
         }
       } else if (videoUrl.includes("missav")) {
         // MissAV download
-        const videoData = await downloadService.downloadMissAVVideo(videoUrl, downloadId, registerCancel);
+        const videoData = await downloadService.downloadMissAVVideo(
+          videoUrl,
+          downloadId,
+          registerCancel
+        );
         return { success: true, video: videoData };
       } else {
         // YouTube download
-        const videoData = await downloadService.downloadYouTubeVideo(videoUrl, downloadId, registerCancel);
+        const videoData = await downloadService.downloadYouTubeVideo(
+          videoUrl,
+          downloadId,
+          registerCancel
+        );
         return { success: true, video: videoData };
       }
     };
 
     // Determine type
-    let type = 'youtube';
+    let type = "youtube";
     if (videoUrl.includes("missav")) {
-      type = 'missav';
+      type = "missav";
     } else if (isBilibiliUrl(videoUrl)) {
-      type = 'bilibili';
+      type = "bilibili";
     }
 
     // Add to download manager
-    downloadManager.addDownload(downloadTask, downloadId, initialTitle, videoUrl, type)
+    downloadManager
+      .addDownload(downloadTask, downloadId, initialTitle, videoUrl, type)
       .then((result: any) => {
         console.log("Download completed successfully:", result);
       })
@@ -253,12 +289,11 @@ export const downloadVideo = async (req: Request, res: Response): Promise<any> =
       });
 
     // Return success immediately indicating the download is queued/started
-    res.status(200).json({ 
-      success: true, 
-      message: "Download queued", 
-      downloadId 
+    res.status(200).json({
+      success: true,
+      message: "Download queued",
+      downloadId,
     });
-
   } catch (error: any) {
     console.error("Error queuing download:", error);
     res
@@ -318,6 +353,16 @@ export const deleteVideo = (req: Request, res: Response): any => {
 export const getDownloadStatus = (_req: Request, res: Response): void => {
   try {
     const status = storageService.getDownloadStatus();
+    // Debug log to verify progress data is included
+    if (status.activeDownloads.length > 0) {
+      status.activeDownloads.forEach((d) => {
+        if (d.progress !== undefined || d.speed) {
+          console.log(
+            `[API] Download ${d.id}: progress=${d.progress}%, speed=${d.speed}, totalSize=${d.totalSize}`
+          );
+        }
+      });
+    }
     res.status(200).json(status);
   } catch (error) {
     console.error("Error fetching download status:", error);
@@ -326,7 +371,10 @@ export const getDownloadStatus = (_req: Request, res: Response): void => {
 };
 
 // Check Bilibili parts
-export const checkBilibiliParts = async (req: Request, res: Response): Promise<any> => {
+export const checkBilibiliParts = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     const { url } = req.query;
 
@@ -370,7 +418,10 @@ export const checkBilibiliParts = async (req: Request, res: Response): Promise<a
 };
 
 // Check if Bilibili URL is a collection or series
-export const checkBilibiliCollection = async (req: Request, res: Response): Promise<any> => {
+export const checkBilibiliCollection = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     const { url } = req.query;
 
@@ -402,7 +453,9 @@ export const checkBilibiliCollection = async (req: Request, res: Response): Prom
     }
 
     // Check if it's a collection or series
-    const result = await downloadService.checkBilibiliCollectionOrSeries(videoId);
+    const result = await downloadService.checkBilibiliCollectionOrSeries(
+      videoId
+    );
 
     res.status(200).json(result);
   } catch (error: any) {
@@ -415,10 +468,15 @@ export const checkBilibiliCollection = async (req: Request, res: Response): Prom
 };
 
 // Get video comments
-export const getVideoComments = async (req: Request, res: Response): Promise<any> => {
+export const getVideoComments = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     const { id } = req.params;
-    const comments = await import("../services/commentService").then(m => m.getComments(id));
+    const comments = await import("../services/commentService").then((m) =>
+      m.getComments(id)
+    );
     res.status(200).json(comments);
   } catch (error) {
     console.error("Error fetching video comments:", error);
@@ -426,9 +484,11 @@ export const getVideoComments = async (req: Request, res: Response): Promise<any
   }
 };
 
-
 // Upload video
-export const uploadVideo = async (req: Request, res: Response): Promise<any> => {
+export const uploadVideo = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No video file uploaded" });
@@ -438,21 +498,24 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     const videoId = Date.now().toString();
     const videoFilename = req.file.filename;
     const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
-    
+
     const videoPath = path.join(VIDEOS_DIR, videoFilename);
     const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
 
     // Generate thumbnail
     await new Promise<void>((resolve, _reject) => {
-      exec(`ffmpeg -i "${videoPath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`, (error) => {
-        if (error) {
-          console.error("Error generating thumbnail:", error);
-          // We resolve anyway to not block the upload, just without a custom thumbnail
-          resolve();
-        } else {
-          resolve();
+      exec(
+        `ffmpeg -i "${videoPath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`,
+        (error) => {
+          if (error) {
+            console.error("Error generating thumbnail:", error);
+            // We resolve anyway to not block the upload, just without a custom thumbnail
+            resolve();
+          } else {
+            resolve();
+          }
         }
-      });
+      );
     });
 
     // Get video duration
@@ -461,12 +524,12 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     // Get file size
     let fileSize: string | undefined;
     try {
-        if (fs.existsSync(videoPath)) {
-            const stats = fs.statSync(videoPath);
-            fileSize = stats.size.toString();
-        }
+      if (fs.existsSync(videoPath)) {
+        const stats = fs.statSync(videoPath);
+        fileSize = stats.size.toString();
+      }
     } catch (e) {
-        console.error("Failed to get file size:", e);
+      console.error("Failed to get file size:", e);
     }
 
     const newVideo = {
@@ -476,14 +539,20 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
       source: "local",
       sourceUrl: "", // No source URL for uploaded videos
       videoFilename: videoFilename,
-      thumbnailFilename: fs.existsSync(thumbnailPath) ? thumbnailFilename : undefined,
+      thumbnailFilename: fs.existsSync(thumbnailPath)
+        ? thumbnailFilename
+        : undefined,
       videoPath: `/videos/${videoFilename}`,
-      thumbnailPath: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
-      thumbnailUrl: fs.existsSync(thumbnailPath) ? `/images/${thumbnailFilename}` : undefined,
+      thumbnailPath: fs.existsSync(thumbnailPath)
+        ? `/images/${thumbnailFilename}`
+        : undefined,
+      thumbnailUrl: fs.existsSync(thumbnailPath)
+        ? `/images/${thumbnailFilename}`
+        : undefined,
       duration: duration ? duration.toString() : undefined,
       fileSize: fileSize,
       createdAt: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+      date: new Date().toISOString().split("T")[0].replace(/-/g, ""),
       addedAt: new Date().toISOString(),
     };
 
@@ -492,13 +561,13 @@ export const uploadVideo = async (req: Request, res: Response): Promise<any> => 
     res.status(201).json({
       success: true,
       message: "Video uploaded successfully",
-      video: newVideo
+      video: newVideo,
     });
   } catch (error: any) {
     console.error("Error uploading video:", error);
     res.status(500).json({
       error: "Failed to upload video",
-      details: error.message
+      details: error.message,
     });
   }
 };
@@ -509,8 +578,10 @@ export const rateVideo = (req: Request, res: Response): any => {
     const { id } = req.params;
     const { rating } = req.body;
 
-    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Rating must be a number between 1 and 5" });
+    if (typeof rating !== "number" || rating < 1 || rating > 5) {
+      return res
+        .status(400)
+        .json({ error: "Rating must be a number between 1 and 5" });
     }
 
     const updatedVideo = storageService.updateVideo(id, { rating });
@@ -522,7 +593,7 @@ export const rateVideo = (req: Request, res: Response): any => {
     res.status(200).json({
       success: true,
       message: "Video rated successfully",
-      video: updatedVideo
+      video: updatedVideo,
     });
   } catch (error) {
     console.error("Error rating video:", error);
@@ -555,7 +626,7 @@ export const updateVideoDetails = (req: Request, res: Response): any => {
     res.status(200).json({
       success: true,
       message: "Video updated successfully",
-      video: updatedVideo
+      video: updatedVideo,
     });
   } catch (error) {
     console.error("Error updating video:", error);
@@ -563,9 +634,11 @@ export const updateVideoDetails = (req: Request, res: Response): any => {
   }
 };
 
-
 // Refresh video thumbnail
-export const refreshThumbnail = async (req: Request, res: Response): Promise<any> => {
+export const refreshThumbnail = async (
+  req: Request,
+  res: Response
+): Promise<any> => {
   try {
     const { id } = req.params;
     const video = storageService.getVideoById(id);
@@ -576,18 +649,20 @@ export const refreshThumbnail = async (req: Request, res: Response): Promise<any
 
     // Construct paths
     let videoFilePath: string;
-    if (video.videoPath && video.videoPath.startsWith('/videos/')) {
-        const relativePath = video.videoPath.replace(/^\/videos\//, '');
-        // Split by / to handle the web path separators and join with system separator
-        videoFilePath = path.join(VIDEOS_DIR, ...relativePath.split('/'));
+    if (video.videoPath && video.videoPath.startsWith("/videos/")) {
+      const relativePath = video.videoPath.replace(/^\/videos\//, "");
+      // Split by / to handle the web path separators and join with system separator
+      videoFilePath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
     } else if (video.videoFilename) {
-        videoFilePath = path.join(VIDEOS_DIR, video.videoFilename);
+      videoFilePath = path.join(VIDEOS_DIR, video.videoFilename);
     } else {
-        return res.status(400).json({ error: "Video file path not found in record" });
+      return res
+        .status(400)
+        .json({ error: "Video file path not found in record" });
     }
 
     if (!fs.existsSync(videoFilePath)) {
-        return res.status(404).json({ error: "Video file not found on disk" });
+      return res.status(404).json({ error: "Video file not found on disk" });
     }
 
     // Determine thumbnail path on disk
@@ -596,19 +671,19 @@ export const refreshThumbnail = async (req: Request, res: Response): Promise<any
     let newThumbnailFilename = video.thumbnailFilename;
     let newThumbnailPath = video.thumbnailPath;
 
-    if (video.thumbnailPath && video.thumbnailPath.startsWith('/images/')) {
-        // Local file exists (or should exist) - preserve the existing path (e.g. inside a collection folder)
-        const relativePath = video.thumbnailPath.replace(/^\/images\//, '');
-        thumbnailAbsolutePath = path.join(IMAGES_DIR, ...relativePath.split('/'));
+    if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
+      // Local file exists (or should exist) - preserve the existing path (e.g. inside a collection folder)
+      const relativePath = video.thumbnailPath.replace(/^\/images\//, "");
+      thumbnailAbsolutePath = path.join(IMAGES_DIR, ...relativePath.split("/"));
     } else {
-        // Remote URL or missing - create a new local file in the root images directory
-        if (!newThumbnailFilename) {
-             const videoName = path.parse(path.basename(videoFilePath)).name;
-             newThumbnailFilename = `${videoName}.jpg`;
-        }
-        thumbnailAbsolutePath = path.join(IMAGES_DIR, newThumbnailFilename);
-        newThumbnailPath = `/images/${newThumbnailFilename}`;
-        needsDbUpdate = true;
+      // Remote URL or missing - create a new local file in the root images directory
+      if (!newThumbnailFilename) {
+        const videoName = path.parse(path.basename(videoFilePath)).name;
+        newThumbnailFilename = `${videoName}.jpg`;
+      }
+      thumbnailAbsolutePath = path.join(IMAGES_DIR, newThumbnailFilename);
+      newThumbnailPath = `/images/${newThumbnailFilename}`;
+      needsDbUpdate = true;
     }
 
     // Ensure directory exists
@@ -617,24 +692,27 @@ export const refreshThumbnail = async (req: Request, res: Response): Promise<any
     // Generate thumbnail
     await new Promise<void>((resolve, reject) => {
       // -y to overwrite existing file
-      exec(`ffmpeg -i "${videoFilePath}" -ss 00:00:00 -vframes 1 "${thumbnailAbsolutePath}" -y`, (error) => {
-        if (error) {
-          console.error("Error generating thumbnail:", error);
-          reject(error);
-        } else {
-          resolve();
+      exec(
+        `ffmpeg -i "${videoFilePath}" -ss 00:00:00 -vframes 1 "${thumbnailAbsolutePath}" -y`,
+        (error) => {
+          if (error) {
+            console.error("Error generating thumbnail:", error);
+            reject(error);
+          } else {
+            resolve();
+          }
         }
-      });
+      );
     });
 
     // Update video record if needed (switching from remote to local, or creating new)
     if (needsDbUpdate) {
-        const updates: any = {
-            thumbnailFilename: newThumbnailFilename,
-            thumbnailPath: newThumbnailPath,
-            thumbnailUrl: newThumbnailPath
-        };
-        storageService.updateVideo(id, updates);
+      const updates: any = {
+        thumbnailFilename: newThumbnailFilename,
+        thumbnailPath: newThumbnailPath,
+        thumbnailUrl: newThumbnailPath,
+      };
+      storageService.updateVideo(id, updates);
     }
 
     // Return success with timestamp to bust cache
@@ -643,13 +721,11 @@ export const refreshThumbnail = async (req: Request, res: Response): Promise<any
     res.status(200).json({
       success: true,
       message: "Thumbnail refreshed successfully",
-      thumbnailUrl: thumbnailUrl
+      thumbnailUrl: thumbnailUrl,
     });
-
   } catch (error: any) {
     console.error("Error refreshing thumbnail:", error);
-    res.status(500).json({
-    });
+    res.status(500).json({});
   }
 };
 
@@ -664,14 +740,14 @@ export const incrementViewCount = (req: Request, res: Response): any => {
     }
 
     const currentViews = video.viewCount || 0;
-    const updatedVideo = storageService.updateVideo(id, { 
+    const updatedVideo = storageService.updateVideo(id, {
       viewCount: currentViews + 1,
-      lastPlayedAt: Date.now()
+      lastPlayedAt: Date.now(),
     });
 
     res.status(200).json({
       success: true,
-      viewCount: updatedVideo?.viewCount
+      viewCount: updatedVideo?.viewCount,
     });
   } catch (error) {
     console.error("Error incrementing view count:", error);
@@ -685,13 +761,13 @@ export const updateProgress = (req: Request, res: Response): any => {
     const { id } = req.params;
     const { progress } = req.body;
 
-    if (typeof progress !== 'number') {
+    if (typeof progress !== "number") {
       return res.status(400).json({ error: "Progress must be a number" });
     }
 
-    const updatedVideo = storageService.updateVideo(id, { 
+    const updatedVideo = storageService.updateVideo(id, {
       progress,
-      lastPlayedAt: Date.now()
+      lastPlayedAt: Date.now(),
     });
 
     if (!updatedVideo) {
@@ -700,7 +776,7 @@ export const updateProgress = (req: Request, res: Response): any => {
 
     res.status(200).json({
       success: true,
-      progress: updatedVideo.progress
+      progress: updatedVideo.progress,
     });
   } catch (error) {
     console.error("Error updating progress:", error);

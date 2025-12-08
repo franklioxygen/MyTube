@@ -88,6 +88,17 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const activeDownloads = downloadStatus.activeDownloads || [];
     const queuedDownloads = downloadStatus.queuedDownloads || [];
 
+    // Debug log to see what data we're receiving
+    useEffect(() => {
+        if (activeDownloads.length > 0) {
+            activeDownloads.forEach((d: any) => {
+                if (d.progress !== undefined || d.speed) {
+                    console.log(`[Frontend] Download ${d.id}: progress=${d.progress}, speed=${d.speed}, totalSize=${d.totalSize}`);
+                }
+            });
+        }
+    }, [activeDownloads]);
+
     // Bilibili multi-part video state
     const [showBilibiliPartsModal, setShowBilibiliPartsModal] = useState<boolean>(false);
     const [bilibiliPartsInfo, setBilibiliPartsInfo] = useState<BilibiliPartsInfo>({

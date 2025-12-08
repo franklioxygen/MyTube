@@ -1,19 +1,19 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
+import youtubedl from "youtube-dl-exec";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { sanitizeFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
+const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+
 export class MissAVDownloader {
   // Get video info without downloading
-  static async getVideoInfo(
-    url: string
-  ): Promise<{
+  static async getVideoInfo(url: string): Promise<{
     title: string;
     author: string;
     date: string;
@@ -66,27 +66,21 @@ export class MissAVDownloader {
     console.log("Detected MissAV URL:", url);
 
     const timestamp = Date.now();
-    const safeBaseFilename = `video_${timestamp}`;
-    const videoFilename = `${safeBaseFilename}.mp4`;
-    const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
     // Ensure directories exist
     fs.ensureDirSync(VIDEOS_DIR);
     fs.ensureDirSync(IMAGES_DIR);
-
-    const videoPath = path.join(VIDEOS_DIR, videoFilename);
-    const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
 
     let videoTitle = "MissAV Video";
     let videoAuthor = "MissAV";
     let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     let thumbnailUrl: string | null = null;
     let thumbnailSaved = false;
-    let m3u8Url: string | null = null;
 
     try {
-      // 1. Fetch the page content using Puppeteer to bypass Cloudflare and capture m3u8 URL
-      console.log("Launching Puppeteer to capture m3u8 URL...");
+      // 1. Extract m3u8 URL and metadata using Puppeteer
+      // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
+      console.log("Launching Puppeteer to extract m3u8 URL...");
 
       const browser = await puppeteer.launch({
         headless: true,
@@ -101,7 +95,6 @@ export class MissAVDownloader {
       await page.setUserAgent(userAgent);
 
       // Setup request listener to find m3u8 URLs
-      // Collect all m3u8 URLs and prefer specific quality playlists over master playlists
       const m3u8Urls: string[] = [];
       page.on("request", (request) => {
         const reqUrl = request.url();
@@ -137,7 +130,8 @@ export class MissAVDownloader {
       });
 
       // 3. Select the best m3u8 URL from collected URLs
-      // Prefer specific quality playlists (e.g., /480p/video.m3u8) over master playlists (e.g., /playlist.m3u8)
+      // Prefer specific quality playlists over master playlists
+      let m3u8Url: string | null = null;
       if (m3u8Urls.length > 0) {
         // Sort URLs: prefer specific quality playlists, avoid master playlists
         const sortedUrls = m3u8Urls.sort((a, b) => {
@@ -170,7 +164,6 @@ export class MissAVDownloader {
       }
 
       // 4. If m3u8 URL was not found via network, try regex extraction as fallback
-      let regexExtractedUrl: string | null = null;
       if (!m3u8Url) {
         console.log(
           "m3u8 URL not found via network, trying regex extraction..."
@@ -195,10 +188,9 @@ export class MissAVDownloader {
               .slice(5, videoIndex - 1)
               .reverse()
               .join(".");
-            regexExtractedUrl = `${protocol}://${baseUrlPath}/${m3u8UrlPath}/${videoFormat}/${urlWords[videoIndex]}.m3u8`;
+            const regexExtractedUrl = `${protocol}://${baseUrlPath}/${m3u8UrlPath}/${videoFormat}/${urlWords[videoIndex]}.m3u8`;
             console.log("Reconstructed m3u8 URL via regex:", regexExtractedUrl);
 
-            // Add to m3u8Urls if not already present
             if (!m3u8Urls.includes(regexExtractedUrl)) {
               m3u8Urls.push(regexExtractedUrl);
             }
@@ -216,262 +208,7 @@ export class MissAVDownloader {
         );
       }
 
-      // 5. Download the video using ffmpeg directly
-      // Try multiple URLs if the first one fails
-      // Use sorted URLs if we have them, otherwise use the single URL
-      let urlsToTry: string[];
-      if (m3u8Urls.length > 0) {
-        // Re-sort to ensure best URL is first
-        const sortedUrls = m3u8Urls.sort((a, b) => {
-          const aIsMaster =
-            a.includes("/playlist.m3u8") || a.includes("/master/");
-          const bIsMaster =
-            b.includes("/playlist.m3u8") || b.includes("/master/");
-
-          if (aIsMaster && !bIsMaster) return 1;
-          if (!aIsMaster && bIsMaster) return -1;
-
-          const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
-          const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
-          const aQualityNum = parseInt(aQuality) || 0;
-          const bQualityNum = parseInt(bQuality) || 0;
-
-          return bQualityNum - aQualityNum;
-        });
-        urlsToTry = sortedUrls;
-      } else {
-        urlsToTry = [m3u8Url];
-      }
-      let downloadSuccess = false;
-      let lastError: Error | null = null;
-
-      for (const urlToTry of urlsToTry) {
-        if (downloadSuccess) break;
-
-        console.log(`Attempting to download video stream from: ${urlToTry}`);
-        console.log("Downloading video stream to:", videoPath);
-
-        if (downloadId) {
-          storageService.updateActiveDownload(downloadId, {
-            filename: videoTitle,
-            progress: 0,
-          });
-        }
-
-        try {
-          await new Promise<void>((resolve, reject) => {
-            const ffmpegArgs = [
-              "-user_agent",
-              userAgent,
-              "-headers",
-              "Referer: https://missav.ai/",
-              "-i",
-              urlToTry,
-              "-c",
-              "copy",
-              "-bsf:a",
-              "aac_adtstoasc",
-              "-y", // Overwrite output file
-              videoPath,
-            ];
-
-            console.log("Spawning ffmpeg with args:", ffmpegArgs.join(" "));
-
-            const ffmpeg = spawn("ffmpeg", ffmpegArgs);
-            let totalDurationSec = 0;
-            let ffmpegStderr = "";
-
-            if (onStart) {
-              onStart(() => {
-                console.log("Killing ffmpeg process for download:", downloadId);
-                ffmpeg.kill("SIGKILL");
-
-                // Cleanup
-                try {
-                  if (fs.existsSync(videoPath)) {
-                    fs.unlinkSync(videoPath);
-                    console.log("Deleted partial video file:", videoPath);
-                  }
-                  if (fs.existsSync(thumbnailPath)) {
-                    fs.unlinkSync(thumbnailPath);
-                    console.log(
-                      "Deleted partial thumbnail file:",
-                      thumbnailPath
-                    );
-                  }
-                } catch (e) {
-                  console.error("Error cleaning up partial files:", e);
-                }
-              });
-            }
-
-            ffmpeg.stderr.on("data", (data) => {
-              const output = data.toString();
-              ffmpegStderr += output;
-              // console.log("ffmpeg stderr:", output); // Uncomment for verbose debug
-
-              // Try to parse duration if not set
-              if (totalDurationSec === 0) {
-                const durationMatch = output.match(
-                  /Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/
-                );
-                if (durationMatch) {
-                  const hours = parseInt(durationMatch[1]);
-                  const minutes = parseInt(durationMatch[2]);
-                  const seconds = parseInt(durationMatch[3]);
-                  totalDurationSec = hours * 3600 + minutes * 60 + seconds;
-                  console.log("Detected total duration:", totalDurationSec);
-                }
-              }
-
-              // Parse progress
-              // size=   12345kB time=00:01:23.45 bitrate= 1234.5kbits/s speed=1.23x
-              const timeMatch = output.match(
-                /time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/
-              );
-              const sizeMatch = output.match(/size=\s*(\d+)([kMG]?B)/);
-              const bitrateMatch = output.match(
-                /bitrate=\s*(\d+\.?\d*)kbits\/s/
-              );
-
-              if (timeMatch && downloadId) {
-                const hours = parseInt(timeMatch[1]);
-                const minutes = parseInt(timeMatch[2]);
-                const seconds = parseInt(timeMatch[3]);
-                const currentTimeSec = hours * 3600 + minutes * 60 + seconds;
-
-                let percentage = 0;
-                if (totalDurationSec > 0) {
-                  percentage = Math.min(
-                    100,
-                    (currentTimeSec / totalDurationSec) * 100
-                  );
-                }
-
-                let totalSizeStr = "0B";
-                if (sizeMatch) {
-                  totalSizeStr = `${sizeMatch[1]}${sizeMatch[2]}`;
-                }
-
-                let speedStr = "0 B/s";
-                if (bitrateMatch) {
-                  const bitrateKbps = parseFloat(bitrateMatch[1]);
-                  // Convert kbits/s to KB/s (approximate, usually bitrate is bits, so /8)
-                  // But ffmpeg reports kbits/s. 1 byte = 8 bits.
-                  const speedKBps = bitrateKbps / 8;
-                  if (speedKBps > 1024) {
-                    speedStr = `${(speedKBps / 1024).toFixed(2)} MB/s`;
-                  } else {
-                    speedStr = `${speedKBps.toFixed(2)} KB/s`;
-                  }
-                }
-
-                storageService.updateActiveDownload(downloadId, {
-                  progress: parseFloat(percentage.toFixed(1)),
-                  totalSize: totalSizeStr,
-                  speed: speedStr,
-                });
-              }
-            });
-
-            ffmpeg.on("close", (code) => {
-              if (code === 0) {
-                console.log("ffmpeg process finished successfully");
-                resolve();
-              } else {
-                console.error(`ffmpeg process exited with code ${code}`);
-                console.error(
-                  "ffmpeg stderr output:",
-                  ffmpegStderr.slice(-1000)
-                ); // Last 1000 chars
-                // If killed (null code) or error
-                if (code === null) {
-                  // Likely killed by user, reject? Or resolve if handled?
-                  // If killed by onStart callback, we might want to reject to stop flow
-                  reject(new Error("Download cancelled"));
-                } else {
-                  reject(
-                    new Error(
-                      `ffmpeg exited with code ${code} when trying URL: ${urlToTry}`
-                    )
-                  );
-                }
-              }
-            });
-
-            ffmpeg.on("error", (err) => {
-              console.error("Failed to start ffmpeg:", err);
-              reject(err);
-            });
-          });
-
-          downloadSuccess = true;
-          console.log("Video download complete");
-        } catch (error: any) {
-          lastError = error;
-          console.error(`Failed to download from ${urlToTry}:`, error.message);
-
-          // Clean up partial file before trying next URL
-          if (fs.existsSync(videoPath)) {
-            try {
-              fs.unlinkSync(videoPath);
-              console.log(
-                "Cleaned up partial video file before trying next URL"
-              );
-            } catch (e) {
-              console.error("Error cleaning up partial file:", e);
-            }
-          }
-
-          // If this is not the last URL, continue to next
-          if (urlsToTry.indexOf(urlToTry) < urlsToTry.length - 1) {
-            console.log(
-              `Trying next URL... (${urlsToTry.indexOf(urlToTry) + 2}/${
-                urlsToTry.length
-              })`
-            );
-            continue;
-          }
-        }
-      }
-
-      if (!downloadSuccess) {
-        throw (
-          lastError ||
-          new Error("Failed to download video from all available URLs")
-        );
-      }
-
-      // 6. Download thumbnail
-      if (thumbnailUrl) {
-        try {
-          console.log("Downloading thumbnail from:", thumbnailUrl);
-          const thumbnailResponse = await axios({
-            method: "GET",
-            url: thumbnailUrl,
-            responseType: "stream",
-          });
-
-          const thumbnailWriter = fs.createWriteStream(thumbnailPath);
-          thumbnailResponse.data.pipe(thumbnailWriter);
-
-          await new Promise<void>((resolve, reject) => {
-            thumbnailWriter.on("finish", () => {
-              thumbnailSaved = true;
-              resolve();
-            });
-            thumbnailWriter.on("error", reject);
-          });
-          console.log("Thumbnail saved");
-        } catch (err) {
-          console.error("Error downloading thumbnail:", err);
-        }
-      }
-
-      // 7. Rename files with title
-      let finalVideoFilename = videoFilename;
-      let finalThumbnailFilename = thumbnailFilename;
-
+      // 5. Update the safe base filename with the actual title
       const newSafeBaseFilename = `${sanitizeFilename(
         videoTitle
       )}_${timestamp}`;
@@ -481,17 +218,180 @@ export class MissAVDownloader {
       const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
-      if (fs.existsSync(videoPath)) {
-        fs.renameSync(videoPath, newVideoPath);
-        finalVideoFilename = newVideoFilename;
+      // 6. Download the video using yt-dlp with the m3u8 URL
+      console.log("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
+      console.log("Downloading video to:", newVideoPath);
+      console.log("Download ID:", downloadId);
+
+      if (downloadId) {
+        storageService.updateActiveDownload(downloadId, {
+          filename: videoTitle,
+          progress: 0,
+        });
+      } else {
+        console.warn(
+          "[MissAV] Warning: downloadId is not set, progress updates will not work!"
+        );
       }
 
-      if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
-        fs.renameSync(thumbnailPath, newThumbnailPath);
-        finalThumbnailFilename = newThumbnailFilename;
+      // Prepare flags for yt-dlp to download m3u8 stream
+      const flags: any = {
+        output: newVideoPath,
+        format: "best",
+        mergeOutputFormat: "mp4",
+        addHeader: [`Referer:https://missav.ai/`, `User-Agent:${userAgent}`],
+      };
+
+      // Use exec to capture stdout for progress
+      const subprocess = youtubedl.exec(m3u8Url, flags, {
+        execPath: YT_DLP_PATH,
+      } as any);
+
+      if (onStart) {
+        onStart(() => {
+          console.log("Killing subprocess for download:", downloadId);
+          subprocess.kill();
+
+          // Clean up partial and temporary files created by yt-dlp
+          console.log("Cleaning up partial and temporary files...");
+          try {
+            // Clean up .part file (partial download)
+            const partVideoPath = `${newVideoPath}.part`;
+            if (fs.existsSync(partVideoPath)) {
+              fs.unlinkSync(partVideoPath);
+              console.log("Deleted partial video file:", partVideoPath);
+            }
+
+            // Clean up .ytdl file (yt-dlp metadata file)
+            const ytdlFilePath = `${newVideoPath}.ytdl`;
+            if (fs.existsSync(ytdlFilePath)) {
+              fs.unlinkSync(ytdlFilePath);
+              console.log("Deleted yt-dlp metadata file:", ytdlFilePath);
+            }
+
+            // Clean up incomplete video file if it exists
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+              console.log("Deleted incomplete video file:", newVideoPath);
+            }
+
+            // Clean up thumbnail if it exists
+            if (fs.existsSync(newThumbnailPath)) {
+              fs.unlinkSync(newThumbnailPath);
+              console.log("Deleted thumbnail file:", newThumbnailPath);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up partial files:", cleanupError);
+          }
+        });
       }
 
-      // Get video duration
+      // Parse progress from stdout and stderr
+      // yt-dlp outputs progress to stderr by default, but we check both
+      const parseProgress = (output: string, source: "stdout" | "stderr") => {
+        if (!downloadId) return;
+
+        // Log raw output for debugging (only first few lines to avoid spam)
+        const lines = output.split("\n").filter((line) => line.trim());
+        if (lines.length > 0 && lines[0].includes("[download]")) {
+          console.log(
+            `[MissAV Progress ${source}]:`,
+            lines[0].substring(0, 100)
+          );
+        }
+
+        // Try multiple regex patterns to match different yt-dlp output formats
+        // Format 1: [download]   5.4% of ~ 732.93MiB at    4.10MiB/s ETA 02:43
+        // Format 2: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
+        // Format 3: [download]  23.5% of ~10.00MiB at  2.00MiB/s
+        // Note: The ~ may have a space after it: "~ 732.93MiB"
+        let progressMatch = output.match(
+          /\[download\]\s+(\d+\.?\d*)%\s+of\s+~?\s*([\d\w.]+)\s+at\s+([\d\w.\/]+)/
+        );
+
+        // If no match with [download] prefix, try without it
+        if (!progressMatch) {
+          progressMatch = output.match(
+            /(\d+\.?\d*)%\s+of\s+~?\s*([\d\w.]+)\s+at\s+([\d\w.\/]+)/
+          );
+        }
+
+        // Try alternative format: [download] Downloading segment X of Y
+        if (!progressMatch) {
+          const segmentMatch = output.match(
+            /\[download\]\s+Downloading\s+segment\s+(\d+)\s+of\s+(\d+)/
+          );
+          if (segmentMatch && downloadId) {
+            const current = parseInt(segmentMatch[1]);
+            const total = parseInt(segmentMatch[2]);
+            const percentage = (current / total) * 100;
+
+            storageService.updateActiveDownload(downloadId, {
+              progress: percentage,
+            });
+            return;
+          }
+        }
+
+        if (progressMatch && progressMatch.length >= 4 && downloadId) {
+          const percentage = parseFloat(progressMatch[1]);
+          const totalSize = progressMatch[2] || "?";
+          const speed = progressMatch[3] || "0 B/s";
+
+          // Check if the original output had ~ prefix and add it back
+          const hasTilde =
+            output.includes(`of ~ ${totalSize}`) ||
+            output.includes(`of ~${totalSize}`);
+          const formattedTotalSize = hasTilde ? `~${totalSize}` : totalSize;
+
+          storageService.updateActiveDownload(downloadId, {
+            progress: percentage,
+            totalSize: formattedTotalSize,
+            speed: speed,
+          });
+        }
+      };
+
+      subprocess.stdout?.on("data", (data: Buffer) => {
+        parseProgress(data.toString(), "stdout");
+      });
+
+      subprocess.stderr?.on("data", (data: Buffer) => {
+        parseProgress(data.toString(), "stderr");
+      });
+
+      await subprocess;
+
+      console.log("Video downloaded successfully");
+
+      // 7. Download and save the thumbnail
+      if (thumbnailUrl) {
+        try {
+          console.log("Downloading thumbnail from:", thumbnailUrl);
+          const thumbnailResponse = await axios({
+            method: "GET",
+            url: thumbnailUrl,
+            responseType: "stream",
+          });
+
+          const thumbnailWriter = fs.createWriteStream(newThumbnailPath);
+          thumbnailResponse.data.pipe(thumbnailWriter);
+
+          await new Promise<void>((resolve, reject) => {
+            thumbnailWriter.on("finish", () => {
+              thumbnailSaved = true;
+              resolve();
+            });
+            thumbnailWriter.on("error", reject);
+          });
+
+          console.log("Thumbnail saved to:", newThumbnailPath);
+        } catch (err) {
+          console.error("Error downloading thumbnail:", err);
+        }
+      }
+
+      // 8. Get video duration
       let duration: string | undefined;
       try {
         const { getVideoDuration } = await import(
@@ -505,7 +405,7 @@ export class MissAVDownloader {
         console.error("Failed to extract duration from MissAV video:", e);
       }
 
-      // Get file size
+      // 9. Get file size
       let fileSize: string | undefined;
       try {
         if (fs.existsSync(newVideoPath)) {
@@ -516,7 +416,7 @@ export class MissAVDownloader {
         console.error("Failed to get file size:", e);
       }
 
-      // 8. Save metadata
+      // 10. Save metadata
       const videoData: Video = {
         id: timestamp.toString(),
         title: videoTitle,
@@ -524,12 +424,12 @@ export class MissAVDownloader {
         date: videoDate,
         source: "missav",
         sourceUrl: url,
-        videoFilename: finalVideoFilename,
-        thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
+        videoFilename: newVideoFilename,
+        thumbnailFilename: thumbnailSaved ? newThumbnailFilename : undefined,
         thumbnailUrl: thumbnailUrl || undefined,
-        videoPath: `/videos/${finalVideoFilename}`,
+        videoPath: `/videos/${newVideoFilename}`,
         thumbnailPath: thumbnailSaved
-          ? `/images/${finalThumbnailFilename}`
+          ? `/images/${newThumbnailFilename}`
           : null,
         duration: duration,
         fileSize: fileSize,
@@ -544,8 +444,16 @@ export class MissAVDownloader {
     } catch (error: any) {
       console.error("Error in downloadMissAVVideo:", error);
       // Cleanup
-      if (fs.existsSync(videoPath)) fs.removeSync(videoPath);
-      if (fs.existsSync(thumbnailPath)) fs.removeSync(thumbnailPath);
+      const newSafeBaseFilename = `${sanitizeFilename(
+        videoTitle
+      )}_${timestamp}`;
+      const newVideoPath = path.join(VIDEOS_DIR, `${newSafeBaseFilename}.mp4`);
+      const newThumbnailPath = path.join(
+        IMAGES_DIR,
+        `${newSafeBaseFilename}.jpg`
+      );
+      if (fs.existsSync(newVideoPath)) fs.removeSync(newVideoPath);
+      if (fs.existsSync(newThumbnailPath)) fs.removeSync(newThumbnailPath);
       throw error;
     }
   }

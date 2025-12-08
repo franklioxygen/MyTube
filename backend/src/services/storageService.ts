@@ -2,15 +2,22 @@ import { desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-    DATA_DIR,
-    IMAGES_DIR,
-    STATUS_DATA_PATH,
-    SUBTITLES_DIR,
-    UPLOADS_DIR,
-    VIDEOS_DIR,
+  DATA_DIR,
+  IMAGES_DIR,
+  STATUS_DATA_PATH,
+  SUBTITLES_DIR,
+  UPLOADS_DIR,
+  VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
-import { collections, collectionVideos, downloadHistory, downloads, settings, videos } from "../db/schema";
+import {
+  collections,
+  collectionVideos,
+  downloadHistory,
+  downloads,
+  settings,
+  videos,
+} from "../db/schema";
 
 export interface Video {
   id: string;
@@ -55,7 +62,7 @@ export interface DownloadHistoryItem {
   author?: string;
   sourceUrl?: string;
   finishedAt: number;
-  status: 'success' | 'failed';
+  status: "success" | "failed";
   error?: string;
   videoPath?: string;
   thumbnailPath?: string;
@@ -99,7 +106,7 @@ export function initializeStorage(): void {
 
   // Clean up active downloads from database on startup
   try {
-    db.delete(downloads).where(eq(downloads.status, 'active')).run();
+    db.delete(downloads).where(eq(downloads.status, "active")).run();
     console.log("Cleared active downloads from database on startup");
   } catch (error) {
     console.error("Error clearing active downloads from database:", error);
@@ -108,8 +115,10 @@ export function initializeStorage(): void {
   // Check and migrate tags column if needed
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
-    const hasTags = (tableInfo as any[]).some((col: any) => col.name === 'tags');
-    
+    const hasTags = (tableInfo as any[]).some(
+      (col: any) => col.name === "tags"
+    );
+
     if (!hasTags) {
       console.log("Migrating database: Adding tags column to videos table...");
       sqlite.prepare("ALTER TABLE videos ADD COLUMN tags TEXT").run();
@@ -123,55 +132,81 @@ export function initializeStorage(): void {
   try {
     const tableInfo = sqlite.prepare("PRAGMA table_info(videos)").all();
     const columns = (tableInfo as any[]).map((col: any) => col.name);
-    
-    if (!columns.includes('view_count')) {
-      console.log("Migrating database: Adding view_count column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN view_count INTEGER DEFAULT 0").run();
+
+    if (!columns.includes("view_count")) {
+      console.log(
+        "Migrating database: Adding view_count column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN view_count INTEGER DEFAULT 0")
+        .run();
       console.log("Migration successful: view_count added.");
     }
 
-    if (!columns.includes('progress')) {
-      console.log("Migrating database: Adding progress column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN progress INTEGER DEFAULT 0").run();
+    if (!columns.includes("progress")) {
+      console.log(
+        "Migrating database: Adding progress column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN progress INTEGER DEFAULT 0")
+        .run();
       console.log("Migration successful: progress added.");
     }
 
-    if (!columns.includes('duration')) {
-      console.log("Migrating database: Adding duration column to videos table...");
+    if (!columns.includes("duration")) {
+      console.log(
+        "Migrating database: Adding duration column to videos table..."
+      );
       sqlite.prepare("ALTER TABLE videos ADD COLUMN duration TEXT").run();
       console.log("Migration successful: duration added.");
     }
 
-    if (!columns.includes('file_size')) {
-      console.log("Migrating database: Adding file_size column to videos table...");
+    if (!columns.includes("file_size")) {
+      console.log(
+        "Migrating database: Adding file_size column to videos table..."
+      );
       sqlite.prepare("ALTER TABLE videos ADD COLUMN file_size TEXT").run();
       console.log("Migration successful: file_size added.");
     }
 
-    if (!columns.includes('last_played_at')) {
-      console.log("Migrating database: Adding last_played_at column to videos table...");
-      sqlite.prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER").run();
+    if (!columns.includes("last_played_at")) {
+      console.log(
+        "Migrating database: Adding last_played_at column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN last_played_at INTEGER")
+        .run();
       console.log("Migration successful: last_played_at added.");
     }
 
-    if (!columns.includes('subtitles')) {
-      console.log("Migrating database: Adding subtitles column to videos table...");
+    if (!columns.includes("subtitles")) {
+      console.log(
+        "Migrating database: Adding subtitles column to videos table..."
+      );
       sqlite.prepare("ALTER TABLE videos ADD COLUMN subtitles TEXT").run();
       console.log("Migration successful: subtitles added.");
     }
 
     // Check downloads table columns
-    const downloadsTableInfo = sqlite.prepare("PRAGMA table_info(downloads)").all();
-    const downloadsColumns = (downloadsTableInfo as any[]).map((col: any) => col.name);
+    const downloadsTableInfo = sqlite
+      .prepare("PRAGMA table_info(downloads)")
+      .all();
+    const downloadsColumns = (downloadsTableInfo as any[]).map(
+      (col: any) => col.name
+    );
 
-    if (!downloadsColumns.includes('source_url')) {
-      console.log("Migrating database: Adding source_url column to downloads table...");
+    if (!downloadsColumns.includes("source_url")) {
+      console.log(
+        "Migrating database: Adding source_url column to downloads table..."
+      );
       sqlite.prepare("ALTER TABLE downloads ADD COLUMN source_url TEXT").run();
       console.log("Migration successful: source_url added.");
     }
 
-    if (!downloadsColumns.includes('type')) {
-      console.log("Migrating database: Adding type column to downloads table...");
+    if (!downloadsColumns.includes("type")) {
+      console.log(
+        "Migrating database: Adding type column to downloads table..."
+      );
       sqlite.prepare("ALTER TABLE downloads ADD COLUMN type TEXT").run();
       console.log("Migration successful: type added.");
     }
@@ -180,70 +215,91 @@ export function initializeStorage(): void {
     const allVideos = db.select().from(videos).all();
     let updatedCount = 0;
     for (const video of allVideos) {
-        if (!video.fileSize && video.videoFilename) {
-             const videoPath = findVideoFile(video.videoFilename);
-             if (videoPath && fs.existsSync(videoPath)) {
-                 const stats = fs.statSync(videoPath);
-                 db.update(videos)
-                   .set({ fileSize: stats.size.toString() })
-                   .where(eq(videos.id, video.id))
-                   .run();
-                 updatedCount++;
-             }
+      if (!video.fileSize && video.videoFilename) {
+        const videoPath = findVideoFile(video.videoFilename);
+        if (videoPath && fs.existsSync(videoPath)) {
+          const stats = fs.statSync(videoPath);
+          db.update(videos)
+            .set({ fileSize: stats.size.toString() })
+            .where(eq(videos.id, video.id))
+            .run();
+          updatedCount++;
         }
+      }
     }
     if (updatedCount > 0) {
-        console.log(`Populated fileSize for ${updatedCount} videos.`);
+      console.log(`Populated fileSize for ${updatedCount} videos.`);
     }
   } catch (error) {
-    console.error("Error checking/migrating viewCount/progress/duration/fileSize columns:", error);
+    console.error(
+      "Error checking/migrating viewCount/progress/duration/fileSize columns:",
+      error
+    );
   }
 }
-
 
 // --- Download Status ---
 
 export function addActiveDownload(id: string, title: string): void {
   try {
     const now = Date.now();
-    db.insert(downloads).values({
-      id,
-      title,
-      timestamp: now,
-      status: 'active',
-      // We might want to pass sourceUrl and type here too if available, 
-      // but addActiveDownload signature currently only has id and title.
-      // We will update the signature in a separate step or let updateActiveDownload handle it.
-      // Actually, let's update the signature now to be safe, but that breaks callers.
-      // For now, let's just insert what we have.
-    }).onConflictDoUpdate({
-      target: downloads.id,
-      set: {
+    db.insert(downloads)
+      .values({
+        id,
         title,
         timestamp: now,
-        status: 'active',
-      }
-    }).run();
+        status: "active",
+        // We might want to pass sourceUrl and type here too if available,
+        // but addActiveDownload signature currently only has id and title.
+        // We will update the signature in a separate step or let updateActiveDownload handle it.
+        // Actually, let's update the signature now to be safe, but that breaks callers.
+        // For now, let's just insert what we have.
+      })
+      .onConflictDoUpdate({
+        target: downloads.id,
+        set: {
+          title,
+          timestamp: now,
+          status: "active",
+        },
+      })
+      .run();
     console.log(`Added/Updated active download: ${title} (${id})`);
   } catch (error) {
     console.error("Error adding active download:", error);
   }
 }
 
-export function updateActiveDownload(id: string, updates: Partial<DownloadInfo>): void {
+export function updateActiveDownload(
+  id: string,
+  updates: Partial<DownloadInfo>
+): void {
   try {
-    const updateData: any = { ...updates, timestamp: Date.now() };
-    
-    // Map fields to DB columns if necessary (though they match mostly)
-    if (updates.totalSize) updateData.totalSize = updates.totalSize;
-    if (updates.downloadedSize) updateData.downloadedSize = updates.downloadedSize;
-    if (updates.sourceUrl) updateData.sourceUrl = updates.sourceUrl;
-    if (updates.type) updateData.type = updates.type;
-    
-    db.update(downloads)
-      .set(updateData)
-      .where(eq(downloads.id, id))
-      .run();
+    const updateData: any = {
+      timestamp: Date.now(),
+    };
+
+    // Explicitly set all fields that might be updated
+    if (updates.progress !== undefined) updateData.progress = updates.progress;
+    if (updates.totalSize !== undefined)
+      updateData.totalSize = updates.totalSize;
+    if (updates.downloadedSize !== undefined)
+      updateData.downloadedSize = updates.downloadedSize;
+    if (updates.speed !== undefined) updateData.speed = updates.speed;
+    if (updates.filename !== undefined) updateData.filename = updates.filename;
+    if (updates.sourceUrl !== undefined)
+      updateData.sourceUrl = updates.sourceUrl;
+    if (updates.type !== undefined) updateData.type = updates.type;
+    if (updates.title !== undefined) updateData.title = updates.title;
+
+    db.update(downloads).set(updateData).where(eq(downloads.id, id)).run();
+
+    // Debug log for progress updates
+    if (updates.progress !== undefined || updates.speed !== undefined) {
+      // console.log(
+      //   `[Storage] Updated download ${id}: progress=${updates.progress}, speed=${updates.speed}, totalSize=${updates.totalSize}`
+      // );
+    }
   } catch (error) {
     console.error("Error updating active download:", error);
   }
@@ -263,27 +319,30 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
     // Transaction to clear old queued and add new ones
     db.transaction(() => {
       // First, remove all existing queued downloads
-      db.delete(downloads).where(eq(downloads.status, 'queued')).run();
+      db.delete(downloads).where(eq(downloads.status, "queued")).run();
 
       // Then insert new ones
       for (const download of queuedDownloads) {
-        db.insert(downloads).values({
-          id: download.id,
-          title: download.title,
-          timestamp: download.timestamp,
-          status: 'queued',
-          sourceUrl: download.sourceUrl,
-          type: download.type,
-        }).onConflictDoUpdate({
+        db.insert(downloads)
+          .values({
+            id: download.id,
+            title: download.title,
+            timestamp: download.timestamp,
+            status: "queued",
+            sourceUrl: download.sourceUrl,
+            type: download.type,
+          })
+          .onConflictDoUpdate({
             target: downloads.id,
             set: {
-                title: download.title,
-                timestamp: download.timestamp,
-                status: 'queued',
-                sourceUrl: download.sourceUrl,
-                type: download.type,
-            }
-        }).run();
+              title: download.title,
+              timestamp: download.timestamp,
+              status: "queued",
+              sourceUrl: download.sourceUrl,
+              type: download.type,
+            },
+          })
+          .run();
       }
     });
   } catch (error) {
@@ -295,30 +354,31 @@ export function getDownloadStatus(): DownloadStatus {
   try {
     // Clean up stale downloads (older than 30 mins)
     const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
-    db.delete(downloads)
-      .where(lt(downloads.timestamp, thirtyMinsAgo))
-      .run();
+    db.delete(downloads).where(lt(downloads.timestamp, thirtyMinsAgo)).run();
 
     const allDownloads = db.select().from(downloads).all();
-    
+
     const activeDownloads = allDownloads
-      .filter(d => d.status === 'active')
-      .map(d => ({
+      .filter((d) => d.status === "active")
+      .map((d) => ({
         id: d.id,
         title: d.title,
         timestamp: d.timestamp || 0,
         filename: d.filename || undefined,
         totalSize: d.totalSize || undefined,
         downloadedSize: d.downloadedSize || undefined,
-        progress: d.progress || undefined,
+        progress:
+          d.progress !== null && d.progress !== undefined
+            ? d.progress
+            : undefined,
         speed: d.speed || undefined,
         sourceUrl: d.sourceUrl || undefined,
         type: d.type || undefined,
       }));
 
     const queuedDownloads = allDownloads
-      .filter(d => d.status === 'queued')
-      .map(d => ({
+      .filter((d) => d.status === "queued")
+      .map((d) => ({
         id: d.id,
         title: d.title,
         timestamp: d.timestamp || 0,
@@ -337,18 +397,20 @@ export function getDownloadStatus(): DownloadStatus {
 
 export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
   try {
-    db.insert(downloadHistory).values({
-      id: item.id,
-      title: item.title,
-      author: item.author,
-      sourceUrl: item.sourceUrl,
-      finishedAt: item.finishedAt,
-      status: item.status,
-      error: item.error,
-      videoPath: item.videoPath,
-      thumbnailPath: item.thumbnailPath,
-      totalSize: item.totalSize,
-    }).run();
+    db.insert(downloadHistory)
+      .values({
+        id: item.id,
+        title: item.title,
+        author: item.author,
+        sourceUrl: item.sourceUrl,
+        finishedAt: item.finishedAt,
+        status: item.status,
+        error: item.error,
+        videoPath: item.videoPath,
+        thumbnailPath: item.thumbnailPath,
+        totalSize: item.totalSize,
+      })
+      .run();
   } catch (error) {
     console.error("Error adding download history item:", error);
   }
@@ -356,10 +418,14 @@ export function addDownloadHistoryItem(item: DownloadHistoryItem): void {
 
 export function getDownloadHistory(): DownloadHistoryItem[] {
   try {
-    const history = db.select().from(downloadHistory).orderBy(desc(downloadHistory.finishedAt)).all();
-    return history.map(h => ({
+    const history = db
+      .select()
+      .from(downloadHistory)
+      .orderBy(desc(downloadHistory.finishedAt))
+      .all();
+    return history.map((h) => ({
       ...h,
-      status: h.status as 'success' | 'failed',
+      status: h.status as "success" | "failed",
       author: h.author || undefined,
       sourceUrl: h.sourceUrl || undefined,
       error: h.error || undefined,
@@ -395,7 +461,7 @@ export function getSettings(): Record<string, any> {
   try {
     const allSettings = db.select().from(settings).all();
     const settingsMap: Record<string, any> = {};
-    
+
     for (const setting of allSettings) {
       try {
         settingsMap[setting.key] = JSON.parse(setting.value);
@@ -403,7 +469,7 @@ export function getSettings(): Record<string, any> {
         settingsMap[setting.key] = setting.value;
       }
     }
-    
+
     return settingsMap;
   } catch (error) {
     console.error("Error getting settings:", error);
@@ -415,13 +481,16 @@ export function saveSettings(newSettings: Record<string, any>): void {
   try {
     db.transaction(() => {
       for (const [key, value] of Object.entries(newSettings)) {
-        db.insert(settings).values({
-          key,
-          value: JSON.stringify(value),
-        }).onConflictDoUpdate({
-          target: settings.key,
-          set: { value: JSON.stringify(value) },
-        }).run();
+        db.insert(settings)
+          .values({
+            key,
+            value: JSON.stringify(value),
+          })
+          .onConflictDoUpdate({
+            target: settings.key,
+            set: { value: JSON.stringify(value) },
+          })
+          .run();
       }
     });
   } catch (error) {
@@ -434,8 +503,12 @@ export function saveSettings(newSettings: Record<string, any>): void {
 
 export function getVideos(): Video[] {
   try {
-    const allVideos = db.select().from(videos).orderBy(desc(videos.createdAt)).all();
-    return allVideos.map(v => ({
+    const allVideos = db
+      .select()
+      .from(videos)
+      .orderBy(desc(videos.createdAt))
+      .all();
+    return allVideos.map((v) => ({
       ...v,
       tags: v.tags ? JSON.parse(v.tags) : [],
       subtitles: v.subtitles ? JSON.parse(v.subtitles) : undefined,
@@ -468,12 +541,17 @@ export function saveVideo(videoData: Video): Video {
     const videoToSave = {
       ...videoData,
       tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
-      subtitles: videoData.subtitles ? JSON.stringify(videoData.subtitles) : undefined,
+      subtitles: videoData.subtitles
+        ? JSON.stringify(videoData.subtitles)
+        : undefined,
     };
-    db.insert(videos).values(videoToSave as any).onConflictDoUpdate({
-      target: videos.id,
-      set: videoToSave,
-    }).run();
+    db.insert(videos)
+      .values(videoToSave as any)
+      .onConflictDoUpdate({
+        target: videos.id,
+        set: videoToSave,
+      })
+      .run();
     return videoData;
   } catch (error) {
     console.error("Error saving video:", error);
@@ -486,19 +564,26 @@ export function updateVideo(id: string, updates: Partial<Video>): Video | null {
     const updatesToSave = {
       ...updates,
       tags: updates.tags ? JSON.stringify(updates.tags) : undefined,
-      subtitles: updates.subtitles ? JSON.stringify(updates.subtitles) : undefined,
+      subtitles: updates.subtitles
+        ? JSON.stringify(updates.subtitles)
+        : undefined,
     };
-    // If tags is explicitly empty array, we might want to save it as '[]' or null. 
+    // If tags is explicitly empty array, we might want to save it as '[]' or null.
     // JSON.stringify([]) is '[]', which is fine.
-    
-    const result = db.update(videos).set(updatesToSave as any).where(eq(videos.id, id)).returning().get();
-    
+
+    const result = db
+      .update(videos)
+      .set(updatesToSave as any)
+      .where(eq(videos.id, id))
+      .returning()
+      .get();
+
     if (result) {
-        return {
-            ...result,
-            tags: result.tags ? JSON.parse(result.tags) : [],
-            subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
-        } as Video;
+      return {
+        ...result,
+        tags: result.tags ? JSON.parse(result.tags) : [],
+        subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
+      } as Video;
     }
     return null;
   } catch (error) {
@@ -552,13 +637,17 @@ export function deleteVideo(id: string): boolean {
 
 export function getCollections(): Collection[] {
   try {
-    const rows = db.select({
-      c: collections,
-      cv: collectionVideos,
-    })
-    .from(collections)
-    .leftJoin(collectionVideos, eq(collections.id, collectionVideos.collectionId))
-    .all();
+    const rows = db
+      .select({
+        c: collections,
+        cv: collectionVideos,
+      })
+      .from(collections)
+      .leftJoin(
+        collectionVideos,
+        eq(collections.id, collectionVideos.collectionId)
+      )
+      .all();
 
     const map = new Map<string, Collection>();
     for (const row of rows) {
@@ -583,14 +672,18 @@ export function getCollections(): Collection[] {
 
 export function getCollectionById(id: string): Collection | undefined {
   try {
-    const rows = db.select({
-      c: collections,
-      cv: collectionVideos,
-    })
-    .from(collections)
-    .leftJoin(collectionVideos, eq(collections.id, collectionVideos.collectionId))
-    .where(eq(collections.id, id))
-    .all();
+    const rows = db
+      .select({
+        c: collections,
+        cv: collectionVideos,
+      })
+      .from(collections)
+      .leftJoin(
+        collectionVideos,
+        eq(collections.id, collectionVideos.collectionId)
+      )
+      .where(eq(collections.id, id))
+      .all();
 
     if (rows.length === 0) return undefined;
 
@@ -618,36 +711,47 @@ export function saveCollection(collection: Collection): Collection {
   try {
     db.transaction(() => {
       // Insert collection
-      db.insert(collections).values({
-        id: collection.id,
-        name: collection.name || collection.title,
-        title: collection.title,
-        createdAt: collection.createdAt || new Date().toISOString(),
-        updatedAt: collection.updatedAt,
-      }).onConflictDoUpdate({
-        target: collections.id,
-        set: {
+      db.insert(collections)
+        .values({
+          id: collection.id,
           name: collection.name || collection.title,
           title: collection.title,
-          updatedAt: new Date().toISOString(),
-        }
-      }).run();
+          createdAt: collection.createdAt || new Date().toISOString(),
+          updatedAt: collection.updatedAt,
+        })
+        .onConflictDoUpdate({
+          target: collections.id,
+          set: {
+            name: collection.name || collection.title,
+            title: collection.title,
+            updatedAt: new Date().toISOString(),
+          },
+        })
+        .run();
 
       // Sync videos
       // First delete existing links
-      db.delete(collectionVideos).where(eq(collectionVideos.collectionId, collection.id)).run();
-      
+      db.delete(collectionVideos)
+        .where(eq(collectionVideos.collectionId, collection.id))
+        .run();
+
       // Then insert new links
       if (collection.videos && collection.videos.length > 0) {
         for (const videoId of collection.videos) {
-             // Check if video exists to avoid FK error
-             const videoExists = db.select({ id: videos.id }).from(videos).where(eq(videos.id, videoId)).get();
-             if (videoExists) {
-                 db.insert(collectionVideos).values({
-                    collectionId: collection.id,
-                    videoId: videoId,
-                 }).run();
-             }
+          // Check if video exists to avoid FK error
+          const videoExists = db
+            .select({ id: videos.id })
+            .from(videos)
+            .where(eq(videos.id, videoId))
+            .get();
+          if (videoExists) {
+            db.insert(collectionVideos)
+              .values({
+                collectionId: collection.id,
+                videoId: videoId,
+              })
+              .run();
+          }
         }
       }
     });
@@ -731,13 +835,19 @@ function moveFile(sourcePath: string, destPath: string): void {
       console.log(`Moved file from ${sourcePath} to ${destPath}`);
     }
   } catch (error) {
-    console.error(`Error moving file from ${sourcePath} to ${destPath}:`, error);
+    console.error(
+      `Error moving file from ${sourcePath} to ${destPath}:`,
+      error
+    );
   }
 }
 
 // --- Complex Operations ---
 
-export function addVideoToCollection(collectionId: string, videoId: string): Collection | null {
+export function addVideoToCollection(
+  collectionId: string,
+  videoId: string
+): Collection | null {
   // Use atomicUpdateCollection to handle DB update
   const collection = atomicUpdateCollection(collectionId, (c) => {
     if (!c.videos.includes(videoId)) {
@@ -756,8 +866,12 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
 
       if (video.videoFilename) {
         const currentVideoPath = findVideoFile(video.videoFilename);
-        const targetVideoPath = path.join(VIDEOS_DIR, collectionName, video.videoFilename);
-        
+        const targetVideoPath = path.join(
+          VIDEOS_DIR,
+          collectionName,
+          video.videoFilename
+        );
+
         if (currentVideoPath && currentVideoPath !== targetVideoPath) {
           moveFile(currentVideoPath, targetVideoPath);
           updates.videoPath = `/videos/${collectionName}/${video.videoFilename}`;
@@ -767,7 +881,11 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
 
       if (video.thumbnailFilename) {
         const currentImagePath = findImageFile(video.thumbnailFilename);
-        const targetImagePath = path.join(IMAGES_DIR, collectionName, video.thumbnailFilename);
+        const targetImagePath = path.join(
+          IMAGES_DIR,
+          collectionName,
+          video.thumbnailFilename
+        );
 
         if (currentImagePath && currentImagePath !== targetImagePath) {
           moveFile(currentImagePath, targetImagePath);
@@ -785,7 +903,10 @@ export function addVideoToCollection(collectionId: string, videoId: string): Col
   return collection;
 }
 
-export function removeVideoFromCollection(collectionId: string, videoId: string): Collection | null {
+export function removeVideoFromCollection(
+  collectionId: string,
+  videoId: string
+): Collection | null {
   const collection = atomicUpdateCollection(collectionId, (c) => {
     c.videos = c.videos.filter((v) => v !== videoId);
     return c;
@@ -793,16 +914,18 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
 
   if (collection) {
     const video = getVideoById(videoId);
-    
+
     if (video) {
       // Check if video is in any other collection
       const allCollections = getCollections();
-      const otherCollection = allCollections.find(c => c.videos.includes(videoId) && c.id !== collectionId);
-      
+      const otherCollection = allCollections.find(
+        (c) => c.videos.includes(videoId) && c.id !== collectionId
+      );
+
       let targetVideoDir = VIDEOS_DIR;
       let targetImageDir = IMAGES_DIR;
-      let videoPathPrefix = '/videos';
-      let imagePathPrefix = '/images';
+      let videoPathPrefix = "/videos";
+      let imagePathPrefix = "/images";
 
       if (otherCollection) {
         const otherName = otherCollection.name || otherCollection.title;
@@ -820,7 +943,7 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
       if (video.videoFilename) {
         const currentVideoPath = findVideoFile(video.videoFilename);
         const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
-        
+
         if (currentVideoPath && currentVideoPath !== targetVideoPath) {
           moveFile(currentVideoPath, targetVideoPath);
           updates.videoPath = `${videoPathPrefix}/${video.videoFilename}`;
@@ -830,7 +953,10 @@ export function removeVideoFromCollection(collectionId: string, videoId: string)
 
       if (video.thumbnailFilename) {
         const currentImagePath = findImageFile(video.thumbnailFilename);
-        const targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+        const targetImagePath = path.join(
+          targetImageDir,
+          video.thumbnailFilename
+        );
 
         if (currentImagePath && currentImagePath !== targetImagePath) {
           moveFile(currentImagePath, targetImagePath);
@@ -853,9 +979,9 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
-  
+
   if (collection.videos && collection.videos.length > 0) {
-    collection.videos.forEach(videoId => {
+    collection.videos.forEach((videoId) => {
       const video = getVideoById(videoId);
       if (video) {
         // Move files back to root
@@ -865,7 +991,7 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
         if (video.videoFilename) {
           const currentVideoPath = findVideoFile(video.videoFilename);
           const targetVideoPath = path.join(VIDEOS_DIR, video.videoFilename);
-          
+
           if (currentVideoPath && currentVideoPath !== targetVideoPath) {
             moveFile(currentVideoPath, targetVideoPath);
             updates.videoPath = `/videos/${video.videoFilename}`;
@@ -875,7 +1001,10 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
 
         if (video.thumbnailFilename) {
           const currentImagePath = findImageFile(video.thumbnailFilename);
-          const targetImagePath = path.join(IMAGES_DIR, video.thumbnailFilename);
+          const targetImagePath = path.join(
+            IMAGES_DIR,
+            video.thumbnailFilename
+          );
 
           if (currentImagePath && currentImagePath !== targetImagePath) {
             moveFile(currentImagePath, targetImagePath);
@@ -895,12 +1024,18 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
   if (collectionName) {
     const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
     const collectionImageDir = path.join(IMAGES_DIR, collectionName);
-    
+
     try {
-      if (fs.existsSync(collectionVideoDir) && fs.readdirSync(collectionVideoDir).length === 0) {
+      if (
+        fs.existsSync(collectionVideoDir) &&
+        fs.readdirSync(collectionVideoDir).length === 0
+      ) {
         fs.rmdirSync(collectionVideoDir);
       }
-      if (fs.existsSync(collectionImageDir) && fs.readdirSync(collectionImageDir).length === 0) {
+      if (
+        fs.existsSync(collectionImageDir) &&
+        fs.readdirSync(collectionImageDir).length === 0
+      ) {
         fs.rmdirSync(collectionImageDir);
       }
     } catch (e) {
@@ -916,10 +1051,10 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
   if (!collection) return false;
 
   const collectionName = collection.name || collection.title;
-  
+
   // Delete all videos in the collection
   if (collection.videos && collection.videos.length > 0) {
-    collection.videos.forEach(videoId => {
+    collection.videos.forEach((videoId) => {
       deleteVideo(videoId);
     });
   }
@@ -928,7 +1063,7 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
   if (collectionName) {
     const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
     const collectionImageDir = path.join(IMAGES_DIR, collectionName);
-    
+
     try {
       if (fs.existsSync(collectionVideoDir)) {
         fs.rmdirSync(collectionVideoDir);
