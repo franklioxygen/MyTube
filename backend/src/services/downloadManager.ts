@@ -1,7 +1,7 @@
+import { extractSourceVideoId } from "../utils/helpers";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
 import * as storageService from "./storageService";
-import { extractSourceVideoId } from "../utils/helpers";
 
 interface DownloadTask {
   downloadFn: (registerCancel: (cancel: () => void) => void) => Promise<any>;
@@ -282,6 +282,7 @@ class DownloadManager {
           thumbnailPath: videoData.thumbnailPath,
           sourceUrl: videoData.sourceUrl || task.sourceUrl,
           author: videoData.author,
+          videoId: videoData.id,
         });
 
         // Record video download for future duplicate detection

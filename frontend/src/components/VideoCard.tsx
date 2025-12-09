@@ -329,7 +329,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
                     </Box>
 
-                    <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                    <CardContent sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
                         <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {isFirstInAnyCollection ? (
                                 <>
@@ -352,7 +352,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                     fontWeight: 500
                                 }}
                             >
-                                {video.author}
+                                {video.author.length > 15 ? `${video.author.substring(0, 15)}...` : video.author}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <Typography variant="caption" color="text.secondary">

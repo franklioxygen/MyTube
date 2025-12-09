@@ -404,7 +404,7 @@ const Header: React.FC<HeaderProps> = ({
                                 </Typography>
                                 {websiteName !== 'MyTube' && (
                                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
-                                        {t('poweredBy')}
+                                        Powered by MyTube
                                     </Typography>
                                 )}
                             </Box>

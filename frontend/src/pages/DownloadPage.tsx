@@ -24,7 +24,9 @@ import {
     Paper,
     Tab,
     Tabs,
-    Typography
+    Typography,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -81,6 +83,8 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 const DownloadPage: React.FC = () => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { activeDownloads, queuedDownloads, handleVideoSubmit } = useDownload();
@@ -231,7 +235,7 @@ const DownloadPage: React.FC = () => {
     // Re-download deleted video
     const handleReDownload = async (sourceUrl: string) => {
         if (!sourceUrl) return;
-        
+
         try {
             // Call download with forceDownload flag
             const response = await axios.post(`${API_URL}/download`, {
@@ -338,7 +342,7 @@ const DownloadPage: React.FC = () => {
                                 >
                                     <ListItemText
                                         primary={download.title}
-                                        secondaryTypographyProps={{ component: 'div' }}
+                                        slotProps={{ secondary: { component: 'div' } }}
                                         secondary={
                                             <Box sx={{ mt: 1 }}>
                                                 <LinearProgress variant="determinate" value={download.progress || 0} sx={{ mb: 1 }} />
@@ -413,6 +417,7 @@ const DownloadPage: React.FC = () => {
                                     page={queuePage}
                                     onChange={(_: React.ChangeEvent<unknown>, page: number) => setQueuePage(page)}
                                     color="primary"
+                                    siblingCount={isMobile ? 0 : 1}
                                 />
                             </Box>
                         )}
@@ -448,14 +453,38 @@ const DownloadPage: React.FC = () => {
                                                     <DeleteIcon />
                                                 </IconButton>
                                             }
+                                            sx={{
+                                                flexDirection: { xs: 'column', md: 'row' },
+                                                alignItems: { xs: 'flex-start', md: 'center' },
+                                                gap: { xs: 2, md: 0 },
+                                                pr: { xs: 6, md: 10 }, // Add padding to avoid overlap with delete button
+                                                position: 'relative'
+                                            }}
                                         >
                                             <ListItemText
                                                 primary={item.title}
-                                                secondaryTypographyProps={{ component: 'div' }}
+                                                slotProps={{ secondary: { component: 'div' } }}
+                                                sx={{
+                                                    width: { xs: '100%', md: 'auto' },
+                                                    flex: { md: 1 },
+                                                    pr: { xs: 0, md: 2 }
+                                                }}
                                                 secondary={
                                                     <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                                         {item.sourceUrl && (
-                                                            <Typography variant="caption" color="primary" component="a" href={item.sourceUrl} target="_blank" rel="noopener noreferrer" sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="primary"
+                                                                component="a"
+                                                                href={item.sourceUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                sx={{
+                                                                    textDecoration: 'none',
+                                                                    '&:hover': { textDecoration: 'underline' },
+                                                                    wordBreak: 'break-all'
+                                                                }}
+                                                            >
                                                                 {item.sourceUrl}
                                                             </Typography>
                                                         )}
@@ -485,7 +514,14 @@ const DownloadPage: React.FC = () => {
                                                     </Box>
                                                 }
                                             />
-                                            <Box sx={{ mr: 8, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                flexWrap: 'wrap',
+                                                width: { xs: '100%', md: 'auto' },
+                                                justifyContent: { xs: 'flex-start', md: 'flex-end' }
+                                            }}>
                                                 {item.status === 'failed' && item.sourceUrl && (
                                                     <Button
                                                         variant="outlined"
@@ -510,6 +546,18 @@ const DownloadPage: React.FC = () => {
                                                         {t('viewVideo') || 'View Video'}
                                                     </Button>
                                                 )}
+                                                {item.status === 'success' && item.videoId && (
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="primary"
+                                                        size="small"
+                                                        startIcon={<PlayArrowIcon />}
+                                                        onClick={() => window.location.href = `/video/${item.videoId}`}
+                                                        sx={{ minWidth: '100px' }}
+                                                    >
+                                                        {t('viewVideo') || 'View Video'}
+                                                    </Button>
+                                                )}
                                                 {item.status === 'deleted' && item.sourceUrl && (
                                                     <Button
                                                         variant="outlined"
@@ -517,7 +565,6 @@ const DownloadPage: React.FC = () => {
                                                         size="small"
                                                         startIcon={<ReplayIcon />}
                                                         onClick={() => handleReDownload(item.sourceUrl!)}
-                                                        sx={{ minWidth: '120px' }}
                                                     >
                                                         {t('downloadAgain') || 'Download Again'}
                                                     </Button>
@@ -543,6 +590,7 @@ const DownloadPage: React.FC = () => {
                                     page={historyPage}
                                     onChange={(_: React.ChangeEvent<unknown>, page: number) => setHistoryPage(page)}
                                     color="primary"
+                                    siblingCount={isMobile ? 0 : 1}
                                 />
                             </Box>
                         )}

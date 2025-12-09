@@ -2,22 +2,22 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-    DATA_DIR,
-    IMAGES_DIR,
-    STATUS_DATA_PATH,
-    SUBTITLES_DIR,
-    UPLOADS_DIR,
-    VIDEOS_DIR,
+  DATA_DIR,
+  IMAGES_DIR,
+  STATUS_DATA_PATH,
+  SUBTITLES_DIR,
+  UPLOADS_DIR,
+  VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import {
-    collections,
-    collectionVideos,
-    downloadHistory,
-    downloads,
-    settings,
-    videoDownloads,
-    videos,
+  collections,
+  collectionVideos,
+  downloadHistory,
+  downloads,
+  settings,
+  videoDownloads,
+  videos,
 } from "../db/schema";
 import { formatVideoFilename } from "../utils/helpers";
 
@@ -346,6 +346,20 @@ export function initializeStorage(): void {
     }
     if (updatedCount > 0) {
       console.log(`Populated fileSize for ${updatedCount} videos.`);
+    }
+
+    // Backfill video_id in download_history for existing records
+    try {
+        const result = sqlite.prepare(`
+            UPDATE download_history
+            SET video_id = (SELECT id FROM videos WHERE videos.source_url = download_history.source_url)
+            WHERE video_id IS NULL AND status = 'success' AND source_url IS NOT NULL
+        `).run();
+        if (result.changes > 0) {
+            console.log(`Backfilled video_id for ${result.changes} download history items.`);
+        }
+    } catch (error) {
+        console.error("Error backfilling video_id in download history:", error);
     }
   } catch (error) {
     console.error(
