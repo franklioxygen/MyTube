@@ -389,4 +389,14 @@ export const ko = {
     skipped: "건너뜀",
     videoSkippedExists: "동영상이 이미 존재하여 다운로드를 건너뛰었습니다",
     videoSkippedDeleted: "동영상이 이전에 삭제되어 다운로드를 건너뛰었습니다",
+
+    // Sorting
+    sort: "정렬",
+    sortBy: "정렬 기준",
+    dateDesc: "추가된 날짜 (최신순)",
+    dateAsc: "추가된 날짜 (오래된순)",
+    viewsDesc: "조회수 (높은순)",
+    viewsAsc: "조회수 (낮은순)",
+    nameAsc: "이름 (A-Z)",
+    random: "무작위",
 };

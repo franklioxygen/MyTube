@@ -388,4 +388,14 @@ export const ar = {
     skipped: "تم التخطي",
     videoSkippedExists: "الفيديو موجود بالفعل، تم تخطي التنزيل",
     videoSkippedDeleted: "تم حذف الفيديو سابقًا، تم تخطي التنزيل",
+
+    // Sorting
+    sort: "فرز",
+    sortBy: "فرز حسب",
+    dateDesc: "تاريخ الإضافة (الأحدث)",
+    dateAsc: "تاريخ الإضافة (الأقدم)",
+    viewsDesc: "المشاهدات (من الأعلى للأقل)",
+    viewsAsc: "المشاهدات (من الأقل للأعلى)",
+    nameAsc: "الاسم (أ-ي)",
+    random: "تشغيل عشوائي",
 };

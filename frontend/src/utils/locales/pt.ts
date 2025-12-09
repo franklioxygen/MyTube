@@ -389,4 +389,14 @@ export const pt = {
     skipped: "Pular",
     videoSkippedExists: "Vídeo já existe, download pulado",
     videoSkippedDeleted: "Vídeo foi excluído anteriormente, download pulado",
+
+    // Sorting
+    sort: "Ordenar",
+    sortBy: "Ordenar por",
+    dateDesc: "Data de adição (Mais recente)",
+    dateAsc: "Data de adição (Mais antigo)",
+    viewsDesc: "Visualizações (Decrescente)",
+    viewsAsc: "Visualizações (Crescente)",
+    nameAsc: "Nome (A-Z)",
+    random: "Aleatório",
 };

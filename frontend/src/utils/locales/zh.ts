@@ -418,4 +418,14 @@ export const zh = {
   instructionSection3Item3Label: "OpenList 云盘：",
   instructionSection3Item3Text:
     "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
+
+  // Sorting
+  sort: "排序",
+  sortBy: "排序方式",
+  dateDesc: "添加日期 (最新)",
+  dateAsc: "添加日期 (最早)",
+  viewsDesc: "观看次数 (从高到低)",
+  viewsAsc: "观看次数 (从低到高)",
+  nameAsc: "名称 (A-Z)",
+  random: "随机播放",
 };

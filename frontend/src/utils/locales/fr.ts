@@ -389,4 +389,14 @@ export const fr = {
     skipped: "Ignoré",
     videoSkippedExists: "La vidéo existe déjà, téléchargement ignoré",
     videoSkippedDeleted: "La vidéo a été supprimée précédemment, téléchargement ignoré",
+
+    // Sorting
+    sort: "Trier",
+    sortBy: "Trier par",
+    dateDesc: "Date d'ajout (Plus récent)",
+    dateAsc: "Date d'ajout (Plus ancien)",
+    viewsDesc: "Vues (Décroissant)",
+    viewsAsc: "Vues (Croissant)",
+    nameAsc: "Nom (A-Z)",
+    random: "Aléatoire",
 };

@@ -252,4 +252,14 @@ export const de = {
     skipped: "Übersprungen",
     videoSkippedExists: "Video existiert bereits, Download übersprungen",
     videoSkippedDeleted: "Video wurde zuvor gelöscht, Download übersprungen",
+
+    // Sorting
+    sort: "Sortieren",
+    sortBy: "Sortieren nach",
+    dateDesc: "Hinzugefügt (Neueste)",
+    dateAsc: "Hinzugefügt (Älteste)",
+    viewsDesc: "Aufrufe (Absteigend)",
+    viewsAsc: "Aufrufe (Aufsteigend)",
+    nameAsc: "Name (A-Z)",
+    random: "Zufallswiedergabe",
 };

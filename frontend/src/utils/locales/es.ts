@@ -256,4 +256,14 @@ export const es = {
     skipped: "Omitido",
     videoSkippedExists: "El video ya existe, descarga omitida",
     videoSkippedDeleted: "El video fue eliminado anteriormente, descarga omitida",
+
+    // Sorting
+    sort: "Ordenar",
+    sortBy: "Ordenar por",
+    dateDesc: "Fecha de adición (Más reciente)",
+    dateAsc: "Fecha de adición (Más antiguo)",
+    viewsDesc: "Vistas (De más a menos)",
+    viewsAsc: "Vistas (De menos a más)",
+    nameAsc: "Nombre (A-Z)",
+    random: "Aleatorio",
 };

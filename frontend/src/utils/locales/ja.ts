@@ -386,4 +386,14 @@ export const ja = {
     skipped: "スキップ",
     videoSkippedExists: "動画は既に存在するため、ダウンロードをスキップしました",
     videoSkippedDeleted: "動画は以前削除されたため、ダウンロードをスキップしました",
+
+    // Sorting
+    sort: "並び替え",
+    sortBy: "並び替え順",
+    dateDesc: "追加日 (新しい順)",
+    dateAsc: "追加日 (古い順)",
+    viewsDesc: "再生回数 (多い順)",
+    viewsAsc: "再生回数 (少ない順)",
+    nameAsc: "名前 (A-Z)",
+    random: "ランダム",
 };

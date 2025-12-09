@@ -400,12 +400,15 @@ const Home: React.FC = () => {
                                     size="small"
                                     sx={{
                                         minWidth: 'auto',
-                                        px: 1,
+                                        px: { xs: 1, md: 2 },
                                         color: 'text.secondary',
                                         borderColor: 'text.secondary'
                                     }}
                                 >
-                                    <Sort />
+                                    <Sort fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                        {t('sort')}
+                                    </Box>
                                 </Button>
                                 <Menu
                                     anchorEl={sortAnchorEl}
