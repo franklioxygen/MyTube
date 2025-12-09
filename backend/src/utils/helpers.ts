@@ -227,8 +227,8 @@ export function formatVideoFilename(title: string, author: string, dateString: s
       .replace(/\s+/g, "."); // Replace spaces with dots
   };
 
-  const cleanTitle = cleanSegment(title) || "Video";
-  const cleanAuthor = cleanSegment(author) || "Unknown";
+  let cleanTitle = cleanSegment(title) || "Video";
+  let cleanAuthor = cleanSegment(author) || "Unknown";
   
   // Extract year
   let year = new Date().getFullYear().toString();
@@ -239,5 +239,26 @@ export function formatVideoFilename(title: string, author: string, dateString: s
      }
   }
 
-  return `${cleanTitle}-${cleanAuthor}-${year}`;
+  // Truncate author if it's too long (e.g. > 50 chars) to prioritize title visibility
+  if (cleanAuthor.length > 50) {
+      cleanAuthor = cleanAuthor.substring(0, 50);
+  }
+
+  // Construct the suffix parts
+  const yearSuffix = `-${year}`;
+  const authorSuffix = `-${cleanAuthor}`;
+  const fullSuffix = `${authorSuffix}${yearSuffix}`;
+
+  // Max length for the filename (leaving room for extension)
+  const MAX_FILENAME_LENGTH = 200;
+  
+  // Calculate available space for title
+  const availableTitleLength = MAX_FILENAME_LENGTH - fullSuffix.length;
+
+  if (cleanTitle.length > availableTitleLength) {
+      // Truncate title
+      cleanTitle = cleanTitle.substring(0, Math.max(0, availableTitleLength));
+  }
+
+  return `${cleanTitle}${fullSuffix}`;
 }

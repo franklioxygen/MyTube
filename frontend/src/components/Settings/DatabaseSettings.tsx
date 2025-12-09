@@ -5,10 +5,11 @@ import { useLanguage } from '../../contexts/LanguageContext';
 interface DatabaseSettingsProps {
     onMigrate: () => void;
     onDeleteLegacy: () => void;
+    onFormatFilenames: () => void;
     isSaving: boolean;
 }
 
-const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDeleteLegacy, isSaving }) => {
+const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDeleteLegacy, onFormatFilenames, isSaving }) => {
     const { t } = useLanguage();
 
     return (
@@ -25,6 +26,21 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDelete
             >
                 {t('migrateDataButton')}
             </Button>
+
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>{t('formatLegacyFilenames')}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t('formatLegacyFilenamesDescription')}
+                </Typography>
+                <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={onFormatFilenames}
+                    disabled={isSaving}
+                >
+                    {t('formatLegacyFilenamesButton')}
+                </Button>
+            </Box>
 
             <Box sx={{ mt: 3 }}>
                 <Typography variant="h6" gutterBottom>{t('removeLegacyData')}</Typography>

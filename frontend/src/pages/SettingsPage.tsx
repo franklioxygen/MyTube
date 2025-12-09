@@ -58,6 +58,7 @@ const SettingsPage: React.FC = () => {
 
     // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
+    const [showFormatConfirmModal, setShowFormatConfirmModal] = useState(false);
     const [showMigrateConfirmModal, setShowMigrateConfirmModal] = useState(false);
     const [showCleanupTempFilesModal, setShowCleanupTempFilesModal] = useState(false);
     const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({
@@ -230,6 +231,45 @@ const SettingsPage: React.FC = () => {
         }
     });
 
+    // Format legacy filenames mutation
+    const formatFilenamesMutation = useMutation({
+        mutationFn: async () => {
+            const res = await axios.post(`${API_URL}/settings/format-filenames`);
+            return res.data.results;
+        },
+        onSuccess: (results) => {
+            // Construct message using translations
+            let msg = t('formatFilenamesSuccess')
+                .replace('{processed}', results.processed.toString())
+                .replace('{renamed}', results.renamed.toString())
+                .replace('{errors}', results.errors.toString());
+
+            if (results.details && results.details.length > 0) {
+                // truncate details if too long
+                const detailsToShow = results.details.slice(0, 10);
+                msg += `\n\n${t('formatFilenamesDetails')}\n${detailsToShow.join('\n')}`;
+                if (results.details.length > 10) {
+                    msg += `\n${t('formatFilenamesMore').replace('{count}', (results.details.length - 10).toString())}`;
+                }
+            }
+
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: msg,
+                type: results.errors > 0 ? 'warning' : 'success'
+            });
+        },
+        onError: (error: any) => {
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: t('formatFilenamesError').replace('{error}', error.response?.data?.details || error.message),
+                type: 'error'
+            });
+        }
+    });
+
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
         if (field === 'language') {
@@ -241,7 +281,7 @@ const SettingsPage: React.FC = () => {
         setSettings(prev => ({ ...prev, tags: newTags }));
     };
 
-    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending;
+    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -334,6 +374,7 @@ const SettingsPage: React.FC = () => {
                             <DatabaseSettings
                                 onMigrate={() => setShowMigrateConfirmModal(true)}
                                 onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                                onFormatFilenames={() => setShowFormatConfirmModal(true)}
                                 isSaving={isSaving}
                             />
                         </Grid>
@@ -401,6 +442,21 @@ const SettingsPage: React.FC = () => {
                 message={t('migrateConfirmation')}
                 confirmText={t('confirm')}
                 cancelText={t('cancel')}
+            />
+
+            {/* Format Filenames Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showFormatConfirmModal}
+                onClose={() => setShowFormatConfirmModal(false)}
+                onConfirm={() => {
+                    setShowFormatConfirmModal(false);
+                    formatFilenamesMutation.mutate();
+                }}
+                title={t('formatLegacyFilenamesButton')}
+                message={t('formatLegacyFilenamesDescription')} // Reusing description as message, or could add a specific confirm message
+                confirmText={t('confirm')}
+                cancelText={t('cancel')}
+                isDanger={true}
             />
 
             {/* Cleanup Temp Files Modal */}

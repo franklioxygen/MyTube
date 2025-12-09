@@ -108,6 +108,16 @@ export const deleteLegacyData = async (_req: Request, res: Response) => {
     }
 };
 
+export const formatFilenames = async (_req: Request, res: Response) => {
+    try {
+        const results = storageService.formatLegacyFilenames();
+        res.json({ success: true, results });
+    } catch (error: any) {
+        console.error('Error formatting filenames:', error);
+        res.status(500).json({ error: 'Failed to format filenames', details: error.message });
+    }
+};
+
 export const updateSettings = async (req: Request, res: Response) => {
     try {
         const newSettings: Settings = req.body;

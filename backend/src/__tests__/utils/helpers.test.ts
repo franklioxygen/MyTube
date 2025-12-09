@@ -180,5 +180,36 @@ describe('Helpers', () => {
     it('should replace multiple spaces with single dot', () => {
       expect(formatVideoFilename('My   Video', 'Author   Name', '20230101')).toBe('My.Video-Author.Name-2023');
     });
+
+    it('should truncate filenames exceeding 200 characters', () => {
+        const longTitle = 'a'.repeat(300);
+        const author = 'Author';
+        const year = '2023';
+        const result = formatVideoFilename(longTitle, author, year);
+        
+        expect(result.length).toBeLessThanOrEqual(200);
+        expect(result).toContain('Author');
+        expect(result).toContain('2023');
+        // Suffix is -Author-2023 (12 chars)
+        // Title should be 200 - 12 = 188 chars
+        expect(result.length).toBe(200);
+    });
+
+    it('should truncate very long author names', () => {
+        const title = 'Video';
+        const longAuthor = 'a'.repeat(100);
+        const year = '2023';
+        const result = formatVideoFilename(title, longAuthor, year);
+        
+        // Author truncated to 50
+        // Suffix: -[50 chars]-2023 -> 1 + 50 + 1 + 4 = 56 chars
+        // Title: Video (5 chars)
+        // Total: 5 + 56 = 61 chars
+        expect(result.length).toBe(61);
+        expect(result).toContain(title);
+        // Should contain 50 'a's
+        expect(result).toContain('a'.repeat(50));
+        expect(result).not.toContain('a'.repeat(51));
+    });
   });
 });
