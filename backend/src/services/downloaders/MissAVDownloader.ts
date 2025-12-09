@@ -5,7 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { sanitizeFilename } from "../../utils/helpers";
+import { formatVideoFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
@@ -209,9 +209,7 @@ export class MissAVDownloader {
       }
 
       // 5. Update the safe base filename with the actual title
-      const newSafeBaseFilename = `${sanitizeFilename(
-        videoTitle
-      )}_${timestamp}`;
+      const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
       const newVideoFilename = `${newSafeBaseFilename}.mp4`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
@@ -441,9 +439,7 @@ export class MissAVDownloader {
     } catch (error: any) {
       console.error("Error in downloadMissAVVideo:", error);
       // Cleanup
-      const newSafeBaseFilename = `${sanitizeFilename(
-        videoTitle
-      )}_${timestamp}`;
+      const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
       const newVideoPath = path.join(VIDEOS_DIR, `${newSafeBaseFilename}.mp4`);
       const newThumbnailPath = path.join(
         IMAGES_DIR,

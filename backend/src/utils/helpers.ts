@@ -214,3 +214,30 @@ export function extractBilibiliSeriesId(url: string): string | null {
     return null;
   }
 }
+
+// Helper function to format video filename according to: Title-Author-YYYY
+// Symbols are removed, spaces replaced by dots.
+export function formatVideoFilename(title: string, author: string, dateString: string): string {
+  // Helper to clean segments: remove symbols (keep letters/numbers/spaces), replace spaces with dots
+  const cleanSegment = (str: string) => {
+    if (!str) return "Unknown";
+    return str
+      .replace(/[^\p{L}\p{N}\s]/gu, "") // Remove non-letters/numbers/spaces
+      .trim()
+      .replace(/\s+/g, "."); // Replace spaces with dots
+  };
+
+  const cleanTitle = cleanSegment(title) || "Video";
+  const cleanAuthor = cleanSegment(author) || "Unknown";
+  
+  // Extract year
+  let year = new Date().getFullYear().toString();
+  if (dateString) {
+     const match = dateString.match(/(\d{4})/);
+     if (match) {
+         year = match[1];
+     }
+  }
+
+  return `${cleanTitle}-${cleanAuthor}-${year}`;
+}

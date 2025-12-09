@@ -6,6 +6,7 @@ import {
     extractBilibiliSeriesId,
     extractBilibiliVideoId,
     extractUrlFromText,
+    formatVideoFilename,
     isBilibiliUrl,
     isValidUrl,
     resolveShortUrl,
@@ -151,6 +152,33 @@ describe('Helpers', () => {
   describe('extractBilibiliSeriesId', () => {
     it('should extract series_id', () => {
       expect(extractBilibiliSeriesId('https://www.bilibili.com/video/BV1xx?series_id=789')).toBe('789');
+    });
+  });
+
+  describe('formatVideoFilename', () => {
+    it('should format filename with title, author and year', () => {
+      expect(formatVideoFilename('My Video', 'Author Name', '20230101')).toBe('My.Video-Author.Name-2023');
+    });
+
+    it('should remove symbols from title and author', () => {
+      expect(formatVideoFilename('My #Video!', '@Author!', '20230101')).toBe('My.Video-Author-2023');
+    });
+
+    it('should handle missing author', () => {
+      expect(formatVideoFilename('My Video', '', '20230101')).toBe('My.Video-Unknown-2023');
+    });
+
+    it('should handle missing date', () => {
+      const year = new Date().getFullYear();
+      expect(formatVideoFilename('My Video', 'Author', '')).toBe(`My.Video-Author-${year}`);
+    });
+
+    it('should preserve non-Latin characters', () => {
+      expect(formatVideoFilename('测试视频', '作者', '20230101')).toBe('测试视频-作者-2023');
+    });
+    
+    it('should replace multiple spaces with single dot', () => {
+      expect(formatVideoFilename('My   Video', 'Author   Name', '20230101')).toBe('My.Video-Author.Name-2023');
     });
   });
 });

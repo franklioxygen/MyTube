@@ -7,7 +7,7 @@ import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
     extractBilibiliVideoId,
-    sanitizeFilename
+    formatVideoFilename
 } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
@@ -549,7 +549,8 @@ export class BilibiliDownloader {
             thumbnailSaved = bilibiliInfo.thumbnailSaved;
 
             // Update the safe base filename with the actual title
-            const newSafeBaseFilename = `${sanitizeFilename(videoTitle)}_${timestamp}`;
+            // Update the safe base filename with the new format
+            const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
             const newVideoFilename = `${newSafeBaseFilename}.mp4`;
             const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 

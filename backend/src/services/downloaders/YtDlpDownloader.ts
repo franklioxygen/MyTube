@@ -3,7 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import youtubedl from "youtube-dl-exec";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { sanitizeFilename } from "../../utils/helpers";
+import { formatVideoFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
@@ -212,9 +212,7 @@ export class YtDlpDownloader {
             source = info.extractor || "generic";
 
             // Update the safe base filename with the actual title
-            const newSafeBaseFilename = `${sanitizeFilename(
-                videoTitle
-            )}_${timestamp}`;
+            const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
             const newVideoFilename = `${newSafeBaseFilename}.mp4`;
             const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
