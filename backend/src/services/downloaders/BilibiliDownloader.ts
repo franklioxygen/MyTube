@@ -18,6 +18,7 @@ export interface BilibiliVideoInfo {
     date: string;
     thumbnailUrl: string | null;
     thumbnailSaved: boolean;
+    description?: string;
     error?: string;
 }
 
@@ -226,6 +227,7 @@ export class BilibiliDownloader {
                     if (response.data && response.data.data) {
                         const videoInfo = response.data.data;
                         thumbnailUrl = videoInfo.pic;
+                        const description = videoInfo.desc || "";
 
                         console.log("Got video info from API:", {
                             title: videoInfo.title,
@@ -262,6 +264,7 @@ export class BilibiliDownloader {
                                 date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
                                 thumbnailUrl: thumbnailUrl,
                                 thumbnailSaved,
+                                description,
                             };
                         }
                     }
@@ -516,8 +519,8 @@ export class BilibiliDownloader {
             // Set full paths for video and thumbnail
             const videoPath = path.join(VIDEOS_DIR, videoFilename);
             const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
-
-            let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved;
+            
+            let videoTitle, videoAuthor, videoDate, videoDescription, thumbnailUrl, thumbnailSaved;
             let finalVideoFilename = videoFilename;
             let finalThumbnailFilename = thumbnailFilename;
 
@@ -545,6 +548,7 @@ export class BilibiliDownloader {
             videoDate =
                 bilibiliInfo.date ||
                 new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            videoDescription = bilibiliInfo.description || "";
             thumbnailUrl = bilibiliInfo.thumbnailUrl;
             thumbnailSaved = bilibiliInfo.thumbnailSaved;
 
@@ -610,6 +614,7 @@ export class BilibiliDownloader {
                 id: timestamp.toString(),
                 title: videoTitle,
                 author: videoAuthor,
+                description: videoDescription,
                 date: videoDate,
                 source: "bilibili",
                 sourceUrl: url,

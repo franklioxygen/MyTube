@@ -174,7 +174,7 @@ export class YtDlpDownloader {
         const videoFilename = `${safeBaseFilename}.mp4`;
         const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
-        let videoTitle, videoAuthor, videoDate, thumbnailUrl, thumbnailSaved, source;
+        let videoTitle, videoAuthor, videoDate, videoDescription, thumbnailUrl, thumbnailSaved, source;
         let finalVideoFilename = videoFilename;
         let finalThumbnailFilename = thumbnailFilename;
         let subtitles: Array<{ language: string; filename: string; path: string }> = [];
@@ -205,6 +205,7 @@ export class YtDlpDownloader {
                     videoAuthor = customAuthor;
                 }
             }
+            videoDescription = info.description || "";
             videoDate =
                 info.upload_date ||
                 new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -399,6 +400,7 @@ export class YtDlpDownloader {
             id: timestamp.toString(),
             title: videoTitle || "Video",
             author: videoAuthor || "Unknown",
+            description: videoDescription,
             date:
                 videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
             source: source, // Use extracted source

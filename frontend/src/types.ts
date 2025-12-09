@@ -22,6 +22,7 @@ export interface Video {
   fileSize?: string; // Size in bytes as string
   lastPlayedAt?: number;
   subtitles?: Array<{ language: string; filename: string; path: string }>;
+  description?: string;
   [key: string]: any;
 }
 

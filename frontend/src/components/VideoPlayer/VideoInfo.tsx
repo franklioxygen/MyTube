@@ -75,6 +75,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     const [showExpandButton, setShowExpandButton] = useState(false);
     const titleRef = useRef<HTMLHeadingElement>(null);
 
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [showDescriptionExpandButton, setShowDescriptionExpandButton] = useState(false);
+    const descriptionRef = useRef<HTMLParagraphElement>(null);
+
     useEffect(() => {
         const checkOverflow = () => {
             const element = titleRef.current;
@@ -87,6 +91,19 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         window.addEventListener('resize', checkOverflow);
         return () => window.removeEventListener('resize', checkOverflow);
     }, [video.title, isTitleExpanded]);
+
+    useEffect(() => {
+        const checkDescriptionOverflow = () => {
+            const element = descriptionRef.current;
+            if (element && !isDescriptionExpanded) {
+                setShowDescriptionExpandButton(element.scrollHeight > element.clientHeight);
+            }
+        };
+
+        checkDescriptionOverflow();
+        window.addEventListener('resize', checkDescriptionOverflow);
+        return () => window.removeEventListener('resize', checkDescriptionOverflow);
+    }, [video.description, isDescriptionExpanded]);
 
     const handleStartEditingTitle = () => {
         setEditedTitle(video.title);
@@ -378,6 +395,35 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 <Alert severity="error" sx={{ mb: 2 }}>
                     {deleteError}
                 </Alert>
+            )}
+
+            {video.description && (
+                <Box sx={{ mt: 2 }}>
+                    <Typography
+                        ref={descriptionRef}
+                        variant="body2"
+                        color="text.primary"
+                        sx={{
+                            whiteSpace: 'pre-wrap',
+                            display: '-webkit-box',
+                            overflow: 'hidden',
+                            WebkitBoxOrient: 'vertical',
+                            WebkitLineClamp: isDescriptionExpanded ? 'unset' : 3,
+                        }}
+                    >
+                        {video.description}
+                    </Typography>
+                    {showDescriptionExpandButton && (
+                        <Button
+                            size="small"
+                            onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                            startIcon={isDescriptionExpanded ? <ExpandLess /> : <ExpandMore />}
+                            sx={{ mt: 0.5, p: 0, minWidth: 'auto', textTransform: 'none' }}
+                        >
+                            {isDescriptionExpanded ? t('collapse') : t('expand')}
+                        </Button>
+                    )}
+                </Box>
             )}
 
             <Divider sx={{ my: 2 }} />

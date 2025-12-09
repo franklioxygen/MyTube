@@ -2,22 +2,22 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  DATA_DIR,
-  IMAGES_DIR,
-  STATUS_DATA_PATH,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    DATA_DIR,
+    IMAGES_DIR,
+    STATUS_DATA_PATH,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import {
-  collections,
-  collectionVideos,
-  downloadHistory,
-  downloads,
-  settings,
-  videoDownloads,
-  videos,
+    collections,
+    collectionVideos,
+    downloadHistory,
+    downloads,
+    settings,
+    videoDownloads,
+    videos,
 } from "../db/schema";
 import { formatVideoFilename } from "../utils/helpers";
 
@@ -33,6 +33,7 @@ export interface Video {
   viewCount?: number;
   progress?: number;
   fileSize?: string;
+  description?: string;
   [key: string]: any;
 }
 
@@ -213,6 +214,14 @@ export function initializeStorage(): void {
       );
       sqlite.prepare("ALTER TABLE videos ADD COLUMN subtitles TEXT").run();
       console.log("Migration successful: subtitles added.");
+    }
+
+    if (!columns.includes("description")) {
+      console.log(
+        "Migrating database: Adding description column to videos table..."
+      );
+      sqlite.prepare("ALTER TABLE videos ADD COLUMN description TEXT").run();
+      console.log("Migration successful: description added.");
     }
 
     // Check downloads table columns

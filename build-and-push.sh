@@ -56,6 +56,16 @@ if [ -n "$VERSION" ]; then
   $DOCKER_PATH push $FRONTEND_VERSION_TAG
 fi
 
+# Clean up local images
+echo "🧹 Cleaning up local images..."
+$DOCKER_PATH rmi $BACKEND_LATEST
+$DOCKER_PATH rmi $FRONTEND_LATEST
+
+if [ -n "$VERSION" ]; then
+  $DOCKER_PATH rmi $BACKEND_VERSION_TAG
+  $DOCKER_PATH rmi $FRONTEND_VERSION_TAG
+fi
+
 echo "✅ Successfully built and pushed images to Docker Hub!"
 echo "Backend image: $BACKEND_LATEST"
 echo "Frontend image: $FRONTEND_LATEST"
