@@ -9,6 +9,7 @@ export const ja = {
     uploadVideo: "動画をアップロード",
     enterUrlOrSearchTerm: "動画のURLまたは検索語を入力",
     manageVideos: "動画の管理",
+    instruction: "説明書",
     
     // Home
     pasteUrl: "動画またはコレクションのURLを貼り付け",
@@ -373,4 +374,6 @@ export const ja = {
     instructionSection3Item3Label: "OpenList クラウドドライブ：",
     instructionSection3Item3Text: "（開発中）ユーザーがデプロイした OpenList サービスへの接続をサポートします。ここで構成を追加して、クラウドドライブ統合を有効にします。",
     history: '履歴',
+    downloading: "ダウンロード中...",
+    poweredBy: "MyTubeによって提供",
 };

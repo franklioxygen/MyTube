@@ -9,6 +9,7 @@ export const pt = {
     uploadVideo: "Enviar Vídeo",
     enterUrlOrSearchTerm: "Insira o URL do vídeo ou termo de pesquisa",
     manageVideos: "Gerenciar Vídeos",
+    instruction: "Instruções",
     
     // Home
     pasteUrl: "Colar URL de vídeo ou coleção",
@@ -376,4 +377,6 @@ export const pt = {
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(Em Desenvolvimento) Suporta conexão com serviços OpenList implantados pelo usuário. Adicione a configuração aqui para habilitar a integração da unidade de nuvem.",
     history: 'Histórico',
+    downloading: "Baixando...",
+    poweredBy: "Com tecnologia de MyTube",
 };

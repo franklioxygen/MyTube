@@ -3,7 +3,9 @@ export const es = {
     pleaseEnterUrlOrSearchTerm: "Por favor ingrese una URL de video o término de búsqueda",
     unexpectedErrorOccurred: "Ocurrió un error inesperado. Por favor, inténtelo de nuevo.",
     uploadVideo: "Subir Video", enterUrlOrSearchTerm: "Introduce la URL del video o término de búsqueda",
-    manageVideos: "Gestionar Videos", pasteUrl: "Pegar URL de video o colección", download: "Descargar",
+    manageVideos: "Gestionar Videos",
+    instruction: "Instrucciones",
+ pasteUrl: "Pegar URL de video o colección", download: "Descargar",
     search: "Buscar", recentDownloads: "Descargas Recientes", noDownloads: "Sin descargas aún",
     downloadStarted: "Descarga iniciada", downloadFailed: "Descarga fallida", loadingVideos: "Cargando videos...",
     searchResultsFor: "Resultados de búsqueda para", fromYourLibrary: "De tu Biblioteca",
@@ -242,4 +244,6 @@ export const es = {
     instructionSection3Item3Label: "Nube OpenList:",
     instructionSection3Item3Text: "(En Desarrollo) Admite conectar servicios OpenList implementados por el usuario. Agregue configuración aquí para habilitar la integración de la unidad en la nube.",
     history: 'Historial',
+    downloading: "Descargando...",
+    poweredBy: "Con tecnología de MyTube",
 };

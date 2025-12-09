@@ -9,6 +9,7 @@ export const ko = {
     uploadVideo: "동영상 업로드",
     enterUrlOrSearchTerm: "동영상 URL 또는 검색어 입력",
     manageVideos: "동영상 관리",
+    instruction: "설명서",
     
     // Home
     pasteUrl: "동영상 또는 컬렉션 URL 붙여넣기",
@@ -376,4 +377,6 @@ export const ko = {
     instructionSection3Item3Label: "OpenList 클라우드 드라이브:",
     instructionSection3Item3Text: "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
     history: '기록',
+    downloading: "다운로드 중...",
+    poweredBy: "MyTube 제공",
 };

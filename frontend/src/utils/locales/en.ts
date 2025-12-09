@@ -395,4 +395,6 @@ export const en = {
     skipped: "Skipped",
     videoSkippedExists: "Video already exists, skipped download",
     videoSkippedDeleted: "Video was previously deleted, skipped download",
+    downloading: "Downloading...",
+    poweredBy: "Powered by MyTube",
 };

@@ -359,6 +359,8 @@ export const zh = {
   videoSkippedExists: "视频已存在，跳过下载",
   videoSkippedDeleted: "视频曾被删除，跳过下载",
   history: "历史",
+  downloading: "下载中...",
+  poweredBy: "由 MyTube 提供支持",
 
   // Instruction Page
   instructionSection1Title: "1. 下载与任务管理",

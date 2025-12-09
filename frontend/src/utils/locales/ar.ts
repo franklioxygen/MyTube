@@ -9,6 +9,7 @@ export const ar = {
     uploadVideo: "رفع فيديو",
     enterUrlOrSearchTerm: "أدخل رابط الفيديو أو كلمة البحث",
     manageVideos: "إدارة الفيديوهات",
+    instruction: "تعليمات",
     
     // Home
     pasteUrl: "لصق رابط الفيديو أو المجموعة",
@@ -375,4 +376,6 @@ export const ar = {
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراص السحابية.",
     history: 'سجل',
+    downloading: "جاري التنزيل...",
+    poweredBy: "مدعوم من MyTube",
 };

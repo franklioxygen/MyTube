@@ -9,6 +9,7 @@ export const ru = {
     uploadVideo: "Загрузить видео",
     enterUrlOrSearchTerm: "Введите URL видео или поисковый запрос",
     manageVideos: "Управление видео",
+    instruction: "Инструкция",
     
     // Home
     pasteUrl: "Вставьте URL видео или коллекции",
@@ -377,4 +378,6 @@ export const ru = {
     instructionSection3Item3Label: "Облачный диск OpenList:",
     instructionSection3Item3Text: "(В разработке) Поддерживает подключение к развернутым пользователем сервисам OpenList. Добавьте конфигурацию здесь, чтобы включить интеграцию с облачным диском.",
     history: 'История',
+    downloading: "Скачивание...",
+    poweredBy: "Работает на MyTube",
 };

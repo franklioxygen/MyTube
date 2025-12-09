@@ -226,7 +226,7 @@ const Header: React.FC<HeaderProps> = ({
                                         </Typography>
                                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                                             <Typography variant="caption" color="text.secondary">
-                                                {download.progress ? `${download.progress.toFixed(1)}%` : 'Downloading...'}
+                                                {download.progress ? `${download.progress.toFixed(1)}%` : t('downloading')}
                                             </Typography>
                                             {download.totalSize && (
                                                 <Typography variant="caption" color="text.secondary">
@@ -404,7 +404,7 @@ const Header: React.FC<HeaderProps> = ({
                                 </Typography>
                                 {websiteName !== 'MyTube' && (
                                     <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
-                                        Powered by MyTube
+                                        {t('poweredBy')}
                                     </Typography>
                                 )}
                             </Box>

@@ -3,7 +3,9 @@ export const de = {
     pleaseEnterUrlOrSearchTerm: "Bitte geben Sie eine Video-URL oder einen Suchbegriff ein",
     unexpectedErrorOccurred: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
     uploadVideo: "Video Hochladen", enterUrlOrSearchTerm: "Video-URL oder Suchbegriff eingeben",
-    manageVideos: "Videos Verwalten", pasteUrl: "Video- oder Sammlungs-URL einfügen", download: "Herunterladen",
+    manageVideos: "Videos Verwalten",
+    instruction: "Anleitung",
+ pasteUrl: "Video- oder Sammlungs-URL einfügen", download: "Herunterladen",
     search: "Suchen", recentDownloads: "Letzte Downloads", noDownloads: "Noch keine Downloads",
     downloadStarted: "Download gestartet", downloadFailed: "Download fehlgeschlagen", loadingVideos: "Videos werden geladen...",
     searchResultsFor: "Suchergebnisse für", fromYourLibrary: "Aus Ihrer Bibliothek",
@@ -238,4 +240,6 @@ export const de = {
     instructionSection3Item3Label: "OpenList Cloud Drive:",
     instructionSection3Item3Text: "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
     history: 'Verlauf',
+    downloading: "Herunterladen...",
+    poweredBy: "Bereitgestellt von MyTube",
 };
