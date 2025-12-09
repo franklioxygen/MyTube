@@ -1,5 +1,5 @@
 
-import { Collections as CollectionsIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
+import { AccessTime, Collections as CollectionsIcon, GridView, History, Shuffle, Sort, SortByAlpha, ViewSidebar, Visibility } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -8,13 +8,17 @@ import {
     Collapse,
     Container,
     Grid,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
     Pagination,
     ToggleButton,
     ToggleButtonGroup,
     Typography
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
@@ -48,6 +52,9 @@ const Home: React.FC = () => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as 'collections' | 'all-videos' | 'history') || 'collections';
     });
+    const [sortOption, setSortOption] = useState<string>('dateDesc');
+    const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
+    const [shuffleSeed, setShuffleSeed] = useState<number>(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
 
@@ -135,6 +142,75 @@ const Home: React.FC = () => {
     // Add default empty array to ensure videos is always an array
     const videoArray = Array.isArray(videos) ? videos : [];
 
+
+    // Filter videos based on view mode
+    const filteredVideos = useMemo(() => {
+        if (viewMode === 'all-videos') {
+            return videoArray.filter(video => {
+                // In all-videos mode, only apply tag filtering
+                if (selectedTags.length > 0) {
+                    const videoTags = video.tags || [];
+                    return selectedTags.every(tag => videoTags.includes(tag));
+                }
+                return true;
+            });
+        }
+
+        if (viewMode === 'history') {
+            return videoArray
+                .filter(video => video.lastPlayedAt)
+                .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
+        }
+
+        // Collections mode
+        return videoArray.filter(video => {
+            // In collections mode, show only first video from each collection
+            // Tag filtering
+            if (selectedTags.length > 0) {
+                const videoTags = video.tags || [];
+                const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
+                if (!hasMatchingTag) return false;
+            }
+
+            // If the video is not in any collection, show it
+            const videoCollections = collections.filter(collection =>
+                collection.videos.includes(video.id)
+            );
+
+            if (videoCollections.length === 0) {
+                return false;
+            }
+
+            // For each collection this video is in, check if it's the first video
+            return videoCollections.some(collection => {
+                // Get the first video ID in this collection
+                const firstVideoId = collection.videos[0];
+                // Show this video if it's the first in at least one collection
+                return video.id === firstVideoId;
+            });
+        });
+    }, [viewMode, videoArray, selectedTags, collections]);
+
+    const sortedVideos = useMemo(() => {
+        const result = [...filteredVideos];
+        switch (sortOption) {
+            case 'dateDesc':
+                return result.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
+            case 'dateAsc':
+                return result.sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
+            case 'viewsDesc':
+                return result.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+            case 'viewsAsc':
+                return result.sort((a, b) => (a.viewCount || 0) - (b.viewCount || 0));
+            case 'nameAsc':
+                return result.sort((a, b) => a.title.localeCompare(b.title));
+            case 'random':
+                return result.sort(() => 0.5 - Math.random());
+            default:
+                return result;
+        }
+    }, [filteredVideos, sortOption, shuffleSeed]);
+
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -153,45 +229,7 @@ const Home: React.FC = () => {
     }
 
     // Filter videos based on view mode
-    const filteredVideos = viewMode === 'all-videos'
-        ? videoArray.filter(video => {
-            // In all-videos mode, only apply tag filtering
-            if (selectedTags.length > 0) {
-                const videoTags = video.tags || [];
-                return selectedTags.every(tag => videoTags.includes(tag));
-            }
-            return true;
-        })
-        : viewMode === 'history'
-            ? videoArray
-                .filter(video => video.lastPlayedAt)
-                .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0))
-            : videoArray.filter(video => {
-                // In collections mode, show only first video from each collection
-                // Tag filtering
-                if (selectedTags.length > 0) {
-                    const videoTags = video.tags || [];
-                    const hasMatchingTag = selectedTags.every(tag => videoTags.includes(tag));
-                    if (!hasMatchingTag) return false;
-                }
 
-                // If the video is not in any collection, show it
-                const videoCollections = collections.filter(collection =>
-                    collection.videos.includes(video.id)
-                );
-
-                if (videoCollections.length === 0) {
-                    return false;
-                }
-
-                // For each collection this video is in, check if it's the first video
-                return videoCollections.some(collection => {
-                    // Get the first video ID in this collection
-                    const firstVideoId = collection.videos[0];
-                    // Show this video if it's the first in at least one collection
-                    return video.id === firstVideoId;
-                });
-            });
 
     const handleViewModeChange = (mode: 'collections' | 'all-videos' | 'history') => {
         setViewMode(mode);
@@ -203,9 +241,38 @@ const Home: React.FC = () => {
         });
     };
 
+    const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setSortAnchorEl(event.currentTarget);
+    };
+
+    const handleSortClose = (option?: string) => {
+        if (option) {
+            if (option === 'random') {
+                setShuffleSeed(prev => prev + 1);
+            }
+
+            if (option !== sortOption) {
+                setSortOption(option);
+                setSearchParams((prev: URLSearchParams) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.set('page', '1');
+                    return newParams;
+                });
+            } else if (option === 'random') {
+                // Even if it matches, if it is random, we want to reset page to 1 because the order changed
+                setSearchParams((prev: URLSearchParams) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.set('page', '1');
+                    return newParams;
+                });
+            }
+        }
+        setSortAnchorEl(null);
+    };
+
     // Pagination logic
-    const totalPages = Math.ceil(filteredVideos.length / itemsPerPage);
-    const displayedVideos = filteredVideos.slice(
+    const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
+    const displayedVideos = sortedVideos.slice(
         (page - 1) * itemsPerPage,
         page * itemsPerPage
     );
@@ -300,31 +367,89 @@ const Home: React.FC = () => {
                                     }[viewMode]}
                                 </Box>
                             </Typography>
-                            <ToggleButtonGroup
-                                value={viewMode}
-                                exclusive
-                                onChange={(_, newMode) => newMode && handleViewModeChange(newMode)}
-                                size="small"
-                            >
-                                <ToggleButton value="all-videos" sx={{ px: { xs: 3, md: 2 } }}>
-                                    <GridView fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
-                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                                        {t('allVideos')}
-                                    </Box>
-                                </ToggleButton>
-                                <ToggleButton value="collections" sx={{ px: { xs: 3, md: 2 } }}>
-                                    <CollectionsIcon fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
-                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                                        {t('collections')}
-                                    </Box>
-                                </ToggleButton>
-                                <ToggleButton value="history" sx={{ px: { xs: 3, md: 2 } }}>
-                                    <History fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
-                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                                        {t('history')}
-                                    </Box>
-                                </ToggleButton>
-                            </ToggleButtonGroup>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <ToggleButtonGroup
+                                    value={viewMode}
+                                    exclusive
+                                    onChange={(_, newMode) => newMode && handleViewModeChange(newMode)}
+                                    size="small"
+                                >
+                                    <ToggleButton value="all-videos" sx={{ px: { xs: 2, md: 2 } }}>
+                                        <GridView fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                            {t('allVideos')}
+                                        </Box>
+                                    </ToggleButton>
+                                    <ToggleButton value="collections" sx={{ px: { xs: 2, md: 2 } }}>
+                                        <CollectionsIcon fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                            {t('collections')}
+                                        </Box>
+                                    </ToggleButton>
+                                    <ToggleButton value="history" sx={{ px: { xs: 2, md: 2 } }}>
+                                        <History fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                                            {t('history')}
+                                        </Box>
+                                    </ToggleButton>
+                                </ToggleButtonGroup>
+
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleSortClick}
+                                    size="small"
+                                    sx={{
+                                        minWidth: 'auto',
+                                        px: 1,
+                                        color: 'text.secondary',
+                                        borderColor: 'text.secondary'
+                                    }}
+                                >
+                                    <Sort />
+                                </Button>
+                                <Menu
+                                    anchorEl={sortAnchorEl}
+                                    open={Boolean(sortAnchorEl)}
+                                    onClose={() => handleSortClose()}
+                                >
+                                    <MenuItem onClick={() => handleSortClose('dateDesc')} selected={sortOption === 'dateDesc'}>
+                                        <ListItemIcon>
+                                            <AccessTime fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('dateDesc')}</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortClose('dateAsc')} selected={sortOption === 'dateAsc'}>
+                                        <ListItemIcon>
+                                            <AccessTime fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('dateAsc')}</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortClose('viewsDesc')} selected={sortOption === 'viewsDesc'}>
+                                        <ListItemIcon>
+                                            <Visibility fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('viewsDesc')}</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortClose('viewsAsc')} selected={sortOption === 'viewsAsc'}>
+                                        <ListItemIcon>
+                                            <Visibility fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('viewsAsc')}</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortClose('nameAsc')} selected={sortOption === 'nameAsc'}>
+                                        <ListItemIcon>
+                                            <SortByAlpha fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('nameAsc')}</ListItemText>
+                                    </MenuItem>
+                                    <MenuItem onClick={() => handleSortClose('random')} selected={sortOption === 'random'}>
+                                        <ListItemIcon>
+                                            <Shuffle fontSize="small" />
+                                        </ListItemIcon>
+                                        <ListItemText>{t('random')}</ListItemText>
+                                    </MenuItem>
+                                </Menu>
+                            </Box>
                         </Box>
                         {viewMode === 'collections' && displayedVideos.length === 0 ? (
                             <Box sx={{ py: 8, textAlign: 'center' }}>

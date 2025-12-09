@@ -397,4 +397,14 @@ export const en = {
     videoSkippedDeleted: "Video was previously deleted, skipped download",
     downloading: "Downloading...",
     poweredBy: "Powered by MyTube",
+
+    // Sorting
+    sort: "Sort",
+    sortBy: "Sort by",
+    dateDesc: "Date Added (Newest)",
+    dateAsc: "Date Added (Oldest)",
+    viewsDesc: "Views (High to Low)",
+    viewsAsc: "Views (Low to High)",
+    nameAsc: "Name (A-Z)",
+    random: "Random Shuffle",
 };
