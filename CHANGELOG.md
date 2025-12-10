@@ -2,6 +2,14 @@
 
 
 
+## v1.5.2 (2025-12-10)
+
+### Feat
+- feat: add yt-dlp config (db94ed0)
+
+### Docs
+- docs: Update yt-dlp utils for Bilibili network settings (c52721c)
+
 ## v1.5.1 (2025-12-10)
 
 ### Test
