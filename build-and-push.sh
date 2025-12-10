@@ -5,8 +5,8 @@ DOCKER_PATH="/Applications/Docker.app/Contents/Resources/bin/docker"
 USERNAME="franklioxygen"
 VERSION=$1
 
-BACKEND_LATEST="$USERNAME/mytube:backend-latest"
-FRONTEND_LATEST="$USERNAME/mytube:frontend-latest"
+BACKEND_LATEST="$USERNAME/mytube:backend-test"
+FRONTEND_LATEST="$USERNAME/mytube:frontend-test"
 
 if [ -n "$VERSION" ]; then
   echo "🔖 Version specified: $VERSION"
