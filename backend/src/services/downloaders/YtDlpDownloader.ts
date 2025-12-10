@@ -22,6 +22,100 @@ const PROVIDER_SCRIPT =
     "bgutil-ytdlp-pot-provider/server/build/generate_once.js"
   );
 
+/**
+ * Parse yt-dlp configuration text into flags object
+ * Supports standard yt-dlp config file format (one option per line, # for comments)
+ */
+function parseYtDlpConfig(configText: string): Record<string, any> {
+  const flags: Record<string, any> = {};
+
+  if (!configText || typeof configText !== "string") {
+    return flags;
+  }
+
+  const lines = configText.split("\n");
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    // Skip empty lines and comments
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    // Parse the option
+    // Options can be:
+    // -f value
+    // --format value
+    // --some-flag (boolean)
+    // -x (short boolean)
+
+    let optionName: string | null = null;
+    let optionValue: string | boolean = true;
+
+    if (line.startsWith("--")) {
+      // Long option
+      const spaceIndex = line.indexOf(" ");
+      if (spaceIndex === -1) {
+        // Boolean flag (no value)
+        optionName = line.substring(2);
+      } else {
+        optionName = line.substring(2, spaceIndex);
+        optionValue = line.substring(spaceIndex + 1).trim();
+        // Remove surrounding quotes if present
+        if (
+          (optionValue.startsWith('"') && optionValue.endsWith('"')) ||
+          (optionValue.startsWith("'") && optionValue.endsWith("'"))
+        ) {
+          optionValue = optionValue.slice(1, -1);
+        }
+      }
+    } else if (line.startsWith("-") && !line.startsWith("--")) {
+      // Short option
+      const parts = line.split(/\s+/);
+      optionName = parts[0].substring(1);
+      if (parts.length > 1) {
+        optionValue = parts.slice(1).join(" ");
+        // Remove surrounding quotes if present
+        if (
+          typeof optionValue === "string" &&
+          ((optionValue.startsWith('"') && optionValue.endsWith('"')) ||
+            (optionValue.startsWith("'") && optionValue.endsWith("'")))
+        ) {
+          optionValue = optionValue.slice(1, -1);
+        }
+      }
+    }
+
+    if (optionName) {
+      // Convert kebab-case to camelCase for flags object
+      const camelCaseName = optionName.replace(/-([a-z])/g, (_, letter) =>
+        letter.toUpperCase()
+      );
+      flags[camelCaseName] = optionValue;
+    }
+  }
+
+  return flags;
+}
+
+/**
+ * Get user's yt-dlp configuration from settings
+ */
+function getUserYtDlpConfig(): Record<string, any> {
+  try {
+    const settings = storageService.getSettings();
+    if (settings.ytDlpConfig) {
+      const parsedConfig = parseYtDlpConfig(settings.ytDlpConfig);
+      console.log("Parsed user yt-dlp config:", parsedConfig);
+      return parsedConfig;
+    }
+  } catch (error) {
+    console.error("Error reading user yt-dlp config:", error);
+  }
+  return {};
+}
+
 // Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
 async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
   try {
@@ -59,13 +153,75 @@ async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Extract network-related options from user config
+ * These are safe to apply to all operations (search, info, download)
+ */
+function getNetworkConfigFromUserConfig(
+  userConfig: Record<string, any>
+): Record<string, any> {
+  const networkOptions: Record<string, any> = {};
+
+  // Proxy settings
+  if (userConfig.proxy) {
+    networkOptions.proxy = userConfig.proxy;
+  }
+
+  // Rate limiting
+  if (userConfig.r || userConfig.limitRate) {
+    networkOptions.limitRate = userConfig.r || userConfig.limitRate;
+  }
+
+  // Socket timeout
+  if (userConfig.socketTimeout) {
+    networkOptions.socketTimeout = userConfig.socketTimeout;
+  }
+
+  // Force IPv4/IPv6
+  if (userConfig.forceIpv4 || userConfig["4"]) {
+    networkOptions.forceIpv4 = true;
+  }
+  if (userConfig.forceIpv6 || userConfig["6"]) {
+    networkOptions.forceIpv6 = true;
+  }
+
+  // Geo bypass
+  if (userConfig.xff) {
+    networkOptions.xff = userConfig.xff;
+  }
+
+  // Sleep/rate limiting
+  if (userConfig.sleepRequests) {
+    networkOptions.sleepRequests = userConfig.sleepRequests;
+  }
+  if (userConfig.sleepInterval || userConfig.minSleepInterval) {
+    networkOptions.sleepInterval =
+      userConfig.sleepInterval || userConfig.minSleepInterval;
+  }
+  if (userConfig.maxSleepInterval) {
+    networkOptions.maxSleepInterval = userConfig.maxSleepInterval;
+  }
+
+  // Retries
+  if (userConfig.retries || userConfig.R) {
+    networkOptions.retries = userConfig.retries || userConfig.R;
+  }
+
+  return networkOptions;
+}
+
 export class YtDlpDownloader {
   // Search for videos (primarily for YouTube, but could be adapted)
   static async search(query: string): Promise<any[]> {
     console.log("Processing search request for query:", query);
 
+    // Get user config for network options
+    const userConfig = getUserYtDlpConfig();
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
     // Use ytsearch for searching
     const searchResults = await executeYtDlpJson(`ytsearch5:${query}`, {
+      ...networkConfig,
       noWarnings: true,
       skipDownload: true,
       playlistEnd: 5, // Limit to 5 results
@@ -103,7 +259,12 @@ export class YtDlpDownloader {
     thumbnailUrl: string;
   }> {
     try {
+      // Get user config for network options
+      const userConfig = getUserYtDlpConfig();
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
       const info = await executeYtDlpJson(url, {
+        ...networkConfig,
         noWarnings: true,
         preferFreeFormats: true,
         extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
@@ -133,6 +294,10 @@ export class YtDlpDownloader {
     try {
       console.log("Fetching latest video for channel:", channelUrl);
 
+      // Get user config for network options
+      const userConfig = getUserYtDlpConfig();
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
       // Append /videos to channel URL to ensure we get videos and not the channel tab
       let targetUrl = channelUrl;
       if (
@@ -155,6 +320,7 @@ export class YtDlpDownloader {
 
       // Use yt-dlp to get the first video in the channel (playlist)
       const result = await executeYtDlpJson(targetUrl, {
+        ...networkConfig,
         playlistEnd: 5,
         noWarnings: true,
         flatPlaylist: true, // We only need the ID/URL, not full info
@@ -278,10 +444,45 @@ export class YtDlpDownloader {
         });
       }
 
-      // Prepare flags
+      // Get user's yt-dlp configuration
+      const userConfig = getUserYtDlpConfig();
+
+      // Default format based on user config or fallback
+      let defaultFormat =
+        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+      let youtubeFormat =
+        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+
+      // If user specified a format, use it (but still apply MP4 container preference)
+      if (userConfig.f || userConfig.format) {
+        const userFormat = userConfig.f || userConfig.format;
+        defaultFormat = userFormat;
+        youtubeFormat = userFormat;
+        console.log("Using user-specified format:", userFormat);
+      }
+
+      // Prepare base flags from user config (excluding certain overridden options)
+      const {
+        output: _output, // Ignore user output template (we manage this)
+        o: _o,
+        writeSubs: _writeSubs, // We always enable subtitles
+        writeAutoSubs: _writeAutoSubs,
+        convertSubs: _convertSubs,
+        f: _f, // Format is handled specially above
+        format: _format,
+        S: userFormatSort, // Format sort is handled specially
+        formatSort: userFormatSort2,
+        ...safeUserConfig
+      } = userConfig;
+
+      // Get format sort option if user specified it
+      const formatSortValue = userFormatSort || userFormatSort2;
+
+      // Prepare flags - user config first, then our required overrides
       const flags: Record<string, any> = {
-        output: newVideoPath,
-        format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        ...safeUserConfig, // Apply user config first
+        output: newVideoPath, // Always use our output path
+        format: defaultFormat,
         mergeOutputFormat: "mp4",
         writeSubs: true,
         writeAutoSubs: true,
@@ -289,17 +490,57 @@ export class YtDlpDownloader {
         extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
       };
 
+      // Apply format sort if user specified it (e.g., -S res:480)
+      if (formatSortValue) {
+        flags.formatSort = formatSortValue;
+        console.log("Using user-specified format sort:", formatSortValue);
+      }
+
       // Add YouTube specific flags if it's a YouTube URL
       if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-        flags.format =
-          "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+        flags.format = youtubeFormat;
+
+        // Check if user specified format filters that might need better format metadata
+        const userHasFormatFilter =
+          (userConfig.f || userConfig.format) &&
+          (youtubeFormat.includes("[") || youtubeFormat.includes("height"));
+
         // Combine YouTube extractor args with PO token provider
-        flags.extractorArgs = `youtube:player_client=android;youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
-        flags.addHeader = [
-          "Referer:https://www.youtube.com/",
-          "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        ];
+        // Don't force player_client=android if user has format filters (web client has better format metadata)
+        let ytExtractorArgs = "";
+
+        if (
+          userConfig.extractorArgs &&
+          userConfig.extractorArgs.includes("youtube:")
+        ) {
+          // User has YouTube-specific args, use them
+          ytExtractorArgs = userConfig.extractorArgs;
+        } else if (!userHasFormatFilter) {
+          // Only use Android client by default if no format filters (for PO token bypass)
+          ytExtractorArgs = "youtube:player_client=android";
+        }
+
+        // Ensure PO token provider is included
+        if (ytExtractorArgs) {
+          if (!ytExtractorArgs.includes("youtubepot-bgutilscript")) {
+            ytExtractorArgs += `;youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+          }
+          flags.extractorArgs = ytExtractorArgs;
+        } else {
+          // Just use PO token provider without player_client override
+          flags.extractorArgs = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+        }
+
+        // Only set Android-specific headers if using Android client
+        if (ytExtractorArgs.includes("player_client=android")) {
+          flags.addHeader = [
+            "Referer:https://www.youtube.com/",
+            "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+          ];
+        }
       }
+
+      console.log("Final yt-dlp flags:", flags);
 
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(videoUrl, flags);

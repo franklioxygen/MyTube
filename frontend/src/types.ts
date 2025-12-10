@@ -3,7 +3,7 @@ export interface Video {
   title: string;
   author: string;
   date: string;
-  source: 'youtube' | 'bilibili' | 'local' | 'missav';
+  source: "youtube" | "bilibili" | "local" | "missav";
   sourceUrl: string;
   videoFilename?: string;
   thumbnailFilename?: string;
@@ -55,20 +55,21 @@ export interface Comment {
 }
 
 export interface Settings {
-    loginEnabled: boolean;
-    password?: string;
-    isPasswordSet?: boolean;
-    defaultAutoPlay: boolean;
-    defaultAutoLoop: boolean;
-    maxConcurrentDownloads: number;
-    language: string;
-    tags: string[];
-    cloudDriveEnabled: boolean;
-    openListApiUrl: string;
-    openListToken: string;
-    cloudDrivePath: string;
-    homeSidebarOpen?: boolean;
-    subtitlesEnabled?: boolean;
-    websiteName?: string;
-    itemsPerPage?: number;
+  loginEnabled: boolean;
+  password?: string;
+  isPasswordSet?: boolean;
+  defaultAutoPlay: boolean;
+  defaultAutoLoop: boolean;
+  maxConcurrentDownloads: number;
+  language: string;
+  tags: string[];
+  cloudDriveEnabled: boolean;
+  openListApiUrl: string;
+  openListToken: string;
+  cloudDrivePath: string;
+  homeSidebarOpen?: boolean;
+  subtitlesEnabled?: boolean;
+  websiteName?: string;
+  itemsPerPage?: number;
+  ytDlpConfig?: string;
 }

@@ -26,6 +26,7 @@ import GeneralSettings from '../components/Settings/GeneralSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import TagsSettings from '../components/Settings/TagsSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
+import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Settings } from '../types';
@@ -52,7 +53,8 @@ const SettingsPage: React.FC = () => {
         openListApiUrl: '',
         openListToken: '',
         cloudDrivePath: '',
-        itemsPerPage: 12
+        itemsPerPage: 12,
+        ytDlpConfig: ''
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -376,6 +378,16 @@ const SettingsPage: React.FC = () => {
                                 onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
                                 onFormatFilenames={() => setShowFormatConfirmModal(true)}
                                 isSaving={isSaving}
+                            />
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* yt-dlp Configuration */}
+                        <Grid size={12}>
+                            <YtDlpSettings
+                                config={settings.ytDlpConfig || ''}
+                                onChange={(config) => handleChange('ytDlpConfig', config)}
                             />
                         </Grid>
 

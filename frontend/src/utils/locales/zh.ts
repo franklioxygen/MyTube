@@ -85,9 +85,11 @@ export const zh = {
     "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
   legacyDataDeleted: "旧数据删除成功。",
   formatLegacyFilenames: "格式化旧文件名",
-  formatLegacyFilenamesDescription: "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
+  formatLegacyFilenamesDescription:
+    "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
   formatLegacyFilenamesButton: "格式化文件名",
-  formatFilenamesSuccess: "处理: {processed}\n重命名: {renamed}\n错误: {errors}",
+  formatFilenamesSuccess:
+    "处理: {processed}\n重命名: {renamed}\n错误: {errors}",
   formatFilenamesDetails: "详情:",
   formatFilenamesMore: "...还有 {count} 项",
   formatFilenamesError: "格式化文件名失败: {error}",
@@ -428,4 +430,13 @@ export const zh = {
   viewsAsc: "观看次数 (从低到高)",
   nameAsc: "名称 (A-Z)",
   random: "随机播放",
+
+  // yt-dlp Configuration
+  ytDlpConfiguration: "yt-dlp 配置",
+  ytDlpConfigurationDescription: "配置 yt-dlp 下载选项。详见",
+  ytDlpConfigurationDocs: "文档",
+  ytDlpConfigurationDescriptionEnd: "了解更多信息。",
+  customize: "自定义",
+  hide: "隐藏",
+  reset: "重置",
 };
