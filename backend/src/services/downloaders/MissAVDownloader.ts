@@ -5,7 +5,12 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { calculateDownloadedSize } from "../../utils/downloadUtils";
+import {
+  calculateDownloadedSize,
+  cleanupTemporaryFiles,
+  isCancellationError,
+  isDownloadActive,
+} from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -364,97 +369,16 @@ export class MissAVDownloader {
 
               // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
               console.log("Cleaning up temporary files...");
-              try {
-                const videoDir = path.dirname(newVideoPath);
-                const videoBasename = path.basename(newVideoPath);
-
-                // Find all files in the video directory that match the pattern
-                const files = fs.readdirSync(videoDir);
-                const tempFiles = files.filter((file) => {
-                  // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
-                  // but not the final video file itself
-                  return (
-                    file.startsWith(videoBasename) &&
-                    file !== videoBasename &&
-                    (file.endsWith(".part") ||
-                      file.endsWith(".ytdl") ||
-                      file.endsWith(".mp4.part") ||
-                      file.endsWith(".mp4.ytdl"))
-                  );
-                });
-
-                for (const tempFile of tempFiles) {
-                  const tempFilePath = path.join(videoDir, tempFile);
-                  if (fs.existsSync(tempFilePath)) {
-                    fs.unlinkSync(tempFilePath);
-                    console.log("Deleted temporary file:", tempFilePath);
-                  }
-                }
-
-                // Also check for the main video file if it exists (partial download)
-                if (fs.existsSync(newVideoPath)) {
-                  fs.unlinkSync(newVideoPath);
-                  console.log("Deleted partial video file:", newVideoPath);
-                }
-              } catch (cleanupError) {
-                console.error(
-                  "Error cleaning up temporary files:",
-                  cleanupError
-                );
-              }
+              cleanupTemporaryFiles(newVideoPath);
             });
           }
         });
 
         console.log("Video downloaded successfully");
       } catch (err: any) {
-        // Check if it was cancelled (killed process typically exits with code 143 or throws)
-        if (
-          err.code === 143 ||
-          err.message?.includes("killed") ||
-          err.message?.includes("SIGTERM") ||
-          err.code === "SIGTERM"
-        ) {
+        if (isCancellationError(err)) {
           console.log("Download was cancelled");
-
-          // Clean up temporary files created by yt-dlp
-          console.log("Cleaning up temporary files after cancellation...");
-          try {
-            const videoDir = path.dirname(newVideoPath);
-            const videoBasename = path.basename(newVideoPath);
-
-            // Find all files in the video directory that match the pattern
-            const files = fs.readdirSync(videoDir);
-            const tempFiles = files.filter((file) => {
-              // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
-              // but not the final video file itself
-              return (
-                file.startsWith(videoBasename) &&
-                file !== videoBasename &&
-                (file.endsWith(".part") ||
-                  file.endsWith(".ytdl") ||
-                  file.endsWith(".mp4.part") ||
-                  file.endsWith(".mp4.ytdl"))
-              );
-            });
-
-            for (const tempFile of tempFiles) {
-              const tempFilePath = path.join(videoDir, tempFile);
-              if (fs.existsSync(tempFilePath)) {
-                fs.unlinkSync(tempFilePath);
-                console.log("Deleted temporary file:", tempFilePath);
-              }
-            }
-
-            // Also check for the main video file if it exists (partial download)
-            if (fs.existsSync(newVideoPath)) {
-              fs.unlinkSync(newVideoPath);
-              console.log("Deleted partial video file:", newVideoPath);
-            }
-          } catch (cleanupError) {
-            console.error("Error cleaning up temporary files:", cleanupError);
-          }
-
+          cleanupTemporaryFiles(newVideoPath);
           throw new Error("Download cancelled by user");
         }
         console.error("yt-dlp execution failed:", err);
@@ -462,54 +386,10 @@ export class MissAVDownloader {
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)
-      if (downloadId) {
-        const status = storageService.getDownloadStatus();
-        const isStillActive = status.activeDownloads.some(
-          (d) => d.id === downloadId
-        );
-        if (!isStillActive) {
-          console.log("Download was cancelled (no longer in active downloads)");
-
-          // Clean up temporary files created by yt-dlp
-          console.log("Cleaning up temporary files after cancellation...");
-          try {
-            const videoDir = path.dirname(newVideoPath);
-            const videoBasename = path.basename(newVideoPath);
-
-            // Find all files in the video directory that match the pattern
-            const files = fs.readdirSync(videoDir);
-            const tempFiles = files.filter((file) => {
-              // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
-              // but not the final video file itself
-              return (
-                file.startsWith(videoBasename) &&
-                file !== videoBasename &&
-                (file.endsWith(".part") ||
-                  file.endsWith(".ytdl") ||
-                  file.endsWith(".mp4.part") ||
-                  file.endsWith(".mp4.ytdl"))
-              );
-            });
-
-            for (const tempFile of tempFiles) {
-              const tempFilePath = path.join(videoDir, tempFile);
-              if (fs.existsSync(tempFilePath)) {
-                fs.unlinkSync(tempFilePath);
-                console.log("Deleted temporary file:", tempFilePath);
-              }
-            }
-
-            // Also check for the main video file if it exists (partial download)
-            if (fs.existsSync(newVideoPath)) {
-              fs.unlinkSync(newVideoPath);
-              console.log("Deleted partial video file:", newVideoPath);
-            }
-          } catch (cleanupError) {
-            console.error("Error cleaning up temporary files:", cleanupError);
-          }
-
-          throw new Error("Download cancelled by user");
-        }
+      if (!isDownloadActive(downloadId)) {
+        console.log("Download was cancelled (no longer in active downloads)");
+        cleanupTemporaryFiles(newVideoPath);
+        throw new Error("Download cancelled by user");
       }
 
       // 7. Download and save the thumbnail

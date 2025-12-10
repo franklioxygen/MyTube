@@ -6,6 +6,8 @@ import { bccToVtt } from "../../utils/bccToVtt";
 import {
   calculateDownloadedSize,
   formatBytes,
+  isCancellationError,
+  isDownloadActive,
   parseSize,
 } from "../../utils/downloadUtils";
 import {
@@ -279,15 +281,8 @@ export class BilibiliDownloader {
         await subprocess;
       } catch (error: any) {
         downloadError = error;
-        // Check if it was cancelled (killed process typically exits with code 143 or throws)
-        if (
-          error.code === 143 ||
-          error.message?.includes("killed") ||
-          error.message?.includes("SIGTERM") ||
-          error.code === "SIGTERM"
-        ) {
+        if (isCancellationError(error)) {
           console.log("Download was cancelled");
-          // Clean up temp directory
           if (fs.existsSync(tempDir)) {
             fs.removeSync(tempDir);
           }
@@ -300,19 +295,12 @@ export class BilibiliDownloader {
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)
-      if (downloadId) {
-        const status = storageService.getDownloadStatus();
-        const isStillActive = status.activeDownloads.some(
-          (d) => d.id === downloadId
-        );
-        if (!isStillActive) {
-          console.log("Download was cancelled (no longer in active downloads)");
-          // Clean up temp directory
-          if (fs.existsSync(tempDir)) {
-            fs.removeSync(tempDir);
-          }
-          throw new Error("Download cancelled by user");
+      if (!isDownloadActive(downloadId)) {
+        console.log("Download was cancelled (no longer in active downloads)");
+        if (fs.existsSync(tempDir)) {
+          fs.removeSync(tempDir);
         }
+        throw new Error("Download cancelled by user");
       }
 
       console.log("Download completed, checking for video file");
@@ -693,10 +681,7 @@ export class BilibiliDownloader {
         );
       } catch (error: any) {
         // If download was cancelled, re-throw immediately without downloading subtitles or creating video data
-        if (
-          error.message?.includes("Download cancelled by user") ||
-          error.message?.includes("cancelled")
-        ) {
+        if (isCancellationError(error)) {
           console.log(
             "Download was cancelled, skipping subtitle download and video creation"
           );
@@ -740,15 +725,9 @@ export class BilibiliDownloader {
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
       // Check if download was cancelled before processing files
-      if (downloadId) {
-        const status = storageService.getDownloadStatus();
-        const isStillActive = status.activeDownloads.some(
-          (d) => d.id === downloadId
-        );
-        if (!isStillActive) {
-          console.log("Download was cancelled, skipping file processing");
-          throw new Error("Download cancelled by user");
-        }
+      if (!isDownloadActive(downloadId)) {
+        console.log("Download was cancelled, skipping file processing");
+        throw new Error("Download cancelled by user");
       }
 
       if (fs.existsSync(videoPath)) {
@@ -758,15 +737,9 @@ export class BilibiliDownloader {
       } else {
         console.log("Video file not found at:", videoPath);
         // Check again if download was cancelled (might have been cancelled during downloadVideo)
-        if (downloadId) {
-          const status = storageService.getDownloadStatus();
-          const isStillActive = status.activeDownloads.some(
-            (d) => d.id === downloadId
-          );
-          if (!isStillActive) {
-            console.log("Download was cancelled, video file not created");
-            throw new Error("Download cancelled by user");
-          }
+        if (!isDownloadActive(downloadId)) {
+          console.log("Download was cancelled, video file not created");
+          throw new Error("Download cancelled by user");
         }
         throw new Error("Video file not found after download");
       }
@@ -803,15 +776,9 @@ export class BilibiliDownloader {
       }
 
       // Check if download was cancelled before downloading subtitles
-      if (downloadId) {
-        const status = storageService.getDownloadStatus();
-        const isStillActive = status.activeDownloads.some(
-          (d) => d.id === downloadId
-        );
-        if (!isStillActive) {
-          console.log("Download was cancelled, skipping subtitle download");
-          throw new Error("Download cancelled by user");
-        }
+      if (!isDownloadActive(downloadId)) {
+        console.log("Download was cancelled, skipping subtitle download");
+        throw new Error("Download cancelled by user");
       }
 
       // Download subtitles
@@ -829,38 +796,29 @@ export class BilibiliDownloader {
         console.log(`Downloaded ${subtitles.length} subtitles`);
       } catch (e) {
         // If it's a cancellation error, re-throw it
-        if (
-          e instanceof Error &&
-          e.message?.includes("Download cancelled by user")
-        ) {
+        if (isCancellationError(e)) {
           throw e;
         }
         console.error("Error downloading subtitles:", e);
       }
 
       // Check if download was cancelled before creating video data
-      if (downloadId) {
-        const status = storageService.getDownloadStatus();
-        const isStillActive = status.activeDownloads.some(
-          (d) => d.id === downloadId
-        );
-        if (!isStillActive) {
-          console.log("Download was cancelled, skipping video data creation");
-          // Clean up any files that were created
-          try {
-            if (fs.existsSync(newVideoPath)) {
-              fs.unlinkSync(newVideoPath);
-              console.log("Deleted video file:", newVideoPath);
-            }
-            if (fs.existsSync(newThumbnailPath)) {
-              fs.unlinkSync(newThumbnailPath);
-              console.log("Deleted thumbnail file:", newThumbnailPath);
-            }
-          } catch (cleanupError) {
-            console.error("Error cleaning up files:", cleanupError);
+      if (!isDownloadActive(downloadId)) {
+        console.log("Download was cancelled, skipping video data creation");
+        // Clean up any files that were created
+        try {
+          if (fs.existsSync(newVideoPath)) {
+            fs.unlinkSync(newVideoPath);
+            console.log("Deleted video file:", newVideoPath);
           }
-          throw new Error("Download cancelled by user");
+          if (fs.existsSync(newThumbnailPath)) {
+            fs.unlinkSync(newThumbnailPath);
+            console.log("Deleted thumbnail file:", newThumbnailPath);
+          }
+        } catch (cleanupError) {
+          console.error("Error cleaning up files:", cleanupError);
         }
+        throw new Error("Download cancelled by user");
       }
 
       // Create metadata for the video
