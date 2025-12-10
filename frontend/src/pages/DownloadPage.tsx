@@ -95,6 +95,7 @@ const DownloadPage: React.FC = () => {
 
     const [queuePage, setQueuePage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
+    const [downloadingItems, setDownloadingItems] = useState<Set<string>>(new Set());
 
     // Scan files mutation
 
@@ -232,9 +233,36 @@ const DownloadPage: React.FC = () => {
         removeFromHistoryMutation.mutate(id);
     };
 
+    // Helper function to check if a sourceUrl is already in active or queued downloads
+    const isDownloadInProgress = (sourceUrl: string): boolean => {
+        if (!sourceUrl) return false;
+        
+        // Check active downloads (sourceUrl is available but not in type definition)
+        const inActive = activeDownloads.some((d: any) => d.sourceUrl === sourceUrl);
+        if (inActive) return true;
+        
+        // Check queued downloads (sourceUrl is available but not in type definition)
+        const inQueue = queuedDownloads.some((d: any) => d.sourceUrl === sourceUrl);
+        if (inQueue) return true;
+        
+        // Check if currently being processed
+        if (downloadingItems.has(sourceUrl)) return true;
+        
+        return false;
+    };
+
     // Re-download deleted video
     const handleReDownload = async (sourceUrl: string) => {
         if (!sourceUrl) return;
+
+        // Prevent duplicate downloads - check if already in active/queue or currently processing
+        if (isDownloadInProgress(sourceUrl)) {
+            showSnackbar('Download already in progress or queued');
+            return;
+        }
+
+        // Mark as downloading
+        setDownloadingItems(prev => new Set(prev).add(sourceUrl));
 
         try {
             // Call download with forceDownload flag
@@ -250,6 +278,15 @@ const DownloadPage: React.FC = () => {
         } catch (error: any) {
             console.error('Error re-downloading video:', error);
             showSnackbar(t('error') || 'Error');
+        } finally {
+            // Remove from downloading set after a short delay to prevent rapid re-clicks
+            setTimeout(() => {
+                setDownloadingItems(prev => {
+                    const next = new Set(prev);
+                    next.delete(sourceUrl);
+                    return next;
+                });
+            }, 1000);
         }
     };
 
@@ -528,7 +565,14 @@ const DownloadPage: React.FC = () => {
                                                         color="primary"
                                                         size="small"
                                                         startIcon={<ReplayIcon />}
-                                                        onClick={() => handleVideoSubmit(item.sourceUrl!)}
+                                                        onClick={() => {
+                                                            if (!isDownloadInProgress(item.sourceUrl!)) {
+                                                                handleVideoSubmit(item.sourceUrl!);
+                                                            } else {
+                                                                showSnackbar('Download already in progress or queued');
+                                                            }
+                                                        }}
+                                                        disabled={isDownloadInProgress(item.sourceUrl)}
                                                         sx={{ minWidth: '100px' }}
                                                     >
                                                         {t('retry') || 'Retry'}
@@ -565,6 +609,7 @@ const DownloadPage: React.FC = () => {
                                                         size="small"
                                                         startIcon={<ReplayIcon />}
                                                         onClick={() => handleReDownload(item.sourceUrl!)}
+                                                        disabled={isDownloadInProgress(item.sourceUrl)}
                                                     >
                                                         {t('downloadAgain') || 'Download Again'}
                                                     </Button>

@@ -486,7 +486,43 @@ export class YtDlpDownloader {
       console.error("Failed to get file size:", e);
     }
 
-    // Save the video
+    // Check if video with same sourceUrl already exists
+    const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
+
+    if (existingVideo) {
+      // Update existing video with new subtitle information and file paths
+      console.log(
+        "Video with same sourceUrl exists, updating subtitle information"
+      );
+
+      // Use existing video's ID and preserve other fields
+      videoData.id = existingVideo.id;
+      videoData.addedAt = existingVideo.addedAt;
+      videoData.createdAt = existingVideo.createdAt;
+
+      const updatedVideo = storageService.updateVideo(existingVideo.id, {
+        subtitles: subtitles.length > 0 ? subtitles : undefined,
+        videoFilename: finalVideoFilename,
+        videoPath: `/videos/${finalVideoFilename}`,
+        thumbnailFilename: thumbnailSaved
+          ? finalThumbnailFilename
+          : existingVideo.thumbnailFilename,
+        thumbnailPath: thumbnailSaved
+          ? `/images/${finalThumbnailFilename}`
+          : existingVideo.thumbnailPath,
+        duration: videoData.duration,
+        fileSize: videoData.fileSize,
+        title: videoData.title, // Update title in case it changed
+        description: videoData.description, // Update description in case it changed
+      });
+
+      if (updatedVideo) {
+        console.log("Video updated in database with new subtitles");
+        return updatedVideo;
+      }
+    }
+
+    // Save the video (new video)
     storageService.saveVideo(videoData);
 
     console.log("Video added to database");

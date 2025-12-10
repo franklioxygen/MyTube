@@ -719,7 +719,45 @@ export class BilibiliDownloader {
         createdAt: new Date().toISOString(),
       };
 
-      // Save the video using storage service
+      // Check if video with same sourceUrl already exists
+      const existingVideo = storageService.getVideoBySourceUrl(url);
+
+      if (existingVideo) {
+        // Update existing video with new subtitle information and file paths
+        console.log(
+          "Video with same sourceUrl exists, updating subtitle information"
+        );
+
+        // Use existing video's ID and preserve other fields
+        videoData.id = existingVideo.id;
+        videoData.addedAt = existingVideo.addedAt;
+        videoData.createdAt = existingVideo.createdAt;
+
+        const updatedVideo = storageService.updateVideo(existingVideo.id, {
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          videoFilename: finalVideoFilename,
+          videoPath: `/videos/${finalVideoFilename}`,
+          thumbnailFilename: thumbnailSaved
+            ? finalThumbnailFilename
+            : existingVideo.thumbnailFilename,
+          thumbnailPath: thumbnailSaved
+            ? `/images/${finalThumbnailFilename}`
+            : existingVideo.thumbnailPath,
+          duration: duration,
+          fileSize: fileSize,
+          title: videoData.title, // Update title in case it changed
+          description: videoData.description, // Update description in case it changed
+        });
+
+        if (updatedVideo) {
+          console.log(
+            `Part ${partNumber}/${totalParts} updated in database with new subtitles`
+          );
+          return { success: true, videoData: updatedVideo };
+        }
+      }
+
+      // Save the video (new video)
       storageService.saveVideo(videoData);
 
       console.log(`Part ${partNumber}/${totalParts} added to database`);

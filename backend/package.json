@@ -28,8 +28,7 @@
     "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.31.0",
-    "uuid": "^13.0.0",
-    "youtube-dl-exec": "^2.4.17"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

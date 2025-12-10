@@ -7,8 +7,6 @@ WORKDIR /app
 COPY package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
-# Skip Python check for youtube-dl-exec during build
-ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=1
 RUN npm ci
 
 COPY . .
@@ -57,7 +55,7 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
 
 # Create necessary directories
-RUN mkdir -p uploads/videos uploads/images data
+RUN mkdir -p uploads/videos uploads/images uploads/subtitles data
 
 EXPOSE 5551
 

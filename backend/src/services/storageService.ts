@@ -350,16 +350,22 @@ export function initializeStorage(): void {
 
     // Backfill video_id in download_history for existing records
     try {
-        const result = sqlite.prepare(`
+      const result = sqlite
+        .prepare(
+          `
             UPDATE download_history
             SET video_id = (SELECT id FROM videos WHERE videos.source_url = download_history.source_url)
             WHERE video_id IS NULL AND status = 'success' AND source_url IS NOT NULL
-        `).run();
-        if (result.changes > 0) {
-            console.log(`Backfilled video_id for ${result.changes} download history items.`);
-        }
+        `
+        )
+        .run();
+      if (result.changes > 0) {
+        console.log(
+          `Backfilled video_id for ${result.changes} download history items.`
+        );
+      }
     } catch (error) {
-        console.error("Error backfilling video_id in download history:", error);
+      console.error("Error backfilling video_id in download history:", error);
     }
   } catch (error) {
     console.error(
@@ -487,10 +493,7 @@ export function getDownloadStatus(): DownloadStatus {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     db.delete(downloads)
       .where(
-        and(
-          lt(downloads.timestamp, oneDayAgo), 
-          eq(downloads.status, "active")
-        )
+        and(lt(downloads.timestamp, oneDayAgo), eq(downloads.status, "active"))
       )
       .run();
 
@@ -818,6 +821,28 @@ export function getVideos(): Video[] {
   }
 }
 
+export function getVideoBySourceUrl(sourceUrl: string): Video | undefined {
+  try {
+    const result = db
+      .select()
+      .from(videos)
+      .where(eq(videos.sourceUrl, sourceUrl))
+      .get();
+
+    if (result) {
+      return {
+        ...result,
+        tags: result.tags ? JSON.parse(result.tags) : [],
+        subtitles: result.subtitles ? JSON.parse(result.subtitles) : undefined,
+      } as Video;
+    }
+    return undefined;
+  } catch (error) {
+    console.error("Error getting video by sourceUrl:", error);
+    return undefined;
+  }
+}
+
 export function getVideoById(id: string): Video | undefined {
   try {
     const video = db.select().from(videos).where(eq(videos.id, id)).get();
@@ -838,217 +863,279 @@ export function getVideoById(id: string): Video | undefined {
 /**
  * Format legacy filenames to the new standard format: Title-Author-YYYY
  */
-export function formatLegacyFilenames(): { 
-    processed: number; 
-    renamed: number; 
-    errors: number; 
-    details: string[] 
+export function formatLegacyFilenames(): {
+  processed: number;
+  renamed: number;
+  errors: number;
+  details: string[];
 } {
-    const results = {
-        processed: 0,
-        renamed: 0,
-        errors: 0,
-        details: [] as string[]
-    };
+  const results = {
+    processed: 0,
+    renamed: 0,
+    errors: 0,
+    details: [] as string[],
+  };
 
-    try {
-        const allVideos = getVideos();
-        console.log(`Starting legacy filename formatting for ${allVideos.length} videos...`);
+  try {
+    const allVideos = getVideos();
+    console.log(
+      `Starting legacy filename formatting for ${allVideos.length} videos...`
+    );
 
-        for (const video of allVideos) {
-            results.processed++;
-            
-            try {
-                // Generate new filename
-                const newBaseFilename = formatVideoFilename(video.title, video.author || "Unknown", video.date);
-                
-                // preserve subdirectory if it exists (e.g. for collections)
-                // We rely on videoPath because videoFilename is usually just the basename
-                let subdirectory = "";
-                if (video.videoPath) {
-                    // videoPath is like "/videos/SubDir/file.mp4" or "/videos/file.mp4"
-                    const relPath = video.videoPath.replace(/^\/videos\//, ""); 
-                    const dir = path.dirname(relPath);
-                    if (dir && dir !== ".") {
-                        subdirectory = dir;
-                    }
-                }
+    for (const video of allVideos) {
+      results.processed++;
 
-                // New filename (basename only)
-                const newVideoFilename = `${newBaseFilename}.mp4`;
-                const newThumbnailFilename = `${newBaseFilename}.jpg`;
+      try {
+        // Generate new filename
+        const newBaseFilename = formatVideoFilename(
+          video.title,
+          video.author || "Unknown",
+          video.date
+        );
 
-                // Calculate full paths for checks
-                // For the check we need to know if the resulting full path is different
-                // But the check "video.videoFilename === newVideoFilename" only checks basename.
-                // If basename matches, we might still want to rename if we were normalizing something else, 
-                // but usually if format matches, we skip.
-                if (video.videoFilename === newVideoFilename) {
-                    continue;
-                }
-
-                console.log(`Renaming video ${video.id}: ${video.videoFilename} -> ${newVideoFilename} (Subdir: ${subdirectory})`);
-                
-                // Paths
-                // Old path must be constructed using the subdirectory derived from videoPath
-                const oldVideoPath = path.join(VIDEOS_DIR, subdirectory, video.videoFilename || "");
-                const newVideoPath = path.join(VIDEOS_DIR, subdirectory, newVideoFilename);
-                
-                // Handle thumbnail subdirectory
-                let thumbSubdir = "";
-                if (video.thumbnailPath) {
-                    const relPath = video.thumbnailPath.replace(/^\/images\//, "");
-                    const dir = path.dirname(relPath);
-                    if (dir && dir !== ".") {
-                        thumbSubdir = dir;
-                    }
-                }
-                
-                const oldThumbnailPath = video.thumbnailFilename ? path.join(IMAGES_DIR, thumbSubdir, video.thumbnailFilename) : null;
-                const newThumbnailPath = path.join(IMAGES_DIR, thumbSubdir, newThumbnailFilename);
-
-                // Rename video file
-                if (fs.existsSync(oldVideoPath)) {
-                    if (fs.existsSync(newVideoPath) && oldVideoPath !== newVideoPath) {
-                        // Destination exists, append timestamp to avoid collision
-                        const uniqueSuffix = `_${Date.now()}`;
-                        const uniqueBase = `${newBaseFilename}${uniqueSuffix}`;
-                        
-                        const uniqueVideoBase = `${uniqueBase}.mp4`;
-                        const uniqueThumbBase = `${uniqueBase}.jpg`;
-                        
-                        // Full paths for rename
-                        const uniqueVideoPath = path.join(VIDEOS_DIR, subdirectory, uniqueVideoBase);
-                        const uniqueThumbPath = path.join(IMAGES_DIR, thumbSubdir, uniqueThumbBase); // Use thumbSubdir
-                        
-                        console.log(`Destination exists, using unique suffix: ${uniqueVideoBase}`);
-                        
-                        fs.renameSync(oldVideoPath, uniqueVideoPath);
-                        
-                        if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
-                            fs.renameSync(oldThumbnailPath, uniqueThumbPath);
-                        }
-                        
-                        // Handle subtitles (Keep in their original folder, assuming root or derived from path if available)
-                        if (video.subtitles && video.subtitles.length > 0) {
-                             const newSubtitles = [];
-                             for (const subtitle of video.subtitles) {
-                                 // Subtitles usually in SUBTITLES_DIR root, checking...
-                                 const oldSubPath = path.join(SUBTITLES_DIR, subtitle.filename); 
-                                 
-                                 // If we ever supported subdirs for subtitles, we'd need to parse subtitle.path here too
-                                 // For now assuming existing structure matches simple join
-                                 
-                                 if (fs.existsSync(oldSubPath)) {
-                                     const newSubFilename = `${uniqueBase}.${subtitle.language}.vtt`;
-                                     const newSubPath = path.join(SUBTITLES_DIR, newSubFilename);
-                                     fs.renameSync(oldSubPath, newSubPath);
-                                     newSubtitles.push({
-                                         ...subtitle,
-                                         filename: newSubFilename,
-                                         path: `/subtitles/${newSubFilename}`
-                                     });
-                                 } else {
-                                     newSubtitles.push(subtitle);
-                                 }
-                             }
-                             // Update video record with unique names
-                             // videoFilename should be BASENAME only
-                             // videoPath should be FULL WEB PATH including subdir
-                             db.update(videos)
-                               .set({
-                                   videoFilename: uniqueVideoBase,
-                                   thumbnailFilename: video.thumbnailFilename ? uniqueThumbBase : undefined,
-                                   videoPath: `/videos/${subdirectory ? subdirectory + '/' : ''}${uniqueVideoBase}`,
-                                   thumbnailPath: video.thumbnailFilename ? `/images/${thumbSubdir ? thumbSubdir + '/' : ''}${uniqueThumbBase}` : null,
-                                   subtitles: JSON.stringify(newSubtitles)
-                               })
-                               .where(eq(videos.id, video.id))
-                               .run();
-                        } else {
-                            // Update video record with unique names
-                            db.update(videos)
-                               .set({
-                                   videoFilename: uniqueVideoBase,
-                                   thumbnailFilename: video.thumbnailFilename ? uniqueThumbBase : undefined,
-                                   videoPath: `/videos/${subdirectory ? subdirectory + '/' : ''}${uniqueVideoBase}`,
-                                   thumbnailPath: video.thumbnailFilename ? `/images/${thumbSubdir ? thumbSubdir + '/' : ''}${uniqueThumbBase}` : null,
-                               })
-                               .where(eq(videos.id, video.id))
-                               .run();
-                        }
-                        
-                        results.renamed++;
-                        results.details.push(`Renamed (unique): ${video.title}`);
-                    } else {
-                        // Rename normally
-                        fs.renameSync(oldVideoPath, newVideoPath);
-                        
-                        if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
-                             // Check if new thumbnail path exists (it shouldn't if specific to this video, but safety check)
-                             if (fs.existsSync(newThumbnailPath) && oldThumbnailPath !== newThumbnailPath) {
-                                 fs.unlinkSync(newThumbnailPath);
-                             }
-                             fs.renameSync(oldThumbnailPath, newThumbnailPath);
-                        }
-                        
-                        // Handle subtitles
-                        const updatedSubtitles = [];
-                        if (video.subtitles && video.subtitles.length > 0) {
-                             for (const subtitle of video.subtitles) {
-                                 const oldSubPath = path.join(SUBTITLES_DIR, subtitle.filename);
-                                 if (fs.existsSync(oldSubPath)) {
-                                     // Keep subtitles in their current location (usually root SUBTITLES_DIR)
-                                     const newSubFilename = `${newBaseFilename}.${subtitle.language}.vtt`;
-                                     const newSubPath = path.join(SUBTITLES_DIR, newSubFilename);
-
-                                     // Remove dest if exists
-                                     if (fs.existsSync(newSubPath)) fs.unlinkSync(newSubPath);
-                                     
-                                     fs.renameSync(oldSubPath, newSubPath);
-                                     updatedSubtitles.push({
-                                         ...subtitle,
-                                         filename: newSubFilename,
-                                         path: `/subtitles/${newSubFilename}`
-                                     });
-                                 } else {
-                                     updatedSubtitles.push(subtitle);
-                                 }
-                             }
-                        }
-
-                        // Update DB
-                        db.update(videos)
-                           .set({
-                               videoFilename: newVideoFilename,
-                               thumbnailFilename: video.thumbnailFilename ? newThumbnailFilename : undefined,
-                               videoPath: `/videos/${subdirectory ? subdirectory + '/' : ''}${newVideoFilename}`,
-                               thumbnailPath: video.thumbnailFilename ? `/images/${thumbSubdir ? thumbSubdir + '/' : ''}${newThumbnailFilename}` : null,
-                               subtitles: updatedSubtitles.length > 0 ? JSON.stringify(updatedSubtitles) : (video.subtitles ? JSON.stringify(video.subtitles) : undefined)
-                           })
-                           .where(eq(videos.id, video.id))
-                           .run();
-                           
-                        results.renamed++;
-                    }
-                } else {
-                    results.details.push(`Skipped (file missing): ${video.title}`);
-                    // results.errors++; // Not necessarily an error, maybe just missing file
-                }
-
-            } catch (err: any) {
-                console.error(`Error renaming video ${video.id}:`, err);
-                results.errors++;
-                results.details.push(`Error: ${video.title} - ${err.message}`);
-            }
+        // preserve subdirectory if it exists (e.g. for collections)
+        // We rely on videoPath because videoFilename is usually just the basename
+        let subdirectory = "";
+        if (video.videoPath) {
+          // videoPath is like "/videos/SubDir/file.mp4" or "/videos/file.mp4"
+          const relPath = video.videoPath.replace(/^\/videos\//, "");
+          const dir = path.dirname(relPath);
+          if (dir && dir !== ".") {
+            subdirectory = dir;
+          }
         }
 
-        return results;
+        // New filename (basename only)
+        const newVideoFilename = `${newBaseFilename}.mp4`;
+        const newThumbnailFilename = `${newBaseFilename}.jpg`;
 
-    } catch (error: any) {
-        console.error("Error in formatLegacyFilenames:", error);
-        throw error;
+        // Calculate full paths for checks
+        // For the check we need to know if the resulting full path is different
+        // But the check "video.videoFilename === newVideoFilename" only checks basename.
+        // If basename matches, we might still want to rename if we were normalizing something else,
+        // but usually if format matches, we skip.
+        if (video.videoFilename === newVideoFilename) {
+          continue;
+        }
+
+        console.log(
+          `Renaming video ${video.id}: ${video.videoFilename} -> ${newVideoFilename} (Subdir: ${subdirectory})`
+        );
+
+        // Paths
+        // Old path must be constructed using the subdirectory derived from videoPath
+        const oldVideoPath = path.join(
+          VIDEOS_DIR,
+          subdirectory,
+          video.videoFilename || ""
+        );
+        const newVideoPath = path.join(
+          VIDEOS_DIR,
+          subdirectory,
+          newVideoFilename
+        );
+
+        // Handle thumbnail subdirectory
+        let thumbSubdir = "";
+        if (video.thumbnailPath) {
+          const relPath = video.thumbnailPath.replace(/^\/images\//, "");
+          const dir = path.dirname(relPath);
+          if (dir && dir !== ".") {
+            thumbSubdir = dir;
+          }
+        }
+
+        const oldThumbnailPath = video.thumbnailFilename
+          ? path.join(IMAGES_DIR, thumbSubdir, video.thumbnailFilename)
+          : null;
+        const newThumbnailPath = path.join(
+          IMAGES_DIR,
+          thumbSubdir,
+          newThumbnailFilename
+        );
+
+        // Rename video file
+        if (fs.existsSync(oldVideoPath)) {
+          if (fs.existsSync(newVideoPath) && oldVideoPath !== newVideoPath) {
+            // Destination exists, append timestamp to avoid collision
+            const uniqueSuffix = `_${Date.now()}`;
+            const uniqueBase = `${newBaseFilename}${uniqueSuffix}`;
+
+            const uniqueVideoBase = `${uniqueBase}.mp4`;
+            const uniqueThumbBase = `${uniqueBase}.jpg`;
+
+            // Full paths for rename
+            const uniqueVideoPath = path.join(
+              VIDEOS_DIR,
+              subdirectory,
+              uniqueVideoBase
+            );
+            const uniqueThumbPath = path.join(
+              IMAGES_DIR,
+              thumbSubdir,
+              uniqueThumbBase
+            ); // Use thumbSubdir
+
+            console.log(
+              `Destination exists, using unique suffix: ${uniqueVideoBase}`
+            );
+
+            fs.renameSync(oldVideoPath, uniqueVideoPath);
+
+            if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
+              fs.renameSync(oldThumbnailPath, uniqueThumbPath);
+            }
+
+            // Handle subtitles (Keep in their original folder, assuming root or derived from path if available)
+            if (video.subtitles && video.subtitles.length > 0) {
+              const newSubtitles = [];
+              for (const subtitle of video.subtitles) {
+                // Subtitles usually in SUBTITLES_DIR root, checking...
+                const oldSubPath = path.join(SUBTITLES_DIR, subtitle.filename);
+
+                // If we ever supported subdirs for subtitles, we'd need to parse subtitle.path here too
+                // For now assuming existing structure matches simple join
+
+                if (fs.existsSync(oldSubPath)) {
+                  const newSubFilename = `${uniqueBase}.${subtitle.language}.vtt`;
+                  const newSubPath = path.join(SUBTITLES_DIR, newSubFilename);
+                  fs.renameSync(oldSubPath, newSubPath);
+                  newSubtitles.push({
+                    ...subtitle,
+                    filename: newSubFilename,
+                    path: `/subtitles/${newSubFilename}`,
+                  });
+                } else {
+                  newSubtitles.push(subtitle);
+                }
+              }
+              // Update video record with unique names
+              // videoFilename should be BASENAME only
+              // videoPath should be FULL WEB PATH including subdir
+              db.update(videos)
+                .set({
+                  videoFilename: uniqueVideoBase,
+                  thumbnailFilename: video.thumbnailFilename
+                    ? uniqueThumbBase
+                    : undefined,
+                  videoPath: `/videos/${
+                    subdirectory ? subdirectory + "/" : ""
+                  }${uniqueVideoBase}`,
+                  thumbnailPath: video.thumbnailFilename
+                    ? `/images/${
+                        thumbSubdir ? thumbSubdir + "/" : ""
+                      }${uniqueThumbBase}`
+                    : null,
+                  subtitles: JSON.stringify(newSubtitles),
+                })
+                .where(eq(videos.id, video.id))
+                .run();
+            } else {
+              // Update video record with unique names
+              db.update(videos)
+                .set({
+                  videoFilename: uniqueVideoBase,
+                  thumbnailFilename: video.thumbnailFilename
+                    ? uniqueThumbBase
+                    : undefined,
+                  videoPath: `/videos/${
+                    subdirectory ? subdirectory + "/" : ""
+                  }${uniqueVideoBase}`,
+                  thumbnailPath: video.thumbnailFilename
+                    ? `/images/${
+                        thumbSubdir ? thumbSubdir + "/" : ""
+                      }${uniqueThumbBase}`
+                    : null,
+                })
+                .where(eq(videos.id, video.id))
+                .run();
+            }
+
+            results.renamed++;
+            results.details.push(`Renamed (unique): ${video.title}`);
+          } else {
+            // Rename normally
+            fs.renameSync(oldVideoPath, newVideoPath);
+
+            if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
+              // Check if new thumbnail path exists (it shouldn't if specific to this video, but safety check)
+              if (
+                fs.existsSync(newThumbnailPath) &&
+                oldThumbnailPath !== newThumbnailPath
+              ) {
+                fs.unlinkSync(newThumbnailPath);
+              }
+              fs.renameSync(oldThumbnailPath, newThumbnailPath);
+            }
+
+            // Handle subtitles
+            const updatedSubtitles = [];
+            if (video.subtitles && video.subtitles.length > 0) {
+              for (const subtitle of video.subtitles) {
+                const oldSubPath = path.join(SUBTITLES_DIR, subtitle.filename);
+                if (fs.existsSync(oldSubPath)) {
+                  // Keep subtitles in their current location (usually root SUBTITLES_DIR)
+                  const newSubFilename = `${newBaseFilename}.${subtitle.language}.vtt`;
+                  const newSubPath = path.join(SUBTITLES_DIR, newSubFilename);
+
+                  // Remove dest if exists
+                  if (fs.existsSync(newSubPath)) fs.unlinkSync(newSubPath);
+
+                  fs.renameSync(oldSubPath, newSubPath);
+                  updatedSubtitles.push({
+                    ...subtitle,
+                    filename: newSubFilename,
+                    path: `/subtitles/${newSubFilename}`,
+                  });
+                } else {
+                  updatedSubtitles.push(subtitle);
+                }
+              }
+            }
+
+            // Update DB
+            db.update(videos)
+              .set({
+                videoFilename: newVideoFilename,
+                thumbnailFilename: video.thumbnailFilename
+                  ? newThumbnailFilename
+                  : undefined,
+                videoPath: `/videos/${
+                  subdirectory ? subdirectory + "/" : ""
+                }${newVideoFilename}`,
+                thumbnailPath: video.thumbnailFilename
+                  ? `/images/${
+                      thumbSubdir ? thumbSubdir + "/" : ""
+                    }${newThumbnailFilename}`
+                  : null,
+                subtitles:
+                  updatedSubtitles.length > 0
+                    ? JSON.stringify(updatedSubtitles)
+                    : video.subtitles
+                    ? JSON.stringify(video.subtitles)
+                    : undefined,
+              })
+              .where(eq(videos.id, video.id))
+              .run();
+
+            results.renamed++;
+          }
+        } else {
+          results.details.push(`Skipped (file missing): ${video.title}`);
+          // results.errors++; // Not necessarily an error, maybe just missing file
+        }
+      } catch (err: any) {
+        console.error(`Error renaming video ${video.id}:`, err);
+        results.errors++;
+        results.details.push(`Error: ${video.title} - ${err.message}`);
+      }
     }
+
+    return results;
+  } catch (error: any) {
+    console.error("Error in formatLegacyFilenames:", error);
+    throw error;
+  }
 }
 
 export function saveVideo(videoData: Video): Video {
@@ -1079,8 +1166,16 @@ export function updateVideo(id: string, updates: Partial<Video>): Video | null {
     const updatesToSave = {
       ...updates,
       // Only include tags/subtitles if they are explicitly in the updates object
-      ...(updates.tags !== undefined ? { tags: updates.tags ? JSON.stringify(updates.tags) : undefined } : {}),
-      ...(updates.subtitles !== undefined ? { subtitles: updates.subtitles ? JSON.stringify(updates.subtitles) : undefined } : {}),
+      ...(updates.tags !== undefined
+        ? { tags: updates.tags ? JSON.stringify(updates.tags) : undefined }
+        : {}),
+      ...(updates.subtitles !== undefined
+        ? {
+            subtitles: updates.subtitles
+              ? JSON.stringify(updates.subtitles)
+              : undefined,
+          }
+        : {}),
     };
     // If tags is explicitly empty array, we might want to save it as '[]' or null.
     // JSON.stringify([]) is '[]', which is fine.
