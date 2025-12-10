@@ -2,7 +2,7 @@
 
 
 
-## Unreleased
+## v1.5.1 (2025-12-10)
 
 ### Test
 - test: Update expect calls in downloadService tests (84b36bf)
