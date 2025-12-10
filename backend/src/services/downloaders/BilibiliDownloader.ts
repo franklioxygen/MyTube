@@ -14,7 +14,12 @@ import {
   extractBilibiliVideoId,
   formatVideoFilename,
 } from "../../utils/helpers";
-import { executeYtDlpJson, executeYtDlpSpawn } from "../../utils/ytDlpUtils";
+import {
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+} from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
 
@@ -76,8 +81,13 @@ export class BilibiliDownloader {
     thumbnailUrl: string;
   }> {
     try {
+      // Get user config for network options
+      const userConfig = getUserYtDlpConfig();
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
       const videoUrl = `https://www.bilibili.com/video/${videoId}`;
       const info = await executeYtDlpJson(videoUrl, {
+        ...networkConfig,
         noWarnings: true,
       });
 
@@ -140,8 +150,13 @@ export class BilibiliDownloader {
 
       console.log("Downloading Bilibili video using yt-dlp to:", tempDir);
 
-      // Get video info first
+      // Get user's yt-dlp configuration for network settings
+      const userConfig = getUserYtDlpConfig();
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      // Get video info first (with network config)
       const info = await executeYtDlpJson(url, {
+        ...networkConfig,
         noWarnings: true,
       });
 
@@ -158,10 +173,52 @@ export class BilibiliDownloader {
       // Use a simple template that yt-dlp will fill in
       const outputTemplate = path.join(tempDir, "video.%(ext)s");
 
-      // Prepare flags for yt-dlp
+      // Default format - explicitly require H.264 (avc1) codec for Safari compatibility
+      // Safari doesn't support HEVC/H.265 or other codecs that Bilibili might serve
+      let downloadFormat =
+        "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+
+      // If user specified a format, use it
+      if (userConfig.f || userConfig.format) {
+        downloadFormat = userConfig.f || userConfig.format;
+        console.log(
+          "Using user-specified format for Bilibili:",
+          downloadFormat
+        );
+      }
+
+      // Get format sort option if user specified it
+      // Default to preferring H.264 codec for Safari compatibility
+      let formatSortValue = userConfig.S || userConfig.formatSort;
+      if (!formatSortValue && !(userConfig.f || userConfig.format)) {
+        // If user hasn't specified format or format sort, prefer H.264 for compatibility
+        formatSortValue = "vcodec:h264";
+        console.log(
+          "Using default format sort for Safari compatibility:",
+          formatSortValue
+        );
+      }
+
+      // Prepare base flags from user config (excluding certain overridden options)
+      const {
+        output: _output,
+        o: _o,
+        writeSubs: _writeSubs,
+        writeAutoSubs: _writeAutoSubs,
+        convertSubs: _convertSubs,
+        f: _f,
+        format: _format,
+        S: _S,
+        formatSort: _formatSort,
+        ...safeUserConfig
+      } = userConfig;
+
+      // Prepare flags for yt-dlp - merge user config with required settings
       const flags: Record<string, any> = {
+        ...networkConfig, // Apply network settings
+        ...safeUserConfig, // Apply other user config
         output: outputTemplate,
-        format: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        format: downloadFormat,
         mergeOutputFormat: "mp4",
         writeSubs: true,
         writeAutoSubs: true,
@@ -169,6 +226,14 @@ export class BilibiliDownloader {
         ignoreErrors: true, // Continue even if subtitle download fails
         noWarnings: false, // Show warnings for debugging
       };
+
+      // Apply format sort (either user-specified or default H.264 preference)
+      if (formatSortValue) {
+        flags.formatSort = formatSortValue;
+        console.log("Using format sort for Bilibili:", formatSortValue);
+      }
+
+      console.log("Final Bilibili yt-dlp flags:", flags);
 
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(url, flags);

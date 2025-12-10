@@ -28,6 +28,9 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # RECOMMENDED: Use -S (format sort) for reliable resolution limits
 # -S sorts formats by preference and is more reliable than -f filters
 
+# Limit to 2160p maximum
+# -S res:2160
+
 # Limit to 1080p maximum (RECOMMENDED)
 # -S res:1080
 
@@ -40,8 +43,11 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Limit to 360p maximum (minimum quality)
 # -S res:360
 
-# Prefer h264 codec with 1080p limit (good compatibility)
+# Prefer H.264 codec with 1080p limit (Safari/iOS compatible)
 # -S res:1080,vcodec:h264
+
+# Force H.264 codec only (required for Safari/iOS playback)
+# -S vcodec:h264
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FORMAT SELECTION (Alternative to -S, less reliable with some sources)
@@ -59,8 +65,9 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Prefer MP4 format (better compatibility)
 # -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best
 
-# Prefer specific codec (h264 for compatibility)
+# Prefer H.264 codec (required for Safari/iOS playback)
 # -f bestvideo[vcodec^=avc1]+bestaudio/best
+# -f bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best
 
 # Download only audio (extract audio)
 # -x
@@ -147,6 +154,19 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Skip HLS or DASH formats
 # --extractor-args youtube:skip=hls
 # --extractor-args youtube:skip=dash
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BILIBILI SPECIFIC
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Note: By default, MyTube prefers H.264 codec for Safari compatibility
+# Bilibili may serve HEVC (H.265) which doesn't play in Safari
+
+# Force H.264 codec (best compatibility with Safari/iOS)
+# -S vcodec:h264
+
+# Prefer H.264 with resolution limit
+# -S res:1080,vcodec:h264
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # AUTHENTICATION
