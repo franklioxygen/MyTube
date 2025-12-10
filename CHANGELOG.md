@@ -1,8 +1,56 @@
 # Change Log
 
-## vUnreleased (2025-12-08)
+
+
+## v1.5.0 (2025-12-10)
+
+### Feat
+- feat: Add yt-dlp download functionality and helpers (b10e1f8)
+
+### Refactor
+- refactor: Improve cancellation error handling and file cleanup (60f58d0)
+- refactor: Improve code readability and maintainability (7d17f70)
+- refactor: optimize download manage page (dfeec2b)
+- refactor: use yt-dlp instead of wrapper (9f4716f)
+
+## v1.4.19 (2025-12-09)
+
+### Feat
+- feat: Add sorting functionality for videos on Home page (ee813b3)
+
+### Refactor
+- refactor: Improve code readability and structure (6b50d50)
+- refactor: Update translations for "downloading" and "poweredBy" (6d6dba2)
+
+### Docs
+- docs: Update sorting translations (ab1c931)
+
+## v1.4.18 (2025-12-09)
+
+### Feat
+- feat: Add video description support for Bilibili and YtDlp (4d88066)
+
+## v1.4.17 (2025-12-09)
+
+### Feat
+- feat: Add functionality to format legacy filenames (2dbc47f)
+- feat: Add formatVideoFilename helper function (fd70120)
+
+## v1.4.16 (2025-12-08)
+
+### Docs
+- docs: Update localization messages for link copy status (7821851)
+
+## v1.4.15 (2025-12-08)
+
+### Feat
+- feat: Add itemsPerPage setting to GeneralSettings (bc520dc)
+- feat: Add websiteName field to settings and UI (56c7643)
+
+## v1.4.14 (2025-12-08)
 
 ### Chore
+- chore: Add release notes for version 1.4.13 (b095a68)
 - chore(release): Update package-lock versions to 1.4.13 (e8acd13)
 
 ## v1.4.13 (2025-12-08)
