@@ -4,6 +4,11 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
+  calculateDownloadedSize,
+  formatBytes,
+  parseSize,
+} from "../../utils/downloadUtils";
+import {
   extractBilibiliVideoId,
   formatVideoFilename,
 } from "../../utils/helpers";
@@ -114,21 +119,13 @@ export class BilibiliDownloader {
     }
   }
 
-  // Helper function to format bytes
-  private static formatBytes(bytes: number): string {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KiB", "MiB", "GiB", "TiB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  }
-
   // Helper function to download Bilibili video
   static async downloadVideo(
     url: string,
     videoPath: string,
     thumbnailPath: string,
-    downloadId?: string
+    downloadId?: string,
+    onStart?: (cancel: () => void) => void
   ): Promise<BilibiliVideoInfo> {
     const tempDir = path.join(
       VIDEOS_DIR,
@@ -174,13 +171,46 @@ export class BilibiliDownloader {
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(url, flags);
 
+      // Register cancel function if provided
+      if (onStart) {
+        onStart(() => {
+          console.log("Killing subprocess for download:", downloadId);
+          subprocess.kill();
+
+          // Clean up partial files
+          console.log("Cleaning up partial files...");
+          try {
+            if (fs.existsSync(tempDir)) {
+              fs.removeSync(tempDir);
+              console.log("Deleted temp directory:", tempDir);
+            }
+            if (fs.existsSync(videoPath)) {
+              fs.unlinkSync(videoPath);
+              console.log("Deleted partial video file:", videoPath);
+            }
+            if (fs.existsSync(thumbnailPath)) {
+              fs.unlinkSync(thumbnailPath);
+              console.log("Deleted partial thumbnail file:", thumbnailPath);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up partial files:", cleanupError);
+          }
+        });
+      }
+
       // Track progress from stdout
       if (downloadId) {
         subprocess.stdout?.on("data", (data: Buffer) => {
           const output = data.toString();
           // Parse progress: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
+          // Also try to match: [download] 55.8MiB of 123.45MiB at 5.67MiB/s ETA 00:12
           const progressMatch = output.match(
             /(\d+\.?\d*)%\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
+          );
+
+          // Try to match format with downloaded size explicitly shown
+          const progressWithSizeMatch = output.match(
+            /([~\d\w.]+)\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
           );
 
           if (progressMatch) {
@@ -188,9 +218,34 @@ export class BilibiliDownloader {
             const totalSize = progressMatch[2];
             const speed = progressMatch[3];
 
+            // Calculate downloadedSize from percentage and totalSize
+            const downloadedSize = calculateDownloadedSize(
+              percentage,
+              totalSize
+            );
+
             storageService.updateActiveDownload(downloadId, {
               progress: percentage,
               totalSize: totalSize,
+              downloadedSize: downloadedSize,
+              speed: speed,
+            });
+          } else if (progressWithSizeMatch) {
+            // If we have explicit downloaded size in the output
+            const downloadedSize = progressWithSizeMatch[1];
+            const totalSize = progressWithSizeMatch[2];
+            const speed = progressWithSizeMatch[3];
+
+            // Calculate percentage from downloaded and total sizes
+            const downloadedBytes = parseSize(downloadedSize);
+            const totalBytes = parseSize(totalSize);
+            const percentage =
+              totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
+
+            storageService.updateActiveDownload(downloadId, {
+              progress: percentage,
+              totalSize: totalSize,
+              downloadedSize: downloadedSize,
               speed: speed,
             });
           }
@@ -224,9 +279,39 @@ export class BilibiliDownloader {
         await subprocess;
       } catch (error: any) {
         downloadError = error;
+        // Check if it was cancelled (killed process typically exits with code 143 or throws)
+        if (
+          error.code === 143 ||
+          error.message?.includes("killed") ||
+          error.message?.includes("SIGTERM") ||
+          error.code === "SIGTERM"
+        ) {
+          console.log("Download was cancelled");
+          // Clean up temp directory
+          if (fs.existsSync(tempDir)) {
+            fs.removeSync(tempDir);
+          }
+          throw new Error("Download cancelled by user");
+        }
         console.error("yt-dlp download failed:", error.message);
         if (error.stderr) {
           console.error("yt-dlp stderr:", error.stderr);
+        }
+      }
+
+      // Check if download was cancelled (it might have been removed from active downloads)
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled (no longer in active downloads)");
+          // Clean up temp directory
+          if (fs.existsSync(tempDir)) {
+            fs.removeSync(tempDir);
+          }
+          throw new Error("Download cancelled by user");
         }
       }
 
@@ -273,7 +358,7 @@ export class BilibiliDownloader {
       const tempVideoPath = path.join(tempDir, videoFile);
       if (downloadId && fs.existsSync(tempVideoPath)) {
         const stats = fs.statSync(tempVideoPath);
-        const finalSize = this.formatBytes(stats.size);
+        const finalSize = formatBytes(stats.size);
         storageService.updateActiveDownload(downloadId, {
           downloadedSize: finalSize,
           totalSize: finalSize,
@@ -567,7 +652,8 @@ export class BilibiliDownloader {
     partNumber: number,
     totalParts: number,
     seriesTitle: string,
-    downloadId?: string
+    downloadId?: string,
+    onStart?: (cancel: () => void) => void
   ): Promise<DownloadResult> {
     try {
       console.log(
@@ -596,12 +682,28 @@ export class BilibiliDownloader {
       let finalThumbnailFilename = thumbnailFilename;
 
       // Download Bilibili video
-      const bilibiliInfo = await BilibiliDownloader.downloadVideo(
-        url,
-        videoPath,
-        thumbnailPath,
-        downloadId
-      );
+      let bilibiliInfo: BilibiliVideoInfo;
+      try {
+        bilibiliInfo = await BilibiliDownloader.downloadVideo(
+          url,
+          videoPath,
+          thumbnailPath,
+          downloadId,
+          onStart
+        );
+      } catch (error: any) {
+        // If download was cancelled, re-throw immediately without downloading subtitles or creating video data
+        if (
+          error.message?.includes("Download cancelled by user") ||
+          error.message?.includes("cancelled")
+        ) {
+          console.log(
+            "Download was cancelled, skipping subtitle download and video creation"
+          );
+          throw error;
+        }
+        throw error;
+      }
 
       if (!bilibiliInfo) {
         throw new Error("Failed to get Bilibili video info");
@@ -637,12 +739,36 @@ export class BilibiliDownloader {
       const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
+      // Check if download was cancelled before processing files
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled, skipping file processing");
+          throw new Error("Download cancelled by user");
+        }
+      }
+
       if (fs.existsSync(videoPath)) {
         fs.renameSync(videoPath, newVideoPath);
         console.log("Renamed video file to:", newVideoFilename);
         finalVideoFilename = newVideoFilename;
       } else {
         console.log("Video file not found at:", videoPath);
+        // Check again if download was cancelled (might have been cancelled during downloadVideo)
+        if (downloadId) {
+          const status = storageService.getDownloadStatus();
+          const isStillActive = status.activeDownloads.some(
+            (d) => d.id === downloadId
+          );
+          if (!isStillActive) {
+            console.log("Download was cancelled, video file not created");
+            throw new Error("Download cancelled by user");
+          }
+        }
+        throw new Error("Video file not found after download");
       }
 
       if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
@@ -676,6 +802,18 @@ export class BilibiliDownloader {
         console.error("Failed to get file size:", e);
       }
 
+      // Check if download was cancelled before downloading subtitles
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled, skipping subtitle download");
+          throw new Error("Download cancelled by user");
+        }
+      }
+
       // Download subtitles
       let subtitles: Array<{
         language: string;
@@ -690,7 +828,39 @@ export class BilibiliDownloader {
         );
         console.log(`Downloaded ${subtitles.length} subtitles`);
       } catch (e) {
+        // If it's a cancellation error, re-throw it
+        if (
+          e instanceof Error &&
+          e.message?.includes("Download cancelled by user")
+        ) {
+          throw e;
+        }
         console.error("Error downloading subtitles:", e);
+      }
+
+      // Check if download was cancelled before creating video data
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled, skipping video data creation");
+          // Clean up any files that were created
+          try {
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+              console.log("Deleted video file:", newVideoPath);
+            }
+            if (fs.existsSync(newThumbnailPath)) {
+              fs.unlinkSync(newThumbnailPath);
+              console.log("Deleted thumbnail file:", newThumbnailPath);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up files:", cleanupError);
+          }
+          throw new Error("Download cancelled by user");
+        }
       }
 
       // Create metadata for the video

@@ -6,7 +6,7 @@ import {
   BilibiliVideoInfo,
   BilibiliVideosResult,
   CollectionDownloadResult,
-  DownloadResult
+  DownloadResult,
 } from "./downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "./downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
@@ -14,7 +14,12 @@ import { Video } from "./storageService";
 
 // Re-export types for compatibility
 export type {
-  BilibiliCollectionCheckResult, BilibiliPartsCheckResult, BilibiliVideoInfo, BilibiliVideosResult, CollectionDownloadResult, DownloadResult
+  BilibiliCollectionCheckResult,
+  BilibiliPartsCheckResult,
+  BilibiliVideoInfo,
+  BilibiliVideosResult,
+  CollectionDownloadResult,
+  DownloadResult,
 };
 
 // Helper function to download Bilibili video
@@ -22,28 +27,45 @@ export async function downloadBilibiliVideo(
   url: string,
   videoPath: string,
   thumbnailPath: string,
-  downloadId?: string
+  downloadId?: string,
+  onStart?: (cancel: () => void) => void
 ): Promise<BilibiliVideoInfo> {
-  return BilibiliDownloader.downloadVideo(url, videoPath, thumbnailPath, downloadId);
+  return BilibiliDownloader.downloadVideo(
+    url,
+    videoPath,
+    thumbnailPath,
+    downloadId,
+    onStart
+  );
 }
 
 // Helper function to check if a Bilibili video has multiple parts
-export async function checkBilibiliVideoParts(videoId: string): Promise<BilibiliPartsCheckResult> {
+export async function checkBilibiliVideoParts(
+  videoId: string
+): Promise<BilibiliPartsCheckResult> {
   return BilibiliDownloader.checkVideoParts(videoId);
 }
 
 // Helper function to check if a Bilibili video belongs to a collection or series
-export async function checkBilibiliCollectionOrSeries(videoId: string): Promise<BilibiliCollectionCheckResult> {
+export async function checkBilibiliCollectionOrSeries(
+  videoId: string
+): Promise<BilibiliCollectionCheckResult> {
   return BilibiliDownloader.checkCollectionOrSeries(videoId);
 }
 
 // Helper function to get all videos from a Bilibili collection
-export async function getBilibiliCollectionVideos(mid: number, seasonId: number): Promise<BilibiliVideosResult> {
+export async function getBilibiliCollectionVideos(
+  mid: number,
+  seasonId: number
+): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getCollectionVideos(mid, seasonId);
 }
 
 // Helper function to get all videos from a Bilibili series
-export async function getBilibiliSeriesVideos(mid: number, seriesId: number): Promise<BilibiliVideosResult> {
+export async function getBilibiliSeriesVideos(
+  mid: number,
+  seriesId: number
+): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getSeriesVideos(mid, seriesId);
 }
 
@@ -53,9 +75,17 @@ export async function downloadSingleBilibiliPart(
   partNumber: number,
   totalParts: number,
   seriesTitle: string,
-  downloadId?: string
+  downloadId?: string,
+  onStart?: (cancel: () => void) => void
 ): Promise<DownloadResult> {
-  return BilibiliDownloader.downloadSinglePart(url, partNumber, totalParts, seriesTitle, downloadId);
+  return BilibiliDownloader.downloadSinglePart(
+    url,
+    partNumber,
+    totalParts,
+    seriesTitle,
+    downloadId,
+    onStart
+  );
 }
 
 // Helper function to download all videos from a Bilibili collection or series
@@ -64,7 +94,11 @@ export async function downloadBilibiliCollection(
   collectionName: string,
   downloadId: string
 ): Promise<CollectionDownloadResult> {
-  return BilibiliDownloader.downloadCollection(collectionInfo, collectionName, downloadId);
+  return BilibiliDownloader.downloadCollection(
+    collectionInfo,
+    collectionName,
+    downloadId
+  );
 }
 
 // Helper function to download remaining Bilibili parts in sequence
@@ -76,7 +110,14 @@ export async function downloadRemainingBilibiliParts(
   collectionId: string,
   downloadId: string
 ): Promise<void> {
-  return BilibiliDownloader.downloadRemainingParts(baseUrl, startPart, totalParts, seriesTitle, collectionId, downloadId);
+  return BilibiliDownloader.downloadRemainingParts(
+    baseUrl,
+    startPart,
+    totalParts,
+    seriesTitle,
+    collectionId,
+    downloadId
+  );
 }
 
 // Search for videos on YouTube (using yt-dlp)
@@ -85,17 +126,32 @@ export async function searchYouTube(query: string): Promise<any[]> {
 }
 
 // Download generic video (using yt-dlp)
-export async function downloadYouTubeVideo(videoUrl: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
+export async function downloadYouTubeVideo(
+  videoUrl: string,
+  downloadId?: string,
+  onStart?: (cancel: () => void) => void
+): Promise<Video> {
   return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart);
 }
 
 // Helper function to download MissAV video
-export async function downloadMissAVVideo(url: string, downloadId?: string, onStart?: (cancel: () => void) => void): Promise<Video> {
+export async function downloadMissAVVideo(
+  url: string,
+  downloadId?: string,
+  onStart?: (cancel: () => void) => void
+): Promise<Video> {
   return MissAVDownloader.downloadVideo(url, downloadId, onStart);
 }
 
 // Helper function to get video info without downloading
-export async function getVideoInfo(url: string): Promise<{ title: string; author: string; date: string; thumbnailUrl: string }> {
+export async function getVideoInfo(
+  url: string
+): Promise<{
+  title: string;
+  author: string;
+  date: string;
+  thumbnailUrl: string;
+}> {
   if (isBilibiliUrl(url)) {
     const videoId = extractBilibiliVideoId(url);
     if (videoId) {
@@ -104,7 +160,7 @@ export async function getVideoInfo(url: string): Promise<{ title: string; author
   } else if (url.includes("missav") || url.includes("123av")) {
     return MissAVDownloader.getVideoInfo(url);
   }
-  
+
   // Default fallback to yt-dlp for everything else
   return YtDlpDownloader.getVideoInfo(url);
 }
@@ -116,12 +172,19 @@ export function createDownloadTask(
   downloadId: string
 ): (registerCancel: (cancel: () => void) => void) => Promise<any> {
   return async (registerCancel: (cancel: () => void) => void) => {
-    if (type === 'missav') {
+    if (type === "missav") {
       return MissAVDownloader.downloadVideo(url, downloadId, registerCancel);
-    } else if (type === 'bilibili') {
+    } else if (type === "bilibili") {
       // For restored tasks, we assume single video download for now
       // Complex collection handling would require persisting more state
-      return BilibiliDownloader.downloadSinglePart(url, 1, 1, "");
+      return BilibiliDownloader.downloadSinglePart(
+        url,
+        1,
+        1,
+        "",
+        downloadId,
+        registerCancel
+      );
     } else {
       // Default to yt-dlp
       return YtDlpDownloader.downloadVideo(url, downloadId, registerCancel);

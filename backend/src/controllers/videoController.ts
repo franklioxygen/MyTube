@@ -82,12 +82,15 @@ export const checkVideoDownloadStatus = async (
     }
 
     // Check if video was previously downloaded
-    const downloadCheck = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+    const downloadCheck =
+      storageService.checkVideoDownloadBySourceId(sourceVideoId);
 
     if (downloadCheck.found) {
       // If status is "exists", verify the video still exists in the database
       if (downloadCheck.status === "exists" && downloadCheck.videoId) {
-        const existingVideo = storageService.getVideoById(downloadCheck.videoId);
+        const existingVideo = storageService.getVideoById(
+          downloadCheck.videoId
+        );
         if (!existingVideo) {
           // Video was deleted but not marked in download history, update it
           storageService.markVideoDownloadDeleted(downloadCheck.videoId);
@@ -180,12 +183,15 @@ export const downloadVideo = async (
 
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
-      const downloadCheck = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+      const downloadCheck =
+        storageService.checkVideoDownloadBySourceId(sourceVideoId);
 
       if (downloadCheck.found) {
         if (downloadCheck.status === "exists" && downloadCheck.videoId) {
           // Verify the video still exists
-          const existingVideo = storageService.getVideoById(downloadCheck.videoId);
+          const existingVideo = storageService.getVideoById(
+            downloadCheck.videoId
+          );
           if (existingVideo) {
             // Video exists, add to download history as "skipped" and return success
             storageService.addDownloadHistoryItem({
@@ -235,7 +241,8 @@ export const downloadVideo = async (
             author: downloadCheck.author,
             downloadedAt: downloadCheck.downloadedAt,
             deletedAt: downloadCheck.deletedAt,
-            message: "Video was previously downloaded but deleted, skipped download",
+            message:
+              "Video was previously downloaded but deleted, skipped download",
           });
         }
       }
@@ -351,7 +358,8 @@ export const downloadVideo = async (
               1,
               videosNumber,
               title || "Bilibili Video",
-              downloadId
+              downloadId,
+              registerCancel
             );
 
           // Add to collection if needed
@@ -394,7 +402,8 @@ export const downloadVideo = async (
             1,
             1,
             "", // seriesTitle not used when totalParts is 1
-            downloadId
+            downloadId,
+            registerCancel
           );
 
           if (result.success) {

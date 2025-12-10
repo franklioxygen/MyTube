@@ -2,6 +2,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { calculateDownloadedSize, parseSize } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { executeYtDlpJson, executeYtDlpSpawn } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
@@ -323,6 +324,22 @@ export class YtDlpDownloader {
               fs.unlinkSync(newThumbnailPath);
               console.log("Deleted partial thumbnail file:", newThumbnailPath);
             }
+
+            // Clean up any subtitle files that might have been created by yt-dlp
+            const baseFilename = newSafeBaseFilename;
+            const subtitleFiles = fs
+              .readdirSync(VIDEOS_DIR)
+              .filter(
+                (file: string) =>
+                  file.startsWith(baseFilename) && file.endsWith(".vtt")
+              );
+            for (const subtitleFile of subtitleFiles) {
+              const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+              if (fs.existsSync(sourceSubPath)) {
+                fs.unlinkSync(sourceSubPath);
+                console.log("Deleted subtitle file:", sourceSubPath);
+              }
+            }
           } catch (cleanupError) {
             console.error("Error cleaning up partial files:", cleanupError);
           }
@@ -332,8 +349,14 @@ export class YtDlpDownloader {
       subprocess.stdout?.on("data", (data: Buffer) => {
         const output = data.toString();
         // Parse progress: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
+        // Also try to match: [download] 55.8MiB of 123.45MiB at 5.67MiB/s ETA 00:12
         const progressMatch = output.match(
           /(\d+\.?\d*)%\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
+        );
+
+        // Try to match format with downloaded size explicitly shown
+        const progressWithSizeMatch = output.match(
+          /([~\d\w.]+)\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
         );
 
         if (progressMatch && downloadId) {
@@ -341,17 +364,156 @@ export class YtDlpDownloader {
           const totalSize = progressMatch[2];
           const speed = progressMatch[3];
 
+          // Calculate downloadedSize from percentage and totalSize
+          const downloadedSize = calculateDownloadedSize(percentage, totalSize);
+
           storageService.updateActiveDownload(downloadId, {
             progress: percentage,
             totalSize: totalSize,
+            downloadedSize: downloadedSize,
+            speed: speed,
+          });
+        } else if (progressWithSizeMatch && downloadId) {
+          // If we have explicit downloaded size in the output
+          const downloadedSize = progressWithSizeMatch[1];
+          const totalSize = progressWithSizeMatch[2];
+          const speed = progressWithSizeMatch[3];
+
+          // Calculate percentage from downloaded and total sizes
+          const downloadedBytes = parseSize(downloadedSize);
+          const totalBytes = parseSize(totalSize);
+          const percentage =
+            totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
+
+          storageService.updateActiveDownload(downloadId, {
+            progress: percentage,
+            totalSize: totalSize,
+            downloadedSize: downloadedSize,
             speed: speed,
           });
         }
       });
 
-      await subprocess;
+      // Wait for download to complete
+      try {
+        await subprocess;
+      } catch (error: any) {
+        // Check if it was cancelled (killed process typically exits with code 143 or throws)
+        if (
+          error.code === 143 ||
+          error.message?.includes("killed") ||
+          error.message?.includes("SIGTERM") ||
+          error.code === "SIGTERM"
+        ) {
+          console.log("Download was cancelled");
+          // Clean up partial files
+          try {
+            const partVideoPath = `${newVideoPath}.part`;
+            if (fs.existsSync(partVideoPath)) {
+              fs.unlinkSync(partVideoPath);
+            }
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+            }
+
+            // Clean up any subtitle files that might have been created by yt-dlp
+            const baseFilename = newSafeBaseFilename;
+            const subtitleFiles = fs
+              .readdirSync(VIDEOS_DIR)
+              .filter(
+                (file: string) =>
+                  file.startsWith(baseFilename) && file.endsWith(".vtt")
+              );
+            for (const subtitleFile of subtitleFiles) {
+              const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+              if (fs.existsSync(sourceSubPath)) {
+                fs.unlinkSync(sourceSubPath);
+                console.log("Deleted subtitle file:", sourceSubPath);
+              }
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up partial files:", cleanupError);
+          }
+          throw new Error("Download cancelled by user");
+        }
+        // Re-throw other errors
+        throw error;
+      }
+
+      // Check if download was cancelled (it might have been removed from active downloads)
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled (no longer in active downloads)");
+          // Clean up partial files
+          try {
+            const partVideoPath = `${newVideoPath}.part`;
+            if (fs.existsSync(partVideoPath)) {
+              fs.unlinkSync(partVideoPath);
+            }
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+            }
+
+            // Clean up any subtitle files that might have been created by yt-dlp
+            const baseFilename = newSafeBaseFilename;
+            const subtitleFiles = fs
+              .readdirSync(VIDEOS_DIR)
+              .filter(
+                (file: string) =>
+                  file.startsWith(baseFilename) && file.endsWith(".vtt")
+              );
+            for (const subtitleFile of subtitleFiles) {
+              const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+              if (fs.existsSync(sourceSubPath)) {
+                fs.unlinkSync(sourceSubPath);
+                console.log("Deleted subtitle file:", sourceSubPath);
+              }
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up partial files:", cleanupError);
+          }
+          throw new Error("Download cancelled by user");
+        }
+      }
 
       console.log("Video downloaded successfully");
+
+      // Check if download was cancelled before processing thumbnails and subtitles
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log(
+            "Download was cancelled, skipping thumbnail and subtitle processing"
+          );
+          // Clean up any subtitle files that might have been created
+          try {
+            const baseFilename = newSafeBaseFilename;
+            const subtitleFiles = fs
+              .readdirSync(VIDEOS_DIR)
+              .filter(
+                (file: string) =>
+                  file.startsWith(baseFilename) && file.endsWith(".vtt")
+              );
+            for (const subtitleFile of subtitleFiles) {
+              const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+              if (fs.existsSync(sourceSubPath)) {
+                fs.unlinkSync(sourceSubPath);
+                console.log("Deleted subtitle file:", sourceSubPath);
+              }
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up subtitle files:", cleanupError);
+          }
+          throw new Error("Download cancelled by user");
+        }
+      }
 
       // Download and save the thumbnail
       thumbnailSaved = false;
@@ -383,6 +545,38 @@ export class YtDlpDownloader {
           // Continue even if thumbnail download fails
         }
       }
+
+      // Check again if download was cancelled before processing subtitles
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled, skipping subtitle processing");
+          // Clean up any subtitle files that might have been created
+          try {
+            const baseFilename = newSafeBaseFilename;
+            const subtitleFiles = fs
+              .readdirSync(VIDEOS_DIR)
+              .filter(
+                (file: string) =>
+                  file.startsWith(baseFilename) && file.endsWith(".vtt")
+              );
+            for (const subtitleFile of subtitleFiles) {
+              const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
+              if (fs.existsSync(sourceSubPath)) {
+                fs.unlinkSync(sourceSubPath);
+                console.log("Deleted subtitle file:", sourceSubPath);
+              }
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up subtitle files:", cleanupError);
+          }
+          throw new Error("Download cancelled by user");
+        }
+      }
+
       // Scan for subtitle files
       try {
         const baseFilename = newSafeBaseFilename;
@@ -396,6 +590,31 @@ export class YtDlpDownloader {
         console.log(`Found ${subtitleFiles.length} subtitle files`);
 
         for (const subtitleFile of subtitleFiles) {
+          // Check if download was cancelled during subtitle processing
+          if (downloadId) {
+            const status = storageService.getDownloadStatus();
+            const isStillActive = status.activeDownloads.some(
+              (d) => d.id === downloadId
+            );
+            if (!isStillActive) {
+              console.log("Download was cancelled during subtitle processing");
+              // Clean up remaining subtitle files
+              for (const remainingSubFile of subtitleFiles.slice(
+                subtitleFiles.indexOf(subtitleFile)
+              )) {
+                const remainingSubPath = path.join(
+                  VIDEOS_DIR,
+                  remainingSubFile
+                );
+                if (fs.existsSync(remainingSubPath)) {
+                  fs.unlinkSync(remainingSubPath);
+                  console.log("Deleted subtitle file:", remainingSubPath);
+                }
+              }
+              throw new Error("Download cancelled by user");
+            }
+          }
+
           // Parse language from filename (e.g., video_123.en.vtt -> en)
           const match = subtitleFile.match(
             /\.([a-z]{2}(?:-[A-Z]{2})?)(?:\..*?)?\.vtt$/
@@ -431,6 +650,13 @@ export class YtDlpDownloader {
           });
         }
       } catch (subtitleError) {
+        // If it's a cancellation error, re-throw it
+        if (
+          subtitleError instanceof Error &&
+          subtitleError.message?.includes("Download cancelled by user")
+        ) {
+          throw subtitleError;
+        }
         console.error("Error processing subtitle files:", subtitleError);
       }
     } catch (error) {

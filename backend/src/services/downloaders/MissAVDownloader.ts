@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { calculateDownloadedSize } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -209,7 +210,11 @@ export class MissAVDownloader {
       }
 
       // 5. Update the safe base filename with the actual title
-      const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
+      const newSafeBaseFilename = formatVideoFilename(
+        videoTitle,
+        videoAuthor,
+        videoDate
+      );
       const newVideoFilename = `${newSafeBaseFilename}.mp4`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
@@ -245,7 +250,6 @@ export class MissAVDownloader {
         addHeader: [`Referer:${referer}`, `User-Agent:${userAgent}`],
       };
 
-      
       // Parse progress from stdout and stderr
       const parseProgress = (output: string, source: "stdout" | "stderr") => {
         if (!downloadId) return;
@@ -297,9 +301,16 @@ export class MissAVDownloader {
             output.includes(`of ~${totalSize}`);
           const formattedTotalSize = hasTilde ? `~${totalSize}` : totalSize;
 
+          // Calculate downloadedSize from percentage and totalSize
+          const downloadedSize =
+            totalSize !== "?"
+              ? calculateDownloadedSize(percentage, formattedTotalSize)
+              : "0 B";
+
           storageService.updateActiveDownload(downloadId, {
             progress: percentage,
             totalSize: formattedTotalSize,
+            downloadedSize: downloadedSize,
             speed: speed,
           });
         }
@@ -310,11 +321,16 @@ export class MissAVDownloader {
       // Convert flags object to array of args
       const args = [
         m3u8Url,
-        "--output", newVideoPath,
-        "--format", "best",
-        "--merge-output-format", "mp4",
-        "--add-header", `Referer:${referer}`,
-        "--add-header", `User-Agent:${userAgent}`,
+        "--output",
+        newVideoPath,
+        "--format",
+        "best",
+        "--merge-output-format",
+        "mp4",
+        "--add-header",
+        `Referer:${referer}`,
+        "--add-header",
+        `User-Agent:${userAgent}`,
       ];
 
       try {
@@ -338,25 +354,162 @@ export class MissAVDownloader {
           });
 
           child.on("error", (err) => {
-             reject(err);
+            reject(err);
           });
-          
+
           if (onStart) {
-             onStart(() => {
-               console.log("Killing subprocess for download:", downloadId);
-               child.kill();
-               // Cleanup logic is handled in the catch block of the main function 
-               // via the error thrown by kill (maybe) or we should trigger it manually.
-               // Actually existing cleanup in onStart was good, let's keep it minimal for now
-               // as fine-grained cleanup is complex there.
-             });
+            onStart(() => {
+              console.log("Killing subprocess for download:", downloadId);
+              child.kill();
+
+              // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
+              console.log("Cleaning up temporary files...");
+              try {
+                const videoDir = path.dirname(newVideoPath);
+                const videoBasename = path.basename(newVideoPath);
+
+                // Find all files in the video directory that match the pattern
+                const files = fs.readdirSync(videoDir);
+                const tempFiles = files.filter((file) => {
+                  // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
+                  // but not the final video file itself
+                  return (
+                    file.startsWith(videoBasename) &&
+                    file !== videoBasename &&
+                    (file.endsWith(".part") ||
+                      file.endsWith(".ytdl") ||
+                      file.endsWith(".mp4.part") ||
+                      file.endsWith(".mp4.ytdl"))
+                  );
+                });
+
+                for (const tempFile of tempFiles) {
+                  const tempFilePath = path.join(videoDir, tempFile);
+                  if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                    console.log("Deleted temporary file:", tempFilePath);
+                  }
+                }
+
+                // Also check for the main video file if it exists (partial download)
+                if (fs.existsSync(newVideoPath)) {
+                  fs.unlinkSync(newVideoPath);
+                  console.log("Deleted partial video file:", newVideoPath);
+                }
+              } catch (cleanupError) {
+                console.error(
+                  "Error cleaning up temporary files:",
+                  cleanupError
+                );
+              }
+            });
           }
         });
 
         console.log("Video downloaded successfully");
       } catch (err: any) {
-         console.error("yt-dlp execution failed:", err);
-         throw err;
+        // Check if it was cancelled (killed process typically exits with code 143 or throws)
+        if (
+          err.code === 143 ||
+          err.message?.includes("killed") ||
+          err.message?.includes("SIGTERM") ||
+          err.code === "SIGTERM"
+        ) {
+          console.log("Download was cancelled");
+
+          // Clean up temporary files created by yt-dlp
+          console.log("Cleaning up temporary files after cancellation...");
+          try {
+            const videoDir = path.dirname(newVideoPath);
+            const videoBasename = path.basename(newVideoPath);
+
+            // Find all files in the video directory that match the pattern
+            const files = fs.readdirSync(videoDir);
+            const tempFiles = files.filter((file) => {
+              // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
+              // but not the final video file itself
+              return (
+                file.startsWith(videoBasename) &&
+                file !== videoBasename &&
+                (file.endsWith(".part") ||
+                  file.endsWith(".ytdl") ||
+                  file.endsWith(".mp4.part") ||
+                  file.endsWith(".mp4.ytdl"))
+              );
+            });
+
+            for (const tempFile of tempFiles) {
+              const tempFilePath = path.join(videoDir, tempFile);
+              if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+                console.log("Deleted temporary file:", tempFilePath);
+              }
+            }
+
+            // Also check for the main video file if it exists (partial download)
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+              console.log("Deleted partial video file:", newVideoPath);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up temporary files:", cleanupError);
+          }
+
+          throw new Error("Download cancelled by user");
+        }
+        console.error("yt-dlp execution failed:", err);
+        throw err;
+      }
+
+      // Check if download was cancelled (it might have been removed from active downloads)
+      if (downloadId) {
+        const status = storageService.getDownloadStatus();
+        const isStillActive = status.activeDownloads.some(
+          (d) => d.id === downloadId
+        );
+        if (!isStillActive) {
+          console.log("Download was cancelled (no longer in active downloads)");
+
+          // Clean up temporary files created by yt-dlp
+          console.log("Cleaning up temporary files after cancellation...");
+          try {
+            const videoDir = path.dirname(newVideoPath);
+            const videoBasename = path.basename(newVideoPath);
+
+            // Find all files in the video directory that match the pattern
+            const files = fs.readdirSync(videoDir);
+            const tempFiles = files.filter((file) => {
+              // Match files like: filename.mp4.part, filename.mp4.ytdl, or any file starting with the video basename
+              // but not the final video file itself
+              return (
+                file.startsWith(videoBasename) &&
+                file !== videoBasename &&
+                (file.endsWith(".part") ||
+                  file.endsWith(".ytdl") ||
+                  file.endsWith(".mp4.part") ||
+                  file.endsWith(".mp4.ytdl"))
+              );
+            });
+
+            for (const tempFile of tempFiles) {
+              const tempFilePath = path.join(videoDir, tempFile);
+              if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+                console.log("Deleted temporary file:", tempFilePath);
+              }
+            }
+
+            // Also check for the main video file if it exists (partial download)
+            if (fs.existsSync(newVideoPath)) {
+              fs.unlinkSync(newVideoPath);
+              console.log("Deleted partial video file:", newVideoPath);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up temporary files:", cleanupError);
+          }
+
+          throw new Error("Download cancelled by user");
+        }
       }
 
       // 7. Download and save the thumbnail
@@ -439,7 +592,11 @@ export class MissAVDownloader {
     } catch (error: any) {
       console.error("Error in downloadMissAVVideo:", error);
       // Cleanup
-      const newSafeBaseFilename = formatVideoFilename(videoTitle, videoAuthor, videoDate);
+      const newSafeBaseFilename = formatVideoFilename(
+        videoTitle,
+        videoAuthor,
+        videoDate
+      );
       const newVideoPath = path.join(VIDEOS_DIR, `${newSafeBaseFilename}.mp4`);
       const newThumbnailPath = path.join(
         IMAGES_DIR,
