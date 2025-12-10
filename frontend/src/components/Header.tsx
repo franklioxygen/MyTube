@@ -35,6 +35,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useThemeContext } from '../contexts/ThemeContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import AuthorsList from './AuthorsList';
@@ -61,8 +62,7 @@ interface HeaderProps {
     isSearchMode?: boolean;
     searchTerm?: string;
     onResetSearch?: () => void;
-    theme: string;
-    toggleTheme: () => void;
+
     collections?: Collection[];
     videos?: Video[];
 }
@@ -74,8 +74,7 @@ const Header: React.FC<HeaderProps> = ({
     isSearchMode = false,
     searchTerm = '',
     onResetSearch,
-    theme: currentThemeMode,
-    toggleTheme,
+
     collections = [],
     videos = []
 }) => {
@@ -88,6 +87,7 @@ const Header: React.FC<HeaderProps> = ({
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
 

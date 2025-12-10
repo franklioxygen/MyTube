@@ -8,7 +8,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/master.yml)
 [![GitHub Repo stars](https://img.shields.io/github/stars/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 
-[中文](README-zh.md)
+[中文](README-zh.md) | [Changelog](CHANGELOG.md)
 
 ## Demo
 
@@ -39,6 +39,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **Temp Files Cleanup**: Manage storage by cleaning up temporary download files directly from settings.
 - **View Modes**: Toggle between Collection View and Video View on the home page.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
+- **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
 
 ## Directory Structure
 

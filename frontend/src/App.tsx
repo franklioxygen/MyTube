@@ -1,5 +1,4 @@
-import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { Box, CircularProgress } from '@mui/material';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
@@ -10,6 +9,7 @@ import { CollectionProvider, useCollection } from './contexts/CollectionContext'
 import { DownloadProvider, useDownload } from './contexts/DownloadContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
+import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
@@ -22,7 +22,6 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import SubscriptionsPage from './pages/SubscriptionsPage';
 import VideoPlayer from './pages/VideoPlayer';
-import getTheme from './theme';
 
 function AppContent() {
     const {
@@ -50,26 +49,10 @@ function AppContent() {
 
     const { isAuthenticated, loginRequired, checkingAuth } = useAuth();
 
-    // Theme state
-    const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
-        return (localStorage.getItem('theme') as 'light' | 'dark') || 'dark';
-    });
 
-    const theme = useMemo(() => getTheme(themeMode), [themeMode]);
-
-    // Apply theme to body
-    useEffect(() => {
-        document.body.className = themeMode === 'light' ? 'light-mode' : '';
-        localStorage.setItem('theme', themeMode);
-    }, [themeMode]);
-
-    const toggleTheme = () => {
-        setThemeMode(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-    };
 
     return (
-        <ThemeProvider theme={theme}>
-            <CssBaseline />
+        <>
             {!isAuthenticated && loginRequired ? (
                 checkingAuth ? (
                     <Box
@@ -97,8 +80,7 @@ function AppContent() {
                             isSearchMode={isSearchMode}
                             searchTerm={searchTerm}
                             onResetSearch={resetSearch}
-                            theme={themeMode}
-                            toggleTheme={toggleTheme}
+
                             collections={collections}
                             videos={videos}
                         />
@@ -134,7 +116,7 @@ function AppContent() {
                     </Box>
                 </Router>
             )}
-        </ThemeProvider>
+        </>
     );
 }
 
@@ -145,19 +127,21 @@ const queryClient = new QueryClient();
 function App() {
     return (
         <QueryClientProvider client={queryClient}>
-            <LanguageProvider>
-                <SnackbarProvider>
-                    <AuthProvider>
-                        <VideoProvider>
-                            <CollectionProvider>
-                                <DownloadProvider>
-                                    <AppContent />
-                                </DownloadProvider>
-                            </CollectionProvider>
-                        </VideoProvider>
-                    </AuthProvider>
-                </SnackbarProvider>
-            </LanguageProvider>
+            <ThemeContextProvider>
+                <LanguageProvider>
+                    <SnackbarProvider>
+                        <AuthProvider>
+                            <VideoProvider>
+                                <CollectionProvider>
+                                    <DownloadProvider>
+                                        <AppContent />
+                                    </DownloadProvider>
+                                </CollectionProvider>
+                            </VideoProvider>
+                        </AuthProvider>
+                    </SnackbarProvider>
+                </LanguageProvider>
+            </ThemeContextProvider>
         </QueryClientProvider>
     );
 }

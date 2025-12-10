@@ -52,11 +52,24 @@ const Home: React.FC = () => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as 'collections' | 'all-videos' | 'history') || 'collections';
     });
-    const [sortOption, setSortOption] = useState<string>('dateDesc');
+
+    // Initialize sort option from URL or default
+    const sortOptionP = searchParams.get('sort') || 'dateDesc';
+    const seedP = parseInt(searchParams.get('seed') || '0', 10);
+
+    const [sortOption, setSortOption] = useState<string>(sortOptionP);
+    const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
     const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
-    const [shuffleSeed, setShuffleSeed] = useState<number>(0);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+    // Sync state with URL params
+    useEffect(() => {
+        const currentSort = searchParams.get('sort') || 'dateDesc';
+        const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
+        setSortOption(currentSort);
+        setShuffleSeed(currentSeed);
+    }, [searchParams]);
 
     // Fetch settings on mount
     useEffect(() => {
@@ -205,7 +218,19 @@ const Home: React.FC = () => {
             case 'nameAsc':
                 return result.sort((a, b) => a.title.localeCompare(b.title));
             case 'random':
-                return result.sort(() => 0.5 - Math.random());
+                // Use a seeded predictable random sort
+                return result.map(v => {
+                    // Simple hash function for stability with seed
+                    let h = 0x811c9dc5;
+                    const s = v.id + shuffleSeed;
+                    for (let i = 0; i < s.length; i++) {
+                        h ^= s.charCodeAt(i);
+                        h = Math.imul(h, 0x01000193);
+                    }
+                    return { v, score: h >>> 0 };
+                })
+                    .sort((a, b) => a.score - b.score)
+                    .map(item => item.v);
             default:
                 return result;
         }
@@ -247,25 +272,22 @@ const Home: React.FC = () => {
 
     const handleSortClose = (option?: string) => {
         if (option) {
-            if (option === 'random') {
-                setShuffleSeed(prev => prev + 1);
-            }
+            setSearchParams((prev: URLSearchParams) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('page', '1');
 
-            if (option !== sortOption) {
-                setSortOption(option);
-                setSearchParams((prev: URLSearchParams) => {
-                    const newParams = new URLSearchParams(prev);
-                    newParams.set('page', '1');
-                    return newParams;
-                });
-            } else if (option === 'random') {
-                // Even if it matches, if it is random, we want to reset page to 1 because the order changed
-                setSearchParams((prev: URLSearchParams) => {
-                    const newParams = new URLSearchParams(prev);
-                    newParams.set('page', '1');
-                    return newParams;
-                });
-            }
+                if (option === 'random') {
+                    newParams.set('sort', 'random');
+                    // Always generate a new seed when clicking 'random'
+                    // This acts as a "reshuffle"
+                    const newSeed = Math.floor(Math.random() * 1000000);
+                    newParams.set('seed', newSeed.toString());
+                } else {
+                    newParams.set('sort', option);
+                    newParams.delete('seed');
+                }
+                return newParams;
+            });
         }
         setSortAnchorEl(null);
     };

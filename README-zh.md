@@ -8,7 +8,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/master.yml)
 [![GitHub Repo stars](https://img.shields.io/github/stars/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 
-[English](README.md)
+[English](README.md) | [更新日志](CHANGELOG.md)
 
 ## 在线演示
 
@@ -39,6 +39,7 @@
 - **临时文件清理**：直接从设置中清理临时下载文件以管理存储空间。
 - **视图模式**：在主页上切换收藏夹视图和视频视图。
 - **Cookie 管理**：支持上传 `cookies.txt` 以启用年龄限制或会员内容的下载。
+- **yt-dlp 配置**: 通过用户界面自定义全局 `yt-dlp` 参数、网络代理及其他高级设置。
 
 ## 目录结构
 
