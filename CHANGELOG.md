@@ -2,9 +2,15 @@
 
 
 
+## Unreleased
+
+### Test
+- test: Update expect calls in downloadService tests (84b36bf)
+
 ## v1.5.0 (2025-12-10)
 
 ### Feat
+- feat: Add yt-dlp functionality and improve code readability (4cda9d3)
 - feat: Add yt-dlp download functionality and helpers (b10e1f8)
 
 ### Refactor
