@@ -56,7 +56,7 @@ const SettingsPage: React.FC = () => {
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const debouncedSettings = useDebounce(settings, 1000);
-    const [isFirstLoad, setIsFirstLoad] = useState(true);
+    const lastSavedSettingsRef = React.useRef<Settings | null>(null);
 
     // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
@@ -82,21 +82,26 @@ const SettingsPage: React.FC = () => {
     });
 
     useEffect(() => {
-        if (settingsData && isFirstLoad) {
-            setSettings({
+        if (settingsData) {
+            const newSettings = {
                 ...settingsData,
                 tags: settingsData.tags || []
-            });
-            setIsFirstLoad(false);
+            };
+            setSettings(newSettings);
+            // Initialize sync reference with fetched data
+            if (!lastSavedSettingsRef.current) {
+                lastSavedSettingsRef.current = newSettings;
+            }
         }
-    }, [settingsData, isFirstLoad]);
+    }, [settingsData]);
 
-    // Autosave effect
-    useEffect(() => {
-        if (!isFirstLoad) {
-            saveMutation.mutate(debouncedSettings);
-        }
-    }, [debouncedSettings]);
+    const areSettingsEqual = (s1: Settings, s2: Settings) => {
+        const { password: p1, ...rest1 } = s1;
+        const { password: p2, ...rest2 } = s2;
+        // If password is set in current settings, it's a change (we assume s2 is lastSaved, which has cleared password)
+        if (p1) return false;
+        return JSON.stringify(rest1) === JSON.stringify(rest2);
+    };
 
     // Save settings mutation
     const saveMutation = useMutation({
@@ -108,14 +113,30 @@ const SettingsPage: React.FC = () => {
             }
             await axios.post(`${API_URL}/settings`, settingsToSend);
         },
-        onSuccess: () => {
+        onSuccess: (_data, variables) => {
             // Do not invalidate queries to prevent overwriting user input while typing
             setMessage({ text: t('settingsSaved'), type: 'success' });
+            // Update reference to the settings we just successfully saved
+            // We must clear password from the reference as it is cleared in state on success (effectively)
+            const { password, ...rest } = variables;
+            lastSavedSettingsRef.current = { ...rest, password: '' } as Settings;
         },
         onError: () => {
             setMessage({ text: t('settingsFailed'), type: 'error' });
         }
     });
+
+    // Autosave effect
+    useEffect(() => {
+        if (!lastSavedSettingsRef.current) return;
+
+        if (!areSettingsEqual(debouncedSettings, lastSavedSettingsRef.current)) {
+            // Check saveMutation.isPending
+            if (!saveMutation.isPending) {
+                saveMutation.mutate(debouncedSettings);
+            }
+        }
+    }, [debouncedSettings, saveMutation.isPending]);
 
 
 
