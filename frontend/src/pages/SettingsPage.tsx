@@ -1,10 +1,7 @@
-import {
-    Save
-} from '@mui/icons-material';
+
 import {
     Alert,
     Box,
-    Button,
     Card,
     CardContent,
     Container,
@@ -13,7 +10,7 @@ import {
     Snackbar,
     Typography
 } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -29,6 +26,7 @@ import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -37,7 +35,6 @@ import { Language } from '../utils/translations';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const SettingsPage: React.FC = () => {
-    const queryClient = useQueryClient();
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
 
@@ -54,9 +51,12 @@ const SettingsPage: React.FC = () => {
         openListToken: '',
         cloudDrivePath: '',
         itemsPerPage: 12,
-        ytDlpConfig: ''
+        ytDlpConfig: '',
+        showYoutubeSearch: true
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+    const debouncedSettings = useDebounce(settings, 1000);
+    const [isFirstLoad, setIsFirstLoad] = useState(true);
 
     // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
@@ -82,13 +82,21 @@ const SettingsPage: React.FC = () => {
     });
 
     useEffect(() => {
-        if (settingsData) {
+        if (settingsData && isFirstLoad) {
             setSettings({
                 ...settingsData,
                 tags: settingsData.tags || []
             });
+            setIsFirstLoad(false);
         }
-    }, [settingsData]);
+    }, [settingsData, isFirstLoad]);
+
+    // Autosave effect
+    useEffect(() => {
+        if (!isFirstLoad) {
+            saveMutation.mutate(debouncedSettings);
+        }
+    }, [debouncedSettings]);
 
     // Save settings mutation
     const saveMutation = useMutation({
@@ -101,19 +109,15 @@ const SettingsPage: React.FC = () => {
             await axios.post(`${API_URL}/settings`, settingsToSend);
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['settings'] });
+            // Do not invalidate queries to prevent overwriting user input while typing
             setMessage({ text: t('settingsSaved'), type: 'success' });
-            // Clear password field after save
-            setSettings(prev => ({ ...prev, password: '', isPasswordSet: true }));
         },
         onError: () => {
             setMessage({ text: t('settingsFailed'), type: 'error' });
         }
     });
 
-    const handleSave = () => {
-        saveMutation.mutate(settings);
-    };
+
 
     // Migrate data mutation
     const migrateMutation = useMutation({
@@ -302,6 +306,7 @@ const SettingsPage: React.FC = () => {
                                 language={settings.language}
                                 websiteName={settings.websiteName}
                                 itemsPerPage={settings.itemsPerPage}
+                                showYoutubeSearch={settings.showYoutubeSearch}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>
@@ -401,19 +406,8 @@ const SettingsPage: React.FC = () => {
                             />
                         </Grid>
 
-                        <Grid size={12}>
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    startIcon={<Save />}
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                >
-                                    {isSaving ? t('saving') : t('saveSettings')}
-                                </Button>
-                            </Box>
-                        </Grid>
+
+
                     </Grid>
                 </CardContent>
             </Card>

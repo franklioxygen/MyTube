@@ -72,4 +72,5 @@ export interface Settings {
   websiteName?: string;
   itemsPerPage?: number;
   ytDlpConfig?: string;
+  showYoutubeSearch?: boolean;
 }

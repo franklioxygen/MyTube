@@ -28,6 +28,7 @@ interface VideoContextType {
     availableTags: string[];
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
+    showYoutubeSearch: boolean;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -63,16 +64,19 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retryDelay: 1000,
     });
 
-    // Tags Query
-    const { data: availableTags = [] } = useQuery({
-        queryKey: ['tags'],
+    // Settings Query (tags and showYoutubeSearch)
+    const { data: settingsData } = useQuery({
+        queryKey: ['settings'],
         queryFn: async () => {
             const response = await axios.get(`${API_URL}/settings`);
-            return response.data.tags || [];
+            return response.data;
         },
         retry: 10,
         retryDelay: 1000,
     });
+
+    const availableTags = settingsData?.tags || [];
+    const showYoutubeSearch = settingsData?.showYoutubeSearch ?? true;
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
@@ -168,25 +172,32 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const localResults = searchLocalVideos(query);
             setLocalSearchResults(localResults);
 
-            setYoutubeLoading(true);
+            // Only search YouTube if showYoutubeSearch is enabled
+            if (showYoutubeSearch) {
+                setYoutubeLoading(true);
 
-            try {
-                const response = await axios.get(`${API_URL}/search`, {
-                    params: { query },
-                    signal: signal
-                });
+                try {
+                    const response = await axios.get(`${API_URL}/search`, {
+                        params: { query },
+                        signal: signal
+                    });
 
-                if (!signal.aborted) {
-                    setSearchResults(response.data.results);
+                    if (!signal.aborted) {
+                        setSearchResults(response.data.results);
+                    }
+                } catch (youtubeErr: any) {
+                    if (youtubeErr.name !== 'CanceledError' && youtubeErr.name !== 'AbortError') {
+                        console.error('Error searching YouTube:', youtubeErr);
+                    }
+                } finally {
+                    if (!signal.aborted) {
+                        setYoutubeLoading(false);
+                    }
                 }
-            } catch (youtubeErr: any) {
-                if (youtubeErr.name !== 'CanceledError' && youtubeErr.name !== 'AbortError') {
-                    console.error('Error searching YouTube:', youtubeErr);
-                }
-            } finally {
-                if (!signal.aborted) {
-                    setYoutubeLoading(false);
-                }
+            } else {
+                // Clear any existing YouTube results when disabled
+                setSearchResults([]);
+                setYoutubeLoading(false);
             }
 
             return { success: true };
@@ -311,7 +322,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setIsSearchMode,
             availableTags,
             selectedTags,
-            handleTagToggle
+            handleTagToggle,
+            showYoutubeSearch
         }}>
             {children}
         </VideoContext.Provider>

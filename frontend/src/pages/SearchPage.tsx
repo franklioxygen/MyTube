@@ -29,7 +29,8 @@ const SearchPage: React.FC = () => {
         searchResults,
         youtubeLoading,
         handleSearch,
-        searchTerm: contextSearchTerm
+        searchTerm: contextSearchTerm,
+        showYoutubeSearch
     } = useVideo();
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
@@ -95,6 +96,7 @@ const SearchPage: React.FC = () => {
             </Box>
 
             {/* YouTube Search Results */}
+            {showYoutubeSearch && (
             <Box>
                 <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: '#ff0000' }}>
                     {t('fromYouTube')}
@@ -164,6 +166,7 @@ const SearchPage: React.FC = () => {
                     <Typography color="text.secondary">{t('noYouTubeResults')}</Typography>
                 )}
             </Box>
+            )}
         </Container>
     );
 };

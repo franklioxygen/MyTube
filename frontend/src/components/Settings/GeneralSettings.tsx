@@ -1,4 +1,4 @@
-import { Box, FormControl, InputLabel, MenuItem, Select, TextField, Typography } from '@mui/material';
+import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -6,11 +6,12 @@ interface GeneralSettingsProps {
     language: string;
     websiteName?: string;
     itemsPerPage?: number;
-    onChange: (field: string, value: string | number) => void;
+    showYoutubeSearch?: boolean;
+    onChange: (field: string, value: string | number | boolean) => void;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
-    const { language, websiteName, onChange } = props;
+    const { language, websiteName, showYoutubeSearch, onChange } = props;
     const { t } = useLanguage();
 
     return (
@@ -62,6 +63,16 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
                     }}
                     helperText={t('itemsPerPageHelper') || "Number of videos to show per page (Default: 12)"}
                     slotProps={{ htmlInput: { min: 1 } }}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={showYoutubeSearch ?? true}
+                            onChange={(e) => onChange('showYoutubeSearch', e.target.checked)}
+                        />
+                    }
+                    label={t('showYoutubeSearch') || "Show YouTube Search Results"}
                 />
             </Box>
         </Box>

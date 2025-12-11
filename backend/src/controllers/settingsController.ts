@@ -27,6 +27,7 @@ interface Settings {
   websiteName?: string;
   itemsPerPage?: number;
   ytDlpConfig?: string;
+  showYoutubeSearch?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -44,6 +45,7 @@ const defaultSettings: Settings = {
   subtitlesEnabled: true,
   websiteName: "MyTube",
   itemsPerPage: 12,
+  showYoutubeSearch: true,
 };
 
 export const getSettings = async (_req: Request, res: Response) => {

@@ -52,9 +52,6 @@ export const en = {
   tagsManagement: "Tags Management",
   newTag: "New Tag",
   tags: "Tags",
-  tagsManagementNote:
-    'Please remember to click "Save Settings" after adding or removing tags to apply changes.',
-
   // Database
   database: "Database",
   migrateDataDescription:
@@ -107,6 +104,7 @@ export const en = {
   formatFilenamesError: "Failed to format filenames: {error}",
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
+  showYoutubeSearch: "Show YouTube Search Results",
   cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
   cleanupTempFilesFailed: "Failed to clean up temporary files",
 
