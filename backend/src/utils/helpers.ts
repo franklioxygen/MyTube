@@ -15,6 +15,11 @@ export function isBilibiliUrl(url: string): boolean {
   return url.includes("bilibili.com") || url.includes("b23.tv");
 }
 
+// Helper function to check if a URL is a Bilibili space/author URL
+export function isBilibiliSpaceUrl(url: string): boolean {
+  return url.includes("space.bilibili.com");
+}
+
 // Helper function to extract URL from text that might contain a title and URL
 export function extractUrlFromText(text: string): string {
   // Regular expression to find URLs in text
@@ -142,15 +147,18 @@ export function extractMissAVVideoId(url: string): string | null {
 }
 
 // Helper function to extract source video ID from any supported URL
-export function extractSourceVideoId(url: string): { id: string | null; platform: string } {
+export function extractSourceVideoId(url: string): {
+  id: string | null;
+  platform: string;
+} {
   if (isBilibiliUrl(url)) {
     return { id: extractBilibiliVideoId(url), platform: "bilibili" };
   }
-  
+
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
     return { id: extractYouTubeVideoId(url), platform: "youtube" };
   }
-  
+
   if (url.includes("missav") || url.includes("123av")) {
     return { id: extractMissAVVideoId(url), platform: "missav" };
   }
@@ -182,14 +190,14 @@ export function extractBilibiliMid(url: string): string | null {
   if (spaceMatch && spaceMatch[1]) {
     return spaceMatch[1];
   }
-  
+
   // Try to extract from URL parameters
   const urlObj = new URL(url);
-  const midParam = urlObj.searchParams.get('mid');
+  const midParam = urlObj.searchParams.get("mid");
   if (midParam) {
     return midParam;
   }
-  
+
   return null;
 }
 
@@ -197,7 +205,7 @@ export function extractBilibiliMid(url: string): string | null {
 export function extractBilibiliSeasonId(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    const seasonId = urlObj.searchParams.get('season_id');
+    const seasonId = urlObj.searchParams.get("season_id");
     return seasonId;
   } catch (error) {
     return null;
@@ -208,7 +216,7 @@ export function extractBilibiliSeasonId(url: string): string | null {
 export function extractBilibiliSeriesId(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    const seriesId = urlObj.searchParams.get('series_id');
+    const seriesId = urlObj.searchParams.get("series_id");
     return seriesId;
   } catch (error) {
     return null;
@@ -217,7 +225,11 @@ export function extractBilibiliSeriesId(url: string): string | null {
 
 // Helper function to format video filename according to: Title-Author-YYYY
 // Symbols are removed, spaces replaced by dots.
-export function formatVideoFilename(title: string, author: string, dateString: string): string {
+export function formatVideoFilename(
+  title: string,
+  author: string,
+  dateString: string
+): string {
   // Helper to clean segments: remove symbols (keep letters/numbers/spaces), replace spaces with dots
   const cleanSegment = (str: string) => {
     if (!str) return "Unknown";
@@ -229,19 +241,19 @@ export function formatVideoFilename(title: string, author: string, dateString: s
 
   let cleanTitle = cleanSegment(title) || "Video";
   let cleanAuthor = cleanSegment(author) || "Unknown";
-  
+
   // Extract year
   let year = new Date().getFullYear().toString();
   if (dateString) {
-     const match = dateString.match(/(\d{4})/);
-     if (match) {
-         year = match[1];
-     }
+    const match = dateString.match(/(\d{4})/);
+    if (match) {
+      year = match[1];
+    }
   }
 
   // Truncate author if it's too long (e.g. > 50 chars) to prioritize title visibility
   if (cleanAuthor.length > 50) {
-      cleanAuthor = cleanAuthor.substring(0, 50);
+    cleanAuthor = cleanAuthor.substring(0, 50);
   }
 
   // Construct the suffix parts
@@ -251,13 +263,13 @@ export function formatVideoFilename(title: string, author: string, dateString: s
 
   // Max length for the filename (leaving room for extension)
   const MAX_FILENAME_LENGTH = 200;
-  
+
   // Calculate available space for title
   const availableTitleLength = MAX_FILENAME_LENGTH - fullSuffix.length;
 
   if (cleanTitle.length > availableTitleLength) {
-      // Truncate title
-      cleanTitle = cleanTitle.substring(0, Math.max(0, availableTitleLength));
+    // Truncate title
+    cleanTitle = cleanTitle.substring(0, Math.max(0, availableTitleLength));
   }
 
   return `${cleanTitle}${fullSuffix}`;

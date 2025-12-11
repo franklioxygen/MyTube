@@ -73,6 +73,137 @@ export interface CollectionDownloadResult {
 }
 
 export class BilibiliDownloader {
+  // Get author info from Bilibili space URL
+  static async getAuthorInfo(mid: string): Promise<{
+    name: string;
+    mid: string;
+  }> {
+    try {
+      // Use the card API which doesn't require WBI signing
+      const apiUrl = `https://api.bilibili.com/x/web-interface/card?mid=${mid}`;
+      console.log("Fetching Bilibili author info from:", apiUrl);
+
+      const response = await axios.get(apiUrl, {
+        headers: {
+          Referer: "https://www.bilibili.com",
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+
+      if (response.data && response.data.data && response.data.data.card) {
+        const card = response.data.data.card;
+        return {
+          name: card.name || "Bilibili User",
+          mid: mid,
+        };
+      }
+
+      return { name: "Bilibili User", mid };
+    } catch (error) {
+      console.error("Error fetching Bilibili author info:", error);
+      return { name: "Bilibili User", mid };
+    }
+  }
+
+  // Get the latest video URL from a Bilibili author's space
+  static async getLatestVideoUrl(spaceUrl: string): Promise<string | null> {
+    try {
+      console.log("Fetching latest video for Bilibili space:", spaceUrl);
+
+      // Extract mid from the space URL
+      const { extractBilibiliMid } = await import("../../utils/helpers");
+      const mid = extractBilibiliMid(spaceUrl);
+
+      if (!mid) {
+        console.error(
+          "Could not extract mid from Bilibili space URL:",
+          spaceUrl
+        );
+        return null;
+      }
+
+      console.log("Extracted mid:", mid);
+
+      // Get user config for network options (cookies, proxy, etc.)
+      const userConfig = getUserYtDlpConfig();
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      // Use yt-dlp to get the latest video from the user's space
+      // Bilibili space URL format: https://space.bilibili.com/{mid}/video
+      const videosUrl = `https://space.bilibili.com/${mid}/video`;
+
+      try {
+        const result = await executeYtDlpJson(videosUrl, {
+          ...networkConfig,
+          playlistEnd: 1, // Only get the first (latest) video
+          flatPlaylist: true, // Don't download, just get info
+          noWarnings: true,
+        });
+
+        // If it's a playlist/channel, 'entries' will contain the videos
+        if (result.entries && result.entries.length > 0) {
+          const latestVideo = result.entries[0];
+          const bvid = latestVideo.id;
+
+          if (bvid) {
+            const videoUrl = `https://www.bilibili.com/video/${bvid}`;
+            console.log("Found latest Bilibili video:", videoUrl);
+            return videoUrl;
+          }
+
+          // Fallback to url if id is not available
+          if (latestVideo.url) {
+            console.log("Found latest Bilibili video:", latestVideo.url);
+            return latestVideo.url;
+          }
+        }
+      } catch (ytdlpError) {
+        console.error("yt-dlp failed, trying API fallback:", ytdlpError);
+
+        // Fallback: Try the non-WBI API endpoint
+        const apiUrl = `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=1&order=pubdate`;
+
+        const response = await axios.get(apiUrl, {
+          headers: {
+            Referer: "https://www.bilibili.com",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+        });
+
+        if (
+          response.data &&
+          response.data.data &&
+          response.data.data.list &&
+          response.data.data.list.vlist
+        ) {
+          const videos = response.data.data.list.vlist;
+
+          if (videos.length > 0) {
+            const latestVideo = videos[0];
+            const bvid = latestVideo.bvid;
+
+            if (bvid) {
+              const videoUrl = `https://www.bilibili.com/video/${bvid}`;
+              console.log(
+                "Found latest Bilibili video (API fallback):",
+                videoUrl
+              );
+              return videoUrl;
+            }
+          }
+        }
+      }
+
+      console.log("No videos found for Bilibili space:", spaceUrl);
+      return null;
+    } catch (error) {
+      console.error("Error fetching latest Bilibili video:", error);
+      return null;
+    }
+  }
+
   // Get video info without downloading
   static async getVideoInfo(videoId: string): Promise<{
     title: string;
@@ -323,20 +454,25 @@ export class BilibiliDownloader {
       let stderrOutput = "";
       subprocess.stderr?.on("data", (data: Buffer) => {
         stderrOutput += data.toString();
-        // Log stderr in real-time for debugging
+        // Log stderr in real-time for debugging (filter out expected warnings)
         const lines = data
           .toString()
           .split("\n")
           .filter((line) => line.trim());
         for (const line of lines) {
+          // Skip expected/informational messages
           if (
-            !line.includes("[download]") &&
-            !line.includes("[info]") &&
-            !line.includes("[ExtractAudio]") &&
-            !line.includes("[Merger]")
+            line.includes("[download]") ||
+            line.includes("[info]") ||
+            line.includes("[ExtractAudio]") ||
+            line.includes("[Merger]") ||
+            line.includes("[BiliBili]") ||
+            line.includes("Subtitles are only available when logged in") ||
+            line.includes("Invalid data found when processing input")
           ) {
-            console.warn("yt-dlp stderr:", line);
+            continue;
           }
+          console.warn("yt-dlp stderr:", line);
         }
       });
 
@@ -353,9 +489,16 @@ export class BilibiliDownloader {
           }
           throw new Error("Download cancelled by user");
         }
-        console.error("yt-dlp download failed:", error.message);
-        if (error.stderr) {
-          console.error("yt-dlp stderr:", error.stderr);
+        // Only log as error if it's not an expected subtitle-related issue
+        const stderrMsg = error.stderr || "";
+        const isExpectedError =
+          stderrMsg.includes("Subtitles are only available when logged in") ||
+          stderrMsg.includes("Invalid data found when processing input");
+        if (!isExpectedError) {
+          console.error("yt-dlp download failed:", error.message);
+          if (error.stderr) {
+            console.error("yt-dlp error output:", error.stderr);
+          }
         }
       }
 

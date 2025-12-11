@@ -165,6 +165,14 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return { success: true };
             }
 
+            // Check for Bilibili space/author URL (e.g., https://space.bilibili.com/4652742)
+            const bilibiliSpaceRegex = /space\.bilibili\.com\/\d+/;
+            if (bilibiliSpaceRegex.test(videoUrl)) {
+                setSubscribeUrl(videoUrl);
+                setShowSubscribeModal(true);
+                return { success: true };
+            }
+
             // Check if it's a Bilibili URL
             if (videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv')) {
                 setIsCheckingParts(true);
