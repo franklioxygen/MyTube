@@ -2,6 +2,13 @@
 
 
 
+## v1.5.3 (2025-12-10)
+
+### Feat
+- feat: Add external player integration for video playback (15b3900)
+- feat: Add BilibiliDownloader methods for author info & video (7c40f1c)
+- feat: Add theme context provider for global theme management (b3a01ea)
+
 ## v1.5.2 (2025-12-10)
 
 ### Feat
