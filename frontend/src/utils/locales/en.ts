@@ -216,6 +216,8 @@ export const en = {
   pleaseEnterSearchTerm: "Please enter a search term",
   failedToSearch: "Failed to search. Please try again.",
   searchCancelled: "Search was cancelled",
+  openInExternalPlayer: "Open in external player",
+  playWith: "Play with...",
 
   // Login
   signIn: "Sign in",

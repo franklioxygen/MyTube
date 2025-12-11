@@ -211,6 +211,8 @@ export const de = {
   pleaseEnterSearchTerm: "Bitte geben Sie einen Suchbegriff ein",
   failedToSearch: "Suche fehlgeschlagen. Bitte versuchen Sie es erneut.",
   searchCancelled: "Suche abgebrochen",
+  openInExternalPlayer: "In externem Player öffnen",
+  playWith: "Abspielen mit...",
   signIn: "Anmelden",
   verifying: "Überprüfen...",
   incorrectPassword: "Falsches Passwort",

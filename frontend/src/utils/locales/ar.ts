@@ -217,6 +217,8 @@ export const ar = {
   pleaseEnterSearchTerm: "الرجاء إدخال مصطلح البحث",
   failedToSearch: "فشل البحث. يرجى المحاولة مرة أخرى.",
   searchCancelled: "تم إلغاء البحث",
+  openInExternalPlayer: "فتح في مشغل خارجي",
+  playWith: "تشغيل بواسطة...",
 
   // Login
   signIn: "تسجيل الدخول",

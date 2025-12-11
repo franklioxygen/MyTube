@@ -211,6 +211,8 @@ export const zh = {
   pleaseEnterSearchTerm: "请输入搜索词",
   failedToSearch: "搜索失败。请稍后再试。",
   searchCancelled: "搜索已取消",
+  openInExternalPlayer: "在外部播放器中打开",
+  playWith: "使用此应用播放...",
 
   // Login
   signIn: "登录",

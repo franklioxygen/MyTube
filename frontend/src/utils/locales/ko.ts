@@ -219,6 +219,8 @@ export const ko = {
   pleaseEnterSearchTerm: "검색어를 입력해주세요",
   failedToSearch: "검색 실패. 다시 시도해주세요.",
   searchCancelled: "검색이 취소되었습니다",
+  openInExternalPlayer: "외부 플레이어에서 열기",
+  playWith: "다음으로 재생...",
 
   // Login
   signIn: "로그인",

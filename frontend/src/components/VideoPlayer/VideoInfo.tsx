@@ -11,6 +11,7 @@ import {
     Folder,
     Link as LinkIcon,
     LocalOffer,
+    PlayArrow,
     Share,
     VideoLibrary
 } from '@mui/icons-material';
@@ -22,6 +23,9 @@ import {
     Button,
     Chip,
     Divider,
+    ListItemText,
+    Menu,
+    MenuItem,
     Rating,
     Stack,
     TextField,
@@ -77,7 +81,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [showDescriptionExpandButton, setShowDescriptionExpandButton] = useState(false);
+
     const descriptionRef = useRef<HTMLParagraphElement>(null);
+
+    const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
         const checkOverflow = () => {
@@ -185,6 +192,42 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         const day = dateString.substring(6, 8);
 
         return `${year}-${month}-${day}`;
+    };
+
+    const handleOpenPlayerMenu = (event: React.MouseEvent<HTMLElement>) => {
+        setPlayerMenuAnchor(event.currentTarget);
+    };
+
+    const handleClosePlayerMenu = () => {
+        setPlayerMenuAnchor(null);
+    };
+
+    const handlePlayInPlayer = (scheme: string) => {
+        const videoUrl = `${BACKEND_URL}${video.videoPath || video.sourceUrl}`;
+        let url = '';
+
+        switch (scheme) {
+            case 'iina':
+                url = `iina://weblink?url=${videoUrl}`;
+                break;
+            case 'vlc':
+                url = `vlc://${videoUrl}`;
+                break;
+            case 'potplayer':
+                url = `potplayer://${videoUrl}`;
+                break;
+            case 'mpv':
+                url = `mpv://${videoUrl}`;
+                break;
+            case 'infuse':
+                url = `infuse://x-callback-url/play?url=${videoUrl}`;
+                break;
+        }
+
+        if (url) {
+            window.location.href = url;
+        }
+        handleClosePlayerMenu();
     };
 
     return (
@@ -356,6 +399,43 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 </Box>
 
                 <Stack direction="row" spacing={1}>
+                    <Tooltip title={t('openInExternalPlayer')}>
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            onClick={handleOpenPlayerMenu}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                        >
+                            <PlayArrow />
+                        </Button>
+                    </Tooltip>
+                    <Menu
+                        anchorEl={playerMenuAnchor}
+                        open={Boolean(playerMenuAnchor)}
+                        onClose={handleClosePlayerMenu}
+                    >
+                        <MenuItem disabled>
+                            <Typography variant="caption" color="text.secondary">
+                                {t('playWith')}
+                            </Typography>
+                        </MenuItem>
+                        <Divider />
+                        <MenuItem onClick={() => handlePlayInPlayer('iina')}>
+                            <ListItemText>IINA</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handlePlayInPlayer('vlc')}>
+                            <ListItemText>VLC</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handlePlayInPlayer('potplayer')}>
+                            <ListItemText>PotPlayer</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handlePlayInPlayer('mpv')}>
+                            <ListItemText>MPV</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handlePlayInPlayer('infuse')}>
+                            <ListItemText>Infuse</ListItemText>
+                        </MenuItem>
+                    </Menu>
                     <Tooltip title={t('share')}>
                         <Button
                             variant="outlined"

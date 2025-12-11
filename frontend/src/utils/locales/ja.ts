@@ -222,6 +222,8 @@ export const ja = {
   pleaseEnterSearchTerm: "検索語を入力してください",
   failedToSearch: "検索に失敗しました。もう一度お試しください。",
   searchCancelled: "検索がキャンセルされました",
+  openInExternalPlayer: "外部プレーヤーで開く",
+  playWith: "で再生...",
 
   // Login
   signIn: "サインイン",

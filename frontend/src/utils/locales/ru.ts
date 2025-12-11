@@ -223,6 +223,8 @@ export const ru = {
   pleaseEnterSearchTerm: "Пожалуйста, введите поисковый запрос",
   failedToSearch: "Поиск не удался. Пожалуйста, попробуйте снова.",
   searchCancelled: "Поиск отменен",
+  openInExternalPlayer: "Открыть во внешнем плеере",
+  playWith: "Воспроизвести с помощью...",
 
   // Login
   signIn: "Войти",

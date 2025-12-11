@@ -236,6 +236,8 @@ export const fr = {
   pleaseEnterSearchTerm: "Veuillez entrer un terme de recherche",
   failedToSearch: "Échec de la recherche. Veuillez réessayer.",
   searchCancelled: "Recherche annulée",
+  openInExternalPlayer: "Ouvrir dans un lecteur externe",
+  playWith: "Lire avec...",
 
   // Login
   signIn: "Se connecter",

@@ -231,6 +231,8 @@ export const pt = {
   pleaseEnterSearchTerm: "Por favor, insira um termo de pesquisa",
   failedToSearch: "Falha na pesquisa. Por favor, tente novamente.",
   searchCancelled: "Pesquisa cancelada",
+  openInExternalPlayer: "Abrir no player externo",
+  playWith: "Reproduzir com...",
 
   // Login
   signIn: "Entrar",

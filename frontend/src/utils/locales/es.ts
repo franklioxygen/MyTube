@@ -226,6 +226,8 @@ export const es = {
   pleaseEnterSearchTerm: "Por favor, introduzca un término de búsqueda",
   failedToSearch: "Error en la búsqueda. Por favor, inténtelo de nuevo.",
   searchCancelled: "Búsqueda cancelada",
+  openInExternalPlayer: "Abrir en reproductor externo",
+  playWith: "Reproducir con...",
   signIn: "Iniciar Sesión",
   verifying: "Verificando...",
   incorrectPassword: "Contraseña incorrecta",
