@@ -2,22 +2,22 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  DATA_DIR,
-  IMAGES_DIR,
-  STATUS_DATA_PATH,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    DATA_DIR,
+    IMAGES_DIR,
+    STATUS_DATA_PATH,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../config/paths";
 import { db, sqlite } from "../db";
 import {
-  collections,
-  collectionVideos,
-  downloadHistory,
-  downloads,
-  settings,
-  videoDownloads,
-  videos,
+    collections,
+    collectionVideos,
+    downloadHistory,
+    downloads,
+    settings,
+    videoDownloads,
+    videos,
 } from "../db/schema";
 import { formatVideoFilename } from "../utils/helpers";
 
@@ -1506,6 +1506,61 @@ export function addVideoToCollection(
         }
       }
 
+      // Handle subtitles
+      if (video.subtitles && video.subtitles.length > 0) {
+        const newSubtitles = [...video.subtitles];
+        let subtitlesUpdated = false;
+
+        newSubtitles.forEach((sub, index) => {
+          let currentSubPath = sub.path;
+          // Determine existing absolute path
+          let absoluteSourcePath = "";
+          if (sub.path.startsWith("/videos/")) {
+             absoluteSourcePath = path.join(VIDEOS_DIR, sub.path.replace("/videos/", ""));
+          } else if (sub.path.startsWith("/subtitles/")) {
+             absoluteSourcePath = path.join(path.dirname(SUBTITLES_DIR), sub.path); // SUBTITLES_DIR is uploads/subtitles
+          }
+           
+           // If we can't determine source path easily from DB, try to find it
+           if (!fs.existsSync(absoluteSourcePath)) {
+             // Fallback: try finding in root or collection folders
+             // But simpler to rely on path stored in DB if valid
+           }
+
+           let targetSubDir = "";
+           let newWebPath = "";
+
+           // Logic:
+           // If it's currently in VIDEOS_DIR (starts with /videos/), it should stay with video -> move to new video folder
+           // If it's currently in SUBTITLES_DIR (starts with /subtitles/), it should move to new mirror folder in SUBTITLES_DIR
+           
+           if (sub.path.startsWith("/videos/")) {
+              targetSubDir = path.join(VIDEOS_DIR, collectionName);
+              newWebPath = `/videos/${collectionName}/${path.basename(sub.path)}`;
+           } else if (sub.path.startsWith("/subtitles/")) {
+              targetSubDir = path.join(SUBTITLES_DIR, collectionName);
+              newWebPath = `/subtitles/${collectionName}/${path.basename(sub.path)}`;
+           }
+
+           if (absoluteSourcePath && targetSubDir && newWebPath) {
+             const targetSubPath = path.join(targetSubDir, path.basename(sub.path));
+             if (fs.existsSync(absoluteSourcePath) && absoluteSourcePath !== targetSubPath) {
+                 moveFile(absoluteSourcePath, targetSubPath);
+                 newSubtitles[index] = {
+                   ...sub,
+                   path: newWebPath
+                 };
+                 subtitlesUpdated = true;
+             }
+           }
+        });
+
+        if (subtitlesUpdated) {
+          updates.subtitles = newSubtitles;
+          updated = true;
+        }
+      }
+
       if (updated) {
         updateVideo(videoId, updates);
       }
@@ -1577,6 +1632,65 @@ export function removeVideoFromCollection(
         }
       }
 
+      // Handle subtitles
+      if (video.subtitles && video.subtitles.length > 0) {
+        const newSubtitles = [...video.subtitles];
+        let subtitlesUpdated = false;
+
+        newSubtitles.forEach((sub, index) => {
+           let absoluteSourcePath = "";
+           // Construct absolute source path based on DB path
+           if (sub.path.startsWith("/videos/")) {
+               absoluteSourcePath = path.join(VIDEOS_DIR, sub.path.replace("/videos/", ""));
+           } else if (sub.path.startsWith("/subtitles/")) {
+               // sub.path is like /subtitles/Collection/file.vtt
+               // SUBTITLES_DIR is uploads/subtitles
+               absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, "")); // path.join(headers...) -> uploads/subtitles/...
+           }
+
+           let targetSubDir = "";
+           let newWebPath = "";
+
+           if (sub.path.startsWith("/videos/")) {
+               targetSubDir = targetVideoDir; // Calculated above (root or other collection)
+               newWebPath = `${videoPathPrefix}/${path.basename(sub.path)}`;
+           } else if (sub.path.startsWith("/subtitles/")) {
+               // Should move to root subtitles or other collection subtitles
+               if (otherCollection) {
+                   const otherName = otherCollection.name || otherCollection.title;
+                   if (otherName) {
+                       targetSubDir = path.join(SUBTITLES_DIR, otherName);
+                       newWebPath = `/subtitles/${otherName}/${path.basename(sub.path)}`;
+                   }
+               } else {
+                   // Move to root subtitles dir
+                   targetSubDir = SUBTITLES_DIR;
+                   newWebPath = `/subtitles/${path.basename(sub.path)}`;
+               }
+           }
+
+           if (absoluteSourcePath && targetSubDir && newWebPath) {
+               const targetSubPath = path.join(targetSubDir, path.basename(sub.path));
+               
+               // Ensure correct paths for move
+               // Need to handle potential double slashes or construction issues if any
+               if (fs.existsSync(absoluteSourcePath) && absoluteSourcePath !== targetSubPath) {
+                   moveFile(absoluteSourcePath, targetSubPath);
+                   newSubtitles[index] = {
+                       ...sub,
+                       path: newWebPath
+                   };
+                   subtitlesUpdated = true;
+               }
+           }
+        });
+
+        if (subtitlesUpdated) {
+            updates.subtitles = newSubtitles;
+            updated = true;
+        }
+      }
+
       if (updated) {
         updateVideo(videoId, updates);
       }
@@ -1622,6 +1736,52 @@ export function deleteCollectionWithFiles(collectionId: string): boolean {
             moveFile(currentImagePath, targetImagePath);
             updates.thumbnailPath = `/images/${video.thumbnailFilename}`;
             updated = true;
+          }
+        }
+
+        // Handle subtitles
+        if (video.subtitles && video.subtitles.length > 0) {
+          const newSubtitles = [...video.subtitles];
+          let subtitlesUpdated = false;
+
+          newSubtitles.forEach((sub, index) => {
+             let absoluteSourcePath = "";
+             // Construct absolute source path based on DB path
+             if (sub.path.startsWith("/videos/")) {
+                 absoluteSourcePath = path.join(VIDEOS_DIR, sub.path.replace("/videos/", ""));
+             } else if (sub.path.startsWith("/subtitles/")) {
+                 absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+             }
+
+             let targetSubDir = "";
+             let newWebPath = "";
+
+             if (sub.path.startsWith("/videos/")) {
+                 targetSubDir = VIDEOS_DIR;
+                 newWebPath = `/videos/${path.basename(sub.path)}`;
+             } else if (sub.path.startsWith("/subtitles/")) {
+                 // Move to root subtitles dir
+                 targetSubDir = SUBTITLES_DIR;
+                 newWebPath = `/subtitles/${path.basename(sub.path)}`;
+             }
+
+             if (absoluteSourcePath && targetSubDir && newWebPath) {
+                 const targetSubPath = path.join(targetSubDir, path.basename(sub.path));
+                 
+                 if (fs.existsSync(absoluteSourcePath) && absoluteSourcePath !== targetSubPath) {
+                     moveFile(absoluteSourcePath, targetSubPath);
+                     newSubtitles[index] = {
+                         ...sub,
+                         path: newWebPath
+                     };
+                     subtitlesUpdated = true;
+                 }
+             }
+          });
+
+          if (subtitlesUpdated) {
+              updates.subtitles = newSubtitles;
+              updated = true;
           }
         }
 

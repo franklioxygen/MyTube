@@ -251,6 +251,12 @@ export const ar = {
   collectionContains: "تحتوي هذه المجموعة على",
   deleteCollectionOnly: "حذف المجموعة فقط",
 
+  proxyOnlyApplyToYoutube: 'الوكيل ينطبق فقط على يوتيوب',
+  moveSubtitlesToVideoFolder: 'موقع الترجمة',
+  moveSubtitlesToVideoFolderOn: 'مع الفيديو',
+  moveSubtitlesToVideoFolderOff: 'في مجلد الترجمات المعزول',
+  moveSubtitlesToVideoFolderDescription: 'عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.',
+
   // Snackbar Messages
   videoDownloading: "جاري تنزيل الفيديو",
   downloadStartedSuccessfully: "بدأ التنزيل بنجاح",

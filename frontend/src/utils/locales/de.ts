@@ -426,4 +426,9 @@ export const de = {
   hide: "Ausblenden",
   reset: "Zurücksetzen",
   more: "Mehr",
+  proxyOnlyApplyToYoutube: 'Proxy nur auf Youtube anwenden',
+  moveSubtitlesToVideoFolder: 'Untertitel-Speicherort',
+  moveSubtitlesToVideoFolderOn: 'Zusammen mit Video',
+  moveSubtitlesToVideoFolderOff: 'Im isolierten Untertitel-Ordner',
+  moveSubtitlesToVideoFolderDescription: 'Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.',
 };

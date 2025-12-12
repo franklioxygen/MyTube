@@ -464,4 +464,9 @@ export const fr = {
   hide: "Masquer",
   reset: "Réinitialiser",
   more: "Plus",
+  proxyOnlyApplyToYoutube: 'Proxy s\'applique uniquement à Youtube',
+  moveSubtitlesToVideoFolder: 'Emplacement des sous-titres',
+  moveSubtitlesToVideoFolderOn: 'Avec la vidéo',
+  moveSubtitlesToVideoFolderOff: 'Dans le dossier de sous-titres isolé',
+  moveSubtitlesToVideoFolderDescription: 'Si activé, les fichiers de sous-titres seront déplacés dans le même dossier que le fichier vidéo. Si désactivé, ils seront déplacés vers le dossier de sous-titres isolé.',
 };

@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Button, FormControlLabel, Switch, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -7,9 +7,18 @@ interface DatabaseSettingsProps {
     onDeleteLegacy: () => void;
     onFormatFilenames: () => void;
     isSaving: boolean;
+    moveSubtitlesToVideoFolder: boolean;
+    onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
 }
 
-const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDeleteLegacy, onFormatFilenames, isSaving }) => {
+const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
+    onMigrate,
+    onDeleteLegacy,
+    onFormatFilenames,
+    isSaving,
+    moveSubtitlesToVideoFolder,
+    onMoveSubtitlesToVideoFolderChange
+}) => {
     const { t } = useLanguage();
 
     return (
@@ -55,6 +64,23 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({ onMigrate, onDelete
                 >
                     {t('deleteLegacyDataButton')}
                 </Button>
+            </Box>
+
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>{t('moveSubtitlesToVideoFolder')}</Typography>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={moveSubtitlesToVideoFolder}
+                            onChange={(e) => onMoveSubtitlesToVideoFolderChange(e.target.checked)}
+                            disabled={isSaving}
+                        />
+                    }
+                    label={moveSubtitlesToVideoFolder ? t('moveSubtitlesToVideoFolderOn') : t('moveSubtitlesToVideoFolderOff')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {t('moveSubtitlesToVideoFolderDescription')}
+                </Typography>
             </Box>
         </Box>
     );

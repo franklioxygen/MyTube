@@ -453,5 +453,9 @@ export const ja = {
   hide: "隠す",
   reset: "リセット",
   more: "もっと見る",
-    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
+  proxyOnlyApplyToYoutube: 'プロキシはYoutubeにのみ適用されます',
+  moveSubtitlesToVideoFolder: '字幕の場所',
+  moveSubtitlesToVideoFolderOn: '動画と同じ場所',
+  moveSubtitlesToVideoFolderOff: '独立した字幕フォルダー',
+  moveSubtitlesToVideoFolderDescription: '有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動されます。無効にすると、独立した字幕フォルダーに移動されます。',
 };

@@ -458,4 +458,9 @@ export const pt = {
   hide: "Ocultar",
   reset: "Redefinir",
   more: "Mais",
+  proxyOnlyApplyToYoutube: 'Proxy aplica-se apenas ao Youtube',
+  moveSubtitlesToVideoFolder: 'Localização das legendas',
+  moveSubtitlesToVideoFolderOn: 'Junto com o vídeo',
+  moveSubtitlesToVideoFolderOff: 'Na pasta de legendas isolada',
+  moveSubtitlesToVideoFolderDescription: 'Quando ativado, os arquivos de legenda serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de legendas isolada.',
 };

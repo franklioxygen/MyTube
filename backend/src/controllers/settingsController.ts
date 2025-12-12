@@ -29,6 +29,7 @@ interface Settings {
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
+  moveSubtitlesToVideoFolder?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -188,6 +189,16 @@ export const updateSettings = async (req: Request, res: Response) => {
     }
 
     storageService.saveSettings(newSettings);
+
+    // Check for moveSubtitlesToVideoFolder change
+    if (newSettings.moveSubtitlesToVideoFolder !== existingSettings.moveSubtitlesToVideoFolder) {
+      if (newSettings.moveSubtitlesToVideoFolder !== undefined) {
+         // Run asynchronously
+         const { moveAllSubtitles } = await import("../services/subtitleService");
+         moveAllSubtitles(newSettings.moveSubtitlesToVideoFolder)
+           .catch(err => console.error("Error moving subtitles in background:", err));
+      }
+    }
 
     // Apply settings immediately where possible
     downloadManager.setMaxConcurrentDownloads(

@@ -447,5 +447,9 @@ export const ko = {
   hide: "숨기기",
   reset: "초기화",
   more: "더 보기",
-    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
+  proxyOnlyApplyToYoutube: '프록시는 Youtube에만 적용됩니다',
+  moveSubtitlesToVideoFolder: '자막 위치',
+  moveSubtitlesToVideoFolderOn: '동영상과 함께',
+  moveSubtitlesToVideoFolderOff: '격리된 자막 폴더',
+  moveSubtitlesToVideoFolderDescription: '활성화하면 자막 파일이 동영상 파일과 같은 폴더로 이동됩니다. 비활성화하면 격리된 자막 폴더로 이동됩니다.',
 };

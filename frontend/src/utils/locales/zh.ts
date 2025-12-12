@@ -443,5 +443,9 @@ export const zh = {
   hide: "隐藏",
   reset: "重置",
   more: "更多",
-    proxyOnlyApplyToYoutube: '代理仅应用于 Youtube',
+  proxyOnlyApplyToYoutube: '代理仅应用于Youtube',
+  moveSubtitlesToVideoFolder: '字幕位置',
+  moveSubtitlesToVideoFolderOn: '与视频在同一文件夹',
+  moveSubtitlesToVideoFolderOff: '在独立字幕文件夹',
+  moveSubtitlesToVideoFolderDescription: '启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立字幕文件夹。',
 };

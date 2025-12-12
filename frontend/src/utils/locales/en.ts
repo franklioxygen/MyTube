@@ -455,4 +455,8 @@ export const en = {
   reset: "Reset",
   more: "More",
     proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
+    moveSubtitlesToVideoFolder: 'Subtitles Location',
+    moveSubtitlesToVideoFolderOn: 'With video together',
+    moveSubtitlesToVideoFolderOff: 'In isolated subtitle folder',
+    moveSubtitlesToVideoFolderDescription: 'When enabled, subtitle files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated subtitle folder.',
 };

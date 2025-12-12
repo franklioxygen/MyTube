@@ -53,7 +53,8 @@ const SettingsPage: React.FC = () => {
         itemsPerPage: 12,
         ytDlpConfig: '',
         showYoutubeSearch: true,
-        proxyOnlyYoutube: false
+        proxyOnlyYoutube: false,
+        moveSubtitlesToVideoFolder: false
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const debouncedSettings = useDebounce(settings, 1000);
@@ -405,6 +406,8 @@ const SettingsPage: React.FC = () => {
                                 onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
                                 onFormatFilenames={() => setShowFormatConfirmModal(true)}
                                 isSaving={isSaving}
+                                moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
+                                onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
                             />
                         </Grid>
 

@@ -74,4 +74,5 @@ export interface Settings {
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
+  moveSubtitlesToVideoFolder?: boolean;
 }
