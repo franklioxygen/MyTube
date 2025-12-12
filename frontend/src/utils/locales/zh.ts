@@ -443,4 +443,5 @@ export const zh = {
   hide: "隐藏",
   reset: "重置",
   more: "更多",
+    proxyOnlyApplyToYoutube: '代理仅应用于 Youtube',
 };

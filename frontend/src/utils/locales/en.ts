@@ -454,4 +454,5 @@ export const en = {
   hide: "Hide",
   reset: "Reset",
   more: "More",
+    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
 };

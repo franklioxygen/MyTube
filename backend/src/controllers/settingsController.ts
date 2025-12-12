@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
@@ -28,6 +28,7 @@ interface Settings {
   itemsPerPage?: number;
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
+  proxyOnlyYoutube?: boolean;
 }
 
 const defaultSettings: Settings = {

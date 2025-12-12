@@ -73,4 +73,5 @@ export interface Settings {
   itemsPerPage?: number;
   ytDlpConfig?: string;
   showYoutubeSearch?: boolean;
+  proxyOnlyYoutube?: boolean;
 }

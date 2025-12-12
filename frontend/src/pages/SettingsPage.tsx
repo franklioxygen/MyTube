@@ -52,7 +52,8 @@ const SettingsPage: React.FC = () => {
         cloudDrivePath: '',
         itemsPerPage: 12,
         ytDlpConfig: '',
-        showYoutubeSearch: true
+        showYoutubeSearch: true,
+        proxyOnlyYoutube: false
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const debouncedSettings = useDebounce(settings, 1000);
@@ -413,7 +414,9 @@ const SettingsPage: React.FC = () => {
                         <Grid size={12}>
                             <YtDlpSettings
                                 config={settings.ytDlpConfig || ''}
+                                proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
                                 onChange={(config) => handleChange('ytDlpConfig', config)}
+                                onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
                             />
                         </Grid>
 

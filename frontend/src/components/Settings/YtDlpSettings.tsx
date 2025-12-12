@@ -2,7 +2,9 @@ import {
     Box,
     Button,
     Collapse,
+    FormControlLabel,
     Link,
+    Switch,
     TextField,
     Typography
 } from '@mui/material';
@@ -11,7 +13,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 
 interface YtDlpSettingsProps {
     config: string;
+    proxyOnlyYoutube?: boolean;
     onChange: (config: string) => void;
+    onProxyOnlyYoutubeChange?: (checked: boolean) => void;
 }
 
 // Default yt-dlp configuration
@@ -206,7 +210,7 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 
 `;
 
-const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, onChange }) => {
+const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, onChange, onProxyOnlyYoutubeChange }) => {
     const { t } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
     const [localConfig, setLocalConfig] = useState(config || DEFAULT_CONFIG);
@@ -264,6 +268,21 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, onChange }) => {
 
             <Collapse in={isExpanded}>
                 <Box sx={{ mt: 2 }}>
+
+                    {/* Proxy Toggle */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={proxyOnlyYoutube}
+                                    onChange={(e) => onProxyOnlyYoutubeChange && onProxyOnlyYoutubeChange(e.target.checked)}
+                                    color="primary"
+                                />
+                            }
+                            label={t('proxyOnlyApplyToYoutube') || "Proxy only apply to Youtube"}
+                        />
+                    </Box>
+
                     <TextField
                         fullWidth
                         multiline

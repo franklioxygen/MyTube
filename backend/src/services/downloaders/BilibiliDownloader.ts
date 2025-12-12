@@ -4,21 +4,21 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
-  calculateDownloadedSize,
-  formatBytes,
-  isCancellationError,
-  isDownloadActive,
-  parseSize,
+    calculateDownloadedSize,
+    formatBytes,
+    isCancellationError,
+    isDownloadActive,
+    parseSize,
 } from "../../utils/downloadUtils";
 import {
-  extractBilibiliVideoId,
-  formatVideoFilename,
+    extractBilibiliVideoId,
+    formatVideoFilename,
 } from "../../utils/helpers";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
@@ -126,7 +126,7 @@ export class BilibiliDownloader {
       console.log("Extracted mid:", mid);
 
       // Get user config for network options (cookies, proxy, etc.)
-      const userConfig = getUserYtDlpConfig();
+      const userConfig = getUserYtDlpConfig(spaceUrl);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       // Use yt-dlp to get the latest video from the user's space
@@ -212,11 +212,11 @@ export class BilibiliDownloader {
     thumbnailUrl: string;
   }> {
     try {
-      // Get user config for network options
-      const userConfig = getUserYtDlpConfig();
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
       const videoUrl = `https://www.bilibili.com/video/${videoId}`;
+      
+      // Get user config for network options
+      const userConfig = getUserYtDlpConfig(videoUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
       const info = await executeYtDlpJson(videoUrl, {
         ...networkConfig,
         noWarnings: true,
@@ -282,7 +282,7 @@ export class BilibiliDownloader {
       console.log("Downloading Bilibili video using yt-dlp to:", tempDir);
 
       // Get user's yt-dlp configuration for network settings
-      const userConfig = getUserYtDlpConfig();
+      const userConfig = getUserYtDlpConfig(url);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       // Get video info first (with network config)

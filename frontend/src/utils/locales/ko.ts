@@ -447,4 +447,5 @@ export const ko = {
   hide: "숨기기",
   reset: "초기화",
   more: "더 보기",
+    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
 };

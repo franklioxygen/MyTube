@@ -453,4 +453,5 @@ export const ja = {
   hide: "隠す",
   reset: "リセット",
   more: "もっと見る",
+    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
 };

@@ -305,13 +305,30 @@ export function parseYtDlpConfig(configText: string): Record<string, any> {
 
 /**
  * Get user's yt-dlp configuration from settings
+ * @param url - Optional URL to contextually filter settings (e.g. proxy only for YouTube)
  */
-export function getUserYtDlpConfig(): Record<string, any> {
+export function getUserYtDlpConfig(url?: string): Record<string, any> {
   try {
     const settings = storageService.getSettings();
-    if (settings.ytDlpConfig) {
-      const parsedConfig = parseYtDlpConfig(settings.ytDlpConfig);
+    const configText = settings.ytDlpConfig;
+    const proxyOnlyYoutube = settings.proxyOnlyYoutube === true;
+
+    if (configText) {
+      const parsedConfig = parseYtDlpConfig(configText);
       console.log("Parsed user yt-dlp config:", parsedConfig);
+
+      // If proxy is restricted to YouTube only, and we have a non-YouTube URL
+      if (proxyOnlyYoutube && url) {
+        const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
+        if (!isYoutube) {
+          console.log("Proxy restricted to YouTube only. Removing proxy settings for:", url);
+          // Remove proxy-related settings
+          delete parsedConfig.proxy;
+          // Also remove potentially related network options if they are usually proxy-specific?
+          // sticking to just 'proxy' as per request and standard usage.
+        }
+      }
+
       return parsedConfig;
     }
   } catch (error) {

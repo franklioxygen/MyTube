@@ -3,19 +3,19 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import {
-  calculateDownloadedSize,
-  cleanupPartialVideoFiles,
-  cleanupSubtitleFiles,
-  isCancellationError,
-  isDownloadActive,
-  parseSize,
+    calculateDownloadedSize,
+    cleanupPartialVideoFiles,
+    cleanupSubtitleFiles,
+    isCancellationError,
+    isDownloadActive,
+    parseSize,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -130,7 +130,7 @@ export class YtDlpDownloader {
   }> {
     try {
       // Get user config for network options
-      const userConfig = getUserYtDlpConfig();
+      const userConfig = getUserYtDlpConfig(url);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       const info = await executeYtDlpJson(url, {
@@ -165,7 +165,7 @@ export class YtDlpDownloader {
       console.log("Fetching latest video for channel:", channelUrl);
 
       // Get user config for network options
-      const userConfig = getUserYtDlpConfig();
+      const userConfig = getUserYtDlpConfig(channelUrl);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
       // Append /videos to channel URL to ensure we get videos and not the channel tab
@@ -315,7 +315,7 @@ export class YtDlpDownloader {
       }
 
       // Get user's yt-dlp configuration
-      const userConfig = getUserYtDlpConfig();
+      const userConfig = getUserYtDlpConfig(videoUrl);
 
       // Default format based on user config or fallback
       let defaultFormat =
