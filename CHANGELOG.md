@@ -2,6 +2,11 @@
 
 
 
+## v1.5.6 (2025-12-12)
+
+### Feat
+- feat: Add proxy only for YouTube setting (98a0911)
+
 ## v1.5.5 (2025-12-12)
 
 ### Feat
