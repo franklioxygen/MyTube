@@ -13,7 +13,7 @@ import {
     Grid,
     Typography
 } from '@mui/material';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
@@ -35,6 +35,8 @@ const SearchResults: React.FC = () => {
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
 
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
     // If search term is empty, reset search and go back to home
     useEffect(() => {
         if (!searchTerm || searchTerm.trim() === '') {
@@ -44,19 +46,14 @@ const SearchResults: React.FC = () => {
         }
     }, [searchTerm, resetSearch]);
 
-    const handleDownload = async (videoUrl: string) => {
+    const handleDownload = async (videoId: string, videoUrl: string) => {
         try {
-            // We need to stop the search mode before downloading?
-            // Actually App.tsx implementation was:
-            // setIsSearchMode(false);
-            // await handleVideoSubmit(videoUrl);
-            // Let's replicate that behavior if we want to exit search on download
-            // Or maybe just download and stay on search results?
-            // The original implementation in App.tsx exited search mode.
+            setDownloadingId(videoId);
             setIsSearchMode(false);
             await handleVideoSubmit(videoUrl);
         } catch (error) {
             console.error('Error downloading from search results:', error);
+            setDownloadingId(null);
         }
     };
 
@@ -187,7 +184,8 @@ const SearchResults: React.FC = () => {
                                             fullWidth
                                             variant="contained"
                                             startIcon={<Download />}
-                                            onClick={() => handleDownload(result.sourceUrl)}
+                                            onClick={() => handleDownload(result.id, result.sourceUrl)}
+                                            disabled={downloadingId === result.id}
                                         >
                                             Download
                                         </Button>
