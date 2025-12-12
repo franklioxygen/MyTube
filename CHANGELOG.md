@@ -2,6 +2,21 @@
 
 
 
+## v1.5.5 (2025-12-12)
+
+### Feat
+- feat: Implement loading more search results (9b9fdc1)
+- feat: Add state management for video download status (3ae277b)
+- feat: Add MissAVDownloader tests and extract author from URL (0f23220)
+
+## v1.5.4 (2025-12-11)
+
+### Feat
+- feat: Add showYoutubeSearch feature (0976bea)
+
+### Refactor
+- refactor: Improve autosave functionality and settings comparison (da3221f)
+
 ## v1.5.3 (2025-12-10)
 
 ### Feat
