@@ -59,7 +59,7 @@ describe('DownloadService', () => {
   describe('YouTube/Generic', () => {
     it('should call YtDlpDownloader.search', async () => {
       await downloadService.searchYouTube('query');
-      expect(YtDlpDownloader.search).toHaveBeenCalledWith('query');
+      expect(YtDlpDownloader.search).toHaveBeenCalledWith('query', undefined, undefined);
     });
 
     it('should call YtDlpDownloader.downloadVideo', async () => {

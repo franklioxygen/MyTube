@@ -2,13 +2,13 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  deleteVideo,
-  downloadVideo,
-  getVideoById,
-  getVideos,
-  rateVideo,
-  searchVideos,
-  updateVideoDetails,
+    deleteVideo,
+    downloadVideo,
+    getVideoById,
+    getVideos,
+    rateVideo,
+    searchVideos,
+    updateVideoDetails,
 } from '../../controllers/videoController';
 import downloadManager from '../../services/downloadManager';
 import * as downloadService from '../../services/downloadService';
@@ -66,7 +66,7 @@ describe('VideoController', () => {
 
       await searchVideos(req as Request, res as Response);
 
-      expect(downloadService.searchYouTube).toHaveBeenCalledWith('test');
+      expect(downloadService.searchYouTube).toHaveBeenCalledWith('test', 8, 1);
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith({ results: mockResults });
     });
