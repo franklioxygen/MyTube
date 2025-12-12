@@ -452,4 +452,5 @@ export const ja = {
   customize: "カスタマイズ",
   hide: "隠す",
   reset: "リセット",
+  more: "もっと見る",
 };

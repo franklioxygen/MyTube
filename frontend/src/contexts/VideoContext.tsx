@@ -29,6 +29,8 @@ interface VideoContextType {
     selectedTags: string[];
     handleTagToggle: (tag: string) => void;
     showYoutubeSearch: boolean;
+    loadMoreSearchResults: () => Promise<void>;
+    loadingMore: boolean;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -86,6 +88,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [youtubeLoading, setYoutubeLoading] = useState<boolean>(false);
+    const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
@@ -149,7 +152,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSearchTerm('');
         setSearchResults([]);
         setLocalSearchResults([]);
+        setSearchResults([]);
+        setLocalSearchResults([]);
         setYoutubeLoading(false);
+        setLoadingMore(false);
     };
 
     const handleSearch = async (query: string): Promise<any> => {
@@ -214,6 +220,34 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 return { success: false, error: t('failedToSearch') };
             }
             return { success: false, error: t('searchCancelled') };
+        }
+    };
+
+    const loadMoreSearchResults = async (): Promise<void> => {
+        if (!searchTerm || loadingMore || !showYoutubeSearch) return;
+
+        try {
+            setLoadingMore(true);
+            const currentCount = searchResults.length;
+            const limit = 8;
+            const offset = currentCount + 1;
+
+            const response = await axios.get(`${API_URL}/search`, {
+                params: {
+                    query: searchTerm,
+                    limit,
+                    offset
+                }
+            });
+
+            if (response.data.results && response.data.results.length > 0) {
+                setSearchResults(prev => [...prev, ...response.data.results]);
+            }
+        } catch (error) {
+            console.error('Error loading more results:', error);
+            showSnackbar(t('failedToSearch'));
+        } finally {
+            setLoadingMore(false);
         }
     };
 
@@ -323,7 +357,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             availableTags,
             selectedTags,
             handleTagToggle,
-            showYoutubeSearch
+            showYoutubeSearch,
+            loadMoreSearchResults,
+            loadingMore
         }}>
             {children}
         </VideoContext.Provider>

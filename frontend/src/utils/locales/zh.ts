@@ -442,4 +442,5 @@ export const zh = {
   customize: "自定义",
   hide: "隐藏",
   reset: "重置",
+  more: "更多",
 };

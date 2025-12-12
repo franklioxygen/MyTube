@@ -19,7 +19,7 @@ export type {
   BilibiliVideoInfo,
   BilibiliVideosResult,
   CollectionDownloadResult,
-  DownloadResult,
+  DownloadResult
 };
 
 // Helper function to download Bilibili video
@@ -121,8 +121,12 @@ export async function downloadRemainingBilibiliParts(
 }
 
 // Search for videos on YouTube (using yt-dlp)
-export async function searchYouTube(query: string): Promise<any[]> {
-  return YtDlpDownloader.search(query);
+export async function searchYouTube(
+  query: string,
+  limit?: number,
+  offset?: number
+): Promise<any[]> {
+  return YtDlpDownloader.search(query, limit, offset);
 }
 
 // Download generic video (using yt-dlp)

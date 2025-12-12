@@ -425,4 +425,5 @@ export const de = {
   customize: "Anpassen",
   hide: "Ausblenden",
   reset: "Zurücksetzen",
+  more: "Mehr",
 };

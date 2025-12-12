@@ -451,4 +451,5 @@ export const ru = {
   customize: "Настроить",
   hide: "Скрыть",
   reset: "Сбросить",
+  more: "Ещё",
 };

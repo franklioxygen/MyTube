@@ -17,10 +17,12 @@ import React, { useEffect, useState } from 'react';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { formatDuration } from '../utils/formatUtils';
 
 const SearchResults: React.FC = () => {
+    const { t } = useLanguage();
     const {
         searchResults,
         localSearchResults,
@@ -30,7 +32,10 @@ const SearchResults: React.FC = () => {
         deleteVideo,
         resetSearch,
         setIsSearchMode,
-        showYoutubeSearch
+
+        showYoutubeSearch,
+        loadMoreSearchResults,
+        loadingMore
     } = useVideo();
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
@@ -140,60 +145,72 @@ const SearchResults: React.FC = () => {
                             <Typography sx={{ mt: 2 }}>Loading YouTube results...</Typography>
                         </Box>
                     ) : hasYouTubeResults ? (
-                        <Grid container spacing={3}>
-                            {searchResults.map((result) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
-                                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                    <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
-                                        <CardMedia
-                                            component="img"
-                                            image={result.thumbnailUrl || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
-                                            alt={result.title}
-                                            sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                                            onError={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                target.onerror = null;
-                                                target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
-                                            }}
-                                        />
-                                        {result.duration && (
-                                            <Chip
-                                                label={formatDuration(result.duration)}
-                                                size="small"
-                                                sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.8)', color: 'white' }}
+                        <>
+                            <Grid container spacing={3}>
+                                {searchResults.map((result) => <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={result.id}>
+                                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                        <Box sx={{ position: 'relative', paddingTop: '56.25%' }}>
+                                            <CardMedia
+                                                component="img"
+                                                image={result.thumbnailUrl || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
+                                                alt={result.title}
+                                                sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.onerror = null;
+                                                    target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                                                }}
                                             />
-                                        )}
-                                        <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
-                                            {result.source === 'bilibili' ? <OndemandVideo sx={{ color: '#23ade5' }} /> : <YouTube sx={{ color: '#ff0000' }} />}
+                                            {result.duration && (
+                                                <Chip
+                                                    label={formatDuration(result.duration)}
+                                                    size="small"
+                                                    sx={{ position: 'absolute', bottom: 8, right: 8, bgcolor: 'rgba(0,0,0,0.8)', color: 'white' }}
+                                                />
+                                            )}
+                                            <Box sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.7)', borderRadius: '50%', p: 0.5, display: 'flex' }}>
+                                                {result.source === 'bilibili' ? <OndemandVideo sx={{ color: '#23ade5' }} /> : <YouTube sx={{ color: '#ff0000' }} />}
+                                            </Box>
                                         </Box>
-                                    </Box>
-                                    <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                                        <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                            {result.title}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                            {result.author}
-                                        </Typography>
-                                        {result.viewCount && (
-                                            <Typography variant="caption" color="text.secondary">
-                                                {formatViewCount(result.viewCount)} views
+                                        <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                                            <Typography gutterBottom variant="subtitle1" component="div" sx={{ fontWeight: 600, lineHeight: 1.2, mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                                {result.title}
                                             </Typography>
-                                        )}
-                                    </CardContent>
-                                    <CardActions sx={{ p: 2, pt: 0 }}>
-                                        <Button
-                                            fullWidth
-                                            variant="contained"
-                                            startIcon={<Download />}
-                                            onClick={() => handleDownload(result.id, result.sourceUrl)}
-                                            disabled={downloadingId === result.id}
-                                        >
-                                            Download
-                                        </Button>
-                                    </CardActions>
-                                </Card>
+                                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                                {result.author}
+                                            </Typography>
+                                            {result.viewCount && (
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {formatViewCount(result.viewCount)} views
+                                                </Typography>
+                                            )}
+                                        </CardContent>
+                                        <CardActions sx={{ p: 2, pt: 0 }}>
+                                            <Button
+                                                fullWidth
+                                                variant="contained"
+                                                startIcon={<Download />}
+                                                onClick={() => handleDownload(result.id, result.sourceUrl)}
+                                                disabled={downloadingId === result.id}
+                                            >
+                                                Download
+                                            </Button>
+                                        </CardActions>
+                                    </Card>
+                                </Grid>
+                                )}
                             </Grid>
-                            )}
-                        </Grid>
+                            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={loadMoreSearchResults}
+                                    disabled={loadingMore}
+                                    startIcon={loadingMore ? <CircularProgress size={20} color="inherit" /> : null}
+                                >
+                                    {loadingMore ? t('loading') : t('more')}
+                                </Button>
+                            </Box>
+                        </>
                     ) : (
                         <Typography color="text.secondary">No YouTube results found.</Typography>
                     )}

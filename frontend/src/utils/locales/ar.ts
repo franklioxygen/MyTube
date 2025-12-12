@@ -444,4 +444,5 @@ export const ar = {
   customize: "تخصيص",
   hide: "إخفاء",
   reset: "إعادة تعيين",
+  more: "المزيد",
 };

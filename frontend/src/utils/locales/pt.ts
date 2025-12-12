@@ -457,4 +457,5 @@ export const pt = {
   customize: "Personalizar",
   hide: "Ocultar",
   reset: "Redefinir",
+  more: "Mais",
 };

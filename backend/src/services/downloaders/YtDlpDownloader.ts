@@ -66,19 +66,31 @@ async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
 
 export class YtDlpDownloader {
   // Search for videos (primarily for YouTube, but could be adapted)
-  static async search(query: string): Promise<any[]> {
-    console.log("Processing search request for query:", query);
+  static async search(
+    query: string,
+    limit: number = 8,
+    offset: number = 1
+  ): Promise<any[]> {
+    console.log(
+      `Processing search request for query: "${query}", limit: ${limit}, offset: ${offset}`
+    );
 
     // Get user config for network options
     const userConfig = getUserYtDlpConfig();
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
+    // Calculate the total number of items to fetch from search
+    // We need to request enough items to cover the offset + limit
+    const searchLimit = offset + limit - 1;
+
     // Use ytsearch for searching
-    const searchResults = await executeYtDlpJson(`ytsearch5:${query}`, {
+    const searchResults = await executeYtDlpJson(`ytsearch${searchLimit}:${query}`, {
       ...networkConfig,
       noWarnings: true,
       skipDownload: true,
-      playlistEnd: 5, // Limit to 5 results
+      flatPlaylist: true, // Use flat playlist for faster search results
+      playlistStart: offset,
+      playlistEnd: searchLimit,
       extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
     });
 
@@ -91,7 +103,11 @@ export class YtDlpDownloader {
       id: entry.id,
       title: entry.title,
       author: entry.uploader,
-      thumbnailUrl: entry.thumbnail,
+      thumbnailUrl:
+        entry.thumbnail ||
+        (entry.thumbnails && entry.thumbnails.length > 0
+          ? entry.thumbnails[0].url
+          : ""),
       duration: entry.duration,
       viewCount: entry.view_count,
       sourceUrl: `https://www.youtube.com/watch?v=${entry.id}`, // Default to YT for search results
@@ -99,7 +115,7 @@ export class YtDlpDownloader {
     }));
 
     console.log(
-      `Found ${formattedResults.length} search results for "${query}"`
+      `Found ${formattedResults.length} search results for "${query}" (requested ${limit})`
     );
 
     return formattedResults;

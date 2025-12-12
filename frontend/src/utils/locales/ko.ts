@@ -446,4 +446,5 @@ export const ko = {
   customize: "사용자 지정",
   hide: "숨기기",
   reset: "초기화",
+  more: "더 보기",
 };

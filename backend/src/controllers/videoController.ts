@@ -9,13 +9,13 @@ import * as downloadService from "../services/downloadService";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  extractSourceVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl,
+    extractBilibiliVideoId,
+    extractSourceVideoId,
+    extractUrlFromText,
+    isBilibiliUrl,
+    isValidUrl,
+    resolveShortUrl,
+    trimBilibiliUrl,
 } from "../utils/helpers";
 
 // Configure Multer for file uploads
@@ -44,7 +44,14 @@ export const searchVideos = async (
       return res.status(400).json({ error: "Search query is required" });
     }
 
-    const results = await downloadService.searchYouTube(query as string);
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 8;
+    const offset = req.query.offset ? parseInt(req.query.offset as string) : 1;
+
+    const results = await downloadService.searchYouTube(
+      query as string,
+      limit,
+      offset
+    );
     res.status(200).json({ results });
   } catch (error: any) {
     console.error("Error searching for videos:", error);

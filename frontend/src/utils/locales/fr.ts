@@ -463,4 +463,5 @@ export const fr = {
   customize: "Personnaliser",
   hide: "Masquer",
   reset: "Réinitialiser",
+  more: "Plus",
 };

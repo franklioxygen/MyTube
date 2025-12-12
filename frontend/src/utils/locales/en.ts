@@ -453,4 +453,5 @@ export const en = {
   customize: "Customize",
   hide: "Hide",
   reset: "Reset",
+  more: "More",
 };

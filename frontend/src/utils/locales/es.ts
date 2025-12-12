@@ -431,4 +431,5 @@ export const es = {
   customize: "Personalizar",
   hide: "Ocultar",
   reset: "Restablecer",
+  more: "Más",
 };
