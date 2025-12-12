@@ -46,17 +46,23 @@ export class MissAVDownloader {
       const pageTitle = $('meta[property="og:title"]').attr("content");
       const ogImage = $('meta[property="og:image"]').attr("content");
 
+      const urlObj = new URL(url);
+      const author = urlObj.hostname.replace("www.", "");
+
       return {
         title: pageTitle || "MissAV Video",
-        author: "MissAV",
+        author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: ogImage || "",
       };
     } catch (error) {
       console.error("Error fetching MissAV video info:", error);
+      const urlObj = new URL(url);
+      const author = urlObj.hostname.replace("www.", "");
+      
       return {
         title: "MissAV Video",
-        author: "MissAV",
+        author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: "",
       };
@@ -77,8 +83,11 @@ export class MissAVDownloader {
     fs.ensureDirSync(VIDEOS_DIR);
     fs.ensureDirSync(IMAGES_DIR);
 
+    const urlObj = new URL(url);
+    const author = urlObj.hostname.replace("www.", "");
+
     let videoTitle = "MissAV Video";
-    let videoAuthor = "MissAV";
+    let videoAuthor = author;
     let videoDate = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     let thumbnailUrl: string | null = null;
     let thumbnailSaved = false;
