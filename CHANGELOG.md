@@ -2,6 +2,11 @@
 
 
 
+## v1.5.7 (2025-12-12)
+
+### Feat
+- feat: Add option to move subtitles to video folder (72b0e7e)
+
 ## v1.5.6 (2025-12-12)
 
 ### Feat
