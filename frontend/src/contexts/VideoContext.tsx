@@ -92,6 +92,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Reference to the current search request's abort controller
     const searchAbortController = useRef<AbortController | null>(null);
+    // Reference to track if load more request is in progress (prevents race conditions)
+    const loadMoreInProgress = useRef<boolean>(false);
 
     // Wrapper for refetch to match interface
     const fetchVideos = async () => {
@@ -148,6 +150,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             searchAbortController.current.abort();
             searchAbortController.current = null;
         }
+        loadMoreInProgress.current = false;
         setIsSearchMode(false);
         setSearchTerm('');
         setSearchResults([]);
@@ -171,6 +174,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             searchAbortController.current = new AbortController();
             const signal = searchAbortController.current.signal;
+            loadMoreInProgress.current = false; // Reset load more state for new search
 
             setIsSearchMode(true);
             setSearchTerm(query);
@@ -224,10 +228,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const loadMoreSearchResults = async (): Promise<void> => {
-        if (!searchTerm || loadingMore || !showYoutubeSearch) return;
+        // Use ref check first to prevent race conditions (immediate, synchronous check)
+        if (!searchTerm || loadMoreInProgress.current || loadingMore || !showYoutubeSearch) return;
 
         try {
+            // Set both state and ref to prevent concurrent requests
+            loadMoreInProgress.current = true;
             setLoadingMore(true);
+            
             const currentCount = searchResults.length;
             const limit = 8;
             const offset = currentCount + 1;
@@ -241,12 +249,20 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
 
             if (response.data.results && response.data.results.length > 0) {
-                setSearchResults(prev => [...prev, ...response.data.results]);
+                setSearchResults(prev => {
+                    // Create a Set of existing IDs for fast lookup
+                    const existingIds = new Set(prev.map(result => result.id));
+                    // Filter out duplicates by ID
+                    const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
+                    // Only append new, non-duplicate results
+                    return [...prev, ...newResults];
+                });
             }
         } catch (error) {
             console.error('Error loading more results:', error);
             showSnackbar(t('failedToSearch'));
         } finally {
+            loadMoreInProgress.current = false;
             setLoadingMore(false);
         }
     };

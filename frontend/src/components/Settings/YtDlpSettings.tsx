@@ -10,12 +10,14 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 interface YtDlpSettingsProps {
     config: string;
     proxyOnlyYoutube?: boolean;
     onChange: (config: string) => void;
     onProxyOnlyYoutubeChange?: (checked: boolean) => void;
+    onSave?: () => void;
 }
 
 // Default yt-dlp configuration
@@ -210,8 +212,9 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 
 `;
 
-const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, onChange, onProxyOnlyYoutubeChange }) => {
+const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube = false, onChange, onProxyOnlyYoutubeChange, onSave }) => {
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
     const [isExpanded, setIsExpanded] = useState(false);
     const [localConfig, setLocalConfig] = useState(config || DEFAULT_CONFIG);
 
@@ -236,6 +239,19 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
     const handleReset = () => {
         setLocalConfig(DEFAULT_CONFIG);
         onChange(DEFAULT_CONFIG);
+        // Trigger immediate save
+        if (onSave) {
+            onSave();
+        }
+    };
+
+    const handleSave = () => {
+        onChange(localConfig);
+        // Trigger immediate save
+        if (onSave) {
+            onSave();
+        }
+        showSnackbar(t('settingsSaved') || 'Settings saved successfully', 'success');
     };
 
     return (
@@ -298,6 +314,13 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                         }}
                     />
                     <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 2, gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleSave}
+                        >
+                            {t('save') || 'Save'}
+                        </Button>
                         <Button
                             variant="outlined"
                             color="warning"

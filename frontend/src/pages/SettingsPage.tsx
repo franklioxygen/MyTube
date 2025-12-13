@@ -306,6 +306,12 @@ const SettingsPage: React.FC = () => {
         }
     };
 
+    const handleImmediateSave = () => {
+        if (!saveMutation.isPending) {
+            saveMutation.mutate(settings);
+        }
+    };
+
     const handleTagsChange = (newTags: string[]) => {
         setSettings(prev => ({ ...prev, tags: newTags }));
     };
@@ -420,6 +426,7 @@ const SettingsPage: React.FC = () => {
                                 proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
                                 onChange={(config) => handleChange('ytDlpConfig', config)}
                                 onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                                onSave={handleImmediateSave}
                             />
                         </Grid>
 
