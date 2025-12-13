@@ -2,6 +2,15 @@
 
 
 
+## v1.5.8 (2025-12-13)
+
+### Feat
+- feat: Update YtDlpSettings to include onSave callback (c704e1a)
+- feat: Improve MissAV video ID extraction logic (4e6291d)
+
+### Refactor
+- refactor: Update yt-dlp downloader script for flexibility (2d1b737)
+
 ## v1.5.7 (2025-12-12)
 
 ### Feat
