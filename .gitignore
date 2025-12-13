@@ -58,3 +58,9 @@ backend/data/settings.json
 
 # Sensitive data
 backend/data/cookies.txt
+
+# Large video files (test files)
+*.webm
+*.mp4
+*.mkv
+*.avi
