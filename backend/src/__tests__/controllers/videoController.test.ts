@@ -144,6 +144,7 @@ describe('VideoController', () => {
     it('should handle MissAV download', async () => {
       req.body = { youtubeUrl: 'https://missav.com/v1' };
       (downloadService.downloadMissAVVideo as any).mockResolvedValue({ id: 'v1' });
+      (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({ found: false });
 
       await downloadVideo(req as Request, res as Response);
 
