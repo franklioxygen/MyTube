@@ -3,29 +3,26 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import {
-    calculateDownloadedSize,
-    cleanupPartialVideoFiles,
-    cleanupSubtitleFiles,
-    isCancellationError,
-    isDownloadActive,
-    parseSize,
+  calculateDownloadedSize,
+  cleanupPartialVideoFiles,
+  cleanupSubtitleFiles,
+  isCancellationError,
+  isDownloadActive,
+  parseSize,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 
-const PROVIDER_SCRIPT =
-  process.env.BGUTIL_SCRIPT_PATH ||
-  path.join(
-    process.cwd(),
-    "bgutil-ytdlp-pot-provider/server/build/generate_once.js"
-  );
+// Note: PO Token provider script path - only used if user has the bgutil plugin installed
+// Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
+const PROVIDER_SCRIPT = process.env.BGUTIL_SCRIPT_PATH || "";
 
 // Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
 async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
@@ -84,15 +81,22 @@ export class YtDlpDownloader {
     const searchLimit = offset + limit - 1;
 
     // Use ytsearch for searching
-    const searchResults = await executeYtDlpJson(`ytsearch${searchLimit}:${query}`, {
-      ...networkConfig,
-      noWarnings: true,
-      skipDownload: true,
-      flatPlaylist: true, // Use flat playlist for faster search results
-      playlistStart: offset,
-      playlistEnd: searchLimit,
-      extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
-    });
+    const searchResults = await executeYtDlpJson(
+      `ytsearch${searchLimit}:${query}`,
+      {
+        ...networkConfig,
+        noWarnings: true,
+        skipDownload: true,
+        flatPlaylist: true, // Use flat playlist for faster search results
+        playlistStart: offset,
+        playlistEnd: searchLimit,
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
+      }
+    );
 
     if (!searchResults || !searchResults.entries) {
       return [];
@@ -137,7 +141,11 @@ export class YtDlpDownloader {
         ...networkConfig,
         noWarnings: true,
         preferFreeFormats: true,
-        extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
       });
 
       return {
@@ -194,7 +202,11 @@ export class YtDlpDownloader {
         playlistEnd: 5,
         noWarnings: true,
         flatPlaylist: true, // We only need the ID/URL, not full info
-        extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
       });
 
       // If it's a playlist/channel, 'entries' will contain the videos
@@ -257,7 +269,11 @@ export class YtDlpDownloader {
       const info = await executeYtDlpJson(videoUrl, {
         noWarnings: true,
         preferFreeFormats: true,
-        extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
       });
 
       console.log("Video info:", {
@@ -357,7 +373,12 @@ export class YtDlpDownloader {
         writeSubs: true,
         writeAutoSubs: true,
         convertSubs: "vtt",
-        extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        // Only add PO token provider if configured
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
       };
 
       // Apply format sort if user specified it (e.g., -S res:480)
@@ -370,43 +391,26 @@ export class YtDlpDownloader {
       if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
         flags.format = youtubeFormat;
 
-        // Check if user specified format filters that might need better format metadata
-        const userHasFormatFilter =
-          (userConfig.f || userConfig.format) &&
-          (youtubeFormat.includes("[") || youtubeFormat.includes("height"));
-
-        // Combine YouTube extractor args with PO token provider
-        // Don't force player_client=android if user has format filters (web client has better format metadata)
-        let ytExtractorArgs = "";
-
+        // Use user's extractor args if provided, otherwise let yt-dlp use its defaults
+        // Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
         if (
           userConfig.extractorArgs &&
           userConfig.extractorArgs.includes("youtube:")
         ) {
           // User has YouTube-specific args, use them
-          ytExtractorArgs = userConfig.extractorArgs;
-        } else if (!userHasFormatFilter) {
-          // Only use Android client by default if no format filters (for PO token bypass)
-          ytExtractorArgs = "youtube:player_client=android";
-        }
+          flags.extractorArgs = userConfig.extractorArgs;
 
-        // Ensure PO token provider is included
-        if (ytExtractorArgs) {
-          if (!ytExtractorArgs.includes("youtubepot-bgutilscript")) {
-            ytExtractorArgs += `;youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+          // If user is using android client, add appropriate headers
+          if (userConfig.extractorArgs.includes("player_client=android")) {
+            flags.addHeader = [
+              "Referer:https://www.youtube.com/",
+              "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+            ];
           }
-          flags.extractorArgs = ytExtractorArgs;
-        } else {
-          // Just use PO token provider without player_client override
-          flags.extractorArgs = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
         }
-
-        // Only set Android-specific headers if using Android client
-        if (ytExtractorArgs.includes("player_client=android")) {
-          flags.addHeader = [
-            "Referer:https://www.youtube.com/",
-            "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-          ];
+        // Remove the extractorArgs default if not needed - let yt-dlp handle it
+        if (!flags.extractorArgs) {
+          delete flags.extractorArgs;
         }
       }
 
@@ -486,8 +490,34 @@ export class YtDlpDownloader {
           cleanupSubtitleFiles(newSafeBaseFilename);
           throw new Error("Download cancelled by user");
         }
-        // Re-throw other errors
-        throw error;
+
+        // Check if error is subtitle-related and video file exists
+        const stderr = error.stderr || "";
+        const isSubtitleError =
+          stderr.includes("Unable to download video subtitles") ||
+          stderr.includes("Unable to download subtitles") ||
+          (stderr.includes("subtitles") && stderr.includes("429"));
+
+        if (isSubtitleError) {
+          // Check if video file was successfully downloaded
+          if (fs.existsSync(newVideoPath)) {
+            console.warn(
+              "Subtitle download failed, but video was downloaded successfully. Continuing...",
+              error.message
+            );
+            // Log the subtitle error details
+            if (stderr) {
+              console.warn("Subtitle error details:", stderr);
+            }
+            // Continue processing - don't throw
+          } else {
+            // Video file doesn't exist, this is a real error
+            throw error;
+          }
+        } else {
+          // Re-throw other errors
+          throw error;
+        }
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)

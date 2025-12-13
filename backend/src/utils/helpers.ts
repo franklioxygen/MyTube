@@ -144,8 +144,10 @@ export function extractMissAVVideoId(url: string): string | null {
     // - https://missav.ai/v/VIDEO_ID
     // The video ID is the last path segment (after the last /)
     const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname.split('/').filter(segment => segment.length > 0);
-    
+    const pathSegments = urlObj.pathname
+      .split("/")
+      .filter((segment) => segment.length > 0);
+
     if (pathSegments.length > 0) {
       // Get the last segment as the video ID
       const videoId = pathSegments[pathSegments.length - 1];
@@ -153,7 +155,7 @@ export function extractMissAVVideoId(url: string): string | null {
         return videoId;
       }
     }
-    
+
     // Fallback to old regex pattern for URLs like /v/VIDEO_ID or /dm*/VIDEO_ID (without language code)
     const vidMatch = url.match(/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)(?:\/|$)/);
     if (vidMatch && vidMatch[1]) {
