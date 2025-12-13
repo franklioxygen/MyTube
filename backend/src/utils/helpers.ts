@@ -137,13 +137,34 @@ export function extractYouTubeVideoId(url: string): string | null {
 
 // Helper function to extract video ID from MissAV/123AV URL
 export function extractMissAVVideoId(url: string): string | null {
-  // Extract video ID from MissAV URL pattern like /v/VIDEO_ID or /dm*/VIDEO_ID
-  const vidMatch = url.match(/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)/);
-  if (vidMatch && vidMatch[1]) {
-    return vidMatch[1];
-  }
+  try {
+    // MissAV URLs have patterns like:
+    // - https://missav.ai/dm2/en/jux-492-uncensored-leak
+    // - https://missav.ai/dm29/en/juq-643-uncensored-leak
+    // - https://missav.ai/v/VIDEO_ID
+    // The video ID is the last path segment (after the last /)
+    const urlObj = new URL(url);
+    const pathSegments = urlObj.pathname.split('/').filter(segment => segment.length > 0);
+    
+    if (pathSegments.length > 0) {
+      // Get the last segment as the video ID
+      const videoId = pathSegments[pathSegments.length - 1];
+      if (videoId && /^[a-zA-Z0-9-]+$/.test(videoId)) {
+        return videoId;
+      }
+    }
+    
+    // Fallback to old regex pattern for URLs like /v/VIDEO_ID or /dm*/VIDEO_ID (without language code)
+    const vidMatch = url.match(/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)(?:\/|$)/);
+    if (vidMatch && vidMatch[1]) {
+      return vidMatch[1];
+    }
 
-  return null;
+    return null;
+  } catch (error) {
+    console.error("Error extracting MissAV video ID:", error);
+    return null;
+  }
 }
 
 // Helper function to extract source video ID from any supported URL
