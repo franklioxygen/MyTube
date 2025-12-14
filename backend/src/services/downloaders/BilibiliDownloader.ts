@@ -5,21 +5,21 @@ import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
-    calculateDownloadedSize,
-    formatBytes,
-    isCancellationError,
-    isDownloadActive,
-    parseSize,
+  calculateDownloadedSize,
+  formatBytes,
+  isCancellationError,
+  isDownloadActive,
+  parseSize,
 } from "../../utils/downloadUtils";
 import {
-    extractBilibiliVideoId,
-    formatVideoFilename,
+  extractBilibiliVideoId,
+  formatVideoFilename,
 } from "../../utils/helpers";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
@@ -214,7 +214,7 @@ export class BilibiliDownloader {
   }> {
     try {
       const videoUrl = `https://www.bilibili.com/video/${videoId}`;
-      
+
       // Get user config for network options
       const userConfig = getUserYtDlpConfig(videoUrl);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
@@ -331,19 +331,26 @@ export class BilibiliDownloader {
         );
       }
 
-      // Prepare base flags from user config (excluding certain overridden options)
+      // Prepare base flags from user config (excluding output options we manage)
       const {
         output: _output,
         o: _o,
-        writeSubs: _writeSubs,
-        writeAutoSubs: _writeAutoSubs,
-        convertSubs: _convertSubs,
         f: _f,
         format: _format,
         S: _S,
         formatSort: _formatSort,
+        // Extract user subtitle preferences (use them if provided)
+        writeSubs: userWriteSubs,
+        writeAutoSubs: userWriteAutoSubs,
+        convertSubs: userConvertSubs,
+        // Extract user merge output format (use it if provided)
+        mergeOutputFormat: userMergeOutputFormat,
         ...safeUserConfig
       } = userConfig;
+
+      // Determine merge output format: use user's choice or default to mp4
+      const mergeOutputFormat = userMergeOutputFormat || "mp4";
+      console.log(`Using merge output format: ${mergeOutputFormat}`);
 
       // Prepare flags for yt-dlp - merge user config with required settings
       const flags: Record<string, any> = {
@@ -351,10 +358,12 @@ export class BilibiliDownloader {
         ...safeUserConfig, // Apply other user config
         output: outputTemplate,
         format: downloadFormat,
-        mergeOutputFormat: "mp4",
-        writeSubs: true,
-        writeAutoSubs: true,
-        convertSubs: "vtt",
+        // Use user preferences if provided, otherwise use defaults
+        mergeOutputFormat: mergeOutputFormat,
+        writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
+        writeAutoSubs:
+          userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
+        convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
         ignoreErrors: true, // Continue even if subtitle download fails
         noWarnings: false, // Show warnings for debugging
       };
@@ -857,12 +866,16 @@ export class BilibiliDownloader {
         `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
       );
 
+      // Get user's yt-dlp configuration for merge output format
+      const userConfig = getUserYtDlpConfig(url);
+      const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+
       // Create a safe base filename (without extension)
       const timestamp = Date.now();
       const safeBaseFilename = `video_${timestamp}`;
 
-      // Add extensions for video and thumbnail
-      const videoFilename = `${safeBaseFilename}.mp4`;
+      // Add extensions for video and thumbnail (use user's format preference)
+      const videoFilename = `${safeBaseFilename}.${mergeOutputFormat}`;
       const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
       // Set full paths for video and thumbnail
@@ -926,7 +939,7 @@ export class BilibiliDownloader {
         videoAuthor,
         videoDate
       );
-      const newVideoFilename = `${newSafeBaseFilename}.mp4`;
+      const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
       // Rename the files

@@ -321,8 +321,8 @@ export class YtDlpDownloader {
       const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
       const newThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
 
-      // Download the video
-      console.log("Downloading video to:", newVideoPath);
+      // Note: newVideoPath will be updated below based on merge output format
+      console.log("Preparing video download path:", newVideoPath);
 
       if (downloadId) {
         storageService.updateActiveDownload(downloadId, {
@@ -348,32 +348,55 @@ export class YtDlpDownloader {
         console.log("Using user-specified format:", userFormat);
       }
 
-      // Prepare base flags from user config (excluding certain overridden options)
+      // Prepare base flags from user config (excluding output options we manage)
       const {
         output: _output, // Ignore user output template (we manage this)
         o: _o,
-        writeSubs: _writeSubs, // We always enable subtitles
-        writeAutoSubs: _writeAutoSubs,
-        convertSubs: _convertSubs,
         f: _f, // Format is handled specially above
         format: _format,
         S: userFormatSort, // Format sort is handled specially
         formatSort: userFormatSort2,
+        // Extract user subtitle preferences (use them if provided)
+        writeSubs: userWriteSubs,
+        writeAutoSubs: userWriteAutoSubs,
+        convertSubs: userConvertSubs,
+        // Extract user merge output format (use it if provided)
+        mergeOutputFormat: userMergeOutputFormat,
         ...safeUserConfig
       } = userConfig;
 
       // Get format sort option if user specified it
       const formatSortValue = userFormatSort || userFormatSort2;
 
-      // Prepare flags - user config first, then our required overrides
+      // Determine merge output format: use user's choice or default to mp4
+      const mergeOutputFormat = userMergeOutputFormat || "mp4";
+
+      // Update the video path to use the correct extension based on merge format
+      const videoExtension = mergeOutputFormat;
+      const newVideoPathWithFormat = newVideoPath.replace(
+        /\.mp4$/,
+        `.${videoExtension}`
+      );
+      finalVideoFilename = finalVideoFilename.replace(
+        /\.mp4$/,
+        `.${videoExtension}`
+      );
+
+      console.log(
+        `Using merge output format: ${mergeOutputFormat}, downloading to: ${newVideoPathWithFormat}`
+      );
+
+      // Prepare flags - defaults first, then user config to allow overrides
       const flags: Record<string, any> = {
-        ...safeUserConfig, // Apply user config first
-        output: newVideoPath, // Always use our output path
+        ...safeUserConfig, // Apply user config
+        output: newVideoPathWithFormat, // Always use our output path with correct extension
         format: defaultFormat,
-        mergeOutputFormat: "mp4",
-        writeSubs: true,
-        writeAutoSubs: true,
-        convertSubs: "vtt",
+        // Use user preferences if provided, otherwise use defaults
+        mergeOutputFormat: mergeOutputFormat,
+        writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
+        writeAutoSubs:
+          userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
+        convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
         // Only add PO token provider if configured
         ...(PROVIDER_SCRIPT
           ? {
@@ -427,7 +450,7 @@ export class YtDlpDownloader {
 
           // Clean up partial files
           console.log("Cleaning up partial files...");
-          cleanupPartialVideoFiles(newVideoPath);
+          cleanupPartialVideoFiles(newVideoPathWithFormat);
           cleanupPartialVideoFiles(newThumbnailPath);
           cleanupSubtitleFiles(newSafeBaseFilename);
         });
@@ -487,7 +510,7 @@ export class YtDlpDownloader {
       } catch (error: any) {
         if (isCancellationError(error)) {
           console.log("Download was cancelled");
-          cleanupPartialVideoFiles(newVideoPath);
+          cleanupPartialVideoFiles(newVideoPathWithFormat);
           cleanupSubtitleFiles(newSafeBaseFilename);
           throw DownloadCancelledError.create();
         }
@@ -501,7 +524,7 @@ export class YtDlpDownloader {
 
         if (isSubtitleError) {
           // Check if video file was successfully downloaded
-          if (fs.existsSync(newVideoPath)) {
+          if (fs.existsSync(newVideoPathWithFormat)) {
             console.warn(
               "Subtitle download failed, but video was downloaded successfully. Continuing...",
               error.message
@@ -524,7 +547,7 @@ export class YtDlpDownloader {
       // Check if download was cancelled (it might have been removed from active downloads)
       if (!isDownloadActive(downloadId)) {
         console.log("Download was cancelled (no longer in active downloads)");
-        cleanupPartialVideoFiles(newVideoPath);
+        cleanupPartialVideoFiles(newVideoPathWithFormat);
         cleanupSubtitleFiles(newSafeBaseFilename);
         throw DownloadCancelledError.create();
       }
