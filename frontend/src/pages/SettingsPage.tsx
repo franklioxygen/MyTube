@@ -2,6 +2,7 @@
 import {
     Alert,
     Box,
+    Button,
     Card,
     CardContent,
     Container,
@@ -12,7 +13,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AdvancedSettings from '../components/Settings/AdvancedSettings';
 import CloudDriveSettings from '../components/Settings/CloudDriveSettings';
@@ -26,7 +27,6 @@ import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useDebounce } from '../hooks/useDebounce';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -57,8 +57,6 @@ const SettingsPage: React.FC = () => {
         moveSubtitlesToVideoFolder: false
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
-    const debouncedSettings = useDebounce(settings, 1000);
-    const lastSavedSettingsRef = React.useRef<Settings | null>(null);
 
     // Modal states
     const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
@@ -73,6 +71,33 @@ const SettingsPage: React.FC = () => {
     });
 
     const [debugMode, setDebugMode] = useState(ConsoleManager.getDebugMode());
+
+    // Sticky Save Button Logic
+    const observerTarget = useRef<HTMLDivElement>(null);
+    const [isSticky, setIsSticky] = useState(true);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!observerTarget.current) return;
+            const rect = observerTarget.current.getBoundingClientRect();
+            // If reference element is below the viewport, show sticky button
+            // rect.top is the distance from top of viewport to top of element
+            // window.innerHeight is viewport height
+            // If rect.top > window.innerHeight, it's below the fold.
+            // We adding a small buffer (e.g. 10px) to ensure smooth transition
+            setIsSticky(rect.top > window.innerHeight);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('resize', handleScroll);
+        // Initial check
+        handleScroll();
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('resize', handleScroll);
+        };
+    }, []);
 
     // Fetch settings
     const { data: settingsData } = useQuery({
@@ -90,20 +115,8 @@ const SettingsPage: React.FC = () => {
                 tags: settingsData.tags || []
             };
             setSettings(newSettings);
-            // Initialize sync reference with fetched data
-            if (!lastSavedSettingsRef.current) {
-                lastSavedSettingsRef.current = newSettings;
-            }
         }
     }, [settingsData]);
-
-    const areSettingsEqual = (s1: Settings, s2: Settings) => {
-        const { password: p1, ...rest1 } = s1;
-        const { password: p2, ...rest2 } = s2;
-        // If password is set in current settings, it's a change (we assume s2 is lastSaved, which has cleared password)
-        if (p1) return false;
-        return JSON.stringify(rest1) === JSON.stringify(rest2);
-    };
 
     // Save settings mutation
     const saveMutation = useMutation({
@@ -115,32 +128,13 @@ const SettingsPage: React.FC = () => {
             }
             await axios.post(`${API_URL}/settings`, settingsToSend);
         },
-        onSuccess: (_data, variables) => {
-            // Do not invalidate queries to prevent overwriting user input while typing
+        onSuccess: () => {
             setMessage({ text: t('settingsSaved'), type: 'success' });
-            // Update reference to the settings we just successfully saved
-            // We must clear password from the reference as it is cleared in state on success (effectively)
-            const { password, ...rest } = variables;
-            lastSavedSettingsRef.current = { ...rest, password: '' } as Settings;
         },
         onError: () => {
             setMessage({ text: t('settingsFailed'), type: 'error' });
         }
     });
-
-    // Autosave effect
-    useEffect(() => {
-        if (!lastSavedSettingsRef.current) return;
-
-        if (!areSettingsEqual(debouncedSettings, lastSavedSettingsRef.current)) {
-            // Check saveMutation.isPending
-            if (!saveMutation.isPending) {
-                saveMutation.mutate(debouncedSettings);
-            }
-        }
-    }, [debouncedSettings, saveMutation.isPending]);
-
-
 
     // Migrate data mutation
     const migrateMutation = useMutation({
@@ -306,7 +300,7 @@ const SettingsPage: React.FC = () => {
         }
     };
 
-    const handleImmediateSave = () => {
+    const handleSave = () => {
         if (!saveMutation.isPending) {
             saveMutation.mutate(settings);
         }
@@ -326,6 +320,7 @@ const SettingsPage: React.FC = () => {
                 </Typography>
             </Box>
 
+            {/* Settings Card */}
             <Card variant="outlined">
                 <CardContent>
                     <Grid container spacing={4}>
@@ -426,7 +421,6 @@ const SettingsPage: React.FC = () => {
                                 proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
                                 onChange={(config) => handleChange('ytDlpConfig', config)}
                                 onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
-                                onSave={handleImmediateSave}
                             />
                         </Grid>
 
@@ -440,11 +434,67 @@ const SettingsPage: React.FC = () => {
                             />
                         </Grid>
 
-
-
                     </Grid>
                 </CardContent>
             </Card>
+
+            {/* Save Button */}
+            {/* Save Button Placeholder & Logic */}
+            <Box ref={observerTarget} sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                mt: 3,
+                py: 2,
+                px: 3,
+                mx: -3,
+                bgcolor: 'background.default', // Match appearance so transition is seamless
+                borderTop: 1,
+                borderColor: 'divider',
+            }}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    onClick={handleSave}
+                    disabled={saveMutation.isPending}
+                    sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
+                >
+                    {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
+                </Button>
+            </Box>
+
+            {/* Sticky Overlay Button */}
+            {isSticky && (
+                <Box sx={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 100,
+                    bgcolor: 'background.default',
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    boxShadow: 4
+                }}>
+                    <Container maxWidth="xl">
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            py: 2,
+                        }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="large"
+                                onClick={handleSave}
+                                disabled={saveMutation.isPending}
+                            >
+                                {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
+                            </Button>
+                        </Box>
+                    </Container>
+                </Box>
+            )}
 
             <Snackbar
                 open={!!message}
