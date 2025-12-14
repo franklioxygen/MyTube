@@ -2,6 +2,14 @@
 
 
 
+## v1.5.10 (2025-12-14)
+
+### Refactor
+- refactor: Update merge output format handling (98694d5)
+
+### Style
+- style: Remove unused onSave function and related logic (59a890a)
+
 ## v1.5.9 (2025-12-14)
 
 ### Feat
