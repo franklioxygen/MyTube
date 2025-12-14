@@ -2,7 +2,7 @@
 
 
 
-## v1.5.10 (2025-12-14)
+## v1.5.11 (2025-12-14)
 
 ### Refactor
 - refactor: Update merge output format handling (98694d5)
@@ -10,10 +10,12 @@
 ### Style
 - style: Remove unused onSave function and related logic (59a890a)
 
-## v1.5.9 (2025-12-14)
+## v1.5.10 (2025-12-14)
 
 ### Feat
 - feat: Add discriminated union types for download errors (4df83c9)
+
+## v1.5.9 (2025-12-14)
 
 ### Test
 - test: Add mock for storageService.checkVideoDownloadBySourceId (358c04b)
