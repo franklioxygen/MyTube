@@ -2,6 +2,14 @@
 
 
 
+## v1.5.9 (2025-12-14)
+
+### Feat
+- feat: Add discriminated union types for download errors (4df83c9)
+
+### Test
+- test: Add mock for storageService.checkVideoDownloadBySourceId (358c04b)
+
 ## v1.5.8 (2025-12-13)
 
 ### Feat
