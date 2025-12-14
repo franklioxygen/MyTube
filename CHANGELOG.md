@@ -2,6 +2,11 @@
 
 
 
+## v1.5.12 (2025-12-14)
+
+### Refactor
+- refactor: Update yt-dlp installation and fix cookies usage (5aff222)
+
 ## v1.5.11 (2025-12-14)
 
 ### Refactor
