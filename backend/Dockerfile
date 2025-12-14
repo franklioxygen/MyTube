@@ -34,8 +34,8 @@ RUN apk add --no-cache \
     py3-pip && \
     ln -sf python3 /usr/bin/python
 
-# Install yt-dlp and bgutil-ytdlp-pot-provider
-RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider --break-system-packages
+# Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
+RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs --break-system-packages
 
 # Environment variables
 ENV NODE_ENV=production

@@ -1,7 +1,21 @@
 import { spawn } from "child_process";
+import fs from "fs-extra";
+import path from "path";
+import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+
+/**
+ * Get cookies file path if it exists
+ */
+function getCookiesPath(): string | null {
+  if (fs.existsSync(COOKIES_PATH)) {
+    return COOKIES_PATH;
+  }
+  return null;
+}
 
 /**
  * Convert camelCase flag names to kebab-case CLI arguments
@@ -97,12 +111,20 @@ export async function executeYtDlpJson(
   url: string,
   flags: Record<string, any> = {}
 ): Promise<any> {
-  const args = [
-    "--dump-single-json",
-    "--no-warnings",
-    ...flagsToArgs(flags),
-    url,
-  ];
+  const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
+
+  // Add cookies if file exists
+  const cookiesPath = getCookiesPath();
+  if (cookiesPath) {
+    args.push("--cookies", cookiesPath);
+  }
+
+  // Add Node.js runtime for YouTube n challenge solving
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    args.push("--js-runtime", "node");
+  }
+
+  args.push(url);
 
   console.log(`Executing: ${YT_DLP_PATH} ${args.join(" ")}`);
 
@@ -169,7 +191,20 @@ export function executeYtDlpSpawn(
     onRejected?: (reason: any) => void | Promise<void>
   ) => Promise<void>;
 } {
-  const args = [...flagsToArgs(flags), url];
+  const args = [...flagsToArgs(flags)];
+
+  // Add cookies if file exists
+  const cookiesPath = getCookiesPath();
+  if (cookiesPath) {
+    args.push("--cookies", cookiesPath);
+  }
+
+  // Add Node.js runtime for YouTube n challenge solving
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    args.push("--js-runtime", "node");
+  }
+
+  args.push(url);
 
   console.log(`Spawning: ${YT_DLP_PATH} ${args.join(" ")}`);
 
@@ -319,9 +354,13 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
 
       // If proxy is restricted to YouTube only, and we have a non-YouTube URL
       if (proxyOnlyYoutube && url) {
-        const isYoutube = url.includes("youtube.com") || url.includes("youtu.be");
+        const isYoutube =
+          url.includes("youtube.com") || url.includes("youtu.be");
         if (!isYoutube) {
-          console.log("Proxy restricted to YouTube only. Removing proxy settings for:", url);
+          console.log(
+            "Proxy restricted to YouTube only. Removing proxy settings for:",
+            url
+          );
           // Remove proxy-related settings
           delete parsedConfig.proxy;
           // Also remove potentially related network options if they are usually proxy-specific?
