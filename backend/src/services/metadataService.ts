@@ -2,16 +2,26 @@ import { exec } from 'child_process';
 import { eq } from 'drizzle-orm';
 import fs from 'fs-extra';
 import path from 'path';
+import {
+  ExecutionError,
+  FileError,
+} from '../errors/DownloadErrors';
 import { VIDEOS_DIR } from '../config/paths';
 import { db } from '../db';
 import { videos } from '../db/schema';
 
 export const getVideoDuration = async (filePath: string): Promise<number | null> => {
     try {
+        // Check if file exists first
+        if (!fs.existsSync(filePath)) {
+            throw FileError.notFound(filePath);
+        }
+
+        const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
         const duration = await new Promise<string>((resolve, reject) => {
-            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, (error, stdout, _stderr) => {
+            exec(command, (error, stdout, stderr) => {
                 if (error) {
-                    reject(error);
+                    reject(ExecutionError.fromCommand(command, error, error.code || undefined));
                 } else {
                     resolve(stdout.trim());
                 }
@@ -26,6 +36,11 @@ export const getVideoDuration = async (filePath: string): Promise<number | null>
         }
         return null;
     } catch (error) {
+        // Re-throw our custom errors
+        if (error instanceof FileError || error instanceof ExecutionError) {
+            throw error;
+        }
+        // Wrap unknown errors
         console.error(`Error getting duration for ${filePath}:`, error);
         return null;
     }

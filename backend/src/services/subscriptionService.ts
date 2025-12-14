@@ -3,6 +3,7 @@ import cron, { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { subscriptions } from "../db/schema";
+import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import { extractBilibiliMid, isBilibiliSpaceUrl } from "../utils/helpers";
 import {
   downloadSingleBilibiliPart,
@@ -48,7 +49,7 @@ export class SubscriptionService {
       // Extract mid from the space URL
       const mid = extractBilibiliMid(authorUrl);
       if (!mid) {
-        throw new Error("Invalid Bilibili space URL");
+        throw ValidationError.invalidBilibiliSpaceUrl(authorUrl);
       }
 
       // Try to get author name from Bilibili API
@@ -76,9 +77,7 @@ export class SubscriptionService {
         }
       }
     } else {
-      throw new Error(
-        "Invalid URL. Only YouTube channel URLs and Bilibili space URLs are supported."
-      );
+      throw ValidationError.unsupportedPlatform(authorUrl);
     }
 
     // Check if already subscribed
@@ -87,7 +86,7 @@ export class SubscriptionService {
       .from(subscriptions)
       .where(eq(subscriptions.authorUrl, authorUrl));
     if (existing.length > 0) {
-      throw new Error("Subscription already exists");
+      throw DuplicateError.subscription();
     }
 
     // We skip heavy getVideoInfo here to ensure fast response.

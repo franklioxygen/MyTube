@@ -1,6 +1,6 @@
-
 import fs from "fs-extra";
 import path from "path";
+import { FileError } from "../errors/DownloadErrors";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "./storageService";
 
@@ -132,6 +132,10 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
 
             } catch (err) {
                 console.error(`Failed to move subtitle ${sub.filename}:`, err);
+                // If it's a FileError, log it but continue
+                if (err instanceof FileError) {
+                    console.error(`File error: ${err.message}`, err.filePath);
+                }
                 newSubtitles.push(sub); // Keep original on error
                 errorCount++;
             }

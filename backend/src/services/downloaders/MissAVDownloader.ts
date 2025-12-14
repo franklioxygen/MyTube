@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
   calculateDownloadedSize,
   cleanupTemporaryFiles,
@@ -59,7 +60,7 @@ export class MissAVDownloader {
       console.error("Error fetching MissAV video info:", error);
       const urlObj = new URL(url);
       const author = urlObj.hostname.replace("www.", "");
-      
+
       return {
         title: "MissAV Video",
         author: author,
@@ -388,7 +389,7 @@ export class MissAVDownloader {
         if (isCancellationError(err)) {
           console.log("Download was cancelled");
           cleanupTemporaryFiles(newVideoPath);
-          throw new Error("Download cancelled by user");
+          throw DownloadCancelledError.create();
         }
         console.error("yt-dlp execution failed:", err);
         throw err;
@@ -398,7 +399,7 @@ export class MissAVDownloader {
       if (!isDownloadActive(downloadId)) {
         console.log("Download was cancelled (no longer in active downloads)");
         cleanupTemporaryFiles(newVideoPath);
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       // 7. Download and save the thumbnail

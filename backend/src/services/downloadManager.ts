@@ -1,3 +1,7 @@
+import {
+  DownloadCancelledError,
+  isCancelledError,
+} from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
@@ -33,7 +37,9 @@ class DownloadManager {
       const settings = storageService.getSettings();
       if (settings.maxConcurrentDownloads) {
         this.maxConcurrentDownloads = settings.maxConcurrentDownloads;
-        console.log(`Loaded maxConcurrentDownloads from database: ${this.maxConcurrentDownloads}`);
+        console.log(
+          `Loaded maxConcurrentDownloads from database: ${this.maxConcurrentDownloads}`
+        );
       }
     } catch (error) {
       console.error("Error loading settings in DownloadManager:", error);
@@ -52,11 +58,11 @@ class DownloadManager {
 
       if (queuedDownloads && queuedDownloads.length > 0) {
         console.log(`Restoring ${queuedDownloads.length} queued downloads...`);
-        
+
         for (const download of queuedDownloads) {
           if (download.sourceUrl && download.type) {
             console.log(`Restoring task: ${download.title} (${download.id})`);
-            
+
             // Reconstruct the download function
             const downloadFn = createDownloadTask(
               download.type,
@@ -68,23 +74,27 @@ class DownloadManager {
             // We need to manually construct the task and push to queue
             // We can't use addDownload because it returns a promise that we can't easily attach to
             // But for restored tasks, we don't have a client waiting for the promise anyway.
-            
+
             const task: DownloadTask = {
               downloadFn,
               id: download.id,
               title: download.title,
               sourceUrl: download.sourceUrl,
               type: download.type,
-              resolve: (val) => console.log(`Restored task ${download.id} completed`, val),
-              reject: (err) => console.error(`Restored task ${download.id} failed`, err),
+              resolve: (val) =>
+                console.log(`Restored task ${download.id} completed`, val),
+              reject: (err) =>
+                console.error(`Restored task ${download.id} failed`, err),
             };
 
             this.queue.push(task);
           } else {
-            console.warn(`Skipping restoration of task ${download.id} due to missing sourceUrl or type`);
+            console.warn(
+              `Skipping restoration of task ${download.id} due to missing sourceUrl or type`
+            );
           }
         }
-        
+
         // Trigger processing
         this.processQueue();
       }
@@ -144,7 +154,7 @@ class DownloadManager {
     if (task) {
       console.log(`Cancelling active download: ${task.title} (${id})`);
       task.cancelled = true;
-      
+
       // Call the cancel function if available
       if (task.cancelFn) {
         try {
@@ -153,33 +163,33 @@ class DownloadManager {
           console.error(`Error calling cancel function for ${id}:`, error);
         }
       }
-      
+
       // Explicitly remove from database and clean up state
       // This ensures cleanup happens even if cancelFn doesn't properly reject
       storageService.removeActiveDownload(id);
-      
+
       // Add to history as cancelled/failed
       storageService.addDownloadHistoryItem({
         id: task.id,
         title: task.title,
         finishedAt: Date.now(),
-        status: 'failed',
-        error: 'Download cancelled by user',
+        status: "failed",
+        error: "Download cancelled by user",
         sourceUrl: task.sourceUrl,
       });
-      
+
       // Clean up internal state
       this.activeTasks.delete(id);
       this.activeDownloads--;
-      
+
       // Reject the promise
-      task.reject(new Error('Download cancelled by user'));
-      
+      task.reject(DownloadCancelledError.create());
+
       // Process next item in queue
       this.processQueue();
     } else {
       // Check if it's in the queue and remove it
-      const inQueue = this.queue.some(t => t.id === id);
+      const inQueue = this.queue.some((t) => t.id === id);
       if (inQueue) {
         console.log(`Removing queued download: ${id}`);
         this.removeFromQueue(id);
@@ -192,7 +202,7 @@ class DownloadManager {
    * @param id - ID of the download to remove
    */
   removeFromQueue(id: string): void {
-    this.queue = this.queue.filter(task => task.id !== id);
+    this.queue = this.queue.filter((task) => task.id !== id);
     this.updateQueuedDownloads();
   }
 
@@ -208,7 +218,7 @@ class DownloadManager {
    * Update the queued downloads in storage
    */
   private updateQueuedDownloads(): void {
-    const queuedDownloads = this.queue.map(task => ({
+    const queuedDownloads = this.queue.map((task) => ({
       id: task.id,
       title: task.title,
       timestamp: Date.now(),
@@ -240,10 +250,10 @@ class DownloadManager {
     storageService.addActiveDownload(task.id, task.title);
     // Update with extra info if available
     if (task.sourceUrl || task.type) {
-        storageService.updateActiveDownload(task.id, {
-            sourceUrl: task.sourceUrl,
-            type: task.type
-        });
+      storageService.updateActiveDownload(task.id, {
+        sourceUrl: task.sourceUrl,
+        type: task.type,
+      });
     }
 
     try {
@@ -254,21 +264,28 @@ class DownloadManager {
 
       // Download complete
       storageService.removeActiveDownload(task.id);
-      
+
       // Extract video data from result
       // videoController returns { success: true, video: ... }
       // But some downloaders might return the video object directly or different structure
       const videoData = result.video || result;
 
-      console.log(`Download finished for ${task.title}. Result title: ${videoData.title}`);
+      console.log(
+        `Download finished for ${task.title}. Result title: ${videoData.title}`
+      );
 
       // Determine best title
       let finalTitle = videoData.title;
-      const genericTitles = ["YouTube Video", "Bilibili Video", "MissAV Video", "Video"];
+      const genericTitles = [
+        "YouTube Video",
+        "Bilibili Video",
+        "MissAV Video",
+        "Video",
+      ];
       if (!finalTitle || genericTitles.includes(finalTitle)) {
-          if (task.title && !genericTitles.includes(task.title)) {
-              finalTitle = task.title;
-          }
+        if (task.title && !genericTitles.includes(task.title)) {
+          finalTitle = task.title;
+        }
       }
 
       // Add to history
@@ -277,7 +294,7 @@ class DownloadManager {
           id: task.id,
           title: finalTitle || task.title,
           finishedAt: Date.now(),
-          status: 'success',
+          status: "success",
           videoPath: videoData.videoPath,
           thumbnailPath: videoData.thumbnailPath,
           sourceUrl: videoData.sourceUrl || task.sourceUrl,
@@ -288,10 +305,12 @@ class DownloadManager {
         // Record video download for future duplicate detection
         const sourceUrl = videoData.sourceUrl || task.sourceUrl;
         if (sourceUrl && videoData.id) {
-          const { id: sourceVideoId, platform } = extractSourceVideoId(sourceUrl);
+          const { id: sourceVideoId, platform } =
+            extractSourceVideoId(sourceUrl);
           if (sourceVideoId) {
             // Check if this is a re-download of previously deleted video
-            const existingRecord = storageService.checkVideoDownloadBySourceId(sourceVideoId);
+            const existingRecord =
+              storageService.checkVideoDownloadBySourceId(sourceVideoId);
             if (existingRecord.found && existingRecord.status === "deleted") {
               // Update existing record
               storageService.updateVideoDownloadRecord(
@@ -322,23 +341,28 @@ class DownloadManager {
       CloudStorageService.uploadVideo({
         ...videoData,
         title: finalTitle || task.title,
-        sourceUrl: task.sourceUrl
-      }).catch(err => console.error("Background cloud upload failed:", err));
+        sourceUrl: task.sourceUrl,
+      }).catch((err) => console.error("Background cloud upload failed:", err));
 
       task.resolve(result);
     } catch (error) {
-      console.error(`Error downloading ${task.title}:`, error);
+      // Check if this is a cancellation - handle differently
+      if (isCancelledError(error)) {
+        console.log(`Download cancelled: ${task.title}`);
+      } else {
+        console.error(`Error downloading ${task.title}:`, error);
+      }
 
       // Download failed
       storageService.removeActiveDownload(task.id);
 
-      // Add to history
+      // Add to history (unless already added by cancelDownload)
       if (!task.cancelled) {
         storageService.addDownloadHistoryItem({
           id: task.id,
           title: task.title,
           finishedAt: Date.now(),
-          status: 'failed',
+          status: "failed",
           error: error instanceof Error ? error.message : String(error),
           sourceUrl: task.sourceUrl,
         });

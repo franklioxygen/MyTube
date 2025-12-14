@@ -5,6 +5,10 @@
 import fs from "fs-extra";
 import path from "path";
 import { VIDEOS_DIR } from "../config/paths";
+import {
+  DownloadCancelledError,
+  isAnyCancellationError,
+} from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 
 /**
@@ -20,36 +24,24 @@ export function isDownloadActive(downloadId?: string): boolean {
 }
 
 /**
- * Check if download was cancelled and throw error if so
+ * Check if download was cancelled and throw DownloadCancelledError if so
  * @param downloadId - The download ID to check
- * @param message - Optional custom error message
- * @throws Error if download was cancelled
+ * @throws DownloadCancelledError if download was cancelled
  */
-export function throwIfCancelled(
-  downloadId?: string,
-  message: string = "Download cancelled by user"
-): void {
+export function throwIfCancelled(downloadId?: string): void {
   if (!isDownloadActive(downloadId)) {
-    throw new Error(message);
+    throw DownloadCancelledError.create();
   }
 }
 
 /**
  * Check if an error is a cancellation error
+ * Uses the centralized check from DownloadErrors
  * @param error - The error to check
  * @returns true if the error indicates cancellation
  */
-export function isCancellationError(error: any): boolean {
-  if (!error) return false;
-
-  return (
-    error.code === 143 ||
-    error.message?.includes("killed") ||
-    error.message?.includes("SIGTERM") ||
-    error.code === "SIGTERM" ||
-    error.message?.includes("Download cancelled by user") ||
-    error.message?.includes("cancelled")
-  );
+export function isCancellationError(error: unknown): boolean {
+  return isAnyCancellationError(error);
 }
 
 /**

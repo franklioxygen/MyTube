@@ -1,6 +1,10 @@
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
+import {
+  FileError,
+  NetworkError,
+} from '../errors/DownloadErrors';
 import { getSettings } from './storageService';
 
 interface CloudDriveConfig {
@@ -50,6 +54,7 @@ export class CloudStorageService {
             await this.uploadFile(absoluteVideoPath, config);
         } else {
             console.error(`[CloudStorage] Video file not found: ${videoData.videoPath}`);
+            // Don't throw - continue with other files
         }
       }
 
@@ -153,16 +158,23 @@ export class CloudStorageService {
         });
         console.log(`[CloudStorage] Successfully uploaded ${fileName}`);
     } catch (error: any) {
-        // Try POST if PUT fails, some APIs might differ
-        console.warn(`[CloudStorage] PUT failed, trying POST... Error: ${error.message}`);
-        try {
-             // For POST, we might need FormData, but let's try raw body first or check if it's a specific API.
-             // If it's Alist/WebDAV, PUT is standard.
-             // If it's a custom API, it might expect FormData.
-             // Let's stick to PUT for now as it's common for "Save to Cloud" generic interfaces.
-             throw error; 
-        } catch (retryError) {
-            throw retryError;
+        // Determine if it's a network error or file error
+        if (error.response) {
+            // HTTP error response
+            const statusCode = error.response.status;
+            throw NetworkError.withStatus(
+                `Upload failed: ${error.message}`,
+                statusCode
+            );
+        } else if (error.request) {
+            // Request made but no response (network issue)
+            throw NetworkError.timeout();
+        } else if (error.code === 'ENOENT') {
+            // File not found
+            throw FileError.notFound(filePath);
+        } else {
+            // Other file/system errors
+            throw FileError.writeError(filePath, error.message);
         }
     }
   }

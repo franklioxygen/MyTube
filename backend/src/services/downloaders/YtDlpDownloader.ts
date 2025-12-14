@@ -2,6 +2,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
   calculateDownloadedSize,
   cleanupPartialVideoFiles,
@@ -488,7 +489,7 @@ export class YtDlpDownloader {
           console.log("Download was cancelled");
           cleanupPartialVideoFiles(newVideoPath);
           cleanupSubtitleFiles(newSafeBaseFilename);
-          throw new Error("Download cancelled by user");
+          throw DownloadCancelledError.create();
         }
 
         // Check if error is subtitle-related and video file exists
@@ -525,7 +526,7 @@ export class YtDlpDownloader {
         console.log("Download was cancelled (no longer in active downloads)");
         cleanupPartialVideoFiles(newVideoPath);
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       console.log("Video downloaded successfully");
@@ -536,7 +537,7 @@ export class YtDlpDownloader {
           "Download was cancelled, skipping thumbnail and subtitle processing"
         );
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       // Download and save the thumbnail
@@ -574,7 +575,7 @@ export class YtDlpDownloader {
       if (!isDownloadActive(downloadId)) {
         console.log("Download was cancelled, skipping subtitle processing");
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       // Scan for subtitle files
@@ -594,7 +595,7 @@ export class YtDlpDownloader {
           if (!isDownloadActive(downloadId)) {
             console.log("Download was cancelled during subtitle processing");
             cleanupSubtitleFiles(baseFilename);
-            throw new Error("Download cancelled by user");
+            throw DownloadCancelledError.create();
           }
 
           // Parse language from filename (e.g., video_123.en.vtt -> en)

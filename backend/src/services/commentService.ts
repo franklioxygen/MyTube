@@ -1,3 +1,4 @@
+import { NotFoundError } from "../errors/DownloadErrors";
 import { executeYtDlpJson } from "../utils/ytDlpUtils";
 import * as storageService from "./storageService";
 
@@ -14,7 +15,7 @@ export const getComments = async (videoId: string): Promise<Comment[]> => {
   try {
     const video = storageService.getVideoById(videoId);
     if (!video) {
-      throw new Error("Video not found");
+      throw NotFoundError.video(videoId);
     }
 
     // Use yt-dlp for both Bilibili and YouTube as it's more reliable

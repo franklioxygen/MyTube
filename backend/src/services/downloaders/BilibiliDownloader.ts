@@ -2,6 +2,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
     calculateDownloadedSize,
@@ -487,7 +488,7 @@ export class BilibiliDownloader {
           if (fs.existsSync(tempDir)) {
             fs.removeSync(tempDir);
           }
-          throw new Error("Download cancelled by user");
+          throw DownloadCancelledError.create();
         }
         // Only log as error if it's not an expected subtitle-related issue
         const stderrMsg = error.stderr || "";
@@ -508,7 +509,7 @@ export class BilibiliDownloader {
         if (fs.existsSync(tempDir)) {
           fs.removeSync(tempDir);
         }
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       console.log("Download completed, checking for video file");
@@ -935,7 +936,7 @@ export class BilibiliDownloader {
       // Check if download was cancelled before processing files
       if (!isDownloadActive(downloadId)) {
         console.log("Download was cancelled, skipping file processing");
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       if (fs.existsSync(videoPath)) {
@@ -947,7 +948,7 @@ export class BilibiliDownloader {
         // Check again if download was cancelled (might have been cancelled during downloadVideo)
         if (!isDownloadActive(downloadId)) {
           console.log("Download was cancelled, video file not created");
-          throw new Error("Download cancelled by user");
+          throw DownloadCancelledError.create();
         }
         throw new Error("Video file not found after download");
       }
@@ -986,7 +987,7 @@ export class BilibiliDownloader {
       // Check if download was cancelled before downloading subtitles
       if (!isDownloadActive(downloadId)) {
         console.log("Download was cancelled, skipping subtitle download");
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       // Download subtitles
@@ -1026,7 +1027,7 @@ export class BilibiliDownloader {
         } catch (cleanupError) {
           console.error("Error cleaning up files:", cleanupError);
         }
-        throw new Error("Download cancelled by user");
+        throw DownloadCancelledError.create();
       }
 
       // Create metadata for the video
