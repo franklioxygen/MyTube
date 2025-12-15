@@ -112,7 +112,45 @@ export class SubscriptionService {
   }
 
   async unsubscribe(id: string): Promise<void> {
-    await db.delete(subscriptions).where(eq(subscriptions.id, id));
+    // Verify subscription exists before deletion
+    const existing = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      logger.warn(`Attempted to unsubscribe non-existent subscription: ${id}`);
+      return; // Subscription doesn't exist, consider it already deleted
+    }
+
+    const subscription = existing[0];
+    logger.info(
+      `Unsubscribing from ${subscription.author} (${subscription.platform}) - ID: ${id}`
+    );
+
+    // Delete the subscription
+    const result = await db
+      .delete(subscriptions)
+      .where(eq(subscriptions.id, id));
+
+    // Verify deletion succeeded
+    const verifyDeleted = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+
+    if (verifyDeleted.length > 0) {
+      logger.error(
+        `Failed to delete subscription ${id} - still exists in database`
+      );
+      throw new Error(`Failed to delete subscription ${id}`);
+    }
+
+    logger.info(
+      `Successfully unsubscribed from ${subscription.author} (${subscription.platform})`
+    );
   }
 
   async listSubscriptions(): Promise<Subscription[]> {
@@ -126,6 +164,20 @@ export class SubscriptionService {
     const allSubs = await this.listSubscriptions();
 
     for (const sub of allSubs) {
+      // Verify subscription still exists (in case it was deleted during processing)
+      const stillExists = await db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.id, sub.id))
+        .limit(1);
+
+      if (stillExists.length === 0) {
+        logger.debug(
+          `Skipping deleted subscription: ${sub.id} (${sub.author})`
+        );
+        continue; // Subscription was deleted, skip it
+      }
+
       const now = Date.now();
       const lastCheck = sub.lastCheck || 0;
       const intervalMs = sub.interval * 60 * 1000;
