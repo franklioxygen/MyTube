@@ -1323,24 +1323,13 @@ export class BilibiliDownloader extends BaseDownloader {
   ): Promise<Array<{ language: string; filename: string; path: string }>> {
     try {
       const videoId = extractBilibiliVideoId(videoUrl);
-      if (!videoId) {
-        logger.warn(`Could not extract video ID from URL: ${videoUrl}`);
-        return [];
-      }
-
-      logger.info(
-        `Starting subtitle download for video ID: ${videoId}, baseFilename: ${baseFilename}`
-      );
+      if (!videoId) return [];
 
       const cookieHeader = BilibiliDownloader.getCookieHeader();
       if (!cookieHeader) {
         logger.warn(
           "WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login."
         );
-      } else {
-        logger.info(`Cookie header length: ${cookieHeader.length}`);
-        // Log first few chars to verify it's not empty/malformed
-        logger.info(`Cookie header start: ${cookieHeader.substring(0, 20)}...`);
       }
 
       const headers = {
@@ -1350,9 +1339,8 @@ export class BilibiliDownloader extends BaseDownloader {
         ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       };
 
-      // Get CID first (matching v1.5.14 approach)
+      // Get CID first
       const viewApiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
-      logger.info(`Fetching video info from: ${viewApiUrl}`);
       let viewResponse;
       try {
         viewResponse = await axios.get(viewApiUrl, { headers });
@@ -1368,22 +1356,27 @@ export class BilibiliDownloader extends BaseDownloader {
         return [];
       }
 
-      // Get subtitles from player API first (matching v1.5.14 approach - player API has actual URLs)
+      // Get subtitles from player API first (player API has actual URLs)
       const playerApiUrl = `https://api.bilibili.com/x/player/wbi/v2?bvid=${videoId}&cid=${cid}`;
       logger.info(`Fetching subtitles from: ${playerApiUrl}`);
       let playerResponse;
-      let subtitlesData;
-
       try {
         playerResponse = await axios.get(playerApiUrl, { headers });
-        subtitlesData = playerResponse.data?.data?.subtitle?.subtitles;
       } catch (playerError: any) {
         logger.warn(`Player API failed: ${playerError.message}`);
-        subtitlesData = null;
+        // Continue to check view API fallback
+        playerResponse = null;
       }
 
+      if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
+        logger.warn(
+          "WARNING: SESSDATA cookie not found! This is required for Bilibili authentication."
+        );
+      }
+
+      let subtitlesData = playerResponse?.data?.data?.subtitle?.subtitles;
+
       // Fallback: Check if subtitles are in the view response (sometimes they are)
-      // This matches v1.5.14 behavior
       if (!subtitlesData || subtitlesData.length === 0) {
         logger.info(
           "No subtitles in player API, checking view API response..."
@@ -1395,70 +1388,16 @@ export class BilibiliDownloader extends BaseDownloader {
         }
       }
 
-      logger.debug(
-        `View API subtitle structure: ${JSON.stringify({
-          hasSubtitle: !!viewResponse.data?.data?.subtitle,
-          subtitleType: typeof viewResponse.data?.data?.subtitle,
-          hasList: !!viewResponse.data?.data?.subtitle?.list,
-          hasSubtitles: !!viewResponse.data?.data?.subtitle?.subtitles,
-          listType: Array.isArray(viewResponse.data?.data?.subtitle?.list)
-            ? "array"
-            : typeof viewResponse.data?.data?.subtitle?.list,
-          listLength: Array.isArray(viewResponse.data?.data?.subtitle?.list)
-            ? viewResponse.data?.data?.subtitle?.list.length
-            : "N/A",
-          subtitlesLength: Array.isArray(
-            viewResponse.data?.data?.subtitle?.subtitles
-          )
-            ? viewResponse.data?.data?.subtitle?.subtitles.length
-            : "N/A",
-        })}`
-      );
-
-      // Log the full subtitle object structure for debugging
-      if (viewResponse.data?.data?.subtitle) {
-        logger.debug(
-          `Full subtitle object keys: ${Object.keys(
-            viewResponse.data.data.subtitle
-          ).join(", ")}`
-        );
-      }
-
-      if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
-        logger.warn(
-          "WARNING: SESSDATA cookie not found! This is required for Bilibili authentication."
-        );
-      }
-
       if (!subtitlesData) {
-        logger.warn("No subtitle field in response data");
-        logger.debug(
-          `Full subtitle object: ${JSON.stringify(
-            viewResponse.data?.data?.subtitle || {}
-          )}`
-        );
+        logger.info("No subtitle field in response data");
       } else if (!Array.isArray(subtitlesData)) {
-        logger.warn(
-          `Subtitles field is not an array, type: ${typeof subtitlesData}`
-        );
-        logger.debug(`Subtitles data: ${JSON.stringify(subtitlesData)}`);
+        logger.info("Subtitles field is not an array");
       } else {
-        logger.info(`Found ${subtitlesData.length} subtitles in API response`);
-        logger.debug(
-          `Subtitle languages: ${subtitlesData
-            .map((s: any) => s.lan || s.language || "unknown")
-            .join(", ")}`
-        );
+        logger.info(`Found ${subtitlesData.length} subtitles`);
       }
 
-      if (
-        !subtitlesData ||
-        !Array.isArray(subtitlesData) ||
-        subtitlesData.length === 0
-      ) {
-        logger.warn(
-          "No subtitles found in API response or subtitles array is empty"
-        );
+      if (!subtitlesData || !Array.isArray(subtitlesData)) {
+        logger.info("No subtitles found in API response");
         return [];
       }
 
@@ -1472,18 +1411,13 @@ export class BilibiliDownloader extends BaseDownloader {
         const lang = sub.lan;
         const subUrl = sub.subtitle_url;
 
-        // Skip subtitles without URL (matching v1.5.14 behavior)
-        if (!subUrl) {
-          logger.debug(`Skipping subtitle ${lang} - no URL`);
-          continue;
-        }
+        // Skip subtitles without URL
+        if (!subUrl) continue;
 
         // Ensure URL is absolute (sometimes it starts with //)
         const absoluteSubUrl = subUrl.startsWith("//")
           ? `https:${subUrl}`
-          : subUrl.startsWith("http")
-          ? subUrl
-          : `https:${subUrl}`;
+          : subUrl;
 
         logger.info(`Downloading subtitle (${lang}): ${absoluteSubUrl}`);
 
@@ -1494,45 +1428,32 @@ export class BilibiliDownloader extends BaseDownloader {
           Referer: headers["Referer"],
         };
 
-        let subResponse;
         try {
-          subResponse = await axios.get(absoluteSubUrl, {
+          const subResponse = await axios.get(absoluteSubUrl, {
             headers: cdnHeaders,
-            timeout: 10000, // 10 second timeout
           });
+          const vttContent = bccToVtt(subResponse.data);
+
+          if (vttContent) {
+            const subFilename = `${baseFilename}.${lang}.vtt`;
+            const subPath = path.join(SUBTITLES_DIR, subFilename);
+
+            fs.writeFileSync(subPath, vttContent);
+            logger.info(`Saved subtitle file: ${subPath}`);
+
+            savedSubtitles.push({
+              language: lang,
+              filename: subFilename,
+              path: `/subtitles/${subFilename}`,
+            });
+          } else {
+            logger.warn(`Failed to convert subtitle to VTT format for ${lang}`);
+          }
         } catch (subError: any) {
           logger.error(
-            `Failed to download subtitle file from ${absoluteSubUrl}: ${subError.message}`
+            `Failed to download subtitle (${lang}): ${subError.message}`
           );
-          if (subError.response) {
-            logger.error(
-              `Subtitle CDN response status: ${subError.response.status}`
-            );
-          }
           continue;
-        }
-
-        if (!subResponse.data) {
-          logger.warn(`Subtitle file from ${absoluteSubUrl} returned no data`);
-          continue;
-        }
-
-        const vttContent = bccToVtt(subResponse.data);
-
-        if (vttContent) {
-          const subFilename = `${baseFilename}.${lang}.vtt`;
-          const subPath = path.join(SUBTITLES_DIR, subFilename);
-
-          fs.writeFileSync(subPath, vttContent);
-          logger.info(`Saved subtitle file: ${subPath}`);
-
-          savedSubtitles.push({
-            language: lang,
-            filename: subFilename,
-            path: `/subtitles/${subFilename}`,
-          });
-        } else {
-          logger.warn(`Failed to convert subtitle to VTT format for ${lang}`);
         }
       }
 
