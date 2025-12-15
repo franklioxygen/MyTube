@@ -54,7 +54,8 @@ const SettingsPage: React.FC = () => {
         ytDlpConfig: '',
         showYoutubeSearch: true,
         proxyOnlyYoutube: false,
-        moveSubtitlesToVideoFolder: false
+        moveSubtitlesToVideoFolder: false,
+        moveThumbnailsToVideoFolder: false
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -409,6 +410,8 @@ const SettingsPage: React.FC = () => {
                                 isSaving={isSaving}
                                 moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
                                 onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
+                                moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
+                                onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
                             />
                         </Grid>
 

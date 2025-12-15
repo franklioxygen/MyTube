@@ -459,4 +459,8 @@ export const en = {
     moveSubtitlesToVideoFolderOn: 'With video together',
     moveSubtitlesToVideoFolderOff: 'In isolated subtitle folder',
     moveSubtitlesToVideoFolderDescription: 'When enabled, subtitle files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated subtitle folder.',
+    moveThumbnailsToVideoFolder: 'Thumbnail Location',
+    moveThumbnailsToVideoFolderOn: 'With video together',
+    moveThumbnailsToVideoFolderOff: 'In isolated images folder',
+    moveThumbnailsToVideoFolderDescription: 'When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.',
 };

@@ -30,6 +30,7 @@ interface Settings {
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
+  moveThumbnailsToVideoFolder?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -197,6 +198,16 @@ export const updateSettings = async (req: Request, res: Response) => {
          const { moveAllSubtitles } = await import("../services/subtitleService");
          moveAllSubtitles(newSettings.moveSubtitlesToVideoFolder)
            .catch(err => console.error("Error moving subtitles in background:", err));
+      }
+    }
+
+    // Check for moveThumbnailsToVideoFolder change
+    if (newSettings.moveThumbnailsToVideoFolder !== existingSettings.moveThumbnailsToVideoFolder) {
+      if (newSettings.moveThumbnailsToVideoFolder !== undefined) {
+         // Run asynchronously
+         const { moveAllThumbnails } = await import("../services/thumbnailService");
+         moveAllThumbnails(newSettings.moveThumbnailsToVideoFolder)
+           .catch(err => console.error("Error moving thumbnails in background:", err));
       }
     }
 

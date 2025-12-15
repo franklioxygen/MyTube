@@ -9,6 +9,8 @@ interface DatabaseSettingsProps {
     isSaving: boolean;
     moveSubtitlesToVideoFolder: boolean;
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
+    moveThumbnailsToVideoFolder: boolean;
+    onMoveThumbnailsToVideoFolderChange: (checked: boolean) => void;
 }
 
 const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
@@ -17,7 +19,9 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onFormatFilenames,
     isSaving,
     moveSubtitlesToVideoFolder,
-    onMoveSubtitlesToVideoFolderChange
+    onMoveSubtitlesToVideoFolderChange,
+    moveThumbnailsToVideoFolder,
+    onMoveThumbnailsToVideoFolderChange
 }) => {
     const { t } = useLanguage();
 
@@ -80,6 +84,23 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 />
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {t('moveSubtitlesToVideoFolderDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>{t('moveThumbnailsToVideoFolder')}</Typography>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={moveThumbnailsToVideoFolder}
+                            onChange={(e) => onMoveThumbnailsToVideoFolderChange(e.target.checked)}
+                            disabled={isSaving}
+                        />
+                    }
+                    label={moveThumbnailsToVideoFolder ? t('moveThumbnailsToVideoFolderOn') : t('moveThumbnailsToVideoFolderOff')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {t('moveThumbnailsToVideoFolderDescription')}
                 </Typography>
             </Box>
         </Box>

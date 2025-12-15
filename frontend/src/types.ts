@@ -75,4 +75,5 @@ export interface Settings {
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
+  moveThumbnailsToVideoFolder?: boolean;
 }

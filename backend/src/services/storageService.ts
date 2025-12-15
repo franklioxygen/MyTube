@@ -1492,16 +1492,38 @@ export function addVideoToCollection(
       }
 
       if (video.thumbnailFilename) {
-        const currentImagePath = findImageFile(video.thumbnailFilename);
-        const targetImagePath = path.join(
-          IMAGES_DIR,
-          collectionName,
-          video.thumbnailFilename
-        );
+        // Find existing file using path from DB if possible, or fallback to search
+        let currentImagePath = "";
+        if (video.thumbnailPath) {
+             if (video.thumbnailPath.startsWith("/videos/")) {
+                 currentImagePath = path.join(VIDEOS_DIR, video.thumbnailPath.replace(/^\/videos\//, ""));
+             } else if (video.thumbnailPath.startsWith("/images/")) {
+                 currentImagePath = path.join(IMAGES_DIR, video.thumbnailPath.replace(/^\/images\//, ""));
+             }
+        }
+        
+        if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+             currentImagePath = findImageFile(video.thumbnailFilename) || "";
+        }
+
+        // Determine target
+        const settings = getSettings();
+        const moveWithVideo = settings.moveThumbnailsToVideoFolder;
+        
+        let targetImagePath = "";
+        let newWebPath = "";
+
+        if (moveWithVideo) {
+            targetImagePath = path.join(VIDEOS_DIR, collectionName, video.thumbnailFilename);
+            newWebPath = `/videos/${collectionName}/${video.thumbnailFilename}`;
+        } else {
+            targetImagePath = path.join(IMAGES_DIR, collectionName, video.thumbnailFilename);
+            newWebPath = `/images/${collectionName}/${video.thumbnailFilename}`;
+        }
 
         if (currentImagePath && currentImagePath !== targetImagePath) {
           moveFile(currentImagePath, targetImagePath);
-          updates.thumbnailPath = `/images/${collectionName}/${video.thumbnailFilename}`;
+          updates.thumbnailPath = newWebPath;
           updated = true;
         }
       }
@@ -1619,15 +1641,40 @@ export function removeVideoFromCollection(
       }
 
       if (video.thumbnailFilename) {
-        const currentImagePath = findImageFile(video.thumbnailFilename);
-        const targetImagePath = path.join(
-          targetImageDir,
-          video.thumbnailFilename
-        );
+        // Find existing file using path from DB if possible
+        let currentImagePath = "";
+        if (video.thumbnailPath) {
+             if (video.thumbnailPath.startsWith("/videos/")) {
+                 currentImagePath = path.join(VIDEOS_DIR, video.thumbnailPath.replace(/^\/videos\//, ""));
+             } else if (video.thumbnailPath.startsWith("/images/")) {
+                 currentImagePath = path.join(IMAGES_DIR, video.thumbnailPath.replace(/^\/images\//, ""));
+             }
+        }
+        
+        if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+             currentImagePath = findImageFile(video.thumbnailFilename) || "";
+        }
+
+        // Determine target
+        const settings = getSettings();
+        const moveWithVideo = settings.moveThumbnailsToVideoFolder;
+
+        let targetImagePath = "";
+        let newWebPath = "";
+
+        if (moveWithVideo) {
+             // Target is same as video target
+             targetImagePath = path.join(targetVideoDir, video.thumbnailFilename);
+             newWebPath = `${videoPathPrefix}/${video.thumbnailFilename}`;
+        } else {
+             // Target is image dir (root or other collection)
+             targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+             newWebPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
+        }
 
         if (currentImagePath && currentImagePath !== targetImagePath) {
           moveFile(currentImagePath, targetImagePath);
-          updates.thumbnailPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
+          updates.thumbnailPath = newWebPath;
           updated = true;
         }
       }
