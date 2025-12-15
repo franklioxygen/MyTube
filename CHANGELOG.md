@@ -1,6 +1,11 @@
 # Change Log
 
 
+## v1.6.3 (2025-12-15)
+
+### Fix
+- fix: Fix pipeline test error
+
 ## v1.6.2 (2025-12-15)
 
 ### Fix
