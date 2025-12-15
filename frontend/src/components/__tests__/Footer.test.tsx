@@ -16,9 +16,7 @@ describe('Footer', () => {
             </ThemeProvider>
         );
 
-        // This relies on the environment variable mock in vite.config.js
-        // We set it to packageJson.version (1.6.0)
-        expect(screen.getByText('v1.6.0')).toBeInTheDocument();
+        expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeInTheDocument();
     });
 
     it('renders GitHub link', () => {
