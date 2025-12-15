@@ -1225,10 +1225,40 @@ export function deleteVideo(id: string): boolean {
     // Remove subtitle files
     if (videoToDelete.subtitles && videoToDelete.subtitles.length > 0) {
       for (const subtitle of videoToDelete.subtitles) {
-        const subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
-        if (fs.existsSync(subtitlePath)) {
-          fs.unlinkSync(subtitlePath);
-          console.log(`Deleted subtitle file: ${subtitle.filename}`);
+        let subtitlePath: string | null = null;
+        
+        // Determine the actual file path based on subtitle.path
+        if (subtitle.path) {
+          if (subtitle.path.startsWith("/videos/")) {
+            // Subtitle is stored alongside video file
+            subtitlePath = path.join(VIDEOS_DIR, subtitle.path.replace(/^\/videos\//, ""));
+          } else if (subtitle.path.startsWith("/subtitles/")) {
+            // Subtitle is in subtitles directory (may be in collection subdirectory)
+            subtitlePath = path.join(UPLOADS_DIR, subtitle.path.replace(/^\//, ""));
+          }
+        }
+        
+        // Fallback: try to find by filename if path-based lookup fails
+        if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+          // Try root subtitles directory
+          subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
+          if (!fs.existsSync(subtitlePath)) {
+            // Try alongside video file
+            if (videoToDelete.videoFilename) {
+              const videoDir = path.dirname(findVideoFile(videoToDelete.videoFilename) || "");
+              subtitlePath = path.join(videoDir, subtitle.filename);
+            }
+          }
+        }
+        
+        // Delete the subtitle file if it exists
+        if (subtitlePath && fs.existsSync(subtitlePath)) {
+          try {
+            fs.unlinkSync(subtitlePath);
+            console.log(`Deleted subtitle file: ${subtitlePath}`);
+          } catch (error) {
+            console.error(`Error deleting subtitle file ${subtitlePath}:`, error);
+          }
         }
       }
     }

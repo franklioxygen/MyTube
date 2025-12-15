@@ -32,11 +32,26 @@ export class Logger {
   }
 
   /**
+   * Format timestamp for log messages
+   */
+  private formatTimestamp(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
+    const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+  }
+
+  /**
    * Log debug messages (most verbose)
    */
   debug(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.DEBUG) {
-      console.debug(`[DEBUG] ${message}`, ...args);
+      console.debug(`[${this.formatTimestamp()}] [DEBUG] ${message}`, ...args);
     }
   }
 
@@ -45,7 +60,7 @@ export class Logger {
    */
   info(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.INFO) {
-      console.log(`[INFO] ${message}`, ...args);
+      console.log(`[${this.formatTimestamp()}] [INFO] ${message}`, ...args);
     }
   }
 
@@ -54,7 +69,7 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.WARN) {
-      console.warn(`[WARN] ${message}`, ...args);
+      console.warn(`[${this.formatTimestamp()}] [WARN] ${message}`, ...args);
     }
   }
 
@@ -66,12 +81,13 @@ export class Logger {
    */
   error(message: string, error?: Error | unknown, ...args: any[]): void {
     if (this.level <= LogLevel.ERROR) {
+      const timestamp = this.formatTimestamp();
       if (error instanceof Error) {
-        console.error(`[ERROR] ${message}`, error, ...args);
+        console.error(`[${timestamp}] [ERROR] ${message}`, error, ...args);
       } else if (error !== undefined) {
-        console.error(`[ERROR] ${message}`, error, ...args);
+        console.error(`[${timestamp}] [ERROR] ${message}`, error, ...args);
       } else {
-        console.error(`[ERROR] ${message}`, ...args);
+        console.error(`[${timestamp}] [ERROR] ${message}`, ...args);
       }
     }
   }
@@ -104,4 +120,3 @@ function getLogLevelFromEnv(): LogLevel {
  * Use this throughout the application for consistent logging
  */
 export const logger = new Logger(getLogLevelFromEnv());
-
