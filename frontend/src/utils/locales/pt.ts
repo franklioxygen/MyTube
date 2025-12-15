@@ -463,4 +463,8 @@ export const pt = {
   moveSubtitlesToVideoFolderOn: 'Junto com o vídeo',
   moveSubtitlesToVideoFolderOff: 'Na pasta de legendas isolada',
   moveSubtitlesToVideoFolderDescription: 'Quando ativado, os arquivos de legenda serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de legendas isolada.',
+  moveThumbnailsToVideoFolder: 'Localização da miniatura',
+  moveThumbnailsToVideoFolderOn: 'Junto com o vídeo',
+  moveThumbnailsToVideoFolderOff: 'Em pasta de imagens isolada',
+  moveThumbnailsToVideoFolderDescription: 'Quando ativado, os arquivos de miniatura serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de imagens isolada.',
 };

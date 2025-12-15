@@ -447,5 +447,9 @@ export const zh = {
   moveSubtitlesToVideoFolder: '字幕位置',
   moveSubtitlesToVideoFolderOn: '与视频在同一文件夹',
   moveSubtitlesToVideoFolderOff: '在独立字幕文件夹',
-  moveSubtitlesToVideoFolderDescription: '启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立字幕文件夹。',
+  moveSubtitlesToVideoFolderDescription: '启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的字幕文件夹中。',
+  moveThumbnailsToVideoFolder: '封面位置',
+  moveThumbnailsToVideoFolderOn: '与视频在一起',
+  moveThumbnailsToVideoFolderOff: '在独立的图片文件夹中',
+  moveThumbnailsToVideoFolderDescription: '启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。',
 };

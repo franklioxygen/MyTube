@@ -9,7 +9,7 @@ const Footer = () => {
         <Box
             component="footer"
             sx={{
-                py: 3,
+                py: 2,
                 px: 2,
                 mt: 'auto',
                 backgroundColor: theme.palette.mode === 'light'
@@ -26,20 +26,19 @@ const Footer = () => {
                             href="https://github.com/franklioxygen/MyTube"
                             target="_blank"
                             rel="noopener noreferrer"
-                            color="inherit"
+                            color="text.secondary"
                             underline="none"
-                            sx={{ display: 'flex', alignItems: 'center' }}
+                            variant="caption"
+                            sx={{ display: 'flex', alignItems: 'center', mr: 2 }}
                         >
-                            <GitHub sx={{ fontSize: 16, mr: 0.5 }} />
-                            <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-                                MyTube
-                            </Typography>
+                            <GitHub sx={{ fontSize: 'inherit', mr: 0.5 }} />
+                            MyTube
                         </Link>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary">
                             v{import.meta.env.VITE_APP_VERSION}
                         </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
                         Created by franklioxygen
                     </Typography>
                 </Box>

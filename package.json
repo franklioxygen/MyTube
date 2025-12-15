@@ -1,7 +1,7 @@
 {
   "name": "mytube",
   "version": "1.5.13",
-  "description": "YouTube video downloader and player application",
+  "description": "Multiple platform video downloader and player application",
   "main": "index.js",
   "scripts": {
     "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",

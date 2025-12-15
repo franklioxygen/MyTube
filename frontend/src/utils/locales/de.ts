@@ -431,4 +431,8 @@ export const de = {
   moveSubtitlesToVideoFolderOn: 'Zusammen mit Video',
   moveSubtitlesToVideoFolderOff: 'Im isolierten Untertitel-Ordner',
   moveSubtitlesToVideoFolderDescription: 'Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.',
+  moveThumbnailsToVideoFolder: 'Thumbnail-Speicherort',
+  moveThumbnailsToVideoFolderOn: 'Zusammen mit Video',
+  moveThumbnailsToVideoFolderOff: 'In isoliertem Bilderordner',
+  moveThumbnailsToVideoFolderDescription: 'Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.',
 };

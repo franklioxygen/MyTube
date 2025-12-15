@@ -457,5 +457,9 @@ export const ja = {
   moveSubtitlesToVideoFolder: '字幕の場所',
   moveSubtitlesToVideoFolderOn: '動画と同じ場所',
   moveSubtitlesToVideoFolderOff: '独立した字幕フォルダー',
-  moveSubtitlesToVideoFolderDescription: '有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動されます。無効にすると、独立した字幕フォルダーに移動されます。',
+  moveSubtitlesToVideoFolderDescription: '有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動します。無効にすると、独立した字幕フォルダーに移動します。',
+  moveThumbnailsToVideoFolder: 'サムネイルの場所',
+  moveThumbnailsToVideoFolderOn: '動画と一緒',
+  moveThumbnailsToVideoFolderOff: '独立した画像フォルダ',
+  moveThumbnailsToVideoFolderDescription: '有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。',
 };

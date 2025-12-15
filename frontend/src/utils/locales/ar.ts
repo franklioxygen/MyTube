@@ -256,6 +256,10 @@ export const ar = {
   moveSubtitlesToVideoFolderOn: 'مع الفيديو',
   moveSubtitlesToVideoFolderOff: 'في مجلد الترجمات المعزول',
   moveSubtitlesToVideoFolderDescription: 'عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.',
+  moveThumbnailsToVideoFolder: 'موقع الصور المصغرة',
+  moveThumbnailsToVideoFolderOn: 'مع الفيديو',
+  moveThumbnailsToVideoFolderOff: 'في مجلد صور معزول',
+  moveThumbnailsToVideoFolderDescription: 'عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.',
 
   // Snackbar Messages
   videoDownloading: "جاري تنزيل الفيديو",

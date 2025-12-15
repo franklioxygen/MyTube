@@ -2,6 +2,11 @@
 
 
 
+## v1.5.14 (2025-12-14)
+
+### Feat
+- feat: Add functionality to move thumbnails to video folder (dd94d80)
+
 ## v1.5.13 (2025-12-14)
 
 ### Refactor
