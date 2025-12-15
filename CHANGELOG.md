@@ -2,6 +2,11 @@
 
 
 
+## v1.5.13 (2025-12-14)
+
+### Refactor
+- refactor: Update default and YouTube video formats for compatibility (0444527)
+
 ## v1.5.12 (2025-12-14)
 
 ### Refactor
