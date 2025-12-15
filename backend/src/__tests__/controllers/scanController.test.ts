@@ -41,7 +41,10 @@ describe('ScanController', () => {
 
       expect(storageService.saveVideo).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ addedCount: 1 }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ addedCount: 1 })
+      }));
     });
 
     it('should handle errors', async () => {
@@ -49,9 +52,12 @@ describe('ScanController', () => {
         throw new Error('Error');
       });
 
-      await scanFiles(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(500);
+      try {
+        await scanFiles(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.message).toBe('Error');
+      }
     });
   });
 });

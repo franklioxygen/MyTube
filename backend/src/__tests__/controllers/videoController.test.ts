@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    checkBilibiliCollection,
+    checkBilibiliParts,
     deleteVideo,
     downloadVideo,
     getVideoById,
@@ -68,16 +70,26 @@ describe('VideoController', () => {
 
       expect(downloadService.searchYouTube).toHaveBeenCalledWith('test', 8, 1);
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ results: mockResults });
+      expect(json).toHaveBeenCalledWith({ success: true, data: { results: mockResults } });
     });
 
     it('should return 400 if query is missing', async () => {
       req.query = {};
 
-      await searchVideos(req as Request, res as Response);
+      req.query = {};
 
-      expect(status).toHaveBeenCalledWith(400);
-      expect(json).toHaveBeenCalledWith({ error: 'Search query is required' });
+      // Validation errors might return 400 or 500 depending on middleware config, but usually 400 is expected for validation
+      // But since we are catching validation error in test via try/catch in middleware in real app, here we are testing controller directly.
+      // Wait, searchVideos does not throw ValidationError for empty query, it explicitly returns 400?
+      // Let's check controller. It throws ValidationError. Middleware catches it.
+      // But in this unit test we are mocking req/res. We are NOT using middleware.
+      // So calling searchVideos will THROW.
+      try {
+        await searchVideos(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+         expect(error.name).toBe('ValidationError');
+      }
     });
   });
 
@@ -209,7 +221,7 @@ describe('VideoController', () => {
 
       expect(storageService.getVideos).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith(mockVideos);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockVideos });
     });
   });
 
@@ -223,16 +235,19 @@ describe('VideoController', () => {
 
       expect(storageService.getVideoById).toHaveBeenCalledWith('1');
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith(mockVideo);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockVideo });
     });
 
-    it('should return 404 if not found', () => {
+    it('should throw NotFoundError if not found', async () => {
       req.params = { id: '1' };
       (storageService.getVideoById as any).mockReturnValue(undefined);
 
-      getVideoById(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(404);
+      try {
+        await getVideoById(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+      }
     });
   });
 
@@ -247,13 +262,16 @@ describe('VideoController', () => {
       expect(status).toHaveBeenCalledWith(200);
     });
 
-    it('should return 404 if delete fails', () => {
+    it('should throw NotFoundError if delete fails', async () => {
       req.params = { id: '1' };
       (storageService.deleteVideo as any).mockReturnValue(false);
 
-      deleteVideo(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(404);
+      try {
+        await deleteVideo(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+      }
     });
   });
 
@@ -268,26 +286,32 @@ describe('VideoController', () => {
 
       expect(storageService.updateVideo).toHaveBeenCalledWith('1', { rating: 5 });
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, message: 'Video rated successfully', video: mockVideo });
+      expect(json).toHaveBeenCalledWith({ success: true, message: 'Video rated successfully', data: { video: mockVideo } });
     });
 
-    it('should return 400 for invalid rating', () => {
+    it('should throw ValidationError for invalid rating', async () => {
       req.params = { id: '1' };
       req.body = { rating: 6 };
 
-      rateVideo(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(400);
+      try {
+        await rateVideo(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+      }
     });
 
-    it('should return 404 if video not found', () => {
+    it('should throw NotFoundError if video not found', async () => {
       req.params = { id: '1' };
       req.body = { rating: 5 };
       (storageService.updateVideo as any).mockReturnValue(null);
 
-      rateVideo(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(404);
+      try {
+        await rateVideo(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+      }
     });
   });
 
@@ -315,24 +339,30 @@ describe('VideoController', () => {
       expect(status).toHaveBeenCalledWith(200);
     });
 
-    it('should return 404 if video not found', () => {
-      req.params = { id: '1' };
-      req.body = { title: 'New Title' };
-      (storageService.updateVideo as any).mockReturnValue(null);
+    it('should throw NotFoundError if video not found', async () => {
+        req.params = { id: '1' };
+        req.body = { title: 'New Title' };
+        (storageService.updateVideo as any).mockReturnValue(null);
 
-      updateVideoDetails(req as Request, res as Response);
+        try {
+          await updateVideoDetails(req as Request, res as Response);
+          expect.fail('Should have thrown');
+        } catch (error: any) {
+          expect(error.name).toBe('NotFoundError');
+        }
+      });
 
-      expect(status).toHaveBeenCalledWith(404);
-    });
+      it('should throw ValidationError if no valid updates', async () => {
+        req.params = { id: '1' };
+        req.body = { invalid: 'field' };
 
-    it('should return 400 if no valid updates', () => {
-      req.params = { id: '1' };
-      req.body = { invalid: 'field' };
-
-      updateVideoDetails(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(400);
-    });
+        try {
+          await updateVideoDetails(req as Request, res as Response);
+          expect.fail('Should have thrown');
+        } catch (error: any) {
+          expect(error.name).toBe('ValidationError');
+        }
+      });
   });
 
   describe('checkBilibiliParts', () => {
@@ -340,22 +370,30 @@ describe('VideoController', () => {
       req.query = { url: 'https://www.bilibili.com/video/BV1xx' };
       (downloadService.checkBilibiliVideoParts as any).mockResolvedValue({ success: true });
 
-      await import('../../controllers/videoController').then(m => m.checkBilibiliParts(req as Request, res as Response));
+      await checkBilibiliParts(req as Request, res as Response);
 
       expect(downloadService.checkBilibiliVideoParts).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
     });
 
-    it('should return 400 if url is missing', async () => {
+    it('should throw ValidationError if url is missing', async () => {
       req.query = {};
-      await import('../../controllers/videoController').then(m => m.checkBilibiliParts(req as Request, res as Response));
-      expect(status).toHaveBeenCalledWith(400);
+      try {
+        await checkBilibiliParts(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+      }
     });
 
-    it('should return 400 if url is invalid', async () => {
+    it('should throw ValidationError if url is invalid', async () => {
       req.query = { url: 'invalid' };
-      await import('../../controllers/videoController').then(m => m.checkBilibiliParts(req as Request, res as Response));
-      expect(status).toHaveBeenCalledWith(400);
+      try {
+        await checkBilibiliParts(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+      }
     });
   });
 
@@ -364,16 +402,20 @@ describe('VideoController', () => {
       req.query = { url: 'https://www.bilibili.com/video/BV1xx' };
       (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({ success: true });
 
-      await import('../../controllers/videoController').then(m => m.checkBilibiliCollection(req as Request, res as Response));
+      await checkBilibiliCollection(req as Request, res as Response);
 
       expect(downloadService.checkBilibiliCollectionOrSeries).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
     });
 
-    it('should return 400 if url is missing', async () => {
+    it('should throw ValidationError if url is missing', async () => {
       req.query = {};
-      await import('../../controllers/videoController').then(m => m.checkBilibiliCollection(req as Request, res as Response));
-      expect(status).toHaveBeenCalledWith(400);
+      try {
+        await checkBilibiliCollection(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+      }
     });
   });
 
@@ -388,7 +430,7 @@ describe('VideoController', () => {
       await import('../../controllers/videoController').then(m => m.getVideoComments(req as Request, res as Response));
 
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith([]);
+      expect(json).toHaveBeenCalledWith({ success: true, data: [] });
     });
   });
 

@@ -29,18 +29,20 @@ describe('CollectionController', () => {
 
       getCollections(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(mockCollections);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollections });
     });
 
-    it('should handle errors', () => {
+    it('should handle errors', async () => {
       (storageService.getCollections as any).mockImplementation(() => {
         throw new Error('Error');
       });
 
-      getCollections(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(500);
-      expect(json).toHaveBeenCalledWith({ success: false, error: 'Failed to get collections' });
+      try {
+        await getCollections(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.message).toBe('Error');
+      }
     });
   });
 
@@ -55,15 +57,22 @@ describe('CollectionController', () => {
       expect(status).toHaveBeenCalledWith(201);
       // The controller creates a new object, so we check partial match or just that it was called
       expect(storageService.saveCollection).toHaveBeenCalled();
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ title: 'New Col' }),
+        message: "Collection created" 
+      }));
     });
 
-    it('should return 400 if name is missing', () => {
+    it('should throw ValidationError if name is missing', async () => {
       req.body = {};
 
-      createCollection(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(400);
-      expect(json).toHaveBeenCalledWith({ success: false, error: 'Collection name is required' });
+      try {
+        await createCollection(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+      }
     });
 
     it('should add video if videoId provided', () => {
@@ -88,7 +97,7 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.atomicUpdateCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith(mockCollection);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
     });
 
     it('should add video', () => {
@@ -100,7 +109,7 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.addVideoToCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith(mockCollection);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
     });
 
     it('should remove video', () => {
@@ -112,17 +121,20 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.removeVideoFromCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith(mockCollection);
+      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
     });
 
-    it('should return 404 if collection not found', () => {
+    it('should throw NotFoundError if collection not found', async () => {
       req.params = { id: '1' };
       req.body = { name: 'Update' };
       (storageService.atomicUpdateCollection as any).mockReturnValue(null);
 
-      updateCollection(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(404);
+      try {
+        await updateCollection(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+      }
     });
   });
 
@@ -149,14 +161,17 @@ describe('CollectionController', () => {
       expect(json).toHaveBeenCalledWith({ success: true, message: 'Collection deleted successfully' });
     });
 
-    it('should return 404 if delete fails', () => {
+    it('should throw NotFoundError if delete fails', async () => {
       req.params = { id: '1' };
       req.query = {};
       (storageService.deleteCollectionWithFiles as any).mockReturnValue(false);
 
-      deleteCollection(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(404);
+      try {
+        await deleteCollection(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('NotFoundError');
+      }
     });
   });
 });

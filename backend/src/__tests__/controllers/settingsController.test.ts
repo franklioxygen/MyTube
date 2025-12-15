@@ -37,7 +37,7 @@ describe('SettingsController', () => {
 
       await getSettings(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: expect.objectContaining({ theme: 'dark' }) }));
     });
 
     it('should save defaults if empty', async () => {
@@ -95,7 +95,7 @@ describe('SettingsController', () => {
 
       await verifyPassword(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith({ success: true });
+      expect(json).toHaveBeenCalledWith({ success: true, data: { verified: true } });
     });
 
     it('should reject incorrect password', async () => {
@@ -103,9 +103,13 @@ describe('SettingsController', () => {
       (storageService.getSettings as any).mockReturnValue({ loginEnabled: true, password: 'hashed' });
       (bcrypt.compare as any).mockResolvedValue(false);
 
-      await verifyPassword(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(401);
+      try {
+        await verifyPassword(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        expect(error.name).toBe('ValidationError');
+        expect(error.message).toBe('Incorrect password');
+      }
     });
     });
 
@@ -123,9 +127,14 @@ describe('SettingsController', () => {
       const migrationService = await import('../../services/migrationService');
       (migrationService.runMigration as any).mockRejectedValue(new Error('Migration failed'));
 
-      await migrateData(req as Request, res as Response);
-
-      expect(status).toHaveBeenCalledWith(500);
+      try {
+        await migrateData(req as Request, res as Response);
+        expect.fail('Should have thrown');
+      } catch (error: any) {
+        // The controller does NOT catch generic errors, it relies on asyncHandler.
+        // So here it throws.
+        expect(error.message).toBe('Migration failed');
+      }
     });
   });
 
