@@ -3,14 +3,20 @@ import * as cleanupController from "../controllers/cleanupController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as scanController from "../controllers/scanController";
+import * as subscriptionController from "../controllers/subscriptionController";
 import * as videoController from "../controllers/videoController";
+import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 
 // Video routes
 router.get("/search", videoController.searchVideos);
 router.post("/download", videoController.downloadVideo);
-router.post("/upload", videoController.upload.single("video"), videoController.uploadVideo);
+router.post(
+  "/upload",
+  videoController.upload.single("video"),
+  videoController.uploadVideo
+);
 router.get("/videos", videoController.getVideos);
 router.get("/videos/:id", videoController.getVideoById);
 router.put("/videos/:id", videoController.updateVideoDetails);
@@ -27,14 +33,20 @@ router.post("/cleanup-temp-files", cleanupController.cleanupTempFiles);
 router.get("/download-status", videoController.getDownloadStatus);
 router.get("/check-video-download", videoController.checkVideoDownloadStatus);
 router.get("/check-bilibili-parts", videoController.checkBilibiliParts);
-router.get("/check-bilibili-collection", videoController.checkBilibiliCollection);
+router.get(
+  "/check-bilibili-collection",
+  videoController.checkBilibiliCollection
+);
 
 // Download management
 router.post("/downloads/cancel/:id", downloadController.cancelDownload);
 router.delete("/downloads/queue/:id", downloadController.removeFromQueue);
 router.delete("/downloads/queue", downloadController.clearQueue);
 router.get("/downloads/history", downloadController.getDownloadHistory);
-router.delete("/downloads/history/:id", downloadController.removeDownloadHistory);
+router.delete(
+  "/downloads/history/:id",
+  downloadController.removeDownloadHistory
+);
 router.delete("/downloads/history", downloadController.clearDownloadHistory);
 
 // Collection routes
@@ -44,9 +56,17 @@ router.put("/collections/:id", collectionController.updateCollection);
 router.delete("/collections/:id", collectionController.deleteCollection);
 
 // Subscription routes
-import * as subscriptionController from "../controllers/subscriptionController";
-router.post("/subscriptions", subscriptionController.createSubscription);
-router.get("/subscriptions", subscriptionController.getSubscriptions);
-router.delete("/subscriptions/:id", subscriptionController.deleteSubscription);
+router.post(
+  "/subscriptions",
+  asyncHandler(subscriptionController.createSubscription)
+);
+router.get(
+  "/subscriptions",
+  asyncHandler(subscriptionController.getSubscriptions)
+);
+router.delete(
+  "/subscriptions/:id",
+  asyncHandler(subscriptionController.deleteSubscription)
+);
 
 export default router;

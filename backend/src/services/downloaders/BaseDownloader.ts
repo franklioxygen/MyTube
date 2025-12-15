@@ -1,7 +1,13 @@
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
+import { DownloadCancelledError } from "../../errors/DownloadErrors";
+import {
+  isCancellationError,
+  isDownloadActive,
+} from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
+import { logger } from "../../utils/logger";
 import { Video } from "../storageService";
 
 export interface VideoInfo {
@@ -23,12 +29,17 @@ export interface DownloadOptions {
 export interface IDownloader {
   getVideoInfo(url: string): Promise<VideoInfo>;
   downloadVideo(url: string, options?: DownloadOptions): Promise<Video>;
+  search?(query: string, limit?: number, offset?: number): Promise<any[]>;
+  getLatestVideoUrl?(url: string): Promise<string | null>;
 }
 
 export abstract class BaseDownloader implements IDownloader {
   abstract getVideoInfo(url: string): Promise<VideoInfo>;
 
-  abstract downloadVideo(url: string, options?: DownloadOptions): Promise<Video>;
+  abstract downloadVideo(
+    url: string,
+    options?: DownloadOptions
+  ): Promise<Video>;
 
   /**
    * Common helper to download a thumbnail
@@ -38,7 +49,7 @@ export abstract class BaseDownloader implements IDownloader {
     savePath: string
   ): Promise<boolean> {
     try {
-      console.log("Downloading thumbnail from:", thumbnailUrl);
+      logger.info("Downloading thumbnail from:", thumbnailUrl);
 
       // Ensure directory exists
       fs.ensureDirSync(path.dirname(savePath));
@@ -54,16 +65,16 @@ export abstract class BaseDownloader implements IDownloader {
 
       return new Promise<boolean>((resolve, reject) => {
         writer.on("finish", () => {
-          console.log("Thumbnail saved to:", savePath);
+          logger.info("Thumbnail saved to:", savePath);
           resolve(true);
         });
         writer.on("error", (err) => {
-          console.error("Error writing thumbnail file:", err);
+          logger.error("Error writing thumbnail file:", err);
           reject(err);
         });
       });
     } catch (error) {
-      console.error("Error downloading thumbnail:", error);
+      logger.error("Error downloading thumbnail:", error);
       return false;
     }
   }
@@ -71,7 +82,44 @@ export abstract class BaseDownloader implements IDownloader {
   /**
    * Helper to format filename using the standard utility
    */
-  protected getSafeFilename(title: string, author: string, date: string): string {
+  protected getSafeFilename(
+    title: string,
+    author: string,
+    date: string
+  ): string {
     return formatVideoFilename(title, author, date);
+  }
+
+  /**
+   * Check if download was cancelled and throw if so
+   * Common cancellation check used across all downloaders
+   * @param downloadId - The download ID to check
+   * @throws DownloadCancelledError if download was cancelled
+   */
+  protected throwIfCancelled(downloadId?: string): void {
+    if (!isDownloadActive(downloadId)) {
+      logger.info("Download was cancelled (no longer in active downloads)");
+      throw DownloadCancelledError.create();
+    }
+  }
+
+  /**
+   * Handle cancellation errors consistently
+   * Checks if error is a cancellation error and throws DownloadCancelledError
+   * @param error - The error to check
+   * @param cleanupFn - Optional cleanup function to call before throwing
+   * @throws DownloadCancelledError if error is a cancellation error
+   */
+  protected handleCancellationError(
+    error: unknown,
+    cleanupFn?: () => void
+  ): void {
+    if (isCancellationError(error)) {
+      logger.info("Download was cancelled");
+      if (cleanupFn) {
+        cleanupFn();
+      }
+      throw DownloadCancelledError.create();
+    }
   }
 }

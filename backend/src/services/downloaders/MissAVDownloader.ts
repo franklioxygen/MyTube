@@ -1,18 +1,13 @@
-import axios from "axios";
 import * as cheerio from "cheerio";
 import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { DownloadCancelledError } from "../../errors/DownloadErrors";
-import {
-    calculateDownloadedSize,
-    cleanupTemporaryFiles,
-    isCancellationError,
-    isDownloadActive,
-} from "../../utils/downloadUtils";
+import { cleanupTemporaryFiles } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
+import { logger } from "../../utils/logger";
+import { ProgressTracker } from "../../utils/progressTracker";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -28,7 +23,7 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      console.log(`Fetching page content for ${url} with Puppeteer...`);
+      logger.info(`Fetching page content for ${url} with Puppeteer...`);
 
       const browser = await puppeteer.launch({
         headless: true,
@@ -58,7 +53,7 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailUrl: ogImage || null,
       };
     } catch (error) {
-      console.error("Error fetching MissAV video info:", error);
+      logger.error("Error fetching MissAV video info:", error);
       const urlObj = new URL(url);
       const author = urlObj.hostname.replace("www.", "");
 
@@ -86,7 +81,7 @@ export class MissAVDownloader extends BaseDownloader {
     downloadId?: string,
     onStart?: (cancel: () => void) => void
   ): Promise<Video> {
-    console.log("Detected MissAV/123av URL:", url);
+    logger.info("Detected MissAV/123av URL:", url);
 
     const timestamp = Date.now();
 
@@ -106,7 +101,7 @@ export class MissAVDownloader extends BaseDownloader {
     try {
       // 1. Extract m3u8 URL and metadata using Puppeteer
       // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
-      console.log("Launching Puppeteer to extract m3u8 URL...");
+      logger.info("Launching Puppeteer to extract m3u8 URL...");
 
       const browser = await puppeteer.launch({
         headless: true,
@@ -125,14 +120,14 @@ export class MissAVDownloader extends BaseDownloader {
       page.on("request", (request) => {
         const reqUrl = request.url();
         if (reqUrl.includes(".m3u8") && !reqUrl.includes("preview")) {
-          console.log("Found m3u8 URL via network interception:", reqUrl);
+          logger.info("Found m3u8 URL via network interception:", reqUrl);
           if (!m3u8Urls.includes(reqUrl)) {
             m3u8Urls.push(reqUrl);
           }
         }
       });
 
-      console.log("Navigating to:", url);
+      logger.info("Navigating to:", url);
       await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
       const html = await page.content();
@@ -150,7 +145,7 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailUrl = ogImage;
       }
 
-      console.log("Extracted metadata:", {
+      logger.info("Extracted metadata:", {
         title: videoTitle,
         thumbnail: thumbnailUrl,
       });
@@ -180,18 +175,18 @@ export class MissAVDownloader extends BaseDownloader {
         });
 
         m3u8Url = sortedUrls[0];
-        console.log(
+        logger.info(
           `Selected m3u8 URL from ${m3u8Urls.length} candidates:`,
           m3u8Url
         );
         if (sortedUrls.length > 1) {
-          console.log("Alternative URLs:", sortedUrls.slice(1));
+          logger.info("Alternative URLs:", sortedUrls.slice(1));
         }
       }
 
       // 4. If m3u8 URL was not found via network, try regex extraction as fallback
       if (!m3u8Url) {
-        console.log(
+        logger.info(
           "m3u8 URL not found via network, trying regex extraction..."
         );
 
@@ -215,7 +210,7 @@ export class MissAVDownloader extends BaseDownloader {
               .reverse()
               .join(".");
             const regexExtractedUrl = `${protocol}://${baseUrlPath}/${m3u8UrlPath}/${videoFormat}/${urlWords[videoIndex]}.m3u8`;
-            console.log("Reconstructed m3u8 URL via regex:", regexExtractedUrl);
+            logger.info("Reconstructed m3u8 URL via regex:", regexExtractedUrl);
 
             if (!m3u8Urls.includes(regexExtractedUrl)) {
               m3u8Urls.push(regexExtractedUrl);
@@ -228,7 +223,7 @@ export class MissAVDownloader extends BaseDownloader {
       if (!m3u8Url) {
         const debugFile = path.join(DATA_DIR, `missav_debug_${timestamp}.html`);
         fs.writeFileSync(debugFile, html);
-        console.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
+        logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
           "Could not find m3u8 URL in page source or network requests"
         );
@@ -247,9 +242,9 @@ export class MissAVDownloader extends BaseDownloader {
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
       // 6. Download the video using yt-dlp with the m3u8 URL
-      console.log("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
-      console.log("Downloading video to:", newVideoPath);
-      console.log("Download ID:", downloadId);
+      logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
+      logger.info("Downloading video to:", newVideoPath);
+      logger.info("Download ID:", downloadId);
 
       if (downloadId) {
         storageService.updateActiveDownload(downloadId, {
@@ -257,7 +252,7 @@ export class MissAVDownloader extends BaseDownloader {
           progress: 0,
         });
       } else {
-        console.warn(
+        logger.warn(
           "[MissAV] Warning: downloadId is not set, progress updates will not work!"
         );
       }
@@ -266,7 +261,7 @@ export class MissAVDownloader extends BaseDownloader {
       // Dynamically determine Referer based on the input URL domain
       const urlObj = new URL(url);
       const referer = `${urlObj.protocol}//${urlObj.host}/`;
-      console.log("Using Referer:", referer);
+      logger.info("Using Referer:", referer);
 
       const flags: any = {
         output: newVideoPath,
@@ -275,73 +270,21 @@ export class MissAVDownloader extends BaseDownloader {
         addHeader: [`Referer:${referer}`, `User-Agent:${userAgent}`],
       };
 
-      // Parse progress from stdout and stderr
+      // Use ProgressTracker for centralized progress parsing
+      const progressTracker = new ProgressTracker(downloadId);
       const parseProgress = (output: string, source: "stdout" | "stderr") => {
-        if (!downloadId) return;
-
         // Log raw output for debugging (only first few lines or if it contains progress)
         const lines = output.split("\n").filter((line) => line.trim());
         if (lines.length > 0 && lines[0].includes("[download]")) {
-          console.log(
+          logger.info(
             `[MissAV Progress ${source}]:`,
             lines[0].substring(0, 100)
           );
         }
-
-        // Try multiple regex patterns to match different yt-dlp output formats
-        let progressMatch = output.match(
-          /\[download\]\s+(\d+\.?\d*)%\s+of\s+~?\s*([\d\w.]+)\s+at\s+([\d\w.\/]+)/
-        );
-
-        if (!progressMatch) {
-          progressMatch = output.match(
-            /(\d+\.?\d*)%\s+of\s+~?\s*([\d\w.]+)\s+at\s+([\d\w.\/]+)/
-          );
-        }
-
-        if (!progressMatch) {
-          const segmentMatch = output.match(
-            /\[download\]\s+Downloading\s+segment\s+(\d+)\s+of\s+(\d+)/
-          );
-          if (segmentMatch && downloadId) {
-            const current = parseInt(segmentMatch[1]);
-            const total = parseInt(segmentMatch[2]);
-            const percentage = (current / total) * 100;
-
-            storageService.updateActiveDownload(downloadId, {
-              progress: percentage,
-            });
-            return;
-          }
-        }
-
-        if (progressMatch && progressMatch.length >= 4 && downloadId) {
-          const percentage = parseFloat(progressMatch[1]);
-          const totalSize = progressMatch[2] || "?";
-          const speed = progressMatch[3] || "0 B/s";
-
-          // Check if the original output had ~ prefix and add it back
-          const hasTilde =
-            output.includes(`of ~ ${totalSize}`) ||
-            output.includes(`of ~${totalSize}`);
-          const formattedTotalSize = hasTilde ? `~${totalSize}` : totalSize;
-
-          // Calculate downloadedSize from percentage and totalSize
-          const downloadedSize =
-            totalSize !== "?"
-              ? calculateDownloadedSize(percentage, formattedTotalSize)
-              : "0 B";
-
-          storageService.updateActiveDownload(downloadId, {
-            progress: percentage,
-            totalSize: formattedTotalSize,
-            downloadedSize: downloadedSize,
-            speed: speed,
-          });
-        }
+        progressTracker.parseAndUpdate(output);
       };
 
-      console.log("Starting yt-dlp process with spawn...");
+      logger.info("Starting yt-dlp process with spawn...");
 
       // Convert flags object to array of args
       const args = [
@@ -384,59 +327,44 @@ export class MissAVDownloader extends BaseDownloader {
 
           if (onStart) {
             onStart(() => {
-              console.log("Killing subprocess for download:", downloadId);
+              logger.info("Killing subprocess for download:", downloadId);
               child.kill();
 
               // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
-              console.log("Cleaning up temporary files...");
+              logger.info("Cleaning up temporary files...");
               cleanupTemporaryFiles(newVideoPath);
             });
           }
         });
 
-        console.log("Video downloaded successfully");
+        logger.info("Video downloaded successfully");
       } catch (err: any) {
-        if (isCancellationError(err)) {
-          console.log("Download was cancelled");
+        // Use base class helper for cancellation handling
+        const downloader = new MissAVDownloader();
+        downloader.handleCancellationError(err, () => {
           cleanupTemporaryFiles(newVideoPath);
-          throw DownloadCancelledError.create();
-        }
-        console.error("yt-dlp execution failed:", err);
+        });
+        logger.error("yt-dlp execution failed:", err);
         throw err;
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled (no longer in active downloads)");
+      const downloader = new MissAVDownloader();
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         cleanupTemporaryFiles(newVideoPath);
-        throw DownloadCancelledError.create();
+        throw error;
       }
 
       // 7. Download and save the thumbnail
       if (thumbnailUrl) {
-        try {
-          console.log("Downloading thumbnail from:", thumbnailUrl);
-          const thumbnailResponse = await axios({
-            method: "GET",
-            url: thumbnailUrl,
-            responseType: "stream",
-          });
-
-          const thumbnailWriter = fs.createWriteStream(newThumbnailPath);
-          thumbnailResponse.data.pipe(thumbnailWriter);
-
-          await new Promise<void>((resolve, reject) => {
-            thumbnailWriter.on("finish", () => {
-              thumbnailSaved = true;
-              resolve();
-            });
-            thumbnailWriter.on("error", reject);
-          });
-
-          console.log("Thumbnail saved to:", newThumbnailPath);
-        } catch (err) {
-          console.error("Error downloading thumbnail:", err);
-        }
+        // Use base class method via temporary instance
+        const downloader = new MissAVDownloader();
+        thumbnailSaved = await downloader.downloadThumbnail(
+          thumbnailUrl,
+          newThumbnailPath
+        );
       }
 
       // 8. Get video duration
@@ -450,7 +378,7 @@ export class MissAVDownloader extends BaseDownloader {
           duration = durationSec.toString();
         }
       } catch (e) {
-        console.error("Failed to extract duration from MissAV video:", e);
+        logger.error("Failed to extract duration from MissAV video:", e);
       }
 
       // 9. Get file size
@@ -461,7 +389,7 @@ export class MissAVDownloader extends BaseDownloader {
           fileSize = stats.size.toString();
         }
       } catch (e) {
-        console.error("Failed to get file size:", e);
+        logger.error("Failed to get file size:", e);
       }
 
       // 10. Save metadata
@@ -486,11 +414,11 @@ export class MissAVDownloader extends BaseDownloader {
       };
 
       storageService.saveVideo(videoData);
-      console.log("MissAV video saved to database");
+      logger.info("MissAV video saved to database");
 
       return videoData;
     } catch (error: any) {
-      console.error("Error in downloadMissAVVideo:", error);
+      logger.error("Error in downloadMissAVVideo:", error);
       // Cleanup
       const newSafeBaseFilename = formatVideoFilename(
         videoTitle,

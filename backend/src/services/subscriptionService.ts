@@ -5,6 +5,7 @@ import { db } from "../db";
 import { subscriptions } from "../db/schema";
 import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import { extractBilibiliMid, isBilibiliSpaceUrl } from "../utils/helpers";
+import { logger } from "../utils/logger";
 import {
   downloadSingleBilibiliPart,
   downloadYouTubeVideo,
@@ -57,7 +58,7 @@ export class SubscriptionService {
         const authorInfo = await BilibiliDownloader.getAuthorInfo(mid);
         authorName = authorInfo.name;
       } catch (error) {
-        console.error("Error fetching Bilibili author info:", error);
+        logger.error("Error fetching Bilibili author info:", error);
         // Use mid as fallback author name
         authorName = `Bilibili User ${mid}`;
       }

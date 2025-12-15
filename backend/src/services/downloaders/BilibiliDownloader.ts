@@ -4,22 +4,18 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import { bccToVtt } from "../../utils/bccToVtt";
+import { formatBytes } from "../../utils/downloadUtils";
 import {
-    calculateDownloadedSize,
-    formatBytes,
-    isCancellationError,
-    isDownloadActive,
-    parseSize,
-} from "../../utils/downloadUtils";
-import {
-    extractBilibiliVideoId,
-    formatVideoFilename,
+  extractBilibiliVideoId,
+  formatVideoFilename,
 } from "../../utils/helpers";
+import { logger } from "../../utils/logger";
+import { ProgressTracker } from "../../utils/progressTracker";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
@@ -105,10 +101,10 @@ export class BilibiliDownloader extends BaseDownloader {
           info.release_date ||
           new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: info.thumbnail || null,
-        description: info.description // Added description
+        description: info.description, // Added description
       };
     } catch (error) {
-      console.error("Error fetching Bilibili video info with yt-dlp:", error);
+      logger.error("Error fetching Bilibili video info with yt-dlp:", error);
       // Fallback to API
       try {
         const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
@@ -124,11 +120,11 @@ export class BilibiliDownloader extends BaseDownloader {
               .slice(0, 10)
               .replace(/-/g, ""),
             thumbnailUrl: videoInfo.pic || null,
-            description: videoInfo.desc
+            description: videoInfo.desc,
           };
         }
       } catch (apiError) {
-        console.error("Error fetching Bilibili video info from API:", apiError);
+        logger.error("Error fetching Bilibili video info from API:", apiError);
       }
       return {
         title: "Bilibili Video",
@@ -167,7 +163,7 @@ export class BilibiliDownloader extends BaseDownloader {
     try {
       // Use the card API which doesn't require WBI signing
       const apiUrl = `https://api.bilibili.com/x/web-interface/card?mid=${mid}`;
-      console.log("Fetching Bilibili author info from:", apiUrl);
+      logger.info("Fetching Bilibili author info from:", apiUrl);
 
       const response = await axios.get(apiUrl, {
         headers: {
@@ -187,7 +183,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       return { name: "Bilibili User", mid };
     } catch (error) {
-      console.error("Error fetching Bilibili author info:", error);
+      logger.error("Error fetching Bilibili author info:", error);
       return { name: "Bilibili User", mid };
     }
   }
@@ -195,21 +191,21 @@ export class BilibiliDownloader extends BaseDownloader {
   // Get the latest video URL from a Bilibili author's space
   static async getLatestVideoUrl(spaceUrl: string): Promise<string | null> {
     try {
-      console.log("Fetching latest video for Bilibili space:", spaceUrl);
+      logger.info("Fetching latest video for Bilibili space:", spaceUrl);
 
       // Extract mid from the space URL
       const { extractBilibiliMid } = await import("../../utils/helpers");
       const mid = extractBilibiliMid(spaceUrl);
 
       if (!mid) {
-        console.error(
+        logger.error(
           "Could not extract mid from Bilibili space URL:",
           spaceUrl
         );
         return null;
       }
 
-      console.log("Extracted mid:", mid);
+      logger.info("Extracted mid:", mid);
 
       // Get user config for network options (cookies, proxy, etc.)
       const userConfig = getUserYtDlpConfig(spaceUrl);
@@ -234,18 +230,18 @@ export class BilibiliDownloader extends BaseDownloader {
 
           if (bvid) {
             const videoUrl = `https://www.bilibili.com/video/${bvid}`;
-            console.log("Found latest Bilibili video:", videoUrl);
+            logger.info("Found latest Bilibili video:", videoUrl);
             return videoUrl;
           }
 
           // Fallback to url if id is not available
           if (latestVideo.url) {
-            console.log("Found latest Bilibili video:", latestVideo.url);
+            logger.info("Found latest Bilibili video:", latestVideo.url);
             return latestVideo.url;
           }
         }
       } catch (ytdlpError) {
-        console.error("yt-dlp failed, trying API fallback:", ytdlpError);
+        logger.error("yt-dlp failed, trying API fallback:", ytdlpError);
 
         // Fallback: Try the non-WBI API endpoint
         const apiUrl = `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=1&ps=1&order=pubdate`;
@@ -272,7 +268,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
             if (bvid) {
               const videoUrl = `https://www.bilibili.com/video/${bvid}`;
-              console.log(
+              logger.info(
                 "Found latest Bilibili video (API fallback):",
                 videoUrl
               );
@@ -282,10 +278,10 @@ export class BilibiliDownloader extends BaseDownloader {
         }
       }
 
-      console.log("No videos found for Bilibili space:", spaceUrl);
+      logger.info("No videos found for Bilibili space:", spaceUrl);
       return null;
     } catch (error) {
-      console.error("Error fetching latest Bilibili video:", error);
+      logger.error("Error fetching latest Bilibili video:", error);
       return null;
     }
   }
@@ -307,7 +303,7 @@ export class BilibiliDownloader extends BaseDownloader {
       // Create a unique temporary directory for the download
       fs.ensureDirSync(tempDir);
 
-      console.log("Downloading Bilibili video using yt-dlp to:", tempDir);
+      logger.info("Downloading Bilibili video using yt-dlp to:", tempDir);
 
       // Get user's yt-dlp configuration for network settings
       const userConfig = getUserYtDlpConfig(url);
@@ -340,7 +336,7 @@ export class BilibiliDownloader extends BaseDownloader {
       // If user specified a format, use it
       if (userConfig.f || userConfig.format) {
         downloadFormat = userConfig.f || userConfig.format;
-        console.log(
+        logger.info(
           "Using user-specified format for Bilibili:",
           downloadFormat
         );
@@ -352,7 +348,7 @@ export class BilibiliDownloader extends BaseDownloader {
       if (!formatSortValue && !(userConfig.f || userConfig.format)) {
         // If user hasn't specified format or format sort, prefer H.264 for compatibility
         formatSortValue = "vcodec:h264";
-        console.log(
+        logger.info(
           "Using default format sort for Safari compatibility:",
           formatSortValue
         );
@@ -377,7 +373,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       // Determine merge output format: use user's choice or default to mp4
       const mergeOutputFormat = userMergeOutputFormat || "mp4";
-      console.log(`Using merge output format: ${mergeOutputFormat}`);
+      logger.info(`Using merge output format: ${mergeOutputFormat}`);
 
       // Prepare flags for yt-dlp - merge user config with required settings
       const flags: Record<string, any> = {
@@ -398,10 +394,10 @@ export class BilibiliDownloader extends BaseDownloader {
       // Apply format sort (either user-specified or default H.264 preference)
       if (formatSortValue) {
         flags.formatSort = formatSortValue;
-        console.log("Using format sort for Bilibili:", formatSortValue);
+        logger.info("Using format sort for Bilibili:", formatSortValue);
       }
 
-      console.log("Final Bilibili yt-dlp flags:", flags);
+      logger.info("Final Bilibili yt-dlp flags:", flags);
 
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(url, flags);
@@ -409,83 +405,35 @@ export class BilibiliDownloader extends BaseDownloader {
       // Register cancel function if provided
       if (onStart) {
         onStart(() => {
-          console.log("Killing subprocess for download:", downloadId);
+          logger.info("Killing subprocess for download:", downloadId);
           subprocess.kill();
 
           // Clean up partial files
-          console.log("Cleaning up partial files...");
+          logger.info("Cleaning up partial files...");
           try {
             if (fs.existsSync(tempDir)) {
               fs.removeSync(tempDir);
-              console.log("Deleted temp directory:", tempDir);
+              logger.info("Deleted temp directory:", tempDir);
             }
             if (fs.existsSync(videoPath)) {
               fs.unlinkSync(videoPath);
-              console.log("Deleted partial video file:", videoPath);
+              logger.info("Deleted partial video file:", videoPath);
             }
             if (fs.existsSync(thumbnailPath)) {
               fs.unlinkSync(thumbnailPath);
-              console.log("Deleted partial thumbnail file:", thumbnailPath);
+              logger.info("Deleted partial thumbnail file:", thumbnailPath);
             }
           } catch (cleanupError) {
-            console.error("Error cleaning up partial files:", cleanupError);
+            logger.error("Error cleaning up partial files:", cleanupError);
           }
         });
       }
 
-      // Track progress from stdout
-      if (downloadId) {
-        subprocess.stdout?.on("data", (data: Buffer) => {
-          const output = data.toString();
-          // Parse progress: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
-          // Also try to match: [download] 55.8MiB of 123.45MiB at 5.67MiB/s ETA 00:12
-          const progressMatch = output.match(
-            /(\d+\.?\d*)%\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
-          );
-
-          // Try to match format with downloaded size explicitly shown
-          const progressWithSizeMatch = output.match(
-            /([~\d\w.]+)\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
-          );
-
-          if (progressMatch) {
-            const percentage = parseFloat(progressMatch[1]);
-            const totalSize = progressMatch[2];
-            const speed = progressMatch[3];
-
-            // Calculate downloadedSize from percentage and totalSize
-            const downloadedSize = calculateDownloadedSize(
-              percentage,
-              totalSize
-            );
-
-            storageService.updateActiveDownload(downloadId, {
-              progress: percentage,
-              totalSize: totalSize,
-              downloadedSize: downloadedSize,
-              speed: speed,
-            });
-          } else if (progressWithSizeMatch) {
-            // If we have explicit downloaded size in the output
-            const downloadedSize = progressWithSizeMatch[1];
-            const totalSize = progressWithSizeMatch[2];
-            const speed = progressWithSizeMatch[3];
-
-            // Calculate percentage from downloaded and total sizes
-            const downloadedBytes = parseSize(downloadedSize);
-            const totalBytes = parseSize(totalSize);
-            const percentage =
-              totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
-
-            storageService.updateActiveDownload(downloadId, {
-              progress: percentage,
-              totalSize: totalSize,
-              downloadedSize: downloadedSize,
-              speed: speed,
-            });
-          }
-        });
-      }
+      // Track progress from stdout using ProgressTracker
+      const progressTracker = new ProgressTracker(downloadId);
+      subprocess.stdout?.on("data", (data: Buffer) => {
+        progressTracker.parseAndUpdate(data.toString());
+      });
 
       // Capture stderr for better error reporting
       let stderrOutput = "";
@@ -509,7 +457,7 @@ export class BilibiliDownloader extends BaseDownloader {
           ) {
             continue;
           }
-          console.warn("yt-dlp stderr:", line);
+          logger.warn("yt-dlp stderr:", line);
         }
       });
 
@@ -519,40 +467,42 @@ export class BilibiliDownloader extends BaseDownloader {
         await subprocess;
       } catch (error: any) {
         downloadError = error;
-        if (isCancellationError(error)) {
-          console.log("Download was cancelled");
+        // Use base class helper for cancellation handling
+        const downloader = new BilibiliDownloader();
+        downloader.handleCancellationError(error, () => {
           if (fs.existsSync(tempDir)) {
             fs.removeSync(tempDir);
           }
-          throw DownloadCancelledError.create();
-        }
+        });
         // Only log as error if it's not an expected subtitle-related issue
         const stderrMsg = error.stderr || "";
         const isExpectedError =
           stderrMsg.includes("Subtitles are only available when logged in") ||
           stderrMsg.includes("Invalid data found when processing input");
         if (!isExpectedError) {
-          console.error("yt-dlp download failed:", error.message);
+          logger.error("yt-dlp download failed:", error.message);
           if (error.stderr) {
-            console.error("yt-dlp error output:", error.stderr);
+            logger.error("yt-dlp error output:", error.stderr);
           }
         }
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled (no longer in active downloads)");
+      const downloader = new BilibiliDownloader();
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         if (fs.existsSync(tempDir)) {
           fs.removeSync(tempDir);
         }
-        throw DownloadCancelledError.create();
+        throw error;
       }
 
-      console.log("Download completed, checking for video file");
+      logger.info("Download completed, checking for video file");
 
       // Find the downloaded file (try multiple extensions)
       const files = fs.readdirSync(tempDir);
-      console.log("Files in temp directory:", files);
+      logger.info("Files in temp directory:", files);
 
       const videoFile =
         files.find((file: string) => file.endsWith(".mp4")) ||
@@ -562,7 +512,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       if (!videoFile) {
         // List all files for debugging
-        console.error("No video file found. All files:", files);
+        logger.error("No video file found. All files:", files);
         const errorMsg = downloadError
           ? `Downloaded video file not found. yt-dlp error: ${
               downloadError.message
@@ -579,13 +529,13 @@ export class BilibiliDownloader extends BaseDownloader {
 
       // If there was an error but we found the file, log a warning but continue
       if (downloadError) {
-        console.warn(
+        logger.warn(
           "yt-dlp reported an error but file was downloaded successfully:",
           videoFile
         );
       }
 
-      console.log("Found video file:", videoFile);
+      logger.info("Found video file:", videoFile);
 
       // Get final file size for progress update
       const tempVideoPath = path.join(tempDir, videoFile);
@@ -603,7 +553,7 @@ export class BilibiliDownloader extends BaseDownloader {
       // Move the file to the desired location
       fs.moveSync(tempVideoPath, videoPath, { overwrite: true });
 
-      console.log("Moved video file to:", videoPath);
+      logger.info("Moved video file to:", videoPath);
 
       // Clean up temp directory
       fs.removeSync(tempDir);
@@ -611,33 +561,12 @@ export class BilibiliDownloader extends BaseDownloader {
       // Download thumbnail if available
       let thumbnailSaved = false;
       if (thumbnailUrl) {
-        try {
-          console.log("Downloading thumbnail from:", thumbnailUrl);
-
-          const thumbnailResponse = await axios({
-            method: "GET",
-            url: thumbnailUrl,
-            responseType: "stream",
-          });
-
-          const thumbnailWriter = fs.createWriteStream(thumbnailPath);
-          thumbnailResponse.data.pipe(thumbnailWriter);
-
-          await new Promise<void>((resolve, reject) => {
-            thumbnailWriter.on("finish", () => {
-              thumbnailSaved = true;
-              resolve();
-            });
-            thumbnailWriter.on("error", reject);
-          });
-
-          console.log("Thumbnail saved to:", thumbnailPath);
-        } catch (thumbnailError) {
-          console.error(
-            "Error downloading Bilibili thumbnail:",
-            thumbnailError
-          );
-        }
+        // Use base class method via temporary instance
+        const downloader = new BilibiliDownloader();
+        thumbnailSaved = await downloader.downloadThumbnail(
+          thumbnailUrl,
+          thumbnailPath
+        );
       }
 
       return {
@@ -649,7 +578,7 @@ export class BilibiliDownloader extends BaseDownloader {
         description,
       };
     } catch (error: any) {
-      console.error("Error in downloadBilibiliVideo:", error);
+      logger.error("Error in downloadBilibiliVideo:", error);
 
       // Make sure we clean up the temp directory if it exists
       if (fs.existsSync(tempDir)) {
@@ -675,7 +604,7 @@ export class BilibiliDownloader extends BaseDownloader {
     try {
       // Try to get video info from Bilibili API
       const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
-      console.log("Fetching video info from API to check parts:", apiUrl);
+      logger.info("Fetching video info from API to check parts:", apiUrl);
 
       const response = await axios.get(apiUrl);
 
@@ -683,7 +612,7 @@ export class BilibiliDownloader extends BaseDownloader {
         const videoInfo = response.data.data;
         const videosNumber = videoInfo.videos || 1;
 
-        console.log(`Bilibili video has ${videosNumber} parts`);
+        logger.info(`Bilibili video has ${videosNumber} parts`);
 
         return {
           success: true,
@@ -694,7 +623,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       return { success: false, videosNumber: 1 };
     } catch (error) {
-      console.error("Error checking Bilibili video parts:", error);
+      logger.error("Error checking Bilibili video parts:", error);
       return { success: false, videosNumber: 1 };
     }
   }
@@ -705,7 +634,7 @@ export class BilibiliDownloader extends BaseDownloader {
   ): Promise<BilibiliCollectionCheckResult> {
     try {
       const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
-      console.log("Checking if video belongs to collection/series:", apiUrl);
+      logger.info("Checking if video belongs to collection/series:", apiUrl);
 
       const response = await axios.get(apiUrl, {
         headers: {
@@ -722,7 +651,7 @@ export class BilibiliDownloader extends BaseDownloader {
         // Check for collection (ugc_season)
         if (videoInfo.ugc_season) {
           const season = videoInfo.ugc_season;
-          console.log(`Video belongs to collection: ${season.title}`);
+          logger.info(`Video belongs to collection: ${season.title}`);
           return {
             success: true,
             type: "collection",
@@ -739,7 +668,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       return { success: false, type: "none" };
     } catch (error) {
-      console.error("Error checking collection/series:", error);
+      logger.error("Error checking collection/series:", error);
       return { success: false, type: "none" };
     }
   }
@@ -755,7 +684,7 @@ export class BilibiliDownloader extends BaseDownloader {
       const pageSize = 30;
       let hasMore = true;
 
-      console.log(
+      logger.info(
         `Fetching collection videos for mid=${mid}, season_id=${seasonId}`
       );
 
@@ -769,7 +698,7 @@ export class BilibiliDownloader extends BaseDownloader {
           sort_reverse: false,
         };
 
-        console.log(`Fetching page ${pageNum} of collection...`);
+        logger.info(`Fetching page ${pageNum} of collection...`);
 
         const response = await axios.get(apiUrl, {
           params,
@@ -784,7 +713,7 @@ export class BilibiliDownloader extends BaseDownloader {
           const data = response.data.data;
           const archives = data.archives || [];
 
-          console.log(`Got ${archives.length} videos from page ${pageNum}`);
+          logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
           archives.forEach((video: any) => {
             allVideos.push({
@@ -803,10 +732,10 @@ export class BilibiliDownloader extends BaseDownloader {
         }
       }
 
-      console.log(`Total videos in collection: ${allVideos.length}`);
+      logger.info(`Total videos in collection: ${allVideos.length}`);
       return { success: true, videos: allVideos };
     } catch (error) {
-      console.error("Error fetching collection videos:", error);
+      logger.error("Error fetching collection videos:", error);
       return { success: false, videos: [] };
     }
   }
@@ -822,7 +751,7 @@ export class BilibiliDownloader extends BaseDownloader {
       const pageSize = 30;
       let hasMore = true;
 
-      console.log(
+      logger.info(
         `Fetching series videos for mid=${mid}, series_id=${seriesId}`
       );
 
@@ -835,7 +764,7 @@ export class BilibiliDownloader extends BaseDownloader {
           ps: pageSize,
         };
 
-        console.log(`Fetching page ${pageNum} of series...`);
+        logger.info(`Fetching page ${pageNum} of series...`);
 
         const response = await axios.get(apiUrl, {
           params,
@@ -850,7 +779,7 @@ export class BilibiliDownloader extends BaseDownloader {
           const data = response.data.data;
           const archives = data.archives || [];
 
-          console.log(`Got ${archives.length} videos from page ${pageNum}`);
+          logger.info(`Got ${archives.length} videos from page ${pageNum}`);
 
           archives.forEach((video: any) => {
             allVideos.push({
@@ -871,10 +800,10 @@ export class BilibiliDownloader extends BaseDownloader {
         }
       }
 
-      console.log(`Total videos in series: ${allVideos.length}`);
+      logger.info(`Total videos in series: ${allVideos.length}`);
       return { success: true, videos: allVideos };
     } catch (error) {
-      console.error("Error fetching series videos:", error);
+      logger.error("Error fetching series videos:", error);
       return { success: false, videos: [] };
     }
   }
@@ -889,7 +818,7 @@ export class BilibiliDownloader extends BaseDownloader {
     onStart?: (cancel: () => void) => void
   ): Promise<DownloadResult> {
     try {
-      console.log(
+      logger.info(
         `Downloading Bilibili part ${partNumber}/${totalParts}: ${url}`
       );
 
@@ -930,12 +859,8 @@ export class BilibiliDownloader extends BaseDownloader {
         );
       } catch (error: any) {
         // If download was cancelled, re-throw immediately without downloading subtitles or creating video data
-        if (isCancellationError(error)) {
-          console.log(
-            "Download was cancelled, skipping subtitle download and video creation"
-          );
-          throw error;
-        }
+        const downloader = new BilibiliDownloader();
+        downloader.handleCancellationError(error);
         throw error;
       }
 
@@ -943,7 +868,7 @@ export class BilibiliDownloader extends BaseDownloader {
         throw new Error("Failed to get Bilibili video info");
       }
 
-      console.log("Bilibili download info:", bilibiliInfo);
+      logger.info("Bilibili download info:", bilibiliInfo);
 
       // For multi-part videos, include the part number in the title
       videoTitle =
@@ -974,28 +899,31 @@ export class BilibiliDownloader extends BaseDownloader {
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
       // Check if download was cancelled before processing files
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled, skipping file processing");
-        throw DownloadCancelledError.create();
+      const downloader = new BilibiliDownloader();
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
+        throw error;
       }
 
       if (fs.existsSync(videoPath)) {
         fs.renameSync(videoPath, newVideoPath);
-        console.log("Renamed video file to:", newVideoFilename);
+        logger.info("Renamed video file to:", newVideoFilename);
         finalVideoFilename = newVideoFilename;
       } else {
-        console.log("Video file not found at:", videoPath);
+        logger.info("Video file not found at:", videoPath);
         // Check again if download was cancelled (might have been cancelled during downloadVideo)
-        if (!isDownloadActive(downloadId)) {
-          console.log("Download was cancelled, video file not created");
-          throw DownloadCancelledError.create();
+        try {
+          downloader.throwIfCancelled(downloadId);
+        } catch (error) {
+          throw error;
         }
         throw new Error("Video file not found after download");
       }
 
       if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
         fs.renameSync(thumbnailPath, newThumbnailPath);
-        console.log("Renamed thumbnail file to:", newThumbnailFilename);
+        logger.info("Renamed thumbnail file to:", newThumbnailFilename);
         finalThumbnailFilename = newThumbnailFilename;
       }
 
@@ -1010,7 +938,7 @@ export class BilibiliDownloader extends BaseDownloader {
           duration = durationSec.toString();
         }
       } catch (e) {
-        console.error("Failed to extract duration from Bilibili video:", e);
+        logger.error("Failed to extract duration from Bilibili video:", e);
       }
 
       // Get file size
@@ -1021,13 +949,14 @@ export class BilibiliDownloader extends BaseDownloader {
           fileSize = stats.size.toString();
         }
       } catch (e) {
-        console.error("Failed to get file size:", e);
+        logger.error("Failed to get file size:", e);
       }
 
       // Check if download was cancelled before downloading subtitles
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled, skipping subtitle download");
-        throw DownloadCancelledError.create();
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
+        throw error;
       }
 
       // Download subtitles
@@ -1037,35 +966,34 @@ export class BilibiliDownloader extends BaseDownloader {
         path: string;
       }> = [];
       try {
-        console.log("Attempting to download subtitles...");
+        logger.info("Attempting to download subtitles...");
         subtitles = await BilibiliDownloader.downloadSubtitles(
           url,
           newSafeBaseFilename
         );
-        console.log(`Downloaded ${subtitles.length} subtitles`);
+        logger.info(`Downloaded ${subtitles.length} subtitles`);
       } catch (e) {
         // If it's a cancellation error, re-throw it
-        if (isCancellationError(e)) {
-          throw e;
-        }
-        console.error("Error downloading subtitles:", e);
+        downloader.handleCancellationError(e);
+        logger.error("Error downloading subtitles:", e);
       }
 
       // Check if download was cancelled before creating video data
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled, skipping video data creation");
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         // Clean up any files that were created
         try {
           if (fs.existsSync(newVideoPath)) {
             fs.unlinkSync(newVideoPath);
-            console.log("Deleted video file:", newVideoPath);
+            logger.info("Deleted video file:", newVideoPath);
           }
           if (fs.existsSync(newThumbnailPath)) {
             fs.unlinkSync(newThumbnailPath);
-            console.log("Deleted thumbnail file:", newThumbnailPath);
+            logger.info("Deleted thumbnail file:", newThumbnailPath);
           }
         } catch (cleanupError) {
-          console.error("Error cleaning up files:", cleanupError);
+          logger.error("Error cleaning up files:", cleanupError);
         }
         throw DownloadCancelledError.create();
       }
@@ -1101,7 +1029,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       if (existingVideo) {
         // Update existing video with new subtitle information and file paths
-        console.log(
+        logger.info(
           "Video with same sourceUrl exists, updating subtitle information"
         );
 
@@ -1127,7 +1055,7 @@ export class BilibiliDownloader extends BaseDownloader {
         });
 
         if (updatedVideo) {
-          console.log(
+          logger.info(
             `Part ${partNumber}/${totalParts} updated in database with new subtitles`
           );
           return { success: true, videoData: updatedVideo };
@@ -1137,11 +1065,11 @@ export class BilibiliDownloader extends BaseDownloader {
       // Save the video (new video)
       storageService.saveVideo(videoData);
 
-      console.log(`Part ${partNumber}/${totalParts} added to database`);
+      logger.info(`Part ${partNumber}/${totalParts} added to database`);
 
       return { success: true, videoData };
     } catch (error: any) {
-      console.error(
+      logger.error(
         `Error downloading Bilibili part ${partNumber}/${totalParts}:`,
         error
       );
@@ -1158,7 +1086,7 @@ export class BilibiliDownloader extends BaseDownloader {
     try {
       const { type, id, mid, title, count } = collectionInfo;
 
-      console.log(`Starting download of ${type}: ${title} (${count} videos)`);
+      logger.info(`Starting download of ${type}: ${title} (${count} videos)`);
 
       // Add to active downloads
       if (downloadId) {
@@ -1183,7 +1111,7 @@ export class BilibiliDownloader extends BaseDownloader {
       }
 
       const videos = videosResult.videos;
-      console.log(`Found ${videos.length} videos to download`);
+      logger.info(`Found ${videos.length} videos to download`);
 
       // Create a MyTube collection for these videos
       const mytubeCollection: Collection = {
@@ -1196,7 +1124,7 @@ export class BilibiliDownloader extends BaseDownloader {
       storageService.saveCollection(mytubeCollection);
       const mytubeCollectionId = mytubeCollection.id;
 
-      console.log(`Created MyTube collection: ${mytubeCollection.name}`);
+      logger.info(`Created MyTube collection: ${mytubeCollection.name}`);
 
       // Download each video sequentially
       for (let i = 0; i < videos.length; i++) {
@@ -1211,7 +1139,7 @@ export class BilibiliDownloader extends BaseDownloader {
           );
         }
 
-        console.log(
+        logger.info(
           `Downloading video ${videoNumber}/${videos.length}: ${video.title}`
         );
 
@@ -1238,16 +1166,16 @@ export class BilibiliDownloader extends BaseDownloader {
               }
             );
 
-            console.log(
+            logger.info(
               `Added video ${videoNumber}/${videos.length} to collection`
             );
           } else {
-            console.error(
+            logger.error(
               `Failed to download video ${videoNumber}/${videos.length}: ${video.title}`
             );
           }
         } catch (videoError) {
-          console.error(
+          logger.error(
             `Error downloading video ${videoNumber}/${videos.length}:`,
             videoError
           );
@@ -1263,7 +1191,7 @@ export class BilibiliDownloader extends BaseDownloader {
         storageService.removeActiveDownload(downloadId);
       }
 
-      console.log(`Finished downloading ${type}: ${title}`);
+      logger.info(`Finished downloading ${type}: ${title}`);
 
       return {
         success: true,
@@ -1271,7 +1199,7 @@ export class BilibiliDownloader extends BaseDownloader {
         videosDownloaded: videos.length,
       };
     } catch (error: any) {
-      console.error(`Error downloading ${collectionInfo.type}:`, error);
+      logger.error(`Error downloading ${collectionInfo.type}:`, error);
       if (downloadId) {
         storageService.removeActiveDownload(downloadId);
       }
@@ -1332,11 +1260,11 @@ export class BilibiliDownloader extends BaseDownloader {
               }
             );
 
-            console.log(
+            logger.info(
               `Added part ${part}/${totalParts} to collection ${collectionId}`
             );
           } catch (collectionError) {
-            console.error(
+            logger.error(
               `Error adding part ${part}/${totalParts} to collection:`,
               collectionError
             );
@@ -1351,11 +1279,11 @@ export class BilibiliDownloader extends BaseDownloader {
       if (downloadId) {
         storageService.removeActiveDownload(downloadId);
       }
-      console.log(
+      logger.info(
         `All ${totalParts} parts of "${seriesTitle}" downloaded successfully`
       );
     } catch (error) {
-      console.error("Error downloading remaining Bilibili parts:", error);
+      logger.error("Error downloading remaining Bilibili parts:", error);
       if (downloadId) {
         storageService.removeActiveDownload(downloadId);
       }
@@ -1383,7 +1311,7 @@ export class BilibiliDownloader extends BaseDownloader {
         return cookies.join("; ");
       }
     } catch (e) {
-      console.error("Error reading cookies.txt:", e);
+      logger.error("Error reading cookies.txt:", e);
     }
     return "";
   }
@@ -1399,13 +1327,13 @@ export class BilibiliDownloader extends BaseDownloader {
 
       const cookieHeader = BilibiliDownloader.getCookieHeader();
       if (!cookieHeader) {
-        console.warn(
+        logger.warn(
           "WARNING: No cookies found in cookies.txt. Bilibili subtitles usually require login."
         );
       } else {
-        console.log(`Cookie header length: ${cookieHeader.length}`);
+        logger.info(`Cookie header length: ${cookieHeader.length}`);
         // Log first few chars to verify it's not empty/malformed
-        console.log(`Cookie header start: ${cookieHeader.substring(0, 20)}...`);
+        logger.info(`Cookie header start: ${cookieHeader.substring(0, 20)}...`);
       }
 
       const headers = {
@@ -1421,17 +1349,17 @@ export class BilibiliDownloader extends BaseDownloader {
       const cid = viewResponse.data?.data?.cid;
 
       if (!cid) {
-        console.log("Could not find CID for video");
+        logger.info("Could not find CID for video");
         return [];
       }
 
       // Get subtitles
       const playerApiUrl = `https://api.bilibili.com/x/player/wbi/v2?bvid=${videoId}&cid=${cid}`;
-      console.log(`Fetching subtitles from: ${playerApiUrl}`);
+      logger.info(`Fetching subtitles from: ${playerApiUrl}`);
       const playerResponse = await axios.get(playerApiUrl, { headers });
 
       if (cookieHeader && !cookieHeader.includes("SESSDATA")) {
-        console.warn(
+        logger.warn(
           "WARNING: SESSDATA cookie not found! This is required for Bilibili authentication."
         );
       }
@@ -1440,27 +1368,27 @@ export class BilibiliDownloader extends BaseDownloader {
 
       // Fallback: Check if subtitles are in the view response (sometimes they are)
       if (!subtitlesData || subtitlesData.length === 0) {
-        console.log(
+        logger.info(
           "No subtitles in player API, checking view API response..."
         );
         // We already fetched viewResponse earlier to get CID
         const viewSubtitles = viewResponse.data?.data?.subtitle?.list;
         if (viewSubtitles && viewSubtitles.length > 0) {
-          console.log(`Found ${viewSubtitles.length} subtitles in view API`);
+          logger.info(`Found ${viewSubtitles.length} subtitles in view API`);
           subtitlesData = viewSubtitles;
         }
       }
 
       if (!subtitlesData) {
-        console.log("No subtitle field in response data");
+        logger.info("No subtitle field in response data");
       } else if (!Array.isArray(subtitlesData)) {
-        console.log("Subtitles field is not an array");
+        logger.info("Subtitles field is not an array");
       } else {
-        console.log(`Found ${subtitlesData.length} subtitles`);
+        logger.info(`Found ${subtitlesData.length} subtitles`);
       }
 
       if (!subtitlesData || !Array.isArray(subtitlesData)) {
-        console.log("No subtitles found in API response");
+        logger.info("No subtitles found in API response");
         return [];
       }
 
@@ -1479,7 +1407,7 @@ export class BilibiliDownloader extends BaseDownloader {
           ? `https:${subUrl}`
           : subUrl;
 
-        console.log(`Downloading subtitle (${lang}): ${absoluteSubUrl}`);
+        logger.info(`Downloading subtitle (${lang}): ${absoluteSubUrl}`);
 
         // Do NOT send cookies to the subtitle CDN (hdslb.com) as it can cause 400 Bad Request (Header too large)
         // and they are not needed for the CDN file itself.
@@ -1509,7 +1437,7 @@ export class BilibiliDownloader extends BaseDownloader {
 
       return savedSubtitles;
     } catch (error) {
-      console.error("Error in downloadSubtitles:", error);
+      logger.error("Error in downloadSubtitles:", error);
       return [];
     }
   }

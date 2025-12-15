@@ -2,21 +2,18 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
-    calculateDownloadedSize,
-    cleanupPartialVideoFiles,
-    cleanupSubtitleFiles,
-    isCancellationError,
-    isDownloadActive,
-    parseSize,
+  cleanupPartialVideoFiles,
+  cleanupSubtitleFiles,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
+import { logger } from "../../utils/logger";
+import { ProgressTracker } from "../../utils/progressTracker";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -29,7 +26,7 @@ const PROVIDER_SCRIPT = process.env.BGUTIL_SCRIPT_PATH || "";
 // Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
 async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
   try {
-    console.log("Attempting to extract XiaoHongShu author from webpage...");
+    logger.info("Attempting to extract XiaoHongShu author from webpage...");
     const response = await axios.get(url, {
       headers: {
         "User-Agent":
@@ -44,21 +41,21 @@ async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
     // XiaoHongShu embeds data in window.__INITIAL_STATE__
     const match = html.match(/"nickname":"([^"]+)"/);
     if (match && match[1]) {
-      console.log("Found XiaoHongShu author:", match[1]);
+      logger.info("Found XiaoHongShu author:", match[1]);
       return match[1];
     }
 
     // Alternative: try to find in user info
     const userMatch = html.match(/"user":\{[^}]*"nickname":"([^"]+)"/);
     if (userMatch && userMatch[1]) {
-      console.log("Found XiaoHongShu author (user):", userMatch[1]);
+      logger.info("Found XiaoHongShu author (user):", userMatch[1]);
       return userMatch[1];
     }
 
-    console.log("Could not extract XiaoHongShu author from webpage");
+    logger.info("Could not extract XiaoHongShu author from webpage");
     return null;
   } catch (error) {
-    console.error("Error extracting XiaoHongShu author:", error);
+    logger.error("Error extracting XiaoHongShu author:", error);
     return null;
   }
 }
@@ -70,7 +67,7 @@ export class YtDlpDownloader extends BaseDownloader {
     limit: number = 8,
     offset: number = 1
   ): Promise<any[]> {
-    console.log(
+    logger.info(
       `Processing search request for query: "${query}", limit: ${limit}, offset: ${offset}`
     );
 
@@ -120,7 +117,7 @@ export class YtDlpDownloader extends BaseDownloader {
       source: "youtube",
     }));
 
-    console.log(
+    logger.info(
       `Found ${formattedResults.length} search results for "${query}" (requested ${limit})`
     );
 
@@ -157,10 +154,10 @@ export class YtDlpDownloader extends BaseDownloader {
           info.upload_date ||
           new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: info.thumbnail,
-        description: info.description // Added description
+        description: info.description, // Added description
       };
     } catch (error) {
-      console.error("Error fetching video info:", error);
+      logger.error("Error fetching video info:", error);
       return {
         title: "Video",
         author: "Unknown",
@@ -173,7 +170,7 @@ export class YtDlpDownloader extends BaseDownloader {
   // Get the latest video URL from a channel
   static async getLatestVideoUrl(channelUrl: string): Promise<string | null> {
     try {
-      console.log("Fetching latest video for channel:", channelUrl);
+      logger.info("Fetching latest video for channel:", channelUrl);
 
       // Get user config for network options
       const userConfig = getUserYtDlpConfig(channelUrl);
@@ -195,7 +192,7 @@ export class YtDlpDownloader extends BaseDownloader {
           channelUrl.includes("/user/")
         ) {
           targetUrl = `${channelUrl}/videos`;
-          console.log("Modified channel URL to:", targetUrl);
+          logger.info("Modified channel URL to:", targetUrl);
         }
       }
 
@@ -234,7 +231,7 @@ export class YtDlpDownloader extends BaseDownloader {
       }
       return null;
     } catch (error) {
-      console.error("Error fetching latest video URL:", error);
+      logger.error("Error fetching latest video URL:", error);
       return null;
     }
   }
@@ -254,7 +251,7 @@ export class YtDlpDownloader extends BaseDownloader {
     downloadId?: string,
     onStart?: (cancel: () => void) => void
   ): Promise<Video> {
-    console.log("Detected URL:", videoUrl);
+    logger.info("Detected URL:", videoUrl);
 
     // Create a safe base filename (without extension)
     const timestamp = Date.now();
@@ -288,7 +285,7 @@ export class YtDlpDownloader extends BaseDownloader {
           : {}),
       });
 
-      console.log("Video info:", {
+      logger.info("Video info:", {
         title: info.title,
         uploader: info.uploader,
         upload_date: info.upload_date,
@@ -333,7 +330,7 @@ export class YtDlpDownloader extends BaseDownloader {
       const newThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
 
       // Note: newVideoPath will be updated below based on merge output format
-      console.log("Preparing video download path:", newVideoPath);
+      logger.info("Preparing video download path:", newVideoPath);
 
       if (downloadId) {
         storageService.updateActiveDownload(downloadId, {
@@ -356,7 +353,7 @@ export class YtDlpDownloader extends BaseDownloader {
         const userFormat = userConfig.f || userConfig.format;
         defaultFormat = userFormat;
         youtubeFormat = userFormat;
-        console.log("Using user-specified format:", userFormat);
+        logger.info("Using user-specified format:", userFormat);
       }
 
       // Prepare base flags from user config (excluding output options we manage)
@@ -393,7 +390,7 @@ export class YtDlpDownloader extends BaseDownloader {
         `.${videoExtension}`
       );
 
-      console.log(
+      logger.info(
         `Using merge output format: ${mergeOutputFormat}, downloading to: ${newVideoPathWithFormat}`
       );
 
@@ -419,7 +416,7 @@ export class YtDlpDownloader extends BaseDownloader {
       // Apply format sort if user specified it (e.g., -S res:480)
       if (formatSortValue) {
         flags.formatSort = formatSortValue;
-        console.log("Using user-specified format sort:", formatSortValue);
+        logger.info("Using user-specified format sort:", formatSortValue);
       }
 
       // Add YouTube specific flags if it's a YouTube URL
@@ -450,82 +447,40 @@ export class YtDlpDownloader extends BaseDownloader {
         }
       }
 
-      console.log("Final yt-dlp flags:", flags);
+      logger.debug("Final yt-dlp flags:", flags);
 
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(videoUrl, flags);
 
       if (onStart) {
         onStart(() => {
-          console.log("Killing subprocess for download:", downloadId);
+          logger.info("Killing subprocess for download:", downloadId);
           subprocess.kill();
 
           // Clean up partial files
-          console.log("Cleaning up partial files...");
+          logger.info("Cleaning up partial files...");
           cleanupPartialVideoFiles(newVideoPathWithFormat);
           cleanupPartialVideoFiles(newThumbnailPath);
           cleanupSubtitleFiles(newSafeBaseFilename);
         });
       }
 
+      // Use ProgressTracker for centralized progress parsing
+      const progressTracker = new ProgressTracker(downloadId);
       subprocess.stdout?.on("data", (data: Buffer) => {
-        const output = data.toString();
-        // Parse progress: [download]  23.5% of 10.00MiB at  2.00MiB/s ETA 00:05
-        // Also try to match: [download] 55.8MiB of 123.45MiB at 5.67MiB/s ETA 00:12
-        const progressMatch = output.match(
-          /(\d+\.?\d*)%\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
-        );
-
-        // Try to match format with downloaded size explicitly shown
-        const progressWithSizeMatch = output.match(
-          /([~\d\w.]+)\s+of\s+([~\d\w.]+)\s+at\s+([~\d\w.\/]+)/
-        );
-
-        if (progressMatch && downloadId) {
-          const percentage = parseFloat(progressMatch[1]);
-          const totalSize = progressMatch[2];
-          const speed = progressMatch[3];
-
-          // Calculate downloadedSize from percentage and totalSize
-          const downloadedSize = calculateDownloadedSize(percentage, totalSize);
-
-          storageService.updateActiveDownload(downloadId, {
-            progress: percentage,
-            totalSize: totalSize,
-            downloadedSize: downloadedSize,
-            speed: speed,
-          });
-        } else if (progressWithSizeMatch && downloadId) {
-          // If we have explicit downloaded size in the output
-          const downloadedSize = progressWithSizeMatch[1];
-          const totalSize = progressWithSizeMatch[2];
-          const speed = progressWithSizeMatch[3];
-
-          // Calculate percentage from downloaded and total sizes
-          const downloadedBytes = parseSize(downloadedSize);
-          const totalBytes = parseSize(totalSize);
-          const percentage =
-            totalBytes > 0 ? (downloadedBytes / totalBytes) * 100 : 0;
-
-          storageService.updateActiveDownload(downloadId, {
-            progress: percentage,
-            totalSize: totalSize,
-            downloadedSize: downloadedSize,
-            speed: speed,
-          });
-        }
+        progressTracker.parseAndUpdate(data.toString());
       });
 
       // Wait for download to complete
       try {
         await subprocess;
       } catch (error: any) {
-        if (isCancellationError(error)) {
-          console.log("Download was cancelled");
+        // Use base class helper for cancellation handling
+        const downloader = new YtDlpDownloader();
+        downloader.handleCancellationError(error, () => {
           cleanupPartialVideoFiles(newVideoPathWithFormat);
           cleanupSubtitleFiles(newSafeBaseFilename);
-          throw DownloadCancelledError.create();
-        }
+        });
 
         // Check if error is subtitle-related and video file exists
         const stderr = error.stderr || "";
@@ -537,13 +492,13 @@ export class YtDlpDownloader extends BaseDownloader {
         if (isSubtitleError) {
           // Check if video file was successfully downloaded
           if (fs.existsSync(newVideoPathWithFormat)) {
-            console.warn(
+            logger.warn(
               "Subtitle download failed, but video was downloaded successfully. Continuing...",
               error.message
             );
             // Log the subtitle error details
             if (stderr) {
-              console.warn("Subtitle error details:", stderr);
+              logger.warn("Subtitle error details:", stderr);
             }
             // Continue processing - don't throw
           } else {
@@ -557,60 +512,41 @@ export class YtDlpDownloader extends BaseDownloader {
       }
 
       // Check if download was cancelled (it might have been removed from active downloads)
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled (no longer in active downloads)");
+      const downloader = new YtDlpDownloader();
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         cleanupPartialVideoFiles(newVideoPathWithFormat);
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw DownloadCancelledError.create();
+        throw error;
       }
 
-      console.log("Video downloaded successfully");
+      logger.info("Video downloaded successfully");
 
       // Check if download was cancelled before processing thumbnails and subtitles
-      if (!isDownloadActive(downloadId)) {
-        console.log(
-          "Download was cancelled, skipping thumbnail and subtitle processing"
-        );
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw DownloadCancelledError.create();
+        throw error;
       }
 
       // Download and save the thumbnail
       thumbnailSaved = false;
 
       if (thumbnailUrl) {
-        try {
-          console.log("Downloading thumbnail from:", thumbnailUrl);
-
-          const thumbnailResponse = await axios({
-            method: "GET",
-            url: thumbnailUrl,
-            responseType: "stream",
-          });
-
-          const thumbnailWriter = fs.createWriteStream(newThumbnailPath);
-          thumbnailResponse.data.pipe(thumbnailWriter);
-
-          await new Promise<void>((resolve, reject) => {
-            thumbnailWriter.on("finish", () => {
-              thumbnailSaved = true;
-              resolve();
-            });
-            thumbnailWriter.on("error", reject);
-          });
-
-          console.log("Thumbnail saved to:", newThumbnailPath);
-        } catch (thumbnailError) {
-          console.error("Error downloading thumbnail:", thumbnailError);
-          // Continue even if thumbnail download fails
-        }
+        thumbnailSaved = await downloader.downloadThumbnail(
+          thumbnailUrl,
+          newThumbnailPath
+        );
       }
 
       // Check again if download was cancelled before processing subtitles
-      if (!isDownloadActive(downloadId)) {
-        console.log("Download was cancelled, skipping subtitle processing");
+      try {
+        downloader.throwIfCancelled(downloadId);
+      } catch (error) {
         cleanupSubtitleFiles(newSafeBaseFilename);
-        throw DownloadCancelledError.create();
+        throw error;
       }
 
       // Scan for subtitle files
@@ -623,14 +559,15 @@ export class YtDlpDownloader extends BaseDownloader {
               file.startsWith(baseFilename) && file.endsWith(".vtt")
           );
 
-        console.log(`Found ${subtitleFiles.length} subtitle files`);
+        logger.info(`Found ${subtitleFiles.length} subtitle files`);
 
         for (const subtitleFile of subtitleFiles) {
           // Check if download was cancelled during subtitle processing
-          if (!isDownloadActive(downloadId)) {
-            console.log("Download was cancelled during subtitle processing");
+          try {
+            downloader.throwIfCancelled(downloadId);
+          } catch (error) {
             cleanupSubtitleFiles(baseFilename);
-            throw DownloadCancelledError.create();
+            throw error;
           }
 
           // Parse language from filename (e.g., video_123.en.vtt -> en)
@@ -657,7 +594,7 @@ export class YtDlpDownloader extends BaseDownloader {
           // Remove original file
           fs.unlinkSync(sourceSubPath);
 
-          console.log(
+          logger.info(
             `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`
           );
 
@@ -669,13 +606,11 @@ export class YtDlpDownloader extends BaseDownloader {
         }
       } catch (subtitleError) {
         // If it's a cancellation error, re-throw it
-        if (isCancellationError(subtitleError)) {
-          throw subtitleError;
-        }
-        console.error("Error processing subtitle files:", subtitleError);
+        downloader.handleCancellationError(subtitleError);
+        logger.error("Error processing subtitle files:", subtitleError);
       }
     } catch (error) {
-      console.error("Error in download process:", error);
+      logger.error("Error in download process:", error);
       throw error;
     }
 
@@ -714,7 +649,7 @@ export class YtDlpDownloader extends BaseDownloader {
         videoData.duration = duration.toString();
       }
     } catch (e) {
-      console.error("Failed to extract duration from downloaded file:", e);
+      logger.error("Failed to extract duration from downloaded file:", e);
     }
 
     // Get file size
@@ -724,7 +659,7 @@ export class YtDlpDownloader extends BaseDownloader {
         videoData.fileSize = stats.size.toString();
       }
     } catch (e) {
-      console.error("Failed to get file size:", e);
+      logger.error("Failed to get file size:", e);
     }
 
     // Check if video with same sourceUrl already exists
@@ -732,7 +667,7 @@ export class YtDlpDownloader extends BaseDownloader {
 
     if (existingVideo) {
       // Update existing video with new subtitle information and file paths
-      console.log(
+      logger.info(
         "Video with same sourceUrl exists, updating subtitle information"
       );
 
@@ -758,7 +693,7 @@ export class YtDlpDownloader extends BaseDownloader {
       });
 
       if (updatedVideo) {
-        console.log("Video updated in database with new subtitles");
+        logger.info("Video updated in database with new subtitles");
         return updatedVideo;
       }
     }
@@ -766,7 +701,7 @@ export class YtDlpDownloader extends BaseDownloader {
     // Save the video (new video)
     storageService.saveVideo(videoData);
 
-    console.log("Video added to database");
+    logger.info("Video added to database");
 
     return videoData;
   }
