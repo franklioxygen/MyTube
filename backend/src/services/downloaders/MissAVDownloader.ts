@@ -7,25 +7,26 @@ import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
-  calculateDownloadedSize,
-  cleanupTemporaryFiles,
-  isCancellationError,
-  isDownloadActive,
+    calculateDownloadedSize,
+    cleanupTemporaryFiles,
+    isCancellationError,
+    isDownloadActive,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
+import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 
-export class MissAVDownloader {
-  // Get video info without downloading
-  static async getVideoInfo(url: string): Promise<{
-    title: string;
-    author: string;
-    date: string;
-    thumbnailUrl: string;
-  }> {
+export class MissAVDownloader extends BaseDownloader {
+  // Implementation of IDownloader.getVideoInfo
+  async getVideoInfo(url: string): Promise<VideoInfo> {
+    return MissAVDownloader.getVideoInfo(url);
+  }
+
+  // Get video info without downloading (Static wrapper)
+  static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
       console.log(`Fetching page content for ${url} with Puppeteer...`);
 
@@ -54,7 +55,7 @@ export class MissAVDownloader {
         title: pageTitle || "MissAV Video",
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-        thumbnailUrl: ogImage || "",
+        thumbnailUrl: ogImage || null,
       };
     } catch (error) {
       console.error("Error fetching MissAV video info:", error);
@@ -65,12 +66,21 @@ export class MissAVDownloader {
         title: "MissAV Video",
         author: author,
         date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-        thumbnailUrl: "",
+        thumbnailUrl: null,
       };
     }
   }
 
-  // Helper function to download MissAV video
+  // Implementation of IDownloader.downloadVideo
+  async downloadVideo(url: string, options?: DownloadOptions): Promise<Video> {
+    return MissAVDownloader.downloadVideo(
+      url,
+      options?.downloadId,
+      options?.onStart
+    );
+  }
+
+  // Helper function to download MissAV video (Static wrapper/Implementation)
   static async downloadVideo(
     url: string,
     downloadId?: string,

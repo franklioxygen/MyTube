@@ -5,24 +5,25 @@ import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import { bccToVtt } from "../../utils/bccToVtt";
 import {
-  calculateDownloadedSize,
-  formatBytes,
-  isCancellationError,
-  isDownloadActive,
-  parseSize,
+    calculateDownloadedSize,
+    formatBytes,
+    isCancellationError,
+    isDownloadActive,
+    parseSize,
 } from "../../utils/downloadUtils";
 import {
-  extractBilibiliVideoId,
-  formatVideoFilename,
+    extractBilibiliVideoId,
+    formatVideoFilename,
 } from "../../utils/helpers";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
+import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 export interface BilibiliVideoInfo {
   title: string;
@@ -73,7 +74,91 @@ export interface CollectionDownloadResult {
   error?: string;
 }
 
-export class BilibiliDownloader {
+export class BilibiliDownloader extends BaseDownloader {
+  // Implementation of IDownloader.getVideoInfo
+  async getVideoInfo(url: string): Promise<VideoInfo> {
+    const videoId = extractBilibiliVideoId(url);
+    if (!videoId) {
+      throw new Error("Invalid Bilibili URL");
+    }
+    return BilibiliDownloader.getVideoInfo(videoId);
+  }
+
+  // Get video info without downloading (Static wrapper)
+  static async getVideoInfo(videoId: string): Promise<VideoInfo> {
+    try {
+      const videoUrl = `https://www.bilibili.com/video/${videoId}`;
+
+      // Get user config for network options
+      const userConfig = getUserYtDlpConfig(videoUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+      const info = await executeYtDlpJson(videoUrl, {
+        ...networkConfig,
+        noWarnings: true,
+      });
+
+      return {
+        title: info.title || "Bilibili Video",
+        author: info.uploader || info.channel || "Bilibili User",
+        date:
+          info.upload_date ||
+          info.release_date ||
+          new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+        thumbnailUrl: info.thumbnail || null,
+        description: info.description // Added description
+      };
+    } catch (error) {
+      console.error("Error fetching Bilibili video info with yt-dlp:", error);
+      // Fallback to API
+      try {
+        const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+        const response = await axios.get(apiUrl);
+
+        if (response.data && response.data.data) {
+          const videoInfo = response.data.data;
+          return {
+            title: videoInfo.title || "Bilibili Video",
+            author: videoInfo.owner?.name || "Bilibili User",
+            date: new Date(videoInfo.pubdate * 1000)
+              .toISOString()
+              .slice(0, 10)
+              .replace(/-/g, ""),
+            thumbnailUrl: videoInfo.pic || null,
+            description: videoInfo.desc
+          };
+        }
+      } catch (apiError) {
+        console.error("Error fetching Bilibili video info from API:", apiError);
+      }
+      return {
+        title: "Bilibili Video",
+        author: "Bilibili User",
+        date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+        thumbnailUrl: null,
+      };
+    }
+  }
+
+  // Implementation of IDownloader.downloadVideo
+  // Note: For Bilibili, this defaults to downloading single part/video.
+  async downloadVideo(url: string, options?: DownloadOptions): Promise<Video> {
+    // Assuming single part download for simplicity in the general interface
+    const result = await BilibiliDownloader.downloadSinglePart(
+      url,
+      1,
+      1,
+      "",
+      options?.downloadId,
+      options?.onStart
+    );
+
+    if (result.success && result.videoData) {
+      return result.videoData;
+    }
+
+    throw new Error(result.error || "Failed to download Bilibili video");
+  }
+
   // Get author info from Bilibili space URL
   static async getAuthorInfo(mid: string): Promise<{
     name: string;
@@ -205,65 +290,7 @@ export class BilibiliDownloader {
     }
   }
 
-  // Get video info without downloading
-  static async getVideoInfo(videoId: string): Promise<{
-    title: string;
-    author: string;
-    date: string;
-    thumbnailUrl: string;
-  }> {
-    try {
-      const videoUrl = `https://www.bilibili.com/video/${videoId}`;
-
-      // Get user config for network options
-      const userConfig = getUserYtDlpConfig(videoUrl);
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-      const info = await executeYtDlpJson(videoUrl, {
-        ...networkConfig,
-        noWarnings: true,
-      });
-
-      return {
-        title: info.title || "Bilibili Video",
-        author: info.uploader || info.channel || "Bilibili User",
-        date:
-          info.upload_date ||
-          info.release_date ||
-          new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-        thumbnailUrl: info.thumbnail || "",
-      };
-    } catch (error) {
-      console.error("Error fetching Bilibili video info with yt-dlp:", error);
-      // Fallback to API
-      try {
-        const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
-        const response = await axios.get(apiUrl);
-
-        if (response.data && response.data.data) {
-          const videoInfo = response.data.data;
-          return {
-            title: videoInfo.title || "Bilibili Video",
-            author: videoInfo.owner?.name || "Bilibili User",
-            date: new Date(videoInfo.pubdate * 1000)
-              .toISOString()
-              .slice(0, 10)
-              .replace(/-/g, ""),
-            thumbnailUrl: videoInfo.pic,
-          };
-        }
-      } catch (apiError) {
-        console.error("Error fetching Bilibili video info from API:", apiError);
-      }
-      return {
-        title: "Bilibili Video",
-        author: "Bilibili User",
-        date: new Date().toISOString().slice(0, 10).replace(/-/g, ""),
-        thumbnailUrl: "",
-      };
-    }
-  }
-
-  // Helper function to download Bilibili video
+  // Wrapper for internal download logic, matching existing static method
   static async downloadVideo(
     url: string,
     videoPath: string,

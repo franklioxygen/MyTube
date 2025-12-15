@@ -4,22 +4,23 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
-  calculateDownloadedSize,
-  cleanupPartialVideoFiles,
-  cleanupSubtitleFiles,
-  isCancellationError,
-  isDownloadActive,
-  parseSize,
+    calculateDownloadedSize,
+    cleanupPartialVideoFiles,
+    cleanupSubtitleFiles,
+    isCancellationError,
+    isDownloadActive,
+    parseSize,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
+import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 // Note: PO Token provider script path - only used if user has the bgutil plugin installed
 // Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
@@ -62,7 +63,7 @@ async function extractXiaoHongShuAuthor(url: string): Promise<string | null> {
   }
 }
 
-export class YtDlpDownloader {
+export class YtDlpDownloader extends BaseDownloader {
   // Search for videos (primarily for YouTube, but could be adapted)
   static async search(
     query: string,
@@ -126,13 +127,13 @@ export class YtDlpDownloader {
     return formattedResults;
   }
 
-  // Get video info without downloading
-  static async getVideoInfo(url: string): Promise<{
-    title: string;
-    author: string;
-    date: string;
-    thumbnailUrl: string;
-  }> {
+  // Implementation of IDownloader.getVideoInfo
+  async getVideoInfo(url: string): Promise<VideoInfo> {
+    return YtDlpDownloader.getVideoInfo(url);
+  }
+
+  // Get video info without downloading (Static wrapper)
+  static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
       // Get user config for network options
       const userConfig = getUserYtDlpConfig(url);
@@ -156,6 +157,7 @@ export class YtDlpDownloader {
           info.upload_date ||
           new Date().toISOString().slice(0, 10).replace(/-/g, ""),
         thumbnailUrl: info.thumbnail,
+        description: info.description // Added description
       };
     } catch (error) {
       console.error("Error fetching video info:", error);
@@ -237,7 +239,16 @@ export class YtDlpDownloader {
     }
   }
 
-  // Download video
+  // Implementation of IDownloader.downloadVideo
+  async downloadVideo(url: string, options?: DownloadOptions): Promise<Video> {
+    return YtDlpDownloader.downloadVideo(
+      url,
+      options?.downloadId,
+      options?.onStart
+    );
+  }
+
+  // Download video (Static wrapper/Implementation)
   static async downloadVideo(
     videoUrl: string,
     downloadId?: string,
