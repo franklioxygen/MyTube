@@ -70,10 +70,10 @@ describe('YtDlpDownloader Safari Compatibility', () => {
         expect(args.format).toContain('ext=m4a');
     });
 
-    it('should maintain H.264 preference even when formatSort is provided', async () => {
+    it('should relax H.264 preference when formatSort is provided to allow higher resolutions', async () => {
         // Mock user config with formatSort
         mockGetUserYtDlpConfig.mockReturnValue({
-            S: 'res:1080'
+            S: 'res:2160'
         });
 
         await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
@@ -81,9 +81,14 @@ describe('YtDlpDownloader Safari Compatibility', () => {
         expect(mockExecuteYtDlpSpawn).toHaveBeenCalledTimes(1);
         const args = mockExecuteYtDlpSpawn.mock.calls[0][1];
         
-        // Should have both formatSort AND the specific format
-        expect(args.formatSort).toBe('res:1080');
-        expect(args.format).toContain('vcodec^=avc1');
+        // Should have formatSort
+        expect(args.formatSort).toBe('res:2160');
+        // Should NOT be restricted to avc1/h264 anymore
+        expect(args.format).not.toContain('vcodec^=avc1');
+        // Should use the permissive format, but prioritizing VP9/WebM
+        expect(args.format).toBe('bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best');
+        // Should default to WebM to support VP9/AV1 codecs better than MP4 and compatible with Safari 14+
+        expect(args.mergeOutputFormat).toBe('webm');
     });
 
     it('should NOT force generic avc1 string if user provides custom format', async () => {

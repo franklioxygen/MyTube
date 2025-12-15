@@ -377,7 +377,14 @@ export class YtDlpDownloader extends BaseDownloader {
       const formatSortValue = userFormatSort || userFormatSort2;
 
       // Determine merge output format: use user's choice or default to mp4
-      const mergeOutputFormat = userMergeOutputFormat || "mp4";
+      // However, if user is sorting by resolution (likely demanding 4K/VP9), default to MKV
+      // because VP9/AV1 in MP4 (mp4v2) is often problematic for Safari/QuickTime.
+      let defaultMergeFormat = "mp4";
+      if (formatSortValue && formatSortValue.includes("res")) {
+        // Use WebM for high-res (likely VP9/AV1) as it's supported by Safari 14+ and Chrome
+        defaultMergeFormat = "webm";
+      }
+      const mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
 
       // Update the video path to use the correct extension based on merge format
       const videoExtension = mergeOutputFormat;
@@ -422,7 +429,18 @@ export class YtDlpDownloader extends BaseDownloader {
       // Add YouTube specific flags if it's a YouTube URL
       // Always apply preferred formats for YouTube to ensure codec compatibility (H.264/AAC for Safari)
       if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
-        flags.format = youtubeFormat;
+        // If the user hasn't specified a format (-f), but HAS specified a sorting order (-S),
+        // we should assume they want to prioritize their sort order (e.g. resolution) over
+        // our default strictly-compatible codec constraints.
+        // This fixes the issue where -S res:2160 fails because the default format restricts to H.264 (max 1080p).
+        if (!userConfig.f && !userConfig.format && formatSortValue) {
+          // Allow any video codec (including VP9/AV1 for 4K), but try to keep audio good
+          // Prioritize VP9 in WebM for Safari 14+ compatibility (AV1 is less supported)
+          flags.format =
+            "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
+        } else {
+          flags.format = youtubeFormat;
+        }
 
         // Use user's extractor args if provided, otherwise let yt-dlp use its defaults
         // Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
