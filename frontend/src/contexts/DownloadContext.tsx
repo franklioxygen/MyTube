@@ -241,9 +241,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Check if video was skipped (already exists or previously deleted)
             if (response.data.skipped) {
                 if (response.data.previouslyDeleted) {
-                    showSnackbar(t('videoSkippedDeleted') || 'Video was previously deleted, skipped download');
+                    showSnackbar(t('videoSkippedDeleted') || 'Video was previously deleted, skipped download', 'warning');
                 } else {
-                    showSnackbar(t('videoSkippedExists') || 'Video already exists, skipped download');
+                    showSnackbar(t('videoSkippedExists') || 'Video already exists, skipped download', 'warning');
                 }
                 // Invalidate download history to show the skipped/deleted entry
                 queryClient.invalidateQueries({ queryKey: ['downloadHistory'] });

@@ -9,9 +9,11 @@ export const parseDuration = (duration: string | number | undefined): number => 
     if (duration.includes(':')) {
         const parts = duration.split(':').map(part => parseInt(part, 10));
         if (parts.length === 3) {
-            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            const result = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            return isNaN(result) ? 0 : result;
         } else if (parts.length === 2) {
-            return parts[0] * 60 + parts[1];
+            const result = parts[0] * 60 + parts[1];
+            return isNaN(result) ? 0 : result;
         }
     }
 

@@ -1,6 +1,10 @@
 # Change Log
 
 
+## v1.6.1 (2025-12-15)
+
+### Test
+- test: improve overall test coverage
 
 ## v1.6.0 (2025-12-15)
 
