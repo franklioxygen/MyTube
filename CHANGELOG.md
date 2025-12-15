@@ -2,6 +2,18 @@
 
 
 
+## v1.6.0 (2025-12-15)
+
+### Feat
+- feat: Add detailed logging for subtitle download process (ea46066)
+- feat: Implement getVideoInfo and downloadVideo for Bilibili (f864b90)
+
+### Refactor
+- refactor: Simplify Bilibili subtitle download logic (8279e64)
+- refactor: Update response format for backward compatibility (e82ead6)
+- refactor: refactor controller (4e0dd4c)
+- refactor: refactor downloader (07ca438)
+
 ## v1.5.14 (2025-12-14)
 
 ### Feat
