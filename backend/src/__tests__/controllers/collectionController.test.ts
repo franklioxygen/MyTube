@@ -29,7 +29,7 @@ describe('CollectionController', () => {
 
       getCollections(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollections });
+      expect(json).toHaveBeenCalledWith(mockCollections);
     });
 
     it('should handle errors', async () => {
@@ -58,9 +58,7 @@ describe('CollectionController', () => {
       // The controller creates a new object, so we check partial match or just that it was called
       expect(storageService.saveCollection).toHaveBeenCalled();
       expect(json).toHaveBeenCalledWith(expect.objectContaining({
-        success: true,
-        data: expect.objectContaining({ title: 'New Col' }),
-        message: "Collection created" 
+        title: 'New Col'
       }));
     });
 
@@ -97,7 +95,7 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.atomicUpdateCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
+      expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
     it('should add video', () => {
@@ -109,7 +107,7 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.addVideoToCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
+      expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
     it('should remove video', () => {
@@ -121,7 +119,7 @@ describe('CollectionController', () => {
       updateCollection(req as Request, res as Response);
 
       expect(storageService.removeVideoFromCollection).toHaveBeenCalled();
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockCollection });
+      expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
     it('should throw NotFoundError if collection not found', async () => {

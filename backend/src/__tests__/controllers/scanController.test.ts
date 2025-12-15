@@ -42,8 +42,7 @@ describe('ScanController', () => {
       expect(storageService.saveVideo).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith(expect.objectContaining({
-        success: true,
-        data: expect.objectContaining({ addedCount: 1 })
+        addedCount: 1
       }));
     });
 

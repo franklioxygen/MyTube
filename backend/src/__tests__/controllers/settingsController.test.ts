@@ -37,7 +37,7 @@ describe('SettingsController', () => {
 
       await getSettings(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: expect.objectContaining({ theme: 'dark' }) }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
     });
 
     it('should save defaults if empty', async () => {
@@ -95,7 +95,7 @@ describe('SettingsController', () => {
 
       await verifyPassword(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith({ success: true, data: { verified: true } });
+      expect(json).toHaveBeenCalledWith({ success: true });
     });
 
     it('should reject incorrect password', async () => {
@@ -120,7 +120,7 @@ describe('SettingsController', () => {
 
       await migrateData(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ results: { success: true } }));
     });
 
     it('should handle errors', async () => {
@@ -146,7 +146,7 @@ describe('SettingsController', () => {
       await deleteLegacyData(req as Request, res as Response);
 
       expect(fs.unlinkSync).toHaveBeenCalledTimes(4);
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ results: expect.anything() }));
     });
 
     it('should handle errors during deletion', async () => {
@@ -157,7 +157,7 @@ describe('SettingsController', () => {
 
       await deleteLegacyData(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ results: expect.anything() }));
       // It returns success but with failed list
     });
   });

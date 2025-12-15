@@ -2,15 +2,15 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    checkBilibiliCollection,
-    checkBilibiliParts,
-    deleteVideo,
-    downloadVideo,
-    getVideoById,
-    getVideos,
-    rateVideo,
-    searchVideos,
-    updateVideoDetails,
+  checkBilibiliCollection,
+  checkBilibiliParts,
+  deleteVideo,
+  downloadVideo,
+  getVideoById,
+  getVideos,
+  rateVideo,
+  searchVideos,
+  updateVideoDetails,
 } from '../../controllers/videoController';
 import downloadManager from '../../services/downloadManager';
 import * as downloadService from '../../services/downloadService';
@@ -70,7 +70,7 @@ describe('VideoController', () => {
 
       expect(downloadService.searchYouTube).toHaveBeenCalledWith('test', 8, 1);
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, data: { results: mockResults } });
+      expect(json).toHaveBeenCalledWith({ results: mockResults });
     });
 
     it('should return 400 if query is missing', async () => {
@@ -221,7 +221,7 @@ describe('VideoController', () => {
 
       expect(storageService.getVideos).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockVideos });
+      expect(json).toHaveBeenCalledWith(mockVideos);
     });
   });
 
@@ -235,7 +235,7 @@ describe('VideoController', () => {
 
       expect(storageService.getVideoById).toHaveBeenCalledWith('1');
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, data: mockVideo });
+      expect(json).toHaveBeenCalledWith(mockVideo);
     });
 
     it('should throw NotFoundError if not found', async () => {
@@ -286,7 +286,7 @@ describe('VideoController', () => {
 
       expect(storageService.updateVideo).toHaveBeenCalledWith('1', { rating: 5 });
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, message: 'Video rated successfully', data: { video: mockVideo } });
+      expect(json).toHaveBeenCalledWith({ success: true, video: mockVideo });
     });
 
     it('should throw ValidationError for invalid rating', async () => {
@@ -430,7 +430,7 @@ describe('VideoController', () => {
       await import('../../controllers/videoController').then(m => m.getVideoComments(req as Request, res as Response));
 
       expect(status).toHaveBeenCalledWith(200);
-      expect(json).toHaveBeenCalledWith({ success: true, data: [] });
+      expect(json).toHaveBeenCalledWith([]);
     });
   });
 
