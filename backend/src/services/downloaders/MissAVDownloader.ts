@@ -4,7 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
-import { cleanupTemporaryFiles } from "../../utils/downloadUtils";
+import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
@@ -326,13 +326,13 @@ export class MissAVDownloader extends BaseDownloader {
           });
 
           if (onStart) {
-            onStart(() => {
+            onStart(async () => {
               logger.info("Killing subprocess for download:", downloadId);
               child.kill();
 
               // Clean up temporary files created by yt-dlp (*.part, *.ytdl, etc.)
               logger.info("Cleaning up temporary files...");
-              cleanupTemporaryFiles(newVideoPath);
+              await cleanupTemporaryFiles(newVideoPath);
             });
           }
         });
@@ -341,8 +341,8 @@ export class MissAVDownloader extends BaseDownloader {
       } catch (err: any) {
         // Use base class helper for cancellation handling
         const downloader = new MissAVDownloader();
-        downloader.handleCancellationError(err, () => {
-          cleanupTemporaryFiles(newVideoPath);
+        await downloader.handleCancellationError(err, async () => {
+          await cleanupTemporaryFiles(newVideoPath);
         });
         logger.error("yt-dlp execution failed:", err);
         throw err;
@@ -353,7 +353,7 @@ export class MissAVDownloader extends BaseDownloader {
       try {
         downloader.throwIfCancelled(downloadId);
       } catch (error) {
-        cleanupTemporaryFiles(newVideoPath);
+        await cleanupTemporaryFiles(newVideoPath);
         throw error;
       }
 
@@ -430,8 +430,8 @@ export class MissAVDownloader extends BaseDownloader {
         IMAGES_DIR,
         `${newSafeBaseFilename}.jpg`
       );
-      if (fs.existsSync(newVideoPath)) fs.removeSync(newVideoPath);
-      if (fs.existsSync(newThumbnailPath)) fs.removeSync(newThumbnailPath);
+      if (fs.existsSync(newVideoPath)) await safeRemove(newVideoPath);
+      if (fs.existsSync(newThumbnailPath)) await safeRemove(newThumbnailPath);
       throw error;
     }
   }

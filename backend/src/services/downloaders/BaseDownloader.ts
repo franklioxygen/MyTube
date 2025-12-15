@@ -3,8 +3,8 @@ import fs from "fs-extra";
 import path from "path";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
-  isCancellationError,
-  isDownloadActive,
+    isCancellationError,
+    isDownloadActive,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -110,14 +110,14 @@ export abstract class BaseDownloader implements IDownloader {
    * @param cleanupFn - Optional cleanup function to call before throwing
    * @throws DownloadCancelledError if error is a cancellation error
    */
-  protected handleCancellationError(
+  protected async handleCancellationError(
     error: unknown,
-    cleanupFn?: () => void
-  ): void {
+    cleanupFn?: () => void | Promise<void>
+  ): Promise<void> {
     if (isCancellationError(error)) {
       logger.info("Download was cancelled");
       if (cleanupFn) {
-        cleanupFn();
+        await cleanupFn();
       }
       throw DownloadCancelledError.create();
     }

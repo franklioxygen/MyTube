@@ -35,8 +35,23 @@ export const cleanupTempFiles = async (
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          // Recursively clean subdirectories
-          await cleanupDirectory(fullPath);
+          // Check for temp_ folder
+          if (entry.name.startsWith("temp_")) {
+            try {
+              await fs.remove(fullPath);
+              deletedCount++;
+              logger.debug(`Deleted temp directory: ${fullPath}`);
+            } catch (error) {
+              const errorMsg = `Failed to delete directory ${fullPath}: ${
+                error instanceof Error ? error.message : String(error)
+              }`;
+              logger.warn(errorMsg);
+              errors.push(errorMsg);
+            }
+          } else {
+            // Recursively clean subdirectories
+            await cleanupDirectory(fullPath);
+          }
         } else if (entry.isFile()) {
           // Check if file has .ytdl or .part extension
           if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {

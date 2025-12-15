@@ -50,10 +50,10 @@ export function isCancellationError(error: unknown): boolean {
  * @param directory - Optional directory to search in (defaults to VIDEOS_DIR)
  * @returns Array of deleted file paths
  */
-export function cleanupSubtitleFiles(
+export async function cleanupSubtitleFiles(
   baseFilename: string,
   directory: string = VIDEOS_DIR
-): string[] {
+): Promise<string[]> {
   const deletedFiles: string[] = [];
 
   try {
@@ -69,7 +69,7 @@ export function cleanupSubtitleFiles(
     for (const subtitleFile of subtitleFiles) {
       const subtitlePath = path.join(directory, subtitleFile);
       if (fs.existsSync(subtitlePath)) {
-        fs.unlinkSync(subtitlePath);
+        await safeRemove(subtitlePath);
         deletedFiles.push(subtitlePath);
         console.log("Deleted subtitle file:", subtitlePath);
       }
@@ -86,7 +86,7 @@ export function cleanupSubtitleFiles(
  * @param videoPath - The full path to the video file
  * @returns Array of deleted file paths
  */
-export function cleanupTemporaryFiles(videoPath: string): string[] {
+export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]> {
   const deletedFiles: string[] = [];
 
   try {
@@ -114,7 +114,7 @@ export function cleanupTemporaryFiles(videoPath: string): string[] {
     for (const tempFile of tempFiles) {
       const tempFilePath = path.join(videoDir, tempFile);
       if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
+        await safeRemove(tempFilePath);
         deletedFiles.push(tempFilePath);
         console.log("Deleted temporary file:", tempFilePath);
       }
@@ -122,7 +122,7 @@ export function cleanupTemporaryFiles(videoPath: string): string[] {
 
     // Also check for the main video file if it exists (partial download)
     if (fs.existsSync(videoPath)) {
-      fs.unlinkSync(videoPath);
+      await safeRemove(videoPath);
       deletedFiles.push(videoPath);
       console.log("Deleted partial video file:", videoPath);
     }
@@ -138,20 +138,20 @@ export function cleanupTemporaryFiles(videoPath: string): string[] {
  * @param videoPath - The full path to the video file
  * @returns Array of deleted file paths
  */
-export function cleanupPartialVideoFiles(videoPath: string): string[] {
+export async function cleanupPartialVideoFiles(videoPath: string): Promise<string[]> {
   const deletedFiles: string[] = [];
 
   try {
     const partVideoPath = `${videoPath}.part`;
 
     if (fs.existsSync(partVideoPath)) {
-      fs.unlinkSync(partVideoPath);
+      await safeRemove(partVideoPath);
       deletedFiles.push(partVideoPath);
       console.log("Deleted partial video file:", partVideoPath);
     }
 
     if (fs.existsSync(videoPath)) {
-      fs.unlinkSync(videoPath);
+      await safeRemove(videoPath);
       deletedFiles.push(videoPath);
       console.log("Deleted video file:", videoPath);
     }
@@ -219,4 +219,92 @@ export function calculateDownloadedSize(
   const totalBytes = parseSize(totalSize);
   const downloadedBytes = (percentage / 100) * totalBytes;
   return formatBytes(downloadedBytes);
+}
+
+/**
+ * Clean up all artifacts related to a video download (temp files, partials, format streams)
+ * @param baseFilename - The base filename to match (without extension)
+ * @param directory - Optional directory to search in (defaults to VIDEOS_DIR)
+ * @returns Array of deleted file paths
+ */
+export async function cleanupVideoArtifacts(
+  baseFilename: string,
+  directory: string = VIDEOS_DIR
+): Promise<string[]> {
+  const deletedFiles: string[] = [];
+
+  try {
+    if (!fs.existsSync(directory)) {
+      return deletedFiles;
+    }
+
+    const files = fs.readdirSync(directory);
+    
+    // Filter files that start with the base filename and are likely download artifacts
+    const artifactFiles = files.filter((file: string) => {
+      if (!file.startsWith(baseFilename)) return false;
+      
+      // Always cleanup .part and .ytdl files
+      if (file.endsWith(".part") || file.endsWith(".ytdl")) return true;
+      
+      // Cleanup intermediate format files (e.g., .f137.mp4, .f140.m4a, .temp.mp4)
+      // yt-dlp often uses .f[format_id]. in filenames for intermediate streams
+      if (/\.f[0-9]+/.test(file) || /\.temp\./.test(file)) return true;
+      
+      // Cleanup the main video file variants (mp4, mkv, webm, etc) if this is called during cleanup
+      // This matches strictly files that share the base filename
+      const ext = path.extname(file);
+      const fileWithoutExt = path.basename(file, ext);
+      if (fileWithoutExt === baseFilename) return true;
+      
+      return false;
+    });
+
+    for (const artifact of artifactFiles) {
+      const artifactPath = path.join(directory, artifact);
+      if (fs.existsSync(artifactPath)) {
+        await safeRemove(artifactPath);
+        deletedFiles.push(artifactPath);
+        console.log("Deleted artifact file:", artifactPath);
+      }
+    }
+  } catch (error) {
+    console.error("Error cleaning up video artifacts:", error);
+  }
+
+  return deletedFiles;
+}
+
+/**
+ * Safely remove a file or directory with retries
+ * Useful when processes might still be releasing locks
+ */
+export async function safeRemove(
+  pathToRemove: string,
+  retryCount: number = 3,
+  initialDelay: number = 500
+): Promise<void> {
+  // Initial delay to allow processes to release locks
+  if (initialDelay > 0) {
+    await new Promise((resolve) => setTimeout(resolve, initialDelay));
+  }
+
+  for (let i = 0; i < retryCount; i++) {
+    try {
+      if (fs.existsSync(pathToRemove)) {
+        await fs.remove(pathToRemove);
+      }
+      return;
+    } catch (err) {
+      if (i === retryCount - 1) {
+        console.error(
+          `Failed to remove ${pathToRemove} after ${retryCount} attempts:`,
+          err
+        );
+      } else {
+        // Linear backoff
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+  }
 }

@@ -3,8 +3,8 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import {
-  cleanupPartialVideoFiles,
   cleanupSubtitleFiles,
+  cleanupVideoArtifacts
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -471,15 +471,19 @@ export class YtDlpDownloader extends BaseDownloader {
       const subprocess = executeYtDlpSpawn(videoUrl, flags);
 
       if (onStart) {
-        onStart(() => {
+        onStart(async () => {
           logger.info("Killing subprocess for download:", downloadId);
           subprocess.kill();
 
           // Clean up partial files
           logger.info("Cleaning up partial files...");
-          cleanupPartialVideoFiles(newVideoPathWithFormat);
-          cleanupPartialVideoFiles(newThumbnailPath);
-          cleanupSubtitleFiles(newSafeBaseFilename);
+          await cleanupVideoArtifacts(newSafeBaseFilename);
+          await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR); // For thumbnail? Or just use safeRemove for thumbnailPath
+          // Actually cleanupVideoArtifacts defaults to VIDEOS_DIR. Thumbnail is in IMAGES_DIR.
+          if (fs.existsSync(newThumbnailPath)) {
+             await fs.remove(newThumbnailPath);
+          }
+          await cleanupSubtitleFiles(newSafeBaseFilename);
         });
       }
 
@@ -495,9 +499,10 @@ export class YtDlpDownloader extends BaseDownloader {
       } catch (error: any) {
         // Use base class helper for cancellation handling
         const downloader = new YtDlpDownloader();
-        downloader.handleCancellationError(error, () => {
-          cleanupPartialVideoFiles(newVideoPathWithFormat);
-          cleanupSubtitleFiles(newSafeBaseFilename);
+
+        await downloader.handleCancellationError(error, async () => {
+          await cleanupVideoArtifacts(newSafeBaseFilename);
+          await cleanupSubtitleFiles(newSafeBaseFilename);
         });
 
         // Check if error is subtitle-related and video file exists
@@ -534,8 +539,8 @@ export class YtDlpDownloader extends BaseDownloader {
       try {
         downloader.throwIfCancelled(downloadId);
       } catch (error) {
-        cleanupPartialVideoFiles(newVideoPathWithFormat);
-        cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupVideoArtifacts(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename);
         throw error;
       }
 
@@ -545,7 +550,7 @@ export class YtDlpDownloader extends BaseDownloader {
       try {
         downloader.throwIfCancelled(downloadId);
       } catch (error) {
-        cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename);
         throw error;
       }
 
@@ -563,7 +568,7 @@ export class YtDlpDownloader extends BaseDownloader {
       try {
         downloader.throwIfCancelled(downloadId);
       } catch (error) {
-        cleanupSubtitleFiles(newSafeBaseFilename);
+        await cleanupSubtitleFiles(newSafeBaseFilename);
         throw error;
       }
 
@@ -584,7 +589,7 @@ export class YtDlpDownloader extends BaseDownloader {
           try {
             downloader.throwIfCancelled(downloadId);
           } catch (error) {
-            cleanupSubtitleFiles(baseFilename);
+            await cleanupSubtitleFiles(baseFilename);
             throw error;
           }
 
@@ -624,7 +629,7 @@ export class YtDlpDownloader extends BaseDownloader {
         }
       } catch (subtitleError) {
         // If it's a cancellation error, re-throw it
-        downloader.handleCancellationError(subtitleError);
+        await downloader.handleCancellationError(subtitleError);
         logger.error("Error processing subtitle files:", subtitleError);
       }
     } catch (error) {

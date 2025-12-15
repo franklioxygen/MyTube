@@ -4,18 +4,18 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import { bccToVtt } from "../../utils/bccToVtt";
-import { formatBytes } from "../../utils/downloadUtils";
+import { formatBytes, safeRemove } from "../../utils/downloadUtils";
 import {
-  extractBilibiliVideoId,
-  formatVideoFilename,
+    extractBilibiliVideoId,
+    formatVideoFilename,
 } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Collection, Video } from "../storageService";
@@ -402,29 +402,25 @@ export class BilibiliDownloader extends BaseDownloader {
       // Use spawn to capture stdout for progress
       const subprocess = executeYtDlpSpawn(url, flags);
 
-      // Register cancel function if provided
       if (onStart) {
-        onStart(() => {
+        onStart(async () => {
           logger.info("Killing subprocess for download:", downloadId);
           subprocess.kill();
 
           // Clean up partial files
           logger.info("Cleaning up partial files...");
-          try {
-            if (fs.existsSync(tempDir)) {
-              fs.removeSync(tempDir);
-              logger.info("Deleted temp directory:", tempDir);
-            }
-            if (fs.existsSync(videoPath)) {
-              fs.unlinkSync(videoPath);
-              logger.info("Deleted partial video file:", videoPath);
-            }
-            if (fs.existsSync(thumbnailPath)) {
-              fs.unlinkSync(thumbnailPath);
-              logger.info("Deleted partial thumbnail file:", thumbnailPath);
-            }
-          } catch (cleanupError) {
-            logger.error("Error cleaning up partial files:", cleanupError);
+          
+          if (fs.existsSync(tempDir)) {
+            await safeRemove(tempDir);
+            logger.info("Deleted temp directory:", tempDir);
+          }
+          if (fs.existsSync(videoPath)) {
+            await safeRemove(videoPath);
+            logger.info("Deleted partial video file:", videoPath);
+          }
+          if (fs.existsSync(thumbnailPath)) {
+            await safeRemove(thumbnailPath);
+            logger.info("Deleted partial thumbnail file:", thumbnailPath);
           }
         });
       }
@@ -469,9 +465,9 @@ export class BilibiliDownloader extends BaseDownloader {
         downloadError = error;
         // Use base class helper for cancellation handling
         const downloader = new BilibiliDownloader();
-        downloader.handleCancellationError(error, () => {
+        downloader.handleCancellationError(error, async () => {
           if (fs.existsSync(tempDir)) {
-            fs.removeSync(tempDir);
+            await safeRemove(tempDir);
           }
         });
         // Only log as error if it's not an expected subtitle-related issue
