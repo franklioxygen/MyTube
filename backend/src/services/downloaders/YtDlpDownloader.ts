@@ -336,9 +336,9 @@ export class YtDlpDownloader {
 
       // Default format based on user config or fallback
       let defaultFormat =
-        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best";
       let youtubeFormat =
-        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec=aac]/bestvideo[ext=mp4][vcodec=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
 
       // If user specified a format, use it (but still apply MP4 container preference)
       if (userConfig.f || userConfig.format) {
@@ -412,6 +412,7 @@ export class YtDlpDownloader {
       }
 
       // Add YouTube specific flags if it's a YouTube URL
+      // Always apply preferred formats for YouTube to ensure codec compatibility (H.264/AAC for Safari)
       if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
         flags.format = youtubeFormat;
 
