@@ -234,5 +234,6 @@ export const scanFiles = async (
   const message = `Scan complete. Added ${addedCount} new videos. Deleted ${deletedCount} missing videos.`;
   logger.info(message);
 
-  res.status(200).json(successResponse({ addedCount, deletedCount }, message));
+  // Return format expected by frontend: { addedCount, deletedCount }
+  res.status(200).json({ addedCount, deletedCount });
 };

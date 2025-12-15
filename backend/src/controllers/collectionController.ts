@@ -2,23 +2,26 @@ import { Request, Response } from "express";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { Collection } from "../services/storageService";
-import { successMessage, successResponse } from "../utils/response";
+import { successMessage } from "../utils/response";
 
 /**
  * Get all collections
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns array directly for backward compatibility with frontend
  */
 export const getCollections = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
   const collections = storageService.getCollections();
-  res.json(successResponse(collections));
+  // Return array directly for backward compatibility (frontend expects response.data to be Collection[])
+  res.json(collections);
 };
 
 /**
  * Create a new collection
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns collection object directly for backward compatibility with frontend
  */
 export const createCollection = async (
   req: Request,
@@ -49,19 +52,20 @@ export const createCollection = async (
       videoId
     );
     if (updatedCollection) {
-      res
-        .status(201)
-        .json(successResponse(updatedCollection, "Collection created"));
+      // Return collection object directly for backward compatibility
+      res.status(201).json(updatedCollection);
       return;
     }
   }
 
-  res.status(201).json(successResponse(newCollection, "Collection created"));
+  // Return collection object directly for backward compatibility
+  res.status(201).json(newCollection);
 };
 
 /**
  * Update a collection
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns collection object directly for backward compatibility with frontend
  */
 export const updateCollection = async (
   req: Request,
@@ -102,7 +106,8 @@ export const updateCollection = async (
     throw new NotFoundError("Collection", id);
   }
 
-  res.json(successResponse(updatedCollection));
+  // Return collection object directly for backward compatibility
+  res.json(updatedCollection);
 };
 
 /**

@@ -38,6 +38,7 @@ export const upload = multer({ storage: storage });
 /**
  * Search for videos
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns { results } format for backward compatibility with frontend
  */
 export const searchVideos = async (
   req: Request,
@@ -57,7 +58,8 @@ export const searchVideos = async (
     limit,
     offset
   );
-  res.status(200).json(successResponse({ results }));
+  // Return { results } format for backward compatibility (frontend expects response.data.results)
+  res.status(200).json({ results });
 };
 
 /**
@@ -85,7 +87,8 @@ export const checkVideoDownloadStatus = async (
   const { id: sourceVideoId, platform } = extractSourceVideoId(videoUrl);
 
   if (!sourceVideoId) {
-    res.status(200).json(successResponse({ found: false }));
+    // Return object directly for backward compatibility (frontend expects response.data.found)
+    res.status(200).json({ found: false });
     return;
   }
 
@@ -100,47 +103,45 @@ export const checkVideoDownloadStatus = async (
       if (!existingVideo) {
         // Video was deleted but not marked in download history, update it
         storageService.markVideoDownloadDeleted(downloadCheck.videoId);
-        res.status(200).json(
-          successResponse({
-            found: true,
-            status: "deleted",
-            title: downloadCheck.title,
-            author: downloadCheck.author,
-            downloadedAt: downloadCheck.downloadedAt,
-          })
-        );
+        // Return object directly for backward compatibility
+        res.status(200).json({
+          found: true,
+          status: "deleted",
+          title: downloadCheck.title,
+          author: downloadCheck.author,
+          downloadedAt: downloadCheck.downloadedAt,
+        });
         return;
       }
 
-      res.status(200).json(
-        successResponse({
-          found: true,
-          status: "exists",
-          videoId: downloadCheck.videoId,
-          title: downloadCheck.title || existingVideo.title,
-          author: downloadCheck.author || existingVideo.author,
-          downloadedAt: downloadCheck.downloadedAt,
-          videoPath: existingVideo.videoPath,
-          thumbnailPath: existingVideo.thumbnailPath,
-        })
-      );
+      // Return object directly for backward compatibility
+      res.status(200).json({
+        found: true,
+        status: "exists",
+        videoId: downloadCheck.videoId,
+        title: downloadCheck.title || existingVideo.title,
+        author: downloadCheck.author || existingVideo.author,
+        downloadedAt: downloadCheck.downloadedAt,
+        videoPath: existingVideo.videoPath,
+        thumbnailPath: existingVideo.thumbnailPath,
+      });
       return;
     }
 
-    res.status(200).json(
-      successResponse({
-        found: true,
-        status: downloadCheck.status,
-        title: downloadCheck.title,
-        author: downloadCheck.author,
-        downloadedAt: downloadCheck.downloadedAt,
-        deletedAt: downloadCheck.deletedAt,
-      })
-    );
+    // Return object directly for backward compatibility
+    res.status(200).json({
+      found: true,
+      status: downloadCheck.status,
+      title: downloadCheck.title,
+      author: downloadCheck.author,
+      downloadedAt: downloadCheck.downloadedAt,
+      deletedAt: downloadCheck.deletedAt,
+    });
     return;
   }
 
-  res.status(200).json(successResponse({ found: false }));
+  // Return object directly for backward compatibility
+  res.status(200).json({ found: false });
 };
 
 // Download video
@@ -476,18 +477,21 @@ export const downloadVideo = async (
 /**
  * Get all videos
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns array directly for backward compatibility with frontend
  */
 export const getVideos = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
   const videos = storageService.getVideos();
-  res.status(200).json(successResponse(videos));
+  // Return array directly for backward compatibility (frontend expects response.data to be Video[])
+  res.status(200).json(videos);
 };
 
 /**
  * Get video by ID
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns video object directly for backward compatibility with frontend
  */
 export const getVideoById = async (
   req: Request,
@@ -500,7 +504,8 @@ export const getVideoById = async (
     throw new NotFoundError("Video", id);
   }
 
-  res.status(200).json(successResponse(video));
+  // Return video object directly for backward compatibility (frontend expects response.data to be Video)
+  res.status(200).json(video);
 };
 
 /**
@@ -524,6 +529,7 @@ export const deleteVideo = async (
 /**
  * Get download status
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns status object directly for backward compatibility with frontend
  */
 export const getDownloadStatus = async (
   _req: Request,
@@ -540,7 +546,8 @@ export const getDownloadStatus = async (
       }
     });
   }
-  res.status(200).json(successResponse(status));
+  // Return status object directly for backward compatibility (frontend expects response.data to be DownloadStatus)
+  res.status(200).json(status);
 };
 
 /**
@@ -580,7 +587,8 @@ export const checkBilibiliParts = async (
 
   const result = await downloadService.checkBilibiliVideoParts(videoId);
 
-  res.status(200).json(successResponse(result));
+  // Return result object directly for backward compatibility (frontend expects response.data.success, response.data.videosNumber)
+  res.status(200).json(result);
 };
 
 /**
@@ -621,12 +629,14 @@ export const checkBilibiliCollection = async (
   // Check if it's a collection or series
   const result = await downloadService.checkBilibiliCollectionOrSeries(videoId);
 
-  res.status(200).json(successResponse(result));
+  // Return result object directly for backward compatibility (frontend expects response.data.success, response.data.type)
+  res.status(200).json(result);
 };
 
 /**
  * Get video comments
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns comments array directly for backward compatibility with frontend
  */
 export const getVideoComments = async (
   req: Request,
@@ -636,7 +646,8 @@ export const getVideoComments = async (
   const comments = await import("../services/commentService").then((m) =>
     m.getComments(id)
   );
-  res.status(200).json(successResponse(comments));
+  // Return comments array directly for backward compatibility (frontend expects response.data to be Comment[])
+  res.status(200).json(comments);
 };
 
 /**
@@ -741,9 +752,11 @@ export const rateVideo = async (req: Request, res: Response): Promise<void> => {
     throw new NotFoundError("Video", id);
   }
 
-  res
-    .status(200)
-    .json(successResponse({ video: updatedVideo }, "Video rated successfully"));
+  // Return format expected by frontend: { success: true, video: ... }
+  res.status(200).json({
+    success: true,
+    video: updatedVideo,
+  });
 };
 
 /**
@@ -773,11 +786,11 @@ export const updateVideoDetails = async (
     throw new NotFoundError("Video", id);
   }
 
-  res
-    .status(200)
-    .json(
-      successResponse({ video: updatedVideo }, "Video updated successfully")
-    );
+  // Return format expected by frontend: { success: true, video: ... }
+  res.status(200).json({
+    success: true,
+    video: updatedVideo,
+  });
 };
 
 /**
@@ -864,11 +877,11 @@ export const refreshThumbnail = async (
   // Return success with timestamp to bust cache
   const thumbnailUrl = `${newThumbnailPath}?t=${Date.now()}`;
 
-  res
-    .status(200)
-    .json(
-      successResponse({ thumbnailUrl }, "Thumbnail refreshed successfully")
-    );
+  // Return format expected by frontend: { success: true, thumbnailUrl: ... }
+  res.status(200).json({
+    success: true,
+    thumbnailUrl,
+  });
 };
 
 /**
@@ -892,11 +905,11 @@ export const incrementViewCount = async (
     lastPlayedAt: Date.now(),
   });
 
-  res.status(200).json(
-    successResponse({
-      viewCount: updatedVideo?.viewCount,
-    })
-  );
+  // Return format expected by frontend: { success: true, viewCount: ... }
+  res.status(200).json({
+    success: true,
+    viewCount: updatedVideo?.viewCount,
+  });
 };
 
 /**

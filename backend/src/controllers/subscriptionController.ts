@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
 import { subscriptionService } from "../services/subscriptionService";
 import { logger } from "../utils/logger";
-import { successMessage, successResponse } from "../utils/response";
+import { successMessage } from "../utils/response";
 
 /**
  * Create a new subscription
@@ -23,19 +23,22 @@ export const createSubscription = async (
     url,
     parseInt(interval)
   );
-  res.status(201).json(successResponse(subscription, "Subscription created"));
+  // Return subscription object directly for backward compatibility
+  res.status(201).json(subscription);
 };
 
 /**
  * Get all subscriptions
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns array directly for backward compatibility with frontend
  */
 export const getSubscriptions = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   const subscriptions = await subscriptionService.listSubscriptions();
-  res.json(successResponse(subscriptions));
+  // Return array directly for backward compatibility (frontend expects response.data to be Subscription[])
+  res.json(subscriptions);
 };
 
 /**

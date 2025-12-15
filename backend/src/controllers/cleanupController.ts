@@ -5,7 +5,6 @@ import { VIDEOS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
-import { successResponse } from "../utils/response";
 
 /**
  * Clean up temporary download files (.ytdl, .part)
@@ -67,13 +66,9 @@ export const cleanupTempFiles = async (
   // Start cleanup from VIDEOS_DIR
   await cleanupDirectory(VIDEOS_DIR);
 
-  res.status(200).json(
-    successResponse(
-      {
-        deletedCount,
-        ...(errors.length > 0 && { errors }),
-      },
-      `Cleaned up ${deletedCount} temporary files`
-    )
-  );
+  // Return format expected by frontend: { deletedCount, errors? }
+  res.status(200).json({
+    deletedCount,
+    ...(errors.length > 0 && { errors }),
+  });
 };

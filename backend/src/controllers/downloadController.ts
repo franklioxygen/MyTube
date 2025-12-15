@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
-import { successMessage, successResponse } from "../utils/response";
+import { successMessage } from "../utils/response";
 
 /**
  * Cancel a download
@@ -44,13 +44,15 @@ export const clearQueue = async (
 /**
  * Get download history
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns array directly for backward compatibility with frontend
  */
 export const getDownloadHistory = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
   const history = storageService.getDownloadHistory();
-  res.status(200).json(successResponse(history));
+  // Return array directly for backward compatibility (frontend expects response.data to be DownloadHistoryItem[])
+  res.status(200).json(history);
 };
 
 /**

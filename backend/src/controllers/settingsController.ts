@@ -11,7 +11,7 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
-import { successMessage, successResponse } from "../utils/response";
+import { successMessage } from "../utils/response";
 
 interface Settings {
   loginEnabled: boolean;
@@ -57,6 +57,7 @@ const defaultSettings: Settings = {
 /**
  * Get application settings
  * Errors are automatically handled by asyncHandler middleware
+ * Note: Returns data directly for backward compatibility with frontend
  */
 export const getSettings = async (
   _req: Request,
@@ -67,7 +68,8 @@ export const getSettings = async (
   // If empty (first run), save defaults
   if (Object.keys(settings).length === 0) {
     storageService.saveSettings(defaultSettings);
-    res.json(successResponse(defaultSettings));
+    // Return data directly for backward compatibility
+    res.json(defaultSettings);
     return;
   }
 
@@ -76,7 +78,8 @@ export const getSettings = async (
 
   // Do not send the hashed password to the frontend
   const { password, ...safeSettings } = mergedSettings;
-  res.json(successResponse({ ...safeSettings, isPasswordSet: !!password }));
+  // Return data directly for backward compatibility
+  res.json({ ...safeSettings, isPasswordSet: !!password });
 };
 
 /**
@@ -89,7 +92,8 @@ export const migrateData = async (
 ): Promise<void> => {
   const { runMigration } = await import("../services/migrationService");
   const results = await runMigration();
-  res.json(successResponse(results, "Migration completed"));
+  // Return format expected by frontend: { results: {...} }
+  res.json({ results });
 };
 
 /**
@@ -128,7 +132,8 @@ export const deleteLegacyData = async (
     }
   }
 
-  res.json(successResponse(results, "Legacy data deletion completed"));
+  // Return format expected by frontend: { results: { deleted: [], failed: [] } }
+  res.json({ results });
 };
 
 /**
@@ -140,7 +145,8 @@ export const formatFilenames = async (
   res: Response
 ): Promise<void> => {
   const results = storageService.formatLegacyFilenames();
-  res.json(successResponse(results, "Filenames formatted"));
+  // Return format expected by frontend: { results: {...} }
+  res.json({ results });
 };
 
 /**
@@ -236,9 +242,11 @@ export const updateSettings = async (
   // Apply settings immediately where possible
   downloadManager.setMaxConcurrentDownloads(newSettings.maxConcurrentDownloads);
 
-  res.json(
-    successResponse({ ...newSettings, password: undefined }, "Settings updated")
-  );
+  // Return format expected by frontend: { success: true, settings: {...} }
+  res.json({
+    success: true,
+    settings: { ...newSettings, password: undefined },
+  });
 };
 
 /**
@@ -255,7 +263,8 @@ export const getPasswordEnabled = async (
   // Return true only if login is enabled AND a password is set
   const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password;
 
-  res.json(successResponse({ enabled: isEnabled }));
+  // Return format expected by frontend: { enabled: boolean }
+  res.json({ enabled: isEnabled });
 };
 
 /**
@@ -272,20 +281,23 @@ export const verifyPassword = async (
   const mergedSettings = { ...defaultSettings, ...settings };
 
   if (!mergedSettings.loginEnabled) {
-    res.json(successResponse({ verified: true }));
+    // Return format expected by frontend: { success: boolean }
+    res.json({ success: true });
     return;
   }
 
   if (!mergedSettings.password) {
     // If no password set but login enabled, allow access
-    res.json(successResponse({ verified: true }));
+    // Return format expected by frontend: { success: boolean }
+    res.json({ success: true });
     return;
   }
 
   const isMatch = await bcrypt.compare(password, mergedSettings.password);
 
   if (isMatch) {
-    res.json(successResponse({ verified: true }));
+    // Return format expected by frontend: { success: boolean }
+    res.json({ success: true });
   } else {
     throw new ValidationError("Incorrect password", "password");
   }
@@ -332,7 +344,8 @@ export const checkCookies = async (
   const { DATA_DIR } = require("../config/paths");
   const cookiesPath = path.join(DATA_DIR, "cookies.txt");
   const exists = fs.existsSync(cookiesPath);
-  res.json(successResponse({ exists }));
+  // Return format expected by frontend: { exists: boolean }
+  res.json({ exists });
 };
 
 /**
