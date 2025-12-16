@@ -7,6 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+# Install build dependencies for native modules (python3, make, g++)
+RUN apk add --no-cache python3 make g++
 RUN npm ci
 
 COPY . .
