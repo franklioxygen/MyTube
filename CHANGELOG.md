@@ -1,5 +1,20 @@
 # Change Log
 
+## v1.6.7 (2025-12-16)
+
+### Feat
+
+- feat: Add subscribe functionality to VideoPlayer page (4624d12)
+- feat: Add function to get author channel URL (a7a4eae)
+
+### Refactor
+
+- refactor: Update quotation marks to use double quotes consistently (6430605)
+
+### Docs
+
+- docs: Update documentation (0ba6e20)
+
 ## v1.6.6 (2025-12-16)
 
 ### Fix
