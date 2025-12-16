@@ -16,7 +16,6 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 
 [![Watch the video](https://img.youtube.com/vi/O5rMqYffXpg/maxresdefault.jpg)](https://youtu.be/O5rMqYffXpg)
 
-
 ## Features
 
 - **Video Downloading**: Download YouTube, Bilibili and MissAV videos with a simple URL input.
@@ -53,6 +52,33 @@ For installation and setup instructions, please refer to [Getting Started](docum
 
 For a list of available API endpoints, please refer to [API Endpoints](documents/en/api-endpoints.md).
 
+## Technology Stack
+
+### Backend
+
+- **Runtime**: Node.js with TypeScript
+- **Framework**: Express.js
+- **Database**: SQLite with Drizzle ORM
+- **Testing**: Vitest
+- **Architecture**: Layered architecture (Routes → Controllers → Services → Database)
+
+### Frontend
+
+- **Framework**: React 19 with TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Material-UI (MUI)
+- **State Management**: React Context API
+- **Routing**: React Router v7
+- **HTTP Client**: Axios with React Query
+
+### Key Architectural Features
+
+- **Modular Storage Service**: Split into focused modules for maintainability
+- **Downloader Pattern**: Abstract base class for platform-specific implementations
+- **Database Migrations**: Automatic schema updates using Drizzle Kit
+- **Download Queue Management**: Concurrent downloads with queue support
+- **Video Download Tracking**: Prevents duplicate downloads across sessions
+
 ## Environment Variables
 
 The application uses environment variables for configuration.
@@ -71,10 +97,31 @@ PORT=5551
 UPLOAD_DIR=uploads
 VIDEO_DIR=uploads/videos
 IMAGE_DIR=uploads/images
+SUBTITLES_DIR=uploads/subtitles
+DATA_DIR=data
 MAX_FILE_SIZE=500000000
 ```
 
 Copy the `.env.example` files in both frontend and backend directories to create your own `.env` files.
+
+## Database
+
+MyTube uses **SQLite** with **Drizzle ORM** for data persistence. The database is automatically created and migrated on first startup:
+
+- **Location**: `backend/data/mytube.db`
+- **Migrations**: Automatically run on server startup
+- **Schema**: Managed through Drizzle Kit migrations
+- **Legacy Support**: Migration tools available to convert from JSON-based storage
+
+Key database tables:
+
+- `videos`: Video metadata and file paths
+- `collections`: Video collections/playlists
+- `subscriptions`: Channel/creator subscriptions
+- `downloads`: Active download queue
+- `download_history`: Completed download history
+- `video_downloads`: Tracks downloaded videos to prevent duplicates
+- `settings`: Application configuration
 
 ## Contributing
 
@@ -96,13 +143,13 @@ For detailed instructions on how to deploy MyTube using Docker, please refer to 
 
 ## Disclaimer
 
- - Purpose and Restrictions This software (including code and documentation) is intended solely for personal learning, research, and technical exchange. It is strictly prohibited to use this software for any commercial purposes or for any illegal activities that violate local laws and regulations.
+- Purpose and Restrictions This software (including code and documentation) is intended solely for personal learning, research, and technical exchange. It is strictly prohibited to use this software for any commercial purposes or for any illegal activities that violate local laws and regulations.
 
- - Liability The developer is unaware of and has no control over how users utilize this software. Any legal liabilities, disputes, or damages arising from the illegal or improper use of this software (including but not limited to copyright infringement) shall be borne solely by the user. The developer assumes no direct, indirect, or joint liability.
+- Liability The developer is unaware of and has no control over how users utilize this software. Any legal liabilities, disputes, or damages arising from the illegal or improper use of this software (including but not limited to copyright infringement) shall be borne solely by the user. The developer assumes no direct, indirect, or joint liability.
 
- - Modifications and Distribution This project is open-source. Any individual or organization modifying or forking this code must comply with the open-source license. Important: If a third party modifies the code to bypass or remove the original user authentication/security mechanisms and distributes such versions, the modifier/distributor bears full responsibility for any consequences. We strongly discourage bypassing or tampering with any security verification mechanisms.
+- Modifications and Distribution This project is open-source. Any individual or organization modifying or forking this code must comply with the open-source license. Important: If a third party modifies the code to bypass or remove the original user authentication/security mechanisms and distributes such versions, the modifier/distributor bears full responsibility for any consequences. We strongly discourage bypassing or tampering with any security verification mechanisms.
 
- - Non-Profit Statement This is a completely free open-source project. The developer does not accept donations and has never published any donation pages. The software itself allows no charges and offers no paid services. Please be vigilant and beware of any scams or misleading information claiming to collect fees on behalf of this project.
+- Non-Profit Statement This is a completely free open-source project. The developer does not accept donations and has never published any donation pages. The software itself allows no charges and offers no paid services. Please be vigilant and beware of any scams or misleading information claiming to collect fees on behalf of this project.
 
 ## License
 
