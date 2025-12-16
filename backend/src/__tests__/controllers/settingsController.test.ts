@@ -103,13 +103,13 @@ describe('SettingsController', () => {
       (storageService.getSettings as any).mockReturnValue({ loginEnabled: true, password: 'hashed' });
       (bcrypt.compare as any).mockResolvedValue(false);
 
-      try {
-        await verifyPassword(req as Request, res as Response);
-        expect.fail('Should have thrown');
-      } catch (error: any) {
-        expect(error.name).toBe('ValidationError');
-        expect(error.message).toBe('Incorrect password');
-      }
+      await verifyPassword(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(401);
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
+        success: false, 
+        message: 'Incorrect password' 
+      }));
     });
     });
 
