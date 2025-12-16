@@ -138,11 +138,30 @@ const VideoPlayer: React.FC = () => {
         return [];
     }, [collections, activeCollectionVideoId]);
 
-    // Handle navigation to author videos page
-    const handleAuthorClick = () => {
-        if (video) {
-            navigate(`/author/${encodeURIComponent(video.author)}`);
+    // Handle navigation to author videos page or external channel
+    const handleAuthorClick = async () => {
+        if (!video) return;
+
+        // If it's a YouTube or Bilibili video, try to get the channel URL
+        if (video.source === 'youtube' || video.source === 'bilibili') {
+            try {
+                const response = await axios.get(`${API_URL}/videos/author-channel-url`, {
+                    params: { sourceUrl: video.sourceUrl }
+                });
+                
+                if (response.data.success && response.data.channelUrl) {
+                    // Open the channel URL in a new tab
+                    window.open(response.data.channelUrl, '_blank', 'noopener,noreferrer');
+                    return;
+                }
+            } catch (error) {
+                console.error('Error fetching author channel URL:', error);
+                // Fall through to default behavior
+            }
         }
+
+        // Default behavior: navigate to author videos page
+        navigate(`/author/${encodeURIComponent(video.author)}`);
     };
 
     const handleCollectionClick = (collectionId: string) => {

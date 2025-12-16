@@ -20,6 +20,10 @@ router.post(
   asyncHandler(videoController.uploadVideo)
 );
 router.get("/videos", asyncHandler(videoController.getVideos));
+router.get(
+  "/videos/author-channel-url",
+  asyncHandler(videoController.getAuthorChannelUrl)
+);
 router.get("/videos/:id", asyncHandler(videoController.getVideoById));
 router.put("/videos/:id", asyncHandler(videoController.updateVideoDetails));
 router.delete("/videos/:id", asyncHandler(videoController.deleteVideo));

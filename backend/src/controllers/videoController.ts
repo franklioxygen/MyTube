@@ -207,3 +207,77 @@ export const updateVideoDetails = async (
     video: updatedVideo,
   });
 };
+
+/**
+ * Get author channel URL for a video
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const getAuthorChannelUrl = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { sourceUrl } = req.query;
+
+  if (!sourceUrl || typeof sourceUrl !== "string") {
+    throw new ValidationError("sourceUrl is required", "sourceUrl");
+  }
+
+  try {
+    // Check if it's a YouTube URL
+    if (sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) {
+      const { executeYtDlpJson, getNetworkConfigFromUserConfig, getUserYtDlpConfig } = await import("../utils/ytDlpUtils");
+      const userConfig = getUserYtDlpConfig(sourceUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      const info = await executeYtDlpJson(sourceUrl, {
+        ...networkConfig,
+        noWarnings: true,
+      });
+
+      const channelUrl = info.channel_url || info.uploader_url || null;
+      if (channelUrl) {
+        res.status(200).json({ success: true, channelUrl });
+        return;
+      }
+    }
+
+    // Check if it's a Bilibili URL
+    if (sourceUrl.includes("bilibili.com") || sourceUrl.includes("b23.tv")) {
+      const axios = (await import("axios")).default;
+      const { extractBilibiliVideoId } = await import("../utils/helpers");
+      
+      const videoId = extractBilibiliVideoId(sourceUrl);
+      if (videoId) {
+        try {
+          // Handle both BV and av IDs
+          const isBvId = videoId.startsWith("BV");
+          const apiUrl = isBvId
+            ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
+            : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace("av", "")}`;
+          
+          const response = await axios.get(apiUrl, {
+            headers: {
+              Referer: "https://www.bilibili.com",
+              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            },
+          });
+
+          if (response.data && response.data.data && response.data.data.owner?.mid) {
+            const mid = response.data.data.owner.mid;
+            const spaceUrl = `https://space.bilibili.com/${mid}`;
+            res.status(200).json({ success: true, channelUrl: spaceUrl });
+            return;
+          }
+        } catch (error) {
+          logger.error("Error fetching Bilibili video info:", error);
+        }
+      }
+    }
+
+    // If we couldn't get the channel URL, return null
+    res.status(200).json({ success: true, channelUrl: null });
+  } catch (error) {
+    logger.error("Error getting author channel URL:", error);
+    res.status(200).json({ success: true, channelUrl: null });
+  }
+};
