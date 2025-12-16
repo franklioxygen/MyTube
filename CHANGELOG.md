@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.6 (2025-12-16)
+
+### Fix
+
+- fix: Prevent accidental tag loss when saving settings (preserve existing tags when undefined or empty array sent)
+
 ## v1.6.5 (2025-12-16)
 
 ### Feat
