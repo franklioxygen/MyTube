@@ -1,0 +1,67 @@
+import { LocalOffer } from '@mui/icons-material';
+import { Autocomplete, Box, Chip, TextField } from '@mui/material';
+import React from 'react';
+import { useLanguage } from '../../../contexts/LanguageContext';
+
+interface VideoTagsProps {
+    tags: string[] | undefined;
+    availableTags: string[];
+    onTagsUpdate: (tags: string[]) => Promise<void>;
+}
+
+const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate }) => {
+    const { t } = useLanguage();
+
+    return (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
+            <LocalOffer color="action" fontSize="small" />
+            <Autocomplete
+                multiple
+                options={availableTags}
+                value={tags || []}
+                isOptionEqualToValue={(option, value) => option === value}
+                onChange={(_, newValue) => onTagsUpdate(newValue)}
+                slotProps={{
+                    chip: { variant: 'outlined', size: 'small' },
+                    listbox: {
+                        sx: {
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 0.5,
+                            p: 1
+                        }
+                    }
+                }}
+                renderOption={(props, option, { selected }) => {
+                    const { key, ...otherProps } = props;
+                    return (
+                        <li key={key} {...otherProps} style={{ width: 'auto', padding: 0 }}>
+                            <Chip
+                                label={option}
+                                size="small"
+                                variant={selected ? "filled" : "outlined"}
+                                color={selected ? "primary" : "default"}
+                                sx={{ pointerEvents: 'none' }}
+                            />
+                        </li>
+                    );
+                }}
+                renderInput={(params) => (
+                    <TextField
+                        {...params}
+                        variant="standard"
+                        placeholder={!tags || tags.length === 0 ? (t('tags') || 'Tags') : ''}
+                        sx={{ minWidth: 200 }}
+                        slotProps={{
+                            input: { ...params.InputProps, disableUnderline: true }
+                        }}
+                    />
+                )}
+                sx={{ flexGrow: 1 }}
+            />
+        </Box>
+    );
+};
+
+export default VideoTags;
+
