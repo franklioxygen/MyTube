@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.5 (2025-12-16)
+
+### Feat
+
+- fix: Add build dependencies for native modules (df8d279)
+
 ## v1.6.4 (2025-12-15)
 
 ### Feat
