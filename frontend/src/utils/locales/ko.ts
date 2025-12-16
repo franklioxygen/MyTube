@@ -233,6 +233,13 @@ export const ko = {
   backendConnectionFailed:
     "서버에 연결할 수 없습니다. 백엔드가 실행 중이고 포트가 열려 있는지 확인한 후 다시 시도하세요.",
   retry: "다시 시도",
+  resetPassword: "비밀번호 재설정",
+  resetPasswordTitle: "비밀번호 재설정",
+  resetPasswordMessage: "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
+  resetPasswordConfirm: "재설정",
+  resetPasswordSuccess: "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
+  waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
+  tooManyAttempts: "실패한 시도가 너무 많습니다.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
   copyFailed: "링크 복사 실패",
 

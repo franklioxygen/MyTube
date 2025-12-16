@@ -236,6 +236,13 @@ export const ja = {
   backendConnectionFailed:
     "サーバーに接続できません。バックエンドが実行中でポートが開いているか確認してから、もう一度お試しください。",
   retry: "再試行",
+  resetPassword: "パスワードをリセット",
+  resetPasswordTitle: "パスワードをリセット",
+  resetPasswordMessage: "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
+  resetPasswordConfirm: "リセット",
+  resetPasswordSuccess: "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
+  waitTimeMessage: "再試行する前に {time} お待ちください。",
+  tooManyAttempts: "失敗した試行が多すぎます。",
   linkCopied: "リンクをクリップボードにコピーしました",
   copyFailed: "リンクのコピーに失敗しました",
 

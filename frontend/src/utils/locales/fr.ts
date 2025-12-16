@@ -250,6 +250,13 @@ export const fr = {
   backendConnectionFailed:
     "Impossible de se connecter au serveur. Veuillez vérifier que le backend est en cours d'exécution et que le port est ouvert, puis réessayez.",
   retry: "Réessayer",
+  resetPassword: "Réinitialiser le mot de passe",
+  resetPasswordTitle: "Réinitialiser le mot de passe",
+  resetPasswordMessage: "Êtes-vous sûr de vouloir réinitialiser le mot de passe ? Le mot de passe actuel sera réinitialisé en une chaîne aléatoire de 8 caractères et affiché dans le journal du backend.",
+  resetPasswordConfirm: "Réinitialiser",
+  resetPasswordSuccess: "Le mot de passe a été réinitialisé. Consultez les journaux du backend pour le nouveau mot de passe.",
+  waitTimeMessage: "Veuillez attendre {time} avant de réessayer.",
+  tooManyAttempts: "Trop de tentatives échouées.",
   linkCopied: "Lien copié dans le presse-papiers",
   copyFailed: "Échec de la copie du lien",
 

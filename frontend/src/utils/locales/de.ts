@@ -223,6 +223,13 @@ export const de = {
   backendConnectionFailed:
     "Verbindung zum Server nicht möglich. Bitte überprüfen Sie, ob das Backend läuft und der Port geöffnet ist, und versuchen Sie es erneut.",
   retry: "Wiederholen",
+  resetPassword: "Passwort zurücksetzen",
+  resetPasswordTitle: "Passwort zurücksetzen",
+  resetPasswordMessage: "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
+  resetPasswordConfirm: "Zurücksetzen",
+  resetPasswordSuccess: "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
+  waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
+  tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
   linkCopied: "Link in die Zwischenablage kopiert",
   copyFailed: "Link konnte nicht kopiert werden",
   loadingCollection: "Sammlung wird geladen...",

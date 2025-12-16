@@ -226,6 +226,13 @@ export const zh = {
   backendConnectionFailed:
     "无法连接到服务器。请检查后端是否正在运行并确保端口已开放，然后重试。",
   retry: "重试",
+  resetPassword: "重置密码",
+  resetPasswordTitle: "重置密码",
+  resetPasswordMessage: "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
+  resetPasswordConfirm: "重置",
+  resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
+  waitTimeMessage: "请等待 {time} 后再试。",
+  tooManyAttempts: "失败尝试次数过多。",
   linkCopied: "链接已复制到剪贴板",
   copyFailed: "复制链接失败",
 

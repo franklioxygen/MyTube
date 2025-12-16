@@ -247,6 +247,13 @@ export const es = {
   backendConnectionFailed:
     "No se puede conectar al servidor. Por favor, verifique si el backend está en ejecución y el puerto está abierto, luego intente nuevamente.",
   retry: "Reintentar",
+  resetPassword: "Restablecer Contraseña",
+  resetPasswordTitle: "Restablecer Contraseña",
+  resetPasswordMessage: "¿Está seguro de que desea restablecer la contraseña? La contraseña actual se restablecerá a una cadena aleatoria de 8 caracteres y se mostrará en el registro del backend.",
+  resetPasswordConfirm: "Restablecer",
+  resetPasswordSuccess: "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
+  waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
+  tooManyAttempts: "Demasiados intentos fallidos.",
   linkCopied: "Enlace copiado al portapapeles",
   copyFailed: "Error al copiar enlace",
 

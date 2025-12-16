@@ -9,6 +9,7 @@ import {
   getPasswordEnabled,
   getSettings,
   migrateData,
+  resetPassword,
   updateSettings,
   uploadCookies,
   verifyPassword,
@@ -22,6 +23,7 @@ router.get("/", asyncHandler(getSettings));
 router.post("/", asyncHandler(updateSettings));
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
 router.post("/verify-password", asyncHandler(verifyPassword));
+router.post("/reset-password", asyncHandler(resetPassword));
 router.post("/migrate", asyncHandler(migrateData));
 router.post("/delete-legacy", asyncHandler(deleteLegacyData));
 router.post("/format-filenames", asyncHandler(formatFilenames));

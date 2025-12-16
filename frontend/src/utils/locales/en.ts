@@ -228,6 +228,13 @@ export const en = {
   backendConnectionFailed:
     "Unable to connect to the server. Please check if the backend is running and port is open, then try again.",
   retry: "Retry",
+  resetPassword: "Reset Password",
+  resetPasswordTitle: "Reset Password",
+  resetPasswordMessage: "Are you sure you want to reset the password? The current password will be reset to a random 8-character string and displayed in the backend log.",
+  resetPasswordConfirm: "Reset",
+  resetPasswordSuccess: "Password has been reset. Check backend logs for the new password.",
+  waitTimeMessage: "Please wait {time} before trying again.",
+  tooManyAttempts: "Too many failed attempts.",
   linkCopied: "Link copied to clipboard",
   copyFailed: "Failed to copy link",
 

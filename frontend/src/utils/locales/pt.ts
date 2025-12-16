@@ -245,6 +245,13 @@ export const pt = {
   backendConnectionFailed:
     "Não foi possível conectar ao servidor. Verifique se o backend está em execução e a porta está aberta, depois tente novamente.",
   retry: "Tentar Novamente",
+  resetPassword: "Redefinir Senha",
+  resetPasswordTitle: "Redefinir Senha",
+  resetPasswordMessage: "Tem certeza de que deseja redefinir a senha? A senha atual será redefinida para uma string aleatória de 8 caracteres e exibida no log do backend.",
+  resetPasswordConfirm: "Redefinir",
+  resetPasswordSuccess: "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
+  waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
+  tooManyAttempts: "Muitas tentativas falharam.",
   linkCopied: "Link copiado para a área de transferência",
   copyFailed: "Falha ao copiar link",
 

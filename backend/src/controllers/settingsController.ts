@@ -9,6 +9,7 @@ import {
 } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
+import * as loginAttemptService from "../services/loginAttemptService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
@@ -263,8 +264,14 @@ export const getPasswordEnabled = async (
   // Return true only if login is enabled AND a password is set
   const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password;
 
-  // Return format expected by frontend: { enabled: boolean }
-  res.json({ enabled: isEnabled });
+  // Check for remaining wait time
+  const remainingWaitTime = loginAttemptService.canAttemptLogin();
+
+  // Return format expected by frontend: { enabled: boolean, waitTime?: number }
+  res.json({
+    enabled: isEnabled,
+    waitTime: remainingWaitTime > 0 ? remainingWaitTime : undefined,
+  });
 };
 
 /**
@@ -293,13 +300,37 @@ export const verifyPassword = async (
     return;
   }
 
+  // Check if user can attempt login (wait time check)
+  const remainingWaitTime = loginAttemptService.canAttemptLogin();
+  if (remainingWaitTime > 0) {
+    // User must wait before trying again
+    res.status(429).json({
+      success: false,
+      waitTime: remainingWaitTime,
+      message: "Too many failed attempts. Please wait before trying again.",
+    });
+    return;
+  }
+
   const isMatch = await bcrypt.compare(password, mergedSettings.password);
 
   if (isMatch) {
+    // Reset failed attempts on successful login
+    loginAttemptService.resetFailedAttempts();
     // Return format expected by frontend: { success: boolean }
     res.json({ success: true });
   } else {
-    throw new ValidationError("Incorrect password", "password");
+    // Record failed attempt and get wait time
+    const waitTime = loginAttemptService.recordFailedAttempt();
+    const failedAttempts = loginAttemptService.getFailedAttempts();
+
+    // Return wait time information
+    res.status(401).json({
+      success: false,
+      waitTime,
+      failedAttempts,
+      message: "Incorrect password",
+    });
   }
 };
 
@@ -365,4 +396,46 @@ export const deleteCookies = async (
   } else {
     throw new NotFoundError("Cookies file", "cookies.txt");
   }
+};
+
+/**
+ * Reset password to a random 8-character string
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const resetPassword = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  // Generate random 8-character password
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let newPassword = "";
+  for (let i = 0; i < 8; i++) {
+    newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  // Hash the new password
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  // Update settings with new password
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+  mergedSettings.password = hashedPassword;
+  mergedSettings.loginEnabled = true; // Ensure login is enabled
+
+  storageService.saveSettings(mergedSettings);
+
+  // Log the new password (as requested)
+  logger.info(`Password has been reset. New password: ${newPassword}`);
+
+  // Reset failed login attempts
+  loginAttemptService.resetFailedAttempts();
+
+  // Return success (but don't send password to frontend for security)
+  res.json({
+    success: true,
+    message:
+      "Password has been reset. Check backend logs for the new password.",
+  });
 };
