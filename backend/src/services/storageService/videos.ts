@@ -2,16 +2,17 @@ import { desc, eq } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  IMAGES_DIR,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    IMAGES_DIR,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../../config/paths";
-import { DatabaseError, NotFoundError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
+import { DatabaseError } from "../../errors/DownloadErrors";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import { getCollections } from "./collections";
 import { findImageFile, findVideoFile } from "./fileHelpers";
 import { markVideoDownloadDeleted } from "./videoDownloadTracking";
 
@@ -446,9 +447,6 @@ export function deleteVideo(id: string): boolean {
     const videoToDelete = getVideoById(id);
     if (!videoToDelete) return false;
 
-    // Lazy import to avoid circular dependency
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getCollections } = require("./collections");
     const allCollections = getCollections();
 
     // Remove video file

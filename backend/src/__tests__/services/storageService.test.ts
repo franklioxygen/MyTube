@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { db } from '../../db';
+import { db, sqlite } from '../../db';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../db', () => {
@@ -15,27 +15,39 @@ vi.mock('../../db', () => {
     values: valuesFn,
   });
   
+  // Mock for db.delete().where().run() pattern
+  const deleteWhereRun = vi.fn().mockReturnValue({ run: runFn });
+  const deleteMock = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ run: runFn }) });
+  
+  // Mock for db.select().from().all() pattern - returns array by default
+  const selectFromAll = vi.fn().mockReturnValue([]);
+  const selectFromOrderByAll = vi.fn().mockReturnValue([]);
+  const selectFromWhereGet = vi.fn();
+  const selectFromWhereAll = vi.fn().mockReturnValue([]);
+  const selectFromLeftJoinWhereAll = vi.fn().mockReturnValue([]);
+  const selectFromLeftJoinAll = vi.fn().mockReturnValue([]);
+  
   return {
     db: {
       insert: insertFn,
       update: vi.fn(),
-      delete: vi.fn(),
+      delete: deleteMock,
       select: vi.fn().mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            get: vi.fn(),
-            all: vi.fn(),
+            get: selectFromWhereGet,
+            all: selectFromWhereAll,
           }),
           leftJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              all: vi.fn(),
+              all: selectFromLeftJoinWhereAll,
             }),
-            all: vi.fn(),
+            all: selectFromLeftJoinAll,
           }),
           orderBy: vi.fn().mockReturnValue({
-            all: vi.fn(),
+            all: selectFromOrderByAll,
           }),
-          all: vi.fn(),
+          all: selectFromAll,
         }),
       }),
       transaction: vi.fn((cb) => cb()),
@@ -46,25 +58,81 @@ vi.mock('../../db', () => {
         run: vi.fn(),
       }),
     },
+    downloads: {}, // Mock downloads table
+    videos: {}, // Mock videos table
   };
 });
 
 vi.mock('fs-extra');
 
+
+
 describe('StorageService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    // Reset mocks to default behavior
+    (db.select as any).mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          get: vi.fn(),
+          all: vi.fn().mockReturnValue([]),
+        }),
+        leftJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([]),
+          }),
+          all: vi.fn().mockReturnValue([]),
+        }),
+        orderBy: vi.fn().mockReturnValue({
+          all: vi.fn().mockReturnValue([]),
+        }),
+        all: vi.fn().mockReturnValue([]),
+      }),
+    });
+    (db.delete as any).mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        run: vi.fn(),
+      }),
+    });
+    (sqlite.prepare as any).mockReturnValue({
+      all: vi.fn().mockReturnValue([]),
+      run: vi.fn(),
+    });
   });
 
   describe('initializeStorage', () => {
     it('should ensure directories exist', () => {
       (fs.existsSync as any).mockReturnValue(false);
+      // Mock db.delete(downloads).where().run() for clearing active downloads
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: vi.fn(),
+        }),
+      });
+      // Mock db.select().from(videos).all() for populating fileSize
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          all: vi.fn().mockReturnValue([]), // Return empty array for allVideos
+        }),
+      });
       storageService.initializeStorage();
       expect(fs.ensureDirSync).toHaveBeenCalledTimes(5);
     });
 
     it('should create status.json if not exists', () => {
       (fs.existsSync as any).mockReturnValue(false);
+      // Mock db.delete(downloads).where().run() for clearing active downloads
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: vi.fn(),
+        }),
+      });
+      // Mock db.select().from(videos).all() for populating fileSize
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          all: vi.fn().mockReturnValue([]), // Return empty array for allVideos
+        }),
+      });
       storageService.initializeStorage();
       expect(fs.writeFileSync).toHaveBeenCalled();
     });
@@ -299,10 +367,22 @@ describe('StorageService', () => {
   describe('deleteVideo', () => {
     it('should delete video and files', () => {
       const mockVideo = { id: '1', title: 'Video 1', sourceUrl: 'url', createdAt: 'date', videoFilename: 'vid.mp4' };
-      (db.select as any).mockReturnValue({
+      const selectMock = db.select as any;
+      
+      // 1. getVideoById
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             get: vi.fn().mockReturnValue(mockVideo),
+          }),
+        }),
+      });
+
+      // 2. getCollections (implicit call inside deleteVideo)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+             all: vi.fn().mockReturnValue([]),
           }),
         }),
       });
@@ -314,6 +394,9 @@ describe('StorageService', () => {
           run: mockRun,
         }),
       });
+
+      // The collections module will use the mocked db, so getCollections should return empty array
+      // by default from our db.select mock
 
       const result = storageService.deleteVideo('1');
       expect(result).toBe(true);
@@ -490,22 +573,8 @@ describe('StorageService', () => {
       
       // Mock getCollectionById
       const mockRows = [{ c: mockCollection, cv: { videoId: 'v1' } }];
-      (db.select as any).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          leftJoin: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              all: vi.fn().mockReturnValue(mockRows),
-            }),
-          }),
-        }),
-      });
-
-      // Mock getVideoById
-      // We need to handle multiple calls to db.select.
-      // Since we restored the complex mock, we can try to chain it or just rely on the fact that we can't easily mock different returns for same chain without mockImplementationOnce.
-      // But we can use mockImplementation to return different things based on call arguments or just sequence.
       
-      // Let's use a spy on db.select to return different mocks.
+      // Use a spy on db.select to return different mocks for different calls
       const selectSpy = vi.spyOn(db, 'select');
       
       // 1. getCollectionById
@@ -528,14 +597,8 @@ describe('StorageService', () => {
         }),
       } as any);
 
-      // 3. getCollections (to check other collections)
-      selectSpy.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          leftJoin: vi.fn().mockReturnValue({
-            all: vi.fn().mockReturnValue([]), // No other collections
-          }),
-        }),
-      } as any);
+      // 3. getCollections (to check other collections) - called by findVideoFile
+      // Will use the default db.select mock which returns empty array
 
       // 4. deleteCollection (inside deleteCollectionWithFiles) -> db.delete
       (db.delete as any).mockReturnValue({
@@ -558,9 +621,7 @@ describe('StorageService', () => {
       const mockCollection = { id: '1', title: 'Col 1', videos: ['v1'] };
       const mockVideo = { id: 'v1', videoFilename: 'vid.mp4' };
 
-      
-      // Reset db.select to avoid pollution
-      (db.select as any).mockReset();
+      // Use a spy on db.select to return different mocks for different calls
       const selectMock = db.select as any;
       
       // 1. getCollectionById
@@ -583,22 +644,25 @@ describe('StorageService', () => {
         }),
       } as any);
 
-      // 3. getCollections (called by findVideoFile)
-      selectMock.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-            leftJoin: vi.fn().mockReturnValue({
-                all: vi.fn().mockReturnValue([]),
-            }),
-        }),
-      } as any);
+      // 3. getCollections (called by findVideoFile in deleteVideo)
+      // Will use the default db.select mock which returns empty array
 
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readdirSync as any).mockReturnValue([]);
+      // 4. deleteVideo -> db.delete(videos)
       (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
           run: vi.fn().mockReturnValue({ changes: 1 }),
         }),
       });
+
+      // 5. deleteCollection -> db.delete(collections)
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: vi.fn().mockReturnValue({ changes: 1 }),
+        }),
+      });
+
+      (fs.existsSync as any).mockReturnValue(true);
+      (fs.readdirSync as any).mockReturnValue([]);
 
       storageService.deleteCollectionAndVideos('1');
       
@@ -609,43 +673,51 @@ describe('StorageService', () => {
 
   describe('addVideoToCollection', () => {
     it('should add video and move files', () => {
-      // Reset transaction mock
-      (db.transaction as any).mockImplementation((cb: Function) => cb());
-      
       const mockCollection = { id: '1', title: 'Col 1', videos: [] };
+      const mockVideo = { id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' };
 
-
-      // This test requires complex mocking of multiple db.select calls
-      // For now, we'll just verify the function completes without error
-      // More comprehensive integration tests would be better for this functionality
+      const selectMock = db.select as any;
       
-      const selectSpy = vi.spyOn(db, 'select');
-      const robustMock = {
+      // 1. atomicUpdateCollection -> getCollectionById
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               all: vi.fn().mockReturnValue([{ c: mockCollection, cv: null }]),
             }),
-            all: vi.fn().mockReturnValue([]),
-          }),
-          where: vi.fn().mockReturnValue({
-            get: vi.fn().mockReturnValue({ id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' }),
-            all: vi.fn().mockReturnValue([]),
           }),
         }),
-      };
-      
-      selectSpy.mockReturnValue(robustMock as any);
-      db.insert = vi.fn().mockReturnValue({
+      } as any);
+
+      // 2. getVideoById (to check if video exists)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue(mockVideo),
+          }),
+        }),
+      } as any);
+
+      // 3. saveCollection -> db.insert (called by atomicUpdateCollection)
+      const mockRun = vi.fn();
+      (db.insert as any).mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
           onConflictDoUpdate: vi.fn().mockReturnValue({
-            run: vi.fn(),
+            run: mockRun,
           }),
+        }),
+      });
+
+      // 4. saveCollection -> db.delete (to remove old collection_videos)
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
           run: vi.fn(),
         }),
       });
-      db.delete = vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
+
+      // 5. saveCollection -> db.insert (to add new collection_videos)
+      (db.insert as any).mockReturnValue({
+        values: vi.fn().mockReturnValue({
           run: vi.fn(),
         }),
       });
@@ -655,20 +727,19 @@ describe('StorageService', () => {
 
       const result = storageService.addVideoToCollection('1', 'v1');
       
-      // Just verify it completes without throwing
       expect(result).toBeDefined();
+      expect(mockRun).toHaveBeenCalled();
     });
   });
 
   describe('removeVideoFromCollection', () => {
     it('should remove video from collection', () => {
-      // Reset transaction mock
-      (db.transaction as any).mockImplementation((cb: Function) => cb());
-      
       const mockCollection = { id: '1', title: 'Col 1', videos: ['v1', 'v2'] };
-      const selectSpy = vi.spyOn(db, 'select');
+      const mockVideo = { id: 'v1', videoFilename: 'vid.mp4' };
+      const selectMock = db.select as any;
       
-      selectSpy.mockReturnValue({
+      // 1. atomicUpdateCollection -> getCollectionById
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
@@ -680,42 +751,84 @@ describe('StorageService', () => {
           }),
         }),
       } as any);
+
+      // 1.5 saveCollection -> check if video exists (for v2)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({ id: 'v2' }),
+          }),
+        }),
+      } as any);
+
+      // 2. removeVideoFromCollection -> getVideoById
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue(mockVideo),
+          }),
+        }),
+      } as any);
+
+      // 3. removeVideoFromCollection -> getCollections
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([]),
+          }),
+        }),
+      } as any);
       
-      db.insert = vi.fn().mockReturnValue({
+      // 4. saveCollection -> db.insert (called by atomicUpdateCollection)
+      const mockRun = vi.fn();
+      (db.insert as any).mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
           onConflictDoUpdate: vi.fn().mockReturnValue({
-            run: vi.fn(),
+            run: mockRun,
           }),
         }),
       });
-      db.delete = vi.fn().mockReturnValue({
+      (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
           run: vi.fn(),
         }),
       });
 
+      // 5. saveCollection -> db.insert (to add new collection_videos)
+      (db.insert as any).mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          run: vi.fn(),
+        }),
+      });
+
+      (fs.existsSync as any).mockReturnValue(true);
+      (fs.moveSync as any).mockImplementation(() => {});
+
       storageService.removeVideoFromCollection('1', 'v1');
       
-      // Just verify function completes without error
-      // Complex mocking makes specific assertions unreliable
-      expect(db.delete).toHaveBeenCalled();
+      expect(mockRun).toHaveBeenCalled();
     });
 
     it('should return null if collection not found', () => {
-      (db.transaction as any).mockImplementation((cb: Function) => cb());
-      const selectSpy = vi.spyOn(db, 'select');
+      const selectMock = db.select as any;
       
-      selectSpy.mockReturnValue({
+      // atomicUpdateCollection -> getCollectionById
+      // getCollectionById returns undefined when rows.length === 0
+      // This should make atomicUpdateCollection return null (line 170: if (!collection) return null;)
+      selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              all: vi.fn().mockReturnValue([]),
+              all: vi.fn().mockReturnValue([]), // Empty array = collection not found
             }),
           }),
         }),
       } as any);
 
+
+
       const result = storageService.removeVideoFromCollection('1', 'v1');
+      // When collection is not found, atomicUpdateCollection returns null (line 170)
       expect(result).toBeNull();
     });
   });

@@ -3,6 +3,20 @@ import { render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 
+// Mock axios
+vi.mock('axios', () => ({
+    default: {
+        get: vi.fn(() => Promise.resolve({ data: {} })),
+        post: vi.fn(() => Promise.resolve({ data: {} })),
+        put: vi.fn(() => Promise.resolve({ data: {} })),
+        delete: vi.fn(() => Promise.resolve({ data: {} })),
+        interceptors: {
+            request: { use: vi.fn(), eject: vi.fn() },
+            response: { use: vi.fn(), eject: vi.fn() }
+        }
+    }
+}));
+
 // Mock all the contexts and providers
 vi.mock('../contexts/AuthContext', () => ({
     AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

@@ -25,26 +25,56 @@ vi.mock('../../../services/storageService', () => ({
     updateVideo: vi.fn(),
 }));
 
-vi.mock('fs-extra', () => ({
-    default: {
-        pathExists: vi.fn().mockResolvedValue(false),
-        ensureDirSync: vi.fn(),
-        existsSync: vi.fn().mockReturnValue(false),
-        createWriteStream: vi.fn().mockReturnValue({
-            on: (event: string, cb: any) => {
-                if (event === 'finish') cb();
-                return { on: () => {} };
+// Mock fs-extra - define mockWriter inside the factory
+vi.mock('fs-extra', () => {
+    const mockWriter = {
+        on: vi.fn((event: string, cb: any) => {
+            if (event === 'finish') {
+                // Call callback immediately to simulate successful write
+                setTimeout(() => cb(), 0);
             }
-        }),
-        readdirSync: vi.fn().mockReturnValue([]),
-    }
-}));
+            return mockWriter;
+        })
+    };
 
-vi.mock('axios', () => ({
-    default: {
-        get: vi.fn().mockResolvedValue({ data: {} }),
-        create: vi.fn().mockReturnValue({ get: vi.fn(), post: vi.fn() }),
-    }
+    return {
+        default: {
+            pathExists: vi.fn().mockResolvedValue(false),
+            ensureDirSync: vi.fn(),
+            existsSync: vi.fn().mockReturnValue(false),
+            createWriteStream: vi.fn().mockReturnValue(mockWriter),
+            readdirSync: vi.fn().mockReturnValue([]),
+            statSync: vi.fn().mockReturnValue({ size: 1000 }),
+        }
+    };
+});
+
+// Mock axios - define mock inside factory
+vi.mock('axios', () => {
+    const mockAxios = vi.fn().mockResolvedValue({
+        data: {
+            pipe: vi.fn((writer: any) => {
+                // Simulate stream completion
+                setTimeout(() => {
+                    // Find the finish handler and call it
+                    const finishCall = (writer.on as any).mock?.calls?.find((call: any[]) => call[0] === 'finish');
+                    if (finishCall && finishCall[1]) {
+                        finishCall[1]();
+                    }
+                }, 0);
+                return writer;
+            })
+        }
+    });
+    
+    return {
+        default: mockAxios,
+    };
+});
+
+// Mock metadataService to avoid file system errors
+vi.mock('../../../services/metadataService', () => ({
+    getVideoDuration: vi.fn().mockResolvedValue(null),
 }));
 
 import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';

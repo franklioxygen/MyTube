@@ -2,16 +2,19 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  checkBilibiliCollection,
-  checkBilibiliParts,
   deleteVideo,
-  downloadVideo,
   getVideoById,
   getVideos,
-  rateVideo,
-  searchVideos,
   updateVideoDetails,
 } from '../../controllers/videoController';
+import {
+  checkBilibiliCollection,
+  checkBilibiliParts,
+  downloadVideo,
+  getDownloadStatus,
+  searchVideos,
+} from '../../controllers/videoDownloadController';
+import { rateVideo } from '../../controllers/videoMetadataController';
 import downloadManager from '../../services/downloadManager';
 import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
@@ -454,7 +457,7 @@ describe('VideoController', () => {
     it('should return download status', async () => {
       (storageService.getDownloadStatus as any).mockReturnValue({ activeDownloads: [], queuedDownloads: [] });
 
-      await import('../../controllers/videoController').then(m => m.getDownloadStatus(req as Request, res as Response));
+      await getDownloadStatus(req as Request, res as Response);
 
       expect(status).toHaveBeenCalledWith(200);
     });
