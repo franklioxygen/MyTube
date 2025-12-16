@@ -5,13 +5,15 @@ import * as downloadController from "../controllers/downloadController";
 import * as scanController from "../controllers/scanController";
 import * as subscriptionController from "../controllers/subscriptionController";
 import * as videoController from "../controllers/videoController";
+import * as videoDownloadController from "../controllers/videoDownloadController";
+import * as videoMetadataController from "../controllers/videoMetadataController";
 import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
 
 // Video routes
-router.get("/search", asyncHandler(videoController.searchVideos));
-router.post("/download", asyncHandler(videoController.downloadVideo));
+router.get("/search", asyncHandler(videoDownloadController.searchVideos));
+router.post("/download", asyncHandler(videoDownloadController.downloadVideo));
 router.post(
   "/upload",
   videoController.upload.single("video"),
@@ -25,18 +27,21 @@ router.get(
   "/videos/:id/comments",
   asyncHandler(videoController.getVideoComments)
 );
-router.post("/videos/:id/rate", asyncHandler(videoController.rateVideo));
+router.post(
+  "/videos/:id/rate",
+  asyncHandler(videoMetadataController.rateVideo)
+);
 router.post(
   "/videos/:id/refresh-thumbnail",
-  asyncHandler(videoController.refreshThumbnail)
+  asyncHandler(videoMetadataController.refreshThumbnail)
 );
 router.post(
   "/videos/:id/view",
-  asyncHandler(videoController.incrementViewCount)
+  asyncHandler(videoMetadataController.incrementViewCount)
 );
 router.put(
   "/videos/:id/progress",
-  asyncHandler(videoController.updateProgress)
+  asyncHandler(videoMetadataController.updateProgress)
 );
 
 router.post("/scan-files", asyncHandler(scanController.scanFiles));
@@ -45,18 +50,21 @@ router.post(
   asyncHandler(cleanupController.cleanupTempFiles)
 );
 
-router.get("/download-status", asyncHandler(videoController.getDownloadStatus));
+router.get(
+  "/download-status",
+  asyncHandler(videoDownloadController.getDownloadStatus)
+);
 router.get(
   "/check-video-download",
-  asyncHandler(videoController.checkVideoDownloadStatus)
+  asyncHandler(videoDownloadController.checkVideoDownloadStatus)
 );
 router.get(
   "/check-bilibili-parts",
-  asyncHandler(videoController.checkBilibiliParts)
+  asyncHandler(videoDownloadController.checkBilibiliParts)
 );
 router.get(
   "/check-bilibili-collection",
-  asyncHandler(videoController.checkBilibiliCollection)
+  asyncHandler(videoDownloadController.checkBilibiliCollection)
 );
 
 // Download management

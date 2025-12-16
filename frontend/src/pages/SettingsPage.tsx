@@ -445,7 +445,7 @@ const SettingsPage: React.FC = () => {
             {/* Save Button Placeholder & Logic */}
             <Box ref={observerTarget} sx={{
                 display: 'flex',
-                justifyContent: 'flex-end',
+                justifyContent: 'flex-start',
                 mt: 3,
                 py: 2,
                 px: 3,
@@ -482,7 +482,7 @@ const SettingsPage: React.FC = () => {
                     <Container maxWidth="xl">
                         <Box sx={{
                             display: 'flex',
-                            justifyContent: 'flex-end',
+                            justifyContent: 'flex-start',
                             py: 2,
                         }}>
                             <Button
