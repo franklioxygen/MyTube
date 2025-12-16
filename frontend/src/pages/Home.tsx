@@ -50,7 +50,7 @@ const Home: React.FC = () => {
 
     const [viewMode, setViewMode] = useState<'collections' | 'all-videos' | 'history'>(() => {
         const saved = localStorage.getItem('homeViewMode');
-        return (saved as 'collections' | 'all-videos' | 'history') || 'collections';
+        return (saved as 'collections' | 'all-videos' | 'history') || 'all-videos';
     });
 
     // Initialize sort option from URL or default
