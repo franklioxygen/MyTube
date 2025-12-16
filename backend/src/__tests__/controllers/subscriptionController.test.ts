@@ -1,22 +1,22 @@
-import { Request, Response } from 'express';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Request, Response } from "express";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createSubscription,
   deleteSubscription,
   getSubscriptions,
-} from '../../controllers/subscriptionController';
-import { ValidationError } from '../../errors/DownloadErrors';
-import { subscriptionService } from '../../services/subscriptionService';
-import { logger } from '../../utils/logger';
+} from "../../controllers/subscriptionController";
+import { ValidationError } from "../../errors/DownloadErrors";
+import { subscriptionService } from "../../services/subscriptionService";
+import { logger } from "../../utils/logger";
 
-vi.mock('../../services/subscriptionService');
-vi.mock('../../utils/logger', () => ({
+vi.mock("../../services/subscriptionService");
+vi.mock("../../utils/logger", () => ({
   logger: {
     info: vi.fn(),
   },
 }));
 
-describe('SubscriptionController', () => {
+describe("SubscriptionController", () => {
   let req: Partial<Request>;
   let res: Partial<Response>;
   let json: any;
@@ -36,33 +36,37 @@ describe('SubscriptionController', () => {
     };
   });
 
-  describe('createSubscription', () => {
-    it('should create a subscription', async () => {
-      req.body = { url: 'https://www.youtube.com/@testuser', interval: 60 };
+  describe("createSubscription", () => {
+    it("should create a subscription", async () => {
+      req.body = { url: "https://www.youtube.com/@testuser", interval: 60 };
       const mockSubscription = {
-        id: 'sub-123',
-        url: 'https://www.youtube.com/@testuser',
+        id: "sub-123",
+        url: "https://www.youtube.com/@testuser",
         interval: 60,
-        author: '@testuser',
-        platform: 'YouTube',
+        author: "@testuser",
+        platform: "YouTube",
       };
-      (subscriptionService.subscribe as any).mockResolvedValue(mockSubscription);
+      (subscriptionService.subscribe as any).mockResolvedValue(
+        mockSubscription
+      );
 
       await createSubscription(req as Request, res as Response);
 
-      expect(logger.info).toHaveBeenCalledWith('Creating subscription:', {
-        url: 'https://www.youtube.com/@testuser',
+      expect(logger.info).toHaveBeenCalledWith("Creating subscription:", {
+        url: "https://www.youtube.com/@testuser",
         interval: 60,
+        authorName: undefined,
       });
       expect(subscriptionService.subscribe).toHaveBeenCalledWith(
-        'https://www.youtube.com/@testuser',
-        60
+        "https://www.youtube.com/@testuser",
+        60,
+        undefined
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(mockSubscription);
     });
 
-    it('should throw ValidationError when URL is missing', async () => {
+    it("should throw ValidationError when URL is missing", async () => {
       req.body = { interval: 60 };
 
       await expect(
@@ -72,8 +76,8 @@ describe('SubscriptionController', () => {
       expect(subscriptionService.subscribe).not.toHaveBeenCalled();
     });
 
-    it('should throw ValidationError when interval is missing', async () => {
-      req.body = { url: 'https://www.youtube.com/@testuser' };
+    it("should throw ValidationError when interval is missing", async () => {
+      req.body = { url: "https://www.youtube.com/@testuser" };
 
       await expect(
         createSubscription(req as Request, res as Response)
@@ -82,7 +86,7 @@ describe('SubscriptionController', () => {
       expect(subscriptionService.subscribe).not.toHaveBeenCalled();
     });
 
-    it('should throw ValidationError when both URL and interval are missing', async () => {
+    it("should throw ValidationError when both URL and interval are missing", async () => {
       req.body = {};
 
       await expect(
@@ -91,11 +95,11 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('getSubscriptions', () => {
-    it('should return all subscriptions', async () => {
+  describe("getSubscriptions", () => {
+    it("should return all subscriptions", async () => {
       const mockSubscriptions = [
-        { id: 'sub-1', url: 'https://www.youtube.com/@test1', interval: 60 },
-        { id: 'sub-2', url: 'https://space.bilibili.com/123', interval: 120 },
+        { id: "sub-1", url: "https://www.youtube.com/@test1", interval: 60 },
+        { id: "sub-2", url: "https://space.bilibili.com/123", interval: 120 },
       ];
       (subscriptionService.listSubscriptions as any).mockResolvedValue(
         mockSubscriptions
@@ -108,7 +112,7 @@ describe('SubscriptionController', () => {
       expect(status).not.toHaveBeenCalled(); // Default status is 200
     });
 
-    it('should return empty array when no subscriptions', async () => {
+    it("should return empty array when no subscriptions", async () => {
       (subscriptionService.listSubscriptions as any).mockResolvedValue([]);
 
       await getSubscriptions(req as Request, res as Response);
@@ -117,20 +121,19 @@ describe('SubscriptionController', () => {
     });
   });
 
-  describe('deleteSubscription', () => {
-    it('should delete a subscription', async () => {
-      req.params = { id: 'sub-123' };
+  describe("deleteSubscription", () => {
+    it("should delete a subscription", async () => {
+      req.params = { id: "sub-123" };
       (subscriptionService.unsubscribe as any).mockResolvedValue(undefined);
 
       await deleteSubscription(req as Request, res as Response);
 
-      expect(subscriptionService.unsubscribe).toHaveBeenCalledWith('sub-123');
+      expect(subscriptionService.unsubscribe).toHaveBeenCalledWith("sub-123");
       expect(status).toHaveBeenCalledWith(200);
       expect(json).toHaveBeenCalledWith({
         success: true,
-        message: 'Subscription deleted',
+        message: "Subscription deleted",
       });
     });
   });
 });
-
