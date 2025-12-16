@@ -12,13 +12,17 @@ interface VideoTagsProps {
 const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate }) => {
     const { t } = useLanguage();
 
+    // Ensure tags and availableTags are always arrays
+    const tagsArray = Array.isArray(tags) ? tags : [];
+    const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
+
     return (
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
             <LocalOffer color="action" fontSize="small" />
             <Autocomplete
                 multiple
-                options={availableTags}
-                value={tags || []}
+                options={availableTagsArray}
+                value={tagsArray}
                 isOptionEqualToValue={(option, value) => option === value}
                 onChange={(_, newValue) => onTagsUpdate(newValue)}
                 slotProps={{
@@ -50,7 +54,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                     <TextField
                         {...params}
                         variant="standard"
-                        placeholder={!tags || tags.length === 0 ? (t('tags') || 'Tags') : ''}
+                        placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
                         sx={{ minWidth: 200 }}
                         slotProps={{
                             input: { ...params.InputProps, disableUnderline: true }

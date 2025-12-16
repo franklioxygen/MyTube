@@ -99,7 +99,7 @@ const VideoPlayer: React.FC = () => {
 
     const autoPlay = autoPlayNext || settings?.defaultAutoPlay || false;
     const autoLoop = settings?.defaultAutoLoop || false;
-    const availableTags = settings?.tags || [];
+    const availableTags = Array.isArray(settings?.tags) ? settings.tags : [];
     const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
 
     // Fetch comments

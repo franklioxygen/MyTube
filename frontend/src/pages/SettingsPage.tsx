@@ -371,7 +371,7 @@ const SettingsPage: React.FC = () => {
                         {/* Tags Management */}
                         <Grid size={12}>
                             <TagsSettings
-                                tags={settings.tags}
+                                tags={Array.isArray(settings.tags) ? settings.tags : []}
                                 onTagsChange={handleTagsChange}
                             />
                         </Grid>

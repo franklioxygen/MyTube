@@ -184,28 +184,50 @@ export const updateSettings = async (
     newSettings.password = existingSettings.password;
   }
 
-  // Check for deleted tags and remove them from all videos
+  // Preserve existing tags if tags are not explicitly provided or are empty when tags existed
   const existingSettings = storageService.getSettings();
   const oldTags: string[] = existingSettings.tags || [];
-  const newTagsList: string[] = newSettings.tags || [];
 
-  const deletedTags = oldTags.filter((tag) => !newTagsList.includes(tag));
+  // If tags is undefined, preserve existing tags
+  // If tags is an empty array but there were existing tags, preserve them (likely frontend sent empty by mistake)
+  // Only update tags if they are explicitly provided and non-empty, or if explicitly clearing (empty array when no existing tags)
+  if (newSettings.tags === undefined) {
+    // Preserve existing tags by not including tags in the save
+    delete newSettings.tags;
+  } else if (
+    Array.isArray(newSettings.tags) &&
+    newSettings.tags.length === 0 &&
+    oldTags.length > 0
+  ) {
+    // Empty array sent but existing tags exist - likely a bug where frontend sent empty array
+    // Preserve existing tags to prevent accidental deletion
+    logger.warn(
+      "Received empty tags array but existing tags exist. Preserving existing tags to prevent data loss."
+    );
+    delete newSettings.tags;
+  } else {
+    // Tags are explicitly provided (non-empty or intentionally clearing), process deletions
+    const newTagsList: string[] = Array.isArray(newSettings.tags)
+      ? newSettings.tags
+      : [];
+    const deletedTags = oldTags.filter((tag) => !newTagsList.includes(tag));
 
-  if (deletedTags.length > 0) {
-    logger.info("Tags deleted:", deletedTags);
-    const allVideos = storageService.getVideos();
-    let videosUpdatedCount = 0;
+    if (deletedTags.length > 0) {
+      logger.info("Tags deleted:", deletedTags);
+      const allVideos = storageService.getVideos();
+      let videosUpdatedCount = 0;
 
-    for (const video of allVideos) {
-      if (video.tags && video.tags.some((tag) => deletedTags.includes(tag))) {
-        const updatedTags = video.tags.filter(
-          (tag) => !deletedTags.includes(tag)
-        );
-        storageService.updateVideo(video.id, { tags: updatedTags });
-        videosUpdatedCount++;
+      for (const video of allVideos) {
+        if (video.tags && video.tags.some((tag) => deletedTags.includes(tag))) {
+          const updatedTags = video.tags.filter(
+            (tag) => !deletedTags.includes(tag)
+          );
+          storageService.updateVideo(video.id, { tags: updatedTags });
+          videosUpdatedCount++;
+        }
       }
+      logger.info(`Removed deleted tags from ${videosUpdatedCount} videos`);
     }
-    logger.info(`Removed deleted tags from ${videosUpdatedCount} videos`);
   }
 
   storageService.saveSettings(newSettings);

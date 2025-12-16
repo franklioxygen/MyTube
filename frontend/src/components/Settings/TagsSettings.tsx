@@ -11,22 +11,25 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange }) => {
     const { t } = useLanguage();
     const [newTag, setNewTag] = useState('');
 
+    // Ensure tags is always an array
+    const tagsArray = Array.isArray(tags) ? tags : [];
+
     const handleAddTag = () => {
-        if (newTag && !tags.includes(newTag)) {
-            onTagsChange([...tags, newTag]);
+        if (newTag && !tagsArray.includes(newTag)) {
+            onTagsChange([...tagsArray, newTag]);
             setNewTag('');
         }
     };
 
     const handleDeleteTag = (tagToDelete: string) => {
-        onTagsChange(tags.filter(tag => tag !== tagToDelete));
+        onTagsChange(tagsArray.filter(tag => tag !== tagToDelete));
     };
 
     return (
         <Box>
             <Typography variant="h6" gutterBottom>{t('tagsManagement') || 'Tags Management'}</Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                {tags && tags.map((tag) => (
+                {tagsArray.length > 0 && tagsArray.map((tag) => (
                     <Chip
                         key={tag}
                         label={tag}
