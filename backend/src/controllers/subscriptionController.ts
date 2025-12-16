@@ -12,8 +12,8 @@ export const createSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url, interval } = req.body;
-  logger.info("Creating subscription:", { url, interval });
+  const { url, interval, authorName } = req.body;
+  logger.info("Creating subscription:", { url, interval, authorName });
 
   if (!url || !interval) {
     throw new ValidationError("URL and interval are required", "body");
@@ -21,7 +21,8 @@ export const createSubscription = async (
 
   const subscription = await subscriptionService.subscribe(
     url,
-    parseInt(interval)
+    parseInt(interval),
+    authorName
   );
   // Return subscription object directly for backward compatibility
   res.status(201).json(subscription);

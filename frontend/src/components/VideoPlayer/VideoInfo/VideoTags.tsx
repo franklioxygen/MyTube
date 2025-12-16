@@ -1,6 +1,6 @@
 import { LocalOffer } from '@mui/icons-material';
 import { Autocomplete, Box, Chip, TextField } from '@mui/material';
-import React from 'react';
+import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface VideoTagsProps {
@@ -11,6 +11,7 @@ interface VideoTagsProps {
 
 const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate }) => {
     const { t } = useLanguage();
+    const [open, setOpen] = useState(false);
 
     // Ensure tags and availableTags are always arrays
     const tagsArray = Array.isArray(tags) ? tags : [];
@@ -21,6 +22,10 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
             <LocalOffer color="action" fontSize="small" />
             <Autocomplete
                 multiple
+                open={open}
+                onOpen={() => setOpen(true)}
+                onClose={() => setOpen(false)}
+                disableCloseOnSelect
                 options={availableTagsArray}
                 value={tagsArray}
                 isOptionEqualToValue={(option, value) => option === value}
@@ -57,7 +62,11 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                         placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
                         sx={{ minWidth: 200 }}
                         slotProps={{
-                            input: { ...params.InputProps, disableUnderline: true }
+                            input: { 
+                                ...params.InputProps, 
+                                disableUnderline: true,
+                                readOnly: true
+                            }
                         }}
                     />
                 )}

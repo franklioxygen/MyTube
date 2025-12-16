@@ -225,7 +225,11 @@ export const getAuthorChannelUrl = async (
   try {
     // Check if it's a YouTube URL
     if (sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) {
-      const { executeYtDlpJson, getNetworkConfigFromUserConfig, getUserYtDlpConfig } = await import("../utils/ytDlpUtils");
+      const {
+        executeYtDlpJson,
+        getNetworkConfigFromUserConfig,
+        getUserYtDlpConfig,
+      } = await import("../utils/ytDlpUtils");
       const userConfig = getUserYtDlpConfig(sourceUrl);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
@@ -245,7 +249,7 @@ export const getAuthorChannelUrl = async (
     if (sourceUrl.includes("bilibili.com") || sourceUrl.includes("b23.tv")) {
       const axios = (await import("axios")).default;
       const { extractBilibiliVideoId } = await import("../utils/helpers");
-      
+
       const videoId = extractBilibiliVideoId(sourceUrl);
       if (videoId) {
         try {
@@ -253,16 +257,24 @@ export const getAuthorChannelUrl = async (
           const isBvId = videoId.startsWith("BV");
           const apiUrl = isBvId
             ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
-            : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace("av", "")}`;
-          
+            : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
+                "av",
+                ""
+              )}`;
+
           const response = await axios.get(apiUrl, {
             headers: {
               Referer: "https://www.bilibili.com",
-              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             },
           });
 
-          if (response.data && response.data.data && response.data.data.owner?.mid) {
+          if (
+            response.data &&
+            response.data.data &&
+            response.data.data.owner?.mid
+          ) {
             const mid = response.data.data.owner.mid;
             const spaceUrl = `https://space.bilibili.com/${mid}`;
             res.status(200).json({ success: true, channelUrl: spaceUrl });

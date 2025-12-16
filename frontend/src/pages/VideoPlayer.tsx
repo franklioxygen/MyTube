@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CollectionModal from '../components/CollectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+import SubscribeModal from '../components/SubscribeModal';
 import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
@@ -44,6 +45,8 @@ const VideoPlayer: React.FC = () => {
     const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
     const [activeCollectionVideoId, setActiveCollectionVideoId] = useState<string | null>(null);
     const [showComments, setShowComments] = useState<boolean>(false);
+    const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
+    const [authorChannelUrl, setAuthorChannelUrl] = useState<string | null>(null);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
         const saved = localStorage.getItem('autoPlayNext');
         return saved !== null ? JSON.parse(saved) : false;
@@ -112,6 +115,15 @@ const VideoPlayer: React.FC = () => {
         enabled: showComments && !!id
     });
 
+    // Fetch subscriptions
+    const { data: subscriptions = [] } = useQuery({
+        queryKey: ['subscriptions'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/subscriptions`);
+            return response.data;
+        }
+    });
+
     const handleToggleComments = () => {
         setShowComments(!showComments);
     };
@@ -138,30 +150,121 @@ const VideoPlayer: React.FC = () => {
         return [];
     }, [collections, activeCollectionVideoId]);
 
-    // Handle navigation to author videos page or external channel
-    const handleAuthorClick = async () => {
-        if (!video) return;
+    // Get author channel URL and check subscription status
+    useEffect(() => {
+        const fetchChannelUrl = async () => {
+            if (!video || (video.source !== 'youtube' && video.source !== 'bilibili')) {
+                setAuthorChannelUrl(null);
+                return;
+            }
 
-        // If it's a YouTube or Bilibili video, try to get the channel URL
-        if (video.source === 'youtube' || video.source === 'bilibili') {
             try {
                 const response = await axios.get(`${API_URL}/videos/author-channel-url`, {
                     params: { sourceUrl: video.sourceUrl }
                 });
                 
                 if (response.data.success && response.data.channelUrl) {
-                    // Open the channel URL in a new tab
-                    window.open(response.data.channelUrl, '_blank', 'noopener,noreferrer');
-                    return;
+                    setAuthorChannelUrl(response.data.channelUrl);
+                } else {
+                    setAuthorChannelUrl(null);
                 }
             } catch (error) {
                 console.error('Error fetching author channel URL:', error);
-                // Fall through to default behavior
+                setAuthorChannelUrl(null);
+            }
+        };
+
+        fetchChannelUrl();
+    }, [video]);
+
+    // Check if author is subscribed
+    const isSubscribed = useMemo(() => {
+        if (!authorChannelUrl || !subscriptions || subscriptions.length === 0) {
+            return false;
+        }
+        return subscriptions.some((sub: any) => sub.authorUrl === authorChannelUrl);
+    }, [authorChannelUrl, subscriptions]);
+
+    // Get subscription ID if subscribed
+    const subscriptionId = useMemo(() => {
+        if (!authorChannelUrl || !subscriptions || subscriptions.length === 0) {
+            return null;
+        }
+        const subscription = subscriptions.find((sub: any) => sub.authorUrl === authorChannelUrl);
+        return subscription?.id || null;
+    }, [authorChannelUrl, subscriptions]);
+
+    // Handle navigation to author videos page or external channel
+    const handleAuthorClick = async () => {
+        if (!video) return;
+
+        // If it's a YouTube or Bilibili video, try to get the channel URL
+        if (video.source === 'youtube' || video.source === 'bilibili') {
+            if (authorChannelUrl) {
+                // Open the channel URL in a new tab
+                window.open(authorChannelUrl, '_blank', 'noopener,noreferrer');
+                return;
             }
         }
 
         // Default behavior: navigate to author videos page
         navigate(`/author/${encodeURIComponent(video.author)}`);
+    };
+
+    // Handle subscribe
+    const handleSubscribe = () => {
+        if (!authorChannelUrl) return;
+        setShowSubscribeModal(true);
+    };
+
+    // Handle subscribe confirmation
+    const handleSubscribeConfirm = async (interval: number) => {
+        if (!authorChannelUrl || !video) return;
+
+        try {
+            await axios.post(`${API_URL}/subscriptions`, {
+                url: authorChannelUrl,
+                interval,
+                authorName: video.author // Pass the author name from the video
+            });
+            showSnackbar(t('subscribedSuccessfully'));
+            queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+            setShowSubscribeModal(false);
+        } catch (error: any) {
+            console.error('Error subscribing:', error);
+            if (error.response && error.response.status === 409) {
+                showSnackbar(t('subscriptionAlreadyExists'), 'warning');
+            } else {
+                showSnackbar(t('error'), 'error');
+            }
+            setShowSubscribeModal(false);
+        }
+    };
+
+    // Handle unsubscribe
+    const handleUnsubscribe = () => {
+        if (!subscriptionId) return;
+
+        setConfirmationModal({
+            isOpen: true,
+            title: t('unsubscribe'),
+            message: t('confirmUnsubscribe', { author: video?.author || '' }),
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_URL}/subscriptions/${subscriptionId}`);
+                    showSnackbar(t('unsubscribedSuccessfully'));
+                    queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+                    setConfirmationModal({ ...confirmationModal, isOpen: false });
+                } catch (error) {
+                    console.error('Error unsubscribing:', error);
+                    showSnackbar(t('error'), 'error');
+                    setConfirmationModal({ ...confirmationModal, isOpen: false });
+                }
+            },
+            confirmText: t('unsubscribe'),
+            cancelText: t('cancel'),
+            isDanger: true
+        });
     };
 
     const handleCollectionClick = (collectionId: string) => {
@@ -462,6 +565,9 @@ const VideoPlayer: React.FC = () => {
                             onCollectionClick={handleCollectionClick}
                             availableTags={availableTags}
                             onTagsUpdate={handleUpdateTags}
+                            isSubscribed={isSubscribed}
+                            onSubscribe={handleSubscribe}
+                            onUnsubscribe={handleUnsubscribe}
                         />
 
                         {(video.source === 'youtube' || video.source === 'bilibili') && (
@@ -506,6 +612,14 @@ const VideoPlayer: React.FC = () => {
                 confirmText={confirmationModal.confirmText}
                 cancelText={confirmationModal.cancelText}
                 isDanger={confirmationModal.isDanger}
+            />
+
+            <SubscribeModal
+                open={showSubscribeModal}
+                onClose={() => setShowSubscribeModal(false)}
+                onConfirm={handleSubscribeConfirm}
+                authorName={video?.author}
+                url={authorChannelUrl || ''}
             />
         </Container>
     );

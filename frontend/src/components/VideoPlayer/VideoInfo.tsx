@@ -25,6 +25,9 @@ interface VideoInfoProps {
     onCollectionClick: (id: string) => void;
     availableTags: string[];
     onTagsUpdate: (tags: string[]) => Promise<void>;
+    isSubscribed?: boolean;
+    onSubscribe?: () => void;
+    onUnsubscribe?: () => void;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -39,7 +42,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     videoCollections,
     onCollectionClick,
     availableTags,
-    onTagsUpdate
+    onTagsUpdate,
+    isSubscribed,
+    onSubscribe,
+    onUnsubscribe
 }) => {
     const { videoRef, videoResolution } = useVideoResolution(video);
 
@@ -89,6 +95,10 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     author={video.author}
                     date={video.date}
                     onAuthorClick={onAuthorClick}
+                    source={video.source}
+                    isSubscribed={isSubscribed}
+                    onSubscribe={onSubscribe}
+                    onUnsubscribe={onUnsubscribe}
                 />
 
                 <VideoActionButtons

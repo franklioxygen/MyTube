@@ -39,42 +39,148 @@ export class SubscriptionService {
     return SubscriptionService.instance;
   }
 
-  async subscribe(authorUrl: string, interval: number): Promise<Subscription> {
+  async subscribe(
+    authorUrl: string,
+    interval: number,
+    providedAuthorName?: string
+  ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
-    let authorName = "Unknown Author";
+    let authorName = providedAuthorName || "Unknown Author";
 
     if (isBilibiliSpaceUrl(authorUrl)) {
       platform = "Bilibili";
 
-      // Extract mid from the space URL
-      const mid = extractBilibiliMid(authorUrl);
-      if (!mid) {
-        throw ValidationError.invalidBilibiliSpaceUrl(authorUrl);
-      }
+      // If author name not provided, try to get it from Bilibili API
+      if (!providedAuthorName) {
+        // Extract mid from the space URL
+        const mid = extractBilibiliMid(authorUrl);
+        if (!mid) {
+          throw ValidationError.invalidBilibiliSpaceUrl(authorUrl);
+        }
 
-      // Try to get author name from Bilibili API
-      try {
-        const authorInfo = await BilibiliDownloader.getAuthorInfo(mid);
-        authorName = authorInfo.name;
-      } catch (error) {
-        logger.error("Error fetching Bilibili author info:", error);
-        // Use mid as fallback author name
-        authorName = `Bilibili User ${mid}`;
+        // Try to get author name from Bilibili API
+        try {
+          const authorInfo = await BilibiliDownloader.getAuthorInfo(mid);
+          authorName = authorInfo.name;
+        } catch (error) {
+          logger.error("Error fetching Bilibili author info:", error);
+          // Use mid as fallback author name
+          authorName = `Bilibili User ${mid}`;
+        }
       }
     } else if (authorUrl.includes("youtube.com")) {
       platform = "YouTube";
 
-      // Extract author from YouTube URL if possible
-      const match = authorUrl.match(/youtube\.com\/(@[^\/]+)/);
-      if (match && match[1]) {
-        authorName = match[1];
-      } else {
-        // Fallback: try to extract from other URL formats
-        const parts = authorUrl.split("/");
-        if (parts.length > 0) {
-          const lastPart = parts[parts.length - 1];
-          if (lastPart) authorName = lastPart;
+      // If author name not provided, try to get it from channel URL using yt-dlp
+      if (!providedAuthorName) {
+        try {
+          const {
+            executeYtDlpJson,
+            getNetworkConfigFromUserConfig,
+            getUserYtDlpConfig,
+          } = await import("../utils/ytDlpUtils");
+          const userConfig = getUserYtDlpConfig(authorUrl);
+          const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+          // Construct URL to get videos from the channel
+          let targetUrl = authorUrl;
+          if (
+            !targetUrl.includes("/videos") &&
+            !targetUrl.includes("/shorts") &&
+            !targetUrl.includes("/streams")
+          ) {
+            // Append /videos to get the videos playlist
+            if (targetUrl.endsWith("/")) {
+              targetUrl = `${targetUrl}videos`;
+            } else {
+              targetUrl = `${targetUrl}/videos`;
+            }
+          }
+
+          // Try to get channel info from the channel URL
+          const info = await executeYtDlpJson(targetUrl, {
+            ...networkConfig,
+            noWarnings: true,
+            flatPlaylist: true,
+            playlistEnd: 1,
+          });
+
+          // Try to get uploader/channel name from the first video or channel info
+          if (info.uploader) {
+            authorName = info.uploader;
+          } else if (info.channel) {
+            authorName = info.channel;
+          } else if (
+            info.channel_id &&
+            info.entries &&
+            info.entries.length > 0
+          ) {
+            // If we have entries, try to get info from the first video
+            const firstVideo = info.entries[0];
+            if (firstVideo && firstVideo.url) {
+              try {
+                const videoInfo = await executeYtDlpJson(firstVideo.url, {
+                  ...networkConfig,
+                  noWarnings: true,
+                });
+                if (videoInfo.uploader) {
+                  authorName = videoInfo.uploader;
+                } else if (videoInfo.channel) {
+                  authorName = videoInfo.channel;
+                }
+              } catch (videoError) {
+                logger.error(
+                  "Error fetching video info for channel name:",
+                  videoError
+                );
+              }
+            }
+          }
+
+          // Fallback: try to extract from URL if still not found
+          if (
+            authorName === "Unknown Author" ||
+            authorName === providedAuthorName
+          ) {
+            const match = authorUrl.match(/youtube\.com\/(@[^\/]+)/);
+            if (match && match[1]) {
+              authorName = match[1];
+            } else {
+              const parts = authorUrl.split("/");
+              if (parts.length > 0) {
+                const lastPart = parts[parts.length - 1];
+                if (
+                  lastPart &&
+                  lastPart !== "videos" &&
+                  lastPart !== "about" &&
+                  lastPart !== "channel"
+                ) {
+                  authorName = lastPart;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logger.error("Error fetching YouTube channel info:", error);
+          // Fallback: try to extract from URL
+          const match = authorUrl.match(/youtube\.com\/(@[^\/]+)/);
+          if (match && match[1]) {
+            authorName = match[1];
+          } else {
+            const parts = authorUrl.split("/");
+            if (parts.length > 0) {
+              const lastPart = parts[parts.length - 1];
+              if (
+                lastPart &&
+                lastPart !== "videos" &&
+                lastPart !== "about" &&
+                lastPart !== "channel"
+              ) {
+                authorName = lastPart;
+              }
+            }
+          }
         }
       }
     } else {
