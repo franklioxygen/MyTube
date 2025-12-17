@@ -74,8 +74,7 @@ export function prepareDownloadFlags(
     // Use user preferences if provided, otherwise use defaults
     mergeOutputFormat: mergeOutputFormat,
     writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
-    writeAutoSubs:
-      userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
+    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
     convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
   };
 
@@ -103,10 +102,7 @@ export function prepareDownloadFlags(
 
     // Use user's extractor args if provided, otherwise let yt-dlp use its defaults
     // Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
-    if (
-      config.extractorArgs &&
-      config.extractorArgs.includes("youtube:")
-    ) {
+    if (config.extractorArgs && config.extractorArgs.includes("youtube:")) {
       // User has YouTube-specific args, use them
       flags.extractorArgs = config.extractorArgs;
 
@@ -118,16 +114,25 @@ export function prepareDownloadFlags(
         ];
       }
     }
-    // Remove the extractorArgs default if not needed - let yt-dlp handle it
-    if (!flags.extractorArgs) {
-      delete flags.extractorArgs;
-    }
   }
 
   // Add provider script if configured
+  // Merge with user's extractorArgs if both exist (using semicolon separator)
   const PROVIDER_SCRIPT = getProviderScript();
   if (PROVIDER_SCRIPT) {
-    flags.extractorArgs = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+    const providerArg = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
+    if (flags.extractorArgs) {
+      // Merge user extractorArgs with provider script using semicolon separator
+      // yt-dlp supports multiple --extractor-args flags or semicolon-separated values
+      flags.extractorArgs = `${flags.extractorArgs};${providerArg}`;
+    } else {
+      flags.extractorArgs = providerArg;
+    }
+  }
+
+  // Remove the extractorArgs if not needed - let yt-dlp handle it
+  if (!flags.extractorArgs) {
+    delete flags.extractorArgs;
   }
 
   logger.debug("Final yt-dlp flags:", flags);
@@ -137,4 +142,3 @@ export function prepareDownloadFlags(
     mergeOutputFormat,
   };
 }
-
