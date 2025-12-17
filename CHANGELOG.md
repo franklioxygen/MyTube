@@ -1,5 +1,20 @@
 # Change Log
 
+## v1.6.8 (2025-12-16)
+
+### Feat
+
+- feat: Add external player options to VideoActionButtons (b57e9df)
+
+### Refactor
+
+- refactor: Simplify handling of extractorArgs in ytdlpConfig (422701b)
+
+### Style
+
+- style: Update button styles and add kebab menu for mobile (65b749d)
+- style: Update styles for VideoAuthorInfo and VideoTags (22d625b)
+
 ## v1.6.7 (2025-12-16)
 
 ### Feat
