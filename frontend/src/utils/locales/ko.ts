@@ -137,6 +137,8 @@ export const ko = {
   uploadPath: "업로드 경로",
   cloudDrivePathHelper:
     "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
+  cloudDriveNote:
+    "이 기능을 활성화한 후 새로 다운로드된 비디오는 자동으로 클라우드 스토리지에 업로드되고 로컬 파일은 삭제됩니다. 비디오는 프록시를 통해 클라우드 스토리지에서 재생됩니다.",
 
   // Manage
   manageContent: "콘텐츠 관리",
@@ -277,6 +279,7 @@ export const ko = {
   cancel: "취소",
   confirm: "확인",
   save: "저장",
+  note: "참고",
   on: "켜기",
   off: "끄기",
   continue: "계속",

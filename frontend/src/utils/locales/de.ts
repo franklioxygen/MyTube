@@ -130,6 +130,8 @@ export const de = {
   uploadPath: "Upload-Pfad",
   cloudDrivePathHelper:
     "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
+  cloudDriveNote:
+    "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
 
   manageContent: "Inhalte Verwalten",
   videos: "Videos",
@@ -252,6 +254,7 @@ export const de = {
   cancel: "Abbrechen",
   confirm: "Bestätigen",
   save: "Speichern",
+  note: "Hinweis",
   on: "Ein",
   off: "Aus",
   continue: "Weiter",

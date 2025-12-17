@@ -132,6 +132,8 @@ export const en = {
   token: "Token",
   uploadPath: "Upload Path",
   cloudDrivePathHelper: "Directory path in cloud drive, e.g. /mytube-uploads",
+  cloudDriveNote:
+    "After enabling this feature, newly downloaded videos will be automatically uploaded to cloud storage and local files will be deleted. Videos will be played from cloud storage via proxy.",
 
   // Manage
   manageContent: "Manage Content",
@@ -267,6 +269,7 @@ export const en = {
   cancel: "Cancel",
   confirm: "Confirm",
   save: "Save",
+  note: "Note",
   on: "On",
   off: "Off",
   continue: "Continue",

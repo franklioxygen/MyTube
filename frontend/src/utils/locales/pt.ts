@@ -140,6 +140,8 @@ export const pt = {
   token: "Token",
   uploadPath: "Caminho de upload",
   cloudDrivePathHelper: "Caminho do diretório na nuvem, ex. /mytube-uploads",
+  cloudDriveNote:
+    "Após habilitar este recurso, os vídeos recém-baixados serão automaticamente enviados para o armazenamento em nuvem e os arquivos locais serão excluídos. Os vídeos serão reproduzidos do armazenamento em nuvem via proxy.",
 
   // Manage
   manageContent: "Gerenciar Conteúdo",
@@ -281,6 +283,7 @@ export const pt = {
   cancel: "Cancelar",
   confirm: "Confirmar",
   save: "Salvar",
+  note: "Nota",
   on: "Ligado",
   off: "Desligado",
   continue: "Continuar",

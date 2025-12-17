@@ -145,6 +145,8 @@ export const fr = {
   uploadPath: "Chemin de téléchargement",
   cloudDrivePathHelper:
     "Chemin du répertoire dans le cloud, ex. /mytube-uploads",
+  cloudDriveNote:
+    "Après avoir activé cette fonctionnalité, les vidéos nouvellement téléchargées seront automatiquement téléchargées vers le stockage cloud et les fichiers locaux seront supprimés. Les vidéos seront lues depuis le stockage cloud via un proxy.",
 
   // Manage
   manageContent: "Gérer le contenu",
@@ -287,6 +289,7 @@ export const fr = {
   cancel: "Annuler",
   confirm: "Confirmer",
   save: "Enregistrer",
+  note: "Note",
   on: "On",
   off: "Off",
   continue: "Continuer",

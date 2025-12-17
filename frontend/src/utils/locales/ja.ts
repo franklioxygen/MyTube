@@ -140,6 +140,8 @@ export const ja = {
   uploadPath: "アップロードパス",
   cloudDrivePathHelper:
     "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
+  cloudDriveNote:
+    "この機能を有効にすると、新しくダウンロードされた動画は自動的にクラウドストレージにアップロードされ、ローカルファイルは削除されます。動画はプロキシ経由でクラウドストレージから再生されます。",
 
   // Manage
   manageContent: "コンテンツの管理",
@@ -280,6 +282,7 @@ export const ja = {
   cancel: "キャンセル",
   confirm: "確認",
   save: "保存",
+  note: "注意",
   on: "オン",
   off: "オフ",
   continue: "続行",

@@ -143,6 +143,8 @@ export const es = {
   token: "Token",
   uploadPath: "Ruta de carga",
   cloudDrivePathHelper: "Ruta del directorio en la nube, ej. /mytube-uploads",
+  cloudDriveNote:
+    "Después de habilitar esta función, los videos recién descargados se subirán automáticamente al almacenamiento en la nube y se eliminarán los archivos locales. Los videos se reproducirán desde el almacenamiento en la nube a través de un proxy.",
 
   manageContent: "Gestionar Contenido",
   videos: "Videos",
@@ -276,6 +278,7 @@ export const es = {
   cancel: "Cancelar",
   confirm: "Confirmar",
   save: "Guardar",
+  note: "Nota",
   on: "Activado",
   off: "Desactivado",
   expand: "Expandir",

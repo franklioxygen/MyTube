@@ -1,11 +1,9 @@
-import axios from 'axios';
-import fs from 'fs-extra';
-import path from 'path';
-import {
-  FileError,
-  NetworkError,
-} from '../errors/DownloadErrors';
-import { getSettings } from './storageService';
+import axios from "axios";
+import fs from "fs-extra";
+import path from "path";
+import { FileError, NetworkError } from "../errors/DownloadErrors";
+import { logger } from "../utils/logger";
+import { getSettings } from "./storageService";
 
 interface CloudDriveConfig {
   enabled: boolean;
@@ -19,9 +17,9 @@ export class CloudStorageService {
     const settings = getSettings();
     return {
       enabled: settings.cloudDriveEnabled || false,
-      apiUrl: settings.openListApiUrl || '',
-      token: settings.openListToken || '',
-      uploadPath: settings.cloudDrivePath || '/'
+      apiUrl: settings.openListApiUrl || "",
+      token: settings.openListToken || "",
+      uploadPath: settings.cloudDrivePath || "/",
     };
   }
 
@@ -31,38 +29,33 @@ export class CloudStorageService {
       return;
     }
 
-    console.log(`[CloudStorage] Starting upload for video: ${videoData.title}`);
+    logger.info(`[CloudStorage] Starting upload for video: ${videoData.title}`);
+
+    const uploadedFiles: string[] = []; // Track successfully uploaded files for deletion
 
     try {
       // Upload Video File
       if (videoData.videoPath) {
-        // videoPath is relative, e.g. /videos/filename.mp4
-        // We need absolute path. Assuming backend runs in project root or we can resolve it.
-        // Based on storageService, VIDEOS_DIR is likely imported from config/paths.
-        // But here we might need to resolve it.
-        // Let's try to resolve relative to process.cwd() or use absolute path if available.
-        // Actually, storageService stores relative paths for frontend usage.
-        // We should probably look up the file using the same logic as storageService or just assume standard location.
-        // For now, let's try to construct the path.
-        
-        // Better approach: Use the absolute path if we can get it, or resolve from common dirs.
-        // Since I don't have direct access to config/paths here easily without importing, 
-        // I'll assume the videoData might have enough info or I'll import paths.
-        
         const absoluteVideoPath = this.resolveAbsolutePath(videoData.videoPath);
         if (absoluteVideoPath && fs.existsSync(absoluteVideoPath)) {
-            await this.uploadFile(absoluteVideoPath, config);
+          await this.uploadFile(absoluteVideoPath, config);
+          uploadedFiles.push(absoluteVideoPath);
         } else {
-            console.error(`[CloudStorage] Video file not found: ${videoData.videoPath}`);
-            // Don't throw - continue with other files
+          logger.error(
+            `[CloudStorage] Video file not found: ${videoData.videoPath}`
+          );
+          // Don't throw - continue with other files
         }
       }
 
       // Upload Thumbnail
       if (videoData.thumbnailPath) {
-        const absoluteThumbPath = this.resolveAbsolutePath(videoData.thumbnailPath);
+        const absoluteThumbPath = this.resolveAbsolutePath(
+          videoData.thumbnailPath
+        );
         if (absoluteThumbPath && fs.existsSync(absoluteThumbPath)) {
-             await this.uploadFile(absoluteThumbPath, config);
+          await this.uploadFile(absoluteThumbPath, config);
+          uploadedFiles.push(absoluteThumbPath);
         }
       }
 
@@ -74,112 +67,266 @@ export class CloudStorageService {
         sourceUrl: videoData.sourceUrl,
         tags: videoData.tags,
         createdAt: videoData.createdAt,
-        ...videoData
+        ...videoData,
       };
-      
-      const metadataFileName = `${this.sanitizeFilename(videoData.title)}.json`;
-      const metadataPath = path.join(process.cwd(), 'temp_metadata', metadataFileName);
+
+      // Keep metadata filename consistent with thumbnail and video filename
+      const metadataFileName = videoData.thumbnailFilename
+        ? videoData.thumbnailFilename
+            .replace(".jpg", ".json")
+            .replace(".png", ".json")
+        : `${this.sanitizeFilename(videoData.title)}.json`;
+      const metadataPath = path.join(
+        process.cwd(),
+        "temp_metadata",
+        metadataFileName
+      );
       fs.ensureDirSync(path.dirname(metadataPath));
       fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-      
+
       await this.uploadFile(metadataPath, config);
-      
-      // Cleanup temp metadata
+
+      // Cleanup temp metadata (always delete temp file)
       fs.unlinkSync(metadataPath);
 
-      console.log(`[CloudStorage] Upload completed for: ${videoData.title}`);
+      logger.info(`[CloudStorage] Upload completed for: ${videoData.title}`);
 
+      // Delete local files after successful upload and update video record to point to cloud storage
+      if (uploadedFiles.length > 0) {
+        logger.info(
+          `[CloudStorage] Deleting ${uploadedFiles.length} local file(s) after successful upload...`
+        );
+
+        // Track which files were successfully deleted
+        const deletedFiles: string[] = [];
+        for (const filePath of uploadedFiles) {
+          try {
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              deletedFiles.push(filePath);
+              logger.info(`[CloudStorage] Deleted local file: ${filePath}`);
+            }
+          } catch (deleteError: any) {
+            logger.error(
+              `[CloudStorage] Failed to delete local file ${filePath}:`,
+              deleteError instanceof Error
+                ? deleteError
+                : new Error(deleteError.message)
+            );
+            // Don't throw - continue with other files
+          }
+        }
+        logger.info(`[CloudStorage] Local file cleanup completed`);
+
+        // Update video record to point to cloud storage URLs
+        if (videoData.id && deletedFiles.length > 0) {
+          try {
+            const storageService = await import("./storageService");
+            const updates: any = {};
+
+            // Update video path if video was deleted
+            if (videoData.videoFilename) {
+              updates.videoPath = `/cloud/videos/${videoData.videoFilename}`;
+            }
+
+            // Update thumbnail path if thumbnail was deleted
+            if (videoData.thumbnailFilename) {
+              updates.thumbnailPath = `/cloud/images/${videoData.thumbnailFilename}`;
+            }
+
+            if (Object.keys(updates).length > 0) {
+              storageService.updateVideo(videoData.id, updates);
+              logger.info(
+                `[CloudStorage] Updated video record ${videoData.id} with cloud storage paths`
+              );
+            }
+          } catch (updateError: any) {
+            logger.error(
+              `[CloudStorage] Failed to update video record with cloud paths:`,
+              updateError instanceof Error
+                ? updateError
+                : new Error(updateError.message)
+            );
+            // Don't throw - file deletion was successful
+          }
+        }
+      }
     } catch (error) {
-      console.error(`[CloudStorage] Upload failed for ${videoData.title}:`, error);
+      logger.error(
+        `[CloudStorage] Upload failed for ${videoData.title}:`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      // If upload failed, don't delete local files
     }
   }
 
   private static resolveAbsolutePath(relativePath: string): string | null {
-    // This is a heuristic. In a real app we should import the constants.
-    // Assuming the app runs from 'backend' or root.
-    // relativePath starts with /videos or /images
-    
-    // Try to find the 'data' directory.
-    // If we are in backend/src/services, data is likely ../../../data
-    
-    // Let's try to use the absolute path if we can find the data dir.
-    // Or just check common locations.
-    
-    const possibleRoots = [
-        path.join(process.cwd(), 'data'),
-        path.join(process.cwd(), '..', 'data'), // if running from backend
-        path.join(__dirname, '..', '..', '..', 'data') // if compiled
-    ];
+    logger.debug("resolveAbsolutePath input:", relativePath);
 
-    for (const root of possibleRoots) {
-        if (fs.existsSync(root)) {
-            // Remove leading slash from relative path
-            const cleanRelative = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-            const fullPath = path.join(root, cleanRelative);
-            if (fs.existsSync(fullPath)) {
-                return fullPath;
-            }
-        }
+    const cleanRelative = relativePath.startsWith("/")
+      ? relativePath.slice(1)
+      : relativePath;
+    logger.debug("cleanRelative:", cleanRelative);
+
+    // Key fix: uploadsBase should not add 'backend'
+    const uploadsBase = path.join(process.cwd(), "uploads");
+    logger.debug("uploadsBase:", uploadsBase);
+
+    if (cleanRelative.startsWith("videos/")) {
+      const fullPath = path.join(uploadsBase, cleanRelative);
+      logger.debug("Trying uploads videos path:", fullPath);
+      if (fs.existsSync(fullPath)) {
+        logger.debug("Found video file at:", fullPath);
+        return fullPath;
+      }
+      logger.debug("Video path does not exist:", fullPath);
     }
-    
+    if (cleanRelative.startsWith("images/")) {
+      const fullPath = path.join(uploadsBase, cleanRelative);
+      logger.debug("Trying uploads images path:", fullPath);
+      if (fs.existsSync(fullPath)) {
+        logger.debug("Found image file at:", fullPath);
+        return fullPath;
+      }
+      logger.debug("Image path does not exist:", fullPath);
+    }
+    if (cleanRelative.startsWith("subtitles/")) {
+      const fullPath = path.join(uploadsBase, cleanRelative);
+      logger.debug("Trying uploads subtitles path:", fullPath);
+      if (fs.existsSync(fullPath)) {
+        logger.debug("Found subtitle file at:", fullPath);
+        return fullPath;
+      }
+      logger.debug("Subtitle path does not exist:", fullPath);
+    }
+
+    // Old data directory logic (backward compatibility)
+    const possibleRoots = [
+      path.join(process.cwd(), "data"),
+      path.join(process.cwd(), "..", "data"),
+      path.join(__dirname, "..", "..", "..", "data"),
+    ];
+    for (const root of possibleRoots) {
+      logger.debug("Checking data root:", root);
+      if (fs.existsSync(root)) {
+        const fullPath = path.join(root, cleanRelative);
+        logger.debug("Found data root directory, trying file:", fullPath);
+        if (fs.existsSync(fullPath)) {
+          logger.debug("Found file in data root:", fullPath);
+          return fullPath;
+        }
+        logger.debug("File not found in data root:", fullPath);
+      } else {
+        logger.debug("Data root does not exist:", root);
+      }
+    }
+
+    logger.debug("No matching absolute path found for:", relativePath);
     return null;
   }
 
-  private static async uploadFile(filePath: string, config: CloudDriveConfig): Promise<void> {
+  private static async uploadFile(
+    filePath: string,
+    config: CloudDriveConfig
+  ): Promise<void> {
+    // 1. Get basic file information
     const fileName = path.basename(filePath);
-    const fileSize = fs.statSync(filePath).size;
+    const fileStat = fs.statSync(filePath);
+    const fileSize = fileStat.size;
+    const lastModified = fileStat.mtime.getTime().toString(); // Get millisecond timestamp
     const fileStream = fs.createReadStream(filePath);
 
-    console.log(`[CloudStorage] Uploading ${fileName} (${fileSize} bytes)...`);
+    logger.info(`[CloudStorage] Uploading ${fileName} (${fileSize} bytes)...`);
 
-    // Generic upload implementation
-    // Assuming a simple PUT or POST with file content
-    // Many cloud drives (like Alist/WebDAV) use PUT with the path.
-    
-    // Construct URL: apiUrl + uploadPath + fileName
-    // Ensure slashes are handled correctly
-    const baseUrl = config.apiUrl.endsWith('/') ? config.apiUrl.slice(0, -1) : config.apiUrl;
-    const uploadDir = config.uploadPath.startsWith('/') ? config.uploadPath : '/' + config.uploadPath;
-    const finalDir = uploadDir.endsWith('/') ? uploadDir : uploadDir + '/';
-    
-    // Encode filename for URL
-    const encodedFileName = encodeURIComponent(fileName);
-    const url = `${baseUrl}${finalDir}${encodedFileName}`;
+    // 2. Prepare request URL and path
+    // URL is always a fixed PUT endpoint
+    const url = config.apiUrl; // Assume apiUrl is http://127.0.0.1:5244/api/fs/put
+
+    // Destination path is the combination of uploadPath and fileName
+    // Normalize path separators to forward slashes for Alist (works on all platforms)
+    const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
+    const normalizedPath = normalizedUploadPath.endsWith("/")
+      ? `${normalizedUploadPath}${fileName}`
+      : `${normalizedUploadPath}/${fileName}`;
+    const destinationPath = normalizedPath.startsWith("/")
+      ? normalizedPath
+      : `/${normalizedPath}`;
+
+    logger.debug(
+      `[CloudStorage] Destination path in header: ${destinationPath}`
+    );
+
+    // 3. Prepare Headers
+    const headers = {
+      // Key fix #1: Destination path is passed in Header
+      "file-path": encodeURI(destinationPath), // Alist expects this header, needs encoding
+
+      // Key fix #2: Authorization Header does not have 'Bearer ' prefix
+      Authorization: config.token,
+
+      // Key fix #3: Include Last-Modified Header
+      "Last-Modified": lastModified,
+
+      // Other Headers
+      "Content-Type": "application/octet-stream", // Use generic stream type
+      "Content-Length": fileSize.toString(),
+    };
 
     try {
-        await axios.put(url, fileStream, {
-            headers: {
-                'Authorization': `Bearer ${config.token}`,
-                'Content-Type': 'application/octet-stream',
-                'Content-Length': fileSize
-            },
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity
-        });
-        console.log(`[CloudStorage] Successfully uploaded ${fileName}`);
+      // 4. Send PUT request, note that URL is fixed
+      const response = await axios.put(url, fileStream, {
+        headers: headers,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+
+      // 5. Check if the returned JSON Body indicates real success
+      if (response.data && response.data.code === 200) {
+        logger.info(
+          `[CloudStorage] Successfully uploaded ${fileName}. Server message: ${response.data.message}`
+        );
+      } else {
+        // Even if HTTP status code is 200, server may return business errors
+        const errorMessage = response.data
+          ? response.data.message
+          : "Unknown server error after upload";
+        throw NetworkError.withStatus(
+          `Upload failed on server: ${errorMessage} (Code: ${response.data?.code})`,
+          response.status || 500
+        );
+      }
     } catch (error: any) {
-        // Determine if it's a network error or file error
-        if (error.response) {
-            // HTTP error response
-            const statusCode = error.response.status;
-            throw NetworkError.withStatus(
-                `Upload failed: ${error.message}`,
-                statusCode
-            );
-        } else if (error.request) {
-            // Request made but no response (network issue)
-            throw NetworkError.timeout();
-        } else if (error.code === 'ENOENT') {
-            // File not found
-            throw FileError.notFound(filePath);
-        } else {
-            // Other file/system errors
-            throw FileError.writeError(filePath, error.message);
-        }
+      // Error handling logic
+      if (error.response) {
+        // HTTP error response
+        const statusCode = error.response.status;
+        logger.error(
+          `[CloudStorage] HTTP Error: ${statusCode}`,
+          new Error(JSON.stringify(error.response.data))
+        );
+        throw NetworkError.withStatus(
+          `Upload failed: ${error.message}`,
+          statusCode
+        );
+      } else if (error.request) {
+        // Request was made but no response received
+        logger.error("[CloudStorage] Network Error: No response received.");
+        throw NetworkError.timeout();
+      } else if (error.code === "ENOENT") {
+        // File not found
+        throw FileError.notFound(filePath);
+      } else {
+        // Other errors
+        logger.error(
+          "[CloudStorage] Upload Error:",
+          error instanceof Error ? error : new Error(error.message)
+        );
+        throw FileError.writeError(filePath, error.message);
+      }
     }
   }
 
   private static sanitizeFilename(filename: string): string {
-    return filename.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    return filename.replace(/[^a-z0-9]/gi, "_").toLowerCase();
   }
 }

@@ -26,6 +26,8 @@ describe("CloudStorageService", () => {
     vi.clearAllMocks();
     console.log = vi.fn();
     console.error = vi.fn();
+    // Ensure axios.put is properly mocked
+    (axios.put as any) = vi.fn();
   });
 
   describe("uploadVideo", () => {
@@ -77,9 +79,12 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 1024 });
+      (fs.statSync as any).mockReturnValue({ size: 1024, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
-      (axios.put as any).mockResolvedValue({ status: 200 });
+      (axios.put as any).mockResolvedValue({ 
+        status: 200,
+        data: { code: 200, message: "Success" }
+      });
 
       // Mock resolveAbsolutePath by making fs.existsSync return true for data dir
       (fs.existsSync as any).mockImplementation((p: string) => {
@@ -99,9 +104,11 @@ describe("CloudStorageService", () => {
       await CloudStorageService.uploadVideo(mockVideoData);
 
       expect(axios.put).toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith(
-        "[CloudStorage] Starting upload for video: Test Video"
+      expect(console.log).toHaveBeenCalled();
+      const logCall = (console.log as any).mock.calls.find((call: any[]) =>
+        call[0]?.includes("[CloudStorage] Starting upload for video: Test Video")
       );
+      expect(logCall).toBeDefined();
     });
 
     it("should upload thumbnail when path exists", async () => {
@@ -118,9 +125,12 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 512 });
+      (fs.statSync as any).mockReturnValue({ size: 512, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
-      (axios.put as any).mockResolvedValue({ status: 200 });
+      (axios.put as any).mockResolvedValue({ 
+        status: 200,
+        data: { code: 200, message: "Success" }
+      });
 
       (fs.existsSync as any).mockImplementation((p: string) => {
         if (
@@ -158,13 +168,22 @@ describe("CloudStorageService", () => {
         cloudDrivePath: "/uploads",
       });
 
-      (fs.existsSync as any).mockReturnValue(true);
+      (fs.existsSync as any).mockImplementation((p: string) => {
+        // Return true for temp_metadata files and their directory
+        if (p.includes("temp_metadata")) {
+          return true;
+        }
+        return true;
+      });
       (fs.ensureDirSync as any).mockReturnValue(undefined);
       (fs.writeFileSync as any).mockReturnValue(undefined);
-      (fs.statSync as any).mockReturnValue({ size: 256 });
+      (fs.statSync as any).mockReturnValue({ size: 256, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
       (fs.unlinkSync as any).mockReturnValue(undefined);
-      (axios.put as any).mockResolvedValue({ status: 200 });
+      (axios.put as any).mockResolvedValue({ 
+        status: 200,
+        data: { code: 200, message: "Success" }
+      });
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
@@ -207,9 +226,11 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalledWith(
-        "[CloudStorage] Video file not found: /videos/missing.mp4"
+      expect(console.error).toHaveBeenCalled();
+      const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
+        call[0]?.includes("[CloudStorage] Video file not found: /videos/missing.mp4")
       );
+      expect(errorCall).toBeDefined();
       // Metadata will still be uploaded even if video is missing
       // So we check that video upload was not attempted
       const putCalls = (axios.put as any).mock.calls;
@@ -233,7 +254,7 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 1024 });
+      (fs.statSync as any).mockReturnValue({ size: 1024, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
       (axios.put as any).mockRejectedValue(new Error("Upload failed"));
 
@@ -253,10 +274,12 @@ describe("CloudStorageService", () => {
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
-      expect(console.error).toHaveBeenCalledWith(
-        "[CloudStorage] Upload failed for Test Video:",
-        expect.any(Error)
+      expect(console.error).toHaveBeenCalled();
+      const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
+        call[0]?.includes("[CloudStorage] Upload failed for Test Video:")
       );
+      expect(errorCall).toBeDefined();
+      expect(errorCall[1]).toBeInstanceOf(Error);
     });
 
     it("should sanitize filename for metadata", async () => {
@@ -275,10 +298,13 @@ describe("CloudStorageService", () => {
       (fs.existsSync as any).mockReturnValue(true);
       (fs.ensureDirSync as any).mockReturnValue(undefined);
       (fs.writeFileSync as any).mockReturnValue(undefined);
-      (fs.statSync as any).mockReturnValue({ size: 256 });
+      (fs.statSync as any).mockReturnValue({ size: 256, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
       (fs.unlinkSync as any).mockReturnValue(undefined);
-      (axios.put as any).mockResolvedValue({ status: 200 });
+      (axios.put as any).mockResolvedValue({ 
+        status: 200,
+        data: { code: 200, message: "Success" }
+      });
 
       await CloudStorageService.uploadVideo(mockVideoData);
 
@@ -304,7 +330,7 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 1024 });
+      (fs.statSync as any).mockReturnValue({ size: 1024, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
 
       const axiosError = {
@@ -348,7 +374,7 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 1024 });
+      (fs.statSync as any).mockReturnValue({ size: 1024, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
 
       const axiosError = {
@@ -390,7 +416,7 @@ describe("CloudStorageService", () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.statSync as any).mockReturnValue({ size: 1024 });
+      (fs.statSync as any).mockReturnValue({ size: 1024, mtime: { getTime: () => Date.now() } });
       (fs.createReadStream as any).mockReturnValue({});
 
       const axiosError = {

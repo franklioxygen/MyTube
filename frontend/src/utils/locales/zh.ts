@@ -132,6 +132,8 @@ export const zh = {
   token: "Token",
   uploadPath: "上传路径",
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
+  cloudDriveNote:
+    "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
 
   // Manage
   manageContent: "内容管理",
@@ -270,6 +272,7 @@ export const zh = {
   cancel: "取消",
   confirm: "确认",
   save: "保存",
+  note: "注意",
   on: "开启",
   off: "关",
   continue: "继续",
