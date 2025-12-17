@@ -239,6 +239,7 @@ export const en = {
   tooManyAttempts: "Too many failed attempts.",
   linkCopied: "Link copied to clipboard",
   copyFailed: "Failed to copy link",
+  copyUrl: "Copy URL",
 
   // Collection Page
   loadingCollection: "Loading collection...",
