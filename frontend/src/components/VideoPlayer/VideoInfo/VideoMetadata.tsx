@@ -26,57 +26,93 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
         <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 3, rowGap: 1 }}>
                 {video.sourceUrl && (
-                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                    >
                         <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                            <LinkIcon fontSize="small" sx={{ mr: 0.5 }} />
+                            <LinkIcon sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('originalLink')}</strong>
                         </a>
                     </Typography>
                 )}
                 {video.videoPath && (
-                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                    >
                         <a href={`${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
-                            <Download fontSize="small" sx={{ mr: 0.5 }} />
+                            <Download sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('download')}</strong>
                         </a>
                     </Typography>
                 )}
                 {videoCollections.length > 0 && (
-                    <Box sx={{ display: 'inline', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                         {videoCollections.map((c, index) => (
                             <React.Fragment key={c.id}>
-                                <span
+                                <Box
+                                    component="span"
                                     onClick={() => onCollectionClick(c.id)}
-                                    style={{
+                                    sx={{
                                         cursor: 'pointer',
-                                        color: theme.palette.primary.main,
+                                        color: 'primary.main',
                                         fontWeight: 'bold',
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        verticalAlign: 'bottom'
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
                                     }}
                                 >
-                                    <Folder fontSize="small" sx={{ mr: 0.5 }} />
+                                    <Folder sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                                     {c.name}
-                                </span>
+                                </Box>
                                 {index < videoCollections.length - 1 ? <span style={{ marginRight: '4px' }}>, </span> : ''}
                             </React.Fragment>
                         ))}
                     </Box>
                 )}
-                <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                    <VideoLibrary fontSize="small" sx={{ mr: 0.5 }} />
+                <Typography 
+                    variant="body2" 
+                    sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                    }}
+                >
+                    <VideoLibrary sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                     {video.source ? video.source.charAt(0).toUpperCase() + video.source.slice(1) : 'Unknown'}
                 </Typography>
                 {video.addedAt && (
-                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                        <CalendarToday fontSize="small" sx={{ mr: 0.5 }} />
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                    >
+                        <CalendarToday sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                         {new Date(video.addedAt).toISOString().split('T')[0]}
                     </Typography>
                 )}
                 {videoResolution && (
-                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center' }}>
-                        <HighQuality fontSize="small" sx={{ mr: 0.5 }} />
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                    >
+                        <HighQuality sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                         {videoResolution && `${videoResolution}`}
                     </Typography>
                 )}

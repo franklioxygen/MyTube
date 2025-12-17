@@ -68,7 +68,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
                     sx={{ 
                         cursor: 'pointer', 
                         '&:hover': { color: 'primary.main' },
-                        maxWidth: { xs: '180px', sm: 'none' },
+                        maxWidth: { xs: '200px', sm: 'none' },
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
@@ -86,7 +86,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
                         size="small"
                         onClick={handleSubscribeClick}
                         color={isSubscribed ? 'primary' : 'default'}
-                        sx={{ ml: { xs: 0, sm: 1 } }}
+                        sx={{ ml: { xs: 1, sm: 1 } }}
                     >
                         {isSubscribed ? <NotificationsActive /> : <Notifications />}
                     </IconButton>

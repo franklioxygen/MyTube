@@ -1,5 +1,5 @@
-import { Add, Cast, Delete, Share } from '@mui/icons-material';
-import { Button, Menu, MenuItem, Stack, Tooltip } from '@mui/material';
+import { Add, Cast, Delete, MoreVert, Share } from '@mui/icons-material';
+import { Button, IconButton, Menu, MenuItem, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
@@ -22,7 +22,10 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const { t } = useLanguage();
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
+    const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
     const getVideoUrl = (): string => {
         if (video.videoPath) {
@@ -42,6 +45,14 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
 
     const handlePlayerMenuClose = () => {
         setPlayerMenuAnchor(null);
+    };
+
+    const handleKebabMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+        setKebabMenuAnchor(event.currentTarget);
+    };
+
+    const handleKebabMenuClose = () => {
+        setKebabMenuAnchor(null);
     };
 
     const handlePlayerSelect = (player: string) => {
@@ -122,7 +133,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         handlePlayerMenuClose();
     };
 
-    return (
+    const actionButtons = (
         <Stack direction="row" spacing={1}>
             <Tooltip title={t('playWith')}>
                 <Button
@@ -188,6 +199,129 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             </Tooltip>
         </Stack>
     );
+
+    if (isMobile) {
+        return (
+            <>
+                <Tooltip title="More actions">
+                    <IconButton
+                        onClick={handleKebabMenuOpen}
+                        sx={{ 
+                            color: kebabMenuAnchor ? 'primary.main' : 'text.secondary', 
+                            '&:hover': { color: 'primary.main' } 
+                        }}
+                    >
+                        <MoreVert />
+                    </IconButton>
+                </Tooltip>
+                <Menu
+                    anchorEl={kebabMenuAnchor}
+                    open={Boolean(kebabMenuAnchor)}
+                    onClose={handleKebabMenuClose}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                    }}
+                    slotProps={{
+                        paper: {
+                            sx: {
+                                minWidth: 'auto',
+                                p: 1,
+                                px: 2,
+                            }
+                        }
+                    }}
+                >
+                    <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+                        <Tooltip title={t('playWith')}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => {
+                                    // Store the anchor before closing the kebab menu
+                                    const anchor = kebabMenuAnchor;
+                                    handleKebabMenuClose();
+                                    // Use the stored anchor for the player menu
+                                    if (anchor) {
+                                        setPlayerMenuAnchor(anchor);
+                                    }
+                                }}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                <Cast />
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title={t('share')}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => {
+                                    handleKebabMenuClose();
+                                    handleShare();
+                                }}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                <Share />
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title={t('addToCollection')}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => {
+                                    handleKebabMenuClose();
+                                    onAddToCollection();
+                                }}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                <Add />
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title={t('delete')}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={() => {
+                                    handleKebabMenuClose();
+                                    onDelete();
+                                }}
+                                disabled={isDeleting}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                            >
+                                <Delete />
+                            </Button>
+                        </Tooltip>
+                    </Stack>
+                </Menu>
+                <Menu
+                    anchorEl={playerMenuAnchor}
+                    open={Boolean(playerMenuAnchor)}
+                    onClose={handlePlayerMenuClose}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'left',
+                    }}
+                >
+                    <MenuItem onClick={() => handlePlayerSelect('vlc')}>VLC</MenuItem>
+                    <MenuItem onClick={() => handlePlayerSelect('iina')}>IINA</MenuItem>
+                    <MenuItem onClick={() => handlePlayerSelect('mpv')}>mpv</MenuItem>
+                    <MenuItem onClick={() => handlePlayerSelect('potplayer')}>PotPlayer</MenuItem>
+                    <MenuItem onClick={() => handlePlayerSelect('infuse')}>Infuse</MenuItem>
+                    <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
+                </Menu>
+            </>
+        );
+    }
+
+    return actionButtons;
 };
 
 export default VideoActionButtons;
