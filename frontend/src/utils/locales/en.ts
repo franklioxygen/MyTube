@@ -230,9 +230,11 @@ export const en = {
   retry: "Retry",
   resetPassword: "Reset Password",
   resetPasswordTitle: "Reset Password",
-  resetPasswordMessage: "Are you sure you want to reset the password? The current password will be reset to a random 8-character string and displayed in the backend log.",
+  resetPasswordMessage:
+    "Are you sure you want to reset the password? The current password will be reset to a random 8-character string and displayed in the backend log.",
   resetPasswordConfirm: "Reset",
-  resetPasswordSuccess: "Password has been reset. Check backend logs for the new password.",
+  resetPasswordSuccess:
+    "Password has been reset. Check backend logs for the new password.",
   waitTimeMessage: "Please wait {time} before trying again.",
   tooManyAttempts: "Too many failed attempts.",
   linkCopied: "Link copied to clipboard",
@@ -461,13 +463,15 @@ export const en = {
   hide: "Hide",
   reset: "Reset",
   more: "More",
-    proxyOnlyApplyToYoutube: 'Proxy only apply to Youtube',
-    moveSubtitlesToVideoFolder: 'Subtitles Location',
-    moveSubtitlesToVideoFolderOn: 'With video together',
-    moveSubtitlesToVideoFolderOff: 'In isolated subtitle folder',
-    moveSubtitlesToVideoFolderDescription: 'When enabled, subtitle files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated subtitle folder.',
-    moveThumbnailsToVideoFolder: 'Thumbnail Location',
-    moveThumbnailsToVideoFolderOn: 'With video together',
-    moveThumbnailsToVideoFolderOff: 'In isolated images folder',
-    moveThumbnailsToVideoFolderDescription: 'When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.',
+  proxyOnlyApplyToYoutube: "Proxy only apply to Youtube",
+  moveSubtitlesToVideoFolder: "Subtitles Location",
+  moveSubtitlesToVideoFolderOn: "With video together",
+  moveSubtitlesToVideoFolderOff: "In isolated subtitle folder",
+  moveSubtitlesToVideoFolderDescription:
+    "When enabled, subtitle files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated subtitle folder.",
+  moveThumbnailsToVideoFolder: "Thumbnail Location",
+  moveThumbnailsToVideoFolderOn: "With video together",
+  moveThumbnailsToVideoFolderOff: "In isolated images folder",
+  moveThumbnailsToVideoFolderDescription:
+    "When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.",
 };

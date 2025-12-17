@@ -68,7 +68,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
                     sx={{ 
                         cursor: 'pointer', 
                         '&:hover': { color: 'primary.main' },
-                        maxWidth: { xs: '120px', sm: 'none' },
+                        maxWidth: { xs: '180px', sm: 'none' },
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'

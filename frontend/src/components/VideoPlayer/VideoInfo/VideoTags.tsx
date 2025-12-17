@@ -60,17 +60,18 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                         {...params}
                         variant="standard"
                         placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
-                        sx={{ minWidth: 200 }}
+                        sx={{  minWidth: 300 , width: 'auto', display: 'inline-flex' }}
                         slotProps={{
                             input: { 
                                 ...params.InputProps, 
                                 disableUnderline: true,
-                                readOnly: true
+                                readOnly: true,
+                                endAdornment: null
                             }
                         }}
                     />
                 )}
-                sx={{ flexGrow: 1 }}
+                sx={{ width: 'auto', display: 'inline-flex' }}
             />
         </Box>
     );
