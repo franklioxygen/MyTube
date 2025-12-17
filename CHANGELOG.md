@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.10 (2025-12-17)
+
+### Feat
+
+- feat: Add cloud storage settings and connection test feature (7585e74)
+
 ## v1.6.9 (2025-12-16)
 
 ### Fix
