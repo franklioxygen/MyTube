@@ -119,9 +119,9 @@ export async function executeYtDlpJson(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Node.js runtime for YouTube n challenge solving
+  // Add Deno runtime for YouTube n challenge solving
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    args.push("--js-runtime", "node");
+    args.push("--js-runtime", "deno");
   }
 
   args.push(url);
@@ -199,9 +199,9 @@ export function executeYtDlpSpawn(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Node.js runtime for YouTube n challenge solving
+  // Add Deno runtime for YouTube n challenge solving
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    args.push("--js-runtime", "node");
+    args.push("--js-runtime", "deno");
   }
 
   args.push(url);

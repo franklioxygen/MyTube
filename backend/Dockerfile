@@ -29,12 +29,18 @@ WORKDIR /app
 # chromium: for Puppeteer (saves ~300MB vs bundled)
 # ffmpeg: for video processing
 # python3: for yt-dlp
+# curl: for installing deno
 RUN apk add --no-cache \
     chromium \
     ffmpeg \
     python3 \
-    py3-pip && \
+    py3-pip \
+    curl && \
     ln -sf python3 /usr/bin/python
+
+# Install deno for yt-dlp js-runtime (recommended by yt-dlp)
+RUN curl -fsSL https://deno.land/install.sh | sh -s -- -y && \
+    ln -sf /root/.deno/bin/deno /usr/local/bin/deno
 
 # Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
 RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs --break-system-packages

@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.9 (2025-12-16)
+
+### Fix
+
+- fix: Change js-runtime from node to deno (recommended by yt-dlp) and add deno installation to Dockerfile
+
 ## v1.6.8 (2025-12-16)
 
 ### Feat
