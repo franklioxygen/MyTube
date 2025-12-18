@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.14 (2025-12-18)
+
+### Fix
+
+- fix: Fix Openlist cloud storage video and thumbnail display issues by fetching sign information and building correct URLs
+- fix: Update frontend to support full URLs (http:// or https://) for cloud storage paths
+
 ## v1.6.13 (2025-12-18)
 
 ### Fix
