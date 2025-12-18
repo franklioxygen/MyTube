@@ -74,7 +74,8 @@ export async function downloadVideo(
     videoDescription: string,
     thumbnailUrl: string | null,
     thumbnailSaved: boolean,
-    source: string;
+    source: string,
+    channelUrl: string | null = null;
   let finalVideoFilename = videoFilename;
   let finalThumbnailFilename = thumbnailFilename;
   let subtitles: Array<{ language: string; filename: string; path: string }> =
@@ -111,6 +112,9 @@ export async function downloadVideo(
     videoDescription = metadata.videoDescription;
     thumbnailUrl = metadata.thumbnailUrl;
     source = metadata.source;
+    
+    // Extract channel URL from info if available
+    channelUrl = info.channel_url || info.uploader_url || null;
 
     // Update the safe base filename with the actual title
     const newSafeBaseFilename = formatVideoFilename(
@@ -292,6 +296,7 @@ export async function downloadVideo(
       : null,
     subtitles: subtitles.length > 0 ? subtitles : undefined,
     duration: undefined, // Will be populated below
+    channelUrl: channelUrl || undefined,
     addedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   };

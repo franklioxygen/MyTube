@@ -429,6 +429,35 @@ export async function downloadSinglePart(
     videoDescription = bilibiliInfo.description || "";
     thumbnailUrl = bilibiliInfo.thumbnailUrl;
     thumbnailSaved = bilibiliInfo.thumbnailSaved;
+    
+    // Extract channel URL for Bilibili
+    let channelUrl: string | undefined;
+    try {
+      const { extractBilibiliVideoId } = await import("../../../utils/helpers");
+      const videoId = extractBilibiliVideoId(url);
+      if (videoId) {
+        const axios = (await import("axios")).default;
+        const isBvId = videoId.startsWith("BV");
+        const apiUrl = isBvId
+          ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
+          : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace("av", "")}`;
+        
+        const response = await axios.get(apiUrl, {
+          headers: {
+            Referer: "https://www.bilibili.com",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          },
+        });
+        
+        if (response.data?.data?.owner?.mid) {
+          const mid = response.data.data.owner.mid;
+          channelUrl = `https://space.bilibili.com/${mid}`;
+        }
+      }
+    } catch (error) {
+      logger.error("Error extracting Bilibili channel URL:", error);
+      // Continue without channel URL
+    }
 
     // Update the safe base filename with the actual title
     // Update the safe base filename with the new format
@@ -560,6 +589,7 @@ export async function downloadSinglePart(
         : null,
       duration: duration,
       fileSize: fileSize,
+      channelUrl: channelUrl || undefined,
       addedAt: new Date().toISOString(),
       partNumber: partNumber,
       totalParts: totalParts,

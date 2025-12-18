@@ -236,6 +236,61 @@ const Home: React.FC = () => {
         }
     }, [filteredVideos, sortOption, shuffleSeed]);
 
+    // Pagination logic
+    const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
+    const displayedVideos = sortedVideos.slice(
+        (page - 1) * itemsPerPage,
+        page * itemsPerPage
+    );
+
+    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
+        setSearchParams((prev: URLSearchParams) => {
+            const newParams = new URLSearchParams(prev);
+            newParams.set('page', value.toString());
+            return newParams;
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Keyboard navigation for pagination
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // Don't handle keyboard navigation if user is typing in an input field
+            const target = event.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            // Only handle if there are multiple pages
+            if (totalPages <= 1) {
+                return;
+            }
+
+            if (event.key === 'ArrowLeft' && page > 1) {
+                event.preventDefault();
+                setSearchParams((prev: URLSearchParams) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.set('page', (page - 1).toString());
+                    return newParams;
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (event.key === 'ArrowRight' && page < totalPages) {
+                event.preventDefault();
+                setSearchParams((prev: URLSearchParams) => {
+                    const newParams = new URLSearchParams(prev);
+                    newParams.set('page', (page + 1).toString());
+                    return newParams;
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [page, totalPages, setSearchParams]);
+
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -290,22 +345,6 @@ const Home: React.FC = () => {
             });
         }
         setSortAnchorEl(null);
-    };
-
-    // Pagination logic
-    const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
-    const displayedVideos = sortedVideos.slice(
-        (page - 1) * itemsPerPage,
-        page * itemsPerPage
-    );
-
-    const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
-        setSearchParams((prev: URLSearchParams) => {
-            const newParams = new URLSearchParams(prev);
-            newParams.set('page', value.toString());
-            return newParams;
-        });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     // Regular home view (not in search mode)

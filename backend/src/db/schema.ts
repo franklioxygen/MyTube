@@ -29,6 +29,7 @@ export const videos = sqliteTable('videos', {
   fileSize: text('file_size'),
   lastPlayedAt: integer('last_played_at'), // Timestamp when video was last played
   subtitles: text('subtitles'), // JSON stringified array of subtitle objects
+  channelUrl: text('channel_url'), // Author channel URL for subscriptions
 });
 
 export const collections = sqliteTable('collections', {

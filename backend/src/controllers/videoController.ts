@@ -223,7 +223,14 @@ export const getAuthorChannelUrl = async (
   }
 
   try {
-    // Check if it's a YouTube URL
+    // First, check if we have the video in the database with a stored channelUrl
+    const existingVideo = storageService.getVideoBySourceUrl(sourceUrl);
+    if (existingVideo && existingVideo.channelUrl) {
+      res.status(200).json({ success: true, channelUrl: existingVideo.channelUrl });
+      return;
+    }
+
+    // If not in database, fetch it (for YouTube)
     if (sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) {
       const {
         executeYtDlpJson,
@@ -240,6 +247,10 @@ export const getAuthorChannelUrl = async (
 
       const channelUrl = info.channel_url || info.uploader_url || null;
       if (channelUrl) {
+        // If we have the video in database, update it with the channelUrl
+        if (existingVideo) {
+          storageService.updateVideo(existingVideo.id, { channelUrl });
+        }
         res.status(200).json({ success: true, channelUrl });
         return;
       }
@@ -247,6 +258,13 @@ export const getAuthorChannelUrl = async (
 
     // Check if it's a Bilibili URL
     if (sourceUrl.includes("bilibili.com") || sourceUrl.includes("b23.tv")) {
+      // If we have the video in database, try to get channelUrl from there first
+      // (already checked above, but this is for clarity)
+      if (existingVideo && existingVideo.channelUrl) {
+        res.status(200).json({ success: true, channelUrl: existingVideo.channelUrl });
+        return;
+      }
+      
       const axios = (await import("axios")).default;
       const { extractBilibiliVideoId } = await import("../utils/helpers");
 
@@ -277,6 +295,12 @@ export const getAuthorChannelUrl = async (
           ) {
             const mid = response.data.data.owner.mid;
             const spaceUrl = `https://space.bilibili.com/${mid}`;
+            
+            // If we have the video in database, update it with the channelUrl
+            if (existingVideo) {
+              storageService.updateVideo(existingVideo.id, { channelUrl: spaceUrl });
+            }
+            
             res.status(200).json({ success: true, channelUrl: spaceUrl });
             return;
           }
