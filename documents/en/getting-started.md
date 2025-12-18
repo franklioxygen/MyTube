@@ -88,6 +88,7 @@ npm run dev
 ```
 
 This will start:
+
 - **Frontend**: http://localhost:5556 (Vite dev server with hot reload)
 - **Backend API**: http://localhost:5551 (Express server with nodemon)
 
@@ -156,15 +157,18 @@ npm run test         # Run tests with Vitest
 1. **Access the Application**: Open http://localhost:5556 in your browser
 
 2. **Set Up Password Protection** (Optional):
+
    - Go to Settings → Security
    - Enable password protection and set a password
 
 3. **Configure Download Settings**:
+
    - Go to Settings → Download Settings
    - Set concurrent download limit
    - Configure download quality preferences
 
 4. **Upload Cookies** (Optional, for age-restricted/premium content):
+
    - Go to Settings → Cookie Settings
    - Upload your `cookies.txt` file
 
@@ -175,12 +179,14 @@ npm run test         # Run tests with Vitest
 ## Architecture Overview
 
 ### Backend
+
 - **Framework**: Express.js with TypeScript
 - **Database**: SQLite with Drizzle ORM
 - **Architecture**: Layered (Routes → Controllers → Services → Database)
 - **Downloaders**: Abstract base class pattern for platform-specific implementations
 
 ### Frontend
+
 - **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite
 - **UI Library**: Material-UI (MUI)
@@ -188,6 +194,7 @@ npm run test         # Run tests with Vitest
 - **Routing**: React Router v7
 
 ### Key Features
+
 - **Modular Storage Service**: Split into focused modules for maintainability
 - **Download Queue Management**: Concurrent downloads with queue support
 - **Video Download Tracking**: Prevents duplicate downloads
@@ -197,17 +204,72 @@ npm run test         # Run tests with Vitest
 ## Troubleshooting
 
 ### Database Issues
+
 - If you encounter database errors, check that the `backend/data/` directory exists and is writable
 - To reset the database, delete `backend/data/mytube.db` and restart the server
 
 ### Download Issues
+
 - Ensure `yt-dlp` is installed and accessible in your PATH
 - Check that the `bgutil-ytdlp-pot-provider` plugin is installed
 - Verify network connectivity and firewall settings
 
 ### Port Conflicts
+
 - If ports 5551 or 5556 are in use, modify the PORT environment variables
 - Update frontend `VITE_API_URL` and `VITE_BACKEND_URL` accordingly
+
+### File Watcher Limit (ENOSPC Error)
+
+If you encounter `ENOSPC: System limit for number of file watchers reached` when running the frontend dev server:
+
+**Note:** The project's `vite.config.js` is already configured with polling-based file watching as a workaround, which should prevent this error in most cases. If you still encounter this issue, try the solutions below:
+
+**On Linux (host system):**
+
+```bash
+# Check current limit
+cat /proc/sys/fs/inotify/max_user_watches
+
+# Increase the limit (temporary, until reboot)
+sudo sysctl fs.inotify.max_user_watches=524288
+
+# Make it permanent
+echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+**In Docker:**
+Add to your `docker-compose.yml` under the frontend service:
+
+```yaml
+services:
+  frontend:
+    sysctls:
+      - fs.inotify.max_user_watches=524288
+```
+
+Or run the container with:
+
+```bash
+docker run --sysctl fs.inotify.max_user_watches=524288 ...
+```
+
+**Alternative: Configure Vite to use polling (already configured in this project):**
+
+The `vite.config.js` file includes a watch configuration that uses polling instead of native file watchers, which bypasses the inotify limit entirely:
+
+```js
+server: {
+  watch: {
+    usePolling: true,
+    interval: 2000,
+    ignored: ['/node_modules/']
+  }
+}
+```
+
+This is already configured in the project, so the error should not occur. If you're using a custom Vite config, make sure to include this configuration.
 
 ## Next Steps
 

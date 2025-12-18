@@ -7,6 +7,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5556,
+    watch: {
+      usePolling: true,
+      interval: 2000,
+      ignored: ['/node_modules/']
+    },
   },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version)

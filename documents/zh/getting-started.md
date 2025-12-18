@@ -88,6 +88,7 @@ npm run dev
 ```
 
 这将启动：
+
 - **前端**: http://localhost:5556 (带热重载的 Vite 开发服务器)
 - **后端 API**: http://localhost:5551 (带 nodemon 的 Express 服务器)
 
@@ -156,15 +157,18 @@ npm run test         # 使用 Vitest 运行测试
 1. **访问应用**: 在浏览器中打开 http://localhost:5556
 
 2. **设置密码保护** (可选):
+
    - 转到设置 → 安全
    - 启用密码保护并设置密码
 
 3. **配置下载设置**:
+
    - 转到设置 → 下载设置
    - 设置并发下载限制
    - 配置下载质量偏好
 
 4. **上传 Cookies** (可选，用于年龄限制/会员内容):
+
    - 转到设置 → Cookie 设置
    - 上传您的 `cookies.txt` 文件
 
@@ -175,12 +179,14 @@ npm run test         # 使用 Vitest 运行测试
 ## 架构概述
 
 ### 后端
+
 - **框架**: Express.js with TypeScript
 - **数据库**: SQLite with Drizzle ORM
 - **架构**: 分层 (路由 → 控制器 → 服务 → 数据库)
 - **下载器**: 用于平台特定实现的抽象基类模式
 
 ### 前端
+
 - **框架**: React 19 with TypeScript
 - **构建工具**: Vite
 - **UI 库**: Material-UI (MUI)
@@ -188,6 +194,7 @@ npm run test         # 使用 Vitest 运行测试
 - **路由**: React Router v7
 
 ### 关键特性
+
 - **模块化存储服务**: 拆分为专注的模块以提高可维护性
 - **下载队列管理**: 支持队列的并发下载
 - **视频下载跟踪**: 防止重复下载
@@ -197,17 +204,72 @@ npm run test         # 使用 Vitest 运行测试
 ## 故障排除
 
 ### 数据库问题
+
 - 如果遇到数据库错误，请检查 `backend/data/` 目录是否存在且可写
 - 要重置数据库，请删除 `backend/data/mytube.db` 并重启服务器
 
 ### 下载问题
+
 - 确保 `yt-dlp` 已安装且可在您的 PATH 中访问
 - 检查是否安装了 `bgutil-ytdlp-pot-provider` 插件
 - 验证网络连接和防火墙设置
 
 ### 端口冲突
+
 - 如果端口 5551 或 5556 被占用，请修改 PORT 环境变量
 - 相应地更新前端 `VITE_API_URL` 和 `VITE_BACKEND_URL`
+
+### 文件监视器限制（ENOSPC 错误）
+
+如果在运行前端开发服务器时遇到 `ENOSPC: System limit for number of file watchers reached` 错误：
+
+**注意：** 项目的 `vite.config.js` 已配置为使用基于轮询的文件监视作为解决方案，这应该能在大多数情况下防止此错误。如果您仍然遇到此问题，请尝试以下解决方案：
+
+**在 Linux（主机系统）上：**
+
+```bash
+# 检查当前限制
+cat /proc/sys/fs/inotify/max_user_watches
+
+# 增加限制（临时，重启后失效）
+sudo sysctl fs.inotify.max_user_watches=524288
+
+# 永久设置
+echo "fs.inotify.max_user_watches=524288" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+**在 Docker 中：**
+在 `docker-compose.yml` 的前端服务下添加：
+
+```yaml
+services:
+  frontend:
+    sysctls:
+      - fs.inotify.max_user_watches=524288
+```
+
+或使用以下命令运行容器：
+
+```bash
+docker run --sysctl fs.inotify.max_user_watches=524288 ...
+```
+
+**替代方案：配置 Vite 使用轮询（本项目已配置）：**
+
+`vite.config.js` 文件包含一个使用轮询而非原生文件监视器的监视配置，这完全绕过了 inotify 限制：
+
+```js
+server: {
+  watch: {
+    usePolling: true,
+    interval: 2000,
+    ignored: ['/node_modules/']
+  }
+}
+```
+
+这已在项目中配置，因此不应出现此错误。如果您使用自定义 Vite 配置，请确保包含此配置。
 
 ## 下一步
 
