@@ -126,6 +126,7 @@ export const zh = {
 
   // Cloud Drive
   cloudDriveSettings: "云端存储 (OpenList)",
+  cloudDriveDescription: "自动将视频上传到云端存储（Alist），并在成功上传后删除本地文件。",
   enableAutoSave: "启用自动保存到云端",
   apiUrl: "API 地址",
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
@@ -134,6 +135,8 @@ export const zh = {
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
   cloudDriveNote:
     "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
+  testing: "测试中...",
+  testConnection: "测试连接",
 
   // Manage
   manageContent: "内容管理",

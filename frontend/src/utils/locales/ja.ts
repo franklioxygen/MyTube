@@ -133,6 +133,7 @@ export const ja = {
 
   // Cloud Drive
   cloudDriveSettings: "クラウドストレージ (OpenList)",
+  cloudDriveDescription: "動画をクラウドストレージ（Alist）に自動アップロードし、アップロード成功後にローカルファイルを削除します。",
   enableAutoSave: "クラウドへの自動保存を有効にする",
   apiUrl: "API URL",
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
@@ -142,6 +143,8 @@ export const ja = {
     "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
   cloudDriveNote:
     "この機能を有効にすると、新しくダウンロードされた動画は自動的にクラウドストレージにアップロードされ、ローカルファイルは削除されます。動画はプロキシ経由でクラウドストレージから再生されます。",
+  testing: "テスト中...",
+  testConnection: "接続をテスト",
 
   // Manage
   manageContent: "コンテンツの管理",

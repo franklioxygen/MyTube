@@ -128,6 +128,7 @@ export const ar = {
 
   // Cloud Drive
   cloudDriveSettings: "التخزين السحابي (OpenList)",
+  cloudDriveDescription: "رفع مقاطع الفيديو تلقائيًا إلى التخزين السحابي (Alist) وحذف الملفات المحلية بعد الرفع الناجح.",
   enableAutoSave: "تمكين الحفظ التلقائي في السحابة",
   apiUrl: "رابط API",
   apiUrlHelper: "مثال: https://your-alist-instance.com/api/fs/put",
@@ -136,6 +137,8 @@ export const ar = {
   cloudDrivePathHelper: "مسار الدليل في التخزين السحابي، مثال: /mytube-uploads",
   cloudDriveNote:
     "بعد تفعيل هذه الميزة، سيتم تحميل مقاطع الفيديو التي تم تنزيلها حديثًا تلقائيًا إلى التخزين السحابي وسيتم حذف الملفات المحلية. سيتم تشغيل مقاطع الفيديو من التخزين السحابي عبر الوكيل.",
+  testing: "جارٍ الاختبار...",
+  testConnection: "اختبار الاتصال",
 
   // Manage
   manageContent: "إدارة المحتوى",

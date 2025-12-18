@@ -134,6 +134,7 @@ export const pt = {
 
   // Cloud Drive
   cloudDriveSettings: "Armazenamento em Nuvem (OpenList)",
+  cloudDriveDescription: "Enviar automaticamente vídeos para o armazenamento em nuvem (Alist) e excluir arquivos locais após o envio bem-sucedido.",
   enableAutoSave: "Ativar salvamento automático na nuvem",
   apiUrl: "URL da API",
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
@@ -142,6 +143,8 @@ export const pt = {
   cloudDrivePathHelper: "Caminho do diretório na nuvem, ex. /mytube-uploads",
   cloudDriveNote:
     "Após habilitar este recurso, os vídeos recém-baixados serão automaticamente enviados para o armazenamento em nuvem e os arquivos locais serão excluídos. Os vídeos serão reproduzidos do armazenamento em nuvem via proxy.",
+  testing: "Testando...",
+  testConnection: "Testar Conexão",
 
   // Manage
   manageContent: "Gerenciar Conteúdo",

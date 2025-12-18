@@ -123,6 +123,7 @@ export const de = {
 
   // Cloud Drive
   cloudDriveSettings: "Cloud-Speicher (OpenList)",
+  cloudDriveDescription: "Videos automatisch in den Cloud-Speicher (Alist) hochladen und lokale Dateien nach erfolgreichem Upload löschen.",
   enableAutoSave: "Automatisches Speichern in der Cloud aktivieren",
   apiUrl: "API-URL",
   apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
@@ -132,6 +133,8 @@ export const de = {
     "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
   cloudDriveNote:
     "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
+  testing: "Teste...",
+  testConnection: "Verbindung testen",
 
   manageContent: "Inhalte Verwalten",
   videos: "Videos",

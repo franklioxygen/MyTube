@@ -138,6 +138,7 @@ export const fr = {
 
   // Cloud Drive
   cloudDriveSettings: "Stockage Cloud (OpenList)",
+  cloudDriveDescription: "Télécharger automatiquement les vidéos vers le stockage cloud (Alist) et supprimer les fichiers locaux après un téléchargement réussi.",
   enableAutoSave: "Activer la sauvegarde automatique sur le Cloud",
   apiUrl: "URL de l'API",
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
@@ -147,6 +148,8 @@ export const fr = {
     "Chemin du répertoire dans le cloud, ex. /mytube-uploads",
   cloudDriveNote:
     "Après avoir activé cette fonctionnalité, les vidéos nouvellement téléchargées seront automatiquement téléchargées vers le stockage cloud et les fichiers locaux seront supprimés. Les vidéos seront lues depuis le stockage cloud via un proxy.",
+  testing: "Test en cours...",
+  testConnection: "Tester la connexion",
 
   // Manage
   manageContent: "Gérer le contenu",

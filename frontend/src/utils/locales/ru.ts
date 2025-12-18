@@ -140,6 +140,7 @@ export const ru = {
 
   // Cloud Drive
   cloudDriveSettings: "Облачное хранилище (OpenList)",
+  cloudDriveDescription: "Автоматически загружать видео в облачное хранилище (Alist) и удалять локальные файлы после успешной загрузки.",
   enableAutoSave: "Включить автосохранение в облако",
   apiUrl: "URL API",
   apiUrlHelper: "напр. https://your-alist-instance.com/api/fs/put",
@@ -148,6 +149,8 @@ export const ru = {
   cloudDrivePathHelper: "Путь к каталогу в облаке, напр. /mytube-uploads",
   cloudDriveNote:
     "После включения этой функции недавно загруженные видео будут автоматически загружены в облачное хранилище, а локальные файлы будут удалены. Видео будут воспроизводиться из облачного хранилища через прокси.",
+  testing: "Тестирование...",
+  testConnection: "Тестировать соединение",
 
   // Manage
   manageContent: "Управление контентом",

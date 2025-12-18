@@ -115,7 +115,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         <Box>
             <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')} (beta)</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Automatically upload videos to cloud storage (Alist) and delete local files after successful upload.
+                {t('cloudDriveDescription')}
             </Typography>
             
             <FormControlLabel
@@ -177,7 +177,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         startIcon={testing ? <CircularProgress size={16} /> : null}
                         sx={{ alignSelf: 'flex-start' }}
                     >
-                        {testing ? 'Testing...' : 'Test Connection'}
+                        {testing ? t('testing') : t('testConnection')}
                     </Button>
 
                     {testResult && (
