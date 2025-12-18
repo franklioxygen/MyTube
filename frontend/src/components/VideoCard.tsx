@@ -184,16 +184,19 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     flexDirection: 'column',
                     position: 'relative',
                     transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s, border-color 0.3s',
-                    '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: theme.shadows[8],
-                        '& .delete-btn': {
-                            opacity: 1
-                        },
-                        '& .add-btn': {
-                            opacity: 1
+                    borderRadius: isMobile ? 0 : undefined,
+                    ...(!isMobile && {
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: theme.shadows[8],
+                            '& .delete-btn': {
+                                opacity: 1
+                            },
+                            '& .add-btn': {
+                                opacity: 1
+                            }
                         }
-                    },
+                    }),
                     border: isFirstInAnyCollection ? `1px solid ${theme.palette.primary.main}` : 'none'
                 }}
             >
@@ -345,7 +348,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             )}
                         </Typography>
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto', gap: 1 }}>
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -353,12 +356,17 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 sx={{
                                     cursor: 'pointer',
                                     '&:hover': { color: 'primary.main' },
-                                    fontWeight: 500
+                                    fontWeight: 500,
+                                    flex: 1,
+                                    minWidth: 0, // Allows flex item to shrink below content size
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
                                 }}
                             >
-                                {video.author.length > 15 ? `${video.author.substring(0, 15)}...` : video.author}
+                                {video.author}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                                 <Typography variant="caption" color="text.secondary">
                                     {formatDate(video.date)}
                                 </Typography>
