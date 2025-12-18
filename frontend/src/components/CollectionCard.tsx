@@ -37,7 +37,9 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
     const getThumbnailSrc = (video: Video) => {
         return video.thumbnailPath
-            ? `${BACKEND_URL}${video.thumbnailPath}`
+            ? (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
+                ? video.thumbnailPath
+                : `${BACKEND_URL}${video.thumbnailPath}`)
             : video.thumbnailUrl;
     };
 

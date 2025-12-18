@@ -118,20 +118,32 @@ export class CloudStorageService {
         }
         logger.info(`[CloudStorage] Local file cleanup completed`);
 
-        // Update video record to point to cloud storage URLs
+        // Update video record to point to cloud storage URLs with sign information
         if (videoData.id && deletedFiles.length > 0) {
           try {
             const storageService = await import("./storageService");
             const updates: any = {};
 
+            // Get file list from Openlist to retrieve sign information
+            const fileUrls = await this.getFileUrlsWithSign(
+              config,
+              videoData.videoFilename,
+              videoData.thumbnailFilename
+            );
+
             // Update video path if video was deleted
-            if (videoData.videoFilename) {
-              updates.videoPath = `/cloud/videos/${videoData.videoFilename}`;
+            if (videoData.videoFilename && fileUrls.videoUrl) {
+              updates.videoPath = fileUrls.videoUrl;
             }
 
             // Update thumbnail path if thumbnail was deleted
             if (videoData.thumbnailFilename) {
-              updates.thumbnailPath = `/cloud/images/${videoData.thumbnailFilename}`;
+              if (fileUrls.thumbnailUrl) {
+                updates.thumbnailPath = fileUrls.thumbnailUrl;
+              } else if (fileUrls.thumbnailThumbUrl) {
+                // Use thumb URL if file doesn't exist but thumb is available
+                updates.thumbnailPath = fileUrls.thumbnailThumbUrl;
+              }
             }
 
             if (Object.keys(updates).length > 0) {
@@ -328,5 +340,140 @@ export class CloudStorageService {
 
   private static sanitizeFilename(filename: string): string {
     return filename.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  }
+
+  /**
+   * Get file URLs with sign information from Openlist
+   * Returns URLs in format: https://域名/d/上传路径/文件名?sign=xxx
+   */
+  private static async getFileUrlsWithSign(
+    config: CloudDriveConfig,
+    videoFilename?: string,
+    thumbnailFilename?: string
+  ): Promise<{
+    videoUrl?: string;
+    thumbnailUrl?: string;
+    thumbnailThumbUrl?: string;
+  }> {
+    try {
+      // Extract base URL from apiUrl (remove /api/fs/put)
+      const apiBaseUrl = config.apiUrl.replace("/api/fs/put", "");
+      const listUrl = `${apiBaseUrl}/api/fs/list`;
+
+      // Normalize upload path
+      const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
+      const uploadPath = normalizedUploadPath.startsWith("/")
+        ? normalizedUploadPath
+        : `/${normalizedUploadPath}`;
+
+      // Call api/fs/list to get file list with sign information
+      const response = await axios.post(
+        listUrl,
+        {
+          path: uploadPath,
+          password: "",
+          page: 1,
+          per_page: 0,
+          refresh: false,
+        },
+        {
+          headers: {
+            Authorization: config.token,
+          },
+        }
+      );
+
+      if (response.data?.code !== 200 || !response.data?.data?.content) {
+        logger.error(
+          `[CloudStorage] Failed to get file list: ${JSON.stringify(
+            response.data
+          )}`
+        );
+        return {};
+      }
+
+      const files = response.data.data.content;
+      const result: {
+        videoUrl?: string;
+        thumbnailUrl?: string;
+        thumbnailThumbUrl?: string;
+      } = {};
+
+      // Extract domain from apiBaseUrl
+      // If apiBaseUrl is like https://example.com/api/fs/put, then apiBaseUrl will be https://example.com
+      // Use this as the base domain for building file URLs
+      const domain = apiBaseUrl;
+
+      // Find video file
+      if (videoFilename) {
+        const videoFile = files.find(
+          (file: any) => file.name === videoFilename
+        );
+        if (videoFile && videoFile.sign) {
+          // Build URL: https://域名/d/上传路径/文件名?sign=xxx
+          // Only encode the filename, not the path
+          const encodedFilename = encodeURIComponent(videoFilename);
+          result.videoUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
+            videoFile.sign
+          )}`;
+        }
+      }
+
+      // Find thumbnail file
+      if (thumbnailFilename) {
+        const thumbnailFile = files.find(
+          (file: any) => file.name === thumbnailFilename
+        );
+        if (thumbnailFile) {
+          // Prefer file URL with sign if available
+          if (thumbnailFile.sign) {
+            // Build URL: https://域名/d/上传路径/文件名?sign=xxx
+            const encodedFilename = encodeURIComponent(thumbnailFilename);
+            result.thumbnailUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
+              thumbnailFile.sign
+            )}`;
+          }
+          // If file doesn't have sign but has thumb URL, use thumb URL
+          // Also check if no thumbnail file exists but video file has thumb
+          if (thumbnailFile.thumb) {
+            // Use thumb URL and modify resolution
+            // Replace width=176&height=176 with width=1280&height=720
+            let thumbUrl = thumbnailFile.thumb;
+            thumbUrl = thumbUrl.replace(
+              /width=\d+[&\\u0026]height=\d+/,
+              "width=1280&height=720"
+            );
+            // Also handle \u0026 encoding
+            thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
+            result.thumbnailThumbUrl = thumbUrl;
+          }
+        } else {
+          // Thumbnail file not found, check if video file has thumb
+          if (videoFilename) {
+            const videoFile = files.find(
+              (file: any) => file.name === videoFilename
+            );
+            if (videoFile && videoFile.thumb) {
+              // Use video file's thumb URL and modify resolution
+              let thumbUrl = videoFile.thumb;
+              thumbUrl = thumbUrl.replace(
+                /width=\d+[&\\u0026]height=\d+/,
+                "width=1280&height=720"
+              );
+              thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
+              result.thumbnailThumbUrl = thumbUrl;
+            }
+          }
+        }
+      }
+
+      return result;
+    } catch (error: any) {
+      logger.error(
+        `[CloudStorage] Failed to get file URLs with sign:`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return {};
+    }
   }
 }

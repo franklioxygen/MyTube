@@ -55,7 +55,11 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             {(video.videoPath || video.sourceUrl) && (
                 <video
                     ref={videoRef}
-                    src={video.videoPath ? `${BACKEND_URL}${video.videoPath}` : video.sourceUrl}
+                    src={video.videoPath 
+                        ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
+                            ? video.videoPath
+                            : `${BACKEND_URL}${video.videoPath}`)
+                        : video.sourceUrl}
                     style={{ 
                         position: 'absolute',
                         width: '1px',

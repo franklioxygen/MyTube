@@ -100,7 +100,9 @@ const VideosTable: React.FC<VideosTableProps> = ({
 
     const getThumbnailSrc = (video: Video) => {
         if (video.thumbnailPath) {
-            return `${BACKEND_URL}${video.thumbnailPath}`;
+            return video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
+                ? video.thumbnailPath
+                : `${BACKEND_URL}${video.thumbnailPath}`;
         }
         return video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
     };

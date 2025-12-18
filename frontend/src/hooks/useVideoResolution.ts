@@ -61,7 +61,11 @@ export const useVideoResolution = (video: Video) => {
         }
 
         // Set the video source
-        const fullVideoUrl = video.videoPath ? `${BACKEND_URL}${video.videoPath}` : video.sourceUrl;
+        const fullVideoUrl = video.videoPath
+            ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
+                ? video.videoPath
+                : `${BACKEND_URL}${video.videoPath}`)
+            : video.sourceUrl;
         if (videoElement.src !== fullVideoUrl) {
             videoElement.src = fullVideoUrl;
             videoElement.load(); // Force reload

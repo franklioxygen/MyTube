@@ -62,7 +62,9 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     // The image is always rendered but hidden until loaded
                 }}
                 onLoad={() => setIsImageLoaded(true)}
-                image={`${BACKEND_URL}${video.thumbnailPath}`}
+                image={video.thumbnailPath && (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://"))
+                    ? video.thumbnailPath
+                    : `${BACKEND_URL}${video.thumbnailPath}`}
                 alt={video.title}
                 onError={(e) => {
                     setIsImageLoaded(true);

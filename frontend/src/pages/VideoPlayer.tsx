@@ -539,7 +539,11 @@ const VideoPlayer: React.FC = () => {
                 {/* Main Content Column */}
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
-                        src={`${BACKEND_URL}${video.videoPath || video.sourceUrl}`}
+                        src={video.videoPath
+                            ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
+                                ? video.videoPath
+                                : `${BACKEND_URL}${video.videoPath}`)
+                            : video.sourceUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
                         onTimeUpdate={handleTimeUpdate}

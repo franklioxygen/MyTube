@@ -95,3 +95,20 @@ export const generateTimestamp = (): string => {
   const seconds = String(now.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day}-${hours}-${minutes}-${seconds}`;
 };
+
+/**
+ * Get full URL for a file path
+ * If path is already a full URL (starts with http:// or https://), return it as is
+ * Otherwise, prepend BACKEND_URL
+ */
+export const getFileUrl = (path: string | null | undefined, backendUrl: string): string | undefined => {
+  if (!path) return undefined;
+  
+  // Check if path is already a full URL
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  
+  // Otherwise, prepend backend URL
+  return `${backendUrl}${path}`;
+};

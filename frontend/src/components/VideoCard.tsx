@@ -84,7 +84,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
     // Use local thumbnail if available, otherwise fall back to the original URL
     const thumbnailSrc = video.thumbnailPath
-        ? `${BACKEND_URL}${video.thumbnailPath}`
+        ? (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
+            ? video.thumbnailPath
+            : `${BACKEND_URL}${video.thumbnailPath}`)
         : video.thumbnailUrl;
 
     // Handle author click
@@ -207,7 +209,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             <Box
                                 component="video"
                                 ref={videoRef}
-                                src={`${BACKEND_URL}${video.videoPath}`}
+                                src={video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
+                                    ? video.videoPath
+                                    : `${BACKEND_URL}${video.videoPath}`}
                                 muted
                                 autoPlay
                                 playsInline

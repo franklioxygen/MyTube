@@ -49,7 +49,9 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
                     >
-                        <a href={`${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                        <a href={video.videoPath && (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://"))
+                            ? video.videoPath
+                            : `${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                             <Download sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('download')}</strong>
                         </a>
