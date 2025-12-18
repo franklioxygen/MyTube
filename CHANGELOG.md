@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.6.13 (2025-12-18)
+
+### Fix
+
+- fix: Add polling-based file watching to vite.config.js to prevent ENOSPC file watcher errors
+
+### Docs
+
+- docs: Add troubleshooting section for file watcher limit (ENOSPC) errors in getting-started documentation
+
 ## v1.6.12 (2025-12-17)
 
 ### Feat
