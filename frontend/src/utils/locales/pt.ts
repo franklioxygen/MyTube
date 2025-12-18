@@ -134,7 +134,8 @@ export const pt = {
 
   // Cloud Drive
   cloudDriveSettings: "Armazenamento em Nuvem (OpenList)",
-  cloudDriveDescription: "Enviar automaticamente vídeos para o armazenamento em nuvem (Alist) e excluir arquivos locais após o envio bem-sucedido.",
+  cloudDriveDescription:
+    "Enviar automaticamente vídeos para o armazenamento em nuvem (Alist) e excluir arquivos locais após o envio bem-sucedido.",
   enableAutoSave: "Ativar salvamento automático na nuvem",
   apiUrl: "URL da API",
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
@@ -252,9 +253,11 @@ export const pt = {
   retry: "Tentar Novamente",
   resetPassword: "Redefinir Senha",
   resetPasswordTitle: "Redefinir Senha",
-  resetPasswordMessage: "Tem certeza de que deseja redefinir a senha? A senha atual será redefinida para uma string aleatória de 8 caracteres e exibida no log do backend.",
+  resetPasswordMessage:
+    "Tem certeza de que deseja redefinir a senha? A senha atual será redefinida para uma string aleatória de 8 caracteres e exibida no log do backend.",
   resetPasswordConfirm: "Redefinir",
-  resetPasswordSuccess: "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
+  resetPasswordSuccess:
+    "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
   waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
   tooManyAttempts: "Muitas tentativas falharam.",
   linkCopied: "Link copiado para a área de transferência",
@@ -284,6 +287,7 @@ export const pt = {
   error: "Erro",
   success: "Sucesso",
   cancel: "Cancelar",
+  ok: "OK",
   confirm: "Confirmar",
   save: "Salvar",
   note: "Nota",
@@ -471,16 +475,18 @@ export const pt = {
   hide: "Ocultar",
   reset: "Redefinir",
   more: "Mais",
-  proxyOnlyApplyToYoutube: 'Proxy aplica-se apenas ao Youtube',
-  moveSubtitlesToVideoFolder: 'Localização das legendas',
-  moveSubtitlesToVideoFolderOn: 'Junto com o vídeo',
-  moveSubtitlesToVideoFolderOff: 'Na pasta de legendas isolada',
-  moveSubtitlesToVideoFolderDescription: 'Quando ativado, os arquivos de legenda serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de legendas isolada.',
-  moveThumbnailsToVideoFolder: 'Localização da miniatura',
-  moveThumbnailsToVideoFolderOn: 'Junto com o vídeo',
-  moveThumbnailsToVideoFolderOff: 'Em pasta de imagens isolada',
-  moveThumbnailsToVideoFolderDescription: 'Quando ativado, os arquivos de miniatura serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de imagens isolada.',
-  
+  proxyOnlyApplyToYoutube: "Proxy aplica-se apenas ao Youtube",
+  moveSubtitlesToVideoFolder: "Localização das legendas",
+  moveSubtitlesToVideoFolderOn: "Junto com o vídeo",
+  moveSubtitlesToVideoFolderOff: "Na pasta de legendas isolada",
+  moveSubtitlesToVideoFolderDescription:
+    "Quando ativado, os arquivos de legenda serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de legendas isolada.",
+  moveThumbnailsToVideoFolder: "Localização da miniatura",
+  moveThumbnailsToVideoFolderOn: "Junto com o vídeo",
+  moveThumbnailsToVideoFolderOff: "Em pasta de imagens isolada",
+  moveThumbnailsToVideoFolderDescription:
+    "Quando ativado, os arquivos de miniatura serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de imagens isolada.",
+
   // Database Export/Import
   exportImportDatabase: "Exportar/Importar Banco de Dados",
   exportImportDatabaseDescription:
@@ -493,10 +499,20 @@ export const pt = {
   selectDatabaseFile: "Selecionar Arquivo de Banco de Dados",
   databaseExportedSuccess: "Banco de dados exportado com sucesso",
   databaseExportFailed: "Falha ao exportar banco de dados",
-  databaseImportedSuccess: "Banco de dados importado com sucesso. Os dados existentes foram substituídos pelos dados de backup.",
+  databaseImportedSuccess:
+    "Banco de dados importado com sucesso. Os dados existentes foram substituídos pelos dados de backup.",
   databaseImportFailed: "Falha ao importar banco de dados",
   cleanupBackupDatabases: "Limpar Bancos de Dados de Backup",
-  cleanupBackupDatabasesWarning: "Aviso: Isso excluirá permanentemente todos os arquivos de banco de dados de backup (mytube-backup-*.db.backup) que foram criados durante importações anteriores. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",
+  cleanupBackupDatabasesWarning:
+    "Aviso: Isso excluirá permanentemente todos os arquivos de banco de dados de backup (mytube-backup-*.db.backup) que foram criados durante importações anteriores. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",
   backupDatabasesCleanedUp: "Bancos de dados de backup limpos com sucesso",
   backupDatabasesCleanupFailed: "Falha ao limpar bancos de dados de backup",
+  restoreFromLastBackup: "Restaurar do Último Backup",
+  restoreFromLastBackupWarning:
+    "Aviso: Isso restaurará o banco de dados do último arquivo de backup automático. Todos os dados atuais serão substituídos pelos dados de backup. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",
+  restoreFromLastBackupSuccess:
+    "Banco de dados restaurado com sucesso do backup",
+  restoreFromLastBackupFailed: "Falha ao restaurar do backup",
+  lastBackupDate: "Data do último backup",
+  noBackupAvailable: "Nenhum backup disponível",
 };

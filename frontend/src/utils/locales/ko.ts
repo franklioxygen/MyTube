@@ -130,7 +130,8 @@ export const ko = {
 
   // Cloud Drive
   cloudDriveSettings: "클라우드 드라이브 (OpenList)",
-  cloudDriveDescription: "비디오를 클라우드 스토리지(Alist)에 자동으로 업로드하고 업로드 성공 후 로컬 파일을 삭제합니다.",
+  cloudDriveDescription:
+    "비디오를 클라우드 스토리지(Alist)에 자동으로 업로드하고 업로드 성공 후 로컬 파일을 삭제합니다.",
   enableAutoSave: "클라우드 자동 저장 활성화",
   apiUrl: "API URL",
   apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
@@ -240,9 +241,11 @@ export const ko = {
   retry: "다시 시도",
   resetPassword: "비밀번호 재설정",
   resetPasswordTitle: "비밀번호 재설정",
-  resetPasswordMessage: "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
+  resetPasswordMessage:
+    "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
   resetPasswordConfirm: "재설정",
-  resetPasswordSuccess: "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
+  resetPasswordSuccess:
+    "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
@@ -280,6 +283,7 @@ export const ko = {
   error: "오류",
   success: "성공",
   cancel: "취소",
+  ok: "확인",
   confirm: "확인",
   save: "저장",
   note: "참고",
@@ -460,16 +464,18 @@ export const ko = {
   hide: "숨기기",
   reset: "초기화",
   more: "더 보기",
-  proxyOnlyApplyToYoutube: '프록시는 Youtube에만 적용됩니다',
-  moveSubtitlesToVideoFolder: '자막 위치',
-  moveSubtitlesToVideoFolderOn: '동영상과 함께',
-  moveSubtitlesToVideoFolderOff: '격리된 자막 폴더',
-  moveSubtitlesToVideoFolderDescription: '활성화하면 자막 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 자막 폴더로 이동합니다.',
-  moveThumbnailsToVideoFolder: '썸네일 위치',
-  moveThumbnailsToVideoFolderOn: '동영상과 함께',
-  moveThumbnailsToVideoFolderOff: '분리된 이미지 폴더',
-  moveThumbnailsToVideoFolderDescription: '활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.',
-  
+  proxyOnlyApplyToYoutube: "프록시는 Youtube에만 적용됩니다",
+  moveSubtitlesToVideoFolder: "자막 위치",
+  moveSubtitlesToVideoFolderOn: "동영상과 함께",
+  moveSubtitlesToVideoFolderOff: "격리된 자막 폴더",
+  moveSubtitlesToVideoFolderDescription:
+    "활성화하면 자막 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 자막 폴더로 이동합니다.",
+  moveThumbnailsToVideoFolder: "썸네일 위치",
+  moveThumbnailsToVideoFolderOn: "동영상과 함께",
+  moveThumbnailsToVideoFolderOff: "분리된 이미지 폴더",
+  moveThumbnailsToVideoFolderDescription:
+    "활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.",
+
   // Database Export/Import
   exportImportDatabase: "데이터베이스 내보내기/가져오기",
   exportImportDatabaseDescription:
@@ -482,10 +488,19 @@ export const ko = {
   selectDatabaseFile: "데이터베이스 파일 선택",
   databaseExportedSuccess: "데이터베이스 내보내기 성공",
   databaseExportFailed: "데이터베이스 내보내기 실패",
-  databaseImportedSuccess: "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
+  databaseImportedSuccess:
+    "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
   databaseImportFailed: "데이터베이스 가져오기 실패",
   cleanupBackupDatabases: "백업 데이터베이스 정리",
-  cleanupBackupDatabasesWarning: "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+  cleanupBackupDatabasesWarning:
+    "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
   backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
   backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
+  restoreFromLastBackup: "마지막 백업에서 복원",
+  restoreFromLastBackupWarning:
+    "경고: 이 작업은 마지막 자동 백업 파일에서 데이터베이스를 복원합니다. 모든 현재 데이터가 백업 데이터로 덮어씌워집니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+  restoreFromLastBackupSuccess: "백업에서 데이터베이스 복원 성공",
+  restoreFromLastBackupFailed: "백업에서 복원 실패",
+  lastBackupDate: "마지막 백업 날짜",
+  noBackupAvailable: "사용 가능한 백업 없음",
 };

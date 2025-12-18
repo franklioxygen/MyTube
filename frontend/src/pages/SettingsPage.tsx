@@ -412,7 +412,48 @@ const SettingsPage: React.FC = () => {
         cleanupBackupDatabasesMutation.mutate();
     };
 
-    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending || exportDatabaseMutation.isPending || importDatabaseMutation.isPending || cleanupBackupDatabasesMutation.isPending;
+    // Get last backup info query
+    const { data: lastBackupInfo, refetch: refetchLastBackupInfo } = useQuery({
+        queryKey: ['lastBackupInfo'],
+        queryFn: async () => {
+            const response = await axios.get(`${API_URL}/settings/last-backup-info`);
+            return response.data;
+        },
+        refetchInterval: 30000, // Refetch every 30 seconds
+    });
+
+    // Restore from last backup mutation
+    const restoreFromLastBackupMutation = useMutation({
+        mutationFn: async () => {
+            const response = await axios.post(`${API_URL}/settings/restore-from-last-backup`);
+            return response.data;
+        },
+        onSuccess: () => {
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: t('restoreFromLastBackupSuccess'),
+                type: 'success'
+            });
+            // Refetch last backup info after restore
+            refetchLastBackupInfo();
+        },
+        onError: (error: any) => {
+            const errorDetails = error.response?.data?.details || error.message;
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: `${t('restoreFromLastBackupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
+                type: 'error'
+            });
+        }
+    });
+
+    const handleRestoreFromLastBackup = () => {
+        restoreFromLastBackupMutation.mutate();
+    };
+
+    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending || exportDatabaseMutation.isPending || importDatabaseMutation.isPending || cleanupBackupDatabasesMutation.isPending || restoreFromLastBackupMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -511,7 +552,9 @@ const SettingsPage: React.FC = () => {
                                 onExportDatabase={handleExportDatabase}
                                 onImportDatabase={handleImportDatabase}
                                 onCleanupBackupDatabases={handleCleanupBackupDatabases}
+                                onRestoreFromLastBackup={handleRestoreFromLastBackup}
                                 isSaving={isSaving}
+                                lastBackupInfo={lastBackupInfo}
                                 moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
                                 onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
                                 moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
@@ -678,7 +721,7 @@ const SettingsPage: React.FC = () => {
                 onConfirm={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
                 title={infoModal.title}
                 message={infoModal.message}
-                confirmText="OK"
+                confirmText={t('ok')}
                 showCancel={false}
                 isDanger={infoModal.type === 'error'}
             />

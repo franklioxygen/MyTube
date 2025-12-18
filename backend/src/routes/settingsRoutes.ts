@@ -8,10 +8,12 @@ import {
   deleteLegacyData,
   exportDatabase,
   formatFilenames,
+  getLastBackupInfo,
   getPasswordEnabled,
   getSettings,
   importDatabase,
   migrateData,
+  restoreFromLastBackup,
   resetPassword,
   updateSettings,
   uploadCookies,
@@ -44,5 +46,7 @@ router.post(
   asyncHandler(importDatabase)
 );
 router.post("/cleanup-backup-databases", asyncHandler(cleanupBackupDatabases));
+router.get("/last-backup-info", asyncHandler(getLastBackupInfo));
+router.post("/restore-from-last-backup", asyncHandler(restoreFromLastBackup));
 
 export default router;

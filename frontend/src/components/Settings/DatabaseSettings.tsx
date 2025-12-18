@@ -1,4 +1,4 @@
-import { Close, Delete, Download, Upload } from '@mui/icons-material';
+import { Close, Delete, Download, History, Upload } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -22,7 +22,9 @@ interface DatabaseSettingsProps {
     onExportDatabase: () => void;
     onImportDatabase: (file: File) => void;
     onCleanupBackupDatabases: () => void;
+    onRestoreFromLastBackup: () => void;
     isSaving: boolean;
+    lastBackupInfo?: { exists: boolean; filename?: string; timestamp?: string } | null;
     moveSubtitlesToVideoFolder: boolean;
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
     moveThumbnailsToVideoFolder: boolean;
@@ -36,7 +38,9 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onExportDatabase,
     onImportDatabase,
     onCleanupBackupDatabases,
+    onRestoreFromLastBackup,
     isSaving,
+    lastBackupInfo,
     moveSubtitlesToVideoFolder,
     onMoveSubtitlesToVideoFolderChange,
     moveThumbnailsToVideoFolder,
@@ -47,6 +51,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+    const [restoreModalOpen, setRestoreModalOpen] = useState(false);
 
     const handleOpenImportModal = () => {
         setImportModalOpen(true);
@@ -89,6 +94,37 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     const handleConfirmCleanup = () => {
         onCleanupBackupDatabases();
         handleCloseCleanupModal();
+    };
+
+    const handleOpenRestoreModal = () => {
+        setRestoreModalOpen(true);
+    };
+
+    const handleCloseRestoreModal = () => {
+        setRestoreModalOpen(false);
+    };
+
+    const handleConfirmRestore = () => {
+        onRestoreFromLastBackup();
+        handleCloseRestoreModal();
+    };
+
+    const formatBackupTimestamp = (timestamp: string): string => {
+        // Parse timestamp format: YYYY-MM-DD-HH-MM-SS
+        const parts = timestamp.split('-');
+        if (parts.length === 6) {
+            const [year, month, day, hour, minute, second] = parts;
+            const date = new Date(
+                parseInt(year),
+                parseInt(month) - 1,
+                parseInt(day),
+                parseInt(hour),
+                parseInt(minute),
+                parseInt(second)
+            );
+            return date.toLocaleString();
+        }
+        return timestamp;
     };
 
     return (
@@ -194,6 +230,17 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     >
                         {t('importDatabase')}
                     </Button>
+                    {lastBackupInfo?.exists && (
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            startIcon={<History />}
+                            onClick={handleOpenRestoreModal}
+                            disabled={isSaving}
+                        >
+                            {t('restoreFromLastBackup')}
+                        </Button>
+                    )}
                     <Button
                         variant="outlined"
                         color="warning"
@@ -308,6 +355,56 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                         disabled={isSaving}
                     >
                         {t('cleanupBackupDatabases')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={restoreModalOpen}
+                onClose={handleCloseRestoreModal}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{
+                    paper: {
+                        sx: { borderRadius: 2 }
+                    }
+                }}
+            >
+                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                        {t('restoreFromLastBackup')}
+                    </Typography>
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleCloseRestoreModal}
+                        sx={{
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+                        {t('restoreFromLastBackupWarning')}
+                    </DialogContentText>
+                    {lastBackupInfo?.timestamp && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                            <strong>{t('lastBackupDate')}:</strong> {formatBackupTimestamp(lastBackupInfo.timestamp)}
+                        </Typography>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseRestoreModal} disabled={isSaving}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={handleConfirmRestore}
+                        variant="contained"
+                        color="secondary"
+                        disabled={isSaving}
+                    >
+                        {t('restoreFromLastBackup')}
                     </Button>
                 </DialogActions>
             </Dialog>

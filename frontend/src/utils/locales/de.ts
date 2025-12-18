@@ -123,7 +123,8 @@ export const de = {
 
   // Cloud Drive
   cloudDriveSettings: "Cloud-Speicher (OpenList)",
-  cloudDriveDescription: "Videos automatisch in den Cloud-Speicher (Alist) hochladen und lokale Dateien nach erfolgreichem Upload löschen.",
+  cloudDriveDescription:
+    "Videos automatisch in den Cloud-Speicher (Alist) hochladen und lokale Dateien nach erfolgreichem Upload löschen.",
   enableAutoSave: "Automatisches Speichern in der Cloud aktivieren",
   apiUrl: "API-URL",
   apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
@@ -230,9 +231,11 @@ export const de = {
   retry: "Wiederholen",
   resetPassword: "Passwort zurücksetzen",
   resetPasswordTitle: "Passwort zurücksetzen",
-  resetPasswordMessage: "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
+  resetPasswordMessage:
+    "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
   resetPasswordConfirm: "Zurücksetzen",
-  resetPasswordSuccess: "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
+  resetPasswordSuccess:
+    "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
   linkCopied: "Link in die Zwischenablage kopiert",
@@ -255,6 +258,7 @@ export const de = {
   error: "Fehler",
   success: "Erfolg",
   cancel: "Abbrechen",
+  ok: "OK",
   confirm: "Bestätigen",
   save: "Speichern",
   note: "Hinweis",
@@ -439,16 +443,18 @@ export const de = {
   hide: "Ausblenden",
   reset: "Zurücksetzen",
   more: "Mehr",
-  proxyOnlyApplyToYoutube: 'Proxy nur auf Youtube anwenden',
-  moveSubtitlesToVideoFolder: 'Untertitel-Speicherort',
-  moveSubtitlesToVideoFolderOn: 'Zusammen mit Video',
-  moveSubtitlesToVideoFolderOff: 'Im isolierten Untertitel-Ordner',
-  moveSubtitlesToVideoFolderDescription: 'Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.',
-  moveThumbnailsToVideoFolder: 'Thumbnail-Speicherort',
-  moveThumbnailsToVideoFolderOn: 'Zusammen mit Video',
-  moveThumbnailsToVideoFolderOff: 'In isoliertem Bilderordner',
-  moveThumbnailsToVideoFolderDescription: 'Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.',
-  
+  proxyOnlyApplyToYoutube: "Proxy nur auf Youtube anwenden",
+  moveSubtitlesToVideoFolder: "Untertitel-Speicherort",
+  moveSubtitlesToVideoFolderOn: "Zusammen mit Video",
+  moveSubtitlesToVideoFolderOff: "Im isolierten Untertitel-Ordner",
+  moveSubtitlesToVideoFolderDescription:
+    "Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.",
+  moveThumbnailsToVideoFolder: "Thumbnail-Speicherort",
+  moveThumbnailsToVideoFolderOn: "Zusammen mit Video",
+  moveThumbnailsToVideoFolderOff: "In isoliertem Bilderordner",
+  moveThumbnailsToVideoFolderDescription:
+    "Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.",
+
   // Database Export/Import
   exportImportDatabase: "Datenbank Exportieren/Importieren",
   exportImportDatabaseDescription:
@@ -461,10 +467,20 @@ export const de = {
   selectDatabaseFile: "Datenbankdatei Auswählen",
   databaseExportedSuccess: "Datenbank erfolgreich exportiert",
   databaseExportFailed: "Fehler beim Exportieren der Datenbank",
-  databaseImportedSuccess: "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
+  databaseImportedSuccess:
+    "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
   databaseImportFailed: "Fehler beim Importieren der Datenbank",
   cleanupBackupDatabases: "Backup-Datenbanken Bereinigen",
-  cleanupBackupDatabasesWarning: "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
+  cleanupBackupDatabasesWarning:
+    "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
   backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
   backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",
+  restoreFromLastBackup: "Von Letztem Backup Wiederherstellen",
+  restoreFromLastBackupWarning:
+    "Warnung: Dies stellt die Datenbank aus der letzten automatischen Backup-Datei wieder her. Alle aktuellen Daten werden durch die Backup-Daten überschrieben. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
+  restoreFromLastBackupSuccess:
+    "Datenbank erfolgreich aus Backup wiederhergestellt",
+  restoreFromLastBackupFailed: "Fehler beim Wiederherstellen aus Backup",
+  lastBackupDate: "Datum des letzten Backups",
+  noBackupAvailable: "Kein Backup verfügbar",
 };

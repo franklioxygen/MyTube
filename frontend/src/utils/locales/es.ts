@@ -22,15 +22,17 @@ export const es = {
   searchResultsFor: "Resultados de búsqueda para",
   fromYourLibrary: "De tu Biblioteca",
   noMatchingVideos: "No hay videos coincidentes en tu biblioteca.",
-  proxyOnlyApplyToYoutube: 'Proxy solo se aplica a Youtube',
-  moveSubtitlesToVideoFolder: 'Ubicación de subtítulos',
-  moveSubtitlesToVideoFolderOn: 'Junto al video',
-  moveSubtitlesToVideoFolderOff: 'En carpeta de subtítulos aislada',
-  moveSubtitlesToVideoFolderDescription: 'Cuando está habilitado, los archivos de subtítulos se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de subtítulos aislada.',
-  moveThumbnailsToVideoFolder: 'Ubicación de miniaturas',
-  moveThumbnailsToVideoFolderOn: 'Junto con el video',
-  moveThumbnailsToVideoFolderOff: 'En carpeta de imágenes aislada',
-  moveThumbnailsToVideoFolderDescription: 'Cuando está habilitado, los archivos de miniaturas se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada.',
+  proxyOnlyApplyToYoutube: "Proxy solo se aplica a Youtube",
+  moveSubtitlesToVideoFolder: "Ubicación de subtítulos",
+  moveSubtitlesToVideoFolderOn: "Junto al video",
+  moveSubtitlesToVideoFolderOff: "En carpeta de subtítulos aislada",
+  moveSubtitlesToVideoFolderDescription:
+    "Cuando está habilitado, los archivos de subtítulos se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de subtítulos aislada.",
+  moveThumbnailsToVideoFolder: "Ubicación de miniaturas",
+  moveThumbnailsToVideoFolderOn: "Junto con el video",
+  moveThumbnailsToVideoFolderOff: "En carpeta de imágenes aislada",
+  moveThumbnailsToVideoFolderDescription:
+    "Cuando está habilitado, los archivos de miniaturas se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada.",
   fromYouTube: "De YouTube",
   loadingYouTubeResults: "Cargando resultados de YouTube...",
   noYouTubeResults: "No se encontraron resultados de YouTube",
@@ -137,7 +139,8 @@ export const es = {
 
   // Cloud Drive
   cloudDriveSettings: "Almacenamiento en la Nube (OpenList)",
-  cloudDriveDescription: "Subir automáticamente videos al almacenamiento en la nube (Alist) y eliminar archivos locales después de una carga exitosa.",
+  cloudDriveDescription:
+    "Subir automáticamente videos al almacenamiento en la nube (Alist) y eliminar archivos locales después de una carga exitosa.",
   enableAutoSave: "Habilitar guardado automático en la nube",
   apiUrl: "URL de la API",
   apiUrlHelper: "ej. https://your-alist-instance.com/api/fs/put",
@@ -254,9 +257,11 @@ export const es = {
   retry: "Reintentar",
   resetPassword: "Restablecer Contraseña",
   resetPasswordTitle: "Restablecer Contraseña",
-  resetPasswordMessage: "¿Está seguro de que desea restablecer la contraseña? La contraseña actual se restablecerá a una cadena aleatoria de 8 caracteres y se mostrará en el registro del backend.",
+  resetPasswordMessage:
+    "¿Está seguro de que desea restablecer la contraseña? La contraseña actual se restablecerá a una cadena aleatoria de 8 caracteres y se mostrará en el registro del backend.",
   resetPasswordConfirm: "Restablecer",
-  resetPasswordSuccess: "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
+  resetPasswordSuccess:
+    "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
   linkCopied: "Enlace copiado al portapapeles",
@@ -279,6 +284,7 @@ export const es = {
   error: "Error",
   success: "Éxito",
   cancel: "Cancelar",
+  ok: "OK",
   confirm: "Confirmar",
   save: "Guardar",
   note: "Nota",
@@ -454,7 +460,7 @@ export const es = {
   hide: "Ocultar",
   reset: "Restablecer",
   more: "Más",
-  
+
   // Database Export/Import
   exportImportDatabase: "Exportar/Importar Base de Datos",
   exportImportDatabaseDescription:
@@ -467,10 +473,21 @@ export const es = {
   selectDatabaseFile: "Seleccionar Archivo de Base de Datos",
   databaseExportedSuccess: "Base de datos exportada exitosamente",
   databaseExportFailed: "Error al exportar la base de datos",
-  databaseImportedSuccess: "Base de datos importada exitosamente. Los datos existentes han sido sobrescritos con los datos de respaldo.",
+  databaseImportedSuccess:
+    "Base de datos importada exitosamente. Los datos existentes han sido sobrescritos con los datos de respaldo.",
   databaseImportFailed: "Error al importar la base de datos",
   cleanupBackupDatabases: "Limpiar Bases de Datos de Respaldo",
-  cleanupBackupDatabasesWarning: "Advertencia: Esto eliminará permanentemente todos los archivos de base de datos de respaldo (mytube-backup-*.db.backup) que se crearon durante importaciones anteriores. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?",
+  cleanupBackupDatabasesWarning:
+    "Advertencia: Esto eliminará permanentemente todos los archivos de base de datos de respaldo (mytube-backup-*.db.backup) que se crearon durante importaciones anteriores. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?",
   backupDatabasesCleanedUp: "Bases de datos de respaldo limpiadas exitosamente",
-  backupDatabasesCleanupFailed: "Error al limpiar las bases de datos de respaldo",
+  backupDatabasesCleanupFailed:
+    "Error al limpiar las bases de datos de respaldo",
+  restoreFromLastBackup: "Restaurar desde Última Copia de Respaldo",
+  restoreFromLastBackupWarning:
+    "Advertencia: Esto restaurará la base de datos desde el último archivo de respaldo automático. Todos los datos actuales serán sobrescritos con los datos de respaldo. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?",
+  restoreFromLastBackupSuccess:
+    "Base de datos restaurada exitosamente desde la copia de respaldo",
+  restoreFromLastBackupFailed: "Error al restaurar desde la copia de respaldo",
+  lastBackupDate: "Fecha de última copia de respaldo",
+  noBackupAvailable: "No hay copia de respaldo disponible",
 };

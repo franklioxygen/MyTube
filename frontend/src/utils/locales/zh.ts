@@ -126,7 +126,8 @@ export const zh = {
 
   // Cloud Drive
   cloudDriveSettings: "云端存储 (OpenList)",
-  cloudDriveDescription: "自动将视频上传到云端存储（Alist），并在成功上传后删除本地文件。",
+  cloudDriveDescription:
+    "自动将视频上传到云端存储（Alist），并在成功上传后删除本地文件。",
   enableAutoSave: "启用自动保存到云端",
   apiUrl: "API 地址",
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
@@ -233,7 +234,8 @@ export const zh = {
   retry: "重试",
   resetPassword: "重置密码",
   resetPasswordTitle: "重置密码",
-  resetPasswordMessage: "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
+  resetPasswordMessage:
+    "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
   resetPasswordConfirm: "重置",
   resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
   waitTimeMessage: "请等待 {time} 后再试。",
@@ -273,6 +275,7 @@ export const zh = {
   error: "错误",
   success: "成功",
   cancel: "取消",
+  ok: "确定",
   confirm: "确认",
   save: "保存",
   note: "注意",
@@ -456,16 +459,18 @@ export const zh = {
   hide: "隐藏",
   reset: "重置",
   more: "更多",
-  proxyOnlyApplyToYoutube: '代理仅应用于Youtube',
-  moveSubtitlesToVideoFolder: '字幕位置',
-  moveSubtitlesToVideoFolderOn: '与视频在同一文件夹',
-  moveSubtitlesToVideoFolderOff: '在独立字幕文件夹',
-  moveSubtitlesToVideoFolderDescription: '启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的字幕文件夹中。',
-  moveThumbnailsToVideoFolder: '封面位置',
-  moveThumbnailsToVideoFolderOn: '与视频在一起',
-  moveThumbnailsToVideoFolderOff: '在独立的图片文件夹中',
-  moveThumbnailsToVideoFolderDescription: '启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。',
-  
+  proxyOnlyApplyToYoutube: "代理仅应用于Youtube",
+  moveSubtitlesToVideoFolder: "字幕位置",
+  moveSubtitlesToVideoFolderOn: "与视频在同一文件夹",
+  moveSubtitlesToVideoFolderOff: "在独立字幕文件夹",
+  moveSubtitlesToVideoFolderDescription:
+    "启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的字幕文件夹中。",
+  moveThumbnailsToVideoFolder: "封面位置",
+  moveThumbnailsToVideoFolderOn: "与视频在一起",
+  moveThumbnailsToVideoFolderOff: "在独立的图片文件夹中",
+  moveThumbnailsToVideoFolderDescription:
+    "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
+
   // Database Export/Import
   exportImportDatabase: "导出/导入数据库",
   exportImportDatabaseDescription:
@@ -481,7 +486,15 @@ export const zh = {
   databaseImportedSuccess: "数据库导入成功。现有数据已被备份数据覆盖。",
   databaseImportFailed: "数据库导入失败",
   cleanupBackupDatabases: "清理备份数据库",
-  cleanupBackupDatabasesWarning: "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
+  cleanupBackupDatabasesWarning:
+    "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
   backupDatabasesCleanedUp: "备份数据库清理成功",
   backupDatabasesCleanupFailed: "清理备份数据库失败",
+  restoreFromLastBackup: "从最后备份恢复",
+  restoreFromLastBackupWarning:
+    "警告：这将从最后一个自动备份文件恢复数据库。所有当前数据将被备份数据覆盖。此操作无法撤销。您确定要继续吗？",
+  restoreFromLastBackupSuccess: "从备份成功恢复数据库",
+  restoreFromLastBackupFailed: "从备份恢复失败",
+  lastBackupDate: "最后备份日期",
+  noBackupAvailable: "没有可用的备份",
 };

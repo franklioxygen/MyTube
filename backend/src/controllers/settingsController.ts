@@ -663,3 +663,162 @@ export const cleanupBackupDatabases = async (
     throw error;
   }
 };
+
+/**
+ * Get last backup database file info
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const getLastBackupInfo = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const { DATA_DIR } = require("../config/paths");
+  const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
+
+  try {
+    const files = fs.readdirSync(DATA_DIR);
+    const backupFiles: Array<{
+      filename: string;
+      timestamp: string;
+      mtime: number;
+    }> = [];
+
+    for (const file of files) {
+      const match = file.match(backupPattern);
+      if (match) {
+        const timestamp = match[1];
+        const filePath = path.join(DATA_DIR, file);
+        const stats = fs.statSync(filePath);
+        backupFiles.push({
+          filename: file,
+          timestamp,
+          mtime: stats.mtimeMs,
+        });
+      }
+    }
+
+    if (backupFiles.length === 0) {
+      res.json({
+        success: true,
+        exists: false,
+      });
+      return;
+    }
+
+    // Sort by modification time (most recent first)
+    backupFiles.sort((a, b) => b.mtime - a.mtime);
+    const lastBackup = backupFiles[0];
+
+    res.json({
+      success: true,
+      exists: true,
+      filename: lastBackup.filename,
+      timestamp: lastBackup.timestamp,
+    });
+  } catch (error: any) {
+    logger.error("Error getting last backup info:", error);
+    throw error;
+  }
+};
+
+/**
+ * Restore database from last backup file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const restoreFromLastBackup = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const Database = require("better-sqlite3");
+  const { DATA_DIR } = require("../config/paths");
+  const dbPath = path.join(DATA_DIR, "mytube.db");
+  const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
+
+  try {
+    const files = fs.readdirSync(DATA_DIR);
+    const backupFiles: Array<{
+      filename: string;
+      timestamp: string;
+      mtime: number;
+    }> = [];
+
+    for (const file of files) {
+      const match = file.match(backupPattern);
+      if (match) {
+        const timestamp = match[1];
+        const filePath = path.join(DATA_DIR, file);
+        const stats = fs.statSync(filePath);
+        backupFiles.push({
+          filename: file,
+          timestamp,
+          mtime: stats.mtimeMs,
+        });
+      }
+    }
+
+    if (backupFiles.length === 0) {
+      throw new NotFoundError(
+        "Backup database file",
+        "mytube-backup-*.db.backup"
+      );
+    }
+
+    // Sort by modification time (most recent first)
+    backupFiles.sort((a, b) => b.mtime - a.mtime);
+    const lastBackup = backupFiles[0];
+    const backupPath = path.join(DATA_DIR, lastBackup.filename);
+
+    // Validate the backup file is a valid SQLite database
+    let sourceDb: any = null;
+    try {
+      sourceDb = new Database(backupPath, { readonly: true });
+      // Try to query the database to verify it's valid
+      sourceDb
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1")
+        .get();
+      sourceDb.close();
+      sourceDb = null;
+    } catch (validationError) {
+      if (sourceDb) {
+        sourceDb.close();
+      }
+      throw new ValidationError(
+        "Invalid backup database file. The file is not a valid SQLite database.",
+        "backup"
+      );
+    }
+
+    // Create backup of current database before restore
+    const currentBackupFilename = `mytube-backup-${generateTimestamp()}.db.backup`;
+    const currentBackupPath = path.join(DATA_DIR, currentBackupFilename);
+    if (fs.existsSync(dbPath)) {
+      fs.copyFileSync(dbPath, currentBackupPath);
+      logger.info(`Created backup of current database at ${currentBackupPath}`);
+    }
+
+    // Close the current database connection before replacing the file
+    const { sqlite } = require("../db");
+    sqlite.close();
+    logger.info("Closed current database connection for restore");
+
+    // Copy the backup file to replace the database
+    fs.copyFileSync(backupPath, dbPath);
+    logger.info(
+      `Database file restored successfully from ${lastBackup.filename}`
+    );
+
+    // Reinitialize the database connection with the restored file
+    const { reinitializeDatabase } = require("../db");
+    reinitializeDatabase();
+    logger.info("Database connection reinitialized after restore");
+
+    res.json(
+      successMessage(
+        `Database restored successfully from backup file: ${lastBackup.filename}`
+      )
+    );
+  } catch (error: any) {
+    logger.error("Error restoring from last backup:", error);
+    throw error;
+  }
+};

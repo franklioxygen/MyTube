@@ -128,7 +128,8 @@ export const ar = {
 
   // Cloud Drive
   cloudDriveSettings: "التخزين السحابي (OpenList)",
-  cloudDriveDescription: "رفع مقاطع الفيديو تلقائيًا إلى التخزين السحابي (Alist) وحذف الملفات المحلية بعد الرفع الناجح.",
+  cloudDriveDescription:
+    "رفع مقاطع الفيديو تلقائيًا إلى التخزين السحابي (Alist) وحذف الملفات المحلية بعد الرفع الناجح.",
   enableAutoSave: "تمكين الحفظ التلقائي في السحابة",
   apiUrl: "رابط API",
   apiUrlHelper: "مثال: https://your-alist-instance.com/api/fs/put",
@@ -238,9 +239,11 @@ export const ar = {
   retry: "إعادة المحاولة",
   resetPassword: "إعادة تعيين كلمة المرور",
   resetPasswordTitle: "إعادة تعيين كلمة المرور",
-  resetPasswordMessage: "هل أنت متأكد من أنك تريد إعادة تعيين كلمة المرور؟ سيتم إعادة تعيين كلمة المرور الحالية إلى سلسلة عشوائية مكونة من 8 أحرف وعرضها في سجل الخادم.",
+  resetPasswordMessage:
+    "هل أنت متأكد من أنك تريد إعادة تعيين كلمة المرور؟ سيتم إعادة تعيين كلمة المرور الحالية إلى سلسلة عشوائية مكونة من 8 أحرف وعرضها في سجل الخادم.",
   resetPasswordConfirm: "إعادة التعيين",
-  resetPasswordSuccess: "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
+  resetPasswordSuccess:
+    "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
   linkCopied: "تم نسخ الرابط إلى الحافظة",
@@ -263,15 +266,17 @@ export const ar = {
   collectionContains: "تحتوي هذه المجموعة على",
   deleteCollectionOnly: "حذف المجموعة فقط",
 
-  proxyOnlyApplyToYoutube: 'الوكيل ينطبق فقط على يوتيوب',
-  moveSubtitlesToVideoFolder: 'موقع الترجمة',
-  moveSubtitlesToVideoFolderOn: 'مع الفيديو',
-  moveSubtitlesToVideoFolderOff: 'في مجلد الترجمات المعزول',
-  moveSubtitlesToVideoFolderDescription: 'عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.',
-  moveThumbnailsToVideoFolder: 'موقع الصور المصغرة',
-  moveThumbnailsToVideoFolderOn: 'مع الفيديو',
-  moveThumbnailsToVideoFolderOff: 'في مجلد صور معزول',
-  moveThumbnailsToVideoFolderDescription: 'عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.',
+  proxyOnlyApplyToYoutube: "الوكيل ينطبق فقط على يوتيوب",
+  moveSubtitlesToVideoFolder: "موقع الترجمة",
+  moveSubtitlesToVideoFolderOn: "مع الفيديو",
+  moveSubtitlesToVideoFolderOff: "في مجلد الترجمات المعزول",
+  moveSubtitlesToVideoFolderDescription:
+    "عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.",
+  moveThumbnailsToVideoFolder: "موقع الصور المصغرة",
+  moveThumbnailsToVideoFolderOn: "مع الفيديو",
+  moveThumbnailsToVideoFolderOff: "في مجلد صور معزول",
+  moveThumbnailsToVideoFolderDescription:
+    "عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.",
 
   // Snackbar Messages
   videoDownloading: "جاري تنزيل الفيديو",
@@ -288,6 +293,7 @@ export const ar = {
   error: "خطأ",
   success: "نجاح",
   cancel: "إلغاء",
+  ok: "موافق",
   confirm: "تأكيد",
   save: "حفظ",
   note: "ملاحظة",
@@ -468,7 +474,7 @@ export const ar = {
   hide: "إخفاء",
   reset: "إعادة تعيين",
   more: "المزيد",
-  
+
   // Database Export/Import
   exportImportDatabase: "تصدير/استيراد قاعدة البيانات",
   exportImportDatabaseDescription:
@@ -481,10 +487,20 @@ export const ar = {
   selectDatabaseFile: "اختر ملف قاعدة البيانات",
   databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
   databaseExportFailed: "فشل تصدير قاعدة البيانات",
-  databaseImportedSuccess: "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
+  databaseImportedSuccess:
+    "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
   databaseImportFailed: "فشل استيراد قاعدة البيانات",
   cleanupBackupDatabases: "تنظيف قواعد البيانات الاحتياطية",
-  cleanupBackupDatabasesWarning: "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
+  cleanupBackupDatabasesWarning:
+    "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
   backupDatabasesCleanedUp: "تم تنظيف قواعد البيانات الاحتياطية بنجاح",
   backupDatabasesCleanupFailed: "فشل تنظيف قواعد البيانات الاحتياطية",
+  restoreFromLastBackup: "استعادة من آخر نسخة احتياطية",
+  restoreFromLastBackupWarning:
+    "تحذير: سيؤدي هذا إلى استعادة قاعدة البيانات من آخر ملف نسخ احتياطي تلقائي. سيتم استبدال جميع البيانات الحالية ببيانات النسخ الاحتياطي. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
+  restoreFromLastBackupSuccess:
+    "تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية",
+  restoreFromLastBackupFailed: "فشل الاستعادة من النسخة الاحتياطية",
+  lastBackupDate: "تاريخ آخر نسخة احتياطية",
+  noBackupAvailable: "لا توجد نسخة احتياطية متاحة",
 };

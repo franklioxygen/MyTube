@@ -133,7 +133,8 @@ export const ja = {
 
   // Cloud Drive
   cloudDriveSettings: "クラウドストレージ (OpenList)",
-  cloudDriveDescription: "動画をクラウドストレージ（Alist）に自動アップロードし、アップロード成功後にローカルファイルを削除します。",
+  cloudDriveDescription:
+    "動画をクラウドストレージ（Alist）に自動アップロードし、アップロード成功後にローカルファイルを削除します。",
   enableAutoSave: "クラウドへの自動保存を有効にする",
   apiUrl: "API URL",
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
@@ -243,9 +244,11 @@ export const ja = {
   retry: "再試行",
   resetPassword: "パスワードをリセット",
   resetPasswordTitle: "パスワードをリセット",
-  resetPasswordMessage: "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
+  resetPasswordMessage:
+    "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
   resetPasswordConfirm: "リセット",
-  resetPasswordSuccess: "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
+  resetPasswordSuccess:
+    "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
   linkCopied: "リンクをクリップボードにコピーしました",
@@ -283,6 +286,7 @@ export const ja = {
   error: "エラー",
   success: "成功",
   cancel: "キャンセル",
+  ok: "OK",
   confirm: "確認",
   save: "保存",
   note: "注意",
@@ -466,16 +470,18 @@ export const ja = {
   hide: "隠す",
   reset: "リセット",
   more: "もっと見る",
-  proxyOnlyApplyToYoutube: 'プロキシはYoutubeにのみ適用されます',
-  moveSubtitlesToVideoFolder: '字幕の場所',
-  moveSubtitlesToVideoFolderOn: '動画と同じ場所',
-  moveSubtitlesToVideoFolderOff: '独立した字幕フォルダー',
-  moveSubtitlesToVideoFolderDescription: '有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動します。無効にすると、独立した字幕フォルダーに移動します。',
-  moveThumbnailsToVideoFolder: 'サムネイルの場所',
-  moveThumbnailsToVideoFolderOn: '動画と一緒',
-  moveThumbnailsToVideoFolderOff: '独立した画像フォルダ',
-  moveThumbnailsToVideoFolderDescription: '有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。',
-  
+  proxyOnlyApplyToYoutube: "プロキシはYoutubeにのみ適用されます",
+  moveSubtitlesToVideoFolder: "字幕の場所",
+  moveSubtitlesToVideoFolderOn: "動画と同じ場所",
+  moveSubtitlesToVideoFolderOff: "独立した字幕フォルダー",
+  moveSubtitlesToVideoFolderDescription:
+    "有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動します。無効にすると、独立した字幕フォルダーに移動します。",
+  moveThumbnailsToVideoFolder: "サムネイルの場所",
+  moveThumbnailsToVideoFolderOn: "動画と一緒",
+  moveThumbnailsToVideoFolderOff: "独立した画像フォルダ",
+  moveThumbnailsToVideoFolderDescription:
+    "有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。",
+
   // Database Export/Import
   exportImportDatabase: "データベースのエクスポート/インポート",
   exportImportDatabaseDescription:
@@ -488,10 +494,22 @@ export const ja = {
   selectDatabaseFile: "データベースファイルを選択",
   databaseExportedSuccess: "データベースのエクスポートが成功しました",
   databaseExportFailed: "データベースのエクスポートに失敗しました",
-  databaseImportedSuccess: "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
+  databaseImportedSuccess:
+    "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
   databaseImportFailed: "データベースのインポートに失敗しました",
   cleanupBackupDatabases: "バックアップデータベースをクリーンアップ",
-  cleanupBackupDatabasesWarning: "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
-  backupDatabasesCleanedUp: "バックアップデータベースのクリーンアップが成功しました",
-  backupDatabasesCleanupFailed: "バックアップデータベースのクリーンアップに失敗しました",
+  cleanupBackupDatabasesWarning:
+    "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
+  backupDatabasesCleanedUp:
+    "バックアップデータベースのクリーンアップが成功しました",
+  backupDatabasesCleanupFailed:
+    "バックアップデータベースのクリーンアップに失敗しました",
+  restoreFromLastBackup: "最後のバックアップから復元",
+  restoreFromLastBackupWarning:
+    "警告：これにより、最後の自動バックアップファイルからデータベースが復元されます。すべての現在のデータがバックアップデータで上書きされます。この操作は元に戻せません。続行してもよろしいですか？",
+  restoreFromLastBackupSuccess:
+    "バックアップからデータベースの復元が成功しました",
+  restoreFromLastBackupFailed: "バックアップからの復元に失敗しました",
+  lastBackupDate: "最後のバックアップ日時",
+  noBackupAvailable: "利用可能なバックアップがありません",
 };

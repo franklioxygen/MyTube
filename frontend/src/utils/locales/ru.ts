@@ -25,15 +25,17 @@ export const ru = {
   searchResultsFor: "Результаты поиска для",
   fromYourLibrary: "Из вашей библиотеки",
   noMatchingVideos: "В вашей библиотеке нет подходящих видео.",
-  proxyOnlyApplyToYoutube: 'Прокси применяется только к Youtube',
-  moveSubtitlesToVideoFolder: 'Расположение субтитров',
-  moveSubtitlesToVideoFolderOn: 'Вместе с видео',
-  moveSubtitlesToVideoFolderOff: 'В изолированной папке субтитров',
-  moveSubtitlesToVideoFolderDescription: 'Если включено, файлы субтитров будут перемещены в ту же папку, что и видеофайл. Если отключено, они будут перемещены в изолированную папку субтитров.',
-  moveThumbnailsToVideoFolder: 'Расположение миниатюр',
-  moveThumbnailsToVideoFolderOn: 'Вместе с видео',
-  moveThumbnailsToVideoFolderOff: 'В отдельной папке изображений',
-  moveThumbnailsToVideoFolderDescription: 'Если включено, файлы миниатюр будут перемещены в ту же папку, что и видеофайл. Если выключено, они будут перемещены в отдельную папку изображений.',
+  proxyOnlyApplyToYoutube: "Прокси применяется только к Youtube",
+  moveSubtitlesToVideoFolder: "Расположение субтитров",
+  moveSubtitlesToVideoFolderOn: "Вместе с видео",
+  moveSubtitlesToVideoFolderOff: "В изолированной папке субтитров",
+  moveSubtitlesToVideoFolderDescription:
+    "Если включено, файлы субтитров будут перемещены в ту же папку, что и видеофайл. Если отключено, они будут перемещены в изолированную папку субтитров.",
+  moveThumbnailsToVideoFolder: "Расположение миниатюр",
+  moveThumbnailsToVideoFolderOn: "Вместе с видео",
+  moveThumbnailsToVideoFolderOff: "В отдельной папке изображений",
+  moveThumbnailsToVideoFolderDescription:
+    "Если включено, файлы миниатюр будут перемещены в ту же папку, что и видеофайл. Если выключено, они будут перемещены в отдельную папку изображений.",
   loadingYouTubeResults: "Загрузка результатов YouTube...",
   noYouTubeResults: "Результаты YouTube не найдены",
   noVideosYet: "Видео пока нет. Отправьте URL видео, чтобы скачать первое!",
@@ -140,7 +142,8 @@ export const ru = {
 
   // Cloud Drive
   cloudDriveSettings: "Облачное хранилище (OpenList)",
-  cloudDriveDescription: "Автоматически загружать видео в облачное хранилище (Alist) и удалять локальные файлы после успешной загрузки.",
+  cloudDriveDescription:
+    "Автоматически загружать видео в облачное хранилище (Alist) и удалять локальные файлы после успешной загрузки.",
   enableAutoSave: "Включить автосохранение в облако",
   apiUrl: "URL API",
   apiUrlHelper: "напр. https://your-alist-instance.com/api/fs/put",
@@ -252,9 +255,11 @@ export const ru = {
   retry: "Повторить",
   resetPassword: "Сбросить пароль",
   resetPasswordTitle: "Сбросить пароль",
-  resetPasswordMessage: "Вы уверены, что хотите сбросить пароль? Текущий пароль будет сброшен на случайную 8-символьную строку и отображен в логе бэкенда.",
+  resetPasswordMessage:
+    "Вы уверены, что хотите сбросить пароль? Текущий пароль будет сброшен на случайную 8-символьную строку и отображен в логе бэкенда.",
   resetPasswordConfirm: "Сбросить",
-  resetPasswordSuccess: "Пароль был сброшен. Проверьте логи бэкенда для нового пароля.",
+  resetPasswordSuccess:
+    "Пароль был сброшен. Проверьте логи бэкенда для нового пароля.",
   waitTimeMessage: "Пожалуйста, подождите {time} перед повторной попыткой.",
   tooManyAttempts: "Слишком много неудачных попыток.",
   linkCopied: "Ссылка скопирована в буфер обмена",
@@ -292,6 +297,7 @@ export const ru = {
   error: "Ошибка",
   success: "Успех",
   cancel: "Отмена",
+  ok: "ОК",
   confirm: "Подтвердить",
   save: "Сохранить",
   note: "Примечание",
@@ -473,7 +479,7 @@ export const ru = {
   hide: "Скрыть",
   reset: "Сбросить",
   more: "Ещё",
-  
+
   // Database Export/Import
   exportImportDatabase: "Экспорт/Импорт Базы Данных",
   exportImportDatabaseDescription:
@@ -486,10 +492,21 @@ export const ru = {
   selectDatabaseFile: "Выбрать Файл Базы Данных",
   databaseExportedSuccess: "База данных успешно экспортирована",
   databaseExportFailed: "Не удалось экспортировать базу данных",
-  databaseImportedSuccess: "База данных успешно импортирована. Существующие данные были перезаписаны данными из резервной копии.",
+  databaseImportedSuccess:
+    "База данных успешно импортирована. Существующие данные были перезаписаны данными из резервной копии.",
   databaseImportFailed: "Не удалось импортировать базу данных",
   cleanupBackupDatabases: "Очистить Резервные Копии Базы Данных",
-  cleanupBackupDatabasesWarning: "Предупреждение: Это навсегда удалит все файлы резервных копий базы данных (mytube-backup-*.db.backup), которые были созданы во время предыдущих импортов. Это действие нельзя отменить. Вы уверены, что хотите продолжить?",
+  cleanupBackupDatabasesWarning:
+    "Предупреждение: Это навсегда удалит все файлы резервных копий базы данных (mytube-backup-*.db.backup), которые были созданы во время предыдущих импортов. Это действие нельзя отменить. Вы уверены, что хотите продолжить?",
   backupDatabasesCleanedUp: "Резервные копии базы данных успешно очищены",
-  backupDatabasesCleanupFailed: "Не удалось очистить резервные копии базы данных",
+  backupDatabasesCleanupFailed:
+    "Не удалось очистить резервные копии базы данных",
+  restoreFromLastBackup: "Восстановить из Последней Резервной Копии",
+  restoreFromLastBackupWarning:
+    "Предупреждение: Это восстановит базу данных из последнего файла автоматической резервной копии. Все текущие данные будут перезаписаны данными из резервной копии. Это действие нельзя отменить. Вы уверены, что хотите продолжить?",
+  restoreFromLastBackupSuccess:
+    "База данных успешно восстановлена из резервной копии",
+  restoreFromLastBackupFailed: "Не удалось восстановить из резервной копии",
+  lastBackupDate: "Дата последней резервной копии",
+  noBackupAvailable: "Резервная копия недоступна",
 };
