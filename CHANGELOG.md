@@ -1,10 +1,13 @@
 # Change Log
 
-## v1.6.11 (2025-12-17)
+## v1.6.12 (2025-12-17)
 
 ### Feat
 
 - feat: Add restore from last backup database functionality (a1b2c3d)
+
+## v1.6.11 (2025-12-17)
+
 - feat: Add translations for restore feature and OK button to all languages (e4f5g6h)
 
 ## v1.6.10 (2025-12-17)
