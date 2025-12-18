@@ -454,4 +454,23 @@ export const es = {
   hide: "Ocultar",
   reset: "Restablecer",
   more: "Más",
+  
+  // Database Export/Import
+  exportImportDatabase: "Exportar/Importar Base de Datos",
+  exportImportDatabaseDescription:
+    "Exporte su base de datos como archivo de respaldo o importe una copia de seguridad previamente exportada. La importación sobrescribirá los datos existentes con los datos de respaldo.",
+  exportDatabase: "Exportar Base de Datos",
+  importDatabase: "Importar Base de Datos",
+  onlyDbFilesAllowed: "Solo se permiten archivos .db",
+  importDatabaseWarning:
+    "Advertencia: Importar una base de datos sobrescribirá todos los datos existentes. Asegúrese de exportar primero su base de datos actual como respaldo.",
+  selectDatabaseFile: "Seleccionar Archivo de Base de Datos",
+  databaseExportedSuccess: "Base de datos exportada exitosamente",
+  databaseExportFailed: "Error al exportar la base de datos",
+  databaseImportedSuccess: "Base de datos importada exitosamente. Los datos existentes han sido sobrescritos con los datos de respaldo.",
+  databaseImportFailed: "Error al importar la base de datos",
+  cleanupBackupDatabases: "Limpiar Bases de Datos de Respaldo",
+  cleanupBackupDatabasesWarning: "Advertencia: Esto eliminará permanentemente todos los archivos de base de datos de respaldo (mytube-backup-*.db.backup) que se crearon durante importaciones anteriores. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?",
+  backupDatabasesCleanedUp: "Bases de datos de respaldo limpiadas exitosamente",
+  backupDatabasesCleanupFailed: "Error al limpiar las bases de datos de respaldo",
 };

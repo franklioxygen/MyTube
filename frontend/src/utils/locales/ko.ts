@@ -469,4 +469,23 @@ export const ko = {
   moveThumbnailsToVideoFolderOn: '동영상과 함께',
   moveThumbnailsToVideoFolderOff: '분리된 이미지 폴더',
   moveThumbnailsToVideoFolderDescription: '활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.',
+  
+  // Database Export/Import
+  exportImportDatabase: "데이터베이스 내보내기/가져오기",
+  exportImportDatabaseDescription:
+    "데이터베이스를 백업 파일로 내보내거나 이전에 내보낸 백업을 가져옵니다. 가져오기는 기존 데이터를 백업 데이터로 덮어씁니다.",
+  exportDatabase: "데이터베이스 내보내기",
+  importDatabase: "데이터베이스 가져오기",
+  onlyDbFilesAllowed: ".db 파일만 허용됩니다",
+  importDatabaseWarning:
+    "경고: 데이터베이스를 가져오면 모든 기존 데이터가 덮어씌워집니다. 먼저 현재 데이터베이스를 백업으로 내보내야 합니다.",
+  selectDatabaseFile: "데이터베이스 파일 선택",
+  databaseExportedSuccess: "데이터베이스 내보내기 성공",
+  databaseExportFailed: "데이터베이스 내보내기 실패",
+  databaseImportedSuccess: "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
+  databaseImportFailed: "데이터베이스 가져오기 실패",
+  cleanupBackupDatabases: "백업 데이터베이스 정리",
+  cleanupBackupDatabasesWarning: "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+  backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
+  backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
 };

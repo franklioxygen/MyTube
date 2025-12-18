@@ -486,4 +486,23 @@ export const fr = {
   moveThumbnailsToVideoFolderOn: 'Avec la vidéo',
   moveThumbnailsToVideoFolderOff: 'Dans un dossier d\'images isolé',
   moveThumbnailsToVideoFolderDescription: 'Si activé, les fichiers de miniatures seront déplacés dans le même dossier que le fichier vidéo. Si désactivé, ils seront déplacés dans le dossier d\'images isolé.',
+  
+  // Database Export/Import
+  exportImportDatabase: "Exporter/Importer la Base de Données",
+  exportImportDatabaseDescription:
+    "Exportez votre base de données en tant que fichier de sauvegarde ou importez une sauvegarde précédemment exportée. L'importation remplacera les données existantes par les données de sauvegarde.",
+  exportDatabase: "Exporter la Base de Données",
+  importDatabase: "Importer la Base de Données",
+  onlyDbFilesAllowed: "Seuls les fichiers .db sont autorisés",
+  importDatabaseWarning:
+    "Avertissement : L'importation d'une base de données remplacera toutes les données existantes. Assurez-vous d'abord d'exporter votre base de données actuelle en tant que sauvegarde.",
+  selectDatabaseFile: "Sélectionner un Fichier de Base de Données",
+  databaseExportedSuccess: "Base de données exportée avec succès",
+  databaseExportFailed: "Échec de l'exportation de la base de données",
+  databaseImportedSuccess: "Base de données importée avec succès. Les données existantes ont été remplacées par les données de sauvegarde.",
+  databaseImportFailed: "Échec de l'importation de la base de données",
+  cleanupBackupDatabases: "Nettoyer les Bases de Données de Sauvegarde",
+  cleanupBackupDatabasesWarning: "Avertissement : Cela supprimera définitivement tous les fichiers de base de données de sauvegarde (mytube-backup-*.db.backup) qui ont été créés lors d'importations précédentes. Cette action ne peut pas être annulée. Êtes-vous sûr de vouloir continuer ?",
+  backupDatabasesCleanedUp: "Bases de données de sauvegarde nettoyées avec succès",
+  backupDatabasesCleanupFailed: "Échec du nettoyage des bases de données de sauvegarde",
 };

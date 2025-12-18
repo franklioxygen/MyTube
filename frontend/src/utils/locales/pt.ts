@@ -480,4 +480,23 @@ export const pt = {
   moveThumbnailsToVideoFolderOn: 'Junto com o vídeo',
   moveThumbnailsToVideoFolderOff: 'Em pasta de imagens isolada',
   moveThumbnailsToVideoFolderDescription: 'Quando ativado, os arquivos de miniatura serão movidos para a mesma pasta do arquivo de vídeo. Quando desativado, eles serão movidos para a pasta de imagens isolada.',
+  
+  // Database Export/Import
+  exportImportDatabase: "Exportar/Importar Banco de Dados",
+  exportImportDatabaseDescription:
+    "Exporte seu banco de dados como arquivo de backup ou importe um backup previamente exportado. A importação substituirá os dados existentes pelos dados de backup.",
+  exportDatabase: "Exportar Banco de Dados",
+  importDatabase: "Importar Banco de Dados",
+  onlyDbFilesAllowed: "Apenas arquivos .db são permitidos",
+  importDatabaseWarning:
+    "Aviso: Importar um banco de dados substituirá todos os dados existentes. Certifique-se de exportar primeiro seu banco de dados atual como backup.",
+  selectDatabaseFile: "Selecionar Arquivo de Banco de Dados",
+  databaseExportedSuccess: "Banco de dados exportado com sucesso",
+  databaseExportFailed: "Falha ao exportar banco de dados",
+  databaseImportedSuccess: "Banco de dados importado com sucesso. Os dados existentes foram substituídos pelos dados de backup.",
+  databaseImportFailed: "Falha ao importar banco de dados",
+  cleanupBackupDatabases: "Limpar Bancos de Dados de Backup",
+  cleanupBackupDatabasesWarning: "Aviso: Isso excluirá permanentemente todos os arquivos de banco de dados de backup (mytube-backup-*.db.backup) que foram criados durante importações anteriores. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",
+  backupDatabasesCleanedUp: "Bancos de dados de backup limpos com sucesso",
+  backupDatabasesCleanupFailed: "Falha ao limpar bancos de dados de backup",
 };

@@ -475,4 +475,23 @@ export const ja = {
   moveThumbnailsToVideoFolderOn: '動画と一緒',
   moveThumbnailsToVideoFolderOff: '独立した画像フォルダ',
   moveThumbnailsToVideoFolderDescription: '有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。',
+  
+  // Database Export/Import
+  exportImportDatabase: "データベースのエクスポート/インポート",
+  exportImportDatabaseDescription:
+    "データベースをバックアップファイルとしてエクスポートするか、以前にエクスポートしたバックアップをインポートします。インポートすると、既存のデータがバックアップデータで上書きされます。",
+  exportDatabase: "データベースをエクスポート",
+  importDatabase: "データベースをインポート",
+  onlyDbFilesAllowed: ".dbファイルのみ許可されています",
+  importDatabaseWarning:
+    "警告：データベースをインポートすると、既存のすべてのデータが上書きされます。まず現在のデータベースをバックアップとしてエクスポートしてください。",
+  selectDatabaseFile: "データベースファイルを選択",
+  databaseExportedSuccess: "データベースのエクスポートが成功しました",
+  databaseExportFailed: "データベースのエクスポートに失敗しました",
+  databaseImportedSuccess: "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
+  databaseImportFailed: "データベースのインポートに失敗しました",
+  cleanupBackupDatabases: "バックアップデータベースをクリーンアップ",
+  cleanupBackupDatabasesWarning: "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
+  backupDatabasesCleanedUp: "バックアップデータベースのクリーンアップが成功しました",
+  backupDatabasesCleanupFailed: "バックアップデータベースのクリーンアップに失敗しました",
 };

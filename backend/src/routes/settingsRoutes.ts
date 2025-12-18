@@ -3,11 +3,14 @@ import multer from "multer";
 import os from "os";
 import {
   checkCookies,
+  cleanupBackupDatabases,
   deleteCookies,
   deleteLegacyData,
+  exportDatabase,
   formatFilenames,
   getPasswordEnabled,
   getSettings,
+  importDatabase,
   migrateData,
   resetPassword,
   updateSettings,
@@ -34,5 +37,12 @@ router.post(
 );
 router.post("/delete-cookies", asyncHandler(deleteCookies));
 router.get("/check-cookies", asyncHandler(checkCookies));
+router.get("/export-database", asyncHandler(exportDatabase));
+router.post(
+  "/import-database",
+  upload.single("file"),
+  asyncHandler(importDatabase)
+);
+router.post("/cleanup-backup-databases", asyncHandler(cleanupBackupDatabases));
 
 export default router;

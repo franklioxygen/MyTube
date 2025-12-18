@@ -1,11 +1,27 @@
-import { Box, Button, FormControlLabel, Switch, Typography } from '@mui/material';
-import React from 'react';
+import { Close, Delete, Download, Upload } from '@mui/icons-material';
+import {
+    Box,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    FormControlLabel,
+    IconButton,
+    Switch,
+    Typography
+} from '@mui/material';
+import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface DatabaseSettingsProps {
     onMigrate: () => void;
     onDeleteLegacy: () => void;
     onFormatFilenames: () => void;
+    onExportDatabase: () => void;
+    onImportDatabase: (file: File) => void;
+    onCleanupBackupDatabases: () => void;
     isSaving: boolean;
     moveSubtitlesToVideoFolder: boolean;
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
@@ -17,6 +33,9 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onMigrate,
     onDeleteLegacy,
     onFormatFilenames,
+    onExportDatabase,
+    onImportDatabase,
+    onCleanupBackupDatabases,
     isSaving,
     moveSubtitlesToVideoFolder,
     onMoveSubtitlesToVideoFolderChange,
@@ -24,6 +43,53 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onMoveThumbnailsToVideoFolderChange
 }) => {
     const { t } = useLanguage();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [importModalOpen, setImportModalOpen] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+
+    const handleOpenImportModal = () => {
+        setImportModalOpen(true);
+    };
+
+    const handleCloseImportModal = () => {
+        setImportModalOpen(false);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!file.name.endsWith('.db')) {
+                alert(t('onlyDbFilesAllowed') || 'Only .db files are allowed');
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
+    const handleConfirmImport = () => {
+        if (selectedFile) {
+            onImportDatabase(selectedFile);
+            handleCloseImportModal();
+        }
+    };
+
+    const handleOpenCleanupModal = () => {
+        setCleanupModalOpen(true);
+    };
+
+    const handleCloseCleanupModal = () => {
+        setCleanupModalOpen(false);
+    };
+
+    const handleConfirmCleanup = () => {
+        onCleanupBackupDatabases();
+        handleCloseCleanupModal();
+    };
 
     return (
         <Box>
@@ -103,6 +169,148 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     {t('moveThumbnailsToVideoFolderDescription')}
                 </Typography>
             </Box>
+
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>{t('exportImportDatabase')}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t('exportImportDatabaseDescription')}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<Download />}
+                        onClick={onExportDatabase}
+                        disabled={isSaving}
+                    >
+                        {t('exportDatabase')}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<Upload />}
+                        onClick={handleOpenImportModal}
+                        disabled={isSaving}
+                    >
+                        {t('importDatabase')}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<Delete />}
+                        onClick={handleOpenCleanupModal}
+                        disabled={isSaving}
+                    >
+                        {t('cleanupBackupDatabases')}
+                    </Button>
+                </Box>
+            </Box>
+
+            <Dialog
+                open={importModalOpen}
+                onClose={handleCloseImportModal}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{
+                    paper: {
+                        sx: { borderRadius: 2 }
+                    }
+                }}
+            >
+                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                        {t('importDatabase')}
+                    </Typography>
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleCloseImportModal}
+                        sx={{
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+                        {t('importDatabaseWarning')}
+                    </DialogContentText>
+                    <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<Upload />}
+                        fullWidth
+                        sx={{ borderStyle: 'dashed', height: 56 }}
+                    >
+                        {selectedFile ? selectedFile.name : t('selectDatabaseFile')}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            hidden
+                            accept=".db"
+                            onChange={handleFileSelect}
+                        />
+                    </Button>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseImportModal} disabled={isSaving}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={handleConfirmImport}
+                        variant="contained"
+                        color="primary"
+                        disabled={!selectedFile || isSaving}
+                    >
+                        {t('importDatabase')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={cleanupModalOpen}
+                onClose={handleCloseCleanupModal}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{
+                    paper: {
+                        sx: { borderRadius: 2 }
+                    }
+                }}
+            >
+                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                        {t('cleanupBackupDatabases')}
+                    </Typography>
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleCloseCleanupModal}
+                        sx={{
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+                        {t('cleanupBackupDatabasesWarning')}
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseCleanupModal} disabled={isSaving}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={handleConfirmCleanup}
+                        variant="contained"
+                        color="warning"
+                        disabled={isSaving}
+                    >
+                        {t('cleanupBackupDatabases')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

@@ -30,6 +30,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
+import { generateTimestamp } from '../utils/formatUtils';
 import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -311,7 +312,107 @@ const SettingsPage: React.FC = () => {
         setSettings(prev => ({ ...prev, tags: newTags }));
     };
 
-    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending;
+    // Export database mutation
+    const exportDatabaseMutation = useMutation({
+        mutationFn: async () => {
+            const response = await axios.get(`${API_URL}/settings/export-database`, {
+                responseType: 'blob'
+            });
+            return response;
+        },
+        onSuccess: (response) => {
+            // Create a blob URL and trigger download
+            const blob = new Blob([response.data], { type: 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Generate filename with timestamp using helper (same format as backend)
+            const timestamp = generateTimestamp();
+            const filename = `mytube-backup-${timestamp}.db`;
+            
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+            setMessage({ text: t('databaseExportedSuccess'), type: 'success' });
+        },
+        onError: (error: any) => {
+            const errorDetails = error.response?.data?.details || error.message;
+            setMessage({ 
+                text: `${t('databaseExportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`, 
+                type: 'error' 
+            });
+        }
+    });
+
+    // Import database mutation
+    const importDatabaseMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await axios.post(`${API_URL}/settings/import-database`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return response.data;
+        },
+        onSuccess: () => {
+            setInfoModal({
+                isOpen: true,
+                title: t('success'),
+                message: t('databaseImportedSuccess'),
+                type: 'success'
+            });
+        },
+        onError: (error: any) => {
+            const errorDetails = error.response?.data?.details || error.message;
+            setInfoModal({
+                isOpen: true,
+                title: t('error'),
+                message: `${t('databaseImportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
+                type: 'error'
+            });
+        }
+    });
+
+    const handleExportDatabase = () => {
+        exportDatabaseMutation.mutate();
+    };
+
+    const handleImportDatabase = (file: File) => {
+        importDatabaseMutation.mutate(file);
+    };
+
+    // Cleanup backup databases mutation
+    const cleanupBackupDatabasesMutation = useMutation({
+        mutationFn: async () => {
+            const response = await axios.post(`${API_URL}/settings/cleanup-backup-databases`);
+            return response.data;
+        },
+        onSuccess: (data) => {
+            setMessage({ 
+                text: data.message || t('backupDatabasesCleanedUp'), 
+                type: 'success' 
+            });
+        },
+        onError: (error: any) => {
+            const errorDetails = error.response?.data?.details || error.message;
+            setMessage({ 
+                text: `${t('backupDatabasesCleanupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`, 
+                type: 'error' 
+            });
+        }
+    });
+
+    const handleCleanupBackupDatabases = () => {
+        cleanupBackupDatabasesMutation.mutate();
+    };
+
+    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending || exportDatabaseMutation.isPending || importDatabaseMutation.isPending || cleanupBackupDatabasesMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -407,6 +508,9 @@ const SettingsPage: React.FC = () => {
                                 onMigrate={() => setShowMigrateConfirmModal(true)}
                                 onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
                                 onFormatFilenames={() => setShowFormatConfirmModal(true)}
+                                onExportDatabase={handleExportDatabase}
+                                onImportDatabase={handleImportDatabase}
+                                onCleanupBackupDatabases={handleCleanupBackupDatabases}
                                 isSaving={isSaving}
                                 moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
                                 onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}

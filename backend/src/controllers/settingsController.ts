@@ -11,6 +11,7 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as loginAttemptService from "../services/loginAttemptService";
 import * as storageService from "../services/storageService";
+import { generateTimestamp } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
 
@@ -460,4 +461,205 @@ export const resetPassword = async (
     message:
       "Password has been reset. Check backend logs for the new password.",
   });
+};
+
+/**
+ * Export database as backup file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const exportDatabase = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const { DATA_DIR } = require("../config/paths");
+  const dbPath = path.join(DATA_DIR, "mytube.db");
+
+  if (!fs.existsSync(dbPath)) {
+    throw new NotFoundError("Database file", "mytube.db");
+  }
+
+  // Generate filename with date and time
+  const filename = `mytube-backup-${generateTimestamp()}.db`;
+
+  // Set headers for file download
+  res.setHeader("Content-Type", "application/octet-stream");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+  // Send the database file
+  res.sendFile(dbPath);
+};
+
+/**
+ * Import database from backup file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const importDatabase = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  if (!req.file) {
+    throw new ValidationError("No file uploaded", "file");
+  }
+
+  const Database = require("better-sqlite3");
+  const { DATA_DIR } = require("../config/paths");
+  const dbPath = path.join(DATA_DIR, "mytube.db");
+
+  // Generate backup filename with date and time
+  const backupFilename = `mytube-backup-${generateTimestamp()}.db.backup`;
+  const backupPath = path.join(DATA_DIR, backupFilename);
+
+  let sourceDb: any = null;
+
+  try {
+    // Validate file extension
+    if (!req.file.originalname.endsWith(".db")) {
+      throw new ValidationError("Only .db files are allowed", "file");
+    }
+
+    // Validate the uploaded file is a valid SQLite database
+    sourceDb = new Database(req.file.path, { readonly: true });
+    try {
+      // Try to query the database to verify it's valid
+      sourceDb
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1")
+        .get();
+    } catch (validationError) {
+      sourceDb.close();
+      throw new ValidationError(
+        "Invalid database file. The file is not a valid SQLite database.",
+        "file"
+      );
+    }
+    sourceDb.close();
+    sourceDb = null;
+
+    // Create backup of current database before import
+    if (fs.existsSync(dbPath)) {
+      fs.copyFileSync(dbPath, backupPath);
+      logger.info(`Created backup of current database at ${backupPath}`);
+    }
+
+    // Close the current database connection before replacing the file
+    const { sqlite } = require("../db");
+    sqlite.close();
+    logger.info("Closed current database connection for import");
+
+    // Simply copy the uploaded file to replace the database
+    // Since we've closed the connection and validated the file, this is safe
+    fs.copyFileSync(req.file.path, dbPath);
+    logger.info(
+      `Database file replaced successfully from ${req.file.originalname}`
+    );
+
+    // Reinitialize the database connection with the new file
+    const { reinitializeDatabase } = require("../db");
+    reinitializeDatabase();
+    logger.info("Database connection reinitialized after import");
+
+    // Clean up uploaded temp file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.json(
+      successMessage(
+        "Database imported successfully. Existing data has been overwritten with the backup data."
+      )
+    );
+  } catch (error: any) {
+    // Close connection if still open
+    if (sourceDb) {
+      try {
+        sourceDb.close();
+      } catch (e) {
+        logger.error("Error closing source database:", e);
+      }
+    }
+
+    // Clean up uploaded temp file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (e) {
+        logger.error("Error cleaning up temp file:", e);
+      }
+    }
+
+    // Restore backup if import failed
+    if (fs.existsSync(backupPath)) {
+      try {
+        fs.copyFileSync(backupPath, dbPath);
+        logger.info("Restored database from backup after failed import");
+      } catch (restoreError) {
+        logger.error("Failed to restore database from backup:", restoreError);
+      }
+    }
+
+    // Log the actual error for debugging
+    logger.error(
+      "Database import failed:",
+      error instanceof Error ? error : new Error(String(error))
+    );
+
+    throw error;
+  }
+};
+
+/**
+ * Clean up backup database files
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const cleanupBackupDatabases = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const { DATA_DIR } = require("../config/paths");
+  const backupPattern = /^mytube-backup-.*\.db\.backup$/;
+
+  let deletedCount = 0;
+  let failedCount = 0;
+  const errors: string[] = [];
+
+  try {
+    const files = fs.readdirSync(DATA_DIR);
+
+    for (const file of files) {
+      if (backupPattern.test(file)) {
+        const filePath = path.join(DATA_DIR, file);
+        try {
+          fs.unlinkSync(filePath);
+          deletedCount++;
+          logger.info(`Deleted backup database file: ${file}`);
+        } catch (error: any) {
+          failedCount++;
+          const errorMsg = `Failed to delete ${file}: ${error.message}`;
+          errors.push(errorMsg);
+          logger.error(errorMsg);
+        }
+      }
+    }
+
+    if (deletedCount === 0 && failedCount === 0) {
+      res.json({
+        success: true,
+        message: "No backup database files found to clean up.",
+        deleted: deletedCount,
+        failed: failedCount,
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `Cleaned up ${deletedCount} backup database file(s).${
+          failedCount > 0 ? ` ${failedCount} file(s) failed to delete.` : ""
+        }`,
+        deleted: deletedCount,
+        failed: failedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    }
+  } catch (error: any) {
+    logger.error("Error cleaning up backup databases:", error);
+    throw error;
+  }
 };

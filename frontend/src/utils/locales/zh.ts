@@ -465,4 +465,23 @@ export const zh = {
   moveThumbnailsToVideoFolderOn: '与视频在一起',
   moveThumbnailsToVideoFolderOff: '在独立的图片文件夹中',
   moveThumbnailsToVideoFolderDescription: '启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。',
+  
+  // Database Export/Import
+  exportImportDatabase: "导出/导入数据库",
+  exportImportDatabaseDescription:
+    "将数据库导出为备份文件或导入之前导出的备份。导入将使用备份数据覆盖现有数据。",
+  exportDatabase: "导出数据库",
+  importDatabase: "导入数据库",
+  onlyDbFilesAllowed: "仅允许 .db 文件",
+  importDatabaseWarning:
+    "警告：导入数据库将覆盖所有现有数据。请确保首先导出当前数据库作为备份。",
+  selectDatabaseFile: "选择数据库文件",
+  databaseExportedSuccess: "数据库导出成功",
+  databaseExportFailed: "数据库导出失败",
+  databaseImportedSuccess: "数据库导入成功。现有数据已被备份数据覆盖。",
+  databaseImportFailed: "数据库导入失败",
+  cleanupBackupDatabases: "清理备份数据库",
+  cleanupBackupDatabasesWarning: "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
+  backupDatabasesCleanedUp: "备份数据库清理成功",
+  backupDatabasesCleanupFailed: "清理备份数据库失败",
 };

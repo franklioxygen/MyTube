@@ -481,4 +481,23 @@ export const en = {
   moveThumbnailsToVideoFolderOff: "In isolated images folder",
   moveThumbnailsToVideoFolderDescription:
     "When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.",
+  
+  // Database Export/Import
+  exportImportDatabase: "Export/Import Database",
+  exportImportDatabaseDescription:
+    "Export your database as a backup file or import a previously exported backup. Importing will overwrite existing data with the backup data.",
+  exportDatabase: "Export Database",
+  importDatabase: "Import Database",
+  onlyDbFilesAllowed: "Only .db files are allowed",
+  importDatabaseWarning:
+    "Warning: Importing a database will overwrite all existing data. Make sure to export your current database first as a backup.",
+  selectDatabaseFile: "Select Database File",
+  databaseExportedSuccess: "Database exported successfully",
+  databaseExportFailed: "Failed to export database",
+  databaseImportedSuccess: "Database imported successfully. Existing data has been overwritten with the backup data.",
+  databaseImportFailed: "Failed to import database",
+  cleanupBackupDatabases: "Clean Up Backup Databases",
+  cleanupBackupDatabasesWarning: "Warning: This will permanently delete all backup database files (mytube-backup-*.db.backup) that were created during previous imports. This action cannot be undone. Are you sure you want to continue?",
+  backupDatabasesCleanedUp: "Backup databases cleaned up successfully",
+  backupDatabasesCleanupFailed: "Failed to clean up backup databases",
 };

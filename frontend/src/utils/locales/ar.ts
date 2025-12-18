@@ -468,4 +468,23 @@ export const ar = {
   hide: "إخفاء",
   reset: "إعادة تعيين",
   more: "المزيد",
+  
+  // Database Export/Import
+  exportImportDatabase: "تصدير/استيراد قاعدة البيانات",
+  exportImportDatabaseDescription:
+    "قم بتصدير قاعدة البيانات الخاصة بك كملف نسخ احتياطي أو قم باستيراد نسخة احتياطية تم تصديرها مسبقًا. سيؤدي الاستيراد إلى استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
+  exportDatabase: "تصدير قاعدة البيانات",
+  importDatabase: "استيراد قاعدة البيانات",
+  onlyDbFilesAllowed: "يسمح فقط بملفات .db",
+  importDatabaseWarning:
+    "تحذير: سيؤدي استيراد قاعدة البيانات إلى استبدال جميع البيانات الموجودة. تأكد من تصدير قاعدة البيانات الحالية أولاً كنسخة احتياطية.",
+  selectDatabaseFile: "اختر ملف قاعدة البيانات",
+  databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
+  databaseExportFailed: "فشل تصدير قاعدة البيانات",
+  databaseImportedSuccess: "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
+  databaseImportFailed: "فشل استيراد قاعدة البيانات",
+  cleanupBackupDatabases: "تنظيف قواعد البيانات الاحتياطية",
+  cleanupBackupDatabasesWarning: "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
+  backupDatabasesCleanedUp: "تم تنظيف قواعد البيانات الاحتياطية بنجاح",
+  backupDatabasesCleanupFailed: "فشل تنظيف قواعد البيانات الاحتياطية",
 };

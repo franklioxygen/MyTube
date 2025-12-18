@@ -448,4 +448,23 @@ export const de = {
   moveThumbnailsToVideoFolderOn: 'Zusammen mit Video',
   moveThumbnailsToVideoFolderOff: 'In isoliertem Bilderordner',
   moveThumbnailsToVideoFolderDescription: 'Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.',
+  
+  // Database Export/Import
+  exportImportDatabase: "Datenbank Exportieren/Importieren",
+  exportImportDatabaseDescription:
+    "Exportieren Sie Ihre Datenbank als Backup-Datei oder importieren Sie ein zuvor exportiertes Backup. Der Import überschreibt vorhandene Daten mit den Backup-Daten.",
+  exportDatabase: "Datenbank Exportieren",
+  importDatabase: "Datenbank Importieren",
+  onlyDbFilesAllowed: "Nur .db-Dateien erlaubt",
+  importDatabaseWarning:
+    "Warnung: Das Importieren einer Datenbank überschreibt alle vorhandenen Daten. Stellen Sie sicher, dass Sie zuerst Ihre aktuelle Datenbank als Backup exportieren.",
+  selectDatabaseFile: "Datenbankdatei Auswählen",
+  databaseExportedSuccess: "Datenbank erfolgreich exportiert",
+  databaseExportFailed: "Fehler beim Exportieren der Datenbank",
+  databaseImportedSuccess: "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
+  databaseImportFailed: "Fehler beim Importieren der Datenbank",
+  cleanupBackupDatabases: "Backup-Datenbanken Bereinigen",
+  cleanupBackupDatabasesWarning: "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
+  backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
+  backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",
 };
