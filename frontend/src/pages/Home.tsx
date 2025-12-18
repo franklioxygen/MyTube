@@ -349,7 +349,7 @@ const Home: React.FC = () => {
 
     // Regular home view (not in search mode)
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
             {videoArray.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                     <Typography variant="h5" color="text.secondary">
@@ -402,7 +402,7 @@ const Home: React.FC = () => {
                     {/* Videos grid */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                         {/* View mode toggle */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, px: { xs: 2, sm: 0 } }}>
                             <Typography variant="h5" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                 <Button
                                     onClick={handleSidebarToggle}
@@ -522,7 +522,7 @@ const Home: React.FC = () => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <Grid container spacing={3}>
+                            <Grid container rowSpacing={{ xs: 2, sm: 3 }} columnSpacing={{ xs: 0, sm: 3 }}>
                                 {displayedVideos.map(video => {
                                     const gridProps = isSidebarOpen
                                         ? { xs: 12, sm: 6, lg: 4, xl: 3 }
@@ -572,7 +572,7 @@ const Home: React.FC = () => {
 
 
                         {totalPages > 1 && (
-                            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', px: { xs: 2, sm: 0 } }}>
                                 <Pagination
                                     count={totalPages}
                                     page={page}

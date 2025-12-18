@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.16 (2025-12-18)
+
+### Style
+
+- style: Make video thumbnails edge-to-edge on mobile view while maintaining vertical spacing between cards
+
 ## v1.6.15 (2025-12-18)
 
 ### Performance

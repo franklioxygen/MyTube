@@ -568,10 +568,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 }}
             >
                 {/* Progress Bar */}
-                <Box sx={{ px: { xs: 1, sm: 2 }, mb: 1 }}>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ px: { xs: 0.5, sm: 2 }, mb: 1 }}>
+                    <Stack direction="row" spacing={{ xs: 0.5, sm: 1 }} alignItems="center">
                         {/* Left Side: Volume and Play */}
-                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mr: 1 }}>
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mr: { xs: 0.5, sm: 1 } }}>
                             {/* Volume Control (Hidden on mobile/tablet, shown on desktop) */}
                             <Box 
                                 ref={volumeSliderRef} 
@@ -667,7 +667,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             </Tooltip>
                         </Stack>
                         
-                        <Typography variant="caption" sx={{ minWidth: '45px', textAlign: 'right', fontSize: '0.75rem' }}>
+                        <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'right', fontSize: '0.75rem' }}>
                             {formatTime(currentTime)}
                         </Typography>
                         <Slider
@@ -708,9 +708,25 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 }
                             }}
                         />
-                        <Typography variant="caption" sx={{ minWidth: '45px', textAlign: 'left', fontSize: '0.75rem' }}>
+                        <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'left', fontSize: '0.75rem' }}>
                             {formatTime(duration)}
                         </Typography>
+
+                        {/* Subtitle Button (Mobile only, next to progress bar) */}
+                        {subtitles && subtitles.length > 0 && (
+                            <>
+                                <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'}>
+                                    <IconButton
+                                        color={subtitlesEnabled ? "primary" : "default"}
+                                        onClick={handleSubtitleClick}
+                                        size="small"
+                                        sx={{ display: { xs: 'flex', sm: 'none' }, ml: { xs: 0.25, sm: 0.5 } }}
+                                    >
+                                        {subtitlesEnabled ? <Subtitles /> : <SubtitlesOff />}
+                                    </IconButton>
+                                </Tooltip>
+                            </>
+                        )}
 
                         {/* Right Side: Fullscreen, Subtitle, Loop (Desktop only) */}
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1, display: { xs: 'none', sm: 'flex' } }}>
@@ -830,7 +846,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             </IconButton>
                         </Tooltip>
 
-                        {/* Mobile: Fullscreen, Subtitle, Loop */}
+                        {/* Mobile: Fullscreen, Loop */}
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1 }}>
                             {/* Fullscreen */}
                             <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}>
@@ -841,35 +857,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                     {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                                 </IconButton>
                             </Tooltip>
-
-                            {/* Subtitle */}
-                            {subtitles && subtitles.length > 0 && (
-                                <>
-                                    <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'}>
-                                        <IconButton
-                                            color={subtitlesEnabled ? "primary" : "default"}
-                                            onClick={handleSubtitleClick}
-                                            size="small"
-                                        >
-                                            {subtitlesEnabled ? <Subtitles /> : <SubtitlesOff />}
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Menu
-                                        anchorEl={subtitleMenuAnchor}
-                                        open={Boolean(subtitleMenuAnchor)}
-                                        onClose={handleCloseSubtitleMenu}
-                                    >
-                                        <MenuItem onClick={() => handleSelectSubtitle(-1)}>
-                                            {t('off') || 'Off'}
-                                        </MenuItem>
-                                        {subtitles.map((subtitle, index) => (
-                                            <MenuItem key={subtitle.language} onClick={() => handleSelectSubtitle(index)}>
-                                                {subtitle.language.toUpperCase()}
-                                            </MenuItem>
-                                        ))}
-                                    </Menu>
-                                </>
-                            )}
 
                             {/* Loop */}
                             <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`}>
