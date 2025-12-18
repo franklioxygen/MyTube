@@ -1,5 +1,17 @@
 # Change Log
 
+## v1.6.15 (2025-12-18)
+
+### Performance
+
+- perf: Store channel URL in database to avoid unnecessary yt-dlp calls when opening video player pages
+- perf: Update getAuthorChannelUrl endpoint to check database first before fetching from YouTube/Bilibili API
+
+### Feat
+
+- feat: Add channelUrl field to videos table schema
+- feat: Extract and save channel URL during video download for YouTube and Bilibili videos
+
 ## v1.6.14 (2025-12-18)
 
 ### Fix
