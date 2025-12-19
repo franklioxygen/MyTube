@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.6.18 (2025-12-18)
+
+### Feat
+
+- feat: Add savedVisitorMode to GeneralSettings (e684118)
+- feat: add visitor mode (read only) (60a02e8)
+
+### Refactor
+
+- refactor: Remove commented-out code for password verification (775d024)
+
 ## v1.6.17 (2025-12-18)
 
 ### Feat
