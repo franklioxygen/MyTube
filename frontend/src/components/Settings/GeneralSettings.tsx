@@ -8,14 +8,16 @@ interface GeneralSettingsProps {
     itemsPerPage?: number;
     showYoutubeSearch?: boolean;
     visitorMode?: boolean;
+    savedVisitorMode?: boolean;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
-    const { language, websiteName, showYoutubeSearch, visitorMode, onChange } = props;
+    const { language, websiteName, showYoutubeSearch, visitorMode, savedVisitorMode, onChange } = props;
     const { t } = useLanguage();
 
-    const isVisitorMode = visitorMode ?? false;
+    // Use saved value for visibility, current value for toggle state
+    const isVisitorMode = savedVisitorMode ?? visitorMode ?? false;
 
     return (
         <Box>

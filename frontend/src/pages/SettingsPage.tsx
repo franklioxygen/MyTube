@@ -471,25 +471,15 @@ const SettingsPage: React.FC = () => {
                     <Grid container spacing={4}>
                         {/* General Settings - Only show visitor mode toggle when visitor mode is enabled */}
                         <Grid size={12}>
-                            {visitorMode ? (
-                                <GeneralSettings
-                                    language={settings.language}
-                                    websiteName={settings.websiteName}
-                                    itemsPerPage={settings.itemsPerPage}
-                                    showYoutubeSearch={settings.showYoutubeSearch}
-                                    visitorMode={settings.visitorMode}
-                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                />
-                            ) : (
-                                <GeneralSettings
-                                    language={settings.language}
-                                    websiteName={settings.websiteName}
-                                    itemsPerPage={settings.itemsPerPage}
-                                    showYoutubeSearch={settings.showYoutubeSearch}
-                                    visitorMode={settings.visitorMode}
-                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                />
-                            )}
+                            <GeneralSettings
+                                language={settings.language}
+                                websiteName={settings.websiteName}
+                                itemsPerPage={settings.itemsPerPage}
+                                showYoutubeSearch={settings.showYoutubeSearch}
+                                visitorMode={settings.visitorMode}
+                                savedVisitorMode={settingsData?.visitorMode}
+                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                            />
                         </Grid>
 
                         {!visitorMode && (
