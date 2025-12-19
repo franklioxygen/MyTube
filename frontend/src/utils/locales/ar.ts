@@ -140,6 +140,8 @@ export const ar = {
   apiUrl: "رابط API",
   apiUrlHelper: "مثال: https://your-alist-instance.com/api/fs/put",
   token: "الرمز المميز (Token)",
+  publicUrl: "عنوان URL العام",
+  publicUrlHelper: "النطاق العام للوصول إلى الملفات (مثال: https://your-cloudflare-tunnel-domain.com). إذا تم تعيينه، سيتم استخدامه بدلاً من عنوان API للوصول إلى الملفات.",
   uploadPath: "مسار التحميل",
   cloudDrivePathHelper: "مسار الدليل في التخزين السحابي، مثال: /mytube-uploads",
   cloudDriveNote:

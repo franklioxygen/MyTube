@@ -142,6 +142,8 @@ export const ko = {
   apiUrl: "API URL",
   apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
   token: "토큰",
+  publicUrl: "공개 URL",
+  publicUrlHelper: "파일 액세스를 위한 공개 도메인 (예: https://your-cloudflare-tunnel-domain.com). 설정된 경우 파일 액세스에 API URL 대신 이것이 사용됩니다.",
   uploadPath: "업로드 경로",
   cloudDrivePathHelper:
     "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",

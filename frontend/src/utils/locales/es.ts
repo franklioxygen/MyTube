@@ -151,6 +151,8 @@ export const es = {
   apiUrl: "URL de la API",
   apiUrlHelper: "ej. https://your-alist-instance.com/api/fs/put",
   token: "Token",
+  publicUrl: "URL Público",
+  publicUrlHelper: "Dominio público para acceder a archivos (ej. https://your-cloudflare-tunnel-domain.com). Si se establece, se usará en lugar de la URL de la API para acceder a archivos.",
   uploadPath: "Ruta de carga",
   cloudDrivePathHelper: "Ruta del directorio en la nube, ej. /mytube-uploads",
   cloudDriveNote:

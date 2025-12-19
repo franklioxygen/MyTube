@@ -136,6 +136,8 @@ export const de = {
   apiUrl: "API-URL",
   apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
   token: "Token",
+  publicUrl: "Öffentliche URL",
+  publicUrlHelper: "Öffentliche Domain für den Dateizugriff (z.B. https://your-cloudflare-tunnel-domain.com). Wenn gesetzt, wird diese anstelle der API-URL für den Dateizugriff verwendet.",
   uploadPath: "Upload-Pfad",
   cloudDrivePathHelper:
     "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",

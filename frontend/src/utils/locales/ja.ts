@@ -145,6 +145,8 @@ export const ja = {
   apiUrl: "API URL",
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
   token: "トークン",
+  publicUrl: "公開URL",
+  publicUrlHelper: "ファイルにアクセスするための公開ドメイン（例: https://your-cloudflare-tunnel-domain.com）。設定されている場合、ファイルアクセスにはAPI URLの代わりにこれが使用されます。",
   uploadPath: "アップロードパス",
   cloudDrivePathHelper:
     "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",

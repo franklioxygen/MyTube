@@ -137,6 +137,8 @@ export const zh = {
   apiUrl: "API 地址",
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
   token: "Token",
+  publicUrl: "公开访问域名",
+  publicUrlHelper: "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
   uploadPath: "上传路径",
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
   cloudDriveNote:

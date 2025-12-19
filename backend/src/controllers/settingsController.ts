@@ -26,6 +26,7 @@ interface Settings {
   cloudDriveEnabled?: boolean;
   openListApiUrl?: string;
   openListToken?: string;
+  openListPublicUrl?: string;
   cloudDrivePath?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
@@ -49,6 +50,7 @@ const defaultSettings: Settings = {
   cloudDriveEnabled: false,
   openListApiUrl: "",
   openListToken: "",
+  openListPublicUrl: "",
   cloudDrivePath: "",
   homeSidebarOpen: true,
   subtitlesEnabled: true,

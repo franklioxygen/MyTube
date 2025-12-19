@@ -33,6 +33,22 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         return null;
     };
 
+    // Validate public URL format
+    const validatePublicUrl = (url: string): string | null => {
+        if (!url.trim()) {
+            return null; // Optional field
+        }
+        try {
+            const urlObj = new URL(url);
+            if (!urlObj.protocol.startsWith('http')) {
+                return 'URL must start with http:// or https://';
+            }
+        } catch {
+            return 'Invalid URL format';
+        }
+        return null;
+    };
+
     // Validate upload path
     const validateUploadPath = (path: string): string | null => {
         if (!path.trim()) {
@@ -46,6 +62,9 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
 
     const apiUrlError = settings.cloudDriveEnabled && settings.openListApiUrl
         ? validateApiUrl(settings.openListApiUrl)
+        : null;
+    const publicUrlError = settings.cloudDriveEnabled && settings.openListPublicUrl
+        ? validatePublicUrl(settings.openListPublicUrl)
         : null;
     const uploadPathError = settings.cloudDriveEnabled && settings.cloudDrivePath
         ? validateUploadPath(settings.cloudDrivePath)
@@ -154,6 +173,21 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         required
                         fullWidth
                     />
+                    
+                    <TextField
+                        label={t('publicUrl')}
+                        value={settings.openListPublicUrl || ''}
+                        onChange={(e) => onChange('openListPublicUrl', e.target.value)}
+                        helperText={t('publicUrlHelper')}
+                        error={!!publicUrlError}
+                        placeholder="https://your-cloudflare-tunnel-domain.com"
+                        fullWidth
+                    />
+                    {publicUrlError && (
+                        <Typography variant="caption" color="error" sx={{ mt: -1.5 }}>
+                            {publicUrlError}
+                        </Typography>
+                    )}
                     
                     <TextField
                         label={t('uploadPath')}

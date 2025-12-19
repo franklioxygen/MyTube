@@ -9,6 +9,7 @@ interface CloudDriveConfig {
   enabled: boolean;
   apiUrl: string;
   token: string;
+  publicUrl?: string;
   uploadPath: string;
 }
 
@@ -19,6 +20,7 @@ export class CloudStorageService {
       enabled: settings.cloudDriveEnabled || false,
       apiUrl: settings.openListApiUrl || "",
       token: settings.openListToken || "",
+      publicUrl: settings.openListPublicUrl || undefined,
       uploadPath: settings.cloudDrivePath || "/",
     };
   }
@@ -399,10 +401,10 @@ export class CloudStorageService {
         thumbnailThumbUrl?: string;
       } = {};
 
-      // Extract domain from apiBaseUrl
-      // If apiBaseUrl is like https://example.com/api/fs/put, then apiBaseUrl will be https://example.com
-      // Use this as the base domain for building file URLs
-      const domain = apiBaseUrl;
+      // Use publicUrl if set, otherwise extract domain from apiBaseUrl
+      // If publicUrl is set (e.g., https://cloudflare-tunnel-domain.com), use it for file URLs
+      // Otherwise, use apiBaseUrl (e.g., http://127.0.0.1:5244)
+      const domain = config.publicUrl || apiBaseUrl;
 
       // Find video file
       if (videoFilename) {
@@ -445,6 +447,22 @@ export class CloudStorageService {
             );
             // Also handle \u0026 encoding
             thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
+            // If publicUrl is set, replace the domain in thumbUrl with publicUrl
+            if (config.publicUrl) {
+              try {
+                const thumbUrlObj = new URL(thumbUrl);
+                const publicUrlObj = new URL(config.publicUrl);
+                thumbUrl = thumbUrl.replace(
+                  thumbUrlObj.origin,
+                  publicUrlObj.origin
+                );
+              } catch (e) {
+                // If URL parsing fails, use thumbUrl as is
+                logger.debug(
+                  `[CloudStorage] Failed to replace domain in thumbUrl: ${thumbUrl}`
+                );
+              }
+            }
             result.thumbnailThumbUrl = thumbUrl;
           }
         } else {
@@ -461,6 +479,22 @@ export class CloudStorageService {
                 "width=1280&height=720"
               );
               thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
+              // If publicUrl is set, replace the domain in thumbUrl with publicUrl
+              if (config.publicUrl) {
+                try {
+                  const thumbUrlObj = new URL(thumbUrl);
+                  const publicUrlObj = new URL(config.publicUrl);
+                  thumbUrl = thumbUrl.replace(
+                    thumbUrlObj.origin,
+                    publicUrlObj.origin
+                  );
+                } catch (e) {
+                  // If URL parsing fails, use thumbUrl as is
+                  logger.debug(
+                    `[CloudStorage] Failed to replace domain in thumbUrl: ${thumbUrl}`
+                  );
+                }
+              }
               result.thumbnailThumbUrl = thumbUrl;
             }
           }

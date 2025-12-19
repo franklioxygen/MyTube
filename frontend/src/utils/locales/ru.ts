@@ -154,6 +154,8 @@ export const ru = {
   apiUrl: "URL API",
   apiUrlHelper: "напр. https://your-alist-instance.com/api/fs/put",
   token: "Токен",
+  publicUrl: "Публичный URL",
+  publicUrlHelper: "Публичный домен для доступа к файлам (напр. https://your-cloudflare-tunnel-domain.com). Если установлен, будет использоваться вместо URL API для доступа к файлам.",
   uploadPath: "Путь загрузки",
   cloudDrivePathHelper: "Путь к каталогу в облаке, напр. /mytube-uploads",
   cloudDriveNote:

@@ -52,6 +52,7 @@ const SettingsPage: React.FC = () => {
         cloudDriveEnabled: false,
         openListApiUrl: '',
         openListToken: '',
+        openListPublicUrl: '',
         cloudDrivePath: '',
         itemsPerPage: 12,
         ytDlpConfig: '',
