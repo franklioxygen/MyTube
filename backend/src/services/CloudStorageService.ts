@@ -120,38 +120,27 @@ export class CloudStorageService {
         }
         logger.info(`[CloudStorage] Local file cleanup completed`);
 
-        // Update video record to point to cloud storage URLs with sign information
+        // Update video record to point to cloud storage (store only filename, not full URL with sign)
+        // Sign will be retrieved dynamically when needed
         if (videoData.id && deletedFiles.length > 0) {
           try {
             const storageService = await import("./storageService");
             const updates: any = {};
 
-            // Get file list from Openlist to retrieve sign information
-            const fileUrls = await this.getFileUrlsWithSign(
-              config,
-              videoData.videoFilename,
-              videoData.thumbnailFilename
-            );
-
-            // Update video path if video was deleted
-            if (videoData.videoFilename && fileUrls.videoUrl) {
-              updates.videoPath = fileUrls.videoUrl;
+            // Store cloud storage indicator in path format: "cloud:filename"
+            // This allows us to identify cloud storage files and retrieve sign dynamically
+            if (videoData.videoFilename) {
+              updates.videoPath = `cloud:${videoData.videoFilename}`;
             }
 
-            // Update thumbnail path if thumbnail was deleted
             if (videoData.thumbnailFilename) {
-              if (fileUrls.thumbnailUrl) {
-                updates.thumbnailPath = fileUrls.thumbnailUrl;
-              } else if (fileUrls.thumbnailThumbUrl) {
-                // Use thumb URL if file doesn't exist but thumb is available
-                updates.thumbnailPath = fileUrls.thumbnailThumbUrl;
-              }
+              updates.thumbnailPath = `cloud:${videoData.thumbnailFilename}`;
             }
 
             if (Object.keys(updates).length > 0) {
               storageService.updateVideo(videoData.id, updates);
               logger.info(
-                `[CloudStorage] Updated video record ${videoData.id} with cloud storage paths`
+                `[CloudStorage] Updated video record ${videoData.id} with cloud storage indicators`
               );
             }
           } catch (updateError: any) {
@@ -345,8 +334,44 @@ export class CloudStorageService {
   }
 
   /**
+   * Get signed URL for a cloud storage file
+   * Returns URL in format: https://domain/d/path/filename?sign=xxx
+   * @param filename - The filename to get signed URL for
+   * @param fileType - 'video' or 'thumbnail'
+   */
+  static async getSignedUrl(
+    filename: string,
+    fileType: "video" | "thumbnail" = "video"
+  ): Promise<string | null> {
+    const config = this.getConfig();
+    if (!config.enabled || !config.apiUrl || !config.token) {
+      return null;
+    }
+
+    try {
+      const result = await this.getFileUrlsWithSign(
+        config,
+        fileType === "video" ? filename : undefined,
+        fileType === "thumbnail" ? filename : undefined
+      );
+
+      if (fileType === "video") {
+        return result.videoUrl || null;
+      } else {
+        return result.thumbnailUrl || result.thumbnailThumbUrl || null;
+      }
+    } catch (error) {
+      logger.error(
+        `[CloudStorage] Failed to get signed URL for ${filename}:`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return null;
+    }
+  }
+
+  /**
    * Get file URLs with sign information from Openlist
-   * Returns URLs in format: https://域名/d/上传路径/文件名?sign=xxx
+   * Returns URLs in format: https://domain/d/path/filename?sign=xxx
    */
   private static async getFileUrlsWithSign(
     config: CloudDriveConfig,
@@ -412,7 +437,7 @@ export class CloudStorageService {
           (file: any) => file.name === videoFilename
         );
         if (videoFile && videoFile.sign) {
-          // Build URL: https://域名/d/上传路径/文件名?sign=xxx
+          // Build URL: https://domain/d/path/filename?sign=xxx
           // Only encode the filename, not the path
           const encodedFilename = encodeURIComponent(videoFilename);
           result.videoUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
@@ -429,7 +454,7 @@ export class CloudStorageService {
         if (thumbnailFile) {
           // Prefer file URL with sign if available
           if (thumbnailFile.sign) {
-            // Build URL: https://域名/d/上传路径/文件名?sign=xxx
+            // Build URL: https://domain/d/path/filename?sign=xxx
             const encodedFilename = encodeURIComponent(thumbnailFilename);
             result.thumbnailUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
               thumbnailFile.sign

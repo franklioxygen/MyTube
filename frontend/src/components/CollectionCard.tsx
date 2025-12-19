@@ -11,9 +11,8 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 interface CollectionCardProps {
     collection: Collection;
@@ -33,14 +32,6 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
     const handleClick = () => {
         navigate(`/collection/${collection.id}`);
-    };
-
-    const getThumbnailSrc = (video: Video) => {
-        return video.thumbnailPath
-            ? (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
-                ? video.thumbnailPath
-                : `${BACKEND_URL}${video.thumbnailPath}`)
-            : video.thumbnailUrl;
     };
 
     return (
@@ -74,33 +65,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
                     >
                         {collectionVideos.length > 0 ? (
                             collectionVideos.map((video, index) => (
-                                <Box
-                                    key={video.id}
-                                    sx={{
-                                        width: '50%',
-                                        height: '50%',
-                                        position: 'relative',
-                                        borderRight: index % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                                        borderBottom: index < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                                        overflow: 'hidden'
-                                    }}
-                                >
-                                    <CardMedia
-                                        component="img"
-                                        image={getThumbnailSrc(video) || 'https://via.placeholder.com/240x180?text=No+Thumbnail'}
-                                        alt={video.title}
-                                        sx={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover'
-                                        }}
-                                        onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            target.onerror = null;
-                                            target.src = 'https://via.placeholder.com/240x180?text=No+Thumbnail';
-                                        }}
-                                    />
-                                </Box>
+                                <CollectionThumbnail key={video.id} video={video} index={index} />
                             ))
                         ) : (
                             <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -133,5 +98,42 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
         </Card>
     );
 };
+
+// Component for individual thumbnail with cloud storage support
+const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video, index }) => {
+    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
+    const src = thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
+
+    return (
+        <Box
+            sx={{
+                width: '50%',
+                height: '50%',
+                position: 'relative',
+                borderRight: index % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                borderBottom: index < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                overflow: 'hidden'
+            }}
+        >
+            <CardMedia
+                component="img"
+                image={src}
+                alt={video.title}
+                sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                }}
+                onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = 'https://via.placeholder.com/240x180?text=No+Thumbnail';
+                }}
+            />
+        </Box>
+    );
+};
+
+
 
 export default CollectionCard;

@@ -1,5 +1,6 @@
 import express from "express";
 import * as cleanupController from "../controllers/cleanupController";
+import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as scanController from "../controllers/scanController";
@@ -121,6 +122,12 @@ router.get(
 router.delete(
   "/subscriptions/:id",
   asyncHandler(subscriptionController.deleteSubscription)
+);
+
+// Cloud storage routes
+router.get(
+  "/cloud/signed-url",
+  asyncHandler(cloudStorageController.getSignedUrl)
 );
 
 export default router;

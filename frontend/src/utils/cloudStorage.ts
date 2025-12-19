@@ -1,0 +1,99 @@
+import axios from 'axios';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551';
+
+/**
+ * Check if a path is a cloud storage path (starts with "cloud:")
+ */
+export const isCloudStoragePath = (path: string | null | undefined): boolean => {
+  return path?.startsWith('cloud:') ?? false;
+};
+
+/**
+ * Extract filename from cloud storage path (removes "cloud:" prefix)
+ */
+export const extractCloudFilename = (path: string): string => {
+  if (!path.startsWith('cloud:')) {
+    return path;
+  }
+  return path.substring(6); // Remove "cloud:" prefix
+};
+
+/**
+ * Get signed URL for a cloud storage file
+ * This fetches the dynamic sign from the backend
+ */
+export const getCloudStorageSignedUrl = async (
+  filename: string,
+  type: 'video' | 'thumbnail' = 'video'
+): Promise<string | null> => {
+  try {
+    const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
+      params: {
+        filename,
+        type,
+      },
+    });
+
+    if (response.data?.success && response.data?.url) {
+      return response.data.url;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get cloud storage signed URL:', error);
+    return null;
+  }
+};
+
+/**
+ * Get file URL, handling both local files and cloud storage
+ * For cloud storage paths (starting with "cloud:"), fetches signed URL dynamically
+ * For regular paths, returns the full URL with backend prefix
+ * For already full URLs (http:// or https://), returns as is
+ */
+export const getFileUrl = async (
+  path: string | null | undefined,
+  type: 'video' | 'thumbnail' = 'video'
+): Promise<string | undefined> => {
+  if (!path) return undefined;
+
+  // If already a full URL, return as is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  // If cloud storage path, fetch signed URL
+  if (isCloudStoragePath(path)) {
+    const filename = extractCloudFilename(path);
+    const signedUrl = await getCloudStorageSignedUrl(filename, type);
+    return signedUrl || undefined;
+  }
+
+  // Otherwise, prepend backend URL
+  return `${BACKEND_URL}${path}`;
+};
+
+/**
+ * Synchronous version that returns a URL string (for cases where async is not possible)
+ * For cloud storage, returns a placeholder that will need to be handled separately
+ */
+export const getFileUrlSync = (
+  path: string | null | undefined
+): string | undefined => {
+  if (!path) return undefined;
+
+  // If already a full URL, return as is
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  // If cloud storage path, return a special marker that components can detect
+  // Components should use getFileUrl() async version for cloud storage
+  if (isCloudStoragePath(path)) {
+    return `cloud:${extractCloudFilename(path)}`;
+  }
+
+  // Otherwise, prepend backend URL
+  return `${BACKEND_URL}${path}`;
+};
+

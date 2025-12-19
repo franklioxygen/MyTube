@@ -2,6 +2,7 @@ import { CalendarToday, Download, Folder, HighQuality, Link as LinkIcon, VideoLi
 import { Box, Typography, useTheme } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../../types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -21,6 +22,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
+    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     return (
         <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
@@ -40,7 +42,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                         </a>
                     </Typography>
                 )}
-                {video.videoPath && (
+                {(videoUrl || video.videoPath) && (
                     <Typography 
                         variant="body2" 
                         sx={{ 
@@ -49,9 +51,9 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
                     >
-                        <a href={video.videoPath && (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://"))
+                        <a href={videoUrl || (video.videoPath && (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://"))
                             ? video.videoPath
-                            : `${BACKEND_URL}${video.videoPath}`} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                            : `${BACKEND_URL}${video.videoPath}`)} download style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
                             <Download sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('download')}</strong>
                         </a>

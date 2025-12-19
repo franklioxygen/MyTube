@@ -20,10 +20,9 @@ import {
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 interface UpNextSidebarProps {
     relatedVideos: Video[];
@@ -35,6 +34,7 @@ interface UpNextSidebarProps {
 
 const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const [isImageLoaded, setIsImageLoaded] = useState(false);
+    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
 
     return (
         <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
@@ -63,9 +63,7 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     // The image is always rendered but hidden until loaded
                 }}
                 onLoad={() => setIsImageLoaded(true)}
-                image={video.thumbnailPath && (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://"))
-                    ? video.thumbnailPath
-                    : `${BACKEND_URL}${video.thumbnailPath}`}
+                image={thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/168x94?text=No+Thumbnail'}
                 alt={video.title}
                 onError={(e) => {
                     setIsImageLoaded(true);

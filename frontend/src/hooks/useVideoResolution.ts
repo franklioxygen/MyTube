@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Video } from '../types';
+import { useCloudStorageUrl } from './useCloudStorageUrl';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -51,23 +52,19 @@ export const formatResolution = (video: Video): string | null => {
 export const useVideoResolution = (video: Video) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [detectedResolution, setDetectedResolution] = useState<string | null>(null);
+    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     useEffect(() => {
         const videoElement = videoRef.current;
-        const videoSrc = video.videoPath || video.sourceUrl;
+        const videoSrc = videoUrl || video.sourceUrl;
         if (!videoElement || !videoSrc) {
             setDetectedResolution(null);
             return;
         }
 
         // Set the video source
-        const fullVideoUrl = video.videoPath
-            ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
-                ? video.videoPath
-                : `${BACKEND_URL}${video.videoPath}`)
-            : video.sourceUrl;
-        if (videoElement.src !== fullVideoUrl) {
-            videoElement.src = fullVideoUrl;
+        if (videoElement.src !== videoSrc) {
+            videoElement.src = videoSrc;
             videoElement.load(); // Force reload
         }
 
@@ -104,7 +101,7 @@ export const useVideoResolution = (video: Video) => {
             videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
             videoElement.removeEventListener('error', handleError);
         };
-    }, [video.videoPath, video.sourceUrl, video.id]);
+    }, [videoUrl, video.sourceUrl, video.id]);
 
     // Try to get resolution from video object first, fallback to detected resolution
     const resolutionFromObject = formatResolution(video);

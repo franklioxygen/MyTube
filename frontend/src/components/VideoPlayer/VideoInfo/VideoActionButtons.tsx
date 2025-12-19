@@ -5,6 +5,7 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 import { useShareVideo } from '../../../hooks/useShareVideo';
+import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Video } from '../../../types';
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
 
@@ -28,8 +29,15 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
+    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     const getVideoUrl = (): string => {
+        // If we have a cloud storage URL, use it directly
+        if (videoUrl) {
+            return videoUrl;
+        }
+        
+        // Otherwise, construct URL from videoPath
         if (video.videoPath) {
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
             
@@ -38,7 +46,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             // when accessed remotely, so window.location.origin is the correct base URL
             return `${window.location.origin}${videoPath}`;
         }
-        return video.sourceUrl;
+        return video.sourceUrl || '';
     };
 
     const handlePlayerMenuOpen = (event: React.MouseEvent<HTMLElement>) => {

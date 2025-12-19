@@ -30,10 +30,26 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+// Component for thumbnail with cloud storage support
+const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
+    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
+    const src = thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
+    
+    return (
+        <Box
+            component="img"
+            src={src}
+            alt={video.title}
+            sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
+        />
+    );
+};
 
 interface VideosTableProps {
     displayedVideos: Video[];
@@ -100,14 +116,6 @@ const VideosTable: React.FC<VideosTableProps> = ({
         setEditTitle('');
     };
 
-    const getThumbnailSrc = (video: Video) => {
-        if (video.thumbnailPath) {
-            return video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
-                ? video.thumbnailPath
-                : `${BACKEND_URL}${video.thumbnailPath}`;
-        }
-        return video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
-    };
 
     return (
         <Box>
@@ -177,12 +185,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell sx={{ width: 140 }}>
                                         <Box sx={{ position: 'relative', width: 120, height: 68 }}>
                                             <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
-                                                <Box
-                                                    component="img"
-                                                    src={getThumbnailSrc(video)}
-                                                    alt={video.title}
-                                                    sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
-                                                />
+                                                <ThumbnailImage video={video} />
                                             </Link>
                                             {!visitorMode && (
                                                 <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>

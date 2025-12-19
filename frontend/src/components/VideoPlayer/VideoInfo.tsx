@@ -1,6 +1,7 @@
 import { Alert, Box, Divider, Stack } from '@mui/material';
 import React from 'react';
 import { useVideoResolution } from '../../hooks/useVideoResolution';
+import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../types';
 import EditableTitle from './VideoInfo/EditableTitle';
 import VideoActionButtons from './VideoInfo/VideoActionButtons';
@@ -48,18 +49,15 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onUnsubscribe
 }) => {
     const { videoRef, videoResolution } = useVideoResolution(video);
+    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     return (
         <Box sx={{ mt: 2 }}>
             {/* Hidden video element to get resolution */}
-            {(video.videoPath || video.sourceUrl) && (
+            {(videoUrl || video.sourceUrl) && (
                 <video
                     ref={videoRef}
-                    src={video.videoPath 
-                        ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
-                            ? video.videoPath
-                            : `${BACKEND_URL}${video.videoPath}`)
-                        : video.sourceUrl}
+                    src={videoUrl || video.sourceUrl}
                     style={{ 
                         position: 'absolute',
                         width: '1px',

@@ -20,13 +20,12 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext'; // Added
 import { useShareVideo } from '../hooks/useShareVideo'; // Added
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { formatDuration, parseDuration } from '../utils/formatUtils';
 import CollectionModal from './CollectionModal';
 import ConfirmationModal from './ConfirmationModal';
 import VideoKebabMenuButtons from './VideoPlayer/VideoInfo/VideoKebabMenuButtons'; // Added
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 interface VideoCardProps {
     video: Video;
@@ -90,12 +89,12 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
 
 
-    // Use local thumbnail if available, otherwise fall back to the original URL
-    const thumbnailSrc = video.thumbnailPath
-        ? (video.thumbnailPath.startsWith("http://") || video.thumbnailPath.startsWith("https://")
-            ? video.thumbnailPath
-            : `${BACKEND_URL}${video.thumbnailPath}`)
-        : video.thumbnailUrl;
+    // Use cloud storage hook for thumbnail URL
+    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
+    const thumbnailSrc = thumbnailUrl || video.thumbnailUrl;
+    
+    // Use cloud storage hook for video URL
+    const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     // Handle author click
     const handleAuthorClick = (e: React.MouseEvent) => {
@@ -295,13 +294,11 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 >
                     <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>
                         {/* Video Element (only shown on hover) */}
-                        {isHovered && video.videoPath && (
+                        {isHovered && videoUrl && (
                             <Box
                                 component="video"
                                 ref={videoRef}
-                                src={video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
-                                    ? video.videoPath
-                                    : `${BACKEND_URL}${video.videoPath}`}
+                                src={videoUrl}
                                 muted
                                 autoPlay
                                 playsInline

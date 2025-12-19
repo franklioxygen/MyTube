@@ -21,6 +21,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
 const API_URL = import.meta.env.VITE_API_URL;
@@ -104,6 +105,9 @@ const VideoPlayer: React.FC = () => {
     const autoLoop = settings?.defaultAutoLoop || false;
     const availableTags = Array.isArray(settings?.tags) ? settings.tags : [];
     const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
+
+    // Get cloud storage URLs
+    const videoUrl = useCloudStorageUrl(video?.videoPath, 'video');
 
     // Fetch comments
     const { data: comments = [], isLoading: loadingComments } = useQuery({
@@ -539,11 +543,7 @@ const VideoPlayer: React.FC = () => {
                 {/* Main Content Column */}
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
-                        src={video.videoPath
-                            ? (video.videoPath.startsWith("http://") || video.videoPath.startsWith("https://")
-                                ? video.videoPath
-                                : `${BACKEND_URL}${video.videoPath}`)
-                            : video.sourceUrl}
+                        src={videoUrl || video?.sourceUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
                         onTimeUpdate={handleTimeUpdate}
