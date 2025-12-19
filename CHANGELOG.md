@@ -1,5 +1,20 @@
 # Change Log
 
+## v1.6.17 (2025-12-18)
+
+### Feat
+
+- feat: Add video deletion functionality (8719186)
+- feat: Add VideoKebabMenuButtons component (cf5a48a)
+
+### Style
+
+- style: Improve VideoCard layout styling and responsiveness (dfd4310)
+
+### Test
+
+- test: Pass delete handler to menu in VideoCard (a20964e)
+
 ## v1.6.16 (2025-12-18)
 
 ### Style
