@@ -7,8 +7,9 @@ interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;
     onShare: () => void;
     onAddToCollection: () => void;
-    onDelete: () => void;
+    onDelete?: () => void;
     isDeleting?: boolean;
+    sx?: any;
 }
 
 const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
@@ -16,13 +17,15 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     onShare,
     onAddToCollection,
     onDelete,
-    isDeleting = false
+    isDeleting = false,
+    sx
 }) => {
     const { t } = useLanguage();
     const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
     const handleKebabMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
         setKebabMenuAnchor(event.currentTarget);
+        event.stopPropagation();
     };
 
     const handleKebabMenuClose = () => {
@@ -50,17 +53,31 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
 
     const handleDelete = () => {
         handleKebabMenuClose();
-        onDelete();
+        if (onDelete) onDelete();
     };
+
+    // Close menu on scroll
+    React.useEffect(() => {
+        if (Boolean(kebabMenuAnchor)) {
+            const handleScroll = () => {
+                handleKebabMenuClose();
+            };
+            window.addEventListener('scroll', handleScroll, { capture: true });
+            return () => {
+                window.removeEventListener('scroll', handleScroll, { capture: true });
+            };
+        }
+    }, [kebabMenuAnchor]);
 
     return (
         <>
             <Tooltip title="More actions">
                 <IconButton
                     onClick={handleKebabMenuOpen}
-                    sx={{ 
-                        color: kebabMenuAnchor ? 'primary.main' : 'text.secondary', 
-                        '&:hover': { color: 'primary.main' } 
+                    sx={{
+                        color: kebabMenuAnchor ? 'primary.main' : 'text.secondary',
+                        '&:hover': { color: 'primary.main' },
+                        ...sx
                     }}
                 >
                     <MoreVert />
@@ -70,6 +87,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                 anchorEl={kebabMenuAnchor}
                 open={Boolean(kebabMenuAnchor)}
                 onClose={handleKebabMenuClose}
+                disableScrollLock
                 anchorOrigin={{
                     vertical: 'bottom',
                     horizontal: 'right',
@@ -119,17 +137,19 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                             <Add />
                         </Button>
                     </Tooltip>
-                    <Tooltip title={t('delete')}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                        >
-                            <Delete />
-                        </Button>
-                    </Tooltip>
+                    {onDelete && (
+                        <Tooltip title={t('delete')}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                            >
+                                <Delete />
+                            </Button>
+                        </Tooltip>
+                    )}
                 </Stack>
             </Menu>
         </>

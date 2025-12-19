@@ -39,7 +39,8 @@ const Home: React.FC = () => {
         error,
         availableTags,
         selectedTags,
-        handleTagToggle
+        handleTagToggle,
+        deleteVideo // Added
     } = useVideo();
     const { collections } = useCollection();
 
@@ -536,6 +537,8 @@ const Home: React.FC = () => {
                                                     video={video}
                                                     collections={collections}
                                                     disableCollectionGrouping={true}
+                                                    onDeleteVideo={deleteVideo}
+                                                    showDeleteButton={true}
                                                 />
                                             </Grid>
                                         );
@@ -562,6 +565,8 @@ const Home: React.FC = () => {
                                             <VideoCard
                                                 video={video}
                                                 collections={collections}
+                                                onDeleteVideo={deleteVideo}
+                                                showDeleteButton={true}
                                             />
                                         </Grid>
                                     );

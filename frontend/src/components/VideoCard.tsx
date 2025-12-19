@@ -1,6 +1,4 @@
 import {
-    Add,
-    Delete,
     Folder
 } from '@mui/icons-material';
 import {
@@ -10,7 +8,7 @@ import {
     CardContent,
     CardMedia,
     Chip,
-    IconButton,
+    Menu, MenuItem,
     Skeleton,
     Typography,
     useMediaQuery,
@@ -20,10 +18,13 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext'; // Added
+import { useShareVideo } from '../hooks/useShareVideo'; // Added
 import { Collection, Video } from '../types';
 import { formatDuration, parseDuration } from '../utils/formatUtils';
 import CollectionModal from './CollectionModal';
 import ConfirmationModal from './ConfirmationModal';
+import VideoKebabMenuButtons from './VideoPlayer/VideoInfo/VideoKebabMenuButtons'; // Added
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -53,6 +54,13 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const [isImageLoaded, setIsImageLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    // New state for player menu
+    const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
+
+    // Hooks for share and snackbar
+    const { handleShare } = useShareVideo(video);
+    const { showSnackbar } = useSnackbar();
 
 
 
@@ -108,13 +116,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
         }
     };
 
-    // Handle delete click
-    const handleDeleteClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!onDeleteVideo) return;
-        setShowDeleteModal(true);
-    };
-
     // Find collections this video belongs to
     const videoCollections = collections.filter(collection =>
         collection.videos.includes(video.id)
@@ -147,6 +148,97 @@ const VideoCard: React.FC<VideoCardProps> = ({
     };
 
 
+    // Player Logic
+    const getVideoUrl = (): string => {
+        if (video.videoPath) {
+            const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
+            return `${window.location.origin}${videoPath}`;
+        }
+        return video.sourceUrl;
+    };
+
+    const handlePlayerMenuClose = () => {
+        setPlayerMenuAnchor(null);
+    };
+
+    const handlePlayerSelect = (player: string) => {
+        const videoUrl = getVideoUrl();
+
+        try {
+            let playerUrl = '';
+
+            switch (player) {
+                case 'vlc':
+                    playerUrl = `vlc://${videoUrl}`;
+                    break;
+                case 'iina':
+                    playerUrl = `iina://weblink?url=${encodeURIComponent(videoUrl)}`;
+                    break;
+                case 'mpv':
+                    playerUrl = `mpv://${videoUrl}`;
+                    break;
+                case 'potplayer':
+                    playerUrl = `potplayer://${videoUrl}`;
+                    break;
+                case 'infuse':
+                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(videoUrl)}`;
+                    break;
+                case 'copy':
+                    // Copy URL to clipboard
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(videoUrl).then(() => {
+                            showSnackbar(t('linkCopied'), 'success');
+                        }).catch(() => {
+                            showSnackbar(t('copyFailed'), 'error');
+                        });
+                    } else {
+                        // Fallback
+                        const textArea = document.createElement("textarea");
+                        textArea.value = videoUrl;
+                        textArea.style.position = "fixed";
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        try {
+                            const successful = document.execCommand('copy');
+                            if (successful) {
+                                showSnackbar(t('linkCopied'), 'success');
+                            } else {
+                                showSnackbar(t('copyFailed'), 'error');
+                            }
+                        } catch (err) {
+                            showSnackbar(t('copyFailed'), 'error');
+                        }
+                        document.body.removeChild(textArea);
+                    }
+                    handlePlayerMenuClose();
+                    return;
+                default:
+                    return;
+            }
+
+            // Try to open the player URL using a hidden anchor element
+            const link = document.createElement('a');
+            link.href = playerUrl;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Show a message after a short delay
+            setTimeout(() => {
+                showSnackbar(t('openInExternalPlayer'), 'info');
+            }, 500);
+
+        } catch (error) {
+            console.error('Error opening player:', error);
+            showSnackbar(t('copyFailed'), 'error');
+        }
+
+        handlePlayerMenuClose();
+    };
+
+
 
     // Collections Logic (State and Handlers)
     const { collections: allCollections, addToCollection, createCollection, removeFromCollection } = useCollection();
@@ -165,11 +257,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const handleRemoveFromCollection = async () => {
         if (!video.id) return;
         await removeFromCollection(video.id);
-    };
-
-    const handleAddClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowCollectionModal(true);
     };
 
     // Calculate collections that contain THIS video
@@ -378,53 +465,55 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     </CardContent>
                 </CardActionArea>
 
-                {showDeleteButton && onDeleteVideo && !isMobile && (
-                    <IconButton
-                        className="delete-btn"
-                        onClick={handleDeleteClick}
-                        disabled={isDeleting}
-                        size="small"
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 10,
+                        opacity: (!isMobile && !isTouch && !isHovered) ? 0 : 1, // Show on hover for desktop, always for mobile/touch if needed (though usually kebab is cleaner hidden until interaction or hover? Let's stick to hover for desktop)
+                        transition: 'opacity 0.2s',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <VideoKebabMenuButtons
+                        onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}
+                        onShare={handleShare}
+                        onAddToCollection={() => setShowCollectionModal(true)}
+                        onDelete={(showDeleteButton && onDeleteVideo) ? () => setShowDeleteModal(true) : undefined}
+                        isDeleting={isDeleting}
                         sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            bgcolor: 'rgba(0,0,0,0.6)',
                             color: 'white',
-                            opacity: 0, // Hidden by default, shown on hover
-                            transition: 'opacity 0.2s',
-                            '&:hover': {
-                                bgcolor: 'error.main',
-                            },
-                            zIndex: 2
-                        }}
-                    >
-                        <Delete fontSize="small" />
-                    </IconButton>
-                )}
-
-                {!isMobile && !isTouch && (
-                    <IconButton
-                        className="add-btn"
-                        onClick={handleAddClick}
-                        size="small"
-                        sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: showDeleteButton ? 40 : 8, // Shift left if delete button is present
                             bgcolor: 'rgba(0,0,0,0.6)',
-                            color: 'white',
-                            opacity: 0, // Hidden by default, shown on hover
-                            transition: 'opacity 0.2s',
                             '&:hover': {
-                                bgcolor: 'primary.main',
-                            },
-                            zIndex: 2
+                                bgcolor: 'rgba(0,0,0,0.8)',
+                                color: 'primary.main'
+                            }
                         }}
-                    >
-                        <Add fontSize="small" />
-                    </IconButton>
-                )}
+                    />
+                </Box>
             </Card>
+
+            <Menu
+                anchorEl={playerMenuAnchor}
+                open={Boolean(playerMenuAnchor)}
+                onClose={handlePlayerMenuClose}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right', // Align right for the card menu
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+            >
+                <MenuItem onClick={() => handlePlayerSelect('vlc')}>VLC</MenuItem>
+                <MenuItem onClick={() => handlePlayerSelect('iina')}>IINA</MenuItem>
+                <MenuItem onClick={() => handlePlayerSelect('mpv')}>mpv</MenuItem>
+                <MenuItem onClick={() => handlePlayerSelect('potplayer')}>PotPlayer</MenuItem>
+                <MenuItem onClick={() => handlePlayerSelect('infuse')}>Infuse</MenuItem>
+                <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
+            </Menu>
 
             <ConfirmationModal
                 isOpen={showDeleteModal}
