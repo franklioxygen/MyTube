@@ -89,11 +89,11 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                 onClose={handleKebabMenuClose}
                 disableScrollLock
                 anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'right',
+                    vertical: 'center',
+                    horizontal: 'left',
                 }}
                 transformOrigin={{
-                    vertical: 'top',
+                    vertical: 'center',
                     horizontal: 'right',
                 }}
                 slotProps={{
@@ -102,6 +102,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                             minWidth: 'auto',
                             p: 1,
                             px: 2,
+                            borderRadius: 4,
                         }
                     }
                 }}

@@ -30,6 +30,30 @@ vi.mock('../../contexts/CollectionContext', () => ({
     }),
 }));
 
+const mockHandleShare = vi.fn();
+vi.mock('../../hooks/useShareVideo', () => ({
+    useShareVideo: () => ({
+        handleShare: mockHandleShare,
+    }),
+}));
+
+const mockShowSnackbar = vi.fn();
+vi.mock('../../contexts/SnackbarContext', () => ({
+    useSnackbar: () => ({
+        showSnackbar: mockShowSnackbar,
+    }),
+}));
+
+// Mock the child component to avoid sizing/visibility issues in JSDOM
+// and to easily verify props passed to it
+vi.mock('../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
+    default: ({ onDelete }: { onDelete?: () => void }) => (
+        <div data-testid="kebab-menu">
+            {onDelete && <button onClick={onDelete}>Delete Mock</button>}
+        </div>
+    )
+}));
+
 describe('VideoCard', () => {
     const mockVideo: Video = {
         id: '123',
@@ -71,7 +95,7 @@ describe('VideoCard', () => {
         expect(screen.getByText('2023-01-01')).toBeInTheDocument();
     });
 
-    it('renders delete button when prop is true', () => {
+    it('passes delete handler to menu when showDeleteButton is true', () => {
         const onDelete = vi.fn();
         const theme = createTheme();
         render(
@@ -80,20 +104,15 @@ describe('VideoCard', () => {
             </ThemeProvider>
         );
 
-        // Delete button is hidden by default (opacity 0) but exists in DOM
-        // We'll rely on finding it by role/icon since opacity doesn't remove it from DOM
-        // In MUI IconButton usually has type="button"
+        // Check if our mock Kebab Menu rendered and received the delete prop
+        const mockDeleteBtn = screen.getByText('Delete Mock');
+        expect(mockDeleteBtn).toBeInTheDocument();
 
-        // It's tricky to distinguish "delete" from "add" by text since they are icons.
-        // We can inspect the implementation or just verify "button" count if simple.
-        // Or look for svg/icon.
+        // Click it to trigger the callback passed to KebabMenu -> which triggers setShowDeleteModal(true)
+        fireEvent.click(mockDeleteBtn);
 
-        // However, the component relies on `isMobile` check from useMediaQuery.
-        // jsdom default media query might make it behave like desktop?
-        // Let's assume desktop for now.
-
-        const buttons = screen.getAllByRole('button');
-        expect(buttons.length).toBeGreaterThan(0);
+        // Expect confirmation modal to appear
+        expect(screen.getByText('deleteVideo')).toBeInTheDocument();
     });
 
     it('navigates to video player on click', () => {
@@ -103,10 +122,6 @@ describe('VideoCard', () => {
                 <VideoCard video={mockVideo} />
             </ThemeProvider>
         );
-
-        const cardAction = screen.getByRole('button', { name: /Test Video/i });
-        // CardActionArea behaves like a button or link.
-        // If getting by role fails, we can try clicking the text.
 
         fireEvent.click(screen.getByText('Test Video'));
         expect(mockNavigate).toHaveBeenCalledWith('/video/123');
