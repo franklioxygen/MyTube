@@ -2,6 +2,7 @@ import { Settings, VideoLibrary } from '@mui/icons-material';
 import { Box, Button, Collapse, Stack } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Collection, Video } from '../../types';
 import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
@@ -44,24 +45,27 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onTagToggle
 }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
 
     return (
         <Collapse in={open} sx={{ width: '100%' }}>
             <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
                 <Stack spacing={2} sx={{ py: 2 }}>
                     {/* Row 1: Search Input */}
-                    <Box>
-                        <SearchInput
-                            videoUrl={videoUrl}
-                            setVideoUrl={setVideoUrl}
-                            isSubmitting={isSubmitting}
-                            error={error}
-                            isSearchMode={isSearchMode}
-                            searchTerm={searchTerm}
-                            onResetSearch={onResetSearch}
-                            onSubmit={onSubmit}
-                        />
-                    </Box>
+                    {!visitorMode && (
+                        <Box>
+                            <SearchInput
+                                videoUrl={videoUrl}
+                                setVideoUrl={setVideoUrl}
+                                isSubmitting={isSubmitting}
+                                error={error}
+                                isSearchMode={isSearchMode}
+                                searchTerm={searchTerm}
+                                onResetSearch={onResetSearch}
+                                onSubmit={onSubmit}
+                            />
+                        </Box>
+                    )}
 
                     {/* Mobile Navigation Buttons */}
                     <Box sx={{ display: 'flex', gap: 2 }}>

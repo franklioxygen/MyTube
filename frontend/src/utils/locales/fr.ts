@@ -116,6 +116,9 @@ export const fr = {
     "Impossible de nettoyer pendant que des téléchargements sont actifs. Veuillez attendre la fin de tous les téléchargements ou les annuler d'abord.",
   itemsPerPage: "Éléments par page",
   itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
+  showYoutubeSearch: "Afficher les résultats de recherche YouTube",
+  visitorMode: "Mode Visiteur (Lecture seule)",
+  visitorModeReadOnly: "Mode visiteur : Lecture seule",
   cleanupTempFilesSuccess:
     "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
   cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",

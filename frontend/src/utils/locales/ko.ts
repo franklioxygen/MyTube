@@ -109,6 +109,9 @@ export const ko = {
     "다운로드가 진행되는 동안 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하십시오.",
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
+  showYoutubeSearch: "YouTube 검색 결과 표시",
+  visitorMode: "방문자 모드 (읽기 전용)",
+  visitorModeReadOnly: "방문자 모드: 읽기 전용",
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
 

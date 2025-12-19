@@ -27,6 +27,7 @@ import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVisitorMode } from '../contexts/VisitorModeContext';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
@@ -38,6 +39,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
+    const { visitorMode } = useVisitorMode();
 
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
@@ -467,122 +469,138 @@ const SettingsPage: React.FC = () => {
             <Card variant="outlined">
                 <CardContent>
                     <Grid container spacing={4}>
-                        {/* General Settings */}
+                        {/* General Settings - Only show visitor mode toggle when visitor mode is enabled */}
                         <Grid size={12}>
-                            <GeneralSettings
-                                language={settings.language}
-                                websiteName={settings.websiteName}
-                                itemsPerPage={settings.itemsPerPage}
-                                showYoutubeSearch={settings.showYoutubeSearch}
-                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                            />
+                            {visitorMode ? (
+                                <GeneralSettings
+                                    language={settings.language}
+                                    websiteName={settings.websiteName}
+                                    itemsPerPage={settings.itemsPerPage}
+                                    showYoutubeSearch={settings.showYoutubeSearch}
+                                    visitorMode={settings.visitorMode}
+                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                                />
+                            ) : (
+                                <GeneralSettings
+                                    language={settings.language}
+                                    websiteName={settings.websiteName}
+                                    itemsPerPage={settings.itemsPerPage}
+                                    showYoutubeSearch={settings.showYoutubeSearch}
+                                    visitorMode={settings.visitorMode}
+                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                                />
+                            )}
                         </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                        {!visitorMode && (
+                            <>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Cookie Upload Settings */}
-                        <Grid size={12}>
-                            <CookieSettings
-                                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                                onError={(msg) => setMessage({ text: msg, type: 'error' })}
-                            />
-                        </Grid>
+                                {/* Cookie Upload Settings */}
+                                <Grid size={12}>
+                                    <CookieSettings
+                                        onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                                        onError={(msg) => setMessage({ text: msg, type: 'error' })}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Security Settings */}
-                        <Grid size={12}>
-                            <SecuritySettings
-                                settings={settings}
-                                onChange={handleChange}
-                            />
-                        </Grid>
+                                {/* Security Settings */}
+                                <Grid size={12}>
+                                    <SecuritySettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Video Defaults */}
-                        <Grid size={12}>
-                            <VideoDefaultSettings
-                                settings={settings}
-                                onChange={handleChange}
-                            />
-                        </Grid>
+                                {/* Video Defaults */}
+                                <Grid size={12}>
+                                    <VideoDefaultSettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Tags Management */}
-                        <Grid size={12}>
-                            <TagsSettings
-                                tags={Array.isArray(settings.tags) ? settings.tags : []}
-                                onTagsChange={handleTagsChange}
-                            />
-                        </Grid>
+                                {/* Tags Management */}
+                                <Grid size={12}>
+                                    <TagsSettings
+                                        tags={Array.isArray(settings.tags) ? settings.tags : []}
+                                        onTagsChange={handleTagsChange}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Download Settings */}
-                        <Grid size={12}>
-                            <DownloadSettings
-                                settings={settings}
-                                onChange={handleChange}
-                                activeDownloadsCount={activeDownloads.length}
-                                onCleanup={() => setShowCleanupTempFilesModal(true)}
-                                isSaving={isSaving}
-                            />
-                        </Grid>
+                                {/* Download Settings */}
+                                <Grid size={12}>
+                                    <DownloadSettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                        activeDownloadsCount={activeDownloads.length}
+                                        onCleanup={() => setShowCleanupTempFilesModal(true)}
+                                        isSaving={isSaving}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Cloud Drive Settings */}
-                        <Grid size={12}>
-                            <CloudDriveSettings
-                                settings={settings}
-                                onChange={handleChange}
-                            />
-                        </Grid>
+                                {/* Cloud Drive Settings */}
+                                <Grid size={12}>
+                                    <CloudDriveSettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Database Settings */}
-                        <Grid size={12}>
-                            <DatabaseSettings
-                                onMigrate={() => setShowMigrateConfirmModal(true)}
-                                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
-                                onFormatFilenames={() => setShowFormatConfirmModal(true)}
-                                onExportDatabase={handleExportDatabase}
-                                onImportDatabase={handleImportDatabase}
-                                onCleanupBackupDatabases={handleCleanupBackupDatabases}
-                                onRestoreFromLastBackup={handleRestoreFromLastBackup}
-                                isSaving={isSaving}
-                                lastBackupInfo={lastBackupInfo}
-                                moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-                                onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
-                                moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-                                onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-                            />
-                        </Grid>
+                                {/* Database Settings */}
+                                <Grid size={12}>
+                                    <DatabaseSettings
+                                        onMigrate={() => setShowMigrateConfirmModal(true)}
+                                        onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                                        onFormatFilenames={() => setShowFormatConfirmModal(true)}
+                                        onExportDatabase={handleExportDatabase}
+                                        onImportDatabase={handleImportDatabase}
+                                        onCleanupBackupDatabases={handleCleanupBackupDatabases}
+                                        onRestoreFromLastBackup={handleRestoreFromLastBackup}
+                                        isSaving={isSaving}
+                                        lastBackupInfo={lastBackupInfo}
+                                        moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
+                                        onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
+                                        moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
+                                        onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* yt-dlp Configuration */}
-                        <Grid size={12}>
-                            <YtDlpSettings
-                                config={settings.ytDlpConfig || ''}
-                                proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                                onChange={(config) => handleChange('ytDlpConfig', config)}
-                                onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
-                            />
-                        </Grid>
+                                {/* yt-dlp Configuration */}
+                                <Grid size={12}>
+                                    <YtDlpSettings
+                                        config={settings.ytDlpConfig || ''}
+                                        proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
+                                        onChange={(config) => handleChange('ytDlpConfig', config)}
+                                        onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                                    />
+                                </Grid>
 
-                        <Grid size={12}><Divider /></Grid>
+                                <Grid size={12}><Divider /></Grid>
 
-                        {/* Advanced Settings */}
-                        <Grid size={12}>
-                            <AdvancedSettings
-                                debugMode={debugMode}
-                                onDebugModeChange={setDebugMode}
-                            />
-                        </Grid>
+                                {/* Advanced Settings */}
+                                <Grid size={12}>
+                                    <AdvancedSettings
+                                        debugMode={debugMode}
+                                        onDebugModeChange={setDebugMode}
+                                    />
+                                </Grid>
+                            </>
+                        )}
 
                     </Grid>
                 </CardContent>

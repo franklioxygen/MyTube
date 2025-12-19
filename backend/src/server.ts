@@ -11,6 +11,8 @@ import apiRoutes from "./routes/api";
 import settingsRoutes from "./routes/settingsRoutes";
 import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
+import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
+import { visitorModeSettingsMiddleware } from "./middleware/visitorModeSettingsMiddleware";
 import { logger } from "./utils/logger";
 import { VERSION } from "./version";
 
@@ -186,8 +188,10 @@ const startServer = async () => {
     );
 
     // API Routes
-    app.use("/api", apiRoutes);
-    app.use("/api/settings", settingsRoutes);
+    // Apply visitor mode middleware to all API routes
+    app.use("/api", visitorModeMiddleware, apiRoutes);
+    // Use separate middleware for settings that allows disabling visitor mode
+    app.use("/api/settings", visitorModeSettingsMiddleware, settingsRoutes);
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

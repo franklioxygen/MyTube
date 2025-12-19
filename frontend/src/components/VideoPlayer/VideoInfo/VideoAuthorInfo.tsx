@@ -2,6 +2,7 @@ import { Notifications, NotificationsActive } from '@mui/icons-material';
 import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 
 interface VideoAuthorInfoProps {
     author: string;
@@ -36,7 +37,8 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     onUnsubscribe
 }) => {
     const { t } = useLanguage();
-    const showSubscribeButton = source === 'youtube' || source === 'bilibili';
+    const { visitorMode } = useVisitorMode();
+    const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !visitorMode;
 
     const handleSubscribeClick = (e: React.MouseEvent) => {
         e.stopPropagation();

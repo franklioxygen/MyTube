@@ -101,7 +101,11 @@ export const de = {
   cleanupTempFilesDescription:
     "Alle temporären Download-Dateien (.ytdl, .part) aus dem Upload-Verzeichnis entfernen. Dies hilft, Speicherplatz von unvollständigen oder abgebrochenen Downloads freizugeben.",
   cleanupTempFilesConfirmTitle: "Temporäre Dateien bereinigen?",
+  itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
+  showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
+  visitorMode: "Besuchermodus (Nur-Lesen)",
+  visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 

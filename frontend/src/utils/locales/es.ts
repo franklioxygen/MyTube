@@ -117,6 +117,9 @@ export const es = {
   itemsPerPage: "Elementos por página",
   itemsPerPageHelper:
     "Número de videos para mostrar por página (Predeterminado: 12)",
+  showYoutubeSearch: "Mostrar resultados de búsqueda de YouTube",
+  visitorMode: "Modo Visitante (Solo lectura)",
+  visitorModeReadOnly: "Modo visitante: Solo lectura",
   cleanupTempFilesSuccess:
     "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
   cleanupTempFilesFailed: "Error al limpiar archivos temporales",

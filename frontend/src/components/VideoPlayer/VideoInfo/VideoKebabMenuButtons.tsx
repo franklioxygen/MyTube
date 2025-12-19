@@ -2,6 +2,7 @@ import { Add, Cast, Delete, MoreVert, Share } from '@mui/icons-material';
 import { Button, IconButton, Menu, Stack, Tooltip } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 
 interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;
@@ -21,6 +22,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     sx
 }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
     const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
     const handleKebabMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -128,28 +130,32 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                             <Share />
                         </Button>
                     </Tooltip>
-                    <Tooltip title={t('addToCollection')}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={handleAddToCollection}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                        >
-                            <Add />
-                        </Button>
-                    </Tooltip>
-                    {onDelete && (
-                        <Tooltip title={t('delete')}>
-                            <Button
-                                variant="outlined"
-                                color="inherit"
-                                onClick={handleDelete}
-                                disabled={isDeleting}
-                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                            >
-                                <Delete />
-                            </Button>
-                        </Tooltip>
+                    {!visitorMode && (
+                        <>
+                            <Tooltip title={t('addToCollection')}>
+                                <Button
+                                    variant="outlined"
+                                    color="inherit"
+                                    onClick={handleAddToCollection}
+                                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                                >
+                                    <Add />
+                                </Button>
+                            </Tooltip>
+                            {onDelete && (
+                                <Tooltip title={t('delete')}>
+                                    <Button
+                                        variant="outlined"
+                                        color="inherit"
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                                    >
+                                        <Delete />
+                                    </Button>
+                                </Tooltip>
+                            )}
+                        </>
                     )}
                 </Stack>
             </Menu>

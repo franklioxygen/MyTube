@@ -265,6 +265,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
     return (
         <>
             <Card
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
                 sx={{
                     height: '100%',
                     display: 'flex',
@@ -289,8 +291,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
             >
                 <CardActionArea
                     onClick={handleVideoNavigation}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
                     sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}
                 >
                     <Box sx={{ position: 'relative', paddingTop: '56.25%' /* 16:9 aspect ratio */ }}>

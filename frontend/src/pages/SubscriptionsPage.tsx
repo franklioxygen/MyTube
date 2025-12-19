@@ -17,6 +17,7 @@ import React, { useEffect, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { useVisitorMode } from '../contexts/VisitorModeContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -35,6 +36,7 @@ interface Subscription {
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const { visitorMode } = useVisitorMode();
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
     const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
@@ -94,13 +96,13 @@ const SubscriptionsPage: React.FC = () => {
                             <TableCell>{t('interval')}</TableCell>
                             <TableCell>{t('lastCheck')}</TableCell>
                             <TableCell>{t('downloads')}</TableCell>
-                            <TableCell align="right">{t('actions')}</TableCell>
+                            {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {subscriptions.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} align="center">
+                                <TableCell colSpan={visitorMode ? 5 : 6} align="center">
                                     <Typography color="text.secondary" sx={{ py: 4 }}>
                                         {t('noVideos')} {/* Reusing "No videos found" or similar if "No subscriptions" key missing */}
                                     </Typography>
@@ -123,15 +125,17 @@ const SubscriptionsPage: React.FC = () => {
                                     <TableCell>{sub.interval} {t('minutes')}</TableCell>
                                     <TableCell>{formatDate(sub.lastCheck)}</TableCell>
                                     <TableCell>{sub.downloadCount}</TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            color="error"
-                                            onClick={() => handleUnsubscribeClick(sub.id, sub.author)}
-                                            title={t('unsubscribe')}
-                                        >
-                                            <Delete />
-                                        </IconButton>
-                                    </TableCell>
+                                    {!visitorMode && (
+                                        <TableCell align="right">
+                                            <IconButton
+                                                color="error"
+                                                onClick={() => handleUnsubscribeClick(sub.id, sub.author)}
+                                                title={t('unsubscribe')}
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))
                         )}

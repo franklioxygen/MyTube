@@ -107,6 +107,9 @@ export const ar = {
     "لا يمكن التنظيف أثناء نشاط التنزيلات. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
   itemsPerPage: "عناصر لكل صفحة",
   itemsPerPageHelper: "عدد مقاطع الفيديو المعروضة في كل صفحة (الافتراضي: 12)",
+  showYoutubeSearch: "عرض نتائج بحث YouTube",
+  visitorMode: "وضع الزائر (للقراءة فقط)",
+  visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
   cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
   cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
 

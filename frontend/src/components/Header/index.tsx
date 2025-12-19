@@ -12,6 +12,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
@@ -39,6 +40,7 @@ const Header: React.FC<HeaderProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
     useEffect(() => {
@@ -148,19 +150,21 @@ const Header: React.FC<HeaderProps> = ({
                     {/* Desktop Layout */}
                     {!isMobile && (
                         <>
-                            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
-                                <SearchInput
-                                    videoUrl={videoUrl}
-                                    setVideoUrl={setVideoUrl}
-                                    isSubmitting={isSubmitting}
-                                    error={error}
-                                    isSearchMode={isSearchMode}
-                                    searchTerm={searchTerm}
-                                    onResetSearch={onResetSearch}
-                                    onSubmit={handleSubmit}
-                                />
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+                            {!visitorMode && (
+                                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
+                                    <SearchInput
+                                        videoUrl={videoUrl}
+                                        setVideoUrl={setVideoUrl}
+                                        isSubmitting={isSubmitting}
+                                        error={error}
+                                        isSearchMode={isSearchMode}
+                                        searchTerm={searchTerm}
+                                        onResetSearch={onResetSearch}
+                                        onSubmit={handleSubmit}
+                                    />
+                                </Box>
+                            )}
+                            <Box sx={{ display: 'flex', alignItems: 'center', ml: visitorMode ? 'auto' : 2 }}>
                                 <ActionButtons
                                     activeDownloads={activeDownloads}
                                     queuedDownloads={queuedDownloads}

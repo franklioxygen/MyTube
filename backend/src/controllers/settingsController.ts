@@ -36,6 +36,7 @@ interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
+  visitorMode?: boolean;
 }
 
 const defaultSettings: Settings = {
@@ -54,6 +55,7 @@ const defaultSettings: Settings = {
   websiteName: "MyTube",
   itemsPerPage: 12,
   showYoutubeSearch: true,
+  visitorMode: false,
 };
 
 /**
@@ -160,6 +162,45 @@ export const updateSettings = async (
   res: Response
 ): Promise<void> => {
   const newSettings: Settings = req.body;
+  const existingSettings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...existingSettings };
+
+  // Check if visitor mode is enabled
+  // If visitor mode is enabled, only allow disabling it (setting visitorMode to false)
+  if (mergedSettings.visitorMode === true) {
+    // If visitorMode is being explicitly set to false, allow the update
+    if (newSettings.visitorMode === false) {
+      // Allow disabling visitor mode - merge with existing settings
+      const updatedSettings = { ...mergedSettings, ...newSettings };
+      storageService.saveSettings(updatedSettings);
+      res.json({
+        success: true,
+        settings: { ...updatedSettings, password: undefined },
+      });
+      return;
+    }
+    // If visitorMode is explicitly set to true (already enabled), allow but ignore other changes
+    if (newSettings.visitorMode === true) {
+      // Allow enabling visitor mode (though it's already enabled)
+      // But block all other changes - only update visitorMode
+      const allowedSettings: Settings = {
+        ...mergedSettings,
+        visitorMode: true,
+      };
+      storageService.saveSettings(allowedSettings);
+      res.json({
+        success: true,
+        settings: { ...allowedSettings, password: undefined },
+      });
+      return;
+    }
+    // If visitor mode is enabled and trying to change other settings (without explicitly disabling visitor mode), block it
+    res.status(403).json({
+      success: false,
+      error: "Visitor mode is enabled. Only disabling visitor mode is allowed.",
+    });
+    return;
+  }
 
   // Validate settings if needed
   if (newSettings.maxConcurrentDownloads < 1) {
@@ -181,12 +222,10 @@ export const updateSettings = async (
     newSettings.password = await bcrypt.hash(newSettings.password, salt);
   } else {
     // If password is empty/not provided, keep existing password
-    const existingSettings = storageService.getSettings();
     newSettings.password = existingSettings.password;
   }
 
   // Preserve existing tags if tags are not explicitly provided or are empty when tags existed
-  const existingSettings = storageService.getSettings();
   const oldTags: string[] = existingSettings.tags || [];
 
   // If tags is undefined, preserve existing tags

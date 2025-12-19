@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Video } from '../../types';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
 
@@ -100,6 +101,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
     onAddToCollection
 }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
     const [hoveredVideoId, setHoveredVideoId] = useState<string | null>(null);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -154,7 +156,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                                 </Typography>
                             </Box>
 
-                            {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && (
+                            {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !visitorMode && (
                                 <Tooltip title={t('addToCollection')}>
                                     <IconButton
                                         size="small"

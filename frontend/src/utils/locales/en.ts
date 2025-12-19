@@ -105,6 +105,8 @@ export const en = {
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
+  visitorMode: "Visitor Mode (Read-only)",
+  visitorModeReadOnly: "Visitor mode: Read-only",
   cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
   cleanupTempFilesFailed: "Failed to clean up temporary files",
 

@@ -112,6 +112,9 @@ export const ja = {
     "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
+  showYoutubeSearch: "YouTube検索結果を表示",
+  visitorMode: "ビジターモード（読み取り専用）",
+  visitorModeReadOnly: "ビジターモード：読み取り専用",
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 

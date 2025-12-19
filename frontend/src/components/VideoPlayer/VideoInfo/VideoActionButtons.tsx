@@ -3,6 +3,7 @@ import { Button, Menu, MenuItem, Stack, Tooltip, useMediaQuery, useTheme } from 
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types';
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
@@ -23,6 +24,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const { t } = useLanguage();
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
+    const { visitorMode } = useVisitorMode();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
@@ -169,27 +171,31 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     <Share />
                 </Button>
             </Tooltip>
-            <Tooltip title={t('addToCollection')}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={() => onAddToCollection()}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                >
-                    <Add />
-                </Button>
-            </Tooltip>
-            <Tooltip title={t('delete')}>
-                <Button
-                    variant="outlined"
-                    color="inherit"
-                    onClick={onDelete}
-                    disabled={isDeleting}
-                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                >
-                    <Delete />
-                </Button>
-            </Tooltip>
+            {!visitorMode && (
+                <>
+                    <Tooltip title={t('addToCollection')}>
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            onClick={() => onAddToCollection()}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                        >
+                            <Add />
+                        </Button>
+                    </Tooltip>
+                    <Tooltip title={t('delete')}>
+                        <Button
+                            variant="outlined"
+                            color="inherit"
+                            onClick={onDelete}
+                            disabled={isDeleting}
+                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
+                        >
+                            <Delete />
+                        </Button>
+                    </Tooltip>
+                </>
+            )}
         </Stack>
     );
 

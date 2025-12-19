@@ -2,6 +2,7 @@ import { Check, Close, Edit, ExpandLess, ExpandMore } from '@mui/icons-material'
 import { Box, Button, TextField, Tooltip, Typography } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 
 interface EditableTitleProps {
     title: string;
@@ -10,6 +11,7 @@ interface EditableTitleProps {
 
 const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
     const [isTitleExpanded, setIsTitleExpanded] = useState(false);
@@ -103,15 +105,17 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
                 {title}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Tooltip title={t('editTitle')}>
-                    <Button
-                        size="small"
-                        onClick={handleStartEditingTitle}
-                        sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
-                    >
-                        <Edit fontSize="small" />
-                    </Button>
-                </Tooltip>
+                {!visitorMode && (
+                    <Tooltip title={t('editTitle')}>
+                        <Button
+                            size="small"
+                            onClick={handleStartEditingTitle}
+                            sx={{ minWidth: 'auto', p: 0.5, color: 'text.secondary' }}
+                        >
+                            <Edit fontSize="small" />
+                        </Button>
+                    </Tooltip>
+                )}
                 {showExpandButton && (
                     <Tooltip title={isTitleExpanded ? t('collapse') : t('expand')}>
                         <Button

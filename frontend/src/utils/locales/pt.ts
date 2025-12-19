@@ -112,6 +112,9 @@ export const pt = {
     "Não é possível limpar enquanto houver downloads ativos. Aguarde a conclusão de todos os downloads ou cancele-os primeiro.",
   itemsPerPage: "Itens por página",
   itemsPerPageHelper: "Número de vídeos a mostrar por página (Padrão: 12)",
+  showYoutubeSearch: "Mostrar resultados de pesquisa do YouTube",
+  visitorMode: "Modo Visitante (Somente leitura)",
+  visitorModeReadOnly: "Modo visitante: Somente leitura",
   cleanupTempFilesSuccess:
     "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
   cleanupTempFilesFailed: "Falha ao limpar arquivos temporários",

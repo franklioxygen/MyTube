@@ -29,6 +29,7 @@ import {
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Video } from '../../types';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
 
@@ -72,6 +73,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     onUpdateVideo
 }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
 
     // Local editing state
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -166,7 +168,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         {t('size')}
                                     </TableSortLabel>
                                 </TableCell>
-                                <TableCell align="right">{t('actions')}</TableCell>
+                                {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -182,26 +184,28 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                     sx={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 1 }}
                                                 />
                                             </Link>
-                                            <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => onRefreshThumbnail(video.id)}
-                                                    disabled={refreshingId === video.id}
-                                                    sx={{
-                                                        position: 'absolute',
-                                                        top: 0,
-                                                        right: 0,
-                                                        bgcolor: 'rgba(0,0,0,0.5)',
-                                                        color: 'white',
-                                                        '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                                        p: 0.5,
-                                                        width: 24,
-                                                        height: 24
-                                                    }}
-                                                >
-                                                    {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
-                                                </IconButton>
-                                            </Tooltip>
+                                            {!visitorMode && (
+                                                <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onRefreshThumbnail(video.id)}
+                                                        disabled={refreshingId === video.id}
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            right: 0,
+                                                            bgcolor: 'rgba(0,0,0,0.5)',
+                                                            color: 'white',
+                                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                            p: 0.5,
+                                                            width: 24,
+                                                            height: 24
+                                                        }}
+                                                    >
+                                                        {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
                                         </Box>
                                         <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary', textAlign: 'center' }}>
                                             {formatDuration(video.duration)}
@@ -240,13 +244,15 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             </Box>
                                         ) : (
                                             <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => handleEditClick(video)}
-                                                    sx={{ mr: 1, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
-                                                >
-                                                    <Edit fontSize="small" />
-                                                </IconButton>
+                                                {!visitorMode && (
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleEditClick(video)}
+                                                        sx={{ mr: 1, mt: -0.5, opacity: 0.6, '&:hover': { opacity: 1 } }}
+                                                    >
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                )}
                                                 <Typography
                                                     variant="body2"
                                                     sx={{
@@ -279,17 +285,19 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         </Link>
                                     </TableCell>
                                     <TableCell>{formatSize(video.fileSize)}</TableCell>
-                                    <TableCell align="right">
-                                        <Tooltip title={t('deleteVideo')}>
-                                            <IconButton
-                                                color="error"
-                                                onClick={() => onDeleteClick(video.id)}
-                                                disabled={deletingId === video.id}
-                                            >
-                                                {deletingId === video.id ? <CircularProgress size={24} /> : <Delete />}
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
+                                    {!visitorMode && (
+                                        <TableCell align="right">
+                                            <Tooltip title={t('deleteVideo')}>
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => onDeleteClick(video.id)}
+                                                    disabled={deletingId === video.id}
+                                                >
+                                                    {deletingId === video.id ? <CircularProgress size={24} /> : <Delete />}
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>

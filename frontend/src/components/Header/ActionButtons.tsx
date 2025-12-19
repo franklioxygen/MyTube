@@ -2,6 +2,7 @@ import { Brightness4, Brightness7, Download, Settings } from '@mui/icons-materia
 import { Badge, Box, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import DownloadsMenu from './DownloadsMenu';
 import ManageMenu from './ManageMenu';
 import { DownloadInfo } from './types';
@@ -29,22 +30,27 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
     const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton color="inherit" onClick={onDownloadsClick}>
-                <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">
-                    <Download />
-                </Badge>
-            </IconButton>
-            <DownloadsMenu
-                anchorEl={downloadsAnchorEl}
-                onClose={onDownloadsClose}
-                activeDownloads={activeDownloads}
-                queuedDownloads={queuedDownloads}
-            />
+            {!visitorMode && (
+                <>
+                    <IconButton color="inherit" onClick={onDownloadsClick}>
+                        <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">
+                            <Download />
+                        </Badge>
+                    </IconButton>
+                    <DownloadsMenu
+                        anchorEl={downloadsAnchorEl}
+                        onClose={onDownloadsClose}
+                        activeDownloads={activeDownloads}
+                        queuedDownloads={queuedDownloads}
+                    />
+                </>
+            )}
             
             <IconButton onClick={toggleTheme} color="inherit">
                 {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}

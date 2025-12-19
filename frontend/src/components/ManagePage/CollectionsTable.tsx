@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Collection } from '../../types';
 
 interface CollectionsTableProps {
@@ -38,6 +39,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     getCollectionSize
 }) => {
     const { t } = useLanguage();
+    const { visitorMode } = useVisitorMode();
 
     return (
         <Box sx={{ mb: 6 }}>
@@ -55,7 +57,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                 <TableCell>{t('videos')}</TableCell>
                                 <TableCell>{t('size')}</TableCell>
                                 <TableCell>{t('created')}</TableCell>
-                                <TableCell align="right">{t('actions')}</TableCell>
+                                {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -67,17 +69,19 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                     <TableCell>{collection.videos.length} videos</TableCell>
                                     <TableCell>{getCollectionSize(collection.videos)}</TableCell>
                                     <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
-                                    <TableCell align="right">
-                                        <Tooltip title={t('deleteCollection')}>
-                                            <IconButton
-                                                color="error"
-                                                onClick={() => onDelete(collection)}
-                                                size="small"
-                                            >
-                                                <Delete />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </TableCell>
+                                    {!visitorMode && (
+                                        <TableCell align="right">
+                                            <Tooltip title={t('deleteCollection')}>
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => onDelete(collection)}
+                                                    size="small"
+                                                >
+                                                    <Delete />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                         </TableBody>
