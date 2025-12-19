@@ -1,8 +1,11 @@
 import { Help, Settings, Subscriptions, VideoLibrary } from '@mui/icons-material';
 import {
+    alpha,
     Fade,
     Menu,
-    MenuItem
+    MenuItem,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -18,12 +21,15 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
 }) => {
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     return (
         <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={onClose}
+                disableScrollLock
                 slotProps={{
                     paper: {
                         elevation: 0,
@@ -32,6 +38,8 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
                             filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
                             mt: 1.5,
                             width: 320,
+                            bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.7) : 'background.paper',
+                            backdropFilter: !isMobile ? 'blur(10px)' : 'none',
                             '&:before': {
                                 content: '""',
                                 display: 'block',
@@ -40,7 +48,7 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
                                 right: 14,
                                 width: 10,
                                 height: 10,
-                                bgcolor: 'background.paper',
+                                bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.7) : 'background.paper',
                                 transform: 'translateY(-50%) rotate(45deg)',
                                 zIndex: 0,
                             },

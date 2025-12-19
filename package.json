@@ -11,7 +11,10 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && npm run test"
   },
   "keywords": [
     "youtube",

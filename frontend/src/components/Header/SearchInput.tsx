@@ -1,11 +1,14 @@
 import { Clear, Search } from '@mui/icons-material';
 import {
+    alpha,
     Box,
     Button,
     CircularProgress,
     IconButton,
     InputAdornment,
-    TextField
+    TextField,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { FormEvent } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -34,6 +37,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
 }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     return (
         <Box component="form" onSubmit={onSubmit} sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
@@ -47,6 +52,12 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 error={!!error}
                 helperText={error}
                 size="small"
+                sx={{
+                    '& .MuiOutlinedInput-root': {
+                        bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.1) : 'background.paper',
+                        backdropFilter: !isMobile ? 'blur(10px)' : 'none',
+                    }
+                }}
                 slotProps={{
                     input: {
                         endAdornment: (

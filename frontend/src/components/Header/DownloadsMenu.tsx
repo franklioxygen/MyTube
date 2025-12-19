@@ -1,11 +1,14 @@
 import { Download } from '@mui/icons-material';
 import {
+    alpha,
     Box,
     CircularProgress,
     Fade,
     Menu,
     MenuItem,
-    Typography
+    Typography,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -26,12 +29,15 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
 }) => {
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
     return (
         <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={onClose}
+                disableScrollLock
                 slotProps={{
                     paper: {
                         elevation: 0,
@@ -42,6 +48,8 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                             width: 320,
                             maxHeight: '50vh',
                             overflowY: 'auto',
+                            bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.7) : 'background.paper',
+                            backdropFilter: !isMobile ? 'blur(10px)' : 'none',
                             '& .MuiAvatar-root': {
                                 width: 32,
                                 height: 32,
@@ -56,7 +64,7 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                                 right: 14,
                                 width: 10,
                                 height: 10,
-                                bgcolor: 'background.paper',
+                                bgcolor: !isMobile ? alpha(theme.palette.background.paper, 0.7) : 'background.paper',
                                 transform: 'translateY(-50%) rotate(45deg)',
                                 zIndex: 0,
                             },
