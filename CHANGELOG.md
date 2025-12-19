@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.22 (2025-12-19)
+
+### Feat
+
+- feat: Add mobile scroll to top button and gradient header background (b637a66)
+
 ## v1.6.21 (2025-12-18)
 
 ### Fix
