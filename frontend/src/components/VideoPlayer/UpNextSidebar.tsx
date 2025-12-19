@@ -34,7 +34,13 @@ interface UpNextSidebarProps {
 
 const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const [isImageLoaded, setIsImageLoaded] = useState(false);
-    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
+    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
+        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+        : undefined;
 
     return (
         <Box sx={{ width: 168, minWidth: 168, position: 'relative' }}>
@@ -63,7 +69,7 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
                     // The image is always rendered but hidden until loaded
                 }}
                 onLoad={() => setIsImageLoaded(true)}
-                image={thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/168x94?text=No+Thumbnail'}
+                image={thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/168x94?text=No+Thumbnail'}
                 alt={video.title}
                 onError={(e) => {
                     setIsImageLoaded(true);

@@ -101,8 +101,14 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
 // Component for individual thumbnail with cloud storage support
 const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video, index }) => {
-    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
-    const src = thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
+    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
+        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+        : undefined;
+    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
 
     return (
         <Box

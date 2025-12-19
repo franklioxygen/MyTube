@@ -38,8 +38,14 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // Component for thumbnail with cloud storage support
 const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
-    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
-    const src = thumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
+    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
+        ? `${BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+        : undefined;
+    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
     
     return (
         <Box

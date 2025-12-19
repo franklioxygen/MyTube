@@ -89,9 +89,15 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
 
 
-    // Use cloud storage hook for thumbnail URL
-    const thumbnailUrl = useCloudStorageUrl(video.thumbnailPath, 'thumbnail');
-    const thumbnailSrc = thumbnailUrl || video.thumbnailUrl;
+    // Use cloud storage hook for thumbnail URL only if video is in cloud storage
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
+    const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
+        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+        : undefined;
+    const thumbnailSrc = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl;
     
     // Use cloud storage hook for video URL
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
