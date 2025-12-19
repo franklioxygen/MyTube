@@ -1,5 +1,21 @@
 # Change Log
 
+## v1.6.21 (2025-12-18)
+
+### Fix
+
+- fix: Only load thumbnails from cloud storage when video is in cloud storage (prevents 403 errors for local videos)
+
+## v1.6.20 (2025-12-19)
+
+### feat
+
+- feat: Add useCloudStorageUrl hook for cloud storage paths
+
+### Fix
+
+- style: Fix indentation issues in settingsController and SettingsPage
+
 ## v1.6.19 (2025-12-18)
 
 ### Feat
