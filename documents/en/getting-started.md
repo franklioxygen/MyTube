@@ -172,7 +172,25 @@ npm run test         # Run tests with Vitest
    - Go to Settings → Cookie Settings
    - Upload your `cookies.txt` file
 
-5. **Start Downloading**:
+5. **Configure Cloud Storage** (Optional):
+
+   - Go to Settings → Cloud Drive Settings
+   - Enable "Enable Auto Save to Cloud"
+   - Enter your OpenList/Alist API URL (e.g., `https://your-alist-instance.com/api/fs/put`)
+   - Enter your API token
+   - Optionally set a public URL for direct file access
+   - Set the upload path (e.g., `/mytube-uploads`)
+   - Test the connection to verify settings
+   - Note: When enabled, videos will be automatically uploaded to cloud storage after download, and local files will be deleted
+
+6. **Configure Visitor Mode** (Optional):
+
+   - Go to Settings → General Settings
+   - Enable "Visitor Mode (Read-only)" to allow viewing videos without modification capabilities
+   - When enabled, all write operations (downloads, deletions, edits) are blocked
+   - To disable visitor mode, you'll need to enter the website password
+
+7. **Start Downloading**:
    - Enter a video URL in the download input
    - Supported platforms: YouTube, Bilibili, MissAV, and all yt-dlp supported sites
 

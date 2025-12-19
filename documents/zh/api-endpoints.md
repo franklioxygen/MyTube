@@ -33,6 +33,10 @@
 - `POST /api/videos/:id/view` - 增加观看次数
 - `PUT /api/videos/:id/progress` - 更新播放进度
   - 请求体: `{ progress: number }` (秒)
+- `GET /api/videos/author-channel-url` - 获取视频的作者频道 URL
+  - 查询参数: `sourceUrl` (必需)
+  - 返回: `{ success: boolean, channelUrl: string | null }`
+  - 首先检查数据库，如果未找到则从 YouTube/Bilibili API 获取
 
 ## 下载管理
 - `POST /api/downloads/cancel/:id` - 取消活动下载
@@ -63,6 +67,7 @@
 - `GET /api/settings` - 获取应用设置
 - `POST /api/settings` - 更新应用设置
   - 请求体: `{ [key: string]: any }` - 设置对象
+  - 支持: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath` 等设置
 - `GET /api/settings/password-enabled` - 检查是否启用了密码保护
 - `POST /api/settings/verify-password` - 验证登录密码
   - 请求体: `{ password: string }`
@@ -75,7 +80,18 @@
   - 多部分表单数据: `file` (cookies.txt)
 - `POST /api/settings/delete-cookies` - 删除 cookies.txt
 - `GET /api/settings/check-cookies` - 检查 cookies.txt 是否存在
+- `GET /api/settings/export-database` - 导出数据库作为备份文件
+- `POST /api/settings/import-database` - 从备份文件导入数据库
+  - 多部分表单数据: `file` (数据库备份文件)
+- `GET /api/settings/last-backup-info` - 获取最后一个数据库备份的信息
+- `POST /api/settings/restore-from-last-backup` - 从最后一个备份恢复数据库
+- `POST /api/settings/cleanup-backup-databases` - 清理旧的备份数据库文件
 
 ## 文件管理
 - `POST /api/scan-files` - 扫描上传目录中的现有视频文件
 - `POST /api/cleanup-temp-files` - 清理临时下载文件
+
+## 云存储
+- `GET /cloud/videos/:filename` - 代理端点，用于从云存储（OpenList/Alist）流式传输视频
+- `GET /cloud/images/:filename` - 代理端点，用于从云存储（OpenList/Alist）提供图像
+  - 注意：这些端点需要在设置中配置云存储

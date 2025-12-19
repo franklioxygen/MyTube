@@ -28,7 +28,9 @@ mytube/
 │   │   ├── errors/                   # Custom error classes
 │   │   │   └── DownloadErrors.ts
 │   │   ├── middleware/               # Express middleware
-│   │   │   └── errorHandler.ts       # Error handling middleware
+│   │   │   ├── errorHandler.ts       # Error handling middleware
+│   │   │   ├── visitorModeMiddleware.ts # Visitor mode (read-only) middleware
+│   │   │   └── visitorModeSettingsMiddleware.ts # Visitor mode settings middleware
 │   │   ├── routes/                   # API route definitions
 │   │   │   ├── api.ts                # Main API routes
 │   │   │   └── settingsRoutes.ts     # Settings-specific routes

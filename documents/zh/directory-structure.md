@@ -28,7 +28,9 @@ mytube/
 │   │   ├── errors/                   # 自定义错误类
 │   │   │   └── DownloadErrors.ts
 │   │   ├── middleware/               # Express 中间件
-│   │   │   └── errorHandler.ts       # 错误处理中间件
+│   │   │   ├── errorHandler.ts       # 错误处理中间件
+│   │   │   ├── visitorModeMiddleware.ts # 访客模式（只读）中间件
+│   │   │   └── visitorModeSettingsMiddleware.ts # 访客模式设置中间件
 │   │   ├── routes/                   # API 路由定义
 │   │   │   ├── api.ts                # 主 API 路由
 │   │   │   └── settingsRoutes.ts     # 设置相关路由

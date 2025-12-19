@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.19 (2025-12-18)
+
+### Feat
+
+- feat: Add public URL field in settings and services (4144038)
+
 ## v1.6.18 (2025-12-18)
 
 ### Feat

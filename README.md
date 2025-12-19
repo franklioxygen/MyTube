@@ -39,6 +39,8 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **View Modes**: Toggle between Collection View and Video View on the home page.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
+- **Visitor Mode**: Enable read-only mode to allow viewing videos without modification capabilities. Perfect for sharing your library with others.
+- **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 
 ## Directory Structure
 

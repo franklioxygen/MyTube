@@ -35,6 +35,10 @@
 - `POST /api/videos/:id/view` - Increment view count
 - `PUT /api/videos/:id/progress` - Update playback progress
   - Body: `{ progress: number }` (seconds)
+- `GET /api/videos/author-channel-url` - Get author channel URL for a video
+  - Query params: `sourceUrl` (required)
+  - Returns: `{ success: boolean, channelUrl: string | null }`
+  - Checks database first, then fetches from YouTube/Bilibili API if not found
 
 ## Download Management
 
@@ -69,6 +73,7 @@
 - `GET /api/settings` - Get application settings
 - `POST /api/settings` - Update application settings
   - Body: `{ [key: string]: any }` - Settings object
+  - Supports: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath`, and other settings
 - `GET /api/settings/password-enabled` - Check if password protection is enabled
 - `POST /api/settings/verify-password` - Verify login password
   - Body: `{ password: string }`
@@ -81,8 +86,20 @@
   - Multipart form data: `file` (cookies.txt)
 - `POST /api/settings/delete-cookies` - Delete cookies.txt
 - `GET /api/settings/check-cookies` - Check if cookies.txt exists
+- `GET /api/settings/export-database` - Export database as backup file
+- `POST /api/settings/import-database` - Import database from backup file
+  - Multipart form data: `file` (database backup file)
+- `GET /api/settings/last-backup-info` - Get information about the last database backup
+- `POST /api/settings/restore-from-last-backup` - Restore database from the last backup
+- `POST /api/settings/cleanup-backup-databases` - Clean up old backup database files
 
 ## File Management
 
 - `POST /api/scan-files` - Scan for existing video files in uploads directory
 - `POST /api/cleanup-temp-files` - Cleanup temporary download files
+
+## Cloud Storage
+
+- `GET /cloud/videos/:filename` - Proxy endpoint to stream videos from cloud storage (OpenList/Alist)
+- `GET /cloud/images/:filename` - Proxy endpoint to serve images from cloud storage (OpenList/Alist)
+  - Note: These endpoints require cloud storage to be configured in settings
