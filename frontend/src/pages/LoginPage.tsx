@@ -1,4 +1,4 @@
-import { ErrorOutline, LockOutlined, Refresh } from '@mui/icons-material';
+import { ErrorOutline, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
@@ -7,6 +7,8 @@ import {
     CircularProgress,
     Container,
     CssBaseline,
+    IconButton,
+    InputAdornment,
     TextField,
     ThemeProvider,
     Typography
@@ -24,6 +26,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [waitTime, setWaitTime] = useState(0); // in milliseconds
     const [showResetModal, setShowResetModal] = useState(false);
@@ -254,7 +257,7 @@ const LoginPage: React.FC = () => {
                                     fullWidth
                                     name="password"
                                     label={t('password')}
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     id="password"
                                     autoComplete="current-password"
                                     value={password}
@@ -262,6 +265,21 @@ const LoginPage: React.FC = () => {
                                     autoFocus
                                     disabled={waitTime > 0 || loginMutation.isPending}
                                     helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                    slotProps={{
+                                        input: {
+                                            endAdornment: (
+                                                <InputAdornment position="end">
+                                                    <IconButton
+                                                        aria-label={t('togglePasswordVisibility')}
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        edge="end"
+                                                    >
+                                                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                    </IconButton>
+                                                </InputAdornment>
+                                            )
+                                        }
+                                    }}
                                 />
                                 <Button
                                     type="submit"

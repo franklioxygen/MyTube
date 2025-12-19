@@ -49,6 +49,8 @@ export const ru = {
   language: "Язык",
   enableLogin: "Включить защиту входа",
   password: "Пароль",
+  enterPassword: "Введите пароль",
+  togglePasswordVisibility: "Показать/скрыть пароль",
   passwordHelper:
     "Оставьте пустым, чтобы сохранить текущий пароль, или введите новый для изменения",
   passwordSetHelper: "Установите пароль для доступа к приложению",
@@ -124,6 +126,7 @@ export const ru = {
   showYoutubeSearch: "Показать результаты поиска YouTube",
   visitorMode: "Режим посетителя (Только чтение)",
   visitorModeReadOnly: "Режим посетителя: Только чтение",
+  visitorModePasswordPrompt: "Пожалуйста, введите пароль веб-сайта для изменения настроек режима посетителя.",
   cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
   cleanupTempFilesFailed: "Не удалось очистить временные файлы",
 
@@ -300,6 +303,7 @@ export const ru = {
   error: "Ошибка",
   success: "Успех",
   cancel: "Отмена",
+  close: "Закрыть",
   ok: "ОК",
   confirm: "Подтвердить",
   save: "Сохранить",

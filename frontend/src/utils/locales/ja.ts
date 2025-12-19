@@ -39,6 +39,8 @@ export const ja = {
   language: "言語",
   enableLogin: "ログイン保護を有効にする",
   password: "パスワード",
+  enterPassword: "パスワードを入力",
+  togglePasswordVisibility: "パスワードの表示切り替え",
   passwordHelper:
     "現在のパスワードを維持する場合は空欄にし、変更する場合は入力してください",
   passwordSetHelper:
@@ -115,6 +117,7 @@ export const ja = {
   showYoutubeSearch: "YouTube検索結果を表示",
   visitorMode: "ビジターモード（読み取り専用）",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
+  visitorModePasswordPrompt: "ビジターモードの設定を変更するには、ウェブサイトのパスワードを入力してください。",
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 
@@ -289,6 +292,7 @@ export const ja = {
   error: "エラー",
   success: "成功",
   cancel: "キャンセル",
+  close: "閉じる",
   ok: "OK",
   confirm: "確認",
   save: "保存",

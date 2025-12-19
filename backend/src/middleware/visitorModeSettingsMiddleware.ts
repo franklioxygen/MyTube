@@ -26,8 +26,14 @@ export const visitorModeSettingsMiddleware = (
     return;
   }
 
-  // For POST requests, check if it's trying to disable visitor mode
+  // For POST requests, check if it's trying to disable visitor mode or verify password
   if (req.method === "POST") {
+    // Allow verify-password requests
+    if (req.path.includes("/verify-password") || req.url.includes("/verify-password")) {
+       next();
+       return;
+    }
+
     const body = req.body || {};
     // Check if the request is trying to disable visitor mode
     if (body.visitorMode === false) {

@@ -40,6 +40,8 @@ export const pt = {
   language: "Idioma",
   enableLogin: "Ativar Proteção de Login",
   password: "Senha",
+  enterPassword: "Digite a senha",
+  togglePasswordVisibility: "Alternar visibilidade da senha",
   passwordHelper:
     "Deixe em branco para manter a senha atual, ou digite para alterar",
   passwordSetHelper: "Definir uma senha para acessar o aplicativo",
@@ -115,6 +117,7 @@ export const pt = {
   showYoutubeSearch: "Mostrar resultados de pesquisa do YouTube",
   visitorMode: "Modo Visitante (Somente leitura)",
   visitorModeReadOnly: "Modo visitante: Somente leitura",
+  visitorModePasswordPrompt: "Por favor, digite a senha do site para alterar as configurações do modo visitante.",
   cleanupTempFilesSuccess:
     "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
   cleanupTempFilesFailed: "Falha ao limpar arquivos temporários",
@@ -290,6 +293,7 @@ export const pt = {
   error: "Erro",
   success: "Sucesso",
   cancel: "Cancelar",
+  close: "Fechar",
   ok: "OK",
   confirm: "Confirmar",
   save: "Salvar",

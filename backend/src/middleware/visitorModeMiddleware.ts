@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import * as storageService from "../services/storageService";
 
 /**
@@ -26,10 +26,17 @@ export const visitorModeMiddleware = (
     return;
   }
 
-  // This middleware is applied to settings routes, so any POST here is a settings update
-  // Check if the request is trying to disable visitor mode
+  // Check if the request is trying to disable visitor mode or verify password
   if (req.method === "POST") {
     const body = req.body || {};
+    
+    // Allow verify-password requests
+    // Check path for verify-password (assuming mounted on /api or similar)
+    if (req.path.includes("/verify-password") || req.url.includes("/verify-password")) {
+      next();
+      return;
+    }
+
     // Check if the request is trying to disable visitor mode
     if (body.visitorMode === false) {
       // Allow disabling visitor mode

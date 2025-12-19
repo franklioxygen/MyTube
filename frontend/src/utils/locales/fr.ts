@@ -40,6 +40,8 @@ export const fr = {
   language: "Langue",
   enableLogin: "Activer la protection par connexion",
   password: "Mot de passe",
+  enterPassword: "Entrez le mot de passe",
+  togglePasswordVisibility: "Afficher/Masquer le mot de passe",
   passwordHelper:
     "Laisser vide pour conserver le mot de passe actuel, ou taper pour changer",
   passwordSetHelper: "Définir un mot de passe pour accéder à l'application",
@@ -119,6 +121,7 @@ export const fr = {
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",
   visitorMode: "Mode Visiteur (Lecture seule)",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
+  visitorModePasswordPrompt: "Veuillez entrer le mot de passe du site web pour modifier les paramètres du mode visiteur.",
   cleanupTempFilesSuccess:
     "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
   cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
@@ -296,6 +299,7 @@ export const fr = {
   error: "Erreur",
   success: "Succès",
   cancel: "Annuler",
+  close: "Fermer",
   ok: "OK",
   confirm: "Confirmer",
   save: "Enregistrer",

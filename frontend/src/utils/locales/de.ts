@@ -35,6 +35,8 @@ export const de = {
   language: "Sprache",
   enableLogin: "Anmeldeschutz aktivieren",
   password: "Passwort",
+  enterPassword: "Passwort eingeben",
+  togglePasswordVisibility: "Passwort sichtbar machen",
   passwordHelper:
     "Leer lassen, um das aktuelle Passwort beizubehalten, oder eingeben, um es zu ändern",
   passwordSetHelper:
@@ -106,6 +108,7 @@ export const de = {
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
   visitorMode: "Besuchermodus (Nur-Lesen)",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
+  visitorModePasswordPrompt: "Bitte geben Sie das Website-Passwort ein, um die Besuchermodus-Einstellungen zu ändern.",
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 
@@ -262,6 +265,7 @@ export const de = {
   error: "Fehler",
   success: "Erfolg",
   cancel: "Abbrechen",
+  close: "Schließen",
   ok: "OK",
   confirm: "Bestätigen",
   save: "Speichern",

@@ -3,9 +3,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
@@ -349,11 +349,15 @@ export const verifyPassword = async (
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
 
+  // Check removed: We want to verify password if one exists, regardless of loginEnabled
+  // This allows visitor mode toggle protection even if login protection is off
+  /*
   if (!mergedSettings.loginEnabled) {
     // Return format expected by frontend: { success: boolean }
     res.json({ success: true });
     return;
   }
+  */
 
   if (!mergedSettings.password) {
     // If no password set but login enabled, allow access
