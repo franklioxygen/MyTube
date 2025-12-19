@@ -329,24 +329,24 @@ const SettingsPage: React.FC = () => {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            
+
             // Generate filename with timestamp using helper (same format as backend)
             const timestamp = generateTimestamp();
             const filename = `mytube-backup-${timestamp}.db`;
-            
+
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-            
+
             setMessage({ text: t('databaseExportedSuccess'), type: 'success' });
         },
         onError: (error: any) => {
             const errorDetails = error.response?.data?.details || error.message;
-            setMessage({ 
-                text: `${t('databaseExportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`, 
-                type: 'error' 
+            setMessage({
+                text: `${t('databaseExportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
+                type: 'error'
             });
         }
     });
@@ -397,16 +397,16 @@ const SettingsPage: React.FC = () => {
             return response.data;
         },
         onSuccess: (data) => {
-            setMessage({ 
-                text: data.message || t('backupDatabasesCleanedUp'), 
-                type: 'success' 
+            setMessage({
+                text: data.message || t('backupDatabasesCleanedUp'),
+                type: 'success'
             });
         },
         onError: (error: any) => {
             const errorDetails = error.response?.data?.details || error.message;
-            setMessage({ 
-                text: `${t('backupDatabasesCleanupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`, 
-                type: 'error' 
+            setMessage({
+                text: `${t('backupDatabasesCleanupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
+                type: 'error'
             });
         }
     });
