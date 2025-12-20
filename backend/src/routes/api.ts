@@ -129,5 +129,6 @@ router.get(
   "/cloud/signed-url",
   asyncHandler(cloudStorageController.getSignedUrl)
 );
+router.post("/cloud/sync", asyncHandler(cloudStorageController.syncToCloud));
 
 export default router;

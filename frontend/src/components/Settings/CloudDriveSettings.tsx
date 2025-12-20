@@ -1,18 +1,37 @@
-import { Alert, Box, Button, CircularProgress, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, FormControlLabel, LinearProgress, Switch, TextField, Typography } from '@mui/material';
 import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import ConfirmationModal from '../ConfirmationModal';
 
 interface CloudDriveSettingsProps {
     settings: Settings;
     onChange: (field: keyof Settings, value: any) => void;
 }
 
+interface SyncProgress {
+    type: 'progress' | 'complete' | 'error';
+    current?: number;
+    total?: number;
+    currentFile?: string;
+    message?: string;
+    report?: {
+        total: number;
+        uploaded: number;
+        skipped: number;
+        failed: number;
+        errors: string[];
+    };
+}
+
 const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onChange }) => {
     const { t } = useLanguage();
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [showSyncModal, setShowSyncModal] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
 
     // Validate API URL format
     const validateApiUrl = (url: string): string | null => {
@@ -74,7 +93,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         if (!settings.openListApiUrl || !settings.openListToken) {
             setTestResult({
                 type: 'error',
-                message: 'Please fill in API URL and Token first'
+                message: t('fillApiUrlToken')
             });
             return;
         }
@@ -86,7 +105,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             // Test connection by attempting to upload a small test file
             // Or we could use a different Alist API endpoint to test
             const testUrl = settings.openListApiUrl;
-            
+
             // Try to make a HEAD request or use a test endpoint
             // For now, we'll just validate the URL format and token presence
             const response = await axios.head(testUrl, {
@@ -100,33 +119,110 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             if (response.status < 500) {
                 setTestResult({
                     type: 'success',
-                    message: 'Connection test successful! Settings are valid.'
+                    message: t('connectionTestSuccess')
                 });
             } else {
                 setTestResult({
                     type: 'error',
-                    message: `Connection failed: Server returned status ${response.status}`
+                    message: t('connectionFailedStatus', { status: response.status })
                 });
             }
         } catch (error: any) {
             if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
                 setTestResult({
                     type: 'error',
-                    message: 'Cannot connect to server. Please check the API URL.'
+                    message: t('connectionFailedUrl')
                 });
             } else if (error.response?.status === 401 || error.response?.status === 403) {
                 setTestResult({
                     type: 'error',
-                    message: 'Authentication failed. Please check your token.'
+                    message: t('authFailed')
                 });
             } else {
                 setTestResult({
                     type: 'error',
-                    message: `Connection test failed: ${error.message || 'Unknown error'}`
+                    message: t('connectionTestFailed', { error: error.message || t('error') })
                 });
             }
         } finally {
             setTesting(false);
+        }
+    };
+
+    const handleSync = async () => {
+        setShowSyncModal(false);
+        setSyncing(true);
+        setSyncProgress(null);
+        setTestResult(null);
+
+        try {
+            const API_URL = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${API_URL}/api/cloud/sync`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Sync failed: ${response.statusText}`);
+            }
+
+            // Read streaming response
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+
+            if (!reader) {
+                throw new Error('Failed to get response reader');
+            }
+
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const progress: SyncProgress = JSON.parse(line);
+                            setSyncProgress(progress);
+
+                            if (progress.type === 'complete' || progress.type === 'error') {
+                                setSyncing(false);
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse progress:', e, line);
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining buffer
+            if (buffer.trim()) {
+                try {
+                    const progress: SyncProgress = JSON.parse(buffer);
+                    setSyncProgress(progress);
+                    if (progress.type === 'complete' || progress.type === 'error') {
+                        setSyncing(false);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse final progress:', e);
+                }
+            }
+        } catch (error: any) {
+            setSyncing(false);
+            setTestResult({
+                type: 'error',
+                message: error.message || t('syncFailedMessage'),
+            });
         }
     };
 
@@ -136,7 +232,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('cloudDriveDescription')}
             </Typography>
-            
+
             <FormControlLabel
                 control={
                     <Switch
@@ -163,7 +259,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                             {apiUrlError}
                         </Typography>
                     )}
-                    
+
                     <TextField
                         label={t('token')}
                         value={settings.openListToken || ''}
@@ -173,7 +269,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         required
                         fullWidth
                     />
-                    
+
                     <TextField
                         label={t('publicUrl')}
                         value={settings.openListPublicUrl || ''}
@@ -188,7 +284,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                             {publicUrlError}
                         </Typography>
                     )}
-                    
+
                     <TextField
                         label={t('uploadPath')}
                         value={settings.cloudDrivePath || ''}
@@ -204,15 +300,87 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         </Typography>
                     )}
 
-                    <Button
-                        variant="outlined"
-                        onClick={handleTestConnection}
-                        disabled={testing || !settings.openListApiUrl || !settings.openListToken}
-                        startIcon={testing ? <CircularProgress size={16} /> : null}
-                        sx={{ alignSelf: 'flex-start' }}
-                    >
-                        {testing ? t('testing') : t('testConnection')}
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        <Button
+                            variant="outlined"
+                            onClick={handleTestConnection}
+                            disabled={testing || syncing || !settings.openListApiUrl || !settings.openListToken}
+                            startIcon={testing ? <CircularProgress size={16} /> : null}
+                        >
+                            {testing ? t('testing') : t('testConnection')}
+                        </Button>
+
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => setShowSyncModal(true)}
+                            disabled={testing || syncing || !settings.openListApiUrl || !settings.openListToken}
+                        >
+                            {t('sync')}
+                        </Button>
+                    </Box>
+
+                    {syncing && syncProgress && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                {syncProgress.current === 0 && syncProgress.total !== undefined
+                                    ? t('foundVideosToSync', { count: syncProgress.total })
+                                    : syncProgress.currentFile
+                                        ? t('uploadingVideo', { title: syncProgress.currentFile })
+                                        : syncProgress.message || t('syncing')}
+                            </Typography>
+                            {syncProgress.current !== undefined && syncProgress.total !== undefined && (
+                                <>
+                                    <LinearProgress
+                                        variant="determinate"
+                                        value={(syncProgress.current / syncProgress.total) * 100}
+                                        sx={{ mb: 1 }}
+                                    />
+                                    <Typography variant="caption" color="text.secondary">
+                                        {syncProgress.current} / {syncProgress.total} files
+                                        {syncProgress.currentFile && ` - ${syncProgress.currentFile}`}
+                                    </Typography>
+                                </>
+                            )}
+                        </Box>
+                    )}
+
+                    {!syncing && syncProgress?.type === 'complete' && syncProgress.report && (
+                        <Alert severity="success" sx={{ mt: 2 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                                {t('syncCompleted')}
+                            </Typography>
+                            <Typography variant="body2">
+                                {t('syncReport', {
+                                    total: syncProgress.report.total,
+                                    uploaded: syncProgress.report.uploaded,
+                                    failed: syncProgress.report.failed
+                                })}
+                            </Typography>
+                            {syncProgress.report.errors.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                    <Typography variant="caption" color="error">
+                                        {t('syncErrors')}
+                                    </Typography>
+                                    <Box component="ul" sx={{ mt: 0.5, pl: 2, mb: 0 }}>
+                                        {syncProgress.report.errors.map((error, idx) => (
+                                            <li key={idx}>
+                                                <Typography variant="caption" color="error">
+                                                    {error}
+                                                </Typography>
+                                            </li>
+                                        ))}
+                                    </Box>
+                                </Box>
+                            )}
+                        </Alert>
+                    )}
+
+                    {!syncing && syncProgress?.type === 'error' && (
+                        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setSyncProgress(null)}>
+                            {syncProgress.message || t('syncFailed')}
+                        </Alert>
+                    )}
 
                     {testResult && (
                         <Alert severity={testResult.type} onClose={() => setTestResult(null)}>
@@ -227,6 +395,17 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                     </Alert>
                 </Box>
             )}
+
+            <ConfirmationModal
+                isOpen={showSyncModal}
+                onClose={() => setShowSyncModal(false)}
+                onConfirm={handleSync}
+                title={t('syncToCloud')}
+                message={t('syncWarning')}
+                confirmText={t('confirm') || 'Confirm'}
+                cancelText={t('cancel') || 'Cancel'}
+                isDanger={true}
+            />
         </Box>
     );
 };

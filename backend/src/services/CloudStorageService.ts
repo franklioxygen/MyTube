@@ -152,12 +152,22 @@ export class CloudStorageService {
 
             // Store cloud storage indicator in path format: "cloud:filename"
             // This allows us to identify cloud storage files and retrieve sign dynamically
-            if (videoData.videoFilename) {
-              updates.videoPath = `cloud:${videoData.videoFilename}`;
+            const videoFilename =
+              videoData.videoFilename ||
+              (videoData.videoPath ? path.basename(videoData.videoPath) : null);
+
+            if (videoFilename) {
+              updates.videoPath = `cloud:${videoFilename}`;
             }
 
-            if (videoData.thumbnailFilename) {
-              updates.thumbnailPath = `cloud:${videoData.thumbnailFilename}`;
+            const thumbnailFilename =
+              videoData.thumbnailFilename ||
+              (videoData.thumbnailPath
+                ? path.basename(videoData.thumbnailPath)
+                : null);
+
+            if (thumbnailFilename) {
+              updates.thumbnailPath = `cloud:${thumbnailFilename}`;
             }
 
             if (Object.keys(updates).length > 0) {
@@ -167,11 +177,11 @@ export class CloudStorageService {
               );
 
               // Clear cache for uploaded files to ensure fresh URLs
-              if (videoData.videoFilename) {
-                this.clearCache(videoData.videoFilename, "video");
+              if (videoFilename) {
+                this.clearCache(videoFilename, "video");
               }
-              if (videoData.thumbnailFilename) {
-                this.clearCache(videoData.thumbnailFilename, "thumbnail");
+              if (thumbnailFilename) {
+                this.clearCache(thumbnailFilename, "thumbnail");
               }
               // Also clear file list cache since new files were added
               const normalizedUploadPath = config.uploadPath.replace(
