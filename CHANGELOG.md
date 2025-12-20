@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.24 (2025-12-20)
+
+### Feat
+
+- feat: Add functionality to format, rename, and store video files (24078d5)
+- feat: Add new features to improve file handling (441fd12)
+
 ## v1.6.23 (2025-12-20)
 
 ### Feat
