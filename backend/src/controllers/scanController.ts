@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
+import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 
@@ -113,24 +114,53 @@ export const scanFiles = async (
     const relativePath = path.relative(VIDEOS_DIR, filePath);
     const webPath = `/videos/${relativePath.split(path.sep).join("/")}`;
 
-    // Check if exists in DB
+    // Check if exists in DB by original filename
     if (existingFilenames.has(filename)) {
       continue;
     }
 
-    logger.info(`Found new video file: ${relativePath}`);
-
     const stats = fs.statSync(filePath);
     const createdDate = stats.birthtime;
-    const videoId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
 
-    // Generate thumbnail
-    const thumbnailFilename = `${path.parse(filename).name}.jpg`;
-    const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
+    // Extract title from filename
+    const originalTitle = path.parse(filename).name;
+    const author = "Admin";
+    const dateString = createdDate
+      .toISOString()
+      .split("T")[0]
+      .replace(/-/g, "");
+
+    // Format filename using the same format as downloaded videos: Title-Author-Year.ext
+    // formatVideoFilename already handles sanitization (removes symbols, replaces spaces with dots)
+    const baseFilename = formatVideoFilename(originalTitle, author, dateString);
+
+    // Use original title for database (for display purposes)
+    // The title should be readable, not sanitized like filenames
+    const displayTitle = originalTitle || "Untitled Video";
+    const videoExtension = path.extname(filename);
+    const newVideoFilename = `${baseFilename}${videoExtension}`;
+
+    // Check if the new formatted filename already exists in DB (to avoid duplicates)
+    if (existingFilenames.has(newVideoFilename)) {
+      logger.info(
+        `Skipping file "${filename}" - formatted filename "${newVideoFilename}" already exists in database`
+      );
+      continue;
+    }
+
+    logger.info(`Found new video file: ${relativePath}`);
+    const videoId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
+    const newThumbnailFilename = `${baseFilename}.jpg`;
+
+    // Generate thumbnail with temporary name first
+    const tempThumbnailPath = path.join(
+      IMAGES_DIR,
+      `${path.parse(filename).name}.jpg`
+    );
 
     await new Promise<void>((resolve) => {
       exec(
-        `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`,
+        `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
         (error) => {
           if (error) {
             logger.error("Error generating thumbnail:", error);
@@ -167,26 +197,97 @@ export const scanFiles = async (
       logger.error("Error getting duration:", err);
     }
 
+    // Rename video file to the new format (preserve subfolder structure)
+    const fileDir = path.dirname(filePath);
+    const newVideoPath = path.join(fileDir, newVideoFilename);
+    let finalVideoFilename = filename;
+    let finalVideoPath = filePath;
+    let finalWebPath = webPath;
+
+    try {
+      // Check if the new filename already exists
+      if (fs.existsSync(newVideoPath) && newVideoPath !== filePath) {
+        logger.warn(
+          `Target filename already exists: ${newVideoFilename}, keeping original filename`
+        );
+      } else if (newVideoFilename !== filename) {
+        // Rename the video file (in the same directory)
+        fs.moveSync(filePath, newVideoPath);
+        finalVideoFilename = newVideoFilename;
+        finalVideoPath = newVideoPath;
+        // Update web path to reflect the new filename while preserving subfolder structure
+        const dirName = path.dirname(relativePath);
+        if (dirName !== ".") {
+          finalWebPath = `/videos/${dirName
+            .split(path.sep)
+            .join("/")}/${newVideoFilename}`;
+        } else {
+          finalWebPath = `/videos/${newVideoFilename}`;
+        }
+        logger.info(
+          `Renamed video file from "${filename}" to "${newVideoFilename}"`
+        );
+      }
+    } catch (renameError) {
+      logger.error(`Error renaming video file: ${renameError}`);
+      // Continue with original filename if rename fails
+    }
+
+    // Rename thumbnail file to match the new video filename
+    const finalThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+    let finalThumbnailFilename = newThumbnailFilename;
+
+    try {
+      if (fs.existsSync(tempThumbnailPath)) {
+        if (
+          fs.existsSync(finalThumbnailPath) &&
+          tempThumbnailPath !== finalThumbnailPath
+        ) {
+          // If target exists, remove the temp one
+          fs.removeSync(tempThumbnailPath);
+          logger.warn(
+            `Thumbnail filename already exists: ${newThumbnailFilename}, using existing`
+          );
+        } else if (tempThumbnailPath !== finalThumbnailPath) {
+          // Rename the thumbnail file
+          fs.moveSync(tempThumbnailPath, finalThumbnailPath);
+          logger.info(`Renamed thumbnail file to "${newThumbnailFilename}"`);
+        }
+      }
+    } catch (renameError) {
+      logger.error(`Error renaming thumbnail file: ${renameError}`);
+      // Use temp filename if rename fails
+      if (fs.existsSync(tempThumbnailPath)) {
+        finalThumbnailFilename = path.basename(tempThumbnailPath);
+      }
+    }
+
     const newVideo = {
       id: videoId,
-      title: path.parse(filename).name,
-      author: "Admin",
+      title: displayTitle,
+      author: author,
       source: "local",
       sourceUrl: "",
-      videoFilename: filename,
-      videoPath: webPath,
-      thumbnailFilename: fs.existsSync(thumbnailPath)
-        ? thumbnailFilename
+      videoFilename: finalVideoFilename,
+      videoPath: finalWebPath,
+      thumbnailFilename: fs.existsSync(finalThumbnailPath)
+        ? finalThumbnailFilename
+        : fs.existsSync(tempThumbnailPath)
+        ? path.basename(tempThumbnailPath)
         : undefined,
-      thumbnailPath: fs.existsSync(thumbnailPath)
-        ? `/images/${thumbnailFilename}`
+      thumbnailPath: fs.existsSync(finalThumbnailPath)
+        ? `/images/${finalThumbnailFilename}`
+        : fs.existsSync(tempThumbnailPath)
+        ? `/images/${path.basename(tempThumbnailPath)}`
         : undefined,
-      thumbnailUrl: fs.existsSync(thumbnailPath)
-        ? `/images/${thumbnailFilename}`
+      thumbnailUrl: fs.existsSync(finalThumbnailPath)
+        ? `/images/${finalThumbnailFilename}`
+        : fs.existsSync(tempThumbnailPath)
+        ? `/images/${path.basename(tempThumbnailPath)}`
         : undefined,
       createdAt: createdDate.toISOString(),
       addedAt: new Date().toISOString(),
-      date: createdDate.toISOString().split("T")[0].replace(/-/g, ""),
+      date: dateString,
       duration: duration,
     };
 

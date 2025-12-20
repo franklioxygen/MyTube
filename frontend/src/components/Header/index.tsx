@@ -336,7 +336,7 @@ const Header: React.FC<HeaderProps> = ({
             <Slide direction="up" in={isMobile && isScrolled} mountOnEnter unmountOnExit>
                 <Fab
                     color="primary"
-                    size="small"
+                    size="medium"
                     aria-label="scroll to top"
                     onClick={() => {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
