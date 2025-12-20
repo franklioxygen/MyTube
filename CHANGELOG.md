@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.23 (2025-12-20)
+
+### Feat
+
+- feat: Add syncToCloud feature with progress updates (10c2fe2)
+- feat: Implement request coalescing for getSignedUrl (a0ba15a)
+
 ## v1.6.22 (2025-12-19)
 
 ### Feat
