@@ -19,30 +19,51 @@ export const extractCloudFilename = (path: string): string => {
   return path.substring(6); // Remove "cloud:" prefix
 };
 
+// Cache for inflight requests to prevent duplicate calls
+const signedUrlPromiseCache = new Map<string, Promise<string | null>>();
+
 /**
  * Get signed URL for a cloud storage file
  * This fetches the dynamic sign from the backend
+ * Implements request deduplication
  */
 export const getCloudStorageSignedUrl = async (
   filename: string,
   type: 'video' | 'thumbnail' = 'video'
 ): Promise<string | null> => {
-  try {
-    const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
-      params: {
-        filename,
-        type,
-      },
-    });
-
-    if (response.data?.success && response.data?.url) {
-      return response.data.url;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to get cloud storage signed URL:', error);
-    return null;
+  const cacheKey = `${filename}:${type}`;
+  
+  // Return existing promise if request is already inflight
+  if (signedUrlPromiseCache.has(cacheKey)) {
+    return signedUrlPromiseCache.get(cacheKey)!;
   }
+
+  const promise = (async () => {
+    try {
+      const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
+        params: {
+          filename,
+          type,
+        },
+      });
+
+      if (response.data?.success && response.data?.url) {
+        return response.data.url;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get cloud storage signed URL:', error);
+      return null;
+    } finally {
+      // Remove from cache when done (success or failure)
+      // We only cache the PROMISE (inflight request), not the result indefinitely here
+      // The result could be cached separately if needed, but for now we solve the "9 requests" issue
+      signedUrlPromiseCache.delete(cacheKey);
+    }
+  })();
+
+  signedUrlPromiseCache.set(cacheKey, promise);
+  return promise;
 };
 
 /**

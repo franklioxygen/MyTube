@@ -444,4 +444,93 @@ describe("CloudStorageService", () => {
       expect(console.error).toHaveBeenCalled();
     });
   });
+
+  describe("getSignedUrl", () => {
+    it("should coalesce multiple requests for the same file", async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        cloudDriveEnabled: true,
+        openListApiUrl: "https://api.example.com",
+        openListToken: "test-token",
+        cloudDrivePath: "/uploads",
+      });
+
+      // Clear caches before test
+      CloudStorageService.clearCache();
+
+      // Mock getFileList to take some time and return success
+      (axios.post as any) = vi.fn().mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return {
+          status: 200,
+          data: {
+            code: 200,
+            data: {
+              content: [
+                {
+                  name: "test.mp4",
+                  sign: "test-sign",
+                },
+              ],
+            },
+          },
+        };
+      });
+
+      // Launch multiple concurrent requests
+      const promises = [
+        CloudStorageService.getSignedUrl("test.mp4", "video"),
+        CloudStorageService.getSignedUrl("test.mp4", "video"),
+        CloudStorageService.getSignedUrl("test.mp4", "video"),
+      ];
+
+      const results = await Promise.all(promises);
+
+      // Verify all requests returned the same URL
+      expect(results[0]).toBeDefined();
+      expect(results[0]).toContain("sign=test-sign");
+      expect(results[1]).toBe(results[0]);
+      expect(results[2]).toBe(results[0]);
+
+      // Verify that axios.post was only called once
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+
+    it("should cache results", async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        cloudDriveEnabled: true,
+        openListApiUrl: "https://api.example.com",
+        openListToken: "test-token",
+        cloudDrivePath: "/uploads",
+      });
+
+      // Clear caches before test
+      CloudStorageService.clearCache();
+
+      // Mock getFileList
+      (axios.post as any) = vi.fn().mockResolvedValue({
+        status: 200,
+        data: {
+          code: 200,
+          data: {
+            content: [
+              {
+                name: "test.mp4",
+                sign: "test-sign",
+              },
+            ],
+          },
+        },
+      });
+
+      // First request
+      await CloudStorageService.getSignedUrl("test.mp4", "video");
+
+      // Second request (should hit cache)
+      const url = await CloudStorageService.getSignedUrl("test.mp4", "video");
+
+      expect(url).toContain("sign=test-sign");
+      // Should be called once for first request, and 0 times for second (cached)
+      expect(axios.post).toHaveBeenCalledTimes(1);
+    });
+  });
 });

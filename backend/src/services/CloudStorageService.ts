@@ -13,6 +13,29 @@ interface CloudDriveConfig {
   uploadPath: string;
 }
 
+interface CachedSignedUrl {
+  url: string;
+  timestamp: number;
+  expiresAt: number;
+}
+
+interface CachedFileList {
+  files: any[];
+  timestamp: number;
+}
+
+// Cache for signed URLs: key is "filename:type", value is cached URL with expiration
+const signedUrlCache = new Map<string, CachedSignedUrl>();
+
+// Cache TTL: 5 minutes (signs typically expire after some time, but we refresh proactively)
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+// Cache for file list: key is uploadPath, value is file list with timestamp
+const fileListCache = new Map<string, CachedFileList>();
+
+// File list cache TTL: 1 minute
+const FILE_LIST_CACHE_TTL_MS = 60 * 1000;
+
 export class CloudStorageService {
   private static getConfig(): CloudDriveConfig {
     const settings = getSettings();
@@ -142,6 +165,23 @@ export class CloudStorageService {
               logger.info(
                 `[CloudStorage] Updated video record ${videoData.id} with cloud storage indicators`
               );
+
+              // Clear cache for uploaded files to ensure fresh URLs
+              if (videoData.videoFilename) {
+                this.clearCache(videoData.videoFilename, "video");
+              }
+              if (videoData.thumbnailFilename) {
+                this.clearCache(videoData.thumbnailFilename, "thumbnail");
+              }
+              // Also clear file list cache since new files were added
+              const normalizedUploadPath = config.uploadPath.replace(
+                /\\/g,
+                "/"
+              );
+              const uploadPath = normalizedUploadPath.startsWith("/")
+                ? normalizedUploadPath
+                : `/${normalizedUploadPath}`;
+              fileListCache.delete(uploadPath);
             }
           } catch (updateError: any) {
             logger.error(
@@ -333,9 +373,15 @@ export class CloudStorageService {
     return filename.replace(/[^a-z0-9]/gi, "_").toLowerCase();
   }
 
+  // Inflight requests for getSignedUrl: key is "filename:type", value is Promise<string | null>
+  // Used for request coalescing to prevent duplicate concurrent API calls
+  private static inflightRequests = new Map<string, Promise<string | null>>();
+
   /**
    * Get signed URL for a cloud storage file
    * Returns URL in format: https://domain/d/path/filename?sign=xxx
+   * Uses caching to reduce OpenList API calls
+   * Implements request coalescing to handle concurrent requests
    * @param filename - The filename to get signed URL for
    * @param fileType - 'video' or 'thumbnail'
    */
@@ -348,52 +394,114 @@ export class CloudStorageService {
       return null;
     }
 
-    try {
-      const result = await this.getFileUrlsWithSign(
-        config,
-        fileType === "video" ? filename : undefined,
-        fileType === "thumbnail" ? filename : undefined
-      );
+    // Check cache first
+    const cacheKey = `${filename}:${fileType}`;
+    const cached = signedUrlCache.get(cacheKey);
+    const now = Date.now();
 
-      if (fileType === "video") {
-        return result.videoUrl || null;
-      } else {
-        return result.thumbnailUrl || result.thumbnailThumbUrl || null;
-      }
-    } catch (error) {
-      logger.error(
-        `[CloudStorage] Failed to get signed URL for ${filename}:`,
-        error instanceof Error ? error : new Error(String(error))
+    if (cached && now < cached.expiresAt) {
+      logger.debug(
+        `[CloudStorage] Using cached signed URL for ${filename} (${fileType})`
       );
-      return null;
+      return cached.url;
+    }
+
+    // Check if there's already an inflight request for this file
+    if (this.inflightRequests.has(cacheKey)) {
+      logger.debug(
+        `[CloudStorage] Joining inflight request for ${filename} (${fileType})`
+      );
+      return this.inflightRequests.get(cacheKey)!;
+    }
+
+    // Cache miss or expired, fetch from OpenList
+    const promise = (async () => {
+      try {
+        const result = await this.getFileUrlsWithSign(
+          config,
+          fileType === "video" ? filename : undefined,
+          fileType === "thumbnail" ? filename : undefined
+        );
+
+        let url: string | null = null;
+        if (fileType === "video") {
+          url = result.videoUrl || null;
+        } else {
+          url = result.thumbnailUrl || result.thumbnailThumbUrl || null;
+        }
+
+        // Cache the result if we got a URL
+        if (url) {
+          signedUrlCache.set(cacheKey, {
+            url,
+            timestamp: Date.now(),
+            expiresAt: Date.now() + CACHE_TTL_MS,
+          });
+          logger.debug(
+            `[CloudStorage] Cached signed URL for ${filename} (${fileType})`
+          );
+        }
+
+        return url;
+      } catch (error) {
+        logger.error(
+          `[CloudStorage] Failed to get signed URL for ${filename}:`,
+          error instanceof Error ? error : new Error(String(error))
+        );
+        return null;
+      } finally {
+        // Remove from inflight requests when done
+        this.inflightRequests.delete(cacheKey);
+      }
+    })();
+
+    this.inflightRequests.set(cacheKey, promise);
+    return promise;
+  }
+
+  /**
+   * Clear cache for a specific file or all files
+   * @param filename - Optional filename to clear specific cache entry
+   * @param fileType - Optional file type to clear specific cache entry
+   */
+  static clearCache(filename?: string, fileType?: "video" | "thumbnail"): void {
+    if (filename && fileType) {
+      const cacheKey = `${filename}:${fileType}`;
+      signedUrlCache.delete(cacheKey);
+      logger.debug(`[CloudStorage] Cleared cache for ${cacheKey}`);
+    } else {
+      signedUrlCache.clear();
+      fileListCache.clear();
+      logger.debug("[CloudStorage] Cleared all caches");
     }
   }
 
   /**
-   * Get file URLs with sign information from Openlist
-   * Returns URLs in format: https://domain/d/path/filename?sign=xxx
+   * Get file list from OpenList with caching
+   * @param config - Cloud drive configuration
+   * @param uploadPath - Upload path to list files from
    */
-  private static async getFileUrlsWithSign(
+  private static async getFileList(
     config: CloudDriveConfig,
-    videoFilename?: string,
-    thumbnailFilename?: string
-  ): Promise<{
-    videoUrl?: string;
-    thumbnailUrl?: string;
-    thumbnailThumbUrl?: string;
-  }> {
+    uploadPath: string
+  ): Promise<any[]> {
+    // Check cache first
+    const cacheKey = uploadPath;
+    const cached = fileListCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && now < cached.timestamp + FILE_LIST_CACHE_TTL_MS) {
+      logger.debug(
+        `[CloudStorage] Using cached file list for path: ${uploadPath}`
+      );
+      return cached.files;
+    }
+
+    // Cache miss or expired, fetch from OpenList
     try {
-      // Extract base URL from apiUrl (remove /api/fs/put)
       const apiBaseUrl = config.apiUrl.replace("/api/fs/put", "");
       const listUrl = `${apiBaseUrl}/api/fs/list`;
 
-      // Normalize upload path
-      const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
-      const uploadPath = normalizedUploadPath.startsWith("/")
-        ? normalizedUploadPath
-        : `/${normalizedUploadPath}`;
-
-      // Call api/fs/list to get file list with sign information
       const response = await axios.post(
         listUrl,
         {
@@ -416,15 +524,58 @@ export class CloudStorageService {
             response.data
           )}`
         );
-        return {};
+        return [];
       }
 
       const files = response.data.data.content;
+
+      // Cache the result
+      fileListCache.set(cacheKey, {
+        files,
+        timestamp: now,
+      });
+      logger.debug(`[CloudStorage] Cached file list for path: ${uploadPath}`);
+
+      return files;
+    } catch (error) {
+      logger.error(
+        `[CloudStorage] Failed to get file list:`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get file URLs with sign information from Openlist
+   * Returns URLs in format: https://domain/d/path/filename?sign=xxx
+   */
+  private static async getFileUrlsWithSign(
+    config: CloudDriveConfig,
+    videoFilename?: string,
+    thumbnailFilename?: string
+  ): Promise<{
+    videoUrl?: string;
+    thumbnailUrl?: string;
+    thumbnailThumbUrl?: string;
+  }> {
+    try {
+      // Normalize upload path
+      const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
+      const uploadPath = normalizedUploadPath.startsWith("/")
+        ? normalizedUploadPath
+        : `/${normalizedUploadPath}`;
+
+      // Get file list (with caching)
+      const files = await this.getFileList(config, uploadPath);
       const result: {
         videoUrl?: string;
         thumbnailUrl?: string;
         thumbnailThumbUrl?: string;
       } = {};
+
+      // Extract base URL from apiUrl (remove /api/fs/put)
+      const apiBaseUrl = config.apiUrl.replace("/api/fs/put", "");
 
       // Use publicUrl if set, otherwise extract domain from apiBaseUrl
       // If publicUrl is set (e.g., https://cloudflare-tunnel-domain.com), use it for file URLs
