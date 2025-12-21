@@ -28,6 +28,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const { visitorMode } = useVisitorMode();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
@@ -138,7 +139,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
 
     const actionButtons = (
         <Stack direction="row" spacing={1}>
-            <Tooltip title={t('playWith')}>
+            <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
                 <Button
                     variant="outlined"
                     color="inherit"
@@ -169,7 +170,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                 <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
             </Menu>
 
-            <Tooltip title={t('share')}>
+            <Tooltip title={t('share')} disableHoverListener={isTouch}>
                 <Button
                     variant="outlined"
                     color="inherit"
@@ -181,7 +182,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             </Tooltip>
             {!visitorMode && (
                 <>
-                    <Tooltip title={t('addToCollection')}>
+                    <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
                             color="inherit"
@@ -191,7 +192,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                             <Add />
                         </Button>
                     </Tooltip>
-                    <Tooltip title={t('delete')}>
+                    <Tooltip title={t('delete')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
                             color="inherit"

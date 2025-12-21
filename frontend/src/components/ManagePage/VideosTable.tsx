@@ -24,7 +24,8 @@ import {
     TableSortLabel,
     TextField,
     Tooltip,
-    Typography
+    Typography,
+    useMediaQuery
 } from '@mui/material';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -96,6 +97,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     // Local editing state
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -194,7 +196,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <ThumbnailImage video={video} />
                                             </Link>
                                             {!visitorMode && (
-                                                <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"}>
+                                                <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"} disableHoverListener={isTouch}>
                                                     <IconButton
                                                         size="small"
                                                         onClick={() => onRefreshThumbnail(video.id)}
@@ -296,7 +298,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell>{formatSize(video.fileSize)}</TableCell>
                                     {!visitorMode && (
                                         <TableCell align="right">
-                                            <Tooltip title={t('deleteVideo')}>
+                                            <Tooltip title={t('deleteVideo')} disableHoverListener={isTouch}>
                                                 <IconButton
                                                     color="error"
                                                     onClick={() => onDeleteClick(video.id)}

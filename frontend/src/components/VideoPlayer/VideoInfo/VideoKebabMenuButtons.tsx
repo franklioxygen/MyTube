@@ -1,5 +1,5 @@
 import { Add, Cast, Delete, MoreVert, Share } from '@mui/icons-material';
-import { Button, IconButton, Menu, Stack, Tooltip } from '@mui/material';
+import { Button, IconButton, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
@@ -23,6 +23,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
 }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
     const handleKebabMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -73,7 +74,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
 
     return (
         <>
-            <Tooltip title="More actions">
+            <Tooltip title="More actions" disableHoverListener={isTouch}>
                 <IconButton
                     onClick={handleKebabMenuOpen}
                     sx={{
@@ -110,7 +111,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                 }}
             >
                 <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-                    <Tooltip title={t('playWith')}>
+                    <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
                             color="inherit"
@@ -120,7 +121,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                             <Cast />
                         </Button>
                     </Tooltip>
-                    <Tooltip title={t('share')}>
+                    <Tooltip title={t('share')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
                             color="inherit"
@@ -132,7 +133,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                     </Tooltip>
                     {!visitorMode && (
                         <>
-                            <Tooltip title={t('addToCollection')}>
+                            <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                                 <Button
                                     variant="outlined"
                                     color="inherit"
@@ -143,7 +144,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                                 </Button>
                             </Tooltip>
                             {onDelete && (
-                                <Tooltip title={t('delete')}>
+                                <Tooltip title={t('delete')} disableHoverListener={isTouch}>
                                     <Button
                                         variant="outlined"
                                         color="inherit"

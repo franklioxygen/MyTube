@@ -1,5 +1,5 @@
 import { Check, Close, Edit, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Box, Button, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, Button, TextField, Tooltip, Typography, useMediaQuery } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
@@ -12,6 +12,7 @@ interface EditableTitleProps {
 const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
     const [isTitleExpanded, setIsTitleExpanded] = useState(false);
@@ -106,7 +107,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {!visitorMode && (
-                    <Tooltip title={t('editTitle')}>
+                    <Tooltip title={t('editTitle')} disableHoverListener={isTouch}>
                         <Button
                             size="small"
                             onClick={handleStartEditingTitle}
@@ -117,7 +118,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
                     </Tooltip>
                 )}
                 {showExpandButton && (
-                    <Tooltip title={isTitleExpanded ? t('collapse') : t('expand')}>
+                    <Tooltip title={isTitleExpanded ? t('collapse') : t('expand')} disableHoverListener={isTouch}>
                         <Button
                             size="small"
                             onClick={() => setIsTitleExpanded(!isTitleExpanded)}

@@ -12,7 +12,8 @@ import {
     TableHead,
     TableRow,
     Tooltip,
-    Typography
+    Typography,
+    useMediaQuery
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -40,6 +41,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
 }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (
         <Box sx={{ mb: 6 }}>
@@ -71,7 +73,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                     <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
                                     {!visitorMode && (
                                         <TableCell align="right">
-                                            <Tooltip title={t('deleteCollection')}>
+                                            <Tooltip title={t('deleteCollection')} disableHoverListener={isTouch}>
                                                 <IconButton
                                                     color="error"
                                                     onClick={() => onDelete(collection)}

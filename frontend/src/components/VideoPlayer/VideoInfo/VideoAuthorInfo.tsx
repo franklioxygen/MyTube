@@ -1,5 +1,5 @@
 import { Notifications, NotificationsActive } from '@mui/icons-material';
-import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, IconButton, Tooltip, Typography, useMediaQuery } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
@@ -38,6 +38,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
 }) => {
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !visitorMode;
 
     const handleSubscribeClick = (e: React.MouseEvent) => {
@@ -83,7 +84,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
                 </Typography>
             </Box>
             {showSubscribeButton && (
-                <Tooltip title={isSubscribed ? t('unsubscribe') : t('subscribe')}>
+                <Tooltip title={isSubscribed ? t('unsubscribe') : t('subscribe')} disableHoverListener={isTouch}>
                     <IconButton
                         size="small"
                         onClick={handleSubscribeClick}

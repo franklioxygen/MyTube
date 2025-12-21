@@ -33,6 +33,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const { visitorMode } = useVisitorMode();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -57,7 +58,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             </IconButton>
 
             {!isMobile && (
-                <Tooltip title={t('manage')}>
+                <Tooltip title={t('manage')} disableHoverListener={isTouch}>
                     <IconButton
                         color="inherit"
                         onClick={onManageClick}

@@ -25,6 +25,7 @@ import {
     Stack,
     Tooltip,
     Typography,
+    useMediaQuery,
     useTheme
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
@@ -59,6 +60,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
+    const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -593,7 +595,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                     }, 200);
                                 }}
                             >
-                                <Tooltip title={volume === 0 ? 'Unmute' : 'Mute'}>
+                                <Tooltip title={volume === 0 ? 'Unmute' : 'Mute'} disableHoverListener={isTouch}>
                                     <IconButton
                                         onClick={handleVolumeClick}
                                         size="small"
@@ -656,7 +658,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             </Box>
 
                             {/* Play/Pause */}
-                            <Tooltip title={isPlaying ? t('paused') : t('playing')}>
+                            <Tooltip title={isPlaying ? t('paused') : t('playing')} disableHoverListener={isTouch}>
                                 <IconButton
                                     color={isPlaying ? "secondary" : "primary"}
                                     onClick={handlePlayPause}
@@ -715,7 +717,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         {/* Subtitle Button (Mobile only, next to progress bar) */}
                         {subtitles && subtitles.length > 0 && (
                             <>
-                                <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'}>
+                                <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'} disableHoverListener={isTouch}>
                                     <IconButton
                                         color={subtitlesEnabled ? "primary" : "default"}
                                         onClick={handleSubtitleClick}
@@ -731,7 +733,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         {/* Right Side: Fullscreen, Subtitle, Loop (Desktop only) */}
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1, display: { xs: 'none', sm: 'flex' } }}>
                             {/* Fullscreen */}
-                            <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}>
+                            <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')} disableHoverListener={isTouch}>
                                 <IconButton
                                     onClick={handleToggleFullscreen}
                                     size="small"
@@ -743,7 +745,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             {/* Subtitle */}
                             {subtitles && subtitles.length > 0 && (
                                 <>
-                                    <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'}>
+                                    <Tooltip title={subtitlesEnabled ? 'Subtitles' : 'Subtitles Off'} disableHoverListener={isTouch}>
                                         <IconButton
                                             color={subtitlesEnabled ? "primary" : "default"}
                                             onClick={handleSubtitleClick}
@@ -770,7 +772,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             )}
 
                             {/* Loop */}
-                            <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`}>
+                            <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`} disableHoverListener={isTouch}>
                                 <IconButton
                                     color={isLooping ? "primary" : "default"}
                                     onClick={handleToggleLoop}
@@ -791,7 +793,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     alignItems="center"
                     sx={{ width: '100%', flexWrap: 'wrap' }}
                 >
-                        <Tooltip title="-10m">
+                        <Tooltip title="-10m" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(-600)} 
                                 size="small"
@@ -800,7 +802,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 <KeyboardDoubleArrowLeft />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="-1m">
+                        <Tooltip title="-1m" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(-60)} 
                                 size="small"
@@ -809,7 +811,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 <FastRewind />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="-10s">
+                        <Tooltip title="-10s" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(-10)} 
                                 size="small"
@@ -818,7 +820,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 <Replay10 />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="+10s">
+                        <Tooltip title="+10s" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(10)} 
                                 size="small"
@@ -827,7 +829,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 <Forward10 />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="+1m">
+                        <Tooltip title="+1m" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(60)} 
                                 size="small"
@@ -836,7 +838,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 <FastForward />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="+10m">
+                        <Tooltip title="+10m" disableHoverListener={isTouch}>
                             <IconButton 
                                 onClick={() => handleSeek(600)} 
                                 size="small"
@@ -849,7 +851,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         {/* Mobile: Fullscreen, Loop */}
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1 }}>
                             {/* Fullscreen */}
-                            <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}>
+                            <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')} disableHoverListener={isTouch}>
                                 <IconButton
                                     onClick={handleToggleFullscreen}
                                     size="small"
@@ -859,7 +861,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                             </Tooltip>
 
                             {/* Loop */}
-                            <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`}>
+                            <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`} disableHoverListener={isTouch}>
                                 <IconButton
                                     color={isLooping ? "primary" : "default"}
                                     onClick={handleToggleLoop}

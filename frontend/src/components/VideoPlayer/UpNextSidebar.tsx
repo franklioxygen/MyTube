@@ -161,7 +161,7 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                             </Box>
 
                             {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !visitorMode && (
-                                <Tooltip title={t('addToCollection')}>
+                                <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                                     <IconButton
                                         size="small"
                                         onClick={(e) => handleAddToCollectionClick(e, relatedVideo.id)}
