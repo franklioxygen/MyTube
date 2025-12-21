@@ -141,8 +141,8 @@ export const pt = {
   // Cloud Drive
   cloudDriveSettings: "Armazenamento em Nuvem (OpenList)",
   cloudDriveDescription:
-    "Enviar automaticamente vídeos para o armazenamento em nuvem (Alist) e excluir arquivos locais após o envio bem-sucedido.",
-  enableAutoSave: "Ativar salvamento automático na nuvem",
+    "Faça upload automático de vídeos para o armazenamento em nuvem (Alist) e verifique se há novos arquivos na nuvem. Os arquivos locais serão excluídos após o upload bem-sucedido.",
+  enableAutoSave: "Ativar Sincronização na Nuvem",
   apiUrl: "URL da API",
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
   token: "Token",
@@ -155,8 +155,8 @@ export const pt = {
   testing: "Testando...",
   testConnection: "Testar Conexão",
   sync: "Sincronizar",
-  syncToCloud: "Sincronizar com a Nuvem",
-  syncWarning: "Esta operação enviará vídeos e miniaturas locais para a fila do CloudStorage. Vídeos e miniaturas locais serão excluídos após o envio.",
+  syncToCloud: "Sincronização Bidirecional",
+  syncWarning: "Esta operação fará upload de vídeos locais para a nuvem e verificará se há novos arquivos no armazenamento em nuvem. Os arquivos locais serão excluídos após o upload.",
   syncing: "Sincronizando...",
   syncCompleted: "Sincronização Concluída",
   syncFailed: "Falha na Sincronização",

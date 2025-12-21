@@ -192,7 +192,41 @@ export const syncToCloud = async (
       }
     }
 
-    // Send completion report
+    // Send completion report for upload sync
+    sendProgress({
+      type: "progress",
+      message: `Upload sync completed: ${uploaded} uploaded, ${failed} failed. Starting cloud scan...`,
+    });
+
+    // Now scan cloud storage for videos not in database (Two-way Sync)
+    let cloudScanAdded = 0;
+    const cloudScanErrors: string[] = [];
+
+    try {
+      const scanResult = await CloudStorageService.scanCloudFiles(
+        (message, current, total) => {
+          sendProgress({
+            type: "progress",
+            message: `Cloud scan: ${message}`,
+            current: current,
+            total: total,
+          });
+        }
+      );
+
+      cloudScanAdded = scanResult.added;
+      cloudScanErrors.push(...scanResult.errors);
+    } catch (error: any) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      cloudScanErrors.push(`Cloud scan failed: ${errorMessage}`);
+      logger.error(
+        "[CloudSync] Cloud scan error:",
+        error instanceof Error ? error : new Error(errorMessage)
+      );
+    }
+
+    // Send final completion report
     sendProgress({
       type: "complete",
       report: {
@@ -200,9 +234,9 @@ export const syncToCloud = async (
         uploaded,
         skipped,
         failed,
-        errors,
+        errors: [...errors, ...cloudScanErrors],
       },
-      message: `Sync completed: ${uploaded} uploaded, ${failed} failed`,
+      message: `Two-way sync completed: ${uploaded} uploaded, ${cloudScanAdded} added from cloud, ${failed} failed`,
     });
 
     res.end();

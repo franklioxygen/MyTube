@@ -145,8 +145,8 @@ export const fr = {
   // Cloud Drive
   cloudDriveSettings: "Stockage Cloud (OpenList)",
   cloudDriveDescription:
-    "Télécharger automatiquement les vidéos vers le stockage cloud (Alist) et supprimer les fichiers locaux après un téléchargement réussi.",
-  enableAutoSave: "Activer la sauvegarde automatique sur le Cloud",
+    "Télécharge automatiquement les vidéos sur le stockage cloud (Alist) et recherche les nouveaux fichiers dans le cloud. Les fichiers locaux seront supprimés après un téléchargement réussi.",
+  enableAutoSave: "Activer la synchronisation Cloud",
   apiUrl: "URL de l'API",
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
   token: "Jeton (Token)",
@@ -160,8 +160,8 @@ export const fr = {
   testing: "Test en cours...",
   testConnection: "Tester la connexion",
   sync: "Synchroniser",
-  syncToCloud: "Synchroniser vers le Cloud",
-  syncWarning: "Cette opération téléchargera les vidéos et miniatures locales vers la file d'attente CloudStorage. Les vidéos et miniatures locales seront supprimées après le téléchargement.",
+  syncToCloud: "Synchronisation bidirectionnelle",
+  syncWarning: "Cette opération téléchargera les vidéos locales vers le cloud et recherchera les nouveaux fichiers dans le stockage cloud. Les fichiers locaux seront supprimés après le téléchargement.",
   syncing: "Synchronisation...",
   syncCompleted: "Synchronisation Terminée",
   syncFailed: "Échec de la Synchronisation",

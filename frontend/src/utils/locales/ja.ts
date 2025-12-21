@@ -140,8 +140,8 @@ export const ja = {
   // Cloud Drive
   cloudDriveSettings: "クラウドストレージ (OpenList)",
   cloudDriveDescription:
-    "動画をクラウドストレージ（Alist）に自動アップロードし、アップロード成功後にローカルファイルを削除します。",
-  enableAutoSave: "クラウドへの自動保存を有効にする",
+    "クラウドストレージ(Alist)に動画を自動アップロードし、クラウド内の新しいファイルをスキャンします。アップロード成功後、ローカルファイルは削除されます。",
+  enableAutoSave: "クラウド同期を有効化",
   apiUrl: "API URL",
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
   token: "トークン",
@@ -155,8 +155,8 @@ export const ja = {
   testing: "テスト中...",
   testConnection: "接続をテスト",
   sync: "同期",
-  syncToCloud: "クラウドストレージに同期",
-  syncWarning: "この操作により、ローカルの動画とサムネイルがCloudStorageキューにアップロードされます。アップロード後、ローカルの動画とサムネイルは削除されます。",
+  syncToCloud: "双方向同期",
+  syncWarning: "この操作はローカル動画をクラウドにアップロードし、クラウド上の新しいファイルをスキャンします。アップロード後、ローカルファイルは削除されます。",
   syncing: "同期中...",
   syncCompleted: "同期完了",
   syncFailed: "同期に失敗しました",

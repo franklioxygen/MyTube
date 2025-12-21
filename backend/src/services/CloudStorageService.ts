@@ -1,9 +1,12 @@
 import axios from "axios";
+import { exec } from "child_process";
 import fs from "fs-extra";
 import path from "path";
+import { IMAGES_DIR } from "../config/paths";
 import { FileError, NetworkError } from "../errors/DownloadErrors";
+import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { getSettings } from "./storageService";
+import { getSettings, getVideos, saveVideo } from "./storageService";
 
 interface CloudDriveConfig {
   enabled: boolean;
@@ -280,30 +283,46 @@ export class CloudStorageService {
 
   private static async uploadFile(
     filePath: string,
-    config: CloudDriveConfig
+    config: CloudDriveConfig,
+    remotePath?: string
   ): Promise<void> {
     // 1. Get basic file information
-    const fileName = path.basename(filePath);
     const fileStat = fs.statSync(filePath);
     const fileSize = fileStat.size;
     const lastModified = fileStat.mtime.getTime().toString(); // Get millisecond timestamp
     const fileStream = fs.createReadStream(filePath);
-
-    logger.info(`[CloudStorage] Uploading ${fileName} (${fileSize} bytes)...`);
+    const fileName = path.basename(filePath);
 
     // 2. Prepare request URL and path
     // URL is always a fixed PUT endpoint
     const url = config.apiUrl; // Assume apiUrl is http://127.0.0.1:5244/api/fs/put
 
-    // Destination path is the combination of uploadPath and fileName
-    // Normalize path separators to forward slashes for Alist (works on all platforms)
+    // Destination path logic
     const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
-    const normalizedPath = normalizedUploadPath.endsWith("/")
-      ? `${normalizedUploadPath}${fileName}`
-      : `${normalizedUploadPath}/${fileName}`;
-    const destinationPath = normalizedPath.startsWith("/")
-      ? normalizedPath
-      : `/${normalizedPath}`;
+    let destinationPath = "";
+
+    if (remotePath) {
+      // If remotePath is provided, append it to uploadPath
+      // remotePath should be relative to uploadPath, e.g. "subdir/file.jpg" or "file.jpg"
+      const normalizedRemotePath = remotePath.replace(/\\/g, "/");
+      destinationPath = normalizedUploadPath.endsWith("/")
+        ? `${normalizedUploadPath}${normalizedRemotePath}`
+        : `${normalizedUploadPath}/${normalizedRemotePath}`;
+    } else {
+      // Default behavior: upload to root of uploadPath using source filename
+      destinationPath = normalizedUploadPath.endsWith("/")
+        ? `${normalizedUploadPath}${fileName}`
+        : `${normalizedUploadPath}/${fileName}`;
+    }
+
+    // Ensure it starts with /
+    destinationPath = destinationPath.startsWith("/")
+      ? destinationPath
+      : `/${destinationPath}`;
+
+    logger.info(
+      `[CloudStorage] Uploading ${fileName} to ${destinationPath} (${fileSize} bytes)...`
+    );
 
     logger.debug(
       `[CloudStorage] Destination path in header: ${destinationPath}`
@@ -557,6 +576,49 @@ export class CloudStorageService {
   }
 
   /**
+   * Recursively get all files from cloud storage (including subdirectories)
+   * @param config - Cloud drive configuration
+   * @param uploadPath - Upload path to scan
+   * @param allFiles - Accumulator for all files found
+   */
+  private static async getFilesRecursively(
+    config: CloudDriveConfig,
+    uploadPath: string,
+    allFiles: Array<{ file: any; path: string }> = []
+  ): Promise<Array<{ file: any; path: string }>> {
+    try {
+      const files = await this.getFileList(config, uploadPath);
+
+      for (const file of files) {
+        // Normalize path
+        const normalizedUploadPath = uploadPath.replace(/\\/g, "/");
+        const filePath = normalizedUploadPath.endsWith("/")
+          ? `${normalizedUploadPath}${file.name}`
+          : `${normalizedUploadPath}/${file.name}`;
+        const normalizedFilePath = filePath.startsWith("/")
+          ? filePath
+          : `/${filePath}`;
+
+        if (file.is_dir) {
+          // Recursively scan subdirectory
+          await this.getFilesRecursively(config, normalizedFilePath, allFiles);
+        } else {
+          // Add file to results
+          allFiles.push({ file, path: normalizedFilePath });
+        }
+      }
+
+      return allFiles;
+    } catch (error) {
+      logger.error(
+        `[CloudStorage] Failed to recursively get files from ${uploadPath}:`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      return allFiles;
+    }
+  }
+
+  /**
    * Get file URLs with sign information from Openlist
    * Returns URLs in format: https://domain/d/path/filename?sign=xxx
    */
@@ -570,38 +632,68 @@ export class CloudStorageService {
     thumbnailThumbUrl?: string;
   }> {
     try {
-      // Normalize upload path
+      // Normalize upload path (root)
       const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
-      const uploadPath = normalizedUploadPath.startsWith("/")
+      const baseUploadPath = normalizedUploadPath.startsWith("/")
         ? normalizedUploadPath
         : `/${normalizedUploadPath}`;
 
-      // Get file list (with caching)
-      const files = await this.getFileList(config, uploadPath);
       const result: {
         videoUrl?: string;
         thumbnailUrl?: string;
         thumbnailThumbUrl?: string;
       } = {};
 
-      // Extract base URL from apiUrl (remove /api/fs/put)
       const apiBaseUrl = config.apiUrl.replace("/api/fs/put", "");
-
       // Use publicUrl if set, otherwise extract domain from apiBaseUrl
-      // If publicUrl is set (e.g., https://cloudflare-tunnel-domain.com), use it for file URLs
-      // Otherwise, use apiBaseUrl (e.g., http://127.0.0.1:5244)
       const domain = config.publicUrl || apiBaseUrl;
+
+      // Helper to find file in its directory
+      const findFileInDir = async (fullRelativePath: string): Promise<any> => {
+        // fullRelativePath is e.g. "subdir/video.mp4" or "video.mp4"
+        const dirName = path.dirname(fullRelativePath);
+        const fileName = path.basename(fullRelativePath);
+
+        // Determine the full path to list
+        // If dirName is ".", lookup path is just baseUploadPath
+        // If dirName is "subdir", lookup path is baseUploadPath/subdir
+        let listPath = baseUploadPath;
+        if (dirName !== ".") {
+          const normalizedDir = dirName.replace(/\\/g, "/");
+          listPath = baseUploadPath.endsWith("/")
+            ? `${baseUploadPath}${normalizedDir}`
+            : `${baseUploadPath}/${normalizedDir}`;
+        }
+
+        const files = await this.getFileList(config, listPath);
+        return files.find((f: any) => f.name === fileName);
+      };
 
       // Find video file
       if (videoFilename) {
-        const videoFile = files.find(
-          (file: any) => file.name === videoFilename
-        );
+        const videoFile = await findFileInDir(videoFilename);
+
         if (videoFile && videoFile.sign) {
-          // Build URL: https://domain/d/path/filename?sign=xxx
-          // Only encode the filename, not the path
-          const encodedFilename = encodeURIComponent(videoFilename);
-          result.videoUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
+          // Build URL: https://domain/d/path/files/filename?sign=xxx
+          // We need to construct the full web path including subdirectory
+          // If videoFilename is "subdir/video.mp4", the path in URL should include /subdir/
+          // The Alist pattern seems to be /d/mount_path/subdir/filename
+
+          // Let's ensure proper path concatenation
+          const relativeDirObj = path.parse(videoFilename);
+          const relativeDir = relativeDirObj.dir; // "subdir" or ""
+          const name = relativeDirObj.base; // "video.mp4"
+
+          let fullWebPathLines = [baseUploadPath];
+          if (relativeDir && relativeDir !== ".") {
+            fullWebPathLines.push(relativeDir.replace(/\\/g, "/"));
+          }
+          fullWebPathLines.push(name);
+
+          // Join and cleanup double slashes
+          const fullWebPath = fullWebPathLines.join("/").replace(/\/+/g, "/");
+
+          result.videoUrl = `${domain}/d${fullWebPath}?sign=${encodeURIComponent(
             videoFile.sign
           )}`;
         }
@@ -609,31 +701,38 @@ export class CloudStorageService {
 
       // Find thumbnail file
       if (thumbnailFilename) {
-        const thumbnailFile = files.find(
-          (file: any) => file.name === thumbnailFilename
-        );
+        const thumbnailFile = await findFileInDir(thumbnailFilename);
+
         if (thumbnailFile) {
+          // Construct full path for URL same as video
+          const relativeDirObj = path.parse(thumbnailFilename);
+          const relativeDir = relativeDirObj.dir;
+          const name = relativeDirObj.base;
+
+          let fullWebPathLines = [baseUploadPath];
+          if (relativeDir && relativeDir !== ".") {
+            fullWebPathLines.push(relativeDir.replace(/\\/g, "/"));
+          }
+          fullWebPathLines.push(name);
+          const fullWebPath = fullWebPathLines.join("/").replace(/\/+/g, "/");
+
           // Prefer file URL with sign if available
           if (thumbnailFile.sign) {
-            // Build URL: https://domain/d/path/filename?sign=xxx
-            const encodedFilename = encodeURIComponent(thumbnailFilename);
-            result.thumbnailUrl = `${domain}/d${uploadPath}/${encodedFilename}?sign=${encodeURIComponent(
+            result.thumbnailUrl = `${domain}/d${fullWebPath}?sign=${encodeURIComponent(
               thumbnailFile.sign
             )}`;
           }
+
           // If file doesn't have sign but has thumb URL, use thumb URL
           // Also check if no thumbnail file exists but video file has thumb
           if (thumbnailFile.thumb) {
-            // Use thumb URL and modify resolution
-            // Replace width=176&height=176 with width=1280&height=720
+            // ... existing thumb logic ...
             let thumbUrl = thumbnailFile.thumb;
             thumbUrl = thumbUrl.replace(
               /width=\d+[&\\u0026]height=\d+/,
               "width=1280&height=720"
             );
-            // Also handle \u0026 encoding
             thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
-            // If publicUrl is set, replace the domain in thumbUrl with publicUrl
             if (config.publicUrl) {
               try {
                 const thumbUrlObj = new URL(thumbUrl);
@@ -643,29 +742,26 @@ export class CloudStorageService {
                   publicUrlObj.origin
                 );
               } catch (e) {
-                // If URL parsing fails, use thumbUrl as is
                 logger.debug(
-                  `[CloudStorage] Failed to replace domain in thumbUrl: ${thumbUrl}`
+                  `[CloudStorage] Failed to replace domain: ${thumbUrl}`
                 );
               }
             }
             result.thumbnailThumbUrl = thumbUrl;
           }
         } else {
-          // Thumbnail file not found, check if video file has thumb
+          // Fallback: Check if video file has thumb (if thumbnail file itself wasn't found)
+          // This is useful if we generated "cloud:video.jpg" but it doesn't exist yet or failed,
+          // but maybe the video file "cloud:video.mp4" has a generated thumb from the server side.
           if (videoFilename) {
-            const videoFile = files.find(
-              (file: any) => file.name === videoFilename
-            );
+            const videoFile = await findFileInDir(videoFilename);
             if (videoFile && videoFile.thumb) {
-              // Use video file's thumb URL and modify resolution
               let thumbUrl = videoFile.thumb;
               thumbUrl = thumbUrl.replace(
                 /width=\d+[&\\u0026]height=\d+/,
                 "width=1280&height=720"
               );
               thumbUrl = thumbUrl.replace(/\\u0026/g, "&");
-              // If publicUrl is set, replace the domain in thumbUrl with publicUrl
               if (config.publicUrl) {
                 try {
                   const thumbUrlObj = new URL(thumbUrl);
@@ -675,9 +771,8 @@ export class CloudStorageService {
                     publicUrlObj.origin
                   );
                 } catch (e) {
-                  // If URL parsing fails, use thumbUrl as is
                   logger.debug(
-                    `[CloudStorage] Failed to replace domain in thumbUrl: ${thumbUrl}`
+                    `[CloudStorage] Failed to replace domain: ${thumbUrl}`
                   );
                 }
               }
@@ -694,6 +789,315 @@ export class CloudStorageService {
         error instanceof Error ? error : new Error(String(error))
       );
       return {};
+    }
+  }
+
+  /**
+   * Scan cloud storage for videos not in database (Two-way Sync)
+   * @param onProgress - Optional callback for progress updates
+   * @returns Report with added count and errors
+   */
+  static async scanCloudFiles(
+    onProgress?: (message: string, current?: number, total?: number) => void
+  ): Promise<{
+    added: number;
+    errors: string[];
+  }> {
+    const config = this.getConfig();
+    if (!config.enabled || !config.apiUrl || !config.token) {
+      logger.info("[CloudStorage] Cloud storage not configured, skipping scan");
+      return { added: 0, errors: [] };
+    }
+
+    logger.info("[CloudStorage] Starting cloud file scan...");
+    onProgress?.("Scanning cloud storage for videos...");
+
+    try {
+      // Normalize upload path
+      const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
+      const uploadPath = normalizedUploadPath.startsWith("/")
+        ? normalizedUploadPath
+        : `/${normalizedUploadPath}`;
+
+      // Recursively get all files from cloud storage
+      const allCloudFiles = await this.getFilesRecursively(config, uploadPath);
+
+      // Filter for video files
+      const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+      const videoFiles = allCloudFiles.filter(({ file }) => {
+        const ext = path.extname(file.name).toLowerCase();
+        return videoExtensions.includes(ext);
+      });
+
+      logger.info(
+        `[CloudStorage] Found ${videoFiles.length} video files in cloud storage`
+      );
+      onProgress?.(
+        `Found ${videoFiles.length} video files in cloud storage`,
+        0,
+        videoFiles.length
+      );
+
+      // Get existing videos from database
+      const existingVideos = getVideos();
+      const existingFilenames = new Set<string>();
+      const existingPaths = new Set<string>();
+      for (const video of existingVideos) {
+        if (video.videoFilename) {
+          existingFilenames.add(video.videoFilename);
+        }
+        // Also check by full path for cloud videos
+        if (video.videoPath && video.videoPath.startsWith("cloud:")) {
+          const cloudPath = video.videoPath.substring(6); // Remove "cloud:" prefix
+          existingPaths.add(cloudPath);
+        }
+      }
+
+      // Find videos not in database
+      // Check both by filename and by full path to handle subdirectories correctly
+      const newVideos = videoFiles.filter(({ file, path: filePath }) => {
+        // Remove leading slash and normalize path relative to upload root
+        const normalizedPath = filePath.startsWith("/")
+          ? filePath.substring(1)
+          : filePath;
+        // Check if this exact path exists
+        if (existingPaths.has(normalizedPath)) {
+          return false;
+        }
+        // Also check by filename (for backward compatibility)
+        return !existingFilenames.has(file.name);
+      });
+
+      logger.info(
+        `[CloudStorage] Found ${newVideos.length} new videos to add to database`
+      );
+
+      let added = 0;
+      const errors: string[] = [];
+
+      // Process each new video
+      for (let i = 0; i < newVideos.length; i++) {
+        const { file, path: filePath } = newVideos[i];
+        const filename = file.name;
+
+        onProgress?.(`Processing: ${filename}`, i + 1, newVideos.length);
+
+        try {
+          // Get signed URL for video
+          // Try to get signed URL using the standard method first
+          let videoSignedUrl = await this.getSignedUrl(filename, "video");
+
+          // If not found and file has sign property (for files in subdirectories), construct URL directly
+          if (!videoSignedUrl && file.sign) {
+            const domain =
+              config.publicUrl || config.apiUrl.replace("/api/fs/put", "");
+            // filePath is the full path from upload root (e.g., /mytube-uploads/subfolder/video.mp4)
+            videoSignedUrl = `${domain}/d${filePath}?sign=${encodeURIComponent(
+              file.sign
+            )}`;
+            logger.debug(
+              `[CloudStorage] Using file sign for ${filename} from path ${filePath}`
+            );
+          }
+
+          if (!videoSignedUrl) {
+            errors.push(`${filename}: Failed to get signed URL`);
+            logger.error(
+              `[CloudStorage] Failed to get signed URL for ${filename}`
+            );
+            continue;
+          }
+
+          // Extract title from filename
+          const originalTitle = path.parse(filename).name;
+          const author = "Cloud Admin";
+          const dateString = new Date()
+            .toISOString()
+            .split("T")[0]
+            .replace(/-/g, "");
+
+          // Format filename (same as local scan)
+          const baseFilename = formatVideoFilename(
+            originalTitle,
+            author,
+            dateString
+          );
+          const videoExtension = path.extname(filename);
+          // newVideoFilename is just for reference or local temp usage
+          // The actual cloud path is preserved from the source
+          const newThumbnailFilename = `${baseFilename}.jpg`;
+
+          // Generate thumbnail from video using signed URL
+          // Download video temporarily to generate thumbnail
+          // Note: ffmpeg can work with URLs, but we'll download a small portion
+          const tempThumbnailPath = path.join(
+            IMAGES_DIR,
+            `temp_${Date.now()}_${path.parse(filename).name}.jpg`
+          );
+
+          // Determine remote thumbnail path (put it in the same folder as video)
+          // filePath is the full path from upload root (e.g., /mytube-uploads/subdir/video.mp4)
+          // We need to extract the relative directory path
+          const normalizedFilePath = filePath.startsWith("/")
+            ? filePath.substring(1)
+            : filePath;
+          const videoDir = path.dirname(normalizedFilePath);
+          // If videoDir is "." it means root, otherwise it's the subdirectory path
+          const remoteThumbnailDir = videoDir === "." ? "" : videoDir;
+          const remoteThumbnailPath = remoteThumbnailDir
+            ? `${remoteThumbnailDir}/${newThumbnailFilename}`
+            : newThumbnailFilename;
+
+          // Ensure directory exists
+          fs.ensureDirSync(path.dirname(tempThumbnailPath));
+
+          // Generate thumbnail using ffmpeg with signed URL
+          // ffmpeg can work with HTTP URLs directly
+          await new Promise<void>((resolve, reject) => {
+            exec(
+              `ffmpeg -i "${videoSignedUrl}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}" -y`,
+              { timeout: 30000 }, // 30 second timeout
+              (error) => {
+                if (error) {
+                  logger.error(
+                    `[CloudStorage] Error generating thumbnail for ${filename}:`,
+                    error
+                  );
+                  reject(error);
+                } else {
+                  resolve();
+                }
+              }
+            );
+          });
+
+          // Upload thumbnail to cloud storage (with correct filename and location)
+          if (fs.existsSync(tempThumbnailPath)) {
+            // New uploadFile signature or logic needed here?
+            // Actually, we can just pass the desired destination path to uploadFile if we refactor it
+            // Or we can manually construct the full local path if it was a local file,
+            // but here we have a temp file we want to put in a specific remote location.
+            // Let's assume uploadFile takes an optional remotePath.
+            await this.uploadFile(
+              tempThumbnailPath,
+              config,
+              remoteThumbnailPath
+            );
+
+            // Cleanup temp thumbnail after upload
+            fs.unlinkSync(tempThumbnailPath);
+          }
+
+          // Get duration
+          let duration: string | undefined = undefined;
+          try {
+            const durationOutput = await new Promise<string>(
+              (resolve, reject) => {
+                exec(
+                  `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoSignedUrl}"`,
+                  { timeout: 10000 },
+                  (error, stdout, _stderr) => {
+                    if (error) {
+                      reject(error);
+                    } else {
+                      resolve(stdout.trim());
+                    }
+                  }
+                );
+              }
+            );
+            if (durationOutput) {
+              const durationSec = parseFloat(durationOutput);
+              if (!isNaN(durationSec)) {
+                duration = Math.round(durationSec).toString();
+              }
+            }
+          } catch (err) {
+            logger.error(
+              `[CloudStorage] Error getting duration for ${filename}:`,
+              err
+            );
+            // Continue without duration
+          }
+
+          // Create video record
+          const videoId = (
+            Date.now() + Math.floor(Math.random() * 10000)
+          ).toString();
+
+          const newVideo = {
+            id: videoId,
+            title: originalTitle || "Untitled Video",
+            author: author,
+            source: "cloud",
+            sourceUrl: "",
+            videoFilename: filename, // Keep original filename
+            // Store path relative to upload root (remove leading slash if present)
+            videoPath: `cloud:${normalizedFilePath}`, // Store relative path (e.g., mytube-uploads/subdir/video.mp4)
+            thumbnailFilename: newThumbnailFilename,
+            thumbnailPath: `cloud:${remoteThumbnailPath}`, // Store relative path
+            thumbnailUrl: `cloud:${remoteThumbnailPath}`,
+            createdAt: file.modified
+              ? new Date(file.modified).toISOString()
+              : new Date().toISOString(),
+            addedAt: new Date().toISOString(),
+            date: dateString,
+            duration: duration,
+          };
+
+          saveVideo(newVideo);
+          added++;
+
+          logger.info(
+            `[CloudStorage] Added video to database: ${newVideo.title} (${filePath})`
+          );
+
+          // Clear cache for the new files
+          // Use normalized paths (relative to upload root) for cache keys
+          this.clearCache(normalizedFilePath, "video");
+          this.clearCache(remoteThumbnailPath, "thumbnail");
+
+          // Also clear file list cache for the directory where thumbnail was added
+          const normalizedUploadPath = config.uploadPath.replace(/\\/g, "/");
+          const baseUploadPath = normalizedUploadPath.startsWith("/")
+            ? normalizedUploadPath
+            : `/${normalizedUploadPath}`;
+          const dirPath = remoteThumbnailDir
+            ? `${baseUploadPath}/${remoteThumbnailDir}`
+            : baseUploadPath;
+          // Normalize path (remove duplicate slashes)
+          const cleanDirPath = dirPath.replace(/\/+/g, "/");
+          fileListCache.delete(cleanDirPath);
+        } catch (error: any) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          errors.push(`${filename}: ${errorMessage}`);
+          logger.error(
+            `[CloudStorage] Failed to process video ${filename}:`,
+            error instanceof Error ? error : new Error(errorMessage)
+          );
+        }
+      }
+
+      logger.info(
+        `[CloudStorage] Cloud scan completed: ${added} added, ${errors.length} errors`
+      );
+      onProgress?.(
+        `Scan completed: ${added} added, ${errors.length} errors`,
+        newVideos.length,
+        newVideos.length
+      );
+
+      return { added, errors };
+    } catch (error: any) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error(
+        "[CloudStorage] Cloud scan failed:",
+        error instanceof Error ? error : new Error(errorMessage)
+      );
+      onProgress?.("Scan failed: " + errorMessage);
+      return { added: 0, errors: [errorMessage] };
     }
   }
 }

@@ -137,8 +137,8 @@ export const ko = {
   // Cloud Drive
   cloudDriveSettings: "클라우드 드라이브 (OpenList)",
   cloudDriveDescription:
-    "비디오를 클라우드 스토리지(Alist)에 자동으로 업로드하고 업로드 성공 후 로컬 파일을 삭제합니다.",
-  enableAutoSave: "클라우드 자동 저장 활성화",
+    "동영상을 클라우드 저장소(Alist)에 자동으로 업로드하고 클라우드의 새 파일을 검색합니다. 업로드 성공 후 로컬 파일은 삭제됩니다。",
+  enableAutoSave: "클라우드 동기화 사용",
   apiUrl: "API URL",
   apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
   token: "토큰",
@@ -152,8 +152,8 @@ export const ko = {
   testing: "테스트 중...",
   testConnection: "연결 테스트",
   sync: "동기화",
-  syncToCloud: "클라우드 스토리지에 동기화",
-  syncWarning: "이 작업은 로컬 비디오 및 썸네일을 CloudStorage 대기열에 업로드합니다. 업로드 후 로컬 비디오 및 썸네일은 삭제됩니다.",
+  syncToCloud: "양방향 동기화",
+  syncWarning: "이 작업은 로컬 동영상을 클라우드로 업로드하고 클라우드 저장소에서 새 파일을 검색합니다. 업로드 후 로컬 파일은 삭제됩니다。",
   syncing: "동기화 중...",
   syncCompleted: "동기화 완료",
   syncFailed: "동기화 실패",

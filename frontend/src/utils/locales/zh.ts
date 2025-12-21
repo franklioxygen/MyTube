@@ -132,8 +132,8 @@ export const zh = {
   // Cloud Drive
   cloudDriveSettings: "云端存储 (OpenList)",
   cloudDriveDescription:
-    "自动将视频上传到云端存储（Alist），并在成功上传后删除本地文件。",
-  enableAutoSave: "启用自动保存到云端",
+    "自动上传视频到云存储 (Alist) 并扫描云端新文件。上传成功后将删除本地文件。",
+  enableAutoSave: "启用云端同步",
   apiUrl: "API 地址",
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
   token: "Token",
@@ -146,8 +146,8 @@ export const zh = {
   testing: "测试中...",
   testConnection: "测试连接",
   sync: "同步",
-  syncToCloud: "同步到云存储",
-  syncWarning: "此操作将把本地视频和缩略图上传到云存储队列中。上传后，本地视频和缩略图将被删除。",
+  syncToCloud: "双向同步",
+  syncWarning: "此操作将上传本地视频到云端并扫描云端新文件。上传后，本地文件将被删除。",
   syncing: "正在同步...",
   syncCompleted: "同步完成",
   syncFailed: "同步失败",

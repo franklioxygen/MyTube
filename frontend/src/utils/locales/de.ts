@@ -131,8 +131,8 @@ export const de = {
   // Cloud Drive
   cloudDriveSettings: "Cloud-Speicher (OpenList)",
   cloudDriveDescription:
-    "Videos automatisch in den Cloud-Speicher (Alist) hochladen und lokale Dateien nach erfolgreichem Upload löschen.",
-  enableAutoSave: "Automatisches Speichern in der Cloud aktivieren",
+    "Videos automatisch in den Cloud-Speicher (Alist) hochladen und nach neuen Dateien in der Cloud suchen. Lokale Dateien werden nach erfolgreichem Upload gelöscht.",
+  enableAutoSave: "Cloud-Synchronisierung aktivieren",
   apiUrl: "API-URL",
   apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
   token: "Token",
@@ -146,8 +146,8 @@ export const de = {
   testing: "Teste...",
   testConnection: "Verbindung testen",
   sync: "Synchronisieren",
-  syncToCloud: "Mit Cloud-Speicher synchronisieren",
-  syncWarning: "Dieser Vorgang lädt lokale Videos und Vorschaubilder in die CloudStorage-Warteschlange hoch. Lokale Videos und Vorschaubilder werden nach dem Hochladen gelöscht.",
+  syncToCloud: "Zwei-Wege-Synchronisierung",
+  syncWarning: "Dieser Vorgang lädt lokale Videos in die Cloud hoch und sucht im Cloud-Speicher nach neuen Dateien. Lokale Dateien werden nach dem Upload gelöscht.",
   syncing: "Synchronisiere...",
   syncCompleted: "Synchronisation abgeschlossen",
   syncFailed: "Synchronisation fehlgeschlagen",
