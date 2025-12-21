@@ -102,13 +102,20 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         setTestResult(null);
 
         try {
-            // Test connection by attempting to upload a small test file
-            // Or we could use a different Alist API endpoint to test
-            const testUrl = settings.openListApiUrl;
+            // Ensure we use the full URL from settings without any baseURL interference
+            // Parse and reconstruct the URL to ensure it's absolute
+            let testUrl = settings.openListApiUrl.trim();
+            
+            // If the URL doesn't start with http:// or https://, it's invalid
+            if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
+                throw new Error('Invalid URL format');
+            }
 
-            // Try to make a HEAD request or use a test endpoint
-            // For now, we'll just validate the URL format and token presence
-            const response = await axios.head(testUrl, {
+            // Use axios.request with explicit config to avoid any baseURL defaults
+            // This ensures we're using the exact URL from settings
+            const response = await axios.request({
+                method: 'HEAD',
+                url: testUrl,
                 headers: {
                     Authorization: settings.openListToken,
                 },
