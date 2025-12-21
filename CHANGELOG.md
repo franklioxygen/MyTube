@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.26 (2025-12-20)
+
+### Feat
+
+- feat: Add paste functionality to search input (81d4a71)
+- feat: Add new features and improve styles (02e9b32)
+
 ## v1.6.25 (2025-12-20)
 
 ### Feat
