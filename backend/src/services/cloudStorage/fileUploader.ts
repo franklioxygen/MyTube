@@ -1,0 +1,135 @@
+/**
+ * File upload operations for cloud storage
+ */
+
+import axios from "axios";
+import fs from "fs-extra";
+import path from "path";
+import { FileError, NetworkError } from "../../errors/DownloadErrors";
+import { logger } from "../../utils/logger";
+import { CloudDriveConfig } from "./types";
+import { normalizeUploadPath } from "./pathUtils";
+
+/**
+ * Upload a file to cloud storage
+ * @param filePath - Local file path to upload
+ * @param config - Cloud drive configuration
+ * @param remotePath - Optional remote path (relative to uploadPath)
+ */
+export async function uploadFile(
+  filePath: string,
+  config: CloudDriveConfig,
+  remotePath?: string
+): Promise<void> {
+  // 1. Get basic file information
+  const fileStat = fs.statSync(filePath);
+  const fileSize = fileStat.size;
+  const lastModified = fileStat.mtime.getTime().toString(); // Get millisecond timestamp
+  const fileStream = fs.createReadStream(filePath);
+  const fileName = path.basename(filePath);
+
+  // 2. Prepare request URL and path
+  // URL is always a fixed PUT endpoint
+  const url = config.apiUrl; // Assume apiUrl is http://127.0.0.1:5244/api/fs/put
+
+  // Destination path logic
+  const normalizedUploadPath = normalizeUploadPath(config.uploadPath);
+  let destinationPath = "";
+
+  if (remotePath) {
+    // If remotePath is provided, append it to uploadPath
+    // remotePath should be relative to uploadPath, e.g. "subdir/file.jpg" or "file.jpg"
+    const normalizedRemotePath = remotePath.replace(/\\/g, "/");
+    destinationPath = normalizedUploadPath.endsWith("/")
+      ? `${normalizedUploadPath}${normalizedRemotePath}`
+      : `${normalizedUploadPath}/${normalizedRemotePath}`;
+  } else {
+    // Default behavior: upload to root of uploadPath using source filename
+    destinationPath = normalizedUploadPath.endsWith("/")
+      ? `${normalizedUploadPath}${fileName}`
+      : `${normalizedUploadPath}/${fileName}`;
+  }
+
+  // Ensure it starts with /
+  destinationPath = destinationPath.startsWith("/")
+    ? destinationPath
+    : `/${destinationPath}`;
+
+  logger.info(
+    `[CloudStorage] Uploading ${fileName} to ${destinationPath} (${fileSize} bytes)...`
+  );
+
+  logger.debug(
+    `[CloudStorage] Destination path in header: ${destinationPath}`
+  );
+
+  // 3. Prepare Headers
+  const headers = {
+    // Key fix #1: Destination path is passed in Header
+    "file-path": encodeURI(destinationPath), // Alist expects this header, needs encoding
+
+    // Key fix #2: Authorization Header does not have 'Bearer ' prefix
+    Authorization: config.token,
+
+    // Key fix #3: Include Last-Modified Header
+    "Last-Modified": lastModified,
+
+    // Other Headers
+    "Content-Type": "application/octet-stream", // Use generic stream type
+    "Content-Length": fileSize.toString(),
+  };
+
+  try {
+    // 4. Send PUT request, note that URL is fixed
+    const response = await axios.put(url, fileStream, {
+      headers: headers,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    });
+
+    // 5. Check if the returned JSON Body indicates real success
+    if (response.data && response.data.code === 200) {
+      logger.info(
+        `[CloudStorage] Successfully uploaded ${fileName}. Server message: ${response.data.message}`
+      );
+    } else {
+      // Even if HTTP status code is 200, server may return business errors
+      const errorMessage = response.data
+        ? response.data.message
+        : "Unknown server error after upload";
+      throw NetworkError.withStatus(
+        `Upload failed on server: ${errorMessage} (Code: ${response.data?.code})`,
+        response.status || 500
+      );
+    }
+  } catch (error: any) {
+    // Error handling logic
+    if (error.response) {
+      // HTTP error response
+      const statusCode = error.response.status;
+      logger.error(
+        `[CloudStorage] HTTP Error: ${statusCode}`,
+        new Error(JSON.stringify(error.response.data))
+      );
+      throw NetworkError.withStatus(
+        `Upload failed: ${error.message}`,
+        statusCode
+      );
+    } else if (error.request) {
+      // Request was made but no response received
+      logger.error("[CloudStorage] Network Error: No response received.");
+      throw NetworkError.timeout();
+    } else if (error.code === "ENOENT") {
+      // File not found
+      throw FileError.notFound(filePath);
+    } else {
+      // Other errors
+      logger.error(
+        "[CloudStorage] Upload Error:",
+        error instanceof Error ? error : new Error(error.message)
+      );
+      throw FileError.writeError(filePath, error.message);
+    }
+  }
+}
+
