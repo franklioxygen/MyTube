@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.6.25 (2025-12-20)
+
+### Feat
+
+- feat: Add logic to check if video is new (bfc2fe8)
+- feat: Add support for Twitter/X URL with Safari compatibility (70c8538)
+
+### Style
+
+- style: Improve touch screen compatibility (9823e63)
+
 ## v1.6.24 (2025-12-20)
 
 ### Feat
