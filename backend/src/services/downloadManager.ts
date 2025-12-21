@@ -3,6 +3,7 @@ import {
   isCancelledError,
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
+import { logger } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
 import * as storageService from "./storageService";
@@ -262,13 +263,23 @@ class DownloadManager {
         task.cancelFn = cancel;
       });
 
-      // Download complete
-      storageService.removeActiveDownload(task.id);
-
       // Extract video data from result
       // videoController returns { success: true, video: ... }
       // But some downloaders might return the video object directly or different structure
       const videoData = result.video || result;
+
+      // For multi-part downloads, don't remove from active downloads yet
+      // The background download will handle removing it when all parts are done
+      const isMultiPart = result.isMultiPart === true && result.totalParts > 1;
+      if (!isMultiPart) {
+        // Download complete (single video)
+        storageService.removeActiveDownload(task.id);
+      } else {
+        // Multi-part download - keep it active until all parts are done
+        logger.info(
+          `Multi-part download in progress: ${result.totalParts} parts. Keeping download active.`
+        );
+      }
 
       console.log(
         `Download finished for ${task.title}. Result title: ${videoData.title}`

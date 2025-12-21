@@ -158,7 +158,7 @@ export class BilibiliDownloader extends BaseDownloader {
     startPart: number,
     totalParts: number,
     seriesTitle: string,
-    collectionId: string,
+    collectionId: string | null,
     downloadId: string
   ): Promise<void> {
     return bilibiliCollection.downloadRemainingParts(

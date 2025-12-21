@@ -108,7 +108,7 @@ export async function downloadRemainingBilibiliParts(
   startPart: number,
   totalParts: number,
   seriesTitle: string,
-  collectionId: string,
+  collectionId: string | null,
   downloadId: string
 ): Promise<void> {
   return BilibiliDownloader.downloadRemainingParts(

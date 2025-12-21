@@ -222,19 +222,15 @@ export async function downloadVideo(
       await subprocess;
     } catch (error: any) {
       downloadError = error;
-      // Use base class helper for cancellation handling
-      const downloader = new BilibiliDownloaderHelper();
-      downloader.handleCancellationErrorPublic(error, async () => {
-        if (fs.existsSync(tempDir)) {
-          await safeRemove(tempDir);
-        }
-      });
-      // Only log as error if it's not an expected subtitle-related issue
+      // Only log as warning if it's an expected subtitle-related issue
+      // "Invalid data found when processing input" is a real error, not expected
       const stderrMsg = error.stderr || "";
-      const isExpectedError =
-        stderrMsg.includes("Subtitles are only available when logged in") ||
-        stderrMsg.includes("Invalid data found when processing input");
-      if (!isExpectedError) {
+      const isExpectedSubtitleError = stderrMsg.includes(
+        "Subtitles are only available when logged in"
+      );
+      if (isExpectedSubtitleError) {
+        logger.warn("yt-dlp subtitle warning (continuing):", error.message);
+      } else {
         logger.error("yt-dlp download failed:", error.message);
         if (error.stderr) {
           logger.error("yt-dlp error output:", error.stderr);
@@ -242,45 +238,64 @@ export async function downloadVideo(
       }
     }
 
+    logger.info("Download completed, checking for video file");
+
     // Check if download was cancelled (it might have been removed from active downloads)
+    // But only check this if we don't have a real yt-dlp error
     const downloader = new BilibiliDownloaderHelper();
+    let wasCancelled = false;
     try {
       downloader.throwIfCancelledPublic(downloadId);
     } catch (error) {
-      if (fs.existsSync(tempDir)) {
-        fs.removeSync(tempDir);
+      wasCancelled = true;
+      // If we have a download error, prefer showing that over cancellation
+      if (!downloadError) {
+        if (fs.existsSync(tempDir)) {
+          fs.removeSync(tempDir);
+        }
+        throw error;
       }
-      throw error;
     }
 
-    logger.info("Download completed, checking for video file");
-
-    // Find the downloaded file (try multiple extensions)
-    const files = fs.readdirSync(tempDir);
-    logger.info("Files in temp directory:", files);
-
+    // Check if file exists first
+    const files = fs.existsSync(tempDir) ? fs.readdirSync(tempDir) : [];
     const videoFile =
       files.find((file: string) => file.endsWith(".mp4")) ||
       files.find((file: string) => file.endsWith(".mkv")) ||
       files.find((file: string) => file.endsWith(".webm")) ||
       files.find((file: string) => file.endsWith(".flv"));
 
+    // If there was a download error and no file was found, throw the error
+    if (downloadError && !videoFile) {
+      // Clean up temp directory
+      if (fs.existsSync(tempDir)) {
+        fs.removeSync(tempDir);
+      }
+      // If it was cancelled, throw cancellation error, otherwise throw the yt-dlp error
+      if (wasCancelled) {
+        throw DownloadCancelledError.create();
+      }
+      throw new Error(
+        `yt-dlp download failed: ${
+          downloadError.message || downloadError.stderr || "Unknown error"
+        }`
+      );
+    }
+
+    // If no file found and no error was caught, something went wrong
     if (!videoFile) {
-      // List all files for debugging
-      logger.error("No video file found. All files:", files);
+      if (fs.existsSync(tempDir)) {
+        fs.removeSync(tempDir);
+      }
       const errorMsg = downloadError
         ? `Downloaded video file not found. yt-dlp error: ${
             downloadError.message
-          }. stderr: ${(downloadError.stderr || stderrOutput).substring(
-            0,
-            500
-          )}`
-        : `Downloaded video file not found. yt-dlp stderr: ${stderrOutput.substring(
-            0,
-            500
-          )}`;
+          }. stderr: ${(downloadError.stderr || "").substring(0, 500)}`
+        : `Downloaded video file not found.`;
       throw new Error(errorMsg);
     }
+
+    logger.info("Files in temp directory:", files);
 
     // If there was an error but we found the file, log a warning but continue
     if (downloadError) {
@@ -416,22 +431,10 @@ export async function downloadSinglePart(
 
     logger.info("Bilibili download info:", bilibiliInfo);
 
-    // For multi-part videos, include the part number in the title
-    videoTitle =
-      totalParts > 1
-        ? `${seriesTitle} - Part ${partNumber}/${totalParts}`
-        : bilibiliInfo.title || "Bilibili Video";
-
-    videoAuthor = bilibiliInfo.author || "Bilibili User";
-    videoDate =
-      bilibiliInfo.date ||
-      new Date().toISOString().slice(0, 10).replace(/-/g, "");
-    videoDescription = bilibiliInfo.description || "";
-    thumbnailUrl = bilibiliInfo.thumbnailUrl;
-    thumbnailSaved = bilibiliInfo.thumbnailSaved;
-    
-    // Extract channel URL for Bilibili
+    // Extract channel URL and part-specific title from Bilibili API
     let channelUrl: string | undefined;
+    let partTitle = bilibiliInfo.title || "Bilibili Video";
+
     try {
       const { extractBilibiliVideoId } = await import("../../../utils/helpers");
       const videoId = extractBilibiliVideoId(url);
@@ -440,24 +443,80 @@ export async function downloadSinglePart(
         const isBvId = videoId.startsWith("BV");
         const apiUrl = isBvId
           ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
-          : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace("av", "")}`;
-        
+          : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
+              "av",
+              ""
+            )}`;
+
         const response = await axios.get(apiUrl, {
           headers: {
             Referer: "https://www.bilibili.com",
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
           },
         });
-        
-        if (response.data?.data?.owner?.mid) {
-          const mid = response.data.data.owner.mid;
-          channelUrl = `https://space.bilibili.com/${mid}`;
+
+        if (response.data?.data) {
+          // Extract channel URL
+          if (response.data.data.owner?.mid) {
+            const mid = response.data.data.owner.mid;
+            channelUrl = `https://space.bilibili.com/${mid}`;
+          }
+
+          // For multi-part videos, get the part-specific title from the pages array
+          if (
+            totalParts > 1 &&
+            response.data.data.pages &&
+            Array.isArray(response.data.data.pages)
+          ) {
+            const page = response.data.data.pages.find(
+              (p: any) => p.page === partNumber
+            );
+            if (page && page.part) {
+              partTitle = page.part;
+              logger.info(`Found part-specific title: ${partTitle}`);
+            } else {
+              // Fall back: try to remove collection name from yt-dlp title
+              if (seriesTitle && bilibiliInfo.title?.includes(seriesTitle)) {
+                partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
+                partTitle = partTitle
+                  .replace(/^\s*[-–—]\s*/, "")
+                  .replace(/^\s*p\d+\s*/i, "")
+                  .trim();
+              }
+            }
+          }
         }
       }
     } catch (error) {
-      logger.error("Error extracting Bilibili channel URL:", error);
-      // Continue without channel URL
+      logger.warn(
+        "Error fetching part-specific title from API, using yt-dlp title:",
+        error
+      );
+      // Fall back to using yt-dlp title, but try to remove collection name if present
+      if (
+        totalParts > 1 &&
+        seriesTitle &&
+        bilibiliInfo.title?.includes(seriesTitle)
+      ) {
+        partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
+        partTitle = partTitle
+          .replace(/^\s*[-–—]\s*/, "")
+          .replace(/^\s*p\d+\s*/i, "")
+          .trim();
+      }
     }
+
+    // For multi-part videos, include the part number in the title
+    videoTitle = totalParts > 1 ? `${partNumber} ${partTitle}` : partTitle;
+
+    videoAuthor = bilibiliInfo.author || "Bilibili User";
+    videoDate =
+      bilibiliInfo.date ||
+      new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    videoDescription = bilibiliInfo.description || "";
+    thumbnailUrl = bilibiliInfo.thumbnailUrl;
+    thumbnailSaved = bilibiliInfo.thumbnailSaved;
 
     // Update the safe base filename with the actual title
     // Update the safe base filename with the new format
@@ -571,8 +630,12 @@ export async function downloadSinglePart(
     }
 
     // Create metadata for the video
+    // For multi-part videos, ensure each part gets a unique ID by including part number
+    const uniqueId =
+      totalParts > 1 ? `${timestamp}_part${partNumber}` : timestamp.toString();
+
     const videoData: Video = {
-      id: timestamp.toString(),
+      id: uniqueId,
       title: videoTitle,
       author: videoAuthor,
       description: videoDescription,
@@ -597,41 +660,42 @@ export async function downloadSinglePart(
       createdAt: new Date().toISOString(),
     };
 
-    // Check if video with same sourceUrl already exists
-    const existingVideo = storageService.getVideoBySourceUrl(url);
+    // For multi-part videos, always create a new video entry (each part is separate)
+    // For single videos, check if video with same sourceUrl already exists
+    if (totalParts === 1) {
+      const existingVideo = storageService.getVideoBySourceUrl(url);
 
-    if (existingVideo) {
-      // Update existing video with new subtitle information and file paths
-      logger.info(
-        "Video with same sourceUrl exists, updating subtitle information"
-      );
-
-      // Use existing video's ID and preserve other fields
-      videoData.id = existingVideo.id;
-      videoData.addedAt = existingVideo.addedAt;
-      videoData.createdAt = existingVideo.createdAt;
-
-      const updatedVideo = storageService.updateVideo(existingVideo.id, {
-        subtitles: subtitles.length > 0 ? subtitles : undefined,
-        videoFilename: finalVideoFilename,
-        videoPath: `/videos/${finalVideoFilename}`,
-        thumbnailFilename: thumbnailSaved
-          ? finalThumbnailFilename
-          : existingVideo.thumbnailFilename,
-        thumbnailPath: thumbnailSaved
-          ? `/images/${finalThumbnailFilename}`
-          : existingVideo.thumbnailPath,
-        duration: duration,
-        fileSize: fileSize,
-        title: videoData.title, // Update title in case it changed
-        description: videoData.description, // Update description in case it changed
-      });
-
-      if (updatedVideo) {
+      if (existingVideo) {
+        // Update existing video with new subtitle information and file paths
         logger.info(
-          `Part ${partNumber}/${totalParts} updated in database with new subtitles`
+          "Video with same sourceUrl exists, updating subtitle information"
         );
-        return { success: true, videoData: updatedVideo };
+
+        // Use existing video's ID and preserve other fields
+        videoData.id = existingVideo.id;
+        videoData.addedAt = existingVideo.addedAt;
+        videoData.createdAt = existingVideo.createdAt;
+
+        const updatedVideo = storageService.updateVideo(existingVideo.id, {
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          videoFilename: finalVideoFilename,
+          videoPath: `/videos/${finalVideoFilename}`,
+          thumbnailFilename: thumbnailSaved
+            ? finalThumbnailFilename
+            : existingVideo.thumbnailFilename,
+          thumbnailPath: thumbnailSaved
+            ? `/images/${finalThumbnailFilename}`
+            : existingVideo.thumbnailPath,
+          duration: duration,
+          fileSize: fileSize,
+          title: videoData.title, // Update title in case it changed
+          description: videoData.description, // Update description in case it changed
+        });
+
+        if (updatedVideo) {
+          logger.info(`Video updated in database with new subtitles`);
+          return { success: true, videoData: updatedVideo };
+        }
       }
     }
 

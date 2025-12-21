@@ -372,9 +372,11 @@ export const downloadVideo = async (
               2,
               videosNumber,
               title || "Bilibili Video",
-              collectionId!,
+              collectionId,
               downloadId // Pass downloadId to track progress
-            );
+            ).catch((error) => {
+              logger.error("Error in background download of remaining parts:", error);
+            });
           }
 
           return {

@@ -210,10 +210,23 @@ export async function checkVideoParts(
 ): Promise<BilibiliPartsCheckResult> {
   try {
     // Try to get video info from Bilibili API
-    const apiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+    // Handle both BV and av formats
+    const isBvId = videoId.startsWith("BV");
+    const apiUrl = isBvId
+      ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
+      : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
+          "av",
+          ""
+        )}`;
     logger.info("Fetching video info from API to check parts:", apiUrl);
 
-    const response = await axios.get(apiUrl);
+    const response = await axios.get(apiUrl, {
+      headers: {
+        Referer: "https://www.bilibili.com",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      },
+    });
 
     if (response.data && response.data.data) {
       const videoInfo = response.data.data;

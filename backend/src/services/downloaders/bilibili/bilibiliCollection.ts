@@ -289,10 +289,14 @@ export async function downloadRemainingParts(
   startPart: number,
   totalParts: number,
   seriesTitle: string,
-  collectionId: string,
+  collectionId: string | null,
   downloadId: string
 ): Promise<void> {
   try {
+    logger.info(
+      `Starting download of remaining parts: ${startPart} to ${totalParts} of "${seriesTitle}"`
+    );
+    
     // Add to active downloads if ID is provided
     if (downloadId) {
       storageService.addActiveDownload(
@@ -301,7 +305,11 @@ export async function downloadRemainingParts(
       );
     }
 
+    let successCount = 0;
+    let failedParts: number[] = [];
+
     for (let part = startPart; part <= totalParts; part++) {
+      logger.info(`Starting download of part ${part}/${totalParts}`);
       // Update status to show which part is being downloaded
       if (downloadId) {
         storageService.addActiveDownload(
@@ -322,39 +330,57 @@ export async function downloadRemainingParts(
         downloadId
       );
 
-      // If download was successful and we have a collection ID, add to collection
-      if (result.success && collectionId && result.videoData) {
-        try {
-          storageService.atomicUpdateCollection(
-            collectionId,
-            (collection: Collection) => {
-              collection.videos.push(result.videoData!.id);
-              return collection;
-            }
-          );
+      if (result.success && result.videoData) {
+        successCount++;
+        // If download was successful and we have a collection ID, add to collection
+        if (collectionId) {
+          try {
+            storageService.atomicUpdateCollection(
+              collectionId,
+              (collection: Collection) => {
+                collection.videos.push(result.videoData!.id);
+                return collection;
+              }
+            );
 
-          logger.info(
-            `Added part ${part}/${totalParts} to collection ${collectionId}`
-          );
-        } catch (collectionError) {
-          logger.error(
-            `Error adding part ${part}/${totalParts} to collection:`,
-            collectionError
-          );
+            logger.info(
+              `Added part ${part}/${totalParts} to collection ${collectionId}`
+            );
+          } catch (collectionError) {
+            logger.error(
+              `Error adding part ${part}/${totalParts} to collection:`,
+              collectionError
+            );
+          }
         }
+        logger.info(`Successfully downloaded part ${part}/${totalParts}`);
+      } else {
+        failedParts.push(part);
+        logger.error(
+          `Failed to download part ${part}/${totalParts}: ${result.error || "Unknown error"}`
+        );
       }
 
       // Small delay between downloads to avoid overwhelming the server
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // All parts downloaded, remove from active downloads
+    // All parts processed, remove from active downloads
     if (downloadId) {
       storageService.removeActiveDownload(downloadId);
     }
-    logger.info(
-      `All ${totalParts} parts of "${seriesTitle}" downloaded successfully`
-    );
+
+    // Log appropriate message based on results
+    const remainingPartsCount = totalParts - startPart + 1;
+    if (failedParts.length === 0) {
+      logger.info(
+        `All remaining parts (${startPart}-${totalParts}) of "${seriesTitle}" downloaded successfully`
+      );
+    } else {
+      logger.warn(
+        `Downloaded ${successCount}/${remainingPartsCount} remaining parts (${startPart}-${totalParts}) of "${seriesTitle}". Failed parts: ${failedParts.join(", ")}`
+      );
+    }
   } catch (error) {
     logger.error("Error downloading remaining Bilibili parts:", error);
     if (downloadId) {
