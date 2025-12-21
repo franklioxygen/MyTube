@@ -310,6 +310,7 @@ export const en = {
   unknownDate: "Unknown date",
   part: "Part",
   collection: "Collection",
+  new: "NEW",
 
   // Upload Modal
   selectVideoFile: "Select Video File",

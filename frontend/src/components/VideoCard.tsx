@@ -14,13 +14,13 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext'; // Added
-import { useShareVideo } from '../hooks/useShareVideo'; // Added
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
+import { useShareVideo } from '../hooks/useShareVideo'; // Added
 import { Collection, Video } from '../types';
 import { formatDuration, parseDuration } from '../utils/formatUtils';
 import CollectionModal from './CollectionModal';
@@ -140,6 +140,41 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const firstCollectionId = isFirstInAnyCollection
         ? videoCollections.find(collection => collection.videos[0] === video.id)?.id
         : null;
+
+    // Check if video is new (0 views and added within 7 days)
+    const isNewVideo = React.useMemo(() => {
+        // Check if viewCount is 0 or null/undefined (unwatched)
+        // Handle both number and string types
+        const viewCountNum = typeof video.viewCount === 'string' ? parseInt(video.viewCount, 10) : video.viewCount;
+        const hasNoViews = viewCountNum === 0 || viewCountNum === null || viewCountNum === undefined || isNaN(viewCountNum);
+        if (!hasNoViews) {
+            return false;
+        }
+        
+        // Check if addedAt exists
+        if (!video.addedAt) {
+            return false;
+        }
+        
+        // Check if added within 7 days
+        const addedDate = new Date(video.addedAt);
+        const now = new Date();
+        
+        // Handle invalid dates
+        if (isNaN(addedDate.getTime())) {
+            return false;
+        }
+        
+        const daysDiff = (now.getTime() - addedDate.getTime()) / (1000 * 60 * 60 * 24);
+        const isWithin7Days = daysDiff >= 0 && daysDiff <= 7; // >= 0 to handle future dates
+        
+        // Debug log (can be removed later)
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Video ${video.id}: viewCount=${video.viewCount} (parsed: ${viewCountNum}), addedAt=${video.addedAt}, daysDiff=${daysDiff.toFixed(2)}, isNew=${isWithin7Days}`);
+        }
+        
+        return isWithin7Days;
+    }, [video.viewCount, video.addedAt, video.id]);
 
     // Handle video navigation
     const handleVideoNavigation = () => {
@@ -406,9 +441,28 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                     right: 8,
                                     height: 20,
                                     fontSize: '0.75rem',
-                                    bgcolor: 'rgba(0,0,0,0.8)',
+                                    bgcolor: 'rgba(0,0,0,0.6)',
                                     color: 'white',
                                     zIndex: 3
+                                }}
+                            />
+                        )}
+
+                        {isNewVideo && (
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: 0,
+                                    height: 0,
+                                    borderStyle: 'solid',
+                                    borderWidth: '25px 25px 0 0',
+                                    borderColor: `${theme.palette.error.main} transparent transparent transparent`,
+                                    opacity: 0.8,
+                                    zIndex: 10,
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                    pointerEvents: 'none'
                                 }}
                             />
                         )}
@@ -419,7 +473,12 @@ const VideoCard: React.FC<VideoCardProps> = ({
                                 label={firstInCollectionNames.length > 1 ? `${firstInCollectionNames[0]} +${firstInCollectionNames.length - 1}` : firstInCollectionNames[0]}
                                 color="secondary"
                                 size="small"
-                                sx={{ position: 'absolute', top: 8, left: 8, zIndex: 3 }}
+                                sx={{
+                                    position: 'absolute',
+                                    top: isNewVideo ? 32 : 8,
+                                    left: 8,
+                                    zIndex: 3
+                                }}
                             />
                         )}
 
