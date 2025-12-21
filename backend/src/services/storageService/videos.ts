@@ -85,6 +85,16 @@ export function getVideoById(id: string): import("./types").Video | undefined {
 }
 
 /**
+ * Check if a video part already exists by sourceUrl
+ * Returns the existing video if found, undefined otherwise
+ */
+export function getVideoPartBySourceUrl(
+  sourceUrl: string
+): import("./types").Video | undefined {
+  return getVideoBySourceUrl(sourceUrl);
+}
+
+/**
  * Format legacy filenames to the new standard format: Title-Author-YYYY
  */
 export function formatLegacyFilenames(): {

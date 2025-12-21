@@ -3,6 +3,7 @@ import { ValidationError } from "../errors/DownloadErrors";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
+import { DownloadResult } from "../services/downloaders/bilibili/types";
 import {
   extractBilibiliVideoId,
   extractSourceVideoId,
@@ -342,26 +343,56 @@ export const downloadVideo = async (
           const baseUrl = videoUrl.split("?")[0];
           const firstPartUrl = `${baseUrl}?p=1`;
 
-          // Download the first part
-          const firstPartResult =
-            await downloadService.downloadSingleBilibiliPart(
-              firstPartUrl,
-              1,
-              videosNumber,
-              title || "Bilibili Video",
-              downloadId,
-              registerCancel
-            );
+          // Check if part 1 already exists
+          const existingPart1 = storageService.getVideoBySourceUrl(firstPartUrl);
+          let firstPartResult: DownloadResult;
 
-          // Add to collection if needed
-          if (collectionId && firstPartResult.videoData) {
-            storageService.atomicUpdateCollection(
-              collectionId,
-              (collection) => {
-                collection.videos.push(firstPartResult.videoData!.id);
-                return collection;
-              }
+          if (existingPart1) {
+            logger.info(
+              `Part 1/${videosNumber} already exists, skipping. Video ID: ${existingPart1.id}`
             );
+            firstPartResult = {
+              success: true,
+              videoData: existingPart1,
+            };
+
+            // If we have a collection ID, make sure the existing video is in the collection
+            if (collectionId && existingPart1.id) {
+              const collection = storageService.getCollectionById(collectionId);
+              if (collection && !collection.videos.includes(existingPart1.id)) {
+                storageService.atomicUpdateCollection(
+                  collectionId,
+                  (collection) => {
+                    if (!collection.videos.includes(existingPart1.id)) {
+                      collection.videos.push(existingPart1.id);
+                    }
+                    return collection;
+                  }
+                );
+              }
+            }
+          } else {
+            // Download the first part
+            firstPartResult =
+              await downloadService.downloadSingleBilibiliPart(
+                firstPartUrl,
+                1,
+                videosNumber,
+                title || "Bilibili Video",
+                downloadId,
+                registerCancel
+              );
+
+            // Add to collection if needed
+            if (collectionId && firstPartResult.videoData) {
+              storageService.atomicUpdateCollection(
+                collectionId,
+                (collection) => {
+                  collection.videos.push(firstPartResult.videoData!.id);
+                  return collection;
+                }
+              );
+            }
           }
 
           // Set up background download for remaining parts

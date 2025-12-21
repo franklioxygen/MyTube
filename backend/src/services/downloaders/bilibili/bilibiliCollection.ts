@@ -306,9 +306,51 @@ export async function downloadRemainingParts(
     }
 
     let successCount = 0;
+    let skippedCount = 0;
     let failedParts: number[] = [];
+    let skippedParts: number[] = [];
 
     for (let part = startPart; part <= totalParts; part++) {
+      // Construct URL for this part
+      const partUrl = `${baseUrl}?p=${part}`;
+
+      // Check if this part already exists
+      const existingVideo = storageService.getVideoBySourceUrl(partUrl);
+      if (existingVideo) {
+        skippedCount++;
+        skippedParts.push(part);
+        logger.info(
+          `Part ${part}/${totalParts} already exists, skipping. Video ID: ${existingVideo.id}`
+        );
+
+        // If we have a collection ID, make sure the existing video is in the collection
+        if (collectionId && existingVideo.id) {
+          try {
+            const collection = storageService.getCollectionById(collectionId);
+            if (collection && !collection.videos.includes(existingVideo.id)) {
+              storageService.atomicUpdateCollection(
+                collectionId,
+                (collection: Collection) => {
+                  if (!collection.videos.includes(existingVideo.id)) {
+                    collection.videos.push(existingVideo.id);
+                  }
+                  return collection;
+                }
+              );
+              logger.info(
+                `Added existing part ${part}/${totalParts} to collection ${collectionId}`
+              );
+            }
+          } catch (collectionError) {
+            logger.error(
+              `Error adding existing part ${part}/${totalParts} to collection:`,
+              collectionError
+            );
+          }
+        }
+        continue;
+      }
+
       logger.info(`Starting download of part ${part}/${totalParts}`);
       // Update status to show which part is being downloaded
       if (downloadId) {
@@ -317,9 +359,6 @@ export async function downloadRemainingParts(
           `Downloading part ${part}/${totalParts}: ${seriesTitle}`
         );
       }
-
-      // Construct URL for this part
-      const partUrl = `${baseUrl}?p=${part}`;
 
       // Download this part
       const result = await downloadSinglePart(
@@ -372,13 +411,19 @@ export async function downloadRemainingParts(
 
     // Log appropriate message based on results
     const remainingPartsCount = totalParts - startPart + 1;
-    if (failedParts.length === 0) {
+    const totalProcessed = successCount + skippedCount;
+    
+    if (failedParts.length === 0 && skippedParts.length === 0) {
       logger.info(
         `All remaining parts (${startPart}-${totalParts}) of "${seriesTitle}" downloaded successfully`
       );
+    } else if (failedParts.length === 0) {
+      logger.info(
+        `Processed ${totalProcessed}/${remainingPartsCount} remaining parts (${startPart}-${totalParts}) of "${seriesTitle}". Downloaded: ${successCount}, Skipped (already exist): ${skippedCount} (parts: ${skippedParts.join(", ")})`
+      );
     } else {
       logger.warn(
-        `Downloaded ${successCount}/${remainingPartsCount} remaining parts (${startPart}-${totalParts}) of "${seriesTitle}". Failed parts: ${failedParts.join(", ")}`
+        `Processed ${totalProcessed}/${remainingPartsCount} remaining parts (${startPart}-${totalParts}) of "${seriesTitle}". Downloaded: ${successCount}, Skipped: ${skippedCount} (parts: ${skippedParts.join(", ")}), Failed: ${failedParts.length} (parts: ${failedParts.join(", ")})`
       );
     }
   } catch (error) {
