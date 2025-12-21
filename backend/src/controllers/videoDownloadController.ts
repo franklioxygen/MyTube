@@ -325,20 +325,6 @@ export const downloadVideo = async (
             title || "Bilibili Video"
           );
 
-          // Create a collection for the multi-part video if collectionName is provided
-          let collectionId: string | null = null;
-          if (collectionName) {
-            const newCollection = {
-              id: Date.now().toString(),
-              name: collectionName,
-              videos: [],
-              createdAt: new Date().toISOString(),
-              title: collectionName,
-            };
-            storageService.saveCollection(newCollection);
-            collectionId = newCollection.id;
-          }
-
           // Start downloading the first part
           const baseUrl = videoUrl.split("?")[0];
           const firstPartUrl = `${baseUrl}?p=1`;
@@ -346,6 +332,46 @@ export const downloadVideo = async (
           // Check if part 1 already exists
           const existingPart1 = storageService.getVideoBySourceUrl(firstPartUrl);
           let firstPartResult: DownloadResult;
+          let collectionId: string | null = null;
+
+          // Find or create collection
+          if (collectionName) {
+            // First, try to find if an existing part belongs to a collection
+            if (existingPart1?.id) {
+              const existingCollection = storageService.getCollectionByVideoId(existingPart1.id);
+              if (existingCollection) {
+                collectionId = existingCollection.id;
+                logger.info(
+                  `Found existing collection "${existingCollection.name || existingCollection.title}" for this series`
+                );
+              }
+            }
+
+            // If no collection found from existing part, try to find by name
+            if (!collectionId) {
+              const collectionByName = storageService.getCollectionByName(collectionName);
+              if (collectionByName) {
+                collectionId = collectionByName.id;
+                logger.info(
+                  `Found existing collection "${collectionName}" by name`
+                );
+              }
+            }
+
+            // If still no collection found, create a new one
+            if (!collectionId) {
+              const newCollection = {
+                id: Date.now().toString(),
+                name: collectionName,
+                videos: [],
+                createdAt: new Date().toISOString(),
+                title: collectionName,
+              };
+              storageService.saveCollection(newCollection);
+              collectionId = newCollection.id;
+              logger.info(`Created new collection "${collectionName}"`);
+            }
+          }
 
           if (existingPart1) {
             logger.info(
@@ -356,7 +382,7 @@ export const downloadVideo = async (
               videoData: existingPart1,
             };
 
-            // If we have a collection ID, make sure the existing video is in the collection
+            // Make sure the existing video is in the collection
             if (collectionId && existingPart1.id) {
               const collection = storageService.getCollectionById(collectionId);
               if (collection && !collection.videos.includes(existingPart1.id)) {

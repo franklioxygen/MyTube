@@ -51,6 +51,8 @@ export {
 export {
   getCollections,
   getCollectionById,
+  getCollectionByVideoId,
+  getCollectionByName,
   saveCollection,
   atomicUpdateCollection,
   deleteCollection,

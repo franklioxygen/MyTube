@@ -99,6 +99,56 @@ export function getCollectionById(id: string): Collection | undefined {
   }
 }
 
+/**
+ * Find a collection that contains a specific video
+ */
+export function getCollectionByVideoId(videoId: string): Collection | undefined {
+  try {
+    const rows = db
+      .select({
+        c: collections,
+        cv: collectionVideos,
+      })
+      .from(collections)
+      .innerJoin(
+        collectionVideos,
+        eq(collections.id, collectionVideos.collectionId)
+      )
+      .where(eq(collectionVideos.videoId, videoId))
+      .all();
+
+    if (rows.length === 0) return undefined;
+
+    // Get the first collection that contains this video
+    const collectionId = rows[0].c.id;
+    return getCollectionById(collectionId);
+  } catch (error) {
+    logger.error(
+      "Error getting collection by video id",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
+/**
+ * Find a collection by name or title
+ */
+export function getCollectionByName(name: string): Collection | undefined {
+  try {
+    const allCollections = getCollections();
+    return allCollections.find(
+      (c) => c.name === name || c.title === name
+    );
+  } catch (error) {
+    logger.error(
+      "Error getting collection by name",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
     db.transaction(() => {

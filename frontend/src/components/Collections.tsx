@@ -60,16 +60,26 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
                             <Folder fontSize="small" sx={{ mr: 1, color: 'secondary.main' }} />
                             <ListItemText
                                 primary={collection.name}
-                                primaryTypographyProps={{
-                                    variant: 'body2',
-                                    noWrap: true
+                                slotProps={{
+                                    primary: {
+                                        variant: 'body2',
+                                        noWrap: true
+                                    }
                                 }}
                             />
                             <Chip
-                                label={collection.videos.length}
+                                label={`${Math.floor(collection.videos?.length || 0)}`}
                                 size="small"
                                 variant="outlined"
-                                sx={{ height: 20, minWidth: 20, ml: 1 }}
+                                sx={{ 
+                                    height: 20, 
+                                    minWidth: 20, 
+                                    ml: 1,
+                                    '& .MuiChip-label': {
+                                        padding: '0 4px',
+                                        fontSize: '0.75rem'
+                                    }
+                                }}
                             />
                         </ListItemButton>
                     ))}
