@@ -1,5 +1,17 @@
 # Change Log
 
+## v1.6.27 (2025-12-21)
+
+### Feat
+
+- feat: Improve error handling and logging in download process (8982c11)
+
+### Refactor
+
+- refactor: Improve finding or creating collections in downloadVideo function (d366123)
+- refactor: Improve video part skipping and processing (e4a34ac)
+- refactor: Improve URL validation in CloudDriveSettings (b5bc532)
+
 ## v1.6.26 (2025-12-20)
 
 ### Feat
