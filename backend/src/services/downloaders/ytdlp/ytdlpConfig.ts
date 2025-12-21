@@ -56,12 +56,18 @@ export function prepareDownloadFlags(
   // Get format sort option if user specified it
   const formatSortValue = userFormatSort || userFormatSort2;
 
+  // Check if this is a Twitter/X URL - always use mp4 for Safari compatibility
+  const isTwitterUrl =
+    videoUrl.includes("x.com") || videoUrl.includes("twitter.com");
+
   // Determine merge output format: use user's choice or default to mp4
-  // However, if user is sorting by resolution (likely demanding 4K/VP9), default to MKV
+  // However, if user is sorting by resolution (likely demanding 4K/VP9), default to WebM
   // because VP9/AV1 in MP4 (mp4v2) is often problematic for Safari/QuickTime.
+  // Exception: Twitter/X always uses mp4 for Safari compatibility
   let defaultMergeFormat = "mp4";
-  if (formatSortValue && formatSortValue.includes("res")) {
+  if (!isTwitterUrl && formatSortValue && formatSortValue.includes("res")) {
     // Use WebM for high-res (likely VP9/AV1) as it's supported by Safari 14+ and Chrome
+    // But skip this for Twitter/X to ensure Safari compatibility
     defaultMergeFormat = "webm";
   }
   const mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
@@ -82,6 +88,18 @@ export function prepareDownloadFlags(
   if (formatSortValue) {
     flags.formatSort = formatSortValue;
     logger.info("Using user-specified format sort:", formatSortValue);
+  }
+
+  // Add Twitter/X specific flags - always use MP4 with H.264 for Safari compatibility
+  if (isTwitterUrl) {
+    // Force MP4 format with H.264 codec for Safari compatibility
+    // Twitter/X videos should use MP4 container regardless of resolution
+    if (!config.f && !config.format) {
+      flags.format =
+        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+    }
+    // Ensure merge output format is mp4 (already handled above, but log it)
+    logger.info("Twitter/X URL detected - using MP4 format for Safari compatibility");
   }
 
   // Add YouTube specific flags if it's a YouTube URL

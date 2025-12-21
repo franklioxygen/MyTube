@@ -16,8 +16,8 @@ import {
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { BaseDownloader } from "../BaseDownloader";
-import { getProviderScript } from "./ytdlpHelpers";
 import { prepareDownloadFlags } from "./ytdlpConfig";
+import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
 import { processSubtitles } from "./ytdlpSubtitle";
 
@@ -112,7 +112,7 @@ export async function downloadVideo(
     videoDescription = metadata.videoDescription;
     thumbnailUrl = metadata.thumbnailUrl;
     source = metadata.source;
-    
+
     // Extract channel URL from info if available
     channelUrl = info.channel_url || info.uploader_url || null;
 
@@ -283,17 +283,14 @@ export async function downloadVideo(
     title: videoTitle || "Video",
     author: videoAuthor || "Unknown",
     description: videoDescription,
-    date:
-      videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
+    date: videoDate || new Date().toISOString().slice(0, 10).replace(/-/g, ""),
     source: source, // Use extracted source
     sourceUrl: videoUrl,
     videoFilename: finalVideoFilename,
     thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
     thumbnailUrl: thumbnailUrl || undefined,
     videoPath: `/videos/${finalVideoFilename}`,
-    thumbnailPath: thumbnailSaved
-      ? `/images/${finalThumbnailFilename}`
-      : null,
+    thumbnailPath: thumbnailSaved ? `/images/${finalThumbnailFilename}` : null,
     subtitles: subtitles.length > 0 ? subtitles : undefined,
     duration: undefined, // Will be populated below
     channelUrl: channelUrl || undefined,
@@ -369,4 +366,3 @@ export async function downloadVideo(
 
   return videoData;
 }
-
