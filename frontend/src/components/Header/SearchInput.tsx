@@ -1,4 +1,4 @@
-import { Clear, Search } from '@mui/icons-material';
+import { Clear, ContentPaste, Search } from '@mui/icons-material';
 import {
     alpha,
     Box,
@@ -40,6 +40,19 @@ const SearchInput: React.FC<SearchInputProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+    const handlePaste = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            setVideoUrl(text);
+        } catch (err) {
+            console.error('Failed to paste from clipboard:', err);
+        }
+    };
+
+    const handleClear = () => {
+        setVideoUrl('');
+    };
+
     return (
         <Box component="form" onSubmit={onSubmit} sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', width: '100%' }}>
             <TextField
@@ -60,10 +73,34 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 }}
                 slotProps={{
                     input: {
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <IconButton
+                                    onClick={handlePaste}
+                                    edge="start"
+                                    size="small"
+                                    disabled={isSubmitting || visitorMode}
+                                    sx={{ ml: 0 }}
+                                >
+                                    <ContentPaste />
+                                </IconButton>
+                            </InputAdornment>
+                        ),
                         endAdornment: (
                             <InputAdornment position="end">
                                 {isSearchMode && searchTerm && (
                                     <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
+                                        <Clear />
+                                    </IconButton>
+                                )}
+                                {videoUrl && (
+                                    <IconButton
+                                        onClick={handleClear}
+                                        edge="end"
+                                        size="small"
+                                        disabled={isSubmitting || visitorMode}
+                                        sx={{ mr: 0.5 }}
+                                    >
                                         <Clear />
                                     </IconButton>
                                 )}
