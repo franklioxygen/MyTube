@@ -7,20 +7,76 @@ import fs from "fs-extra";
 import path from "path";
 import { FileError, NetworkError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
-import { CloudDriveConfig } from "./types";
+import { getFileList } from "./fileLister";
 import { normalizeUploadPath } from "./pathUtils";
+import { CloudDriveConfig } from "./types";
+
+/**
+ * Upload result indicating whether file was actually uploaded or skipped
+ */
+export interface UploadResult {
+  uploaded: boolean;
+  skipped: boolean;
+  reason?: string;
+}
+
+/**
+ * Check if a file already exists in cloud storage
+ * @param fileName - Name of the file to check
+ * @param fileSize - Size of the file in bytes
+ * @param destinationPath - Full destination path in cloud storage
+ * @param config - Cloud drive configuration
+ * @returns true if file exists with same name and size
+ */
+async function fileExistsInCloud(
+  fileName: string,
+  fileSize: number,
+  destinationPath: string,
+  config: CloudDriveConfig
+): Promise<boolean> {
+  try {
+    // Get the directory path from destination path
+    const dirPath = path.dirname(destinationPath);
+    const normalizedDirPath = normalizeUploadPath(dirPath);
+
+    // Get file list from OpenList
+    const files = await getFileList(config, normalizedDirPath);
+
+    // Check if file with same name and size exists
+    const existingFile = files.find(
+      (file) => file.name === fileName && file.size === fileSize && !file.is_dir
+    );
+
+    if (existingFile) {
+      logger.info(
+        `[CloudStorage] File ${fileName} already exists in cloud storage with same size (${fileSize} bytes), skipping upload`
+      );
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    logger.warn(
+      `[CloudStorage] Failed to check if file exists in cloud storage:`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    // If check fails, proceed with upload to be safe
+    return false;
+  }
+}
 
 /**
  * Upload a file to cloud storage
  * @param filePath - Local file path to upload
  * @param config - Cloud drive configuration
  * @param remotePath - Optional remote path (relative to uploadPath)
+ * @returns UploadResult indicating whether file was uploaded or skipped
  */
 export async function uploadFile(
   filePath: string,
   config: CloudDriveConfig,
   remotePath?: string
-): Promise<void> {
+): Promise<UploadResult> {
   // 1. Get basic file information
   const fileStat = fs.statSync(filePath);
   const fileSize = fileStat.size;
@@ -55,13 +111,27 @@ export async function uploadFile(
     ? destinationPath
     : `/${destinationPath}`;
 
+  // Check if file already exists in cloud storage before uploading
+  const exists = await fileExistsInCloud(
+    fileName,
+    fileSize,
+    destinationPath,
+    config
+  );
+
+  if (exists) {
+    return {
+      uploaded: false,
+      skipped: true,
+      reason: "File already exists in cloud storage with same size",
+    };
+  }
+
   logger.info(
     `[CloudStorage] Uploading ${fileName} to ${destinationPath} (${fileSize} bytes)...`
   );
 
-  logger.debug(
-    `[CloudStorage] Destination path in header: ${destinationPath}`
-  );
+  logger.debug(`[CloudStorage] Destination path in header: ${destinationPath}`);
 
   // 3. Prepare Headers
   const headers = {
@@ -92,6 +162,10 @@ export async function uploadFile(
       logger.info(
         `[CloudStorage] Successfully uploaded ${fileName}. Server message: ${response.data.message}`
       );
+      return {
+        uploaded: true,
+        skipped: false,
+      };
     } else {
       // Even if HTTP status code is 200, server may return business errors
       const errorMessage = response.data
@@ -132,4 +206,3 @@ export async function uploadFile(
     }
   }
 }
-
