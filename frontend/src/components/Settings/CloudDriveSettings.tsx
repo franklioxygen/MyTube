@@ -102,13 +102,19 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         setTestResult(null);
 
         try {
-            // Ensure we use the full URL from settings without any baseURL interference
-            // Parse and reconstruct the URL to ensure it's absolute
-            let testUrl = settings.openListApiUrl.trim();
+            // Use Public URL if available, otherwise fall back to API URL
+            // Public URL is what users will actually access, so it's more important to test
+            let testUrl = settings.openListPublicUrl?.trim() || settings.openListApiUrl.trim();
             
             // If the URL doesn't start with http:// or https://, it's invalid
             if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
                 throw new Error('Invalid URL format');
+            }
+
+            // For public URL, test the root path; for API URL, use the URL as-is
+            if (settings.openListPublicUrl) {
+                // Ensure the public URL doesn't have a trailing slash for the root test
+                testUrl = testUrl.replace(/\/$/, '');
             }
 
             // Use axios.request with explicit config to avoid any baseURL defaults
