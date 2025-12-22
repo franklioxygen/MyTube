@@ -106,10 +106,14 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
 
 /**
  * Execute yt-dlp with JSON output and return parsed result
+ * @param url - Video URL
+ * @param flags - yt-dlp flags
+ * @param retryWithoutFormatRestrictions - If true, retry without format restrictions if format error occurs
  */
 export async function executeYtDlpJson(
   url: string,
-  flags: Record<string, any> = {}
+  flags: Record<string, any> = {},
+  retryWithoutFormatRestrictions: boolean = true
 ): Promise<any> {
   const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
 
@@ -144,8 +148,77 @@ export async function executeYtDlpJson(
       stderr += data.toString();
     });
 
-    subprocess.on("close", (code) => {
+    subprocess.on("close", async (code) => {
       if (code !== 0) {
+        // Check if this is a format availability error
+        const isFormatError =
+          stderr.includes("Requested format is not available") ||
+          stderr.includes("format is not available") ||
+          stderr.includes("No video formats found");
+
+        // If it's a format error and we should retry, try again without format restrictions
+        if (isFormatError && retryWithoutFormatRestrictions) {
+          const hasFormatRestrictions =
+            (flags.formatSort !== undefined && flags.formatSort !== null) ||
+            (flags.format !== undefined && flags.format !== null) ||
+            (flags.S !== undefined && flags.S !== null) ||
+            (flags.f !== undefined && flags.f !== null);
+
+          if (hasFormatRestrictions) {
+            console.log(
+              "Format not available, retrying without format restrictions..."
+            );
+            try {
+              // Remove format-related flags
+              const retryFlags = { ...flags };
+              delete retryFlags.formatSort;
+              delete retryFlags.format;
+              delete retryFlags.S;
+              delete retryFlags.f;
+              // Retry without format restrictions (don't retry again to avoid infinite loop)
+              const result = await executeYtDlpJson(url, retryFlags, false);
+              resolve(result);
+              return;
+            } catch (retryError) {
+              // If retry also fails, reject with original error
+              const error = new Error(
+                `yt-dlp process exited with code ${code}`
+              );
+              (error as any).stderr = stderr;
+              reject(error);
+              return;
+            }
+          } else {
+            // Format error but no format restrictions in flags - might be from config file
+            // Try with explicit format override to bypass config file
+            console.log(
+              "Format not available (possibly from config file), retrying with explicit format override..."
+            );
+            try {
+              const retryFlags = {
+                ...flags,
+                // Explicitly set format to "best" to override any config file settings
+                format: "best",
+                formatSort: undefined,
+                S: undefined,
+                f: undefined,
+              };
+              // Retry without format restrictions (don't retry again to avoid infinite loop)
+              const result = await executeYtDlpJson(url, retryFlags, false);
+              resolve(result);
+              return;
+            } catch (retryError) {
+              // If retry also fails, reject with original error
+              const error = new Error(
+                `yt-dlp process exited with code ${code}`
+              );
+              (error as any).stderr = stderr;
+              reject(error);
+              return;
+            }
+          }
+        }
+
         const error = new Error(`yt-dlp process exited with code ${code}`);
         (error as any).stderr = stderr;
         reject(error);

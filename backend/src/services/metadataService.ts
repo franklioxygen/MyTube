@@ -1,4 +1,3 @@
-import { exec } from 'child_process';
 import { eq } from 'drizzle-orm';
 import fs from 'fs-extra';
 import path from 'path';
@@ -9,6 +8,7 @@ import {
 import { VIDEOS_DIR } from '../config/paths';
 import { db } from '../db';
 import { videos } from '../db/schema';
+import { execFileSafe, validateVideoPath } from '../utils/security';
 
 export const getVideoDuration = async (filePath: string): Promise<number | null> => {
     try {
@@ -17,17 +17,18 @@ export const getVideoDuration = async (filePath: string): Promise<number | null>
             throw FileError.notFound(filePath);
         }
 
-        const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
-        const duration = await new Promise<string>((resolve, reject) => {
-            exec(command, (error, stdout, stderr) => {
-                if (error) {
-                    reject(ExecutionError.fromCommand(command, error, error.code || undefined));
-                } else {
-                    resolve(stdout.trim());
-                }
-            });
-        });
+        // Validate path to prevent path traversal
+        const validatedPath = validateVideoPath(filePath);
 
+        // Use execFileSafe to prevent command injection
+        const { stdout } = await execFileSafe("ffprobe", [
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            validatedPath
+        ]);
+
+        const duration = stdout.trim();
         if (duration) {
             const durationSec = parseFloat(duration);
             if (!isNaN(durationSec)) {

@@ -18,16 +18,27 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
 
-    const info = await executeYtDlpJson(url, {
-      ...networkConfig,
-      noWarnings: true,
-      preferFreeFormats: true,
-      ...(PROVIDER_SCRIPT
-        ? {
-            extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
-          }
-        : {}),
-    });
+    // Explicitly exclude format-related options when fetching metadata
+    // Format restrictions should only apply during actual downloads, not metadata fetching
+    const info = await executeYtDlpJson(
+      url,
+      {
+        ...networkConfig,
+        noWarnings: true,
+        preferFreeFormats: true,
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
+        // Explicitly exclude format options to avoid format availability errors
+        formatSort: undefined,
+        format: undefined,
+        S: undefined,
+        f: undefined,
+      },
+      true // Enable retry without format restrictions if format error occurs
+    );
 
     return {
       title: info.title || "Video",

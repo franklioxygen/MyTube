@@ -2,12 +2,12 @@
  * Cloud storage scanning operations
  */
 
-import { exec } from "child_process";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import { execFileSafe, validateImagePath, validateUrl } from "../../utils/security";
 import { getVideos, saveVideo } from "../storageService";
 import { clearFileListCache, getFilesRecursively } from "./fileLister";
 import { uploadFile } from "./fileUploader";
@@ -238,25 +238,27 @@ export async function scanCloudFiles(
         // Ensure directory exists
         fs.ensureDirSync(path.dirname(tempThumbnailPath));
 
+        // Validate paths and URL to prevent command injection and SSRF
+        const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
+        const validatedVideoUrl = validateUrl(videoSignedUrl);
+
         // Generate thumbnail using ffmpeg with signed URL
         // ffmpeg can work with HTTP URLs directly
-        await new Promise<void>((resolve, reject) => {
-          exec(
-            `ffmpeg -i "${videoSignedUrl}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}" -y`,
-            { timeout: 30000 }, // 30 second timeout
-            (error) => {
-              if (error) {
-                logger.error(
-                  `[CloudStorage] Error generating thumbnail for ${filename}:`,
-                  error
-                );
-                reject(error);
-              } else {
-                resolve();
-              }
-            }
+        try {
+          await execFileSafe("ffmpeg", [
+            "-i", validatedVideoUrl,
+            "-ss", "00:00:00",
+            "-vframes", "1",
+            validatedThumbnailPath,
+            "-y"
+          ], { timeout: 30000 });
+        } catch (error) {
+          logger.error(
+            `[CloudStorage] Error generating thumbnail for ${filename}:`,
+            error
           );
-        });
+          throw error;
+        }
 
         // Upload thumbnail to cloud storage (with correct filename and location)
         // remoteThumbnailPath is a full absolute path (e.g., /a/电影/video/thumbnail.jpg)
@@ -271,21 +273,17 @@ export async function scanCloudFiles(
         // Get duration
         let duration: string | undefined = undefined;
         try {
-          const durationOutput = await new Promise<string>(
-            (resolve, reject) => {
-              exec(
-                `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoSignedUrl}"`,
-                { timeout: 10000 },
-                (error, stdout, _stderr) => {
-                  if (error) {
-                    reject(error);
-                  } else {
-                    resolve(stdout.trim());
-                  }
-                }
-              );
-            }
-          );
+          // Validate URL to prevent SSRF
+          const validatedVideoUrlForDuration = validateUrl(videoSignedUrl);
+          
+          const { stdout } = await execFileSafe("ffprobe", [
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            validatedVideoUrlForDuration
+          ], { timeout: 10000 });
+          
+          const durationOutput = stdout.trim();
           if (durationOutput) {
             const durationSec = parseFloat(durationOutput);
             if (!isNaN(durationSec)) {

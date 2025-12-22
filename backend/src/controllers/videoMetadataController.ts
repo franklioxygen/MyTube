@@ -1,4 +1,3 @@
-import { exec } from "child_process";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -7,6 +6,7 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import { execFileSafe, validateVideoPath, validateImagePath } from "../utils/security";
 
 /**
  * Rate video
@@ -91,21 +91,23 @@ export const refreshThumbnail = async (
   // Ensure directory exists
   fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
 
-  // Generate thumbnail
-  await new Promise<void>((resolve, reject) => {
-    // -y to overwrite existing file
-    exec(
-      `ffmpeg -i "${videoFilePath}" -ss 00:00:00 -vframes 1 "${thumbnailAbsolutePath}" -y`,
-      (error) => {
-        if (error) {
-          logger.error("Error generating thumbnail:", error);
-          reject(error);
-        } else {
-          resolve();
-        }
-      }
-    );
-  });
+  // Validate paths to prevent path traversal
+  const validatedVideoPath = validateVideoPath(videoFilePath);
+  const validatedThumbnailPath = validateImagePath(thumbnailAbsolutePath);
+
+  // Generate thumbnail using execFileSafe to prevent command injection
+  try {
+    await execFileSafe("ffmpeg", [
+      "-i", validatedVideoPath,
+      "-ss", "00:00:00",
+      "-vframes", "1",
+      validatedThumbnailPath,
+      "-y"
+    ]);
+  } catch (error) {
+    logger.error("Error generating thumbnail:", error);
+    throw error;
+  }
 
   // Update video record if needed (switching from remote to local, or creating new)
   if (needsDbUpdate) {

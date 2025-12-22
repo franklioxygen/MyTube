@@ -73,7 +73,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 }}
                 slotProps={{
                     input: {
-                        startAdornment: (
+                        startAdornment: !isMobile ? (
                             <InputAdornment position="start">
                                 <IconButton
                                     onClick={handlePaste}
@@ -85,7 +85,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     <ContentPaste />
                                 </IconButton>
                             </InputAdornment>
-                        ),
+                        ) : null,
                         endAdornment: (
                             <InputAdornment position="end">
                                 {isSearchMode && searchTerm && (

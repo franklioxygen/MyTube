@@ -1,4 +1,5 @@
 import axios from "axios";
+import { validateUrl } from "./security";
 
 // Helper function to check if a string is a valid URL
 export function isValidUrl(string: string): boolean {
@@ -38,20 +39,29 @@ export async function resolveShortUrl(url: string): Promise<string> {
   try {
     console.log(`Resolving shortened URL: ${url}`);
 
+    // Validate URL to prevent SSRF attacks
+    const validatedUrl = validateUrl(url);
+
     // Make a HEAD request to follow redirects
-    const response = await axios.head(url, {
+    const response = await axios.head(validatedUrl, {
       maxRedirects: 5,
       validateStatus: null,
     });
 
-    // Get the final URL after redirects
-    const resolvedUrl = response.request.res.responseUrl || url;
-    console.log(`Resolved to: ${resolvedUrl}`);
+    // Get the final URL after redirects and validate it
+    const resolvedUrl = response.request.res.responseUrl || validatedUrl;
+    const validatedResolvedUrl = validateUrl(resolvedUrl);
+    console.log(`Resolved to: ${validatedResolvedUrl}`);
 
-    return resolvedUrl;
+    return validatedResolvedUrl;
   } catch (error: any) {
     console.error(`Error resolving shortened URL: ${error.message}`);
-    return url; // Return original URL if resolution fails
+    // If validation fails, return original URL only if it's already validated
+    try {
+      return validateUrl(url);
+    } catch {
+      throw new Error(`Invalid URL: ${url}`);
+    }
   }
 }
 

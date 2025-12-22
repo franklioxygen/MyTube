@@ -24,6 +24,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
+import { validateUrlForOpen } from '../utils/urlValidation';
 const API_URL = import.meta.env.VITE_API_URL;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -205,9 +206,13 @@ const VideoPlayer: React.FC = () => {
         // If it's a YouTube or Bilibili video, try to get the channel URL
         if (video.source === 'youtube' || video.source === 'bilibili') {
             if (authorChannelUrl) {
-                // Open the channel URL in a new tab
-                window.open(authorChannelUrl, '_blank', 'noopener,noreferrer');
-                return;
+                // Validate URL to prevent open redirect attacks
+                const validatedUrl = validateUrlForOpen(authorChannelUrl);
+                if (validatedUrl) {
+                    // Open the channel URL in a new tab
+                    window.open(validatedUrl, '_blank', 'noopener,noreferrer');
+                    return;
+                }
             }
         }
 

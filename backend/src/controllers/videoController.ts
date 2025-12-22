@@ -1,4 +1,3 @@
-import { exec } from "child_process";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import multer from "multer";
@@ -9,6 +8,11 @@ import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import {
+  execFileSafe,
+  validateImagePath,
+  validateVideoPath,
+} from "../utils/security";
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -22,7 +26,13 @@ const storage = multer.diskStorage({
   },
 });
 
-export const upload = multer({ storage: storage });
+// Configure multer with large file size limit (100GB)
+export const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 * 1024, // 10GB in bytes
+  },
+});
 
 /**
  * Get all videos
@@ -113,21 +123,25 @@ export const uploadVideo = async (
   const videoPath = path.join(VIDEOS_DIR, videoFilename);
   const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
 
-  // Generate thumbnail
-  await new Promise<void>((resolve, _reject) => {
-    exec(
-      `ffmpeg -i "${videoPath}" -ss 00:00:00 -vframes 1 "${thumbnailPath}"`,
-      (error) => {
-        if (error) {
-          logger.error("Error generating thumbnail:", error);
-          // We resolve anyway to not block the upload, just without a custom thumbnail
-          resolve();
-        } else {
-          resolve();
-        }
-      }
-    );
-  });
+  // Validate paths to prevent path traversal
+  const validatedVideoPath = validateVideoPath(videoPath);
+  const validatedThumbnailPath = validateImagePath(thumbnailPath);
+
+  // Generate thumbnail using execFileSafe to prevent command injection
+  try {
+    await execFileSafe("ffmpeg", [
+      "-i",
+      validatedVideoPath,
+      "-ss",
+      "00:00:00",
+      "-vframes",
+      "1",
+      validatedThumbnailPath,
+    ]);
+  } catch (error) {
+    logger.error("Error generating thumbnail:", error);
+    // Continue without thumbnail - don't block the upload
+  }
 
   // Get video duration
   const duration = await getVideoDuration(videoPath);
@@ -226,7 +240,9 @@ export const getAuthorChannelUrl = async (
     // First, check if we have the video in the database with a stored channelUrl
     const existingVideo = storageService.getVideoBySourceUrl(sourceUrl);
     if (existingVideo && existingVideo.channelUrl) {
-      res.status(200).json({ success: true, channelUrl: existingVideo.channelUrl });
+      res
+        .status(200)
+        .json({ success: true, channelUrl: existingVideo.channelUrl });
       return;
     }
 
@@ -261,10 +277,12 @@ export const getAuthorChannelUrl = async (
       // If we have the video in database, try to get channelUrl from there first
       // (already checked above, but this is for clarity)
       if (existingVideo && existingVideo.channelUrl) {
-        res.status(200).json({ success: true, channelUrl: existingVideo.channelUrl });
+        res
+          .status(200)
+          .json({ success: true, channelUrl: existingVideo.channelUrl });
         return;
       }
-      
+
       const axios = (await import("axios")).default;
       const { extractBilibiliVideoId } = await import("../utils/helpers");
 
@@ -295,12 +313,14 @@ export const getAuthorChannelUrl = async (
           ) {
             const mid = response.data.data.owner.mid;
             const spaceUrl = `https://space.bilibili.com/${mid}`;
-            
+
             // If we have the video in database, update it with the channelUrl
             if (existingVideo) {
-              storageService.updateVideo(existingVideo.id, { channelUrl: spaceUrl });
+              storageService.updateVideo(existingVideo.id, {
+                channelUrl: spaceUrl,
+              });
             }
-            
+
             res.status(200).json({ success: true, channelUrl: spaceUrl });
             return;
           }
