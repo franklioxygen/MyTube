@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.32 (2025-12-22)
+
+### Chore
+
+- chore: update bgutil-ytdlp-pot-provider submodule (d59617c)
+
 ## v1.6.31 (2025-12-22)
 
 ### Feat
