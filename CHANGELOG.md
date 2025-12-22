@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.31 (2025-12-22)
+
+### Feat
+
+- feat: Add security measures and URL validation (bbea5b3)
+
 ## v1.6.30 (2025-12-22)
 
 ### Feat
