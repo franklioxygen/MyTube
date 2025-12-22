@@ -12,7 +12,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
@@ -42,12 +42,15 @@ const Header: React.FC<HeaderProps> = ({
     const [websiteName, setWebsiteName] = useState('MyTube');
     const [isScrolled, setIsScrolled] = useState<boolean>(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const theme = useTheme();
     const { mode: themeMode } = useThemeContext();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
     const { visitorMode } = useVisitorMode();
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
+
+    const isSettingsPage = location.pathname.startsWith('/settings');
 
     useEffect(() => {
         console.log('Header props:', { activeDownloads, queuedDownloads });
@@ -156,7 +159,7 @@ const Header: React.FC<HeaderProps> = ({
     const gradientBackground = `linear-gradient(to bottom, ${backgroundColor} 0%, ${alpha(backgroundColor, 0)} 100%)`;
 
     // Desktop background: 30% transparent (70% opacity)
-    const desktopBackgroundColor = !isMobile 
+    const desktopBackgroundColor = !isMobile
         ? alpha(theme.palette.background.paper, 0.7)
         : 'background.paper';
 
@@ -188,7 +191,7 @@ const Header: React.FC<HeaderProps> = ({
                             flexDirection: isMobile ? 'column' : 'row',
                             alignItems: isMobile ? 'stretch' : 'center',
                             py: isMobile ? (isScrolled ? 0.5 : 1) : 0,
-                            minHeight: isMobile 
+                            minHeight: isMobile
                                 ? (isScrolled ? '40px !important' : undefined)
                                 : undefined,
                             transition: 'min-height 0.3s ease-in-out, padding 0.3s ease-in-out',
@@ -222,12 +225,12 @@ const Header: React.FC<HeaderProps> = ({
                             // Full header when at top
                             <>
                                 {/* Top Bar for Mobile / Main Bar for Desktop */}
-                                <Box sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between', 
-                                    width: isMobile ? '100%' : 'auto', 
-                                    flexGrow: isMobile ? 0 : 0, 
+                                <Box sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    width: isMobile ? '100%' : 'auto',
+                                    flexGrow: isMobile ? 0 : 0,
                                     mr: isMobile ? 0 : 2,
                                     transition: 'all 0.3s ease-in-out',
                                     '& img': {
@@ -331,9 +334,9 @@ const Header: React.FC<HeaderProps> = ({
                     transition: 'height 0.3s ease-in-out',
                 }}
             />
-            
+
             {/* Scroll to top button - mobile only */}
-            <Slide direction="up" in={isMobile && isScrolled} mountOnEnter unmountOnExit>
+            <Slide direction="up" in={isMobile && isScrolled && !isSettingsPage} mountOnEnter unmountOnExit>
                 <Fab
                     color="primary"
                     size="medium"

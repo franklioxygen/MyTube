@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.6.30 (2025-12-22)
+
+### Feat
+
+- feat: Add support for multiple scan paths in cloud storage (31b2d05)
+- feat: Add function to check if file exists before upload (2816ea1)
+
+### Refactor
+
+- refactor: Reorganize imports in cloudScanner.ts (d96c785)
+
 ## v1.6.29 (2025-12-21)
 
 ### Style
