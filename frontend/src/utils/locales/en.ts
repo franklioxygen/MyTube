@@ -141,6 +141,8 @@ export const en = {
   publicUrlHelper: "Public domain for accessing files (e.g., https://your-cloudflare-tunnel-domain.com). If set, this will be used instead of the API URL for file access.",
   uploadPath: "Upload Path",
   cloudDrivePathHelper: "Directory path in cloud drive, e.g. /mytube-uploads",
+  scanPaths: "Scan Paths",
+  scanPathsHelper: "One path per line. Videos will be scanned from these paths. If empty, will use upload path. Example:\n/a/Movies\n/b/Documentaries",
   cloudDriveNote:
     "After enabling this feature, newly downloaded videos will be automatically uploaded to cloud storage and local files will be deleted. Videos will be played from cloud storage via proxy.",
   testing: "Testing...",

@@ -147,6 +147,8 @@ export const ko = {
   uploadPath: "업로드 경로",
   cloudDrivePathHelper:
     "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
+  scanPaths: "스캔 경로",
+  scanPathsHelper: "줄당 하나의 경로. 이 경로에서 동영상을 스캔합니다. 비어 있으면 업로드 경로를 사용합니다. 예:\n/a/영화\n/b/다큐멘터리",
   cloudDriveNote:
     "이 기능을 활성화한 후 새로 다운로드된 비디오는 자동으로 클라우드 스토리지에 업로드되고 로컬 파일은 삭제됩니다. 비디오는 프록시를 통해 클라우드 스토리지에서 재생됩니다.",
   testing: "테스트 중...",

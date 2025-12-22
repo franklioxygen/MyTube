@@ -141,6 +141,8 @@ export const zh = {
   publicUrlHelper: "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
   uploadPath: "上传路径",
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
+  scanPaths: "扫描路径",
+  scanPathsHelper: "每行一个路径。系统将扫描这些路径下的视频。留空则使用默认上传路径。示例：\n/a/电影\n/b/纪录片",
   cloudDriveNote:
     "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
   testing: "测试中...",

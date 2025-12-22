@@ -68,6 +68,7 @@ export interface Settings {
   openListToken: string;
   openListPublicUrl?: string;
   cloudDrivePath: string;
+  cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
   websiteName?: string;

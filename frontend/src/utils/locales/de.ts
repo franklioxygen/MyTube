@@ -141,6 +141,8 @@ export const de = {
   uploadPath: "Upload-Pfad",
   cloudDrivePathHelper:
     "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
+  scanPaths: "Scan-Pfade",
+  scanPathsHelper: "Ein Pfad pro Zeile. Videos werden von diesen Pfaden gescannt. Wenn leer, wird der Upload-Pfad verwendet. Beispiel:\n/a/Filme\n/b/Dokumentationen",
   cloudDriveNote:
     "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
   testing: "Teste...",

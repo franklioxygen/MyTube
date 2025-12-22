@@ -79,6 +79,20 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         return null;
     };
 
+    // Validate scan paths (multi-line)
+    const validateScanPaths = (paths: string): string | null => {
+        if (!paths.trim()) {
+            return null; // Optional field
+        }
+        const lines = paths.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        for (const line of lines) {
+            if (!line.startsWith('/')) {
+                return 'Each path should start with / (e.g., /a/电影)';
+            }
+        }
+        return null;
+    };
+
     const apiUrlError = settings.cloudDriveEnabled && settings.openListApiUrl
         ? validateApiUrl(settings.openListApiUrl)
         : null;
@@ -87,6 +101,9 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         : null;
     const uploadPathError = settings.cloudDriveEnabled && settings.cloudDrivePath
         ? validateUploadPath(settings.cloudDrivePath)
+        : null;
+    const scanPathsError = settings.cloudDriveEnabled && settings.cloudDriveScanPaths
+        ? validateScanPaths(settings.cloudDriveScanPaths)
         : null;
 
     const handleTestConnection = async () => {
@@ -310,6 +327,23 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                     {uploadPathError && (
                         <Typography variant="caption" color="error" sx={{ mt: -1.5 }}>
                             {uploadPathError}
+                        </Typography>
+                    )}
+
+                    <TextField
+                        label={t('scanPaths')}
+                        value={settings.cloudDriveScanPaths || ''}
+                        onChange={(e) => onChange('cloudDriveScanPaths', e.target.value)}
+                        helperText={t('scanPathsHelper')}
+                        error={!!scanPathsError}
+                        placeholder="/a/Movies&#10;/b/Documentaries"
+                        multiline
+                        rows={4}
+                        fullWidth
+                    />
+                    {scanPathsError && (
+                        <Typography variant="caption" color="error" sx={{ mt: -1.5 }}>
+                            {scanPathsError}
                         </Typography>
                     )}
 

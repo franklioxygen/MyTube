@@ -28,6 +28,7 @@ interface Settings {
   openListToken?: string;
   openListPublicUrl?: string;
   cloudDrivePath?: string;
+  cloudDriveScanPaths?: string;
   homeSidebarOpen?: boolean;
   subtitlesEnabled?: boolean;
   websiteName?: string;
@@ -52,6 +53,7 @@ const defaultSettings: Settings = {
   openListToken: "",
   openListPublicUrl: "",
   cloudDrivePath: "",
+  cloudDriveScanPaths: "",
   homeSidebarOpen: true,
   subtitlesEnabled: true,
   websiteName: "MyTube",

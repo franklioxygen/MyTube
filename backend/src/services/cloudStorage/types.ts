@@ -8,6 +8,7 @@ export interface CloudDriveConfig {
   token: string;
   publicUrl?: string;
   uploadPath: string;
+  scanPaths?: string[];
 }
 
 export interface CachedSignedUrl {

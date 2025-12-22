@@ -150,6 +150,8 @@ export const pt = {
   publicUrlHelper: "Domínio público para acessar arquivos (ex. https://your-cloudflare-tunnel-domain.com). Se definido, será usado em vez da URL da API para acessar arquivos.",
   uploadPath: "Caminho de upload",
   cloudDrivePathHelper: "Caminho do diretório na nuvem, ex. /mytube-uploads",
+  scanPaths: "Caminhos de Varredura",
+  scanPathsHelper: "Um caminho por linha. Os vídeos serão verificados a partir desses caminhos. Se vazio, usará o caminho de upload. Exemplo:\n/a/Filmes\n/b/Documentários",
   cloudDriveNote:
     "Após habilitar este recurso, os vídeos recém-baixados serão automaticamente enviados para o armazenamento em nuvem e os arquivos locais serão excluídos. Os vídeos serão reproduzidos do armazenamento em nuvem via proxy.",
   testing: "Testando...",

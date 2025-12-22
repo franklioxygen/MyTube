@@ -12,7 +12,7 @@ import { getVideos, saveVideo } from "../storageService";
 import { clearFileListCache, getFilesRecursively } from "./fileLister";
 import { uploadFile } from "./fileUploader";
 import { normalizeUploadPath } from "./pathUtils";
-import { CloudDriveConfig, ScanResult } from "./types";
+import { CloudDriveConfig, FileWithPath, ScanResult } from "./types";
 import { clearSignedUrlCache, getSignedUrl } from "./urlSigner";
 
 /**
@@ -29,11 +29,40 @@ export async function scanCloudFiles(
   onProgress?.("Scanning cloud storage for videos...");
 
   try {
-    // Normalize upload path
-    const uploadPath = normalizeUploadPath(config.uploadPath);
+    // Determine which paths to scan
+    // Always scan the default uploadPath
+    // If scanPaths is provided, scan those as well
+    const uploadRoot = normalizeUploadPath(config.uploadPath);
+    const pathsToScan: string[] = [uploadRoot];
 
-    // Recursively get all files from cloud storage
-    const allCloudFiles = await getFilesRecursively(config, uploadPath);
+    if (config.scanPaths && config.scanPaths.length > 0) {
+      const additionalPaths = config.scanPaths.map((path) =>
+        normalizeUploadPath(path)
+      );
+      // Avoid duplicates
+      for (const path of additionalPaths) {
+        if (!pathsToScan.includes(path)) {
+          pathsToScan.push(path);
+        }
+      }
+    }
+
+    logger.info(
+      `[CloudStorage] Scanning ${
+        pathsToScan.length
+      } path(s): ${pathsToScan.join(", ")}`
+    );
+
+    // Recursively get all files from all scan paths
+    const allCloudFiles: FileWithPath[] = [];
+    for (const scanPath of pathsToScan) {
+      logger.info(`[CloudStorage] Scanning path: ${scanPath}`);
+      const filesFromPath = await getFilesRecursively(config, scanPath);
+      allCloudFiles.push(...filesFromPath);
+      logger.info(
+        `[CloudStorage] Found ${filesFromPath.length} files in ${scanPath}`
+      );
+    }
 
     // Filter for video files
     const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
@@ -77,6 +106,29 @@ export async function scanCloudFiles(
       if (existingPaths.has(normalizedPath)) {
         return false;
       }
+      
+      // Also check by calculated relative path (for backward compatibility with uploadPath files)
+      // This is important because for files in uploadPath, we store them relative to uploadPath
+      // But here filePath is absolute/relative to root
+      
+      // Calculate what the storage path WOULD be for this file
+      let potentialStoragePath: string;
+      const absoluteFilePath = filePath.startsWith("/") ? filePath : "/" + filePath;
+      const absoluteUploadRoot = uploadRoot.startsWith("/") ? uploadRoot : "/" + uploadRoot;
+      
+      if (absoluteFilePath.startsWith(absoluteUploadRoot)) {
+        // It's in the upload path, so it would be stored relative to that
+        const relativePath = path.relative(absoluteUploadRoot, absoluteFilePath);
+        potentialStoragePath = relativePath.replace(/\\/g, "/");
+      } else {
+        // It's NOT in the upload path, so it would be stored as full path (without leading slash)
+        potentialStoragePath = absoluteFilePath.substring(1);
+      }
+      
+      if (existingPaths.has(potentialStoragePath)) {
+          return false;
+      }
+
       // Also check by filename (for backward compatibility)
       return !existingFilenames.has(file.name);
     });
@@ -149,42 +201,39 @@ export async function scanCloudFiles(
         );
 
         // Determine remote thumbnail path (put it in the same folder as video)
-        // file.path is the full path from upload root (e.g., /a/b/Youtube/video/1.mp4) or relative path depending on alist version
-        // We normalize everything to be safe
+        // filePath is the full absolute path (e.g., /a/电影/video/1.mp4)
+        // We want to put the thumbnail in the same directory as the video
 
-        // 1. Get the upload root path
-        const uploadRoot = normalizeUploadPath(config.uploadPath);
-
-        // 2. Ensure filePath is absolute-like for path.relative calculation if it isn't already
-        // path.relative works best when both are absolute or both relative
-        // We treats them as absolute paths rooted at /
-        const absoluteUploadRoot = uploadRoot.startsWith("/")
-          ? uploadRoot
-          : "/" + uploadRoot;
+        // 1. Normalize filePath to ensure it's an absolute path
         const absoluteFilePath = filePath.startsWith("/")
           ? filePath
           : "/" + filePath;
 
-        // 3. Calculate relative path from upload root to the file
-        // e.g. from "/a/b/Youtube" to "/a/b/Youtube/video/1.mp4" -> "video/1.mp4"
-        const relativeFilePath = path.relative(
-          absoluteUploadRoot,
-          absoluteFilePath
-        );
+        // 2. Get the directory of the video file
+        const videoDir = path.dirname(absoluteFilePath).replace(/\\/g, "/");
 
-        // 4. Get the directory of the video file relative to upload root
-        // e.g. "video"
-        const relativeVideoDir = path.dirname(relativeFilePath);
+        // 3. Construct thumbnail path in the same directory as video
+        const remoteThumbnailPath = videoDir.endsWith("/")
+          ? `${videoDir}${newThumbnailFilename}`
+          : `${videoDir}/${newThumbnailFilename}`;
 
-        // 5. Construct thumbnail path
-        // If dir is root ".", relativeVideoDir is "."
-        const remoteThumbnailDir =
-          relativeVideoDir === "." ? "" : relativeVideoDir;
-        const remoteThumbnailPath = remoteThumbnailDir
-          ? path
-              .join(remoteThumbnailDir, newThumbnailFilename)
-              .replace(/\\/g, "/")
-          : newThumbnailFilename;
+        // 4. Calculate relative path for video storage in database
+        // logic: if file is in uploadPath, use relative path; otherwise use full path
+        let relativeVideoPath: string;
+        
+        // Ensure uploadRoot is absolute for comparison
+        const absoluteUploadRoot = uploadRoot.startsWith("/") ? uploadRoot : "/" + uploadRoot;
+        
+        if (absoluteFilePath.startsWith(absoluteUploadRoot)) {
+            // It IS in the default upload path (or a subdir of it)
+            // Calculate relative path from uploadRoot
+            const relativePath = path.relative(absoluteUploadRoot, absoluteFilePath);
+            relativeVideoPath = relativePath.replace(/\\/g, "/");
+        } else {
+             // It is NOT in the default upload path (must be from one of the scanPaths)
+             // Use the full path relative to root
+             relativeVideoPath = absoluteFilePath.substring(1);
+        }
 
         // Ensure directory exists
         fs.ensureDirSync(path.dirname(tempThumbnailPath));
@@ -210,6 +259,8 @@ export async function scanCloudFiles(
         });
 
         // Upload thumbnail to cloud storage (with correct filename and location)
+        // remoteThumbnailPath is a full absolute path (e.g., /a/电影/video/thumbnail.jpg)
+        // uploadFile now supports absolute paths, so we can pass it directly
         if (fs.existsSync(tempThumbnailPath)) {
           await uploadFile(tempThumbnailPath, config, remoteThumbnailPath);
 
@@ -254,11 +305,14 @@ export async function scanCloudFiles(
           Date.now() + Math.floor(Math.random() * 10000)
         ).toString();
 
-        // Store path relative to upload root
-        // relativeFilePath was already calculated above using path.relative
-        // e.g. "video/1.mp4" from "/a/b/Youtube" to "/a/b/Youtube/video/1.mp4"
-        // Just ensure it is normalized to forward slashes
-        const relativeVideoPath = relativeFilePath.replace(/\\/g, "/");
+        // relativeVideoPath was already calculated above
+        // For scan paths: full path without leading slash (e.g., "a/电影/video/1.mp4")
+        // For upload path: relative path (e.g., "video/1.mp4")
+
+        // For thumbnail path, store without leading slash to match video path format
+        const relativeThumbnailPath = remoteThumbnailPath.startsWith("/")
+          ? remoteThumbnailPath.substring(1)
+          : remoteThumbnailPath;
 
         const newVideo = {
           id: videoId,
@@ -267,11 +321,11 @@ export async function scanCloudFiles(
           source: "cloud",
           sourceUrl: "",
           videoFilename: filename, // Keep original filename
-          // Store path relative to upload root (e.g., video/1.mp4, not a/b/Youtube/video/1.mp4)
+          // Store path relative to root (e.g., "a/电影/video/1.mp4" or "video/1.mp4")
           videoPath: `cloud:${relativeVideoPath}`,
           thumbnailFilename: newThumbnailFilename,
-          thumbnailPath: `cloud:${remoteThumbnailPath}`, // Store relative path
-          thumbnailUrl: `cloud:${remoteThumbnailPath}`,
+          thumbnailPath: `cloud:${relativeThumbnailPath}`, // Store path without leading slash
+          thumbnailUrl: `cloud:${relativeThumbnailPath}`,
           createdAt: file.modified
             ? new Date(file.modified).toISOString()
             : new Date().toISOString(),
@@ -290,16 +344,18 @@ export async function scanCloudFiles(
         // Clear cache for the new files
         // Use relative paths (relative to upload root) for cache keys
         clearSignedUrlCache(relativeVideoPath, "video");
-        clearSignedUrlCache(remoteThumbnailPath, "thumbnail");
+        // For thumbnail cache, use the directory path
+        const thumbnailDirForCache = path
+          .dirname(remoteThumbnailPath)
+          .replace(/\\/g, "/");
+        clearSignedUrlCache(thumbnailDirForCache, "thumbnail");
 
         // Also clear file list cache for the directory where thumbnail was added
-        const baseUploadPath = normalizeUploadPath(config.uploadPath);
-        const dirPath = remoteThumbnailDir
-          ? `${baseUploadPath}/${remoteThumbnailDir}`
-          : baseUploadPath;
-        // Normalize path (remove duplicate slashes)
-        const cleanDirPath = dirPath.replace(/\/+/g, "/");
-        clearFileListCache(cleanDirPath);
+        // remoteThumbnailPath is an absolute path, so we can use it directly
+        const thumbnailDir = path
+          .dirname(remoteThumbnailPath)
+          .replace(/\\/g, "/");
+        clearFileListCache(thumbnailDir);
       } catch (error: any) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);

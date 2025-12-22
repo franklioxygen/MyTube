@@ -93,12 +93,18 @@ export async function uploadFile(
   let destinationPath = "";
 
   if (remotePath) {
-    // If remotePath is provided, append it to uploadPath
-    // remotePath should be relative to uploadPath, e.g. "subdir/file.jpg" or "file.jpg"
+    // Check if remotePath is an absolute path (starts with /)
+    // If it's an absolute path, use it directly; otherwise, append to uploadPath
     const normalizedRemotePath = remotePath.replace(/\\/g, "/");
-    destinationPath = normalizedUploadPath.endsWith("/")
-      ? `${normalizedUploadPath}${normalizedRemotePath}`
-      : `${normalizedUploadPath}/${normalizedRemotePath}`;
+    if (normalizedRemotePath.startsWith("/")) {
+      // Absolute path - use it directly (e.g., /a/电影/video/thumbnail.jpg)
+      destinationPath = normalizedRemotePath;
+    } else {
+      // Relative path - append to uploadPath (e.g., "subdir/file.jpg" -> "/mytube-uploads/subdir/file.jpg")
+      destinationPath = normalizedUploadPath.endsWith("/")
+        ? `${normalizedUploadPath}${normalizedRemotePath}`
+        : `${normalizedUploadPath}/${normalizedRemotePath}`;
+    }
   } else {
     // Default behavior: upload to root of uploadPath using source filename
     destinationPath = normalizedUploadPath.endsWith("/")

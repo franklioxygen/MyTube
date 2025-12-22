@@ -155,6 +155,8 @@ export const fr = {
   uploadPath: "Chemin de téléchargement",
   cloudDrivePathHelper:
     "Chemin du répertoire dans le cloud, ex. /mytube-uploads",
+  scanPaths: "Chemins d'analyse",
+  scanPathsHelper: "Un chemin par ligne. Les vidéos seront analysées à partir de ces chemins. Si vide, le chemin de téléchargement sera utilisé. Exemple :\n/a/Films\n/b/Documentaires",
   cloudDriveNote:
     "Après avoir activé cette fonctionnalité, les vidéos nouvellement téléchargées seront automatiquement téléchargées vers le stockage cloud et les fichiers locaux seront supprimés. Les vidéos seront lues depuis le stockage cloud via un proxy.",
   testing: "Test en cours...",
