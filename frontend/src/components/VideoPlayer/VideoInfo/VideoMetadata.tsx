@@ -42,7 +42,7 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                         </a>
                     </Typography>
                 )}
-                {(videoUrl || video.videoPath) && (
+                {(videoUrl || (video.videoPath && !video.videoPath.startsWith("cloud:"))) && (
                     <Typography 
                         variant="body2" 
                         sx={{ 

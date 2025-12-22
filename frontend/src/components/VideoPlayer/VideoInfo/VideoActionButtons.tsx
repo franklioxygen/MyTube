@@ -32,10 +32,17 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
-    const getVideoUrl = (): string => {
+    const getVideoUrl = async (): Promise<string> => {
         // If we have a cloud storage URL, use it directly
         if (videoUrl) {
             return videoUrl;
+        }
+        
+        // If cloud storage path but URL not loaded yet, wait for it
+        if (video.videoPath?.startsWith('cloud:')) {
+            // Return empty string if cloud URL is not available yet
+            // The hook will update videoUrl when ready
+            return videoUrl || '';
         }
         
         // Otherwise, construct URL from videoPath
@@ -59,32 +66,38 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     };
 
 
-    const handlePlayerSelect = (player: string) => {
-        const videoUrl = getVideoUrl();
+    const handlePlayerSelect = async (player: string) => {
+        const resolvedVideoUrl = await getVideoUrl();
+        
+        if (!resolvedVideoUrl) {
+            showSnackbar(t('videoUrlNotAvailable') || 'Video URL not available', 'error');
+            handlePlayerMenuClose();
+            return;
+        }
         
         try {
             let playerUrl = '';
             
             switch (player) {
                 case 'vlc':
-                    playerUrl = `vlc://${videoUrl}`;
+                    playerUrl = `vlc://${resolvedVideoUrl}`;
                     break;
                 case 'iina':
-                    playerUrl = `iina://weblink?url=${encodeURIComponent(videoUrl)}`;
+                    playerUrl = `iina://weblink?url=${encodeURIComponent(resolvedVideoUrl)}`;
                     break;
                 case 'mpv':
-                    playerUrl = `mpv://${videoUrl}`;
+                    playerUrl = `mpv://${resolvedVideoUrl}`;
                     break;
                 case 'potplayer':
-                    playerUrl = `potplayer://${videoUrl}`;
+                    playerUrl = `potplayer://${resolvedVideoUrl}`;
                     break;
                 case 'infuse':
-                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(videoUrl)}`;
+                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(resolvedVideoUrl)}`;
                     break;
                 case 'copy':
                     // Copy URL to clipboard
                     if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(videoUrl).then(() => {
+                        navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
                             showSnackbar(t('linkCopied'), 'success');
                         }).catch(() => {
                             showSnackbar(t('copyFailed'), 'error');
@@ -92,7 +105,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     } else {
                         // Fallback
                         const textArea = document.createElement("textarea");
-                        textArea.value = videoUrl;
+                        textArea.value = resolvedVideoUrl;
                         textArea.style.position = "fixed";
                         document.body.appendChild(textArea);
                         textArea.focus();
