@@ -1,5 +1,22 @@
 # Change Log
 
+## v1.6.29 (2025-12-21)
+
+### Style
+
+- style: Improve cloud drive settings URL handling (8e6dd5c)
+- style: Remove unnecessary comment and white space (765b8de)
+
+## v1.6.28 (2025-12-21)
+
+### Feat
+
+- feat: Add two-way sync for cloud storage (bc86d48)
+
+### Refactor
+
+- refactor: breakdown CloudStorageService (2a50d96)
+
 ## v1.6.27 (2025-12-21)
 
 ### Feat
