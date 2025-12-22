@@ -105,7 +105,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
             // Use Public URL if available, otherwise fall back to API URL
             // Public URL is what users will actually access, so it's more important to test
             let testUrl = settings.openListPublicUrl?.trim() || settings.openListApiUrl.trim();
-            
+
             // If the URL doesn't start with http:// or https://, it's invalid
             if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
                 throw new Error('Invalid URL format');
@@ -170,7 +170,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || '';
-            const response = await fetch(`${API_URL}/api/cloud/sync`, {
+            const response = await fetch(`${API_URL}/cloud/sync`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
