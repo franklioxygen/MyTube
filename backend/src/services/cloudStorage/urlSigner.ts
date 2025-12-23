@@ -45,18 +45,76 @@ async function getFileUrlsWithSign(
 
     // Helper to find file in its directory
     // fullRelativePath can be:
-    // - "video.mp4" (in uploadPath root)
+    // - "video.mp4" (in uploadPath root, or just filename)
     // - "subdir/video.mp4" (in uploadPath/subdir)
     // - "a/movies/video.mp4" (in scanPath /a/movies, not in uploadPath)
+    // - "/video.mp4" (absolute path, but might be just filename)
     const findFileInDir = async (fullRelativePath: string): Promise<any> => {
-      const dirName = path.dirname(fullRelativePath);
-      const fileName = path.basename(fullRelativePath);
+      // Remove leading slash if present (for consistency)
+      const cleanPath = fullRelativePath.startsWith("/")
+        ? fullRelativePath.substring(1)
+        : fullRelativePath;
+      
+      const dirName = path.dirname(cleanPath);
+      const fileName = path.basename(cleanPath);
 
-      // Check if this path might be from a scan path (not in uploadPath)
-      // If the path contains multiple levels and doesn't start with uploadPath, it might be from scanPaths
-      const absolutePath = fullRelativePath.startsWith("/")
-        ? fullRelativePath
-        : "/" + fullRelativePath;
+      // If dirName is ".", it means only filename was provided
+      // We need to search in multiple possible locations (including subdirectories)
+      if (dirName === ".") {
+        // Helper function to recursively search for a file
+        const searchRecursively = async (searchPath: string): Promise<any> => {
+          try {
+            const files = await getFileList(config, searchPath);
+            // Check current directory
+            let foundFile = files.find((f: any) => f.name === fileName && !f.is_dir);
+            if (foundFile) {
+              return foundFile;
+            }
+            // Recursively search subdirectories
+            for (const file of files) {
+              if (file.is_dir) {
+                const subDirPath = searchPath.endsWith("/")
+                  ? `${searchPath}${file.name}`
+                  : `${searchPath}/${file.name}`;
+                foundFile = await searchRecursively(subDirPath);
+                if (foundFile) {
+                  return foundFile;
+                }
+              }
+            }
+            return undefined;
+          } catch (error) {
+            logger.debug(
+              `[CloudStorage] Failed to search in path ${searchPath}:`,
+              error
+            );
+            return undefined;
+          }
+        };
+
+        // Try to find file in uploadPath first (recursively)
+        let foundFile = await searchRecursively(baseUploadPath);
+        if (foundFile) {
+          return foundFile;
+        }
+
+        // If not found in uploadPath, try scanPaths if configured (recursively)
+        if (config.scanPaths && config.scanPaths.length > 0) {
+          for (const scanPath of config.scanPaths) {
+            const normalizedScanPath = normalizeUploadPath(scanPath);
+            foundFile = await searchRecursively(normalizedScanPath);
+            if (foundFile) {
+              return foundFile;
+            }
+          }
+        }
+
+        // Not found anywhere
+        return undefined;
+      }
+
+      // Path contains directory information
+      const absolutePath = "/" + cleanPath;
       const absoluteUploadRoot = baseUploadPath.startsWith("/")
         ? baseUploadPath
         : "/" + baseUploadPath;
@@ -65,27 +123,17 @@ async function getFileUrlsWithSign(
 
       if (absolutePath.startsWith(absoluteUploadRoot)) {
         // File is in uploadPath - use relative path from uploadPath
-        if (dirName === ".") {
-          listPath = baseUploadPath;
-        } else {
-          const normalizedDir = dirName.replace(/\\/g, "/");
-          listPath = baseUploadPath.endsWith("/")
-            ? `${baseUploadPath}${normalizedDir}`
-            : `${baseUploadPath}/${normalizedDir}`;
-        }
+        const normalizedDir = dirName.replace(/\\/g, "/");
+        listPath = baseUploadPath.endsWith("/")
+          ? `${baseUploadPath}${normalizedDir}`
+          : `${baseUploadPath}/${normalizedDir}`;
       } else {
         // File is NOT in uploadPath - must be from a scanPath
         // Use the full absolute path (directory of the file)
-        if (dirName === ".") {
-          // This shouldn't happen for scan paths, but handle it
-          listPath = absolutePath.substring(1); // Remove leading slash
-        } else {
-          // Construct absolute directory path
-          const absoluteDirPath = dirName.startsWith("/")
-            ? dirName
-            : "/" + dirName;
-          listPath = absoluteDirPath;
-        }
+        const absoluteDirPath = dirName.startsWith("/")
+          ? dirName
+          : "/" + dirName;
+        listPath = absoluteDirPath;
       }
 
       const files = await getFileList(config, listPath);
