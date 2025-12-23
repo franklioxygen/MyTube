@@ -538,4 +538,8 @@ export const ko = {
   restoreFromLastBackupFailed: "백업에서 복원 실패",
   lastBackupDate: "마지막 백업 날짜",
   noBackupAvailable: "사용 가능한 백업 없음",
+  deleteAuthor: "작성자 삭제",
+  deleteAuthorConfirmation: "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
+  authorDeletedSuccessfully: "작성자가 성공적으로 삭제되었습니다",
+  failedToDeleteAuthor: "작성자 삭제 실패",
 };

@@ -12,7 +12,7 @@ interface VideoContextType {
     loading: boolean;
     error: string | null;
     fetchVideos: () => Promise<void>;
-    deleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
+    deleteVideo: (id: string, options?: { showSnackbar?: boolean }) => Promise<{ success: boolean; error?: string }>;
     updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
     refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     searchLocalVideos: (query: string) => Video[];
@@ -112,24 +112,26 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const deleteVideoMutation = useMutation({
-        mutationFn: async (id: string) => {
+        mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean } }) => {
             await axios.delete(`${API_URL}/videos/${id}`);
             return id;
         },
-        onSuccess: (id) => {
+        onSuccess: (id, variables) => {
             queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                 old ? old.filter(video => video.id !== id) : []
             );
-            showSnackbar(t('videoRemovedSuccessfully'));
+            if (variables.options?.showSnackbar !== false) {
+                showSnackbar(t('videoRemovedSuccessfully'));
+            }
         },
         onError: (error) => {
             console.error('Error deleting video:', error);
         }
     });
 
-    const deleteVideo = async (id: string) => {
+    const deleteVideo = async (id: string, options?: { showSnackbar?: boolean }) => {
         try {
-            await deleteVideoMutation.mutateAsync(id);
+            await deleteVideoMutation.mutateAsync({ id, options });
             return { success: true };
         } catch (error) {
             return { success: false, error: t('failedToDeleteVideo') };
@@ -235,7 +237,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Set both state and ref to prevent concurrent requests
             loadMoreInProgress.current = true;
             setLoadingMore(true);
-            
+
             const currentCount = searchResults.length;
             const limit = 8;
             const offset = currentCount + 1;

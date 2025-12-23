@@ -290,6 +290,10 @@ export const en = {
   loadVideosError: "Failed to load videos. Please try again later.",
   unknownAuthor: "Unknown",
   noVideosForAuthor: "No videos found for this author.",
+  deleteAuthor: "Delete Author",
+  deleteAuthorConfirmation: "Are you sure you want to delete author {author}? This will delete all videos associated with this author.",
+  authorDeletedSuccessfully: "Author deleted successfully",
+  failedToDeleteAuthor: "Failed to delete author",
 
   // Delete Collection Modal
   deleteCollectionTitle: "Delete Collection",

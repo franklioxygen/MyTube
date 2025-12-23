@@ -547,4 +547,8 @@ export const ja = {
   restoreFromLastBackupFailed: "バックアップからの復元に失敗しました",
   lastBackupDate: "最後のバックアップ日時",
   noBackupAvailable: "利用可能なバックアップがありません",
+  deleteAuthor: "著者を削除",
+  deleteAuthorConfirmation: "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
+  authorDeletedSuccessfully: "著者が正常に削除されました",
+  failedToDeleteAuthor: "著者の削除に失敗しました",
 };

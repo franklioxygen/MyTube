@@ -308,6 +308,10 @@ export const es = {
     "Error al cargar los videos. Por favor, inténtelo más tarde.",
   unknownAuthor: "Desconocido",
   noVideosForAuthor: "No se encontraron videos para este autor.",
+  deleteAuthor: "Eliminar Autor",
+  deleteAuthorConfirmation: "¿Está seguro de que desea eliminar al autor {author}? Esto eliminará todos los videos asociados con este autor.",
+  authorDeletedSuccessfully: "Autor eliminado con éxito",
+  failedToDeleteAuthor: "Error al eliminar autor",
   deleteCollectionTitle: "Eliminar Colección",
   deleteCollectionConfirmation:
     "¿Está seguro de que desea eliminar la colección",

@@ -318,6 +318,10 @@ export const ru = {
   loadVideosError: "Не удалось загрузить видео. Пожалуйста, попробуйте позже.",
   unknownAuthor: "Неизвестно",
   noVideosForAuthor: "Видео этого автора не найдены.",
+  deleteAuthor: "Удалить автора",
+  deleteAuthorConfirmation: "Вы уверены, что хотите удалить автора {author}? Это удалит все видео, связанные с этим автором.",
+  authorDeletedSuccessfully: "Автор успешно удален",
+  failedToDeleteAuthor: "Не удалось удалить автора",
 
   // Delete Collection Modal
   deleteCollectionTitle: "Удалить коллекцию",

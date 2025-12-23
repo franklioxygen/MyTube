@@ -283,6 +283,10 @@ export const de = {
     "Fehler beim Laden der Videos. Bitte versuchen Sie es später erneut.",
   unknownAuthor: "Unbekannt",
   noVideosForAuthor: "Keine Videos für diesen Autor gefunden.",
+  deleteAuthor: "Autor löschen",
+  deleteAuthorConfirmation: "Sind Sie sicher, dass Sie den Autor {author} löschen möchten? Dies löscht alle Videos dieses Autors.",
+  authorDeletedSuccessfully: "Autor erfolgreich gelöscht",
+  failedToDeleteAuthor: "Fehler beim Löschen des Autors",
   deleteCollectionTitle: "Sammlung Löschen",
   deleteCollectionConfirmation:
     "Sind Sie sicher, dass Sie die Sammlung löschen möchten",

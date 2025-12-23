@@ -313,6 +313,10 @@ export const fr = {
     "Échec du chargement des vidéos. Veuillez réessayer plus tard.",
   unknownAuthor: "Inconnu",
   noVideosForAuthor: "Aucune vidéo trouvée pour cet auteur.",
+  deleteAuthor: "Supprimer l'auteur",
+  deleteAuthorConfirmation: "Êtes-vous sûr de vouloir supprimer l'auteur {author} ? Cela supprimera toutes les vidéos associées à cet auteur.",
+  authorDeletedSuccessfully: "Auteur supprimé avec succès",
+  failedToDeleteAuthor: "Échec de la suppression de l'auteur",
 
   // Delete Collection Modal
   deleteCollectionTitle: "Supprimer la collection",

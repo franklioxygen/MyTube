@@ -538,4 +538,8 @@ export const ar = {
   restoreFromLastBackupFailed: "فشل الاستعادة من النسخة الاحتياطية",
   lastBackupDate: "تاريخ آخر نسخة احتياطية",
   noBackupAvailable: "لا توجد نسخة احتياطية متاحة",
+  deleteAuthor: "حذف المؤلف",
+  deleteAuthorConfirmation: "هل أنت متأكد أنك تريد حذف المؤلف {author}؟ سيؤدي هذا إلى حذف جميع مقاطع الفيديو المرتبطة بهذا المؤلف.",
+  authorDeletedSuccessfully: "تم حذف المؤلف بنجاح",
+  failedToDeleteAuthor: "فشل حذف المؤلف",
 };

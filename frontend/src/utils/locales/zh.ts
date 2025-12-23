@@ -295,6 +295,10 @@ export const zh = {
   loadVideosError: "加载视频失败，请稍后再试。",
   unknownAuthor: "未知",
   noVideosForAuthor: "未找到该作者的视频。",
+  deleteAuthor: "删除作者",
+  deleteAuthorConfirmation: "您确定要删除作者 {author} 吗？这将删除该作者的所有视频。",
+  authorDeletedSuccessfully: "作者删除成功",
+  failedToDeleteAuthor: "删除作者失败",
 
   // Delete Collection Modal
   deleteCollectionTitle: "删除合集",

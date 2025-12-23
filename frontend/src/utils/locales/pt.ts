@@ -308,6 +308,10 @@ export const pt = {
     "Falha ao carregar vídeos. Por favor, tente novamente mais tarde.",
   unknownAuthor: "Desconhecido",
   noVideosForAuthor: "Nenhum vídeo encontrado para este autor.",
+  deleteAuthor: "Excluir Autor",
+  deleteAuthorConfirmation: "Tem certeza de que deseja excluir o autor {author}? Isso excluirá todos os vídeos associados a este autor.",
+  authorDeletedSuccessfully: "Autor excluído com sucesso",
+  failedToDeleteAuthor: "Falha ao excluir autor",
 
   // Delete Collection Modal
   deleteCollectionTitle: "Excluir Coleção",

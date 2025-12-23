@@ -88,7 +88,7 @@ const Home: React.FC = () => {
     // Components for VirtuosoGrid - MUST be defined before any conditional returns
     // Using useMemo to create stable component references
     // These components must work with virtualization - avoid forcing all items to render
-    const VirtuosoList = useMemo(() => 
+    const VirtuosoList = useMemo(() =>
         React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
             // Extract style and other props, but ensure we don't force all items to render
             const { style, ...restProps } = props;
@@ -99,20 +99,20 @@ const Home: React.FC = () => {
                     columnSpacing={{ xs: 0, sm: 3 }}
                     {...restProps}
                     ref={ref}
-                    style={{ 
+                    style={{
                         ...style,
-                        display: 'flex', 
+                        display: 'flex',
                         flexWrap: 'wrap',
                         // Critical: Don't set height or minHeight that would force all items to render
                         // Let VirtuosoGrid handle the height calculation
                     }}
                 />
             );
-        }), 
+        }),
         []
     );
 
-    const VirtuosoItem = useMemo(() => 
+    const VirtuosoItem = useMemo(() =>
         React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
             const { style, ...restProps } = props;
             return (
@@ -120,14 +120,14 @@ const Home: React.FC = () => {
                     size={gridProps}
                     {...restProps}
                     ref={ref}
-                    style={{ 
+                    style={{
                         ...style,
                         // Remove width override to let Grid handle sizing
                         // VirtuosoGrid will manage which items are rendered
                     }}
                 />
             );
-        }), 
+        }),
         [gridProps]
     );
 
@@ -405,7 +405,7 @@ const Home: React.FC = () => {
 
     // Regular home view (not in search mode)
     return (
-        <Container maxWidth="xl" sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
+        <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
             {videoArray.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                     <Typography variant="h5" color="text.secondary">
@@ -630,7 +630,7 @@ const Home: React.FC = () => {
                                             />
                                         );
                                     }}
-                                    />
+                                />
                             ) : (
                                 <Grid
                                     container
