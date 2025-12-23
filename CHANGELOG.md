@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.37 (2025-12-23)
+
+### Refactor
+
+- refactor: Improve thumbnail uploading and path handling (3608296)
+
 ## v1.6.36 (2025-12-23)
 
 ### Refactor
