@@ -50,6 +50,7 @@ describe('SubscriptionService', () => {
       limit: vi.fn().mockReturnThis(),
       values: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
+      returning: vi.fn().mockReturnThis(),
       then: (resolve: any) => Promise.resolve(result).then(resolve)
     };
     // Circular references for chaining
@@ -58,6 +59,7 @@ describe('SubscriptionService', () => {
     builder.limit.mockReturnValue(builder);
     builder.values.mockReturnValue(builder);
     builder.set.mockReturnValue(builder);
+    builder.returning.mockReturnValue(builder);
     
     return builder;
   };
@@ -180,6 +182,14 @@ describe('SubscriptionService', () => {
         callCount++;
         if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
         if (callCount === 2) return Promise.resolve([sub]).then(cb); // verify existence
+        
+        // Step 2: Update lastCheck *before* download
+        if (callCount === 3) return Promise.resolve([sub]).then(cb); // verify existence before lastCheck update
+        // callCount 4 is the update itself (returns undefined usually or result)
+        
+        // Step 4: Update subscription record after download
+        if (callCount === 5) return Promise.resolve([sub]).then(cb); // verify existence before final update
+        
         return Promise.resolve(undefined).then(cb); // subsequent updates
       };
 
@@ -216,6 +226,7 @@ describe('SubscriptionService', () => {
         callCount++;
         if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
         if (callCount === 2) return Promise.resolve([sub]).then(cb); // verify existence
+        if (callCount === 3) return Promise.resolve([sub]).then(cb); // verify existence before update
         return Promise.resolve(undefined).then(cb); // updates
       };
 
