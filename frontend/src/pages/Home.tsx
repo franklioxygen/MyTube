@@ -18,8 +18,9 @@ import {
     Typography
 } from '@mui/material';
 import axios from 'axios';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { VirtuosoGrid } from 'react-virtuoso';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
@@ -40,7 +41,7 @@ const Home: React.FC = () => {
         availableTags,
         selectedTags,
         handleTagToggle,
-        deleteVideo // Added
+        deleteVideo
     } = useVideo();
     const { collections } = useCollection();
 
@@ -63,6 +64,72 @@ const Home: React.FC = () => {
     const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
+    const [infiniteScroll, setInfiniteScroll] = useState(false);
+    const [videoColumns, setVideoColumns] = useState(4);
+
+    // Determine Grid props based on sidebar and columns settings
+    // Hoisted memoization to be used by both specialized and paginated views
+    const gridProps = useMemo(() => {
+        if (isSidebarOpen) {
+            if (videoColumns === 2) return { xs: 12, sm: 6, lg: 6, xl: 6 };
+            if (videoColumns === 3) return { xs: 12, sm: 6, lg: 4, xl: 4 };
+            if (videoColumns === 4) return { xs: 12, sm: 6, lg: 4, xl: 3 };
+            if (videoColumns === 5) return { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
+            return { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 }; // 6 columns
+        } else {
+            if (videoColumns === 2) return { xs: 12, sm: 6, lg: 6, xl: 6 };
+            if (videoColumns === 3) return { xs: 12, sm: 6, md: 4, lg: 4, xl: 4 };
+            if (videoColumns === 4) return { xs: 12, sm: 6, md: 4, lg: 3, xl: 3 };
+            if (videoColumns === 5) return { xs: 12, sm: 6, md: 4, lg: 2, xl: 2 };
+            return { xs: 12, sm: 6, md: 4, lg: 2, xl: 2 }; // 6 columns
+        }
+    }, [isSidebarOpen, videoColumns]);
+
+    // Components for VirtuosoGrid - MUST be defined before any conditional returns
+    // Using useMemo to create stable component references
+    // These components must work with virtualization - avoid forcing all items to render
+    const VirtuosoList = useMemo(() => 
+        React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
+            // Extract style and other props, but ensure we don't force all items to render
+            const { style, ...restProps } = props;
+            return (
+                <Grid
+                    container
+                    rowSpacing={{ xs: 2, sm: 3 }}
+                    columnSpacing={{ xs: 0, sm: 3 }}
+                    {...restProps}
+                    ref={ref}
+                    style={{ 
+                        ...style,
+                        display: 'flex', 
+                        flexWrap: 'wrap',
+                        // Critical: Don't set height or minHeight that would force all items to render
+                        // Let VirtuosoGrid handle the height calculation
+                    }}
+                />
+            );
+        }), 
+        []
+    );
+
+    const VirtuosoItem = useMemo(() => 
+        React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
+            const { style, ...restProps } = props;
+            return (
+                <Grid
+                    size={gridProps}
+                    {...restProps}
+                    ref={ref}
+                    style={{ 
+                        ...style,
+                        // Remove width override to let Grid handle sizing
+                        // VirtuosoGrid will manage which items are rendered
+                    }}
+                />
+            );
+        }), 
+        [gridProps]
+    );
 
     // Sync state with URL params
     useEffect(() => {
@@ -84,6 +151,12 @@ const Home: React.FC = () => {
                     if (typeof response.data.itemsPerPage !== 'undefined') {
                         setItemsPerPage(response.data.itemsPerPage);
                     }
+                    if (typeof response.data.infiniteScroll !== 'undefined') {
+                        setInfiniteScroll(response.data.infiniteScroll);
+                    }
+                    if (typeof response.data.videoColumns !== 'undefined') {
+                        setVideoColumns(response.data.videoColumns);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch settings:', error);
@@ -98,19 +171,6 @@ const Home: React.FC = () => {
         const newState = !isSidebarOpen;
         setIsSidebarOpen(newState);
         try {
-            // We need to fetch current settings first to not overwrite other settings
-            // Or better, the backend should support partial updates, but the current controller 
-            // implementation replaces the whole object or merges with defaults.
-            // Let's fetch first to be safe, similar to how SettingsPage does it, 
-            // but for a simple toggle, we might want a lighter endpoint. 
-            // However, given the current backend structure, we'll fetch then save.
-            // Actually, the backend `updateSettings` merges with `defaultSettings` but expects the full object 
-            // in `req.body` to be the new state. 
-            // Wait, looking at `settingsController.ts`: `const newSettings: Settings = req.body;`
-            // and `storageService.saveSettings(newSettings);`
-            // It seems it REPLACES the settings with what's sent. 
-            // So we MUST fetch existing settings first.
-
             const response = await axios.get(`${API_URL}/settings`);
             const currentSettings = response.data;
             await axios.post(`${API_URL}/settings`, {
@@ -122,24 +182,7 @@ const Home: React.FC = () => {
         }
     };
 
-    // Reset page when filters change
-    useEffect(() => {
-        // Only reset to page 1 if we are not already on page 1
-        // This effect might run on mount too, so we need to be careful not to overwrite the URL param if it was just set
-        // However, if videos/collections changes, we generally DO want to reset to page 1 as the data changed.
-        // But if we just navigated back, videos might be re-fetched.
-        // If the data is stable, we shouldn't reset.
-        // Actually, preventing reset on initial load is hard if we depend on `videos`.
-        // Let's rely on the user manual action for now, OR better:
-        // When videos change, if the current page is out of bounds, reset it.
-        // Or if the user changes tags, definitely reset.
-        // But for just 'videos' update (like background refresh), maybe we shouldn't reset unless necessary.
-
-        // For now, let's ONLY reset if tags change.
-    }, [selectedTags]);
-
-    // Reset page when switching view modes or tags
-    // We use a ref to track previous tags so we don't reset on mount (when navigating back)
+    // Reset page when switching view modes or tags (paginated mode only)
     const prevTagsRef = useRef(selectedTags);
     useEffect(() => {
         if (prevTagsRef.current !== selectedTags) {
@@ -239,10 +282,21 @@ const Home: React.FC = () => {
 
     // Pagination logic
     const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
-    const displayedVideos = sortedVideos.slice(
-        (page - 1) * itemsPerPage,
-        page * itemsPerPage
-    );
+
+    // Get displayed videos based on mode (Only used for PAGINATION)
+    const displayedVideos = useMemo(() => {
+        if (infiniteScroll) {
+            // When infinite scroll is on, we ignore this slice and pass strict 'sortedVideos' to Virtuoso
+            // but we might want to return sortedVideos directly here if used elsewhere
+            return sortedVideos;
+        } else {
+            // For pagination, return current page
+            return sortedVideos.slice(
+                (page - 1) * itemsPerPage,
+                page * itemsPerPage
+            );
+        }
+    }, [infiniteScroll, sortedVideos, page, itemsPerPage]);
 
     const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => {
         setSearchParams((prev: URLSearchParams) => {
@@ -253,8 +307,12 @@ const Home: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Keyboard navigation for pagination
+    // Keyboard navigation for pagination (only when infinite scroll is disabled)
     useEffect(() => {
+        if (infiniteScroll) {
+            return; // Disable keyboard navigation when infinite scroll is enabled
+        }
+
         const handleKeyDown = (event: KeyboardEvent) => {
             // Don't handle keyboard navigation if user is typing in an input field
             const target = event.target as HTMLElement;
@@ -290,7 +348,7 @@ const Home: React.FC = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [page, totalPages, setSearchParams]);
+    }, [page, totalPages, setSearchParams, infiniteScroll]);
 
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
         return (
@@ -308,9 +366,6 @@ const Home: React.FC = () => {
             </Container>
         );
     }
-
-    // Filter videos based on view mode
-
 
     const handleViewModeChange = (mode: 'collections' | 'all-videos' | 'history') => {
         setViewMode(mode);
@@ -335,7 +390,6 @@ const Home: React.FC = () => {
                 if (option === 'random') {
                     newParams.set('sort', 'random');
                     // Always generate a new seed when clicking 'random'
-                    // This acts as a "reshuffle"
                     const newSeed = Math.floor(Math.random() * 1000000);
                     newParams.set('seed', newSeed.toString());
                 } else {
@@ -347,6 +401,7 @@ const Home: React.FC = () => {
         }
         setSortAnchorEl(null);
     };
+
 
     // Regular home view (not in search mode)
     return (
@@ -523,16 +578,20 @@ const Home: React.FC = () => {
                                 </Typography>
                             </Box>
                         ) : (
-                            <Grid container rowSpacing={{ xs: 2, sm: 3 }} columnSpacing={{ xs: 0, sm: 3 }}>
-                                {displayedVideos.map(video => {
-                                    const gridProps = isSidebarOpen
-                                        ? { xs: 12, sm: 6, lg: 4, xl: 3 }
-                                        : { xs: 12, sm: 6, md: 4, lg: 3, xl: 2 };
-
-                                    // In all-videos and history mode, ALWAYS render as VideoCard
-                                    if (viewMode === 'all-videos' || viewMode === 'history') {
-                                        return (
-                                            <Grid size={gridProps} key={video.id}>
+                            infiniteScroll ? (
+                                <VirtuosoGrid
+                                    key={`virtuoso-${viewMode}-${sortedVideos.length}`}
+                                    useWindowScroll
+                                    data={sortedVideos}
+                                    components={{
+                                        List: VirtuosoList,
+                                        Item: VirtuosoItem
+                                    }}
+                                    overscan={5}
+                                    itemContent={(_index, video) => {
+                                        // In all-videos and history mode, ALWAYS render as VideoCard
+                                        if (viewMode === 'all-videos' || viewMode === 'history') {
+                                            return (
                                                 <VideoCard
                                                     video={video}
                                                     collections={collections}
@@ -540,43 +599,93 @@ const Home: React.FC = () => {
                                                     onDeleteVideo={deleteVideo}
                                                     showDeleteButton={true}
                                                 />
-                                            </Grid>
-                                        );
-                                    }
+                                            );
+                                        }
 
-                                    // In collections mode, check if this video is the first in a collection
-                                    const collection = collections.find(c => c.videos[0] === video.id);
+                                        // In collections mode, check if this video is the first in a collection
+                                        // Since sorting logic filters this, we should generally be good, 
+                                        // but we still want to render CollectionCard where appropriate.
+                                        // The `sortedVideos` for collections mode ONLY contains the "representatives".
+                                        // So we just need to find the collection it represents.
 
-                                    // If it is, render CollectionCard
-                                    if (collection) {
-                                        return (
-                                            <Grid size={gridProps} key={`collection-${collection.id}`}>
+                                        // Find the collection this video represents (it must be the first video)
+                                        const collection = collections.find(c => c.videos[0] === video.id);
+
+                                        if (collection) {
+                                            return (
                                                 <CollectionCard
                                                     collection={collection}
                                                     videos={videoArray}
                                                 />
-                                            </Grid>
-                                        );
-                                    }
+                                            );
+                                        }
 
-                                    // Otherwise render VideoCard for non-collection videos
-                                    return (
-                                        <Grid size={gridProps} key={video.id}>
+                                        // Fallback (shouldn't happen often in collections view unless logic allows loose videos)
+                                        return (
                                             <VideoCard
                                                 video={video}
                                                 collections={collections}
                                                 onDeleteVideo={deleteVideo}
                                                 showDeleteButton={true}
                                             />
-                                        </Grid>
-                                    );
-                                })}
-                            </Grid>
+                                        );
+                                    }}
+                                    />
+                            ) : (
+                                <Grid
+                                    container
+                                    rowSpacing={{ xs: 2, sm: 3 }}
+                                    columnSpacing={{ xs: 0, sm: 3 }}
+                                >
+                                    {displayedVideos.map((video) => {
+                                        // In all-videos and history mode, ALWAYS render as VideoCard
+                                        if (viewMode === 'all-videos' || viewMode === 'history') {
+                                            return (
+                                                <Grid size={gridProps} key={video.id}>
+                                                    <VideoCard
+                                                        video={video}
+                                                        collections={collections}
+                                                        disableCollectionGrouping={true}
+                                                        onDeleteVideo={deleteVideo}
+                                                        showDeleteButton={true}
+                                                    />
+                                                </Grid>
+                                            );
+                                        }
+
+                                        // In collections mode, check if this video is the first in a collection
+                                        const collection = collections.find(c => c.videos[0] === video.id);
+
+                                        // If it is, render CollectionCard
+                                        if (collection) {
+                                            return (
+                                                <Grid size={gridProps} key={`collection-${collection.id}`}>
+                                                    <CollectionCard
+                                                        collection={collection}
+                                                        videos={videoArray}
+                                                    />
+                                                </Grid>
+                                            );
+                                        }
+
+                                        // Otherwise render VideoCard for non-collection videos
+                                        return (
+                                            <Grid size={gridProps} key={video.id}>
+                                                <VideoCard
+                                                    video={video}
+                                                    collections={collections}
+                                                    onDeleteVideo={deleteVideo}
+                                                    showDeleteButton={true}
+                                                />
+                                            </Grid>
+                                        );
+                                    })}
+                                </Grid>
+                            )
                         )}
 
 
-
-                        {totalPages > 1 && (
+                        {!infiniteScroll && totalPages > 1 && (
                             <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', px: { xs: 2, sm: 0 } }}>
                                 <Pagination
                                     count={totalPages}

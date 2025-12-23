@@ -14,11 +14,13 @@ interface GeneralSettingsProps {
     showYoutubeSearch?: boolean;
     visitorMode?: boolean;
     savedVisitorMode?: boolean;
+    infiniteScroll?: boolean;
+    videoColumns?: number;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
-    const { language, websiteName, showYoutubeSearch, visitorMode, savedVisitorMode, onChange } = props;
+    const { language, websiteName, showYoutubeSearch, visitorMode, savedVisitorMode, infiniteScroll, videoColumns, onChange } = props;
     const { t } = useLanguage();
     const queryClient = useQueryClient();
 
@@ -158,11 +160,15 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
 
                         <TextField
                             fullWidth
-                            label="Website Name"
+                            label={t('websiteName')}
                             value={websiteName || ''}
                             onChange={(e) => onChange('websiteName', e.target.value)}
                             placeholder="MyTube"
-                            helperText={`${(websiteName || '').length}/15 characters (Default: MyTube)`}
+                            helperText={t('websiteNameHelper', {
+                                current: (websiteName || '').length,
+                                max: 15,
+                                default: 'MyTube'
+                            })}
                             slotProps={{ htmlInput: { maxLength: 15 } }}
                         />
 
@@ -177,8 +183,40 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
                                     onChange('itemsPerPage', val);
                                 }
                             }}
-                            helperText={t('itemsPerPageHelper') || "Number of videos to show per page (Default: 12)"}
+                            disabled={infiniteScroll ?? false}
+                            helperText={
+                                infiniteScroll
+                                    ? t('infiniteScrollDisabled') || "Disabled when Infinite Scroll is enabled"
+                                    : (t('itemsPerPageHelper') || "Number of videos to show per page (Default: 12)")
+                            }
                             slotProps={{ htmlInput: { min: 1 } }}
+                        />
+
+                        <FormControl fullWidth>
+                            <InputLabel id="video-columns-select-label">{t('maxVideoColumns') || 'Maximum Video Columns (Homepage)'}</InputLabel>
+                            <Select
+                                labelId="video-columns-select-label"
+                                id="video-columns-select"
+                                value={videoColumns || 4}
+                                label={t('videoColumns') || 'Video Columns (Homepage)'}
+                                onChange={(e) => onChange('videoColumns', Number(e.target.value))}
+                            >
+                                <MenuItem value={2}>{t('columnsCount', { count: 2 }) || '2 Columns'}</MenuItem>
+                                <MenuItem value={3}>{t('columnsCount', { count: 3 }) || '3 Columns'}</MenuItem>
+                                <MenuItem value={4}>{t('columnsCount', { count: 4 }) || '4 Columns'}</MenuItem>
+                                <MenuItem value={5}>{t('columnsCount', { count: 5 }) || '5 Columns'}</MenuItem>
+                                <MenuItem value={6}>{t('columnsCount', { count: 6 }) || '6 Columns'}</MenuItem>
+                            </Select>
+                        </FormControl>
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={infiniteScroll ?? false}
+                                    onChange={(e) => onChange('infiniteScroll', e.target.checked)}
+                                />
+                            }
+                            label={t('infiniteScroll') || "Infinite Scroll"}
                         />
 
                         <FormControlLabel

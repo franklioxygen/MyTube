@@ -39,6 +39,8 @@ interface Settings {
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
   visitorMode?: boolean;
+  infiniteScroll?: boolean;
+  videoColumns?: number;
 }
 
 const defaultSettings: Settings = {
@@ -60,6 +62,8 @@ const defaultSettings: Settings = {
   itemsPerPage: 12,
   showYoutubeSearch: true,
   visitorMode: false,
+  infiniteScroll: false,
+  videoColumns: 4,
 };
 
 /**

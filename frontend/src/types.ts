@@ -79,4 +79,6 @@ export interface Settings {
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
   visitorMode?: boolean;
+  infiniteScroll?: boolean;
+  videoColumns?: number;
 }

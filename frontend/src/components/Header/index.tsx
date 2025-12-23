@@ -41,6 +41,7 @@ const Header: React.FC<HeaderProps> = ({
     const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
     const [websiteName, setWebsiteName] = useState('MyTube');
     const [isScrolled, setIsScrolled] = useState<boolean>(false);
+    const [infiniteScroll, setInfiniteScroll] = useState<boolean>(false);
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
@@ -51,19 +52,25 @@ const Header: React.FC<HeaderProps> = ({
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
     const isSettingsPage = location.pathname.startsWith('/settings');
+    const isHomePage = location.pathname === '/';
 
     useEffect(() => {
         console.log('Header props:', { activeDownloads, queuedDownloads });
     }, [activeDownloads, queuedDownloads]);
 
     useEffect(() => {
-        // Fetch settings to get website name
+        // Fetch settings to get website name and infinite scroll setting
         const fetchSettings = async () => {
             try {
                 const API_URL = import.meta.env.VITE_API_URL;
                 const response = await import('axios').then(axios => axios.default.get(`${API_URL}/settings`));
-                if (response.data && response.data.websiteName) {
-                    setWebsiteName(response.data.websiteName);
+                if (response.data) {
+                    if (response.data.websiteName) {
+                        setWebsiteName(response.data.websiteName);
+                    }
+                    if (typeof response.data.infiniteScroll !== 'undefined') {
+                        setInfiniteScroll(response.data.infiniteScroll);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch settings for header:', error);
@@ -72,9 +79,11 @@ const Header: React.FC<HeaderProps> = ({
         fetchSettings();
     }, []);
 
-    // Scroll detection - only for mobile
+    // Scroll detection - for mobile always, for desktop when infinite scroll is enabled on home page
     useEffect(() => {
-        if (!isMobile) {
+        const shouldDetectScroll = isMobile || (infiniteScroll && isHomePage);
+        
+        if (!shouldDetectScroll) {
             setIsScrolled(false);
             return;
         }
@@ -91,7 +100,7 @@ const Header: React.FC<HeaderProps> = ({
         return () => {
             window.removeEventListener('scroll', handleScroll);
         };
-    }, [isMobile]);
+    }, [isMobile, infiniteScroll, isHomePage]);
 
     const handleDownloadsClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
@@ -335,8 +344,17 @@ const Header: React.FC<HeaderProps> = ({
                 }}
             />
 
-            {/* Scroll to top button - mobile only */}
-            <Slide direction="up" in={isMobile && isScrolled && !isSettingsPage} mountOnEnter unmountOnExit>
+            {/* Scroll to top button - mobile always, desktop when infinite scroll is enabled on home page */}
+            <Slide 
+                direction="up" 
+                in={
+                    isScrolled && 
+                    !isSettingsPage && 
+                    (isMobile || (infiniteScroll && isHomePage))
+                } 
+                mountOnEnter 
+                unmountOnExit
+            >
                 <Fab
                     color="primary"
                     size="medium"
@@ -349,7 +367,10 @@ const Header: React.FC<HeaderProps> = ({
                         bottom: 16,
                         left: 16,
                         zIndex: (theme) => theme.zIndex.speedDial,
-                        display: { xs: 'flex', md: 'none' },
+                        display: { 
+                            xs: 'flex', 
+                            md: (infiniteScroll && isHomePage) ? 'flex' : 'none' 
+                        },
                         opacity: 0.8,
                         '&:hover': {
                             opacity: 1,

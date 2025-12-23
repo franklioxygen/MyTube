@@ -479,6 +479,8 @@ const SettingsPage: React.FC = () => {
                                 showYoutubeSearch={settings.showYoutubeSearch}
                                 visitorMode={settings.visitorMode}
                                 savedVisitorMode={settingsData?.visitorMode}
+                                infiniteScroll={settings.infiniteScroll}
+                                videoColumns={settings.videoColumns}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>
