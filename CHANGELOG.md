@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.40 (2025-12-23)
+
+### Refactor
+
+- refactor: Update author URL decoding in subscriptionService (9f2dd1a)
+
 ## v1.6.39 (2025-12-23)
 
 ### Feat
