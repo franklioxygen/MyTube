@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.36 (2025-12-23)
+
+### Refactor
+
+- refactor: Improve readability of file search function (e6a8e94)
+- refactor(urlSigner): Improve file search logic for getFileUrlsWithSign function (fd97f20)
+
 ## v1.6.35 (2025-12-22)
 
 ### Refactor
