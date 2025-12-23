@@ -263,11 +263,32 @@ export async function scanCloudFiles(
         // Upload thumbnail to cloud storage (with correct filename and location)
         // remoteThumbnailPath is a full absolute path (e.g., /a/movies/video/thumbnail.jpg)
         // uploadFile now supports absolute paths, so we can pass it directly
+        // uploadFile will check if file already exists before uploading
+        let relativeThumbnailPath: string | undefined = undefined;
         if (fs.existsSync(tempThumbnailPath)) {
-          await uploadFile(tempThumbnailPath, config, remoteThumbnailPath);
+          const uploadResult = await uploadFile(tempThumbnailPath, config, remoteThumbnailPath);
+          
+          if (uploadResult.skipped) {
+            logger.info(
+              `[CloudStorage] Thumbnail ${newThumbnailFilename} already exists in cloud storage, skipping upload`
+            );
+          }
 
-          // Cleanup temp thumbnail after upload
+          // Cleanup temp thumbnail after upload (or skip)
           fs.unlinkSync(tempThumbnailPath);
+          
+          // Calculate relative thumbnail path for database storage (same format as video path)
+          // If video is in uploadPath, use relative path; otherwise use full path without leading slash
+          if (absoluteFilePath.startsWith(absoluteUploadRoot)) {
+            // Video is in uploadPath, thumbnail should also be relative to uploadRoot
+            const thumbnailRelativePath = path.relative(absoluteUploadRoot, remoteThumbnailPath);
+            relativeThumbnailPath = thumbnailRelativePath.replace(/\\/g, "/");
+          } else {
+            // Video is in scanPath, thumbnail should also be absolute path without leading slash
+            relativeThumbnailPath = remoteThumbnailPath.startsWith("/")
+              ? remoteThumbnailPath.substring(1)
+              : remoteThumbnailPath;
+          }
         }
 
         // Get duration
@@ -307,11 +328,6 @@ export async function scanCloudFiles(
         // For scan paths: full path without leading slash (e.g., "a/movies/video/1.mp4")
         // For upload path: relative path (e.g., "video/1.mp4")
 
-        // For thumbnail path, store without leading slash to match video path format
-        const relativeThumbnailPath = remoteThumbnailPath.startsWith("/")
-          ? remoteThumbnailPath.substring(1)
-          : remoteThumbnailPath;
-
         const newVideo = {
           id: videoId,
           title: originalTitle || "Untitled Video",
@@ -321,9 +337,9 @@ export async function scanCloudFiles(
           videoFilename: filename, // Keep original filename
           // Store path relative to root (e.g., "a/movies/video/1.mp4" or "video/1.mp4")
           videoPath: `cloud:${relativeVideoPath}`,
-          thumbnailFilename: newThumbnailFilename,
-          thumbnailPath: `cloud:${relativeThumbnailPath}`, // Store path without leading slash
-          thumbnailUrl: `cloud:${relativeThumbnailPath}`,
+          thumbnailFilename: relativeThumbnailPath ? newThumbnailFilename : undefined,
+          thumbnailPath: relativeThumbnailPath ? `cloud:${relativeThumbnailPath}` : undefined, // Store path in same format as video path
+          thumbnailUrl: relativeThumbnailPath ? `cloud:${relativeThumbnailPath}` : undefined,
           createdAt: file.modified
             ? new Date(file.modified).toISOString()
             : new Date().toISOString(),
