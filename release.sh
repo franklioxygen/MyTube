@@ -34,6 +34,18 @@ if [ "$CURRENT_BRANCH" != "master" ]; then
   fi
 fi
 
+# Run tests
+echo "🧪 Running tests..."
+npm run test
+
+# Build Frontend
+echo "🏗️  Building frontend..."
+npm run build
+
+# Build Backend
+echo "🏗️  Building backend..."
+cd backend && npm run build && cd ..
+
 # Update version in package.json files
 echo "🔄 Updating version numbers..."
 npm version $INPUT_VERSION --no-git-tag-version --allow-same-version

@@ -153,6 +153,7 @@ const AuthorVideos: React.FC = () => {
                 title={t('deleteAuthor')}
                 message={t('deleteAuthorConfirmation', { author: author || '' })}
                 confirmText={isDeleting ? t('deleting') : t('delete')}
+                cancelText={t('cancel')}
                 isDanger={true}
             />
         </Container>

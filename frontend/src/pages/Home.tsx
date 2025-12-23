@@ -1,5 +1,5 @@
 
-import { Collections as CollectionsIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
+import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -8,9 +8,11 @@ import {
     Collapse,
     Container,
     Grid,
+    IconButton,
     Pagination,
     ToggleButton,
     ToggleButtonGroup,
+    Tooltip,
     Typography
 } from '@mui/material';
 import axios from 'axios';
@@ -20,6 +22,7 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
+import ConfirmationModal from '../components/ConfirmationModal';
 import SortControl from '../components/SortControl';
 import TagsList from '../components/TagsList';
 import VideoCard from '../components/VideoCard';
@@ -39,7 +42,8 @@ const Home: React.FC = () => {
         availableTags,
         selectedTags,
         handleTagToggle,
-        deleteVideo
+        deleteVideo,
+        deleteVideos
     } = useVideo();
     const { collections } = useCollection();
 
@@ -58,6 +62,7 @@ const Home: React.FC = () => {
     const [settingsLoaded, setSettingsLoaded] = useState(false);
     const [infiniteScroll, setInfiniteScroll] = useState(false);
     const [videoColumns, setVideoColumns] = useState(4);
+    const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
 
     // Determine Grid props based on sidebar and columns settings
     // Hoisted memoization to be used by both specialized and paginated views
@@ -353,6 +358,38 @@ const Home: React.FC = () => {
     // Regular home view (not in search mode)
     return (
         <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
+            {/* Delete Filtered Videos Modal */}
+            <ConfirmationModal
+                isOpen={isDeleteFilteredOpen}
+                onClose={() => setIsDeleteFilteredOpen(false)}
+                onConfirm={async () => {
+                    const videosToDelete = videoArray.filter(video => {
+                        if (selectedTags.length === 0) return false;
+                        const videoTags = video.tags || [];
+                        return selectedTags.every(tag => videoTags.includes(tag));
+                    });
+
+                    if (videosToDelete.length > 0) {
+                        await deleteVideos(videosToDelete.map(v => v.id));
+                        // Optionally clear tags after delete, or keep them? Keeping them might show empty list.
+                        // Let's keep them for now, user can clear if they want. 
+                        // Actually, better to clear tags if all videos are gone? 
+                        // No, simpler is better.
+                    }
+                }}
+                title={t('deleteAllFilteredVideos')}
+                message={t('confirmDeleteFilteredVideos', {
+                    count: videoArray.filter(video => {
+                        if (selectedTags.length === 0) return false;
+                        const videoTags = video.tags || [];
+                        return selectedTags.every(tag => videoTags.includes(tag));
+                    }).length
+                })}
+                confirmText={t('delete')}
+                cancelText={t('cancel')}
+                isDanger={true}
+            />
+
             {videoArray.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                     <Typography variant="h5" color="text.secondary">
@@ -423,6 +460,18 @@ const Home: React.FC = () => {
                                 <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
                                     {t('videos')}
                                 </Box>
+                                {selectedTags.length > 0 && (
+                                    <Tooltip title={t('deleteAllFilteredVideos')}>
+                                        <IconButton
+                                            color="error"
+                                            onClick={() => setIsDeleteFilteredOpen(true)}
+                                            size="small"
+                                            sx={{ ml: 1 }}
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
                                 <Box component="span" sx={{ display: { xs: 'block', md: 'none' } }}>
                                     {{
                                         'collections': t('collections'),

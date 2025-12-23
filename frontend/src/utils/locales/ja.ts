@@ -264,6 +264,10 @@ export const ja = {
   searchCancelled: "検索がキャンセルされました",
   openInExternalPlayer: "外部プレーヤーで開く",
   playWith: "で再生...",
+  deleteAllFilteredVideos: "フィルタリングされた動画をすべて削除",
+  confirmDeleteFilteredVideos: "選択されたタグでフィルタリングされた {count} 本の動画を削除してもよろしいですか？",
+  deleteFilteredVideosSuccess: "{count} 本の動画を削除しました。",
+  deletingVideos: "動画を削除中...",
 
   // Login
   signIn: "サインイン",

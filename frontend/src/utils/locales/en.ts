@@ -255,6 +255,10 @@ export const en = {
   searchCancelled: "Search was cancelled",
   openInExternalPlayer: "Open in external player",
   playWith: "Play with...",
+  deleteAllFilteredVideos: "Delete All Filtered Videos",
+  confirmDeleteFilteredVideos: "Are you sure you want to delete {count} videos filtered by the selected tags?",
+  deleteFilteredVideosSuccess: "Successfully deleted {count} videos.",
+  deletingVideos: "Deleting videos...",
 
   // Login
   signIn: "Sign in",

@@ -253,6 +253,10 @@ export const zh = {
   searchCancelled: "搜索已取消",
   openInExternalPlayer: "在外部播放器中打开",
   playWith: "使用此应用播放...",
+  deleteAllFilteredVideos: "删除所有过滤后的视频",
+  confirmDeleteFilteredVideos: "您确定要删除通过选定标签过滤的 {count} 个视频吗？",
+  deleteFilteredVideosSuccess: "成功删除 {count} 个视频。",
+  deletingVideos: "正在删除视频...",
 
   // Login
   signIn: "登录",

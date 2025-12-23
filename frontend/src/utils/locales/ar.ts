@@ -259,6 +259,10 @@ export const ar = {
   searchCancelled: "تم إلغاء البحث",
   openInExternalPlayer: "فتح في مشغل خارجي",
   playWith: "تشغيل بواسطة...",
+  deleteAllFilteredVideos: "حذف جميع الفيديوهات المصفاة",
+  confirmDeleteFilteredVideos: "هل أنت متأكد أنك تريد حذف {count} فيديو مصفى بواسطة العلامات المحددة؟",
+  deleteFilteredVideosSuccess: "تم حذف {count} فيديو بنجاح.",
+  deletingVideos: "جاري حذف الفيديوهات...",
 
   // Login
   signIn: "تسجيل الدخول",

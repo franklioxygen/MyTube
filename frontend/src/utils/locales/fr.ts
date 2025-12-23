@@ -278,6 +278,10 @@ export const fr = {
   searchCancelled: "Recherche annulée",
   openInExternalPlayer: "Ouvrir dans un lecteur externe",
   playWith: "Lire avec...",
+  deleteAllFilteredVideos: "Supprimer toutes les vidéos filtrées",
+  confirmDeleteFilteredVideos: "Êtes-vous sûr de vouloir supprimer {count} vidéos filtrées par les tags sélectionnés ?",
+  deleteFilteredVideosSuccess: "{count} vidéos supprimées avec succès.",
+  deletingVideos: "Suppression des vidéos...",
 
   // Login
   signIn: "Se connecter",

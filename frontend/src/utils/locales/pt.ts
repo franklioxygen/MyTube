@@ -273,6 +273,10 @@ export const pt = {
   searchCancelled: "Pesquisa cancelada",
   openInExternalPlayer: "Abrir no player externo",
   playWith: "Reproduzir com...",
+  deleteAllFilteredVideos: "Excluir todos os vídeos filtrados",
+  confirmDeleteFilteredVideos: "Tem certeza de que deseja excluir {count} vídeos filtrados pelas tags selecionadas?",
+  deleteFilteredVideosSuccess: "{count} vídeos excluídos com sucesso.",
+  deletingVideos: "Excluindo vídeos...",
 
   // Login
   signIn: "Entrar",

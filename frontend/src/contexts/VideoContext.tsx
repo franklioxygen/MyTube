@@ -13,6 +13,7 @@ interface VideoContextType {
     error: string | null;
     fetchVideos: () => Promise<void>;
     deleteVideo: (id: string, options?: { showSnackbar?: boolean }) => Promise<{ success: boolean; error?: string }>;
+    deleteVideos: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
     updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
     refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     searchLocalVideos: (query: string) => Video[];
@@ -133,6 +134,35 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             await deleteVideoMutation.mutateAsync({ id, options });
             return { success: true };
+        } catch (error) {
+            return { success: false, error: t('failedToDeleteVideo') };
+        }
+    };
+
+    const deleteVideos = async (ids: string[]) => {
+        try {
+            // Delete videos sequentially to avoid overwhelming the server
+            // or we could implement a batch delete API endpoint if available, but for now loop client-side
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const id of ids) {
+                try {
+                    await deleteVideoMutation.mutateAsync({ id, options: { showSnackbar: false } });
+                    successCount++;
+                } catch (error) {
+                    console.error(`Failed to delete video ${id}:`, error);
+                    failCount++;
+                }
+            }
+
+            if (failCount === 0) {
+                showSnackbar(t('deleteFilteredVideosSuccess', { count: successCount }));
+                return { success: true };
+            } else {
+                showSnackbar(`${t('deleteFilteredVideosSuccess', { count: successCount })} (${failCount} failed)`);
+                return { success: failCount === 0 }; // Consider partial success as success? strict: fail if any fail
+            }
         } catch (error) {
             return { success: false, error: t('failedToDeleteVideo') };
         }
@@ -360,6 +390,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             error: videosError ? (videosError as Error).message : null,
             fetchVideos,
             deleteVideo,
+            deleteVideos,
             updateVideo,
             refreshThumbnail,
             searchLocalVideos,

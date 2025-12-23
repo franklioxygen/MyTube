@@ -261,6 +261,10 @@ export const ko = {
   searchCancelled: "검색이 취소되었습니다",
   openInExternalPlayer: "외부 플레이어에서 열기",
   playWith: "다음으로 재생...",
+  deleteAllFilteredVideos: "필터링된 모든 동영상 삭제",
+  confirmDeleteFilteredVideos: "선택한 태그로 필터링된 {count}개의 동영상을 삭제하시겠습니까?",
+  deleteFilteredVideosSuccess: "{count}개의 동영상을 성공적으로 삭제했습니다.",
+  deletingVideos: "동영상 삭제 중...",
 
   // Login
   signIn: "로그인",

@@ -275,6 +275,10 @@ export const ru = {
   searchCancelled: "Поиск отменен",
   openInExternalPlayer: "Открыть во внешнем плеере",
   playWith: "Воспроизвести с помощью...",
+  deleteAllFilteredVideos: "Удалить все отфильтрованные видео",
+  confirmDeleteFilteredVideos: "Вы уверены, что хотите удалить {count} видео, отфильтрованных по выбранным тегам?",
+  deleteFilteredVideosSuccess: "Успешно удалено {count} видео.",
+  deletingVideos: "Удаление видео...",
 
   // Login
   signIn: "Войти",

@@ -150,6 +150,7 @@ const SubscriptionsPage: React.FC = () => {
                 title={t('unsubscribe')}
                 message={t('confirmUnsubscribe', { author: selectedSubscription?.author || '' })}
                 confirmText={t('unsubscribe')}
+                cancelText={t('cancel')}
                 isDanger
             />
         </Container >
