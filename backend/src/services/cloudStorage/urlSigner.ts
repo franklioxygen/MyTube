@@ -54,7 +54,7 @@ async function getFileUrlsWithSign(
       const cleanPath = fullRelativePath.startsWith("/")
         ? fullRelativePath.substring(1)
         : fullRelativePath;
-      
+
       const dirName = path.dirname(cleanPath);
       const fileName = path.basename(cleanPath);
 
@@ -66,7 +66,9 @@ async function getFileUrlsWithSign(
           try {
             const files = await getFileList(config, searchPath);
             // Check current directory
-            let foundFile = files.find((f: any) => f.name === fileName && !f.is_dir);
+            let foundFile = files.find(
+              (f: any) => f.name === fileName && !f.is_dir
+            );
             if (foundFile) {
               return foundFile;
             }

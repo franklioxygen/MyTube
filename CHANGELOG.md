@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.35 (2025-12-22)
+
+### Refactor
+
+- refactor: Improve file search logic for getFileUrlsWithSign function (e2991f9)
+
 ## v1.6.34 (2025-12-22)
 
 ### Feat
