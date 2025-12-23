@@ -1,8 +1,10 @@
-import { Delete } from '@mui/icons-material';
+import { Cancel, Delete, DeleteOutline } from '@mui/icons-material';
 import {
+    Box,
     Button,
     Container,
     IconButton,
+    LinearProgress,
     Paper,
     Table,
     TableBody,
@@ -18,6 +20,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVisitorMode } from '../contexts/VisitorModeContext';
+import { TranslationKey } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -33,16 +36,44 @@ interface Subscription {
     platform: string;
 }
 
+interface ContinuousDownloadTask {
+    id: string;
+    subscriptionId?: string;
+    authorUrl: string;
+    author: string;
+    platform: string;
+    status: 'active' | 'paused' | 'completed' | 'cancelled';
+    totalVideos: number;
+    downloadedCount: number;
+    skippedCount: number;
+    failedCount: number;
+    currentVideoIndex: number;
+    createdAt: number;
+    updatedAt?: number;
+    completedAt?: number;
+    error?: string;
+}
+
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { visitorMode } = useVisitorMode();
     const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+    const [tasks, setTasks] = useState<ContinuousDownloadTask[]>([]);
     const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
+    const [isCancelTaskModalOpen, setIsCancelTaskModalOpen] = useState(false);
+    const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<ContinuousDownloadTask | null>(null);
 
     useEffect(() => {
         fetchSubscriptions();
+        fetchTasks();
+        // Poll for task updates every 5 seconds
+        const interval = setInterval(() => {
+            fetchTasks();
+        }, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     const fetchSubscriptions = async () => {
@@ -52,6 +83,15 @@ const SubscriptionsPage: React.FC = () => {
         } catch (error) {
             console.error('Error fetching subscriptions:', error);
             showSnackbar(t('error'));
+        }
+    };
+
+    const fetchTasks = async () => {
+        try {
+            const response = await axios.get(`${API_URL}/subscriptions/tasks`);
+            setTasks(response.data);
+        } catch (error) {
+            console.error('Error fetching tasks:', error);
         }
     };
 
@@ -79,6 +119,53 @@ const SubscriptionsPage: React.FC = () => {
     const formatDate = (timestamp?: number) => {
         if (!timestamp) return t('never');
         return new Date(timestamp).toLocaleString();
+    };
+
+    const handleCancelTaskClick = (task: ContinuousDownloadTask) => {
+        setSelectedTask(task);
+        setIsCancelTaskModalOpen(true);
+    };
+
+    const handleConfirmCancelTask = async () => {
+        if (!selectedTask) return;
+
+        try {
+            await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}`);
+            showSnackbar(t('taskCancelled'));
+            fetchTasks();
+        } catch (error) {
+            console.error('Error cancelling task:', error);
+            showSnackbar(t('error'));
+        } finally {
+            setIsCancelTaskModalOpen(false);
+            setSelectedTask(null);
+        }
+    };
+
+    const handleDeleteTaskClick = (task: ContinuousDownloadTask) => {
+        setSelectedTask(task);
+        setIsDeleteTaskModalOpen(true);
+    };
+
+    const handleConfirmDeleteTask = async () => {
+        if (!selectedTask) return;
+
+        try {
+            await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}/delete`);
+            showSnackbar(t('taskDeleted'));
+            fetchTasks();
+        } catch (error) {
+            console.error('Error deleting task:', error);
+            showSnackbar(t('error'));
+        } finally {
+            setIsDeleteTaskModalOpen(false);
+            setSelectedTask(null);
+        }
+    };
+
+    const getTaskProgress = (task: ContinuousDownloadTask) => {
+        if (task.totalVideos === 0) return 0;
+        return Math.round((task.currentVideoIndex / task.totalVideos) * 100);
     };
 
     return (
@@ -143,6 +230,93 @@ const SubscriptionsPage: React.FC = () => {
                 </Table>
             </TableContainer>
 
+            {tasks.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                    <Typography variant="h5" component="h2" gutterBottom fontWeight="bold">
+                        {t('continuousDownloadTasks')}
+                    </Typography>
+                    <TableContainer component={Paper} sx={{ mt: 2 }}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>{t('author')}</TableCell>
+                                    <TableCell>{t('platform')}</TableCell>
+                                    <TableCell>{t('status')}</TableCell>
+                                    <TableCell>{t('progress')}</TableCell>
+                                    <TableCell>{t('downloaded')}</TableCell>
+                                    <TableCell>{t('skipped')}</TableCell>
+                                    <TableCell>{t('failed')}</TableCell>
+                                    {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {tasks.map((task) => (
+                                    <TableRow key={task.id}>
+                                        <TableCell>{task.author}</TableCell>
+                                        <TableCell>{task.platform}</TableCell>
+                                        <TableCell>
+                                            <Typography
+                                                variant="body2"
+                                                color={
+                                                    task.status === 'completed'
+                                                        ? 'success.main'
+                                                        : task.status === 'cancelled'
+                                                        ? 'error.main'
+                                                        : 'info.main'
+                                                }
+                                            >
+                                                {t(`taskStatus${task.status.charAt(0).toUpperCase() + task.status.slice(1)}` as TranslationKey)}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box sx={{ minWidth: 100 }}>
+                                                <LinearProgress
+                                                    variant="determinate"
+                                                    value={getTaskProgress(task)}
+                                                    sx={{ mb: 0.5 }}
+                                                />
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {task.currentVideoIndex} / {task.totalVideos || '?'}
+                                                </Typography>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>{task.downloadedCount}</TableCell>
+                                        <TableCell>{task.skippedCount}</TableCell>
+                                        <TableCell>{task.failedCount}</TableCell>
+                                        {!visitorMode && (
+                                            <TableCell align="right">
+                                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                                    {task.status !== 'completed' && task.status !== 'cancelled' && (
+                                                        <IconButton
+                                                            color="error"
+                                                            onClick={() => handleCancelTaskClick(task)}
+                                                            title={t('cancelTask')}
+                                                            size="small"
+                                                        >
+                                                            <Cancel />
+                                                        </IconButton>
+                                                    )}
+                                                    {(task.status === 'completed' || task.status === 'cancelled') && (
+                                                        <IconButton
+                                                            color="error"
+                                                            onClick={() => handleDeleteTaskClick(task)}
+                                                            title={t('deleteTask')}
+                                                            size="small"
+                                                        >
+                                                            <DeleteOutline />
+                                                        </IconButton>
+                                                    )}
+                                                </Box>
+                                            </TableCell>
+                                        )}
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Box>
+            )}
+
             <ConfirmationModal
                 isOpen={isUnsubscribeModalOpen}
                 onClose={() => setIsUnsubscribeModalOpen(false)}
@@ -150,6 +324,26 @@ const SubscriptionsPage: React.FC = () => {
                 title={t('unsubscribe')}
                 message={t('confirmUnsubscribe', { author: selectedSubscription?.author || '' })}
                 confirmText={t('unsubscribe')}
+                cancelText={t('cancel')}
+                isDanger
+            />
+            <ConfirmationModal
+                isOpen={isCancelTaskModalOpen}
+                onClose={() => setIsCancelTaskModalOpen(false)}
+                onConfirm={handleConfirmCancelTask}
+                title={t('cancelTask')}
+                message={t('confirmCancelTask', { author: selectedTask?.author || '' })}
+                confirmText={t('cancelTask')}
+                cancelText={t('cancel')}
+                isDanger
+            />
+            <ConfirmationModal
+                isOpen={isDeleteTaskModalOpen}
+                onClose={() => setIsDeleteTaskModalOpen(false)}
+                onConfirm={handleConfirmDeleteTask}
+                title={t('deleteTask')}
+                message={t('confirmDeleteTask', { author: selectedTask?.author || '' })}
+                confirmText={t('deleteTask')}
                 cancelText={t('cancel')}
                 isDanger
             />

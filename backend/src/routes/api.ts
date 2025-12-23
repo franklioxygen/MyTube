@@ -124,6 +124,20 @@ router.delete(
   asyncHandler(subscriptionController.deleteSubscription)
 );
 
+// Continuous download task routes
+router.get(
+  "/subscriptions/tasks",
+  asyncHandler(subscriptionController.getContinuousDownloadTasks)
+);
+router.delete(
+  "/subscriptions/tasks/:id",
+  asyncHandler(subscriptionController.cancelContinuousDownloadTask)
+);
+router.delete(
+  "/subscriptions/tasks/:id/delete",
+  asyncHandler(subscriptionController.deleteContinuousDownloadTask)
+);
+
 // Cloud storage routes
 router.get(
   "/cloud/signed-url",

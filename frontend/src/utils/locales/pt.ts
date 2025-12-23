@@ -424,6 +424,23 @@ export const pt = {
   subscriptionAlreadyExists: "Você já está inscrito neste autor.",
   minutes: "minutos",
   never: "Nunca",
+  downloadAllPreviousVideos: "Baixar todos os vídeos anteriores deste autor",
+  downloadAllPreviousWarning:
+    "Aviso: Isso baixará todos os vídeos anteriores deste autor. Isso pode consumir um espaço de armazenamento significativo e pode acionar mecanismos de detecção de bots que podem resultar em proibições temporárias ou permanentes da plataforma. Use por sua conta e risco.",
+  continuousDownloadTasks: "Tarefas de download contínuo",
+  taskStatusActive: "Ativo",
+  taskStatusPaused: "Pausado",
+  taskStatusCompleted: "Concluído",
+  taskStatusCancelled: "Cancelado",
+  downloaded: "Baixado",
+  cancelTask: "Cancelar tarefa",
+  confirmCancelTask: "Tem certeza de que deseja cancelar a tarefa de download para {author}?",
+  taskCancelled: "Tarefa cancelada com sucesso",
+  deleteTask: "Excluir tarefa",
+  confirmDeleteTask: "Tem certeza de que deseja excluir o registro da tarefa para {author}? Esta ação não pode ser desfeita.",
+  taskDeleted: "Tarefa excluída com sucesso",
+  minutes: "minutos",
+  never: "Nunca",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
   instructionSection1Desc:

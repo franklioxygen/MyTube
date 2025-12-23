@@ -323,11 +323,12 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [subscribeUrl, setSubscribeUrl] = useState('');
 
-    const handleSubscribe = async (interval: number) => {
+    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean) => {
         try {
             await axios.post(`${API_URL}/subscriptions`, {
                 url: subscribeUrl,
-                interval
+                interval,
+                downloadAllPrevious
             });
             showSnackbar(t('subscribedSuccessfully'));
             setShowSubscribeModal(false);

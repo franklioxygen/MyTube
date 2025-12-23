@@ -394,6 +394,23 @@ export const de = {
   subscriptionAlreadyExists: "Sie haben diesen Autor bereits abonniert.",
   minutes: "Minuten",
   never: "Nie",
+  downloadAllPreviousVideos: "Alle vorherigen Videos dieses Autors herunterladen",
+  downloadAllPreviousWarning:
+    "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
+  continuousDownloadTasks: "Kontinuierliche Download-Aufgaben",
+  taskStatusActive: "Aktiv",
+  taskStatusPaused: "Pausiert",
+  taskStatusCompleted: "Abgeschlossen",
+  taskStatusCancelled: "Abgebrochen",
+  downloaded: "Heruntergeladen",
+  cancelTask: "Aufgabe abbrechen",
+  confirmCancelTask: "Sind Sie sicher, dass Sie die Download-Aufgabe für {author} abbrechen möchten?",
+  taskCancelled: "Aufgabe erfolgreich abgebrochen",
+  deleteTask: "Aufgabe löschen",
+  confirmDeleteTask: "Sind Sie sicher, dass Sie den Aufgaben-Datensatz für {author} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+  taskDeleted: "Aufgabe erfolgreich gelöscht",
+  minutes: "Minuten",
+  never: "Nie",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc:

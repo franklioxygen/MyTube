@@ -406,6 +406,21 @@ export const zh = {
   subscriptionAlreadyExists: "您已订阅此作者。",
   minutes: "分钟",
   never: "从未",
+  downloadAllPreviousVideos: "下载此作者的所有历史视频",
+  downloadAllPreviousWarning:
+    "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
+  continuousDownloadTasks: "连续下载任务",
+  taskStatusActive: "进行中",
+  taskStatusPaused: "已暂停",
+  taskStatusCompleted: "已完成",
+  taskStatusCancelled: "已取消",
+  downloaded: "已下载",
+  cancelTask: "取消任务",
+  confirmCancelTask: "您确定要取消 {author} 的下载任务吗？",
+  taskCancelled: "任务已成功取消",
+  deleteTask: "删除任务",
+  confirmDeleteTask: "您确定要删除 {author} 的任务记录吗？此操作无法撤销。",
+  taskDeleted: "任务已成功删除",
 
   // Existing Video Detection
   existingVideoDetected: "检测到已下载视频",

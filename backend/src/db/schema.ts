@@ -136,3 +136,22 @@ export const videoDownloads = sqliteTable('video_downloads', {
   downloadedAt: integer('downloaded_at').notNull(), // Timestamp of first download
   deletedAt: integer('deleted_at'), // Timestamp when video was deleted (nullable)
 });
+
+// Track continuous download tasks for downloading all previous videos from an author
+export const continuousDownloadTasks = sqliteTable('continuous_download_tasks', {
+  id: text('id').primaryKey(),
+  subscriptionId: text('subscription_id'), // Reference to subscription (nullable if subscription deleted)
+  authorUrl: text('author_url').notNull(),
+  author: text('author').notNull(),
+  platform: text('platform').notNull(), // YouTube, Bilibili, etc.
+  status: text('status').notNull().default('active'), // 'active', 'paused', 'completed', 'cancelled'
+  totalVideos: integer('total_videos').default(0), // Total videos found
+  downloadedCount: integer('downloaded_count').default(0), // Number of videos downloaded
+  skippedCount: integer('skipped_count').default(0), // Number of videos skipped (already downloaded)
+  failedCount: integer('failed_count').default(0), // Number of videos that failed
+  currentVideoIndex: integer('current_video_index').default(0), // Current video being processed
+  createdAt: integer('created_at').notNull(), // Timestamp when task was created
+  updatedAt: integer('updated_at'), // Timestamp of last update
+  completedAt: integer('completed_at'), // Timestamp when task completed
+  error: text('error'), // Error message if task failed
+});

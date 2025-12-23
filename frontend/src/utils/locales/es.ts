@@ -409,6 +409,23 @@ export const es = {
   subscriptionAlreadyExists: "Ya estás suscrito a este autor.",
   minutes: "minutos",
   never: "Nunca",
+  downloadAllPreviousVideos: "Descargar todos los videos anteriores de este autor",
+  downloadAllPreviousWarning:
+    "Advertencia: Esto descargará todos los videos anteriores de este autor. Esto puede consumir un espacio de almacenamiento significativo y podría activar mecanismos de detección de bots que pueden resultar en prohibiciones temporales o permanentes de la plataforma. Úselo bajo su propio riesgo.",
+  continuousDownloadTasks: "Tareas de descarga continua",
+  taskStatusActive: "Activo",
+  taskStatusPaused: "Pausado",
+  taskStatusCompleted: "Completado",
+  taskStatusCancelled: "Cancelado",
+  downloaded: "Descargado",
+  cancelTask: "Cancelar tarea",
+  confirmCancelTask: "¿Estás seguro de que quieres cancelar la tarea de descarga para {author}?",
+  taskCancelled: "Tarea cancelada exitosamente",
+  deleteTask: "Eliminar tarea",
+  confirmDeleteTask: "¿Estás seguro de que quieres eliminar el registro de tarea para {author}? Esta acción no se puede deshacer.",
+  taskDeleted: "Tarea eliminada exitosamente",
+  minutes: "minutos",
+  never: "Nunca",
   // Instruction Page
   instructionSection1Title: "1. Descarga y Gestión de Tareas",
   instructionSection1Desc:

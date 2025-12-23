@@ -411,6 +411,23 @@ export const ko = {
   subscriptionAlreadyExists: "이미 구독 중인 작가입니다.",
   minutes: "분",
   never: "없음",
+  downloadAllPreviousVideos: "이 작가의 모든 이전 동영상 다운로드",
+  downloadAllPreviousWarning:
+    "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
+  continuousDownloadTasks: "연속 다운로드 작업",
+  taskStatusActive: "활성",
+  taskStatusPaused: "일시 중지됨",
+  taskStatusCompleted: "완료됨",
+  taskStatusCancelled: "취소됨",
+  downloaded: "다운로드됨",
+  cancelTask: "작업 취소",
+  confirmCancelTask: "{author}님의 다운로드 작업을 취소하시겠습니까?",
+  taskCancelled: "작업이 성공적으로 취소되었습니다",
+  deleteTask: "작업 삭제",
+  confirmDeleteTask: "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  taskDeleted: "작업이 성공적으로 삭제되었습니다",
+  minutes: "분",
+  never: "없음",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc:

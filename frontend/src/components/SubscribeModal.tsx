@@ -1,11 +1,15 @@
-import { Close } from '@mui/icons-material';
+import { Close, Warning } from '@mui/icons-material';
 import {
+    Alert,
+    Box,
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControlLabel,
     IconButton,
     TextField,
     Typography
@@ -16,7 +20,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface SubscribeModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (interval: number) => void;
+    onConfirm: (interval: number, downloadAllPrevious: boolean) => void;
     authorName?: string;
     url: string;
 }
@@ -30,9 +34,10 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
 }) => {
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60); // Default 60 minutes
+    const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
 
     const handleConfirm = () => {
-        onConfirm(interval);
+        onConfirm(interval, downloadAllPrevious);
         onClose();
     };
 
@@ -80,7 +85,28 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     value={interval}
                     onChange={(e) => setInterval(Number(e.target.value))}
                     inputProps={{ min: 1 }}
+                    sx={{ mb: 2 }}
                 />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={downloadAllPrevious}
+                            onChange={(e) => setDownloadAllPrevious(e.target.checked)}
+                        />
+                    }
+                    label={t('downloadAllPreviousVideos')}
+                />
+                {downloadAllPrevious && (
+                    <Alert
+                        severity="warning"
+                        icon={<Warning />}
+                        sx={{ mt: 2 }}
+                    >
+                        <Typography variant="body2" component="div">
+                            {t('downloadAllPreviousWarning')}
+                        </Typography>
+                    </Alert>
+                )}
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
                 <Button onClick={onClose} color="inherit">

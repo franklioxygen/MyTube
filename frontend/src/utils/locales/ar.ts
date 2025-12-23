@@ -421,6 +421,23 @@ export const ar = {
   subscriptionAlreadyExists: "أنت مشترك بالفعل في هذا المؤلف.",
   minutes: "دقائق",
   never: "أبداً",
+  downloadAllPreviousVideos: "تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف",
+  downloadAllPreviousWarning:
+    "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
+  continuousDownloadTasks: "مهام التنزيل المستمر",
+  taskStatusActive: "نشط",
+  taskStatusPaused: "متوقف مؤقتاً",
+  taskStatusCompleted: "مكتمل",
+  taskStatusCancelled: "ملغي",
+  downloaded: "تم التنزيل",
+  cancelTask: "إلغاء المهمة",
+  confirmCancelTask: "هل أنت متأكد أنك تريد إلغاء مهمة التنزيل لـ {author}؟",
+  taskCancelled: "تم إلغاء المهمة بنجاح",
+  deleteTask: "حذف المهمة",
+  confirmDeleteTask: "هل أنت متأكد أنك تريد حذف سجل المهمة لـ {author}؟ لا يمكن التراجع عن هذا الإجراء.",
+  taskDeleted: "تم حذف المهمة بنجاح",
+  minutes: "دقائق",
+  never: "أبداً",
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc:

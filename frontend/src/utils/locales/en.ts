@@ -413,6 +413,21 @@ export const en = {
   subscriptionAlreadyExists: "You are already subscribed to this author.",
   minutes: "minutes",
   never: "Never",
+  downloadAllPreviousVideos: "Download all previous videos from this author",
+  downloadAllPreviousWarning:
+    "Warning: This will download all previous videos from this author. This may consume significant storage space and could trigger bot detection mechanisms that may result in temporary or permanent bans from the platform. Use at your own risk.",
+  continuousDownloadTasks: "Continuous Download Tasks",
+  taskStatusActive: "Active",
+  taskStatusPaused: "Paused",
+  taskStatusCompleted: "Completed",
+  taskStatusCancelled: "Cancelled",
+  downloaded: "Downloaded",
+  cancelTask: "Cancel Task",
+  confirmCancelTask: "Are you sure you want to cancel the download task for {author}?",
+  taskCancelled: "Task cancelled successfully",
+  deleteTask: "Delete Task",
+  confirmDeleteTask: "Are you sure you want to delete the task record for {author}? This action cannot be undone.",
+  taskDeleted: "Task deleted successfully",
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",
   instructionSection1Desc:

@@ -415,6 +415,23 @@ export const ja = {
   subscriptionAlreadyExists: "この著者はすでに購読しています。",
   minutes: "分",
   never: "なし",
+  downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",
+  downloadAllPreviousWarning:
+    "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
+  continuousDownloadTasks: "連続ダウンロードタスク",
+  taskStatusActive: "アクティブ",
+  taskStatusPaused: "一時停止",
+  taskStatusCompleted: "完了",
+  taskStatusCancelled: "キャンセル済み",
+  downloaded: "ダウンロード済み",
+  cancelTask: "タスクをキャンセル",
+  confirmCancelTask: "{author} のダウンロードタスクをキャンセルしてもよろしいですか？",
+  taskCancelled: "タスクが正常にキャンセルされました",
+  deleteTask: "タスクを削除",
+  confirmDeleteTask: "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
+  taskDeleted: "タスクが正常に削除されました",
+  minutes: "分",
+  never: "なし",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc:

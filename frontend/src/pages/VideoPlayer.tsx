@@ -262,14 +262,15 @@ const VideoPlayer: React.FC = () => {
     };
 
     // Handle subscribe confirmation
-    const handleSubscribeConfirm = async (interval: number) => {
+    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean) => {
         if (!authorChannelUrl || !video) return;
 
         try {
             await axios.post(`${API_URL}/subscriptions`, {
                 url: authorChannelUrl,
                 interval,
-                authorName: video.author // Pass the author name from the video
+                authorName: video.author, // Pass the author name from the video
+                downloadAllPrevious
             });
             showSnackbar(t('subscribedSuccessfully'));
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
