@@ -167,7 +167,7 @@ const VideoPlayer: React.FC = () => {
                 const response = await axios.get(`${API_URL}/videos/author-channel-url`, {
                     params: { sourceUrl: video.sourceUrl }
                 });
-                
+
                 if (response.data.success && response.data.channelUrl) {
                     setAuthorChannelUrl(response.data.channelUrl);
                 } else {
@@ -184,20 +184,55 @@ const VideoPlayer: React.FC = () => {
 
     // Check if author is subscribed
     const isSubscribed = useMemo(() => {
-        if (!authorChannelUrl || !subscriptions || subscriptions.length === 0) {
+        if (!subscriptions || subscriptions.length === 0) {
             return false;
         }
-        return subscriptions.some((sub: any) => sub.authorUrl === authorChannelUrl);
-    }, [authorChannelUrl, subscriptions]);
+
+        // 1. Strict check by Channel URL (most accurate)
+        if (authorChannelUrl) {
+            const hasUrlMatch = subscriptions.some((sub: any) => sub.authorUrl === authorChannelUrl);
+            if (hasUrlMatch) return true;
+        }
+
+        // 2. Fallback check by Author Name and Platform matching
+        // This handles cases where we might have the same author but slightly different URLs (e.g. handle vs channel ID)
+        if (video) {
+            return subscriptions.some((sub: any) => {
+                const nameMatch = sub.author === video.author;
+                // sub.platform is typically "YouTube" or "Bilibili" (capitalized)
+                // video.source is typically "youtube" or "bilibili" (lowercase)
+                const platformMatch = sub.platform?.toLowerCase() === video.source?.toLowerCase();
+                return nameMatch && platformMatch;
+            });
+        }
+
+        return false;
+    }, [authorChannelUrl, subscriptions, video]);
 
     // Get subscription ID if subscribed
     const subscriptionId = useMemo(() => {
-        if (!authorChannelUrl || !subscriptions || subscriptions.length === 0) {
+        if (!subscriptions || subscriptions.length === 0) {
             return null;
         }
-        const subscription = subscriptions.find((sub: any) => sub.authorUrl === authorChannelUrl);
-        return subscription?.id || null;
-    }, [authorChannelUrl, subscriptions]);
+
+        // 1. Strict check by Channel URL
+        if (authorChannelUrl) {
+            const subscription = subscriptions.find((sub: any) => sub.authorUrl === authorChannelUrl);
+            if (subscription) return subscription.id;
+        }
+
+        // 2. Fallback check by Author Name and Platform matching
+        if (video) {
+            const subscription = subscriptions.find((sub: any) => {
+                const nameMatch = sub.author === video.author;
+                const platformMatch = sub.platform?.toLowerCase() === video.source?.toLowerCase();
+                return nameMatch && platformMatch;
+            });
+            if (subscription) return subscription.id;
+        }
+
+        return null;
+    }, [authorChannelUrl, subscriptions, video]);
 
     // Handle navigation to author videos page or external channel
     const handleAuthorClick = async () => {

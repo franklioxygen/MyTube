@@ -143,7 +143,7 @@ export class SubscriptionService {
             authorName === "Unknown Author" ||
             authorName === providedAuthorName
           ) {
-            const match = authorUrl.match(/youtube\.com\/(@[^\/]+)/);
+            const match = decodeURI(authorUrl).match(/youtube\.com\/(@[^\/]+)/);
             if (match && match[1]) {
               authorName = match[1];
             } else {
@@ -164,7 +164,7 @@ export class SubscriptionService {
         } catch (error) {
           logger.error("Error fetching YouTube channel info:", error);
           // Fallback: try to extract from URL
-          const match = authorUrl.match(/youtube\.com\/(@[^\/]+)/);
+          const match = decodeURI(authorUrl).match(/youtube\.com\/(@[^\/]+)/);
           if (match && match[1]) {
             authorName = match[1];
           } else {
@@ -303,7 +303,30 @@ export class SubscriptionService {
           if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
             console.log(`New video found for ${sub.author}: ${latestVideoUrl}`);
 
-            // 2. Download the video based on platform
+            // 2. Update lastCheck *before* download to prevent concurrent processing
+            // Re-verify subscription exists before updating
+            const subscriptionStillExists = await db
+              .select()
+              .from(subscriptions)
+              .where(eq(subscriptions.id, sub.id))
+              .limit(1);
+
+            if (subscriptionStillExists.length === 0) {
+              logger.warn(
+                `Subscription ${sub.id} (${sub.author}) was deleted during processing, skipping update`
+              );
+              continue;
+            }
+
+            // Update lastCheck immediately to lock this subscription for this interval
+            await db
+              .update(subscriptions)
+              .set({
+                lastCheck: now,
+              })
+              .where(eq(subscriptions.id, sub.id));
+
+            // 3. Download the video
             let downloadResult: any;
             try {
               if (sub.platform === "Bilibili") {
@@ -331,6 +354,40 @@ export class SubscriptionService {
                 thumbnailPath: videoData.thumbnailPath,
                 videoId: videoData.id,
               });
+
+              // 4. Update subscription record with new video link and stats on success
+              // Re-verify subscription exists before final update (race condition protection)
+              const subscriptionStillExistsAfterDownload = await db
+                .select()
+                .from(subscriptions)
+                .where(eq(subscriptions.id, sub.id))
+                .limit(1);
+
+              if (subscriptionStillExistsAfterDownload.length === 0) {
+                logger.warn(
+                  `Subscription ${sub.id} (${sub.author}) was deleted after download completed, skipping final update`
+                );
+                continue;
+              }
+
+              const updateResult = await db
+                .update(subscriptions)
+                .set({
+                  lastVideoLink: latestVideoUrl,
+                  downloadCount: (sub.downloadCount || 0) + 1,
+                })
+                .where(eq(subscriptions.id, sub.id))
+                .returning();
+
+              if (updateResult.length === 0) {
+                logger.error(
+                  `Failed to update subscription ${sub.id} (${sub.author}) after successful download - no rows affected`
+                );
+              } else {
+                logger.debug(
+                  `Successfully processed subscription ${sub.id} (${sub.author})`
+                );
+              }
             } catch (downloadError: any) {
               console.error(
                 `Error downloading subscription video for ${sub.author}:`,
@@ -348,29 +405,36 @@ export class SubscriptionService {
                 error: downloadError.message || "Download failed",
               });
 
-              // Don't update lastVideoLink on failure so we retry next time
-              await db
-                .update(subscriptions)
-                .set({ lastCheck: now })
-                .where(eq(subscriptions.id, sub.id));
+              // Note: We already updated lastCheck, so we won't retry until next interval.
+              // This acts as a "backoff" preventing retry loops for broken downloads.
+            }
+          } else {
+            // Just update lastCheck
+            // Re-verify subscription exists before updating (race condition protection)
+            const subscriptionStillExists = await db
+              .select()
+              .from(subscriptions)
+              .where(eq(subscriptions.id, sub.id))
+              .limit(1);
+
+            if (subscriptionStillExists.length === 0) {
+              logger.debug(
+                `Subscription ${sub.id} (${sub.author}) was deleted during check, skipping update`
+              );
               continue;
             }
 
-            // 3. Update subscription record
-            await db
-              .update(subscriptions)
-              .set({
-                lastVideoLink: latestVideoUrl,
-                lastCheck: now,
-                downloadCount: (sub.downloadCount || 0) + 1,
-              })
-              .where(eq(subscriptions.id, sub.id));
-          } else {
-            // Just update lastCheck
-            await db
+            const updateResult = await db
               .update(subscriptions)
               .set({ lastCheck: now })
-              .where(eq(subscriptions.id, sub.id));
+              .where(eq(subscriptions.id, sub.id))
+              .returning();
+
+            if (updateResult.length === 0) {
+              logger.warn(
+                `Failed to update lastCheck for subscription ${sub.id} (${sub.author}) - no rows affected`
+              );
+            }
           }
         } catch (error) {
           console.error(

@@ -88,7 +88,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                         ) : null,
                         endAdornment: (
                             <InputAdornment position="end">
-                                {isSearchMode && searchTerm && (
+                                {isSearchMode && searchTerm && videoUrl && (
                                     <IconButton onClick={onResetSearch} edge="end" size="small" sx={{ mr: 0.5 }}>
                                         <Clear />
                                     </IconButton>
