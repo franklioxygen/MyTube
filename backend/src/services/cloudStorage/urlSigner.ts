@@ -44,12 +44,15 @@ async function getFileUrlsWithSign(
     const domain = config.publicUrl || apiBaseUrl;
 
     // Helper to find file in its directory
+    // Returns { file: fileObject, foundPath: string } where foundPath is the directory where file was found
     // fullRelativePath can be:
     // - "video.mp4" (in uploadPath root, or just filename)
     // - "subdir/video.mp4" (in uploadPath/subdir)
     // - "a/movies/video.mp4" (in scanPath /a/movies, not in uploadPath)
     // - "/video.mp4" (absolute path, but might be just filename)
-    const findFileInDir = async (fullRelativePath: string): Promise<any> => {
+    const findFileInDir = async (
+      fullRelativePath: string
+    ): Promise<{ file: any; foundPath: string } | undefined> => {
       // Remove leading slash if present (for consistency)
       const cleanPath = fullRelativePath.startsWith("/")
         ? fullRelativePath.substring(1)
@@ -62,7 +65,9 @@ async function getFileUrlsWithSign(
       // We need to search in multiple possible locations (including subdirectories)
       if (dirName === ".") {
         // Helper function to recursively search for a file
-        const searchRecursively = async (searchPath: string): Promise<any> => {
+        const searchRecursively = async (
+          searchPath: string
+        ): Promise<{ file: any; foundPath: string } | undefined> => {
           try {
             const files = await getFileList(config, searchPath);
             // Check current directory
@@ -70,7 +75,7 @@ async function getFileUrlsWithSign(
               (f: any) => f.name === fileName && !f.is_dir
             );
             if (foundFile) {
-              return foundFile;
+              return { file: foundFile, foundPath: searchPath };
             }
             // Recursively search subdirectories
             for (const file of files) {
@@ -78,9 +83,9 @@ async function getFileUrlsWithSign(
                 const subDirPath = searchPath.endsWith("/")
                   ? `${searchPath}${file.name}`
                   : `${searchPath}/${file.name}`;
-                foundFile = await searchRecursively(subDirPath);
-                if (foundFile) {
-                  return foundFile;
+                const result = await searchRecursively(subDirPath);
+                if (result) {
+                  return result;
                 }
               }
             }
@@ -95,18 +100,18 @@ async function getFileUrlsWithSign(
         };
 
         // Try to find file in uploadPath first (recursively)
-        let foundFile = await searchRecursively(baseUploadPath);
-        if (foundFile) {
-          return foundFile;
+        let result = await searchRecursively(baseUploadPath);
+        if (result) {
+          return result;
         }
 
         // If not found in uploadPath, try scanPaths if configured (recursively)
         if (config.scanPaths && config.scanPaths.length > 0) {
           for (const scanPath of config.scanPaths) {
             const normalizedScanPath = normalizeUploadPath(scanPath);
-            foundFile = await searchRecursively(normalizedScanPath);
-            if (foundFile) {
-              return foundFile;
+            result = await searchRecursively(normalizedScanPath);
+            if (result) {
+              return result;
             }
           }
         }
@@ -116,115 +121,121 @@ async function getFileUrlsWithSign(
       }
 
       // Path contains directory information
-      const absolutePath = "/" + cleanPath;
+      // First, try as relative path from uploadPath
+      // If not found, try as absolute path (scanPath)
       const absoluteUploadRoot = baseUploadPath.startsWith("/")
         ? baseUploadPath
         : "/" + baseUploadPath;
 
-      let listPath: string;
+      // Try 1: Treat as relative path from uploadPath
+      const normalizedDir = dirName.replace(/\\/g, "/");
+      let listPath = baseUploadPath.endsWith("/")
+        ? `${baseUploadPath}${normalizedDir}`
+        : `${baseUploadPath}/${normalizedDir}`;
 
-      if (absolutePath.startsWith(absoluteUploadRoot)) {
-        // File is in uploadPath - use relative path from uploadPath
-        const normalizedDir = dirName.replace(/\\/g, "/");
-        listPath = baseUploadPath.endsWith("/")
-          ? `${baseUploadPath}${normalizedDir}`
-          : `${baseUploadPath}/${normalizedDir}`;
-      } else {
-        // File is NOT in uploadPath - must be from a scanPath
-        // Use the full absolute path (directory of the file)
-        const absoluteDirPath = dirName.startsWith("/")
-          ? dirName
-          : "/" + dirName;
-        listPath = absoluteDirPath;
+      try {
+        const files = await getFileList(config, listPath);
+        const foundFile = files.find((f: any) => f.name === fileName);
+        if (foundFile) {
+          return { file: foundFile, foundPath: listPath };
+        }
+      } catch (error) {
+        // If failed, try as absolute path (scanPath)
+        logger.debug(
+          `[CloudStorage] File not found in uploadPath subdirectory ${listPath}, trying as scanPath:`,
+          error
+        );
       }
 
-      const files = await getFileList(config, listPath);
-      return files.find((f: any) => f.name === fileName);
+      // If failed, try to find in scanPaths
+      if (config.scanPaths && config.scanPaths.length > 0) {
+        // Check if the path is already an absolute path starting with a scanPath
+        const absoluteCleanPath = "/" + cleanPath;
+        for (const scanPath of config.scanPaths) {
+          try {
+            const normalizedScanPath = normalizeUploadPath(scanPath);
+            const absoluteScanPath = normalizedScanPath.startsWith("/")
+              ? normalizedScanPath
+              : "/" + normalizedScanPath;
+
+            let listPath: string;
+
+            // Check if the directory path starts with this scanPath
+            const absoluteDirPath = "/" + normalizedDir;
+            if (absoluteDirPath.startsWith(absoluteScanPath)) {
+              // Path is already absolute and starts with this scanPath, use it directly
+              listPath = absoluteDirPath;
+            } else {
+              // Path is relative to this scanPath, append it
+              listPath = normalizedScanPath.endsWith("/")
+                ? `${normalizedScanPath}${normalizedDir}`
+                : `${normalizedScanPath}/${normalizedDir}`;
+            }
+
+            const files = await getFileList(config, listPath);
+            const foundFile = files.find((f: any) => f.name === fileName);
+            if (foundFile) {
+              return { file: foundFile, foundPath: listPath };
+            }
+          } catch (error) {
+            // Continue to next scanPath
+            logger.debug(
+              `[CloudStorage] Failed to search in scanPath ${scanPath}:`,
+              error
+            );
+          }
+        }
+      }
+
+      // Not found in either location
+      return undefined;
     };
 
     // Find video file
     if (videoFilename) {
-      const videoFile = await findFileInDir(videoFilename);
+      const videoResult = await findFileInDir(videoFilename);
 
-      if (videoFile && videoFile.sign) {
+      if (videoResult && videoResult.file.sign) {
         // Build URL: https://domain/d/path/files/filename?sign=xxx
-        // We need to construct the full web path including subdirectory
-        // If videoFilename is "subdir/video.mp4", the path in URL should include /subdir/
-        // The Alist pattern seems to be /d/mount_path/subdir/filename
+        // Use the actual path where file was found to construct URL
+        const foundPath = videoResult.foundPath;
+        const fileName = path.basename(videoFilename);
+        const fullWebPath = foundPath.endsWith("/")
+          ? `${foundPath}${fileName}`
+          : `${foundPath}/${fileName}`;
+        const normalizedWebPath = fullWebPath.replace(/\/+/g, "/");
 
-        // Construct full web path for URL
-        // videoFilename can be "video.mp4", "subdir/video.mp4", or "a/movies/video.mp4"
-        const absolutePath = videoFilename.startsWith("/")
-          ? videoFilename
-          : "/" + videoFilename;
-        const absoluteUploadRoot = baseUploadPath.startsWith("/")
-          ? baseUploadPath
-          : "/" + baseUploadPath;
-
-        let fullWebPath: string;
-        if (absolutePath.startsWith(absoluteUploadRoot)) {
-          // In uploadPath - use relative path from uploadPath
-          const relativePath = path
-            .relative(absoluteUploadRoot, absolutePath)
-            .replace(/\\/g, "/");
-          fullWebPath = baseUploadPath.endsWith("/")
-            ? `${baseUploadPath}${relativePath}`
-            : `${baseUploadPath}/${relativePath}`;
-        } else {
-          // Not in uploadPath - use absolute path directly
-          fullWebPath = absolutePath;
-        }
-        // Cleanup double slashes
-        fullWebPath = fullWebPath.replace(/\/+/g, "/");
-
-        result.videoUrl = `${domain}/d${fullWebPath}?sign=${encodeURIComponent(
-          videoFile.sign
+        result.videoUrl = `${domain}/d${normalizedWebPath}?sign=${encodeURIComponent(
+          videoResult.file.sign
         )}`;
       }
     }
 
     // Find thumbnail file
     if (thumbnailFilename) {
-      const thumbnailFile = await findFileInDir(thumbnailFilename);
+      const thumbnailResult = await findFileInDir(thumbnailFilename);
 
-      if (thumbnailFile) {
-        // Construct full web path for URL (same logic as video)
-        // thumbnailFilename can be "video.jpg", "subdir/video.jpg", or "a/movies/video.jpg"
-        const absoluteThumbPath = thumbnailFilename.startsWith("/")
-          ? thumbnailFilename
-          : "/" + thumbnailFilename;
-        const absoluteUploadRoot = baseUploadPath.startsWith("/")
-          ? baseUploadPath
-          : "/" + baseUploadPath;
-
-        let fullWebPath: string;
-        if (absoluteThumbPath.startsWith(absoluteUploadRoot)) {
-          // In uploadPath - use relative path from uploadPath
-          const relativePath = path
-            .relative(absoluteUploadRoot, absoluteThumbPath)
-            .replace(/\\/g, "/");
-          fullWebPath = baseUploadPath.endsWith("/")
-            ? `${baseUploadPath}${relativePath}`
-            : `${baseUploadPath}/${relativePath}`;
-        } else {
-          // Not in uploadPath - use absolute path directly
-          fullWebPath = absoluteThumbPath;
-        }
-        // Cleanup double slashes
-        fullWebPath = fullWebPath.replace(/\/+/g, "/");
+      if (thumbnailResult) {
+        // Use the actual path where file was found to construct URL
+        const foundPath = thumbnailResult.foundPath;
+        const fileName = path.basename(thumbnailFilename);
+        const fullWebPath = foundPath.endsWith("/")
+          ? `${foundPath}${fileName}`
+          : `${foundPath}/${fileName}`;
+        const normalizedWebPath = fullWebPath.replace(/\/+/g, "/");
 
         // Prefer file URL with sign if available
-        if (thumbnailFile.sign) {
-          result.thumbnailUrl = `${domain}/d${fullWebPath}?sign=${encodeURIComponent(
-            thumbnailFile.sign
+        if (thumbnailResult.file.sign) {
+          result.thumbnailUrl = `${domain}/d${normalizedWebPath}?sign=${encodeURIComponent(
+            thumbnailResult.file.sign
           )}`;
         }
 
         // If file doesn't have sign but has thumb URL, use thumb URL
         // Also check if no thumbnail file exists but video file has thumb
-        if (thumbnailFile.thumb) {
+        if (thumbnailResult.file.thumb) {
           // ... existing thumb logic ...
-          let thumbUrl = thumbnailFile.thumb;
+          let thumbUrl = thumbnailResult.file.thumb;
           thumbUrl = thumbUrl.replace(
             /width=\d+[&\\u0026]height=\d+/,
             "width=1280&height=720"
@@ -251,9 +262,9 @@ async function getFileUrlsWithSign(
         // This is useful if we generated "cloud:video.jpg" but it doesn't exist yet or failed,
         // but maybe the video file "cloud:video.mp4" has a generated thumb from the server side.
         if (videoFilename) {
-          const videoFile = await findFileInDir(videoFilename);
-          if (videoFile && videoFile.thumb) {
-            let thumbUrl = videoFile.thumb;
+          const videoResult = await findFileInDir(videoFilename);
+          if (videoResult && videoResult.file.thumb) {
+            let thumbUrl = videoResult.file.thumb;
             thumbUrl = thumbUrl.replace(
               /width=\d+[&\\u0026]height=\d+/,
               "width=1280&height=720"
