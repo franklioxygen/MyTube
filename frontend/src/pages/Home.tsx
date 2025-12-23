@@ -1,5 +1,5 @@
 
-import { AccessTime, Collections as CollectionsIcon, GridView, History, Shuffle, Sort, SortByAlpha, ViewSidebar, Visibility } from '@mui/icons-material';
+import { Collections as CollectionsIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Box,
@@ -8,10 +8,6 @@ import {
     Collapse,
     Container,
     Grid,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    MenuItem,
     Pagination,
     ToggleButton,
     ToggleButtonGroup,
@@ -24,11 +20,13 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import AuthorsList from '../components/AuthorsList';
 import CollectionCard from '../components/CollectionCard';
 import Collections from '../components/Collections';
+import SortControl from '../components/SortControl';
 import TagsList from '../components/TagsList';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useVideoSort } from '../hooks/useVideoSort';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -55,13 +53,7 @@ const Home: React.FC = () => {
         return (saved as 'collections' | 'all-videos' | 'history') || 'all-videos';
     });
 
-    // Initialize sort option from URL or default
-    const sortOptionP = searchParams.get('sort') || 'dateDesc';
-    const seedP = parseInt(searchParams.get('seed') || '0', 10);
 
-    const [sortOption, setSortOption] = useState<string>(sortOptionP);
-    const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
-    const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
     const [infiniteScroll, setInfiniteScroll] = useState(false);
@@ -131,13 +123,7 @@ const Home: React.FC = () => {
         [gridProps]
     );
 
-    // Sync state with URL params
-    useEffect(() => {
-        const currentSort = searchParams.get('sort') || 'dateDesc';
-        const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
-        setSortOption(currentSort);
-        setShuffleSeed(currentSeed);
-    }, [searchParams]);
+
 
     // Fetch settings on mount
     useEffect(() => {
@@ -195,10 +181,8 @@ const Home: React.FC = () => {
         }
     }, [selectedTags, setSearchParams]);
 
-
     // Add default empty array to ensure videos is always an array
     const videoArray = Array.isArray(videos) ? videos : [];
-
 
     // Filter videos based on view mode
     const filteredVideos = useMemo(() => {
@@ -248,37 +232,23 @@ const Home: React.FC = () => {
         });
     }, [viewMode, videoArray, selectedTags, collections]);
 
-    const sortedVideos = useMemo(() => {
-        const result = [...filteredVideos];
-        switch (sortOption) {
-            case 'dateDesc':
-                return result.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
-            case 'dateAsc':
-                return result.sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
-            case 'viewsDesc':
-                return result.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-            case 'viewsAsc':
-                return result.sort((a, b) => (a.viewCount || 0) - (b.viewCount || 0));
-            case 'nameAsc':
-                return result.sort((a, b) => a.title.localeCompare(b.title));
-            case 'random':
-                // Use a seeded predictable random sort
-                return result.map(v => {
-                    // Simple hash function for stability with seed
-                    let h = 0x811c9dc5;
-                    const s = v.id + shuffleSeed;
-                    for (let i = 0; i < s.length; i++) {
-                        h ^= s.charCodeAt(i);
-                        h = Math.imul(h, 0x01000193);
-                    }
-                    return { v, score: h >>> 0 };
-                })
-                    .sort((a, b) => a.score - b.score)
-                    .map(item => item.v);
-            default:
-                return result;
+    // Use the custom hook for sorting
+    const {
+        sortedVideos,
+        sortOption,
+        sortAnchorEl,
+        handleSortClick,
+        handleSortClose
+    } = useVideoSort({
+        videos: filteredVideos,
+        onSortChange: () => {
+            setSearchParams((prev: URLSearchParams) => {
+                const newParams = new URLSearchParams(prev);
+                newParams.set('page', '1');
+                return newParams;
+            });
         }
-    }, [filteredVideos, sortOption, shuffleSeed]);
+    });
 
     // Pagination logic
     const totalPages = Math.ceil(sortedVideos.length / itemsPerPage);
@@ -377,30 +347,7 @@ const Home: React.FC = () => {
         });
     };
 
-    const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setSortAnchorEl(event.currentTarget);
-    };
 
-    const handleSortClose = (option?: string) => {
-        if (option) {
-            setSearchParams((prev: URLSearchParams) => {
-                const newParams = new URLSearchParams(prev);
-                newParams.set('page', '1');
-
-                if (option === 'random') {
-                    newParams.set('sort', 'random');
-                    // Always generate a new seed when clicking 'random'
-                    const newSeed = Math.floor(Math.random() * 1000000);
-                    newParams.set('seed', newSeed.toString());
-                } else {
-                    newParams.set('sort', option);
-                    newParams.delete('seed');
-                }
-                return newParams;
-            });
-        }
-        setSortAnchorEl(null);
-    };
 
 
     // Regular home view (not in search mode)
@@ -511,64 +458,12 @@ const Home: React.FC = () => {
                                     </ToggleButton>
                                 </ToggleButtonGroup>
 
-                                <Button
-                                    variant="outlined"
-                                    onClick={handleSortClick}
-                                    size="small"
-                                    sx={{
-                                        minWidth: 'auto',
-                                        px: { xs: 1, md: 2 },
-                                        color: 'text.secondary',
-                                        borderColor: 'text.secondary'
-                                    }}
-                                >
-                                    <Sort fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
-                                    <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                                        {t('sort')}
-                                    </Box>
-                                </Button>
-                                <Menu
-                                    anchorEl={sortAnchorEl}
-                                    open={Boolean(sortAnchorEl)}
-                                    onClose={() => handleSortClose()}
-                                >
-                                    <MenuItem onClick={() => handleSortClose('dateDesc')} selected={sortOption === 'dateDesc'}>
-                                        <ListItemIcon>
-                                            <AccessTime fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('dateDesc')}</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleSortClose('dateAsc')} selected={sortOption === 'dateAsc'}>
-                                        <ListItemIcon>
-                                            <AccessTime fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('dateAsc')}</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleSortClose('viewsDesc')} selected={sortOption === 'viewsDesc'}>
-                                        <ListItemIcon>
-                                            <Visibility fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('viewsDesc')}</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleSortClose('viewsAsc')} selected={sortOption === 'viewsAsc'}>
-                                        <ListItemIcon>
-                                            <Visibility fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('viewsAsc')}</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleSortClose('nameAsc')} selected={sortOption === 'nameAsc'}>
-                                        <ListItemIcon>
-                                            <SortByAlpha fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('nameAsc')}</ListItemText>
-                                    </MenuItem>
-                                    <MenuItem onClick={() => handleSortClose('random')} selected={sortOption === 'random'}>
-                                        <ListItemIcon>
-                                            <Shuffle fontSize="small" />
-                                        </ListItemIcon>
-                                        <ListItemText>{t('random')}</ListItemText>
-                                    </MenuItem>
-                                </Menu>
+                                <SortControl
+                                    sortOption={sortOption}
+                                    sortAnchorEl={sortAnchorEl}
+                                    onSortClick={handleSortClick}
+                                    onSortClose={handleSortClose}
+                                />
                             </Box>
                         </Box>
                         {viewMode === 'collections' && displayedVideos.length === 0 ? (

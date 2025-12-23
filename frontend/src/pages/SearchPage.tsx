@@ -12,8 +12,9 @@ import {
     Grid,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useDownload } from '../contexts/DownloadContext';
@@ -36,8 +37,16 @@ const SearchPage: React.FC = () => {
     } = useVideo();
     const { collections } = useCollection();
     const { handleVideoSubmit } = useDownload();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+    // Initialize sort option from URL or default
+    const sortOptionP = searchParams.get('sort') || 'dateDesc';
+    const seedP = parseInt(searchParams.get('seed') || '0', 10);
+
+    const [sortOption, setSortOption] = useState<string>(sortOptionP);
+    const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
+    const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
 
     const query = searchParams.get('q');
 
@@ -46,6 +55,37 @@ const SearchPage: React.FC = () => {
             handleSearch(query);
         }
     }, [query, contextSearchTerm, handleSearch]);
+
+    useEffect(() => {
+        const currentSort = searchParams.get('sort') || 'dateDesc';
+        const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
+        setSortOption(currentSort);
+        setShuffleSeed(currentSeed);
+    }, [searchParams]);
+
+    const handleSortClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setSortAnchorEl(event.currentTarget);
+    };
+
+    const handleSortClose = (option?: string) => {
+        if (option) {
+            setSearchParams((prev: URLSearchParams) => {
+                const newParams = new URLSearchParams(prev);
+
+                if (option === 'random') {
+                    newParams.set('sort', 'random');
+                    // Always generate a new seed when clicking 'random'
+                    const newSeed = Math.floor(Math.random() * 1000000);
+                    newParams.set('seed', newSeed.toString());
+                } else {
+                    newParams.set('sort', option);
+                    newParams.delete('seed');
+                }
+                return newParams;
+            });
+        }
+        setSortAnchorEl(null);
+    };
 
     const handleDownload = async (videoId: string, url: string) => {
         try {
@@ -70,6 +110,39 @@ const SearchPage: React.FC = () => {
     const hasLocalResults = localSearchResults && localSearchResults.length > 0;
     const hasYouTubeResults = searchResults && searchResults.length > 0;
 
+    const sortedLocalSearchResults = useMemo(() => {
+        if (!localSearchResults) return [];
+        const result = [...localSearchResults];
+        switch (sortOption) {
+            case 'dateDesc':
+                return result.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
+            case 'dateAsc':
+                return result.sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
+            case 'viewsDesc':
+                return result.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+            case 'viewsAsc':
+                return result.sort((a, b) => (a.viewCount || 0) - (b.viewCount || 0));
+            case 'nameAsc':
+                return result.sort((a, b) => a.title.localeCompare(b.title));
+            case 'random':
+                // Use a seeded predictable random sort
+                return result.map(v => {
+                    // Simple hash function for stability with seed
+                    let h = 0x811c9dc5;
+                    const s = v.id + shuffleSeed;
+                    for (let i = 0; i < s.length; i++) {
+                        h ^= s.charCodeAt(i);
+                        h = Math.imul(h, 0x01000193);
+                    }
+                    return { v, score: h >>> 0 };
+                })
+                    .sort((a, b) => a.score - b.score)
+                    .map(item => item.v);
+            default:
+                return result;
+        }
+    }, [localSearchResults, sortOption, shuffleSeed]);
+
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -80,12 +153,24 @@ const SearchPage: React.FC = () => {
 
             {/* Local Video Results */}
             <Box sx={{ mb: 6 }}>
-                <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, color: 'primary.main' }}>
-                    {t('fromYourLibrary')}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                        {t('fromYourLibrary')}
+                    </Typography>
+
+                    {hasLocalResults && (
+                        <SortControl
+                            sortOption={sortOption}
+                            sortAnchorEl={sortAnchorEl}
+                            onSortClick={handleSortClick}
+                            onSortClose={handleSortClose}
+                        />
+                    )}
+                </Box>
+
                 {hasLocalResults ? (
                     <Grid container spacing={3}>
-                        {localSearchResults.map((video) => (
+                        {sortedLocalSearchResults.map((video) => (
                             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
                                 <VideoCard
                                     video={video}
