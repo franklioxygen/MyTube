@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.6.34 (2025-12-22)
+
+### Feat
+
+- feat: Add infinite scroll and video columns settings (fefe603)
+
+### Style
+
+- style: Update paths in comments and documentation (54537b8)
+
 ## v1.6.33 (2025-12-22)
 
 ### Style
