@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.39 (2025-12-23)
+
+### Feat
+
+- feat: Add deleteVideos function in VideoContext (faf09f4)
+
 ## v1.6.38 (2025-12-23)
 
 ### Feat
