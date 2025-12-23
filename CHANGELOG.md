@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.38 (2025-12-23)
+
+### Feat
+
+- feat: Implement SortControl component for sorting videos (f2cd4c8)
+- feat: Update deleteVideo function signature (1712a0b)
+
 ## v1.6.37 (2025-12-23)
 
 ### Refactor
