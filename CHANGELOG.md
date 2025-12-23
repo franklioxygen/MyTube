@@ -1,5 +1,24 @@
 # Change Log
 
+## v1.6.41 (2025-12-23)
+
+### Feat
+
+- feat: Add "Download all previous videos" option when subscribing to authors
+- feat: Add continuous download tasks for downloading all previous videos from subscribed authors
+- feat: Add task management UI in SubscriptionsPage with progress tracking, cancel, and delete functionality
+- feat: Add translations for continuous download tasks in all supported languages
+
+### Fix
+
+- fix: Fix subscription disappearing issue by adding race condition protection and verification before updates
+- fix: Improve subscription update logic to prevent concurrent processing and silent failures
+
+### Refactor
+
+- refactor: Update subscription service to update lastCheck before download to prevent concurrent processing
+- refactor: Improve error handling and logging in subscription check process
+
 ## v1.6.40 (2025-12-23)
 
 ### Refactor
