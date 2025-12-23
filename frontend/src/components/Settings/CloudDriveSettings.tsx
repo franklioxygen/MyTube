@@ -87,7 +87,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         const lines = paths.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         for (const line of lines) {
             if (!line.startsWith('/')) {
-                return 'Each path should start with / (e.g., /a/电影)';
+                return 'Each path should start with / (e.g., /a/movies)';
             }
         }
         return null;

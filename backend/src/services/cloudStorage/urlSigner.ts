@@ -4,9 +4,14 @@
 
 import path from "path";
 import { logger } from "../../utils/logger";
-import { CloudDriveConfig, CachedSignedUrl, FileUrlsResult, FileType } from "./types";
 import { getFileList } from "./fileLister";
 import { normalizeUploadPath } from "./pathUtils";
+import {
+  CachedSignedUrl,
+  CloudDriveConfig,
+  FileType,
+  FileUrlsResult,
+} from "./types";
 
 // Cache for signed URLs: key is "filename:type", value is cached URL with expiration
 const signedUrlCache = new Map<string, CachedSignedUrl>();
@@ -39,20 +44,48 @@ async function getFileUrlsWithSign(
     const domain = config.publicUrl || apiBaseUrl;
 
     // Helper to find file in its directory
+    // fullRelativePath can be:
+    // - "video.mp4" (in uploadPath root)
+    // - "subdir/video.mp4" (in uploadPath/subdir)
+    // - "a/movies/video.mp4" (in scanPath /a/movies, not in uploadPath)
     const findFileInDir = async (fullRelativePath: string): Promise<any> => {
-      // fullRelativePath is e.g. "subdir/video.mp4" or "video.mp4"
       const dirName = path.dirname(fullRelativePath);
       const fileName = path.basename(fullRelativePath);
 
-      // Determine the full path to list
-      // If dirName is ".", lookup path is just baseUploadPath
-      // If dirName is "subdir", lookup path is baseUploadPath/subdir
-      let listPath = baseUploadPath;
-      if (dirName !== ".") {
-        const normalizedDir = dirName.replace(/\\/g, "/");
-        listPath = baseUploadPath.endsWith("/")
-          ? `${baseUploadPath}${normalizedDir}`
-          : `${baseUploadPath}/${normalizedDir}`;
+      // Check if this path might be from a scan path (not in uploadPath)
+      // If the path contains multiple levels and doesn't start with uploadPath, it might be from scanPaths
+      const absolutePath = fullRelativePath.startsWith("/")
+        ? fullRelativePath
+        : "/" + fullRelativePath;
+      const absoluteUploadRoot = baseUploadPath.startsWith("/")
+        ? baseUploadPath
+        : "/" + baseUploadPath;
+
+      let listPath: string;
+
+      if (absolutePath.startsWith(absoluteUploadRoot)) {
+        // File is in uploadPath - use relative path from uploadPath
+        if (dirName === ".") {
+          listPath = baseUploadPath;
+        } else {
+          const normalizedDir = dirName.replace(/\\/g, "/");
+          listPath = baseUploadPath.endsWith("/")
+            ? `${baseUploadPath}${normalizedDir}`
+            : `${baseUploadPath}/${normalizedDir}`;
+        }
+      } else {
+        // File is NOT in uploadPath - must be from a scanPath
+        // Use the full absolute path (directory of the file)
+        if (dirName === ".") {
+          // This shouldn't happen for scan paths, but handle it
+          listPath = absolutePath.substring(1); // Remove leading slash
+        } else {
+          // Construct absolute directory path
+          const absoluteDirPath = dirName.startsWith("/")
+            ? dirName
+            : "/" + dirName;
+          listPath = absoluteDirPath;
+        }
       }
 
       const files = await getFileList(config, listPath);
@@ -69,19 +102,30 @@ async function getFileUrlsWithSign(
         // If videoFilename is "subdir/video.mp4", the path in URL should include /subdir/
         // The Alist pattern seems to be /d/mount_path/subdir/filename
 
-        // Let's ensure proper path concatenation
-        const relativeDirObj = path.parse(videoFilename);
-        const relativeDir = relativeDirObj.dir; // "subdir" or ""
-        const name = relativeDirObj.base; // "video.mp4"
+        // Construct full web path for URL
+        // videoFilename can be "video.mp4", "subdir/video.mp4", or "a/movies/video.mp4"
+        const absolutePath = videoFilename.startsWith("/")
+          ? videoFilename
+          : "/" + videoFilename;
+        const absoluteUploadRoot = baseUploadPath.startsWith("/")
+          ? baseUploadPath
+          : "/" + baseUploadPath;
 
-        let fullWebPathLines = [baseUploadPath];
-        if (relativeDir && relativeDir !== ".") {
-          fullWebPathLines.push(relativeDir.replace(/\\/g, "/"));
+        let fullWebPath: string;
+        if (absolutePath.startsWith(absoluteUploadRoot)) {
+          // In uploadPath - use relative path from uploadPath
+          const relativePath = path
+            .relative(absoluteUploadRoot, absolutePath)
+            .replace(/\\/g, "/");
+          fullWebPath = baseUploadPath.endsWith("/")
+            ? `${baseUploadPath}${relativePath}`
+            : `${baseUploadPath}/${relativePath}`;
+        } else {
+          // Not in uploadPath - use absolute path directly
+          fullWebPath = absolutePath;
         }
-        fullWebPathLines.push(name);
-
-        // Join and cleanup double slashes
-        const fullWebPath = fullWebPathLines.join("/").replace(/\/+/g, "/");
+        // Cleanup double slashes
+        fullWebPath = fullWebPath.replace(/\/+/g, "/");
 
         result.videoUrl = `${domain}/d${fullWebPath}?sign=${encodeURIComponent(
           videoFile.sign
@@ -94,17 +138,30 @@ async function getFileUrlsWithSign(
       const thumbnailFile = await findFileInDir(thumbnailFilename);
 
       if (thumbnailFile) {
-        // Construct full path for URL same as video
-        const relativeDirObj = path.parse(thumbnailFilename);
-        const relativeDir = relativeDirObj.dir;
-        const name = relativeDirObj.base;
+        // Construct full web path for URL (same logic as video)
+        // thumbnailFilename can be "video.jpg", "subdir/video.jpg", or "a/movies/video.jpg"
+        const absoluteThumbPath = thumbnailFilename.startsWith("/")
+          ? thumbnailFilename
+          : "/" + thumbnailFilename;
+        const absoluteUploadRoot = baseUploadPath.startsWith("/")
+          ? baseUploadPath
+          : "/" + baseUploadPath;
 
-        let fullWebPathLines = [baseUploadPath];
-        if (relativeDir && relativeDir !== ".") {
-          fullWebPathLines.push(relativeDir.replace(/\\/g, "/"));
+        let fullWebPath: string;
+        if (absoluteThumbPath.startsWith(absoluteUploadRoot)) {
+          // In uploadPath - use relative path from uploadPath
+          const relativePath = path
+            .relative(absoluteUploadRoot, absoluteThumbPath)
+            .replace(/\\/g, "/");
+          fullWebPath = baseUploadPath.endsWith("/")
+            ? `${baseUploadPath}${relativePath}`
+            : `${baseUploadPath}/${relativePath}`;
+        } else {
+          // Not in uploadPath - use absolute path directly
+          fullWebPath = absoluteThumbPath;
         }
-        fullWebPathLines.push(name);
-        const fullWebPath = fullWebPathLines.join("/").replace(/\/+/g, "/");
+        // Cleanup double slashes
+        fullWebPath = fullWebPath.replace(/\/+/g, "/");
 
         // Prefer file URL with sign if available
         if (thumbnailFile.sign) {
@@ -279,4 +336,3 @@ export function clearSignedUrlCache(
     logger.debug("[CloudStorage] Cleared all signed URL caches");
   }
 }
-

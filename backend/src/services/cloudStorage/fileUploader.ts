@@ -97,7 +97,7 @@ export async function uploadFile(
     // If it's an absolute path, use it directly; otherwise, append to uploadPath
     const normalizedRemotePath = remotePath.replace(/\\/g, "/");
     if (normalizedRemotePath.startsWith("/")) {
-      // Absolute path - use it directly (e.g., /a/电影/video/thumbnail.jpg)
+      // Absolute path - use it directly (e.g., /a/movies/video/thumbnail.jpg)
       destinationPath = normalizedRemotePath;
     } else {
       // Relative path - append to uploadPath (e.g., "subdir/file.jpg" -> "/mytube-uploads/subdir/file.jpg")

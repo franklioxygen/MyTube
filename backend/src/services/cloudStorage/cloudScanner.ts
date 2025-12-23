@@ -201,7 +201,7 @@ export async function scanCloudFiles(
         );
 
         // Determine remote thumbnail path (put it in the same folder as video)
-        // filePath is the full absolute path (e.g., /a/电影/video/1.mp4)
+        // filePath is the full absolute path (e.g., /a/movies/video/1.mp4)
         // We want to put the thumbnail in the same directory as the video
 
         // 1. Normalize filePath to ensure it's an absolute path
@@ -261,7 +261,7 @@ export async function scanCloudFiles(
         }
 
         // Upload thumbnail to cloud storage (with correct filename and location)
-        // remoteThumbnailPath is a full absolute path (e.g., /a/电影/video/thumbnail.jpg)
+        // remoteThumbnailPath is a full absolute path (e.g., /a/movies/video/thumbnail.jpg)
         // uploadFile now supports absolute paths, so we can pass it directly
         if (fs.existsSync(tempThumbnailPath)) {
           await uploadFile(tempThumbnailPath, config, remoteThumbnailPath);
@@ -304,7 +304,7 @@ export async function scanCloudFiles(
         ).toString();
 
         // relativeVideoPath was already calculated above
-        // For scan paths: full path without leading slash (e.g., "a/电影/video/1.mp4")
+        // For scan paths: full path without leading slash (e.g., "a/movies/video/1.mp4")
         // For upload path: relative path (e.g., "video/1.mp4")
 
         // For thumbnail path, store without leading slash to match video path format
@@ -319,7 +319,7 @@ export async function scanCloudFiles(
           source: "cloud",
           sourceUrl: "",
           videoFilename: filename, // Keep original filename
-          // Store path relative to root (e.g., "a/电影/video/1.mp4" or "video/1.mp4")
+          // Store path relative to root (e.g., "a/movies/video/1.mp4" or "video/1.mp4")
           videoPath: `cloud:${relativeVideoPath}`,
           thumbnailFilename: newThumbnailFilename,
           thumbnailPath: `cloud:${relativeThumbnailPath}`, // Store path without leading slash

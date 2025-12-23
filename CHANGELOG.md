@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.33 (2025-12-22)
+
+### Style
+
+- style: Update Discord invite link in README files (6e4a4f5)
+
 ## v1.6.32 (2025-12-22)
 
 ### Chore
