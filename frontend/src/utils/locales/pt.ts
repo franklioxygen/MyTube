@@ -162,6 +162,7 @@ export const pt = {
   scanPathsHelper: "Um caminho por linha. Os vídeos serão verificados a partir desses caminhos. Se vazio, usará o caminho de upload. Exemplo:\n/a/Filmes\n/b/Documentários",
   cloudDriveNote:
     "Após habilitar este recurso, os vídeos recém-baixados serão automaticamente enviados para o armazenamento em nuvem e os arquivos locais serão excluídos. Os vídeos serão reproduzidos do armazenamento em nuvem via proxy.",
+  cloudScanAdded: "Adicionado da nuvem",
   testing: "Testando...",
   testConnection: "Testar Conexão",
   sync: "Sincronizar",

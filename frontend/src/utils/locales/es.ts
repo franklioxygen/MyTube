@@ -167,6 +167,7 @@ export const es = {
   scanPathsHelper: "Una ruta por línea. Se escanearán videos de estas rutas. Si está vacío, se usará la ruta de carga. Ejemplo:\n/a/Peliculas\n/b/Documentales",
   cloudDriveNote:
     "Después de habilitar esta función, los videos recién descargados se subirán automáticamente al almacenamiento en la nube y se eliminarán los archivos locales. Los videos se reproducirán desde el almacenamiento en la nube a través de un proxy.",
+  cloudScanAdded: "Añadido desde la nube",
   testing: "Probando...",
   testConnection: "Probar Conexión",
   sync: "Sincronizar",

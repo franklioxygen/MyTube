@@ -171,6 +171,7 @@ export const fr = {
     "Un chemin par ligne. Les vidéos seront analysées à partir de ces chemins. Si vide, le chemin de téléchargement sera utilisé. Exemple :\n/a/Films\n/b/Documentaires",
   cloudDriveNote:
     "Après avoir activé cette fonctionnalité, les vidéos nouvellement téléchargées seront automatiquement téléchargées vers le stockage cloud et les fichiers locaux seront supprimés. Les vidéos seront lues depuis le stockage cloud via un proxy.",
+  cloudScanAdded: "Ajouté depuis le cloud",
   testing: "Test en cours...",
   testConnection: "Tester la connexion",
   sync: "Synchroniser",

@@ -234,6 +234,7 @@ export const syncToCloud = async (
         uploaded,
         skipped,
         failed,
+        cloudScanAdded, // Add count of videos added from cloud scan
         errors: [...errors, ...cloudScanErrors],
       },
       message: `Two-way sync completed: ${uploaded} uploaded, ${cloudScanAdded} added from cloud, ${failed} failed`,

@@ -153,6 +153,7 @@ export const de = {
   scanPathsHelper: "Ein Pfad pro Zeile. Videos werden von diesen Pfaden gescannt. Wenn leer, wird der Upload-Pfad verwendet. Beispiel:\n/a/Filme\n/b/Dokumentationen",
   cloudDriveNote:
     "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
+  cloudScanAdded: "Aus Cloud hinzugefügt",
   testing: "Teste...",
   testConnection: "Verbindung testen",
   sync: "Synchronisieren",

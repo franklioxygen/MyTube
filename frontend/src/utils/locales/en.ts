@@ -157,6 +157,7 @@ export const en = {
     "One path per line. Videos will be scanned from these paths. If empty, will use upload path. Example:\n/a/Movies\n/b/Documentaries",
   cloudDriveNote:
     "After enabling this feature, newly downloaded videos will be automatically uploaded to cloud storage and local files will be deleted. Videos will be played from cloud storage via proxy.",
+  cloudScanAdded: "Added from cloud",
   testing: "Testing...",
   testConnection: "Test Connection",
   sync: "Sync",

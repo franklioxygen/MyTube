@@ -129,8 +129,7 @@ export async function scanCloudFiles(
           return false;
       }
 
-      // Also check by filename (for backward compatibility)
-      return !existingFilenames.has(file.name);
+      return true;
     });
 
     logger.info(

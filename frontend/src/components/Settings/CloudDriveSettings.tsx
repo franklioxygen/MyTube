@@ -21,6 +21,7 @@ interface SyncProgress {
         uploaded: number;
         skipped: number;
         failed: number;
+        cloudScanAdded?: number; // Count of videos added from cloud scan
         errors: string[];
     };
 }
@@ -398,11 +399,22 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                                 {t('syncCompleted')}
                             </Typography>
                             <Typography variant="body2">
-                                {t('syncReport', {
-                                    total: syncProgress.report.total,
-                                    uploaded: syncProgress.report.uploaded,
-                                    failed: syncProgress.report.failed
-                                })}
+                                {syncProgress.report.cloudScanAdded !== undefined && syncProgress.report.cloudScanAdded > 0 ? (
+                                    <>
+                                        {t('syncReport', {
+                                            total: syncProgress.report.total + syncProgress.report.cloudScanAdded,
+                                            uploaded: syncProgress.report.uploaded,
+                                            failed: syncProgress.report.failed
+                                        })}
+                                        <span> | {t('cloudScanAdded')}: {syncProgress.report.cloudScanAdded}</span>
+                                    </>
+                                ) : (
+                                    t('syncReport', {
+                                        total: syncProgress.report.total,
+                                        uploaded: syncProgress.report.uploaded,
+                                        failed: syncProgress.report.failed
+                                    })
+                                )}
                             </Typography>
                             {syncProgress.report.errors.length > 0 && (
                                 <Box sx={{ mt: 1 }}>
