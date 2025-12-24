@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.6.43 (2025-12-24)
+
+### Feat
+
+- feat: Add count of videos added from cloud scan (7af272a)
+
+### Refactor
+
+- refactor: Update VideoCard and VideoActionButtons to use async/await for getVideoUrl function (853e7a5)
+
 ## v1.6.42 (2025-12-23)
 
 ### Feat
