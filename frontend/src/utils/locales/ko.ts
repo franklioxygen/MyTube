@@ -121,6 +121,7 @@ export const ko = {
   showYoutubeSearch: "YouTube 검색 결과 표시",
   visitorMode: "방문자 모드 (읽기 전용)",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
+  visitorModeDescription: "읽기 전용 모드. 숨겨진 동영상은 방문자에게 표시되지 않습니다.",
   visitorModePasswordPrompt: "방문자 모드 설정을 변경하려면 웹사이트 비밀번호를 입력하세요.",
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
@@ -244,6 +245,9 @@ export const ko = {
   exitFullscreen: "전체 화면 종료",
   share: "공유",
   editTitle: "제목 편집",
+  hideVideo: "방문자 모드에서 동영상 숨기기",
+  showVideo: "방문자 모드에서 동영상 표시",
+  toggleVisibility: "표시 여부 전환",
   titleUpdated: "제목이 성공적으로 업데이트됨",
   titleUpdateFailed: "제목 업데이트 실패",
   refreshThumbnail: "썸네일 새로고침",
@@ -426,8 +430,6 @@ export const ko = {
   deleteTask: "작업 삭제",
   confirmDeleteTask: "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   taskDeleted: "작업이 성공적으로 삭제되었습니다",
-  minutes: "분",
-  never: "없음",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc:

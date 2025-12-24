@@ -50,6 +50,13 @@
       "when": 1766528513707,
       "tag": "0006_bright_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1766548244908,
+      "tag": "0007_broad_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }

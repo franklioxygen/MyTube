@@ -128,7 +128,10 @@ export const fr = {
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",
   visitorMode: "Mode Visiteur (Lecture seule)",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
-  visitorModePasswordPrompt: "Veuillez entrer le mot de passe du site web pour modifier les paramètres du mode visiteur.",
+  visitorModeDescription:
+    "Mode lecture seule. Les vidéos masquées ne seront pas visibles pour les visiteurs.",
+  visitorModePasswordPrompt:
+    "Veuillez entrer le mot de passe du site web pour modifier les paramètres du mode visiteur.",
   cleanupTempFilesSuccess:
     "{count} fichier(s) temporaire(s) supprimé(s) avec succès.",
   cleanupTempFilesFailed: "Échec du nettoyage des fichiers temporaires",
@@ -158,32 +161,39 @@ export const fr = {
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
   token: "Jeton (Token)",
   publicUrl: "URL Publique",
-  publicUrlHelper: "Domaine public pour accéder aux fichiers (ex. https://your-cloudflare-tunnel-domain.com). S'il est défini, il sera utilisé à la place de l'URL de l'API pour accéder aux fichiers.",
+  publicUrlHelper:
+    "Domaine public pour accéder aux fichiers (ex. https://your-cloudflare-tunnel-domain.com). S'il est défini, il sera utilisé à la place de l'URL de l'API pour accéder aux fichiers.",
   uploadPath: "Chemin de téléchargement",
   cloudDrivePathHelper:
     "Chemin du répertoire dans le cloud, ex. /mytube-uploads",
   scanPaths: "Chemins d'analyse",
-  scanPathsHelper: "Un chemin par ligne. Les vidéos seront analysées à partir de ces chemins. Si vide, le chemin de téléchargement sera utilisé. Exemple :\n/a/Films\n/b/Documentaires",
+  scanPathsHelper:
+    "Un chemin par ligne. Les vidéos seront analysées à partir de ces chemins. Si vide, le chemin de téléchargement sera utilisé. Exemple :\n/a/Films\n/b/Documentaires",
   cloudDriveNote:
     "Après avoir activé cette fonctionnalité, les vidéos nouvellement téléchargées seront automatiquement téléchargées vers le stockage cloud et les fichiers locaux seront supprimés. Les vidéos seront lues depuis le stockage cloud via un proxy.",
   testing: "Test en cours...",
   testConnection: "Tester la connexion",
   sync: "Synchroniser",
   syncToCloud: "Synchronisation bidirectionnelle",
-  syncWarning: "Cette opération téléchargera les vidéos locales vers le cloud et recherchera les nouveaux fichiers dans le stockage cloud. Les fichiers locaux seront supprimés après le téléchargement.",
+  syncWarning:
+    "Cette opération téléchargera les vidéos locales vers le cloud et recherchera les nouveaux fichiers dans le stockage cloud. Les fichiers locaux seront supprimés après le téléchargement.",
   syncing: "Synchronisation...",
   syncCompleted: "Synchronisation Terminée",
   syncFailed: "Échec de la Synchronisation",
   syncReport: "Total : {total} | Téléchargés : {uploaded} | Échoués : {failed}",
   syncErrors: "Erreurs :",
   fillApiUrlToken: "Veuillez d'abord remplir l'URL de l'API et le jeton",
-  connectionTestSuccess: "Test de connexion réussi ! Les paramètres sont valides.",
-  connectionFailedStatus: "Échec de la connexion : Le serveur a renvoyé le statut {status}",
-  connectionFailedUrl: "Impossible de se connecter au serveur. Veuillez vérifier l'URL de l'API.",
+  connectionTestSuccess:
+    "Test de connexion réussi ! Les paramètres sont valides.",
+  connectionFailedStatus:
+    "Échec de la connexion : Le serveur a renvoyé le statut {status}",
+  connectionFailedUrl:
+    "Impossible de se connecter au serveur. Veuillez vérifier l'URL de l'API.",
   authFailed: "Échec de l'authentification. Veuillez vérifier votre jeton.",
   connectionTestFailed: "Échec du test de connexion : {error}",
   syncFailedMessage: "Échec de la synchronisation. Veuillez réessayer.",
-  foundVideosToSync: "{count} vidéos avec des fichiers locaux à synchroniser trouvées",
+  foundVideosToSync:
+    "{count} vidéos avec des fichiers locaux à synchroniser trouvées",
   uploadingVideo: "Téléversement : {title}",
 
   // Manage
@@ -263,6 +273,9 @@ export const fr = {
   exitFullscreen: "Quitter le plein écran",
   share: "Partager",
   editTitle: "Modifier le titre",
+  hideVideo: "Rendre la vidéo cachée pour le mode visiteur",
+  showVideo: "Rendre la vidéo visible pour le mode visiteur",
+  toggleVisibility: "Basculer la visibilité",
   titleUpdated: "Titre mis à jour avec succès",
   titleUpdateFailed: "Échec de la mise à jour du titre",
   thumbnailRefreshed: "Miniature actualisée avec succès",
@@ -279,7 +292,8 @@ export const fr = {
   openInExternalPlayer: "Ouvrir dans un lecteur externe",
   playWith: "Lire avec...",
   deleteAllFilteredVideos: "Supprimer toutes les vidéos filtrées",
-  confirmDeleteFilteredVideos: "Êtes-vous sûr de vouloir supprimer {count} vidéos filtrées par les tags sélectionnés ?",
+  confirmDeleteFilteredVideos:
+    "Êtes-vous sûr de vouloir supprimer {count} vidéos filtrées par les tags sélectionnés ?",
   deleteFilteredVideosSuccess: "{count} vidéos supprimées avec succès.",
   deletingVideos: "Suppression des vidéos...",
 
@@ -318,7 +332,8 @@ export const fr = {
   unknownAuthor: "Inconnu",
   noVideosForAuthor: "Aucune vidéo trouvée pour cet auteur.",
   deleteAuthor: "Supprimer l'auteur",
-  deleteAuthorConfirmation: "Êtes-vous sûr de vouloir supprimer l'auteur {author} ? Cela supprimera toutes les vidéos associées à cet auteur.",
+  deleteAuthorConfirmation:
+    "Êtes-vous sûr de vouloir supprimer l'auteur {author} ? Cela supprimera toutes les vidéos associées à cet auteur.",
   authorDeletedSuccessfully: "Auteur supprimé avec succès",
   failedToDeleteAuthor: "Échec de la suppression de l'auteur",
 
@@ -429,7 +444,8 @@ export const fr = {
   subscriptionAlreadyExists: "Vous êtes déjà abonné à cet auteur.",
   minutes: "minutes",
   never: "Jamais",
-  downloadAllPreviousVideos: "Télécharger toutes les vidéos précédentes de cet auteur",
+  downloadAllPreviousVideos:
+    "Télécharger toutes les vidéos précédentes de cet auteur",
   downloadAllPreviousWarning:
     "Avertissement : Cela téléchargera toutes les vidéos précédentes de cet auteur. Cela peut consommer un espace de stockage important et pourrait déclencher des mécanismes de détection de bots qui peuvent entraîner des interdictions temporaires ou permanentes de la plateforme. Utilisez à vos propres risques.",
   continuousDownloadTasks: "Tâches de téléchargement continu",
@@ -439,14 +455,13 @@ export const fr = {
   taskStatusCancelled: "Annulé",
   downloaded: "Téléchargé",
   cancelTask: "Annuler la tâche",
-  confirmCancelTask: "Êtes-vous sûr de vouloir annuler la tâche de téléchargement pour {author} ?",
+  confirmCancelTask:
+    "Êtes-vous sûr de vouloir annuler la tâche de téléchargement pour {author} ?",
   taskCancelled: "Tâche annulée avec succès",
   deleteTask: "Supprimer la tâche",
-  confirmDeleteTask: "Êtes-vous sûr de vouloir supprimer l'enregistrement de tâche pour {author} ? Cette action ne peut pas être annulée.",
+  confirmDeleteTask:
+    "Êtes-vous sûr de vouloir supprimer l'enregistrement de tâche pour {author} ? Cette action ne peut pas être annulée.",
   taskDeleted: "Tâche supprimée avec succès",
-  subscriptionAlreadyExists: "Vous êtes déjà abonné à cet auteur.",
-  minutes: "minutes",
-  never: "Jamais",
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
   instructionSection1Desc:

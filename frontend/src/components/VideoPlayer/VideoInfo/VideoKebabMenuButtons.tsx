@@ -1,4 +1,4 @@
-import { Add, Cast, Delete, MoreVert, Share } from '@mui/icons-material';
+import { Add, Cast, Delete, MoreVert, Share, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Button, IconButton, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -10,6 +10,8 @@ interface VideoKebabMenuButtonsProps {
     onAddToCollection: () => void;
     onDelete?: () => void;
     isDeleting?: boolean;
+    onToggleVisibility?: () => void;
+    video?: { visibility?: number };
     sx?: any;
 }
 
@@ -19,6 +21,8 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     onAddToCollection,
     onDelete,
     isDeleting = false,
+    onToggleVisibility,
+    video,
     sx
 }) => {
     const { t } = useLanguage();
@@ -57,6 +61,11 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     const handleDelete = () => {
         handleKebabMenuClose();
         if (onDelete) onDelete();
+    };
+
+    const handleToggleVisibility = () => {
+        handleKebabMenuClose();
+        if (onToggleVisibility) onToggleVisibility();
     };
 
     // Close menu on scroll
@@ -133,6 +142,18 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                     </Tooltip>
                     {!visitorMode && (
                         <>
+                            {onToggleVisibility && (
+                                <Tooltip title={video?.visibility === 0 ? t('showVideo') : t('hideVideo')} disableHoverListener={isTouch}>
+                                    <Button
+                                        variant="outlined"
+                                        color="inherit"
+                                        onClick={handleToggleVisibility}
+                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                                    >
+                                        {video?.visibility === 0 ? <Visibility /> : <VisibilityOff />}
+                                    </Button>
+                                </Tooltip>
+                            )}
                             <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                                 <Button
                                     variant="outlined"

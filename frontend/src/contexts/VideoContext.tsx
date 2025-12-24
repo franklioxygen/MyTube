@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
+import { useVisitorMode } from './VisitorModeContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -48,9 +49,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
     const queryClient = useQueryClient();
+    const { visitorMode } = useVisitorMode();
 
     // Videos Query
-    const { data: videos = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
+    const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
             console.log('Fetching videos from:', `${API_URL}/videos`);
@@ -66,6 +68,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retry: 10,
         retryDelay: 1000,
     });
+
+    // Filter invisible videos when in visitor mode
+    const videos = useMemo(() => {
+        if (visitorMode) {
+            return videosRaw.filter(video => (video.visibility ?? 1) === 1);
+        }
+        return videosRaw;
+    }, [videosRaw, visitorMode]);
 
     // Settings Query (tags and showYoutubeSearch)
     const { data: settingsData } = useQuery({

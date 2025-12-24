@@ -30,6 +30,7 @@ export const videos = sqliteTable('videos', {
   lastPlayedAt: integer('last_played_at'), // Timestamp when video was last played
   subtitles: text('subtitles'), // JSON stringified array of subtitle objects
   channelUrl: text('channel_url'), // Author channel URL for subscriptions
+  visibility: integer('visibility').default(1), // 1 = visible, 0 = hidden
 });
 
 export const collections = sqliteTable('collections', {

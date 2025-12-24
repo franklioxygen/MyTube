@@ -119,6 +119,7 @@ export const ar = {
   showYoutubeSearch: "عرض نتائج بحث YouTube",
   visitorMode: "وضع الزائر (للقراءة فقط)",
   visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
+  visitorModeDescription: "وضع القراءة فقط. لن تكون مقاطع الفيديو المخفية مرئية للزوار.",
   visitorModePasswordPrompt: "يرجى إدخال كلمة مرور الموقع لتغيير إعدادات وضع الزائر.",
   cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
   cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
@@ -243,6 +244,9 @@ export const ar = {
   exitFullscreen: "خروج من ملء الشاشة",
   share: "مشاركة",
   editTitle: "تعديل العنوان",
+  hideVideo: "جعل الفيديو مخفيًا في وضع الزائر",
+  showVideo: "جعل الفيديو مرئيًا في وضع الزائر",
+  toggleVisibility: "تبديل الرؤية",
   titleUpdated: "تم تحديث العنوان بنجاح",
   titleUpdateFailed: "فشل تحديث العنوان",
   refreshThumbnail: "تحديث الصورة المصغرة",
@@ -436,8 +440,6 @@ export const ar = {
   deleteTask: "حذف المهمة",
   confirmDeleteTask: "هل أنت متأكد أنك تريد حذف سجل المهمة لـ {author}؟ لا يمكن التراجع عن هذا الإجراء.",
   taskDeleted: "تم حذف المهمة بنجاح",
-  minutes: "دقائق",
-  never: "أبداً",
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc:

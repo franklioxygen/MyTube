@@ -133,6 +133,7 @@ export const ru = {
   showYoutubeSearch: "Показать результаты поиска YouTube",
   visitorMode: "Режим посетителя (Только чтение)",
   visitorModeReadOnly: "Режим посетителя: Только чтение",
+  visitorModeDescription: "Режим только чтения. Скрытые видео не будут видны посетителям.",
   visitorModePasswordPrompt: "Пожалуйста, введите пароль веб-сайта для изменения настроек режима посетителя.",
   cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
   cleanupTempFilesFailed: "Не удалось очистить временные файлы",
@@ -259,6 +260,9 @@ export const ru = {
   exitFullscreen: "Выйти из полноэкранного режима",
   share: "Поделиться",
   editTitle: "Редактировать название",
+  hideVideo: "Скрыть видео для режима посетителя",
+  showVideo: "Сделать видео видимым для режима посетителя",
+  toggleVisibility: "Переключить видимость",
   titleUpdated: "Название успешно обновлено",
   titleUpdateFailed: "Не удалось обновить название",
   refreshThumbnail: "Обновить миниатюру",
@@ -444,8 +448,6 @@ export const ru = {
   deleteTask: "Удалить задачу",
   confirmDeleteTask: "Вы уверены, что хотите удалить запись задачи для {author}? Это действие нельзя отменить.",
   taskDeleted: "Задача успешно удалена",
-  minutes: "минуты",
-  never: "Никогда",
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
   instructionSection1Desc:

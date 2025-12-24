@@ -23,6 +23,7 @@ export interface Video {
   lastPlayedAt?: number;
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   description?: string;
+  visibility?: number; // 1 = visible, 0 = hidden
   [key: string]: any;
 }
 

@@ -124,6 +124,7 @@ export const pt = {
   showYoutubeSearch: "Mostrar resultados de pesquisa do YouTube",
   visitorMode: "Modo Visitante (Somente leitura)",
   visitorModeReadOnly: "Modo visitante: Somente leitura",
+  visitorModeDescription: "Modo somente leitura. Vídeos ocultos não serão visíveis para visitantes.",
   visitorModePasswordPrompt: "Por favor, digite a senha do site para alterar as configurações do modo visitante.",
   cleanupTempFilesSuccess:
     "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
@@ -249,6 +250,9 @@ export const pt = {
   exitFullscreen: "Sair da Tela Cheia",
   share: "Compartilhar",
   editTitle: "Editar Título",
+  hideVideo: "Tornar Vídeo Oculto para Modo Visitante",
+  showVideo: "Tornar Vídeo Visível para Modo Visitante",
+  toggleVisibility: "Alternar Visibilidade",
   titleUpdated: "Título atualizado com sucesso",
   titleUpdateFailed: "Falha ao atualizar título",
   refreshThumbnail: "Atualizar miniatura",
@@ -439,8 +443,6 @@ export const pt = {
   deleteTask: "Excluir tarefa",
   confirmDeleteTask: "Tem certeza de que deseja excluir o registro da tarefa para {author}? Esta ação não pode ser desfeita.",
   taskDeleted: "Tarefa excluída com sucesso",
-  minutes: "minutos",
-  never: "Nunca",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
   instructionSection1Desc:

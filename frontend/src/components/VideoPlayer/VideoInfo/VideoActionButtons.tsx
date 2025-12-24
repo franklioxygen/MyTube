@@ -1,4 +1,4 @@
-import { Add, Cast, Delete, Share } from '@mui/icons-material';
+import { Add, Cast, Delete, Share, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Button, Menu, MenuItem, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -14,13 +14,15 @@ interface VideoActionButtonsProps {
     onAddToCollection: () => void;
     onDelete: () => void;
     isDeleting: boolean;
+    onToggleVisibility?: () => void;
 }
 
 const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     video,
     onAddToCollection,
     onDelete,
-    isDeleting
+    isDeleting,
+    onToggleVisibility
 }) => {
     const { t } = useLanguage();
     const { handleShare } = useShareVideo(video);
@@ -195,6 +197,18 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             </Tooltip>
             {!visitorMode && (
                 <>
+                    {onToggleVisibility && (
+                        <Tooltip title={video.visibility === 0 ? t('showVideo') : t('hideVideo')} disableHoverListener={isTouch}>
+                            <Button
+                                variant="outlined"
+                                color="inherit"
+                                onClick={onToggleVisibility}
+                                sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                            >
+                                {video.visibility === 0 ? <Visibility /> : <VisibilityOff />}
+                            </Button>
+                        </Tooltip>
+                    )}
                     <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
                         <Button
                             variant="outlined"
@@ -230,6 +244,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}
                     isDeleting={isDeleting}
+                    onToggleVisibility={onToggleVisibility}
+                    video={video}
                 />
                 <Menu
                     anchorEl={playerMenuAnchor}

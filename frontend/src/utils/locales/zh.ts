@@ -116,6 +116,7 @@ export const zh = {
   showYoutubeSearch: "显示 YouTube 搜索结果",
   visitorMode: "访客模式（只读）",
   visitorModeReadOnly: "访客模式：只读",
+  visitorModeDescription: "只读模式。隐藏的视频对访客不可见。",
   visitorModePasswordPrompt: "请输入网站密码以更改访客模式设置。",
   cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
   cleanupTempFilesFailed: "清理临时文件失败",
@@ -145,18 +146,21 @@ export const zh = {
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "公开访问域名",
-  publicUrlHelper: "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
+  publicUrlHelper:
+    "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
   uploadPath: "上传路径",
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
   scanPaths: "扫描路径",
-  scanPathsHelper: "每行一个路径。系统将扫描这些路径下的视频。留空则使用默认上传路径。示例：\n/a/电影\n/b/纪录片",
+  scanPathsHelper:
+    "每行一个路径。系统将扫描这些路径下的视频。留空则使用默认上传路径。示例：\n/a/电影\n/b/纪录片",
   cloudDriveNote:
     "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
   testing: "测试中...",
   testConnection: "测试连接",
   sync: "同步",
   syncToCloud: "双向同步",
-  syncWarning: "此操作将上传本地视频到云端并扫描云端新文件。上传后，本地文件将被删除。",
+  syncWarning:
+    "此操作将上传本地视频到云端并扫描云端新文件。上传后，本地文件将被删除。",
   syncing: "正在同步...",
   syncCompleted: "同步完成",
   syncFailed: "同步失败",
@@ -238,6 +242,9 @@ export const zh = {
   exitFullscreen: "退出全屏",
   share: "分享",
   editTitle: "编辑标题",
+  hideVideo: "使视频在访客模式下隐藏",
+  showVideo: "使视频在访客模式下可见",
+  toggleVisibility: "切换可见性",
   titleUpdated: "标题更新成功",
   titleUpdateFailed: "更新标题失败",
   refreshThumbnail: "刷新缩略图",
@@ -254,7 +261,8 @@ export const zh = {
   openInExternalPlayer: "在外部播放器中打开",
   playWith: "使用此应用播放...",
   deleteAllFilteredVideos: "删除所有过滤后的视频",
-  confirmDeleteFilteredVideos: "您确定要删除通过选定标签过滤的 {count} 个视频吗？",
+  confirmDeleteFilteredVideos:
+    "您确定要删除通过选定标签过滤的 {count} 个视频吗？",
   deleteFilteredVideosSuccess: "成功删除 {count} 个视频。",
   deletingVideos: "正在删除视频...",
 
@@ -300,7 +308,8 @@ export const zh = {
   unknownAuthor: "未知",
   noVideosForAuthor: "未找到该作者的视频。",
   deleteAuthor: "删除作者",
-  deleteAuthorConfirmation: "您确定要删除作者 {author} 吗？这将删除该作者的所有视频。",
+  deleteAuthorConfirmation:
+    "您确定要删除作者 {author} 吗？这将删除该作者的所有视频。",
   authorDeletedSuccessfully: "作者删除成功",
   failedToDeleteAuthor: "删除作者失败",
 

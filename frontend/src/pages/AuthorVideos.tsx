@@ -78,25 +78,8 @@ const AuthorVideos: React.FC = () => {
         );
     }
 
-    // Filter videos to only show the first video from each collection
-    const filteredVideos = authorVideos.filter(video => {
-        // If the video is not in any collection, show it
-        const videoCollections = collections.filter(collection =>
-            collection.videos.includes(video.id)
-        );
-
-        if (videoCollections.length === 0) {
-            return true;
-        }
-
-        // For each collection this video is in, check if it's the first video
-        return videoCollections.some(collection => {
-            // Get the first video ID in this collection
-            const firstVideoId = collection.videos[0];
-            // Show this video if it's the first in at least one collection
-            return video.id === firstVideoId;
-        });
-    });
+    // Show all videos for the author (no collection filtering)
+    const filteredVideos = authorVideos;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>

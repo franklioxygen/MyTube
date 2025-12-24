@@ -203,6 +203,7 @@ export const updateVideoDetails = async (
   const allowedUpdates: any = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
+  if (updates.visibility !== undefined) allowedUpdates.visibility = updates.visibility;
   // Add other allowed fields here if needed in the future
 
   if (Object.keys(allowedUpdates).length === 0) {

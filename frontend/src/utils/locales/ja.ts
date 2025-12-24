@@ -124,6 +124,7 @@ export const ja = {
   showYoutubeSearch: "YouTube検索結果を表示",
   visitorMode: "ビジターモード（読み取り専用）",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
+  visitorModeDescription: "読み取り専用モード。非表示の動画は訪問者には表示されません。",
   visitorModePasswordPrompt: "ビジターモードの設定を変更するには、ウェブサイトのパスワードを入力してください。",
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
@@ -248,6 +249,9 @@ export const ja = {
   exitFullscreen: "全画面表示を終了",
   share: "共有",
   editTitle: "タイトルを編集",
+  hideVideo: "ビジターモードで動画を非表示にする",
+  showVideo: "ビジターモードで動画を表示する",
+  toggleVisibility: "表示/非表示を切り替え",
   titleUpdated: "タイトルが正常に更新されました",
   titleUpdateFailed: "タイトルの更新に失敗しました",
   refreshThumbnail: "サムネイルを更新",
@@ -430,8 +434,6 @@ export const ja = {
   deleteTask: "タスクを削除",
   confirmDeleteTask: "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
   taskDeleted: "タスクが正常に削除されました",
-  minutes: "分",
-  never: "なし",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc:

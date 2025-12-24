@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext'; // Added
+import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useShareVideo } from '../hooks/useShareVideo'; // Added
 import { Collection, Video } from '../types';
@@ -60,6 +61,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     // Hooks for share and snackbar
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
+    const { updateVideo } = useVideo();
 
 
 
@@ -297,6 +299,18 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const handleRemoveFromCollection = async () => {
         if (!video.id) return;
         await removeFromCollection(video.id);
+    };
+
+    // Handle visibility toggle
+    const handleToggleVisibility = async () => {
+        if (!video.id) return;
+        const newVisibility = (video.visibility ?? 1) === 0 ? 1 : 0;
+        const result = await updateVideo(video.id, { visibility: newVisibility });
+        if (result.success) {
+            showSnackbar(newVisibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
+        } else {
+            showSnackbar(t('error'), 'error');
+        }
     };
 
     // Calculate collections that contain THIS video
@@ -544,6 +558,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                         onAddToCollection={() => setShowCollectionModal(true)}
                         onDelete={(showDeleteButton && onDeleteVideo) ? () => setShowDeleteModal(true) : undefined}
                         isDeleting={isDeleting}
+                        onToggleVisibility={handleToggleVisibility}
+                        video={video}
                         sx={{
                             color: 'white',
                             bgcolor: 'rgba(0,0,0,0.6)',

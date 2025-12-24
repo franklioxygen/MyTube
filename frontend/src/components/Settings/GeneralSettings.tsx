@@ -231,15 +231,20 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
                     </>
                 )}
 
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={visitorMode ?? false}
-                            onChange={(e) => handleVisitorModeChange(e.target.checked)}
-                        />
-                    }
-                    label={t('visitorMode') || "Visitor Mode (Read-only)"}
-                />
+                <Box>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={visitorMode ?? false}
+                                onChange={(e) => handleVisitorModeChange(e.target.checked)}
+                            />
+                        }
+                        label={t('visitorMode') || "Visitor Mode (Read-only)"}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, ml: 4.5 }}>
+                        {t('visitorModeDescription') || "Read-only mode. Hidden videos will not be visible to visitors."}
+                    </Typography>
+                </Box>
             </Box>
 
             <PasswordModal

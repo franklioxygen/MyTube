@@ -115,6 +115,7 @@ export const de = {
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
   visitorMode: "Besuchermodus (Nur-Lesen)",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
+  visitorModeDescription: "Nur-Lese-Modus. Ausgeblendete Videos sind für Besucher nicht sichtbar.",
   visitorModePasswordPrompt: "Bitte geben Sie das Website-Passwort ein, um die Besuchermodus-Einstellungen zu ändern.",
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
@@ -238,6 +239,9 @@ export const de = {
   exitFullscreen: "Vollbild Verlassen",
   share: "Teilen",
   editTitle: "Titel Bearbeiten",
+  hideVideo: "Video für Besuchermodus ausblenden",
+  showVideo: "Video für Besuchermodus sichtbar machen",
+  toggleVisibility: "Sichtbarkeit Umschalten",
   titleUpdated: "Titel erfolgreich aktualisiert",
   titleUpdateFailed: "Fehler beim Aktualisieren des Titels",
   refreshThumbnail: "Vorschaubild aktualisieren",
@@ -409,8 +413,6 @@ export const de = {
   deleteTask: "Aufgabe löschen",
   confirmDeleteTask: "Sind Sie sicher, dass Sie den Aufgaben-Datensatz für {author} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   taskDeleted: "Aufgabe erfolgreich gelöscht",
-  minutes: "Minuten",
-  never: "Nie",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc:

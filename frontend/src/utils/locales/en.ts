@@ -116,7 +116,10 @@ export const en = {
   showYoutubeSearch: "Show YouTube Search Results",
   visitorMode: "Visitor Mode (Read-only)",
   visitorModeReadOnly: "Visitor mode: Read-only",
-  visitorModePasswordPrompt: "Please enter the website password to change Visitor Mode settings.",
+  visitorModeDescription:
+    "Read-only mode. Hidden videos will not be visible to visitors.",
+  visitorModePasswordPrompt:
+    "Please enter the website password to change Visitor Mode settings.",
   cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
   cleanupTempFilesFailed: "Failed to clean up temporary files",
 
@@ -145,18 +148,21 @@ export const en = {
   apiUrlHelper: "e.g. https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "Public URL",
-  publicUrlHelper: "Public domain for accessing files (e.g., https://your-cloudflare-tunnel-domain.com). If set, this will be used instead of the API URL for file access.",
+  publicUrlHelper:
+    "Public domain for accessing files (e.g., https://your-cloudflare-tunnel-domain.com). If set, this will be used instead of the API URL for file access.",
   uploadPath: "Upload Path",
   cloudDrivePathHelper: "Directory path in cloud drive, e.g. /mytube-uploads",
   scanPaths: "Scan Paths",
-  scanPathsHelper: "One path per line. Videos will be scanned from these paths. If empty, will use upload path. Example:\n/a/Movies\n/b/Documentaries",
+  scanPathsHelper:
+    "One path per line. Videos will be scanned from these paths. If empty, will use upload path. Example:\n/a/Movies\n/b/Documentaries",
   cloudDriveNote:
     "After enabling this feature, newly downloaded videos will be automatically uploaded to cloud storage and local files will be deleted. Videos will be played from cloud storage via proxy.",
   testing: "Testing...",
   testConnection: "Test Connection",
   sync: "Sync",
   syncToCloud: "Two-way Sync",
-  syncWarning: "This operation will upload local videos to cloud and scan cloud storage for new files. Local files will be deleted after upload.",
+  syncWarning:
+    "This operation will upload local videos to cloud and scan cloud storage for new files. Local files will be deleted after upload.",
   syncing: "Syncing...",
   syncCompleted: "Sync Completed",
   syncFailed: "Sync failed",
@@ -241,6 +247,9 @@ export const en = {
   exitFullscreen: "Exit Fullscreen",
   share: "Share",
   editTitle: "Edit Title",
+  hideVideo: "Make Video Hidden for Visitor Mode",
+  showVideo: "Make Video Visible for Visitor Mode",
+  toggleVisibility: "Toggle Visibility",
   titleUpdated: "Title updated successfully",
   titleUpdateFailed: "Failed to update title",
   thumbnailRefreshed: "Thumbnail refreshed successfully",
@@ -256,7 +265,8 @@ export const en = {
   openInExternalPlayer: "Open in external player",
   playWith: "Play with...",
   deleteAllFilteredVideos: "Delete All Filtered Videos",
-  confirmDeleteFilteredVideos: "Are you sure you want to delete {count} videos filtered by the selected tags?",
+  confirmDeleteFilteredVideos:
+    "Are you sure you want to delete {count} videos filtered by the selected tags?",
   deleteFilteredVideosSuccess: "Successfully deleted {count} videos.",
   deletingVideos: "Deleting videos...",
 
@@ -295,7 +305,8 @@ export const en = {
   unknownAuthor: "Unknown",
   noVideosForAuthor: "No videos found for this author.",
   deleteAuthor: "Delete Author",
-  deleteAuthorConfirmation: "Are you sure you want to delete author {author}? This will delete all videos associated with this author.",
+  deleteAuthorConfirmation:
+    "Are you sure you want to delete author {author}? This will delete all videos associated with this author.",
   authorDeletedSuccessfully: "Author deleted successfully",
   failedToDeleteAuthor: "Failed to delete author",
 
@@ -423,10 +434,12 @@ export const en = {
   taskStatusCancelled: "Cancelled",
   downloaded: "Downloaded",
   cancelTask: "Cancel Task",
-  confirmCancelTask: "Are you sure you want to cancel the download task for {author}?",
+  confirmCancelTask:
+    "Are you sure you want to cancel the download task for {author}?",
   taskCancelled: "Task cancelled successfully",
   deleteTask: "Delete Task",
-  confirmDeleteTask: "Are you sure you want to delete the task record for {author}? This action cannot be undone.",
+  confirmDeleteTask:
+    "Are you sure you want to delete the task record for {author}? This action cannot be undone.",
   taskDeleted: "Task deleted successfully",
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",

@@ -29,6 +29,7 @@ interface VideoInfoProps {
     isSubscribed?: boolean;
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
+    onToggleVisibility?: () => void;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -46,7 +47,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onTagsUpdate,
     isSubscribed,
     onSubscribe,
-    onUnsubscribe
+    onUnsubscribe,
+    onToggleVisibility
 }) => {
     const { videoRef, videoResolution } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
@@ -108,6 +110,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     onAddToCollection={onAddToCollection}
                     onDelete={onDelete}
                     isDeleting={isDeleting}
+                    onToggleVisibility={onToggleVisibility}
                 />
             </Stack>
 

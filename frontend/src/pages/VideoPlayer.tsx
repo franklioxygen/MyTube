@@ -21,6 +21,7 @@ import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useVisitorMode } from '../contexts/VisitorModeContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
@@ -36,6 +37,7 @@ const VideoPlayer: React.FC = () => {
     const queryClient = useQueryClient();
 
     const { videos, deleteVideo } = useVideo();
+    const { visitorMode } = useVisitorMode();
     const {
         collections,
         addToCollection,
@@ -83,7 +85,7 @@ const VideoPlayer: React.FC = () => {
         retry: false
     });
 
-    // Handle error redirect
+    // Handle error redirect and invisible videos in visitor mode
     useEffect(() => {
         if (error) {
             const timer = setTimeout(() => {
@@ -91,7 +93,14 @@ const VideoPlayer: React.FC = () => {
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [error, navigate]);
+        // In visitor mode, redirect if video is invisible
+        if (visitorMode && video && (video.visibility ?? 1) === 0) {
+            const timer = setTimeout(() => {
+                navigate('/');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [error, navigate, visitorMode, video]);
 
     // Fetch settings
     const { data: settings } = useQuery({
@@ -454,6 +463,32 @@ const VideoPlayer: React.FC = () => {
         await tagsMutation.mutateAsync(newTags);
     };
 
+    // Visibility mutation
+    const visibilityMutation = useMutation({
+        mutationFn: async (visibility: number) => {
+            const response = await axios.put(`${API_URL}/videos/${id}`, { visibility });
+            return response.data;
+        },
+        onSuccess: (data, visibility) => {
+            if (data.success) {
+                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, visibility } : old);
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) => 
+                    old ? old.map(v => v.id === id ? { ...v, visibility } : v) : []
+                );
+                showSnackbar(visibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
+            }
+        },
+        onError: () => {
+            showSnackbar(t('error'), 'error');
+        }
+    });
+
+    const handleToggleVisibility = async () => {
+        if (!id || !video) return;
+        const newVisibility = video.visibility === 0 ? 1 : 0;
+        await visibilityMutation.mutateAsync(newVisibility);
+    };
+
     // Subtitle preference mutation
     const subtitlePreferenceMutation = useMutation({
         mutationFn: async (enabled: boolean) => {
@@ -613,6 +648,7 @@ const VideoPlayer: React.FC = () => {
                             isSubscribed={isSubscribed}
                             onSubscribe={handleSubscribe}
                             onUnsubscribe={handleUnsubscribe}
+                            onToggleVisibility={handleToggleVisibility}
                         />
 
                         {(video.source === 'youtube' || video.source === 'bilibili') && (
