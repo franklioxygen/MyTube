@@ -1,5 +1,13 @@
 # Change Log
 
+## v1.6.42 (2025-12-23)
+
+### Feat
+
+- feat: Add hide video for visitor mode feature
+- feat: Add translations for hide video feature in all supported languages
+- feat: Add database migration for hidden video field
+
 ## v1.6.41 (2025-12-23)
 
 ### Feat

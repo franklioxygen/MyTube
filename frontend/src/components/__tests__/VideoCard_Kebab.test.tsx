@@ -5,12 +5,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as CollectionContext from '../../contexts/CollectionContext';
 import * as LanguageContext from '../../contexts/LanguageContext';
 import * as SnackbarContext from '../../contexts/SnackbarContext';
+import * as VideoContext from '../../contexts/VideoContext';
 import VideoCard from '../VideoCard';
 
 // Mock dependencies
 vi.mock('../../contexts/LanguageContext');
 vi.mock('../../contexts/CollectionContext');
 vi.mock('../../contexts/SnackbarContext');
+vi.mock('../../contexts/VideoContext');
 
 const mockVideo = {
     id: '123',
@@ -39,6 +41,9 @@ describe('VideoCard Kebab Menu', () => {
             removeFromCollection: vi.fn()
         } as any);
         vi.spyOn(SnackbarContext, 'useSnackbar').mockReturnValue({ showSnackbar: vi.fn() });
+        vi.spyOn(VideoContext, 'useVideo').mockReturnValue({
+            updateVideo: vi.fn().mockResolvedValue({ success: true }),
+        } as any);
     });
 
     it('renders kebab menu on hover (or always if mocked for test env)', () => {

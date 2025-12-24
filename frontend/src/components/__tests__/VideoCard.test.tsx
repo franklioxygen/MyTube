@@ -44,6 +44,13 @@ vi.mock('../../contexts/SnackbarContext', () => ({
     }),
 }));
 
+const mockUpdateVideo = vi.fn();
+vi.mock('../../contexts/VideoContext', () => ({
+    useVideo: () => ({
+        updateVideo: mockUpdateVideo,
+    }),
+}));
+
 // Mock the child component to avoid sizing/visibility issues in JSDOM
 // and to easily verify props passed to it
 vi.mock('../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
