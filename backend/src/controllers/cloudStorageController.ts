@@ -53,6 +53,7 @@ interface SyncProgress {
     uploaded: number;
     skipped: number;
     failed: number;
+    cloudScanAdded?: number;
     errors: string[];
   };
 }
