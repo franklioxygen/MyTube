@@ -191,44 +191,68 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
 
     // Player Logic
-    const getVideoUrl = (): string => {
+    const getVideoUrl = async (): Promise<string> => {
+        // If we have a cloud storage URL, use it directly
+        if (videoUrl) {
+            return videoUrl;
+        }
+        
+        // If cloud storage path but URL not loaded yet, wait for it
+        if (video.videoPath?.startsWith('cloud:')) {
+            // Try to get the signed URL directly
+            const { getFileUrl } = await import('../utils/cloudStorage');
+            const cloudUrl = await getFileUrl(video.videoPath, 'video');
+            if (cloudUrl) {
+                return cloudUrl;
+            }
+            // If still not available, return empty string
+            return '';
+        }
+        
+        // Otherwise, construct URL from videoPath
         if (video.videoPath) {
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
             return `${window.location.origin}${videoPath}`;
         }
-        return video.sourceUrl;
+        return video.sourceUrl || '';
     };
 
     const handlePlayerMenuClose = () => {
         setPlayerMenuAnchor(null);
     };
 
-    const handlePlayerSelect = (player: string) => {
-        const videoUrl = getVideoUrl();
+    const handlePlayerSelect = async (player: string) => {
+        const resolvedVideoUrl = await getVideoUrl();
+        
+        if (!resolvedVideoUrl) {
+            showSnackbar(t('error') || 'Video URL not available', 'error');
+            handlePlayerMenuClose();
+            return;
+        }
 
         try {
             let playerUrl = '';
 
             switch (player) {
                 case 'vlc':
-                    playerUrl = `vlc://${videoUrl}`;
+                    playerUrl = `vlc://${resolvedVideoUrl}`;
                     break;
                 case 'iina':
-                    playerUrl = `iina://weblink?url=${encodeURIComponent(videoUrl)}`;
+                    playerUrl = `iina://weblink?url=${encodeURIComponent(resolvedVideoUrl)}`;
                     break;
                 case 'mpv':
-                    playerUrl = `mpv://${videoUrl}`;
+                    playerUrl = `mpv://${resolvedVideoUrl}`;
                     break;
                 case 'potplayer':
-                    playerUrl = `potplayer://${videoUrl}`;
+                    playerUrl = `potplayer://${resolvedVideoUrl}`;
                     break;
                 case 'infuse':
-                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(videoUrl)}`;
+                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(resolvedVideoUrl)}`;
                     break;
                 case 'copy':
                     // Copy URL to clipboard
                     if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(videoUrl).then(() => {
+                        navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
                             showSnackbar(t('linkCopied'), 'success');
                         }).catch(() => {
                             showSnackbar(t('copyFailed'), 'error');
@@ -236,7 +260,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     } else {
                         // Fallback
                         const textArea = document.createElement("textarea");
-                        textArea.value = videoUrl;
+                        textArea.value = resolvedVideoUrl;
                         textArea.style.position = "fixed";
                         document.body.appendChild(textArea);
                         textArea.focus();

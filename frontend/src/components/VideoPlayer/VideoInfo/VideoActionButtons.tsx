@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
-import { useShareVideo } from '../../../hooks/useShareVideo';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
+import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types';
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
 
@@ -40,11 +40,16 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             return videoUrl;
         }
         
-        // If cloud storage path but URL not loaded yet, wait for it
+        // If cloud storage path but URL not loaded yet, try to get it directly
         if (video.videoPath?.startsWith('cloud:')) {
-            // Return empty string if cloud URL is not available yet
-            // The hook will update videoUrl when ready
-            return videoUrl || '';
+            // Try to get the signed URL directly
+            const { getFileUrl } = await import('../../../utils/cloudStorage');
+            const cloudUrl = await getFileUrl(video.videoPath, 'video');
+            if (cloudUrl) {
+                return cloudUrl;
+            }
+            // If still not available, return empty string
+            return '';
         }
         
         // Otherwise, construct URL from videoPath
@@ -72,7 +77,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         const resolvedVideoUrl = await getVideoUrl();
         
         if (!resolvedVideoUrl) {
-            showSnackbar(t('videoUrlNotAvailable') || 'Video URL not available', 'error');
+            showSnackbar(t('error') || 'Video URL not available', 'error');
             handlePlayerMenuClose();
             return;
         }
