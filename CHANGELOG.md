@@ -2,6 +2,10 @@
 
 ## v1.6.47 (2025-12-25)
 
+### Fix
+
+- fix: Fix API URL in frontend (1d2f9db)
+
 ### Feat
 
 - feat: Add Cloudflare Tunnel integration (431e716)
