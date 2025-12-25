@@ -33,6 +33,8 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
     const [showSyncModal, setShowSyncModal] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+    const [showClearCacheModal, setShowClearCacheModal] = useState(false);
+    const [clearingCache, setClearingCache] = useState(false);
 
     // Validate API URL format
     const validateApiUrl = (url: string): string | null => {
@@ -257,6 +259,33 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         }
     };
 
+    const handleClearThumbnailCache = async () => {
+        setShowClearCacheModal(false);
+        setClearingCache(true);
+        setTestResult(null);
+
+        try {
+            const API_URL = import.meta.env.VITE_API_URL || '';
+            const response = await axios.delete(`${API_URL}/cloud/thumbnail-cache`);
+
+            if (response.data?.success) {
+                setTestResult({
+                    type: 'success',
+                    message: t('clearThumbnailCacheSuccess'),
+                });
+            } else {
+                throw new Error(response.data?.message || 'Failed to clear cache');
+            }
+        } catch (error: any) {
+            setTestResult({
+                type: 'error',
+                message: error.response?.data?.message || error.message || t('clearThumbnailCacheError'),
+            });
+        } finally {
+            setClearingCache(false);
+        }
+    };
+
     return (
         <Box>
             <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')} (beta)</Typography>
@@ -352,7 +381,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                         <Button
                             variant="outlined"
                             onClick={handleTestConnection}
-                            disabled={testing || syncing || !settings.openListApiUrl || !settings.openListToken}
+                            disabled={testing || syncing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
                             startIcon={testing ? <CircularProgress size={16} /> : null}
                         >
                             {testing ? t('testing') : t('testConnection')}
@@ -362,9 +391,19 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                             variant="contained"
                             color="primary"
                             onClick={() => setShowSyncModal(true)}
-                            disabled={testing || syncing || !settings.openListApiUrl || !settings.openListToken}
+                            disabled={testing || syncing || clearingCache || !settings.openListApiUrl || !settings.openListToken}
                         >
                             {t('sync')}
+                        </Button>
+
+                        <Button
+                            variant="outlined"
+                            color="warning"
+                            onClick={() => setShowClearCacheModal(true)}
+                            disabled={testing || syncing || clearingCache}
+                            startIcon={clearingCache ? <CircularProgress size={16} /> : null}
+                        >
+                            {clearingCache ? t('clearing') : t('clearThumbnailCache')}
                         </Button>
                     </Box>
 
@@ -464,6 +503,17 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
                 confirmText={t('confirm') || 'Confirm'}
                 cancelText={t('cancel') || 'Cancel'}
                 isDanger={true}
+            />
+
+            <ConfirmationModal
+                isOpen={showClearCacheModal}
+                onClose={() => setShowClearCacheModal(false)}
+                onConfirm={handleClearThumbnailCache}
+                title={t('clearThumbnailCache')}
+                message={t('clearThumbnailCacheConfirmMessage')}
+                confirmText={t('confirm') || 'Confirm'}
+                cancelText={t('cancel') || 'Cancel'}
+                isDanger={false}
             />
         </Box>
     );

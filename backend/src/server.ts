@@ -5,7 +5,12 @@ dotenv.config();
 import axios from "axios";
 import cors from "cors";
 import express from "express";
-import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "./config/paths";
+import {
+  CLOUD_THUMBNAIL_CACHE_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
+} from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
 import { visitorModeSettingsMiddleware } from "./middleware/visitorModeSettingsMiddleware";
@@ -60,6 +65,10 @@ const startServer = async () => {
       })
     );
     app.use("/images", express.static(IMAGES_DIR));
+    app.use(
+      "/api/cloud/thumbnail-cache",
+      express.static(CLOUD_THUMBNAIL_CACHE_DIR)
+    );
     app.use(
       "/subtitles",
       express.static(SUBTITLES_DIR, {

@@ -176,6 +176,11 @@ export const ar = {
   syncFailedMessage: "فشلت المزامنة. يرجى المحاولة مرة أخرى.",
   foundVideosToSync: "تم العثور على {count} مقاطع فيديو بملفات محلية للمزامنة",
   uploadingVideo: "جاري الرفع: {title}",
+  clearThumbnailCache: "Clear Thumbnail Local Cache",
+  clearing: "Clearing...",
+  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheError: "Failed to clear thumbnail cache",
+  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   // Manage
   manageContent: "إدارة المحتوى",

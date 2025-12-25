@@ -187,6 +187,11 @@ export const es = {
   syncFailedMessage: "Sincronización fallida. Por favor intente de nuevo.",
   foundVideosToSync: "Se encontraron {count} videos con archivos locales para sincronizar",
   uploadingVideo: "Subiendo: {title}",
+  clearThumbnailCache: "Clear Thumbnail Local Cache",
+  clearing: "Clearing...",
+  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheError: "Failed to clear thumbnail cache",
+  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   manageContent: "Gestionar Contenido",
   videos: "Videos",

@@ -144,5 +144,9 @@ router.get(
   asyncHandler(cloudStorageController.getSignedUrl)
 );
 router.post("/cloud/sync", asyncHandler(cloudStorageController.syncToCloud));
+router.delete(
+  "/cloud/thumbnail-cache",
+  asyncHandler(cloudStorageController.clearThumbnailCacheEndpoint)
+);
 
 export default router;

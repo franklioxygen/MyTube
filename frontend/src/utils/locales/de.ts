@@ -173,6 +173,11 @@ export const de = {
   syncFailedMessage: "Synchronisierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
   foundVideosToSync: "{count} Videos mit lokalen Dateien zum Synchronisieren gefunden",
   uploadingVideo: "Lade hoch: {title}",
+  clearThumbnailCache: "Clear Thumbnail Local Cache",
+  clearing: "Clearing...",
+  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheError: "Failed to clear thumbnail cache",
+  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   manageContent: "Inhalte Verwalten",
   videos: "Videos",

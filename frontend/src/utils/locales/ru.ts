@@ -190,6 +190,11 @@ export const ru = {
   syncFailedMessage: "Ошибка синхронизации. Пожалуйста, попробуйте снова.",
   foundVideosToSync: "Найдено {count} видео с локальными файлами для синхронизации",
   uploadingVideo: "Загрузка: {title}",
+  clearThumbnailCache: "Clear Thumbnail Local Cache",
+  clearing: "Clearing...",
+  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheError: "Failed to clear thumbnail cache",
+  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   // Manage
   manageContent: "Управление контентом",

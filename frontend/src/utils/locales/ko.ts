@@ -179,6 +179,11 @@ export const ko = {
   syncFailedMessage: "동기화 실패. 다시 시도해주세요.",
   foundVideosToSync: "동기화할 로컬 파일이 있는 동영상 {count}개를 찾았습니다",
   uploadingVideo: "업로드 중: {title}",
+  clearThumbnailCache: "Clear Thumbnail Local Cache",
+  clearing: "Clearing...",
+  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheError: "Failed to clear thumbnail cache",
+  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   // Manage
   manageContent: "콘텐츠 관리",

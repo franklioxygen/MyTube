@@ -176,6 +176,11 @@ export const zh = {
   syncFailedMessage: "同步失败。请重试。",
   foundVideosToSync: "发现 {count} 个包含本地文件的视频等待同步",
   uploadingVideo: "正在上传: {title}",
+  clearThumbnailCache: "清除缩略图本地缓存",
+  clearing: "清除中...",
+  clearThumbnailCacheSuccess: "缩略图缓存清除成功。下次访问时将重新生成。",
+  clearThumbnailCacheError: "清除缩略图缓存失败",
+  clearThumbnailCacheConfirmMessage: "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
 
   // Manage
   manageContent: "内容管理",

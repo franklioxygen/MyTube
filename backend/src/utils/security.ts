@@ -1,6 +1,10 @@
 import { execFile } from "child_process";
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
+import {
+  CLOUD_THUMBNAIL_CACHE_DIR,
+  IMAGES_DIR,
+  VIDEOS_DIR,
+} from "../config/paths";
 
 /**
  * Validates that a file path is within an allowed directory
@@ -52,6 +56,13 @@ export function validateVideoPath(filePath: string): string {
  */
 export function validateImagePath(filePath: string): string {
   return resolveSafePath(filePath, IMAGES_DIR);
+}
+
+/**
+ * Validates that a file path is within the cloud thumbnail cache directory
+ */
+export function validateCloudThumbnailCachePath(filePath: string): string {
+  return resolveSafePath(filePath, CLOUD_THUMBNAIL_CACHE_DIR);
 }
 
 /**
