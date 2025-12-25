@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -46,6 +47,14 @@ vi.mock('axios', () => ({
     },
 }));
 
+// Mock useCloudflareStatus hook to avoid QueryClient issues
+vi.mock('../../hooks/useCloudflareStatus', () => ({
+    useCloudflareStatus: () => ({
+        data: { isRunning: false, tunnelId: null, accountTag: null, publicUrl: null },
+        isLoading: false,
+    }),
+}));
+
 describe('Header', () => {
     const defaultProps = {
         onSubmit: vi.fn(),
@@ -54,14 +63,25 @@ describe('Header', () => {
         queuedDownloads: [],
     };
 
+    let queryClient: QueryClient;
+
     const renderHeader = (props = {}) => {
         const theme = createTheme();
+        queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                },
+            },
+        });
         return render(
-            <ThemeProvider theme={theme}>
-                <BrowserRouter>
-                    <Header {...defaultProps} {...props} />
-                </BrowserRouter>
-            </ThemeProvider>
+            <QueryClientProvider client={queryClient}>
+                <ThemeProvider theme={theme}>
+                    <BrowserRouter>
+                        <Header {...defaultProps} {...props} />
+                    </BrowserRouter>
+                </ThemeProvider>
+            </QueryClientProvider>
         );
     };
 

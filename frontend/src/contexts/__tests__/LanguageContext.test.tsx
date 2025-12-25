@@ -39,7 +39,7 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Mock environment variable - the actual code uses import.meta.env.VITE_API_URL
-// We need to check what URL is actually being used, or make the test more flexible
+// The environment variable is defined in vite.config.js for tests
 
 describe('LanguageContext', () => {
     beforeEach(() => {
