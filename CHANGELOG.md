@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.44 (2025-12-25)
+
+### Feat
+
+- feat: Add multi-architecture support and manifests creation (dec45d4)
+
 ## v1.6.43 (2025-12-24)
 
 ### Feat
