@@ -17,6 +17,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AdvancedSettings from '../components/Settings/AdvancedSettings';
 import CloudDriveSettings from '../components/Settings/CloudDriveSettings';
+import CloudflareSettings from '../components/Settings/CloudflareSettings';
 import CookieSettings from '../components/Settings/CookieSettings';
 import DatabaseSettings from '../components/Settings/DatabaseSettings';
 import DownloadSettings from '../components/Settings/DownloadSettings';
@@ -481,8 +482,18 @@ const SettingsPage: React.FC = () => {
                                 savedVisitorMode={settingsData?.visitorMode}
                                 infiniteScroll={settings.infiniteScroll}
                                 videoColumns={settings.videoColumns}
-                                cloudflaredTunnelEnabled={settings.cloudflaredTunnelEnabled}
-                                cloudflaredToken={settings.cloudflaredToken}
+
+                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                            />
+                        </Grid>
+
+                        <Grid size={12}><Divider /></Grid>
+
+                        {/* Cloudflare Settings */}
+                        <Grid size={12}>
+                            <CloudflareSettings
+                                enabled={settings.cloudflaredTunnelEnabled}
+                                token={settings.cloudflaredToken}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>

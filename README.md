@@ -41,6 +41,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
 - **Visitor Mode**: Enable read-only mode to allow viewing videos without modification capabilities. Perfect for sharing your library with others.
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
+- **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
 
 ## Directory Structure
 

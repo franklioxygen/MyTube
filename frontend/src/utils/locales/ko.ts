@@ -571,4 +571,19 @@ export const ko = {
   deleteAuthorConfirmation: "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
   authorDeletedSuccessfully: "작성자가 성공적으로 삭제되었습니다",
   failedToDeleteAuthor: "작성자 삭제 실패",
+
+  // Cloudflare Tunnel
+  cloudflaredTunnel: "Cloudflare Tunnel",
+  enableCloudflaredTunnel: "Enable Cloudflare Tunnel",
+  cloudflaredToken: "Tunnel Token (Optional)",
+  cloudflaredTokenHelper: "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+  waitingForUrl: "Waiting for Quick Tunnel URL...",
+  running: "Running",
+  stopped: "Stopped",
+  tunnelId: "Tunnel ID",
+  accountTag: "Account Tag",
+  copied: "Copied!",
+  clickToCopy: "Click to copy",
+  quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
+  managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
 };

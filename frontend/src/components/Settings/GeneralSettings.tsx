@@ -1,5 +1,5 @@
-import { Alert, Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField, Typography } from '@mui/material';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField, Typography } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -16,13 +16,11 @@ interface GeneralSettingsProps {
     savedVisitorMode?: boolean;
     infiniteScroll?: boolean;
     videoColumns?: number;
-    cloudflaredTunnelEnabled?: boolean;
-    cloudflaredToken?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
-    const { language, websiteName, showYoutubeSearch, visitorMode, savedVisitorMode, infiniteScroll, videoColumns, cloudflaredTunnelEnabled, cloudflaredToken, onChange } = props;
+    const { language, websiteName, showYoutubeSearch, visitorMode, savedVisitorMode, infiniteScroll, videoColumns, onChange } = props;
     const { t } = useLanguage();
     const queryClient = useQueryClient();
 
@@ -34,16 +32,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
     const [baseError, setBaseError] = useState('');
 
     // Poll for Cloudflare Tunnel status
-    const { data: cloudflaredStatus } = useQuery({
-        queryKey: ['cloudflaredStatus'],
-        queryFn: async () => {
-            if (!cloudflaredTunnelEnabled) return null;
-            const res = await axios.get(`${API_URL}/settings/cloudflared/status`);
-            return res.data;
-        },
-        enabled: !!cloudflaredTunnelEnabled,
-        refetchInterval: 5000 // Poll every 5 seconds
-    });
+
 
     // Use saved value for visibility, current value for toggle state
     const isVisitorMode = savedVisitorMode ?? visitorMode ?? false;
@@ -245,81 +234,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
                     </>
                 )}
 
-                <Box>
-                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                        {t('cloudflaredTunnel')}
-                    </Typography>
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={cloudflaredTunnelEnabled ?? false}
-                                onChange={(e) => onChange('cloudflaredTunnelEnabled', e.target.checked)}
-                            />
-                        }
-                        label={t('enableCloudflaredTunnel')}
-                    />
 
-                    {(cloudflaredTunnelEnabled) && (
-                        <TextField
-                            fullWidth
-                            label={t('cloudflaredToken')}
-                            type="password"
-                            value={cloudflaredToken || ''}
-                            onChange={(e) => onChange('cloudflaredToken', e.target.value)}
-                            margin="normal"
-                            helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
-                        />
-                    )}
-
-                    {cloudflaredTunnelEnabled && cloudflaredStatus && (
-                        <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
-                                <Typography variant="subtitle2">Status:</Typography>
-                                <Typography variant="body2" color={cloudflaredStatus.isRunning ? 'success.main' : 'error.main'} fontWeight="bold">
-                                    {cloudflaredStatus.isRunning ? 'Running' : 'Stopped'}
-                                </Typography>
-                            </Box>
-
-                            {cloudflaredStatus.tunnelId && (
-                                <Box sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2">Tunnel ID:</Typography>
-                                    <Typography variant="body2" fontFamily="monospace">
-                                        {cloudflaredStatus.tunnelId}
-                                    </Typography>
-                                </Box>
-                            )}
-
-                            {cloudflaredStatus.accountTag && (
-                                <Box sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2">Account Tag:</Typography>
-                                    <Typography variant="body2" fontFamily="monospace">
-                                        {cloudflaredStatus.accountTag}
-                                    </Typography>
-                                </Box>
-                            )}
-
-                            {cloudflaredStatus.publicUrl && (
-                                <Box sx={{ mb: 1 }}>
-                                    <Typography variant="subtitle2">Public URL:</Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all' }}>
-                                            {cloudflaredStatus.publicUrl}
-                                        </Typography>
-                                    </Box>
-                                    <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
-                                        Quick Tunnel URLs change every time the tunnel restarts.
-                                    </Alert>
-                                </Box>
-                            )}
-
-                            {!cloudflaredStatus.publicUrl && (
-                                <Alert severity="info" sx={{ mt: 1 }}>
-                                    Public hostname is managed in your Cloudflare Zero Trust Dashboard.
-                                </Alert>
-                            )}
-                        </Box>
-                    )}
-                </Box>
 
 
                 <Box>

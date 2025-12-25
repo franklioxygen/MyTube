@@ -580,4 +580,19 @@ export const ja = {
   deleteAuthorConfirmation: "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
   authorDeletedSuccessfully: "著者が正常に削除されました",
   failedToDeleteAuthor: "著者の削除に失敗しました",
+
+  // Cloudflare Tunnel
+  cloudflaredTunnel: "Cloudflare Tunnel",
+  enableCloudflaredTunnel: "Enable Cloudflare Tunnel",
+  cloudflaredToken: "Tunnel Token (Optional)",
+  cloudflaredTokenHelper: "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+  waitingForUrl: "Waiting for Quick Tunnel URL...",
+  running: "Running",
+  stopped: "Stopped",
+  tunnelId: "Tunnel ID",
+  accountTag: "Account Tag",
+  copied: "Copied!",
+  clickToCopy: "Click to copy",
+  quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
+  managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
 };

@@ -548,6 +548,15 @@ export const zh = {
   enableCloudflaredTunnel: "启用 Cloudflare 穿透",
   cloudflaredToken: "Token",
   cloudflaredTokenHelper: "在此粘贴您的 Token，或留空以使用随机 Quick Tunnel。",
+  waitingForUrl: "等待 Quick Tunnel URL...",
+  running: "运行中",
+  stopped: "已停止",
+  tunnelId: "Tunnel ID",
+  accountTag: "Account Tag",
+  copied: "已复制！",
+  clickToCopy: "点击复制",
+  quickTunnelWarning: "每次重启隧道时，Quick Tunnel URL 都会更改。",
+  managedInDashboard: "公开主机名在您的 Cloudflare Zero Trust 仪表板中管理。",
 
   // Database Export/Import
   exportImportDatabase: "导出/导入数据库",

@@ -571,4 +571,19 @@ export const ar = {
   deleteAuthorConfirmation: "هل أنت متأكد أنك تريد حذف المؤلف {author}؟ سيؤدي هذا إلى حذف جميع مقاطع الفيديو المرتبطة بهذا المؤلف.",
   authorDeletedSuccessfully: "تم حذف المؤلف بنجاح",
   failedToDeleteAuthor: "فشل حذف المؤلف",
+
+  // Cloudflare Tunnel
+  cloudflaredTunnel: "Cloudflare Tunnel",
+  enableCloudflaredTunnel: "Enable Cloudflare Tunnel",
+  cloudflaredToken: "Tunnel Token (Optional)",
+  cloudflaredTokenHelper: "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+  waitingForUrl: "Waiting for Quick Tunnel URL...",
+  running: "Running",
+  stopped: "Stopped",
+  tunnelId: "Tunnel ID",
+  accountTag: "Account Tag",
+  copied: "Copied!",
+  clickToCopy: "Click to copy",
+  quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
+  managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
 };
