@@ -1,5 +1,18 @@
 # Change Log
 
+## v1.6.47 (2025-12-25)
+
+### Feat
+
+- feat: Add Cloudflare Tunnel integration (431e716)
+- feat: Add Cloudflare Tunnel settings and service (508daae)
+
+## v1.6.46 (2025-12-25)
+
+### Feat
+
+- feat: Add cloud thumbnail cache functionality (85b34ec)
+
 ## v1.6.45 (2025-12-25)
 
 ### Feat
