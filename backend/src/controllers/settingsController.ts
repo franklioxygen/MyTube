@@ -3,11 +3,12 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
 import * as loginAttemptService from "../services/loginAttemptService";
 import * as storageService from "../services/storageService";
@@ -41,6 +42,8 @@ interface Settings {
   visitorMode?: boolean;
   infiniteScroll?: boolean;
   videoColumns?: number;
+  cloudflaredTunnelEnabled?: boolean;
+  cloudflaredToken?: string;
 }
 
 const defaultSettings: Settings = {
@@ -307,6 +310,40 @@ export const updateSettings = async (
       moveAllThumbnails(newSettings.moveThumbnailsToVideoFolder).catch((err) =>
         logger.error("Error moving thumbnails in background:", err)
       );
+    }
+  }
+
+  // Handle Cloudflare Tunnel settings changes
+  if (
+    newSettings.cloudflaredTunnelEnabled !==
+      existingSettings.cloudflaredTunnelEnabled ||
+    newSettings.cloudflaredToken !== existingSettings.cloudflaredToken
+  ) {
+    // If we are enabling it (or it was enabled and config changed)
+    if (newSettings.cloudflaredTunnelEnabled) {
+      // Determine port
+      const port = process.env.PORT ? parseInt(process.env.PORT) : 5551;
+      
+      const shouldRestart = existingSettings.cloudflaredTunnelEnabled;
+
+      if (shouldRestart) {
+         // If it was already enabled, we need to restart to apply changes (Token -> No Token, or vice versa)
+         if (newSettings.cloudflaredToken) {
+            cloudflaredService.restart(newSettings.cloudflaredToken);
+         } else {
+            cloudflaredService.restart(undefined, port);
+         }
+      } else {
+         // It was disabled, now enabling -> just start
+         if (newSettings.cloudflaredToken) {
+            cloudflaredService.start(newSettings.cloudflaredToken);
+         } else {
+            cloudflaredService.start(undefined, port);
+         }
+      }
+    } else {
+      // If disabled, stop
+      cloudflaredService.stop();
     }
   }
 
@@ -873,3 +910,16 @@ export const restoreFromLastBackup = async (
     throw error;
   }
 };
+
+/**
+ * Get Cloudflare Tunnel status
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const getCloudflaredStatus = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const status = cloudflaredService.getStatus();
+  res.json(status);
+};
+

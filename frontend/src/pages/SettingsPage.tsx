@@ -481,6 +481,8 @@ const SettingsPage: React.FC = () => {
                                 savedVisitorMode={settingsData?.visitorMode}
                                 infiniteScroll={settings.infiniteScroll}
                                 videoColumns={settings.videoColumns}
+                                cloudflaredTunnelEnabled={settings.cloudflaredTunnelEnabled}
+                                cloudflaredToken={settings.cloudflaredToken}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>

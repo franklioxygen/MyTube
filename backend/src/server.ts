@@ -5,17 +5,19 @@ dotenv.config();
 import axios from "axios";
 import cors from "cors";
 import express from "express";
+import path from "path";
 import {
-  CLOUD_THUMBNAIL_CACHE_DIR,
-  IMAGES_DIR,
-  SUBTITLES_DIR,
-  VIDEOS_DIR,
+    CLOUD_THUMBNAIL_CACHE_DIR,
+    IMAGES_DIR,
+    SUBTITLES_DIR,
+    VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
 import { visitorModeSettingsMiddleware } from "./middleware/visitorModeSettingsMiddleware";
 import apiRoutes from "./routes/api";
 import settingsRoutes from "./routes/settingsRoutes";
+import { cloudflaredService } from "./services/cloudflaredService";
 import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
@@ -80,6 +82,10 @@ const startServer = async () => {
         },
       })
     );
+    
+    // Serve Frontend Static Files
+    const frontendDist = path.join(__dirname, "../../frontend/dist");
+    app.use(express.static(frontendDist));
 
     // Cloud storage proxy endpoints
     // Proxy /cloud/videos/* and /cloud/images/* to Alist API
@@ -206,6 +212,16 @@ const startServer = async () => {
     // Use separate middleware for settings that allows disabling visitor mode
     app.use("/api/settings", visitorModeSettingsMiddleware, settingsRoutes);
 
+    // SPA Fallback for Frontend
+    app.get("*", (req, res) => {
+        // Don't serve index.html for API calls that 404
+        if (req.path.startsWith('/api') || req.path.startsWith('/cloud')) {
+            res.status(404).send('Not Found');
+            return;
+        }
+        res.sendFile(path.join(frontendDist, "index.html"));
+    });
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
 
@@ -226,6 +242,18 @@ const startServer = async () => {
         .catch((err) =>
           console.error("Failed to start metadata service:", err)
         );
+
+      // Start Cloudflared tunnel if enabled
+      const settings = storageService.getSettings();
+      if (settings.cloudflaredTunnelEnabled) {
+        if (settings.cloudflaredToken) {
+           cloudflaredService.start(settings.cloudflaredToken);
+        } else {
+           // Quick Tunnel
+           const port = typeof PORT === 'string' ? parseInt(PORT) : PORT;
+           cloudflaredService.start(undefined, port);
+        }
+      }
     });
   } catch (error) {
     console.error("Failed to start server:", error);

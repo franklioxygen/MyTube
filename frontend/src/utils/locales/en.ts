@@ -561,6 +561,12 @@ export const en = {
   moveThumbnailsToVideoFolderDescription:
     "When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.",
 
+  // Cloudflare Tunnel
+  cloudflaredTunnel: "Cloudflare Tunnel",
+  enableCloudflaredTunnel: "Enable Cloudflare Tunnel",
+  cloudflaredToken: "Tunnel Token",
+  cloudflaredTokenHelper: "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+
   // Database Export/Import
   exportImportDatabase: "Export/Import Database",
   exportImportDatabaseDescription:

@@ -30,7 +30,7 @@ export const useCloudStorageUrl = (
       });
     } else {
       // Regular path, construct URL synchronously
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551';
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
       setUrl(`${BACKEND_URL}${path}`);
     }
   }, [path, type]);

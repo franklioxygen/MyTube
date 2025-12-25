@@ -2,22 +2,23 @@ import express from "express";
 import multer from "multer";
 import os from "os";
 import {
-  checkCookies,
-  cleanupBackupDatabases,
-  deleteCookies,
-  deleteLegacyData,
-  exportDatabase,
-  formatFilenames,
-  getLastBackupInfo,
-  getPasswordEnabled,
-  getSettings,
-  importDatabase,
-  migrateData,
-  restoreFromLastBackup,
-  resetPassword,
-  updateSettings,
-  uploadCookies,
-  verifyPassword,
+    checkCookies,
+    cleanupBackupDatabases,
+    deleteCookies,
+    deleteLegacyData,
+    exportDatabase,
+    formatFilenames,
+    getCloudflaredStatus,
+    getLastBackupInfo,
+    getPasswordEnabled,
+    getSettings,
+    importDatabase,
+    migrateData,
+    resetPassword,
+    restoreFromLastBackup,
+    updateSettings,
+    uploadCookies,
+    verifyPassword,
 } from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
 
@@ -48,5 +49,6 @@ router.post(
 router.post("/cleanup-backup-databases", asyncHandler(cleanupBackupDatabases));
 router.get("/last-backup-info", asyncHandler(getLastBackupInfo));
 router.post("/restore-from-last-backup", asyncHandler(restoreFromLastBackup));
+router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 
 export default router;

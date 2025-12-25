@@ -12,6 +12,33 @@ export default defineConfig({
       interval: 2000,
       ignored: ['/node_modules/']
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5551',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/cloud': {
+        target: 'http://localhost:5551',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/images': {
+        target: 'http://localhost:5551',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/videos': {
+        target: 'http://localhost:5551',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/subtitles': {
+        target: 'http://localhost:5551',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version)

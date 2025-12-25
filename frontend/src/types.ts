@@ -82,4 +82,6 @@ export interface Settings {
   visitorMode?: boolean;
   infiniteScroll?: boolean;
   videoColumns?: number;
+  cloudflaredTunnelEnabled?: boolean;
+  cloudflaredToken?: string;
 }

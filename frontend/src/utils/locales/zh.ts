@@ -543,6 +543,12 @@ export const zh = {
   moveThumbnailsToVideoFolderDescription:
     "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
 
+  // Cloudflare Tunnel
+  cloudflaredTunnel: "Cloudflare 穿透",
+  enableCloudflaredTunnel: "启用 Cloudflare 穿透",
+  cloudflaredToken: "Token",
+  cloudflaredTokenHelper: "在此粘贴您的 Token，或留空以使用随机 Quick Tunnel。",
+
   // Database Export/Import
   exportImportDatabase: "导出/导入数据库",
   exportImportDatabaseDescription:

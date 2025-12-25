@@ -105,8 +105,8 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
-        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
+        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
     const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
 

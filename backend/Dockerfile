@@ -4,14 +4,29 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
+# Install dependencies
+COPY backend/package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 # Install build dependencies for native modules (python3, make, g++)
 RUN apk add --no-cache python3 make g++
 RUN npm ci
 
-COPY . .
+# Copy backend source
+COPY backend/ .
+
+# Copy frontend source for building
+COPY frontend/ /app/frontend/
+
+# Build frontend
+WORKDIR /app/frontend
+# Install frontend dependencies
+RUN npm ci
+# Build frontend with relative paths
+ENV VITE_API_URL=/api
+ENV VITE_BACKEND_URL=
+RUN npm run build
+WORKDIR /app
 
 # Build bgutil-ytdlp-pot-provider
 WORKDIR /app/bgutil-ytdlp-pot-provider/server
@@ -42,6 +57,11 @@ RUN apk add --no-cache \
 RUN curl -fsSL https://deno.land/install.sh | sh -s -- -y && \
     ln -sf /root/.deno/bin/deno /usr/local/bin/deno
 
+# Install cloudflared (Binary download)
+ARG TARGETARCH
+RUN curl -L --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
+    chmod +x /usr/local/bin/cloudflared
+
 # Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
 RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs --break-system-packages
 
@@ -52,11 +72,13 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Install production dependencies only
-COPY package*.json ./
+COPY backend/package*.json ./
 RUN npm ci --only=production
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
+# Copy frontend build
+COPY --from=builder /app/frontend/dist ./frontend/dist
 # Copy drizzle migrations
 COPY --from=builder /app/drizzle ./drizzle
 # Copy bgutil-ytdlp-pot-provider

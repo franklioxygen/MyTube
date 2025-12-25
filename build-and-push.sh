@@ -38,8 +38,9 @@ build_backend() {
   local version_tag=$3
   
   echo "🏗️ Building backend for $platform..."
-  cd backend
-  $DOCKER_PATH build --no-cache --platform $platform -t $tag .
+  # Run build from root context to allow copying frontend files
+  # Use -f backend/Dockerfile to specify the Dockerfile path
+  $DOCKER_PATH build --no-cache --platform $platform -f backend/Dockerfile -t $tag .
   
   if [ -n "$VERSION" ] && [ -n "$version_tag" ]; then
     $DOCKER_PATH tag $tag $version_tag
@@ -58,8 +59,6 @@ build_backend() {
   if [ -n "$VERSION" ] && [ -n "$version_tag" ]; then
     $DOCKER_PATH rmi $version_tag
   fi
-  
-  cd ..
 }
 
 # Function to build frontend for a specific platform

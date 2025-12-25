@@ -38,8 +38,8 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
-        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
+        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
 
     return (

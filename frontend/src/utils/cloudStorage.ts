@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
 
 /**
  * Check if a path is a cloud storage path (starts with "cloud:")
