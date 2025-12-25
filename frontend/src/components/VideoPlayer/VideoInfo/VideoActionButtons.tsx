@@ -7,7 +7,8 @@ import { useVideo } from '../../../contexts/VideoContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { useShareVideo } from '../../../hooks/useShareVideo';
-import { Video } from '../../../types';
+import { Video } from '../../../types'; // Add imports
+import { getAvailablePlayers, getPlayerUrl } from '../../../utils/playerUtils'; // Import new utils
 import VideoKebabMenuButtons from './VideoKebabMenuButtons';
 
 interface VideoActionButtonsProps {
@@ -90,54 +91,42 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         try {
             let playerUrl = '';
 
-            switch (player) {
-                case 'vlc':
-                    playerUrl = `vlc://${resolvedVideoUrl}`;
-                    break;
-                case 'iina':
-                    playerUrl = `iina://weblink?url=${encodeURIComponent(resolvedVideoUrl)}`;
-                    break;
-                case 'mpv':
-                    playerUrl = `mpv://${resolvedVideoUrl}`;
-                    break;
-                case 'potplayer':
-                    playerUrl = `potplayer://${resolvedVideoUrl}`;
-                    break;
-                case 'infuse':
-                    playerUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(resolvedVideoUrl)}`;
-                    break;
-                case 'copy':
-                    // Copy URL to clipboard
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
+            if (player === 'copy') {
+                // Copy logic will be handled below but we need valid logic structure
+            } else {
+                playerUrl = getPlayerUrl(player, resolvedVideoUrl);
+            }
+
+            if (player === 'copy') {
+                // Copy URL to clipboard
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
+                        showSnackbar(t('linkCopied'), 'success');
+                    }).catch(() => {
+                        showSnackbar(t('copyFailed'), 'error');
+                    });
+                } else {
+                    // Fallback
+                    const textArea = document.createElement("textarea");
+                    textArea.value = resolvedVideoUrl;
+                    textArea.style.position = "fixed";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
                             showSnackbar(t('linkCopied'), 'success');
-                        }).catch(() => {
-                            showSnackbar(t('copyFailed'), 'error');
-                        });
-                    } else {
-                        // Fallback
-                        const textArea = document.createElement("textarea");
-                        textArea.value = resolvedVideoUrl;
-                        textArea.style.position = "fixed";
-                        document.body.appendChild(textArea);
-                        textArea.focus();
-                        textArea.select();
-                        try {
-                            const successful = document.execCommand('copy');
-                            if (successful) {
-                                showSnackbar(t('linkCopied'), 'success');
-                            } else {
-                                showSnackbar(t('copyFailed'), 'error');
-                            }
-                        } catch (err) {
+                        } else {
                             showSnackbar(t('copyFailed'), 'error');
                         }
-                        document.body.removeChild(textArea);
+                    } catch (err) {
+                        showSnackbar(t('copyFailed'), 'error');
                     }
-                    handlePlayerMenuClose();
-                    return;
-                default:
-                    return;
+                    document.body.removeChild(textArea);
+                }
+                handlePlayerMenuClose();
+                return;
             }
 
             // Try to open the player URL using a hidden anchor element
@@ -187,11 +176,11 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     horizontal: 'left',
                 }}
             >
-                <MenuItem onClick={() => handlePlayerSelect('vlc')}>VLC</MenuItem>
-                <MenuItem onClick={() => handlePlayerSelect('iina')}>IINA</MenuItem>
-                <MenuItem onClick={() => handlePlayerSelect('mpv')}>mpv</MenuItem>
-                <MenuItem onClick={() => handlePlayerSelect('potplayer')}>PotPlayer</MenuItem>
-                <MenuItem onClick={() => handlePlayerSelect('infuse')}>Infuse</MenuItem>
+                {getAvailablePlayers().map((player) => (
+                    <MenuItem key={player.id} onClick={() => handlePlayerSelect(player.id)}>
+                        {player.name}
+                    </MenuItem>
+                ))}
                 <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
             </Menu>
 
@@ -270,11 +259,11 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                         horizontal: 'left',
                     }}
                 >
-                    <MenuItem onClick={() => handlePlayerSelect('vlc')}>VLC</MenuItem>
-                    <MenuItem onClick={() => handlePlayerSelect('iina')}>IINA</MenuItem>
-                    <MenuItem onClick={() => handlePlayerSelect('mpv')}>mpv</MenuItem>
-                    <MenuItem onClick={() => handlePlayerSelect('potplayer')}>PotPlayer</MenuItem>
-                    <MenuItem onClick={() => handlePlayerSelect('infuse')}>Infuse</MenuItem>
+                    {getAvailablePlayers().map((player) => (
+                        <MenuItem key={player.id} onClick={() => handlePlayerSelect(player.id)}>
+                            {player.name}
+                        </MenuItem>
+                    ))}
                     <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
                 </Menu>
             </>
