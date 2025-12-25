@@ -22,6 +22,7 @@ interface VideoContextType {
     localSearchResults: Video[];
     isSearchMode: boolean;
     searchTerm: string;
+    incrementView: (id: string) => Promise<{ success: boolean; error?: string }>;
     youtubeLoading: boolean;
     handleSearch: (query: string) => Promise<any>;
     resetSearch: () => void;
@@ -393,6 +394,28 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    const incrementView = async (id: string) => {
+        try {
+            const res = await axios.post(`${API_URL}/videos/${id}/view`);
+            if (res.data.success) {
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                    old ? old.map(video =>
+                        video.id === id ? { ...video, viewCount: res.data.viewCount } : video
+                    ) : []
+                );
+                // Also update individual video query if it exists
+                queryClient.setQueryData(['video', id], (old: Video | undefined) =>
+                    old ? { ...old, viewCount: res.data.viewCount } : old
+                );
+                return { success: true };
+            }
+            return { success: false, error: 'Failed to increment view' };
+        } catch (error) {
+            console.error('Error incrementing view count:', error);
+            return { success: false, error: 'Failed to increment view' };
+        }
+    };
+
     return (
         <VideoContext.Provider value={{
             videos,
@@ -403,6 +426,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             deleteVideos,
             updateVideo,
             refreshThumbnail,
+            incrementView,
             searchLocalVideos,
             searchResults,
             localSearchResults,

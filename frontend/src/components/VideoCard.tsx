@@ -61,7 +61,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     // Hooks for share and snackbar
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
-    const { updateVideo } = useVideo();
+    const { updateVideo, incrementView } = useVideo();
 
 
 
@@ -96,11 +96,11 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
-        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
+        ? `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
     const thumbnailSrc = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl;
-    
+
     // Use cloud storage hook for video URL
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
@@ -152,29 +152,29 @@ const VideoCard: React.FC<VideoCardProps> = ({
         if (!hasNoViews) {
             return false;
         }
-        
+
         // Check if addedAt exists
         if (!video.addedAt) {
             return false;
         }
-        
+
         // Check if added within 7 days
         const addedDate = new Date(video.addedAt);
         const now = new Date();
-        
+
         // Handle invalid dates
         if (isNaN(addedDate.getTime())) {
             return false;
         }
-        
+
         const daysDiff = (now.getTime() - addedDate.getTime()) / (1000 * 60 * 60 * 24);
         const isWithin7Days = daysDiff >= 0 && daysDiff <= 7; // >= 0 to handle future dates
-        
+
         // Debug log (can be removed later)
         if (process.env.NODE_ENV === 'development') {
             console.log(`Video ${video.id}: viewCount=${video.viewCount} (parsed: ${viewCountNum}), addedAt=${video.addedAt}, daysDiff=${daysDiff.toFixed(2)}, isNew=${isWithin7Days}`);
         }
-        
+
         return isWithin7Days;
     }, [video.viewCount, video.addedAt, video.id]);
 
@@ -196,7 +196,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
         if (videoUrl) {
             return videoUrl;
         }
-        
+
         // If cloud storage path but URL not loaded yet, wait for it
         if (video.videoPath?.startsWith('cloud:')) {
             // Try to get the signed URL directly
@@ -208,7 +208,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
             // If still not available, return empty string
             return '';
         }
-        
+
         // Otherwise, construct URL from videoPath
         if (video.videoPath) {
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
@@ -223,12 +223,15 @@ const VideoCard: React.FC<VideoCardProps> = ({
 
     const handlePlayerSelect = async (player: string) => {
         const resolvedVideoUrl = await getVideoUrl();
-        
+
         if (!resolvedVideoUrl) {
             showSnackbar(t('error') || 'Video URL not available', 'error');
             handlePlayerMenuClose();
             return;
         }
+
+        // Increment view count since we can't track watch time in external players
+        await incrementView(video.id);
 
         try {
             let playerUrl = '';

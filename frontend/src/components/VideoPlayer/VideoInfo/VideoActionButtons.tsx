@@ -3,6 +3,7 @@ import { Button, Menu, MenuItem, Stack, Tooltip, useMediaQuery, useTheme } from 
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
+import { useVideo } from '../../../contexts/VideoContext';
 import { useVisitorMode } from '../../../contexts/VisitorModeContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { useShareVideo } from '../../../hooks/useShareVideo';
@@ -28,6 +29,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
     const { visitorMode } = useVisitorMode();
+    const { incrementView } = useVideo();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -39,7 +41,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         if (videoUrl) {
             return videoUrl;
         }
-        
+
         // If cloud storage path but URL not loaded yet, try to get it directly
         if (video.videoPath?.startsWith('cloud:')) {
             // Try to get the signed URL directly
@@ -51,11 +53,11 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             // If still not available, return empty string
             return '';
         }
-        
+
         // Otherwise, construct URL from videoPath
         if (video.videoPath) {
             const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
-            
+
             // Always use current origin for external players to ensure accessibility
             // The browser's same-origin policy means videos are served from the same origin
             // when accessed remotely, so window.location.origin is the correct base URL
@@ -75,16 +77,19 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
 
     const handlePlayerSelect = async (player: string) => {
         const resolvedVideoUrl = await getVideoUrl();
-        
+
         if (!resolvedVideoUrl) {
             showSnackbar(t('error') || 'Video URL not available', 'error');
             handlePlayerMenuClose();
             return;
         }
-        
+
+        // Increment view count since we can't track watch time in external players
+        await incrementView(video.id);
+
         try {
             let playerUrl = '';
-            
+
             switch (player) {
                 case 'vlc':
                     playerUrl = `vlc://${resolvedVideoUrl}`;
@@ -143,17 +148,17 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             // Show a message after a short delay
             setTimeout(() => {
                 showSnackbar(t('openInExternalPlayer'), 'info');
             }, 500);
-            
+
         } catch (error) {
             console.error('Error opening player:', error);
             showSnackbar(t('copyFailed'), 'error');
         }
-        
+
         handlePlayerMenuClose();
     };
 
