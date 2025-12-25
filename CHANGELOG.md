@@ -1,5 +1,12 @@
 # Change Log
 
+## v1.6.45 (2025-12-25)
+
+### Feat
+
+- feat: Add new player utilities and update video player components (1f85b37)
+- feat: Add incrementView function to VideoContext (0225912)
+
 ## v1.6.44 (2025-12-25)
 
 ### Feat
