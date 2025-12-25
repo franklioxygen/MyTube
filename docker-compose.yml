@@ -41,4 +41,4 @@ volumes:
 
 networks:
   mytube-network:
-    driver: bridge 
+    driver: bridge

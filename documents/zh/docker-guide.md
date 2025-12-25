@@ -2,6 +2,9 @@
 
 本指南提供了使用 Docker 和 Docker Compose 部署 [MyTube](https://github.com/franklioxygen/MyTube "null") 的详细步骤。此设置适用于标准环境（Linux, macOS, Windows），并针对通用用途修改了原本专用于 QNAP 的配置。
 
+> [!NOTE]
+> **多架构支持：** 官方镜像支持 **amd64** (x86_64) 和 **arm64** (Apple Silicon, Raspberry Pi 等) 架构。Docker 会自动为您的系统拉取极其正确的镜像。
+
 ## 🚀 快速开始 (使用预构建镜像)
 
 运行 MyTube 最简单的方法是使用官方预构建的镜像。
@@ -133,7 +136,7 @@ docker-compose up -d
 1. **克隆仓库：**
     
     ```
-    git clone [https://github.com/franklioxygen/MyTube.git](https://github.com/franklioxygen/MyTube.git)
+    git clone https://github.com/franklioxygen/MyTube.git
     cd MyTube
     ```
     
@@ -141,7 +144,7 @@ docker-compose up -d
     
     修改 `docker-compose.yml`：
     
-    ```
+    ```yaml
     services:
       backend:
         build: ./backend

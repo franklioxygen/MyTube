@@ -2,6 +2,9 @@
 
 This guide provides step-by-step instructions to deploy [MyTube](https://github.com/franklioxygen/MyTube "null") using Docker and Docker Compose. This setup is designed for standard environments (Linux, macOS, Windows) and modifies the original QNAP-specific configurations for general use.
 
+> [!NOTE]
+> **Multi-Architecture Support:** The official images support both **amd64** (x86_64) and **arm64** (Apple Silicon, Raspberry Pi, etc.) architectures. Docker will automatically pull the correct image for your system.
+
 ## 🚀 Quick Start (Pre-built Images)
 
 The easiest way to run MyTube is using the official pre-built images.
@@ -133,7 +136,7 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
 1. **Clone the Repository:**
     
     ```
-    git clone [https://github.com/franklioxygen/MyTube.git](https://github.com/franklioxygen/MyTube.git)
+    git clone https://github.com/franklioxygen/MyTube.git
     cd MyTube
     ```
     
@@ -141,7 +144,7 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
     
     Modify `docker-compose.yml`:
     
-    ```
+    ```yaml
     services:
       backend:
         build: ./backend
