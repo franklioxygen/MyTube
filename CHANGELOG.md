@@ -2,6 +2,10 @@
 
 ## v1.6.48 (2025-12-26)
 
+### Chore
+
+- chore: Update docker-compose files and configurations (33fa090)
+
 ### Refactor
 
 - refactor: Improve cloud thumbnail generation with retry mechanism and optimized ffmpeg parameters
