@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.6.48 (2025-12-26)
+
+### Refactor
+
+- refactor: Improve cloud thumbnail generation with retry mechanism and optimized ffmpeg parameters
+
 ## v1.6.47 (2025-12-25)
 
 ### Fix
