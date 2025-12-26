@@ -1,0 +1,54 @@
+version: '3.8'
+
+# Example configuration for systems where bridge network cannot access internet
+# (e.g., OpenWrt/iStoreOS on arm64)
+# 
+# Usage: docker compose -f docker-compose.host-network.yml up -d
+#
+# This configuration uses host network mode for the backend to allow internet access,
+# while keeping the frontend on bridge network with proper nginx configuration.
+
+services:
+  backend:
+    image: franklioxygen/mytube:backend-latest
+    pull_policy: always
+    container_name: mytube-backend
+    network_mode: host
+    volumes:
+      - /share/CACHEDEV2_DATA/Medias/MyTube/uploads:/app/uploads
+      - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
+    environment:
+      - PORT=5551
+    restart: unless-stopped
+    # Note: In host mode, the container uses the host's network stack directly
+    # The backend will be accessible at localhost:5551 on the host
+
+  frontend:
+    image: franklioxygen/mytube:frontend-latest
+    pull_policy: always
+    container_name: mytube-frontend
+    ports:
+      - "5556:5556"
+    environment:
+      - VITE_API_URL=/api
+      - VITE_BACKEND_URL=
+      # Configure nginx to use localhost:5551 to reach backend in host mode
+      - NGINX_BACKEND_URL=http://localhost:5551
+      # Alternative: if backend is on a different host, use:
+      # - NGINX_BACKEND_URL=http://<host-ip>:5551
+      # - API_HOST=<host-ip>
+      # - API_PORT=5551
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - mytube-network
+
+volumes:
+  backend-data:
+    driver: local
+
+networks:
+  mytube-network:
+    driver: bridge
+

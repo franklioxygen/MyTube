@@ -13,6 +13,10 @@ services:
     restart: unless-stopped
     networks:
       - mytube-network
+    # For OpenWrt/iStoreOS systems where bridge network cannot access internet,
+    # uncomment the following lines to use host network mode:
+    # network_mode: host
+    # Then set NGINX_BACKEND_URL=http://localhost:5551 for frontend service
 
   frontend:
     image: franklioxygen/mytube:frontend-latest
@@ -29,11 +33,16 @@ services:
       # you can override these values using a .env file with:
       # - API_HOST=your-ip-or-hostname
       # - API_PORT=5551
+      # For host network mode (when backend uses network_mode: host), set:
+      # - NGINX_BACKEND_URL=http://localhost:5551
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - mytube-network
+    # If backend uses host network mode, uncomment the following:
+    # network_mode: host
+    # And remove the ports mapping above
 
 volumes:
   backend-data:
@@ -42,3 +51,10 @@ volumes:
 networks:
   mytube-network:
     driver: bridge
+    # DNS configuration to help with network connectivity issues on OpenWrt/iStoreOS
+    # If you still have issues accessing internet from containers, try:
+    # 1. Add your router's DNS servers: dns: [8.8.8.8, 8.8.4.4]
+    # 2. Or use host network mode for backend (see comments above)
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.enable_icc: "true"

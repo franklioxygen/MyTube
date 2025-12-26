@@ -509,7 +509,7 @@ export async function scanCloudFiles(
         // Clear cache for the new files
         // Use relative paths (relative to upload root) for cache keys
         clearSignedUrlCache(relativeVideoPath, "video");
-        
+
         // Only clear thumbnail cache if thumbnail was successfully generated
         if (thumbnailGenerated && relativeThumbnailPath) {
           // For thumbnail cache, use the directory path
