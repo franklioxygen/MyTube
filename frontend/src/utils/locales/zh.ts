@@ -359,6 +359,10 @@ export const zh = {
   bilibiliCollectionDetected: "检测到 Bilibili 合集",
   bilibiliSeriesDetected: "检测到 Bilibili 系列",
   multiPartVideoDetected: "检测到多P视频",
+  authorOrPlaylist: "作者 / 播放列表",
+  playlistDetected: "检测到播放列表",
+  playlistHasVideos: "此播放列表包含 {count} 个视频。",
+  downloadPlaylistAndCreateCollection: "下载播放列表视频并为其创建合集？",
   collectionHasVideos: "此合集包含 {count} 个视频。",
   seriesHasVideos: "此系列包含 {count} 个视频。",
   videoHasParts: "此视频包含 {count} 个分P。",
@@ -584,4 +588,7 @@ export const zh = {
   restoreFromLastBackupFailed: "从备份恢复失败",
   lastBackupDate: "最后备份日期",
   noBackupAvailable: "没有可用的备份",
+  failedToDownloadVideo: "下载视频失败。请重试。",
+  failedToDownload: "下载失败。请重试。",
+  playlistDownloadStarted: "播放列表下载已开始",
 };

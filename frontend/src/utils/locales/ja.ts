@@ -362,6 +362,10 @@ export const ja = {
   bilibiliCollectionDetected: "Bilibiliコレクションを検出しました",
   bilibiliSeriesDetected: "Bilibiliシリーズを検出しました",
   multiPartVideoDetected: "マルチパート動画を検出しました",
+  authorOrPlaylist: "作者 / 再生リスト",
+  playlistDetected: "プレイリストが検出されました",
+  playlistHasVideos: "このプレイリストには{count}本の動画があります。",
+  downloadPlaylistAndCreateCollection: "プレイリストの動画をダウンロードして、コレクションを作成しますか？",
   collectionHasVideos:
     "このBilibiliコレクションには{count}個の動画があります。",
   seriesHasVideos: "このBilibiliシリーズには{count}個の動画があります。",
@@ -595,4 +599,7 @@ export const ja = {
   clickToCopy: "Click to copy",
   quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
   managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  failedToDownloadVideo: "動画のダウンロードに失敗しました。もう一度お試しください。",
+  failedToDownload: "ダウンロードに失敗しました。もう一度お試しください。",
+  playlistDownloadStarted: "プレイリストのダウンロードが開始されました",
 };

@@ -42,6 +42,7 @@ const Header: React.FC<HeaderProps> = ({
     const [websiteName, setWebsiteName] = useState('MyTube');
     const [isScrolled, setIsScrolled] = useState<boolean>(false);
     const [infiniteScroll, setInfiniteScroll] = useState<boolean>(false);
+    const [hasActiveSubscriptions, setHasActiveSubscriptions] = useState<boolean>(false);
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
@@ -57,6 +58,45 @@ const Header: React.FC<HeaderProps> = ({
     useEffect(() => {
         console.log('Header props:', { activeDownloads, queuedDownloads });
     }, [activeDownloads, queuedDownloads]);
+
+    // Check for active subscriptions and tasks
+    useEffect(() => {
+        if (visitorMode) {
+            setHasActiveSubscriptions(false);
+            return;
+        }
+
+        const checkActiveSubscriptions = async () => {
+            try {
+                const API_URL = import.meta.env.VITE_API_URL;
+                const axios = await import('axios');
+
+                // Fetch subscriptions and tasks
+                const [subscriptionsRes, tasksRes] = await Promise.all([
+                    axios.default.get(`${API_URL}/subscriptions`).catch(() => ({ data: [] })),
+                    axios.default.get(`${API_URL}/subscriptions/tasks`).catch(() => ({ data: [] }))
+                ]);
+
+                const subscriptions = subscriptionsRes.data || [];
+                const tasks = tasksRes.data || [];
+
+                // Check if there are active subscriptions or active tasks
+                const hasActiveTasks = tasks.some((task: any) =>
+                    task.status === 'active' || task.status === 'paused'
+                );
+
+                setHasActiveSubscriptions(subscriptions.length > 0 || hasActiveTasks);
+            } catch (error) {
+                console.error('Error checking subscriptions:', error);
+                setHasActiveSubscriptions(false);
+            }
+        };
+
+        checkActiveSubscriptions();
+        // Poll every 10 seconds to update indicator
+        const interval = setInterval(checkActiveSubscriptions, 10000);
+        return () => clearInterval(interval);
+    }, [visitorMode]);
 
     useEffect(() => {
         // Fetch settings to get website name and infinite scroll setting
@@ -82,7 +122,7 @@ const Header: React.FC<HeaderProps> = ({
     // Scroll detection - for mobile always, for desktop when infinite scroll is enabled on home page
     useEffect(() => {
         const shouldDetectScroll = isMobile || (infiniteScroll && isHomePage);
-        
+
         if (!shouldDetectScroll) {
             setIsScrolled(false);
             return;
@@ -262,6 +302,7 @@ const Header: React.FC<HeaderProps> = ({
                                                 onDownloadsClose={handleDownloadsClose}
                                                 onManageClick={handleManageClick}
                                                 onManageClose={handleManageClose}
+                                                hasActiveSubscriptions={hasActiveSubscriptions}
                                             />
                                             <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                                                 <MenuIcon />
@@ -297,6 +338,7 @@ const Header: React.FC<HeaderProps> = ({
                                                 onDownloadsClose={handleDownloadsClose}
                                                 onManageClick={handleManageClick}
                                                 onManageClose={handleManageClose}
+                                                hasActiveSubscriptions={hasActiveSubscriptions}
                                             />
                                         </Box>
                                     </>
@@ -345,14 +387,14 @@ const Header: React.FC<HeaderProps> = ({
             />
 
             {/* Scroll to top button - mobile always, desktop when infinite scroll is enabled on home page */}
-            <Slide 
-                direction="up" 
+            <Slide
+                direction="up"
                 in={
-                    isScrolled && 
-                    !isSettingsPage && 
+                    isScrolled &&
+                    !isSettingsPage &&
                     (isMobile || (infiniteScroll && isHomePage))
-                } 
-                mountOnEnter 
+                }
+                mountOnEnter
                 unmountOnExit
             >
                 <Fab
@@ -367,9 +409,9 @@ const Header: React.FC<HeaderProps> = ({
                         bottom: 16,
                         left: 16,
                         zIndex: (theme) => theme.zIndex.speedDial,
-                        display: { 
-                            xs: 'flex', 
-                            md: (infiniteScroll && isHomePage) ? 'flex' : 'none' 
+                        display: {
+                            xs: 'flex',
+                            md: (infiniteScroll && isHomePage) ? 'flex' : 'none'
                         },
                         opacity: 0.8,
                         '&:hover': {

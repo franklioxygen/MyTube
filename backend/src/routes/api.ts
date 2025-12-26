@@ -71,6 +71,10 @@ router.get(
   "/check-bilibili-collection",
   asyncHandler(videoDownloadController.checkBilibiliCollection)
 );
+router.get(
+  "/check-playlist",
+  asyncHandler(videoDownloadController.checkPlaylist)
+);
 
 // Download management
 router.post(
@@ -136,6 +140,10 @@ router.delete(
 router.delete(
   "/subscriptions/tasks/:id/delete",
   asyncHandler(subscriptionController.deleteContinuousDownloadTask)
+);
+router.post(
+  "/subscriptions/tasks/playlist",
+  asyncHandler(subscriptionController.createPlaylistTask)
 );
 
 // Cloud storage routes

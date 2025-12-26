@@ -367,6 +367,10 @@ export const pt = {
   bilibiliCollectionDetected: "Coleção Bilibili Detectada",
   bilibiliSeriesDetected: "Série Bilibili Detectada",
   multiPartVideoDetected: "Vídeo em Múltiplas Partes Detectado",
+  authorOrPlaylist: "Autor / Lista de reprodução",
+  playlistDetected: "Lista de reprodução detectada",
+  playlistHasVideos: "Esta lista de reprodução tem {count} vídeos.",
+  downloadPlaylistAndCreateCollection: "Baixar vídeos da lista de reprodução e criar uma coleção para ela?",
   collectionHasVideos: "Esta coleção Bilibili tem {count} vídeos.",
   previouslyDeletedVideo: "Vídeo Anteriormente Excluído",
   previouslyDeleted: "Anteriormente excluído",
@@ -598,4 +602,7 @@ export const pt = {
   clickToCopy: "Click to copy",
   quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
   managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  failedToDownloadVideo: "Falha ao baixar o vídeo. Por favor, tente novamente.",
+  failedToDownload: "Falha ao baixar. Por favor, tente novamente.",
+  playlistDownloadStarted: "Download da playlist iniciado",
 };

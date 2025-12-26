@@ -14,8 +14,9 @@ import {
     TableRow,
     Typography
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -52,48 +53,39 @@ interface ContinuousDownloadTask {
     updatedAt?: number;
     completedAt?: number;
     error?: string;
+    playlistName?: string;
 }
 
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { visitorMode } = useVisitorMode();
-    const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-    const [tasks, setTasks] = useState<ContinuousDownloadTask[]>([]);
     const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
     const [isCancelTaskModalOpen, setIsCancelTaskModalOpen] = useState(false);
     const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<ContinuousDownloadTask | null>(null);
 
-    useEffect(() => {
-        fetchSubscriptions();
-        fetchTasks();
-        // Poll for task updates every 5 seconds
-        const interval = setInterval(() => {
-            fetchTasks();
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const fetchSubscriptions = async () => {
-        try {
+    // Use React Query for better caching and memory management
+    const { data: subscriptions = [], refetch: refetchSubscriptions } = useQuery({
+        queryKey: ['subscriptions'],
+        queryFn: async () => {
             const response = await axios.get(`${API_URL}/subscriptions`);
-            setSubscriptions(response.data);
-        } catch (error) {
-            console.error('Error fetching subscriptions:', error);
-            showSnackbar(t('error'));
-        }
-    };
+            return response.data as Subscription[];
+        },
+        refetchInterval: 30000, // Refetch every 30 seconds (less frequent)
+        staleTime: 10000, // Consider data fresh for 10 seconds
+    });
 
-    const fetchTasks = async () => {
-        try {
+    const { data: tasks = [], refetch: refetchTasks } = useQuery({
+        queryKey: ['subscriptionTasks'],
+        queryFn: async () => {
             const response = await axios.get(`${API_URL}/subscriptions/tasks`);
-            setTasks(response.data);
-        } catch (error) {
-            console.error('Error fetching tasks:', error);
-        }
-    };
+            return response.data as ContinuousDownloadTask[];
+        },
+        refetchInterval: 10000, // Poll every 10 seconds
+        staleTime: 5000, // Consider data fresh for 5 seconds
+    });
 
     const handleUnsubscribeClick = (id: string, author: string) => {
         setSelectedSubscription({ id, author });
@@ -106,7 +98,7 @@ const SubscriptionsPage: React.FC = () => {
         try {
             await axios.delete(`${API_URL}/subscriptions/${selectedSubscription.id}`);
             showSnackbar(t('unsubscribedSuccessfully'));
-            fetchSubscriptions();
+            refetchSubscriptions();
         } catch (error) {
             console.error('Error unsubscribing:', error);
             showSnackbar(t('error'));
@@ -132,7 +124,7 @@ const SubscriptionsPage: React.FC = () => {
         try {
             await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}`);
             showSnackbar(t('taskCancelled'));
-            fetchTasks();
+            refetchTasks();
         } catch (error) {
             console.error('Error cancelling task:', error);
             showSnackbar(t('error'));
@@ -153,7 +145,7 @@ const SubscriptionsPage: React.FC = () => {
         try {
             await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}/delete`);
             showSnackbar(t('taskDeleted'));
-            fetchTasks();
+            refetchTasks();
         } catch (error) {
             console.error('Error deleting task:', error);
             showSnackbar(t('error'));
@@ -239,7 +231,7 @@ const SubscriptionsPage: React.FC = () => {
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>{t('author')}</TableCell>
+                                    <TableCell>{t('authorOrPlaylist')}</TableCell>
                                     <TableCell>{t('platform')}</TableCell>
                                     <TableCell>{t('status')}</TableCell>
                                     <TableCell>{t('progress')}</TableCell>
@@ -250,9 +242,9 @@ const SubscriptionsPage: React.FC = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {tasks.map((task) => (
+                                {tasks.slice().reverse().map((task) => (
                                     <TableRow key={task.id}>
-                                        <TableCell>{task.author}</TableCell>
+                                        <TableCell>{task.playlistName || task.author}</TableCell>
                                         <TableCell>{task.platform}</TableCell>
                                         <TableCell>
                                             <Typography
@@ -261,8 +253,8 @@ const SubscriptionsPage: React.FC = () => {
                                                     task.status === 'completed'
                                                         ? 'success.main'
                                                         : task.status === 'cancelled'
-                                                        ? 'error.main'
-                                                        : 'info.main'
+                                                            ? 'error.main'
+                                                            : 'info.main'
                                                 }
                                             >
                                                 {t(`taskStatus${task.status.charAt(0).toUpperCase() + task.status.slice(1)}` as TranslationKey)}

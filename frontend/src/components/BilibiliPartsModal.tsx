@@ -22,7 +22,7 @@ interface BilibiliPartsModalProps {
     onDownloadAll: (collectionName: string) => void;
     onDownloadCurrent: () => void;
     isLoading: boolean;
-    type?: 'parts' | 'collection' | 'series';
+    type?: 'parts' | 'collection' | 'series' | 'playlist';
 }
 
 const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
@@ -49,6 +49,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 return t('bilibiliCollectionDetected');
             case 'series':
                 return t('bilibiliSeriesDetected');
+            case 'playlist':
+                return t('playlistDetected');
             default:
                 return t('multiPartVideoDetected');
         }
@@ -60,6 +62,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 return t('collectionHasVideos', { count: videosNumber });
             case 'series':
                 return t('seriesHasVideos', { count: videosNumber });
+            case 'playlist':
+                return t('playlistHasVideos', { count: videosNumber });
             default:
                 return t('videoHasParts', { count: videosNumber });
         }
@@ -73,6 +77,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 return t('downloadAllVideos', { count: videosNumber });
             case 'series':
                 return t('downloadAllVideos', { count: videosNumber });
+            case 'playlist':
+                return t('downloadAllVideos', { count: videosNumber });
             default:
                 return t('downloadAllParts', { count: videosNumber });
         }
@@ -85,6 +91,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
             case 'collection':
                 return t('downloadThisVideoOnly');
             case 'series':
+                return t('downloadThisVideoOnly');
+            case 'playlist':
                 return t('downloadThisVideoOnly');
             default:
                 return t('downloadCurrentPartOnly');
@@ -125,7 +133,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                     <strong>{t('title')}:</strong> {videoTitle}
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 2, mb: 1 }}>
-                    {type === 'parts' ? t('wouldYouLikeToDownloadAllParts') : t('wouldYouLikeToDownloadAllVideos')}
+                    {type === 'parts' ? t('wouldYouLikeToDownloadAllParts') : type === 'playlist' ? t('downloadPlaylistAndCreateCollection') : t('wouldYouLikeToDownloadAllVideos')}
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
@@ -137,7 +145,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                         onChange={(e) => setCollectionName(e.target.value)}
                         placeholder={videoTitle}
                         disabled={isLoading}
-                        helperText={type === 'parts' ? t('allPartsAddedToCollection') : t('allVideosAddedToCollection')}
+                        helperText={type === 'parts' ? t('allPartsAddedToCollection') : type === 'playlist' ? t('allVideosAddedToCollection') : t('allVideosAddedToCollection')}
                     />
                 </Box>
             </DialogContent>

@@ -149,6 +149,32 @@ export function getCollectionByName(name: string): Collection | undefined {
   }
 }
 
+/**
+ * Generate a unique collection name by appending a number if the name already exists
+ * @param baseName - The desired collection name
+ * @returns A unique collection name
+ */
+export function generateUniqueCollectionName(baseName: string): string {
+  const existingCollection = getCollectionByName(baseName);
+  if (!existingCollection) {
+    return baseName;
+  }
+
+  // Try appending numbers: "Name (2)", "Name (3)", etc.
+  let counter = 2;
+  let uniqueName = `${baseName} (${counter})`;
+  
+  while (getCollectionByName(uniqueName)) {
+    counter++;
+    uniqueName = `${baseName} (${counter})`;
+  }
+
+  logger.info(
+    `Collection name "${baseName}" already exists, using "${uniqueName}" instead`
+  );
+  return uniqueName;
+}
+
 export function saveCollection(collection: Collection): Collection {
   try {
     db.transaction(() => {

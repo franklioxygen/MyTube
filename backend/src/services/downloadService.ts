@@ -47,6 +47,60 @@ export async function checkBilibiliVideoParts(
   return BilibiliDownloader.checkVideoParts(videoId);
 }
 
+// Helper function to check if a YouTube URL is a playlist
+export async function checkPlaylist(
+  playlistUrl: string
+): Promise<{ success: boolean; title?: string; videoCount?: number; error?: string }> {
+  try {
+    const {
+      executeYtDlpJson,
+      getNetworkConfigFromUserConfig,
+      getUserYtDlpConfig,
+    } = await import("../utils/ytDlpUtils");
+    const { getProviderScript } = await import("./downloaders/ytdlp/ytdlpHelpers");
+    
+    const userConfig = getUserYtDlpConfig(playlistUrl);
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+    const PROVIDER_SCRIPT = getProviderScript();
+
+    // Get playlist info using flat playlist (faster, doesn't download)
+    const info = await executeYtDlpJson(playlistUrl, {
+      ...networkConfig,
+      noWarnings: true,
+      flatPlaylist: true,
+      ...(PROVIDER_SCRIPT
+        ? {
+            extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+          }
+        : {}),
+    });
+
+    // Check if it's a playlist
+    if (info._type === "playlist" || (info.entries && info.entries.length > 0)) {
+      const videoCount = info.playlist_count || info.entries?.length || 0;
+      const title = info.title || info.playlist || "Playlist";
+
+      return {
+        success: true,
+        title,
+        videoCount,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Not a valid playlist",
+    };
+  } catch (error) {
+    const { logger } = await import("../utils/logger");
+    logger.error("Error checking playlist:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to check playlist",
+    };
+  }
+}
+
 // Helper function to check if a Bilibili video belongs to a collection or series
 export async function checkBilibiliCollectionOrSeries(
   videoId: string

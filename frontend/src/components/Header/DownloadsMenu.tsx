@@ -1,8 +1,10 @@
-import { Download } from '@mui/icons-material';
+import { Download, Subscriptions } from '@mui/icons-material';
 import {
     alpha,
+    Badge,
     Box,
     CircularProgress,
+    Divider,
     Fade,
     Menu,
     MenuItem,
@@ -19,13 +21,15 @@ interface DownloadsMenuProps {
     onClose: () => void;
     activeDownloads: DownloadInfo[];
     queuedDownloads: DownloadInfo[];
+    hasActiveSubscriptions?: boolean;
 }
 
 const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
     anchorEl,
     onClose,
     activeDownloads,
-    queuedDownloads
+    queuedDownloads,
+    hasActiveSubscriptions = false
 }) => {
     const navigate = useNavigate();
     const { t } = useLanguage();
@@ -78,6 +82,18 @@ const DownloadsMenu: React.FC<DownloadsMenuProps> = ({
                 <MenuItem onClick={() => { onClose(); navigate('/downloads'); }}>
                     <Download sx={{ mr: 2 }} /> {t('manageDownloads') || 'Manage Downloads'}
                 </MenuItem>
+                <MenuItem onClick={() => { onClose(); navigate('/subscriptions'); }}>
+                    <Badge 
+                        variant="dot" 
+                        color="primary" 
+                        invisible={!hasActiveSubscriptions}
+                        sx={{ mr: 2, display: 'flex', alignItems: 'center' }}
+                    >
+                        <Subscriptions />
+                    </Badge>
+                    <Box component="span">{t('subscriptions')}</Box>
+                </MenuItem>
+                <Divider />
 
                 {activeDownloads.map((download) => (
                     <MenuItem key={download.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, py: 1.5 }}>

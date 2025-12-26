@@ -1,4 +1,4 @@
-import { Help, Settings, Subscriptions, VideoLibrary } from '@mui/icons-material';
+import { Help, Settings, VideoLibrary } from '@mui/icons-material';
 import {
     alpha,
     Fade,
@@ -61,9 +61,6 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
             >
                 <MenuItem onClick={() => { onClose(); navigate('/manage'); }}>
                     <VideoLibrary sx={{ mr: 2 }} /> {t('manageContent')}
-                </MenuItem>
-                <MenuItem onClick={() => { onClose(); navigate('/subscriptions'); }}>
-                    <Subscriptions sx={{ mr: 2 }} /> {t('subscriptions')}
                 </MenuItem>
                 <MenuItem onClick={() => { onClose(); navigate('/settings'); }}>
                     <Settings sx={{ mr: 2 }} /> {t('settings')}

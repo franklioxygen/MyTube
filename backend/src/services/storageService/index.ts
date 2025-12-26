@@ -53,6 +53,7 @@ export {
   getCollectionById,
   getCollectionByVideoId,
   getCollectionByName,
+  generateUniqueCollectionName,
   saveCollection,
   atomicUpdateCollection,
   deleteCollection,

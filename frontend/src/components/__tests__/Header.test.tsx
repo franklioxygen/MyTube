@@ -1,6 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Header from '../Header';
@@ -35,15 +35,23 @@ vi.mock('../../contexts/CollectionContext', () => ({
     }),
 }));
 
+vi.mock('../../contexts/VisitorModeContext', () => ({
+    useVisitorMode: () => ({
+        visitorMode: false,
+    }),
+}));
+
 // Mock child components to avoid context dependency issues
 vi.mock('../AuthorsList', () => ({ default: () => <div data-testid="authors-list" /> }));
 vi.mock('../Collections', () => ({ default: () => <div data-testid="collections-list" /> }));
 vi.mock('../TagsList', () => ({ default: () => <div data-testid="tags-list" /> }));
 
-// Mock axios for settings fetch in useEffect
+// Mock axios for settings fetch
+const mockAxiosGet = vi.fn();
 vi.mock('axios', () => ({
+    __esModule: true,
     default: {
-        get: vi.fn().mockResolvedValue({ data: { websiteName: 'TestTube' } }),
+        get: (...args: any[]) => mockAxiosGet(...args),
     },
 }));
 
@@ -87,11 +95,24 @@ describe('Header', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        // Default mock implementation
+        mockAxiosGet.mockImplementation((url) => {
+            if (url && url.includes('/settings')) {
+                return Promise.resolve({ data: { websiteName: 'TestTube', infiniteScroll: false } });
+            }
+            return Promise.resolve({ data: [] });
+        });
     });
 
     it('renders with logo and title', async () => {
         renderHeader();
-        // The title is fetched async, might need wait
+
+        // Wait for the settings fetch to complete and update the title
+        await waitFor(() => {
+            expect(mockAxiosGet).toHaveBeenCalledWith(expect.stringContaining('/settings'));
+        });
+
+        // Use findByText to allow for async updates if any
         expect(await screen.findByText('TestTube')).toBeInTheDocument();
         expect(screen.getByAltText('MyTube Logo')).toBeInTheDocument();
     });
@@ -103,15 +124,9 @@ describe('Header', () => {
         const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
         fireEvent.change(input, { target: { value: 'https://youtube.com/watch?v=123' } });
 
-        const submitButton = screen.getAllByRole('button', { name: '' }).find(btn => btn.querySelector('svg[data-testid="SearchIcon"]'));
-        // Or find by type="submit"
-        // MUI TextField slotProps endAdornment button type="submit"
-
-        // Let's use fireEvent.submit on the form
-        // The form is a Box component="form"
-        // We can find the input and submit passing key enter or form submit
-
-        fireEvent.submit(input.closest('form')!);
+        const form = input.closest('form');
+        expect(form).toBeInTheDocument();
+        fireEvent.submit(form!);
 
         expect(onSubmit).toHaveBeenCalledWith('https://youtube.com/watch?v=123');
     });
@@ -120,6 +135,7 @@ describe('Header', () => {
         renderHeader();
 
         const themeButton = screen.getAllByRole('button').find(btn => btn.querySelector('svg[data-testid="Brightness4Icon"]'));
+        expect(themeButton).toBeDefined();
         fireEvent.click(themeButton!);
 
         expect(mockToggleTheme).toHaveBeenCalled();
@@ -129,7 +145,8 @@ describe('Header', () => {
         renderHeader();
 
         const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
-        fireEvent.submit(input.closest('form')!);
+        const form = input.closest('form');
+        fireEvent.submit(form!);
 
         expect(screen.getByText('pleaseEnterUrlOrSearchTerm')).toBeInTheDocument();
     });

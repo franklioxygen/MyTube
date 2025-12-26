@@ -17,7 +17,7 @@ interface BilibiliPartsInfo {
     videosNumber: number;
     title: string;
     url: string;
-    type: 'parts' | 'collection' | 'series';
+    type: 'parts' | 'collection' | 'series' | 'playlist';
     collectionInfo: any;
 }
 
@@ -156,6 +156,36 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleVideoSubmit = async (videoUrl: string, skipCollectionCheck = false, skipPartsCheck = false, forceDownload = false): Promise<any> => {
         try {
+            // Check for YouTube playlist URL (must check before channel check)
+            const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+            if (playlistRegex.test(videoUrl) && !skipCollectionCheck) {
+                setIsCheckingParts(true);
+                try {
+                    const playlistResponse = await axios.get(`${API_URL}/check-playlist`, {
+                        params: { url: videoUrl }
+                    });
+
+                    if (playlistResponse.data.success) {
+                        const { title, videoCount } = playlistResponse.data;
+                        setBilibiliPartsInfo({
+                            videosNumber: videoCount,
+                            title: title,
+                            url: videoUrl,
+                            type: 'playlist',
+                            collectionInfo: null
+                        });
+                        setShowBilibiliPartsModal(true);
+                        setIsCheckingParts(false);
+                        return { success: true };
+                    }
+                } catch (err) {
+                    console.error('Error checking playlist:', err);
+                    // Continue with normal download if check fails
+                } finally {
+                    setIsCheckingParts(false);
+                }
+            }
+
             // Check for YouTube channel URL
             // Regex for: @username, channel/ID, user/username, c/customURL
             const channelRegex = /youtube\.com\/(?:@|channel\/|user\/|c\/)/;
@@ -233,9 +263,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Normal download flow
-            const response = await axios.post(`${API_URL}/download`, { 
+            const response = await axios.post(`${API_URL}/download`, {
                 youtubeUrl: videoUrl,
-                forceDownload: forceDownload 
+                forceDownload: forceDownload
             });
 
             // Check if video was skipped (already exists or previously deleted)
@@ -272,7 +302,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             return {
                 success: false,
-                error: err.response?.data?.error || 'Failed to download video. Please try again.'
+                error: err.response?.data?.error || t('failedToDownloadVideo')
             };
         }
     };
@@ -283,6 +313,26 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setShowBilibiliPartsModal(false);
 
             const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
+            const isPlaylist = bilibiliPartsInfo.type === 'playlist';
+
+            // Handle playlist differently - create continuous download task
+            if (isPlaylist) {
+                const response = await axios.post(`${API_URL}/subscriptions/tasks/playlist`, {
+                    playlistUrl: bilibiliPartsInfo.url,
+                    collectionName: collectionName || bilibiliPartsInfo.title
+                });
+
+                // Trigger immediate status check
+                checkBackendDownloadStatus();
+
+                // If a collection was created, refresh collections
+                if (response.data.collectionId) {
+                    await fetchCollections();
+                }
+
+                showSnackbar(t('playlistDownloadStarted'));
+                return { success: true };
+            }
 
             const response = await axios.post(`${API_URL}/download`, {
                 youtubeUrl: bilibiliPartsInfo.url,
@@ -307,7 +357,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             return {
                 success: false,
-                error: err.response?.data?.error || 'Failed to download. Please try again.'
+                error: err.response?.data?.error || t('failedToDownload')
             };
         }
     };

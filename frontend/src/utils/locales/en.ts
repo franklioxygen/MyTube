@@ -358,6 +358,11 @@ export const en = {
   bilibiliCollectionDetected: "Bilibili Collection Detected",
   bilibiliSeriesDetected: "Bilibili Series Detected",
   multiPartVideoDetected: "Multi-part Video Detected",
+  authorOrPlaylist: "Author / Playlist",
+  playlistDetected: "Playlist Detected",
+  playlistHasVideos: "This playlist has {count} videos.",
+  downloadPlaylistAndCreateCollection: "Download playlist videos and create a Collection for it?",
+  playlistDownloadStarted: "Playlist download started",
   collectionHasVideos: "This Bilibili collection has {count} videos.",
   seriesHasVideos: "This Bilibili series has {count} videos.",
   videoHasParts: "This Bilibili video has {count} parts.",
@@ -603,4 +608,6 @@ export const en = {
   restoreFromLastBackupFailed: "Failed to restore from backup",
   lastBackupDate: "Last backup date",
   noBackupAvailable: "No backup available",
+  failedToDownloadVideo: "Failed to download video. Please try again.",
+  failedToDownload: "Failed to download. Please try again.",
 };

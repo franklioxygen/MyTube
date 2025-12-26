@@ -621,3 +621,41 @@ export const checkBilibiliCollection = async (
   // Return result object directly for backward compatibility (frontend expects response.data.success, response.data.type)
   res.status(200).json(result);
 };
+
+/**
+ * Check if URL is a YouTube playlist
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const checkPlaylist = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { url } = req.query;
+
+  if (!url) {
+    throw new ValidationError("URL is required", "url");
+  }
+
+  const playlistUrl = url as string;
+
+  // Check if it's a YouTube URL with playlist parameter
+  if (!playlistUrl.includes("youtube.com") && !playlistUrl.includes("youtu.be")) {
+    throw new ValidationError("Not a valid YouTube URL", "url");
+  }
+
+  const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+  if (!playlistRegex.test(playlistUrl)) {
+    throw new ValidationError("URL does not contain a playlist parameter", "url");
+  }
+
+  try {
+    const result = await downloadService.checkPlaylist(playlistUrl);
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error("Error checking playlist:", error);
+    res.status(200).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to check playlist"
+    });
+  }
+};

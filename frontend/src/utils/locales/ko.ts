@@ -359,6 +359,10 @@ export const ko = {
   bilibiliCollectionDetected: "Bilibili 컬렉션 감지됨",
   bilibiliSeriesDetected: "Bilibili 시리즈 감지됨",
   multiPartVideoDetected: "멀티 파트 동영상 감지됨",
+  authorOrPlaylist: "작성자 / 재생 목록",
+  playlistDetected: "재생 목록 감지됨",
+  playlistHasVideos: "이 재생 목록에는 {count}개의 동영상이 있습니다.",
+  downloadPlaylistAndCreateCollection: "재생 목록 동영상을 다운로드하고 컬렉션을 만드시겠습니까?",
   collectionHasVideos: "이 Bilibili 컬렉션에는 {count}개의 동영상이 있습니다.",
   seriesHasVideos: "이 Bilibili 시리즈에는 {count}개의 동영상이 있습니다.",
   videoHasParts: "이 Bilibili 동영상에는 {count}개의 파트가 있습니다.",
@@ -586,4 +590,7 @@ export const ko = {
   clickToCopy: "Click to copy",
   quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
   managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  failedToDownloadVideo: "동영상 다운로드에 실패했습니다. 다시 시도해 주세요.",
+  failedToDownload: "다운로드에 실패했습니다. 다시 시도해 주세요.",
+  playlistDownloadStarted: "재생 목록 다운로드가 시작되었습니다",
 };

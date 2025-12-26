@@ -377,6 +377,10 @@ export const ru = {
   bilibiliCollectionDetected: "Обнаружена коллекция Bilibili",
   bilibiliSeriesDetected: "Обнаружена серия Bilibili",
   multiPartVideoDetected: "Обнаружено многочастное видео",
+  authorOrPlaylist: "Автор / Плейлист",
+  playlistDetected: "Обнаружен плейлист",
+  playlistHasVideos: "В этом плейлисте {count} видео.",
+  downloadPlaylistAndCreateCollection: "Скачать видео из плейлиста и создать для него коллекцию?",
   collectionHasVideos: "В этой коллекции Bilibili {count} видео.",
   seriesHasVideos: "В этой серии Bilibili {count} видео.",
   videoHasParts: "В этом видео Bilibili {count} частей.",
@@ -592,4 +596,7 @@ export const ru = {
   clickToCopy: "Click to copy",
   quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
   managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  failedToDownloadVideo: "Не удалось скачать видео. Пожалуйста, попробуйте снова.",
+  failedToDownload: "Не удалось скачать. Пожалуйста, попробуйте снова.",
+  playlistDownloadStarted: "Скачивание плейлиста началось",
 };

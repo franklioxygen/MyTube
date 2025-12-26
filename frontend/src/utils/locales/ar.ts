@@ -369,6 +369,10 @@ export const ar = {
   bilibiliCollectionDetected: "تم اكتشاف مجموعة Bilibili",
   bilibiliSeriesDetected: "تم اكتشاف سلسلة Bilibili",
   multiPartVideoDetected: "تم اكتشاف فيديو متعدد الأجزاء",
+  authorOrPlaylist: "المؤلف / قائمة التشغيل",
+  playlistDetected: "تم اكتشاف قائمة تشغيل",
+  playlistHasVideos: "تحتوي قائمة التشغيل هذه على {count} فيديوهات.",
+  downloadPlaylistAndCreateCollection: "هل تريد تحميل فيديوهات قائمة التشغيل وإنشاء مجموعة لها؟",
   collectionHasVideos: "تحتوي هذه المجموعة من Bilibili على {count} فيديوهات.",
   seriesHasVideos: "تحتوي هذه السلسلة من Bilibili على {count} فيديوهات.",
   videoHasParts: "يحتوي هذا الفيديو من Bilibili على {count} أجزاء.",
@@ -586,4 +590,7 @@ export const ar = {
   clickToCopy: "Click to copy",
   quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
   managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  failedToDownloadVideo: "فشل تنزيل الفيديو. يرجى المحاولة مرة أخرى.",
+  failedToDownload: "فشل التنزيل. يرجى المحاولة مرة أخرى.",
+  playlistDownloadStarted: "بدأ تنزيل قائمة التشغيل",
 };

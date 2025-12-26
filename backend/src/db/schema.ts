@@ -142,6 +142,7 @@ export const videoDownloads = sqliteTable('video_downloads', {
 export const continuousDownloadTasks = sqliteTable('continuous_download_tasks', {
   id: text('id').primaryKey(),
   subscriptionId: text('subscription_id'), // Reference to subscription (nullable if subscription deleted)
+  collectionId: text('collection_id'), // Reference to collection (nullable, for playlist tasks)
   authorUrl: text('author_url').notNull(),
   author: text('author').notNull(),
   platform: text('platform').notNull(), // YouTube, Bilibili, etc.

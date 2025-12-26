@@ -16,6 +16,7 @@ interface ActionButtonsProps {
     onDownloadsClose: () => void;
     onManageClick: (event: React.MouseEvent<HTMLElement>) => void;
     onManageClose: () => void;
+    hasActiveSubscriptions?: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -26,7 +27,8 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     onDownloadsClick,
     onDownloadsClose,
     onManageClick,
-    onManageClose
+    onManageClose,
+    hasActiveSubscriptions = false
 }) => {
     const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
@@ -49,6 +51,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                         onClose={onDownloadsClose}
                         activeDownloads={activeDownloads}
                         queuedDownloads={queuedDownloads}
+                        hasActiveSubscriptions={hasActiveSubscriptions}
                     />
                 </>
             )}
@@ -70,6 +73,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             <ManageMenu
                 anchorEl={manageAnchorEl}
                 onClose={onManageClose}
+                hasActiveSubscriptions={hasActiveSubscriptions}
             />
         </Box>
     );
