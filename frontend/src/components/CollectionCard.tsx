@@ -125,6 +125,7 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
                 component="img"
                 image={src}
                 alt={video.title}
+                loading="lazy"
                 sx={{
                     width: '100%',
                     height: '100%',

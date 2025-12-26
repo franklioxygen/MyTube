@@ -7,6 +7,7 @@ import { useSnackbar } from './SnackbarContext';
 import { useVisitorMode } from './VisitorModeContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
+const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
 interface VideoContextType {
     videos: Video[];
@@ -69,7 +70,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retry: 3, // Reduced from 10 to 3
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-        gcTime: 30 * 60 * 1000, // Garbage collect after 30 minutes (videos are important data)
+        gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 30 to save memory)
     });
 
     // Filter invisible videos when in visitor mode
@@ -90,7 +91,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retry: 3, // Reduced from 10 to 3
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-        gcTime: 15 * 60 * 1000, // Garbage collect after 15 minutes
+        gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 15 to save memory)
     });
 
     const availableTags = settingsData?.tags || [];
@@ -240,7 +241,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     });
 
                     if (!signal.aborted) {
-                        setSearchResults(response.data.results);
+                        // Limit search results to prevent memory issues
+                        const results = response.data.results || [];
+                        setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
                     }
                 } catch (youtubeErr: any) {
                     if (youtubeErr.name !== 'CanceledError' && youtubeErr.name !== 'AbortError') {
@@ -278,6 +281,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Use ref check first to prevent race conditions (immediate, synchronous check)
         if (!searchTerm || loadMoreInProgress.current || loadingMore || !showYoutubeSearch) return;
 
+        // Don't load more if we've reached the maximum
+        if (searchResults.length >= MAX_SEARCH_RESULTS) {
+            return;
+        }
+
         try {
             // Set both state and ref to prevent concurrent requests
             loadMoreInProgress.current = true;
@@ -301,8 +309,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     const existingIds = new Set(prev.map(result => result.id));
                     // Filter out duplicates by ID
                     const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
-                    // Only append new, non-duplicate results
-                    return [...prev, ...newResults];
+                    // Only append new, non-duplicate results, up to MAX_SEARCH_RESULTS
+                    const combined = [...prev, ...newResults];
+                    return combined.slice(0, MAX_SEARCH_RESULTS);
                 });
             }
         } catch (error) {

@@ -54,7 +54,19 @@ export const useVideoResolution = (video: Video) => {
   );
   const videoUrl = useCloudStorageUrl(video.videoPath, "video");
 
+  // First check if resolution is already available in video object
+  const resolutionFromObject = formatResolution(video);
+
+  // Only create video element if resolution is not available in video object
+  const needsDetection = !resolutionFromObject;
+
   useEffect(() => {
+    // Skip video element creation if resolution is already available
+    if (!needsDetection) {
+      setDetectedResolution(null);
+      return;
+    }
+
     const videoElement = videoRef.current;
     const videoSrc = videoUrl || video.sourceUrl;
     if (!videoElement || !videoSrc) {
@@ -105,11 +117,10 @@ export const useVideoResolution = (video: Video) => {
       videoElement.src = "";
       videoElement.load();
     };
-  }, [videoUrl, video.sourceUrl, video.id]);
+  }, [needsDetection, videoUrl, video.sourceUrl, video.id]);
 
-  // Try to get resolution from video object first, fallback to detected resolution
-  const resolutionFromObject = formatResolution(video);
+  // Use resolution from object if available, otherwise use detected resolution
   const videoResolution = resolutionFromObject || detectedResolution;
 
-  return { videoRef, videoResolution };
+  return { videoRef, videoResolution, needsDetection };
 };

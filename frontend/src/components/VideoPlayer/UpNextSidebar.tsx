@@ -60,6 +60,7 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
             )}
             <CardMedia
                 component="img"
+                loading="lazy"
                 sx={{
                     width: '100%',
                     height: 94,

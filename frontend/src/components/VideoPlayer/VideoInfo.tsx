@@ -11,8 +11,6 @@ import VideoMetadata from './VideoInfo/VideoMetadata';
 import VideoRating from './VideoInfo/VideoRating';
 import VideoTags from './VideoInfo/VideoTags';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
 interface VideoInfoProps {
     video: Video;
     onTitleSave: (newTitle: string) => Promise<void>;
@@ -50,7 +48,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onUnsubscribe,
     onToggleVisibility
 }) => {
-    const { videoRef, videoResolution } = useVideoResolution(video);
+    const { videoRef, videoResolution, needsDetection } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
     // Cleanup video element on unmount
@@ -67,8 +65,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
     return (
         <Box sx={{ mt: 2 }}>
-            {/* Hidden video element to get resolution */}
-            {(videoUrl || video.sourceUrl) && (
+            {/* Hidden video element to get resolution - only create if needed */}
+            {needsDetection && (videoUrl || video.sourceUrl) && (
                 <video
                     ref={videoRef}
                     src={videoUrl || video.sourceUrl}

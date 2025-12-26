@@ -55,6 +55,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const [isImageLoaded, setIsImageLoaded] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // New state for player menu
     const [playerMenuAnchor, setPlayerMenuAnchor] = useState<null | HTMLElement>(null);
@@ -64,32 +65,50 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const { showSnackbar } = useSnackbar();
     const { updateVideo, incrementView } = useVideo();
 
-
-
     const handleMouseEnter = () => {
         if (!isMobile && video.videoPath) {
-            setIsHovered(true);
+            // Add delay before loading video to prevent loading on quick hovers
+            // This reduces memory usage when quickly moving mouse over multiple cards
+            hoverTimeoutRef.current = setTimeout(() => {
+                setIsHovered(true);
+            }, 300); // 300ms delay
         }
     };
 
     const handleMouseLeave = () => {
+        // Clear hover timeout if mouse leaves before delay
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+        }
+        
         setIsHovered(false);
         setIsVideoPlaying(false);
-        // Cleanup video element when mouse leaves
+        
+        // Aggressively cleanup video element when mouse leaves
         if (videoRef.current) {
             videoRef.current.pause();
             videoRef.current.src = '';
             videoRef.current.load();
+            // Force garbage collection hint
+            videoRef.current.removeAttribute('src');
         }
     };
 
     // Cleanup video element on unmount
     useEffect(() => {
         return () => {
+            // Clear any pending hover timeout
+            if (hoverTimeoutRef.current) {
+                clearTimeout(hoverTimeoutRef.current);
+            }
+            
+            // Aggressively cleanup video element
             if (videoRef.current) {
                 videoRef.current.pause();
                 videoRef.current.src = '';
                 videoRef.current.load();
+                videoRef.current.removeAttribute('src');
             }
         };
     }, []);
@@ -443,6 +462,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                             component="img"
                             image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
                             alt={`${video.title} thumbnail`}
+                            loading="lazy"
                             onLoad={() => setIsImageLoaded(true)}
                             sx={{
                                 position: 'absolute',
