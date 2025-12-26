@@ -1,7 +1,7 @@
 import { Alert, Box, Divider, Stack } from '@mui/material';
-import React from 'react';
-import { useVideoResolution } from '../../hooks/useVideoResolution';
+import React, { useEffect } from 'react';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
+import { useVideoResolution } from '../../hooks/useVideoResolution';
 import { Collection, Video } from '../../types';
 import EditableTitle from './VideoInfo/EditableTitle';
 import VideoActionButtons from './VideoInfo/VideoActionButtons';
@@ -52,6 +52,18 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 }) => {
     const { videoRef, videoResolution } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+
+    // Cleanup video element on unmount
+    useEffect(() => {
+        return () => {
+            const videoElement = videoRef.current;
+            if (videoElement) {
+                // Clear video source to free memory
+                videoElement.src = '';
+                videoElement.load();
+            }
+        };
+    }, []);
 
     return (
         <Box sx={{ mt: 2 }}>

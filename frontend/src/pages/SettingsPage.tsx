@@ -423,7 +423,9 @@ const SettingsPage: React.FC = () => {
             const response = await axios.get(`${API_URL}/settings/last-backup-info`);
             return response.data;
         },
-        refetchInterval: 30000, // Refetch every 30 seconds
+        refetchInterval: 60000, // Refetch every 60 seconds (reduced frequency)
+        staleTime: 30000, // Consider data fresh for 30 seconds
+        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
     // Restore from last backup mutation

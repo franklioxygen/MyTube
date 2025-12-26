@@ -14,7 +14,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -75,7 +75,24 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const handleMouseLeave = () => {
         setIsHovered(false);
         setIsVideoPlaying(false);
+        // Cleanup video element when mouse leaves
+        if (videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.src = '';
+            videoRef.current.load();
+        }
     };
+
+    // Cleanup video element on unmount
+    useEffect(() => {
+        return () => {
+            if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.src = '';
+                videoRef.current.load();
+            }
+        };
+    }, []);
 
     // Format the date (assuming format YYYYMMDD from youtube-dl)
     const formatDate = (dateString: string) => {

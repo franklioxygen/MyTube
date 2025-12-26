@@ -82,8 +82,17 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const response = await axios.get(`${API_URL}/download-status`);
             return response.data;
         },
-        refetchInterval: 2000,
-        initialData: initialStatus || { activeDownloads: [], queuedDownloads: [] }
+        // Only poll when there are active or queued downloads
+        refetchInterval: (query) => {
+            const data = query.state.data as { activeDownloads?: any[]; queuedDownloads?: any[] } | undefined;
+            const hasActive = (data?.activeDownloads?.length ?? 0) > 0;
+            const hasQueued = (data?.queuedDownloads?.length ?? 0) > 0;
+            // Poll every 2 seconds if there are downloads, otherwise stop polling
+            return hasActive || hasQueued ? 2000 : false;
+        },
+        initialData: initialStatus || { activeDownloads: [], queuedDownloads: [] },
+        staleTime: 1000, // Consider data stale after 1 second
+        gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
     });
 
     const activeDownloads = downloadStatus.activeDownloads || [];

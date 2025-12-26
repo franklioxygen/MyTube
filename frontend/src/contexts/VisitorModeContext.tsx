@@ -21,7 +21,9 @@ export const VisitorModeProvider: React.FC<{ children: ReactNode }> = ({ childre
             const response = await axios.get(`${API_URL}/settings`);
             return response.data;
         },
-        refetchInterval: 5000, // Refetch every 5 seconds to keep visitor mode state in sync
+        refetchInterval: 30000, // Refetch every 30 seconds (reduced frequency)
+        staleTime: 10000, // Consider data fresh for 10 seconds
+        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
     const visitorMode = settingsData?.visitorMode === true;

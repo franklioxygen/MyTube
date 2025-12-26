@@ -93,9 +93,11 @@ const Header: React.FC<HeaderProps> = ({
         };
 
         checkActiveSubscriptions();
-        // Poll every 10 seconds to update indicator
-        const interval = setInterval(checkActiveSubscriptions, 10000);
-        return () => clearInterval(interval);
+        // Poll every 30 seconds to update indicator (reduced frequency)
+        const interval = setInterval(checkActiveSubscriptions, 30000);
+        return () => {
+            clearInterval(interval);
+        };
     }, [visitorMode]);
 
     useEffect(() => {

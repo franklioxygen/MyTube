@@ -49,14 +49,17 @@ const DownloadPage: React.FC = () => {
         }
     };
 
-    // Fetch history with polling
+    // Fetch history with polling - only when on downloads page
     const { data: history = [] } = useQuery({
         queryKey: ['downloadHistory'],
         queryFn: async () => {
             const response = await axios.get(`${API_URL}/downloads/history`);
             return response.data;
         },
-        refetchInterval: 2000
+        // Only poll when tab is active (downloads tab)
+        refetchInterval: tabValue === 0 ? 2000 : false,
+        staleTime: 1000, // Consider data stale after 1 second
+        gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
     });
 
     const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {

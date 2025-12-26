@@ -75,6 +75,7 @@ const SubscriptionsPage: React.FC = () => {
         },
         refetchInterval: 30000, // Refetch every 30 seconds (less frequent)
         staleTime: 10000, // Consider data fresh for 10 seconds
+        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
     const { data: tasks = [], refetch: refetchTasks } = useQuery({
@@ -83,8 +84,15 @@ const SubscriptionsPage: React.FC = () => {
             const response = await axios.get(`${API_URL}/subscriptions/tasks`);
             return response.data as ContinuousDownloadTask[];
         },
-        refetchInterval: 10000, // Poll every 10 seconds
+        // Only poll when there are active tasks
+        refetchInterval: (query) => {
+            const data = query.state.data as ContinuousDownloadTask[] | undefined;
+            const hasActive = data?.some(task => task.status === 'active' || task.status === 'paused') ?? false;
+            // Poll every 10 seconds if there are active tasks, otherwise every 60 seconds
+            return hasActive ? 10000 : 60000;
+        },
         staleTime: 5000, // Consider data fresh for 5 seconds
+        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
     const handleUnsubscribeClick = (id: string, author: string) => {

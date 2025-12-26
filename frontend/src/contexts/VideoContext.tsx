@@ -66,8 +66,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 throw err;
             }
         },
-        retry: 10,
+        retry: 3, // Reduced from 10 to 3
         retryDelay: 1000,
+        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+        gcTime: 30 * 60 * 1000, // Garbage collect after 30 minutes (videos are important data)
     });
 
     // Filter invisible videos when in visitor mode
@@ -85,8 +87,10 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const response = await axios.get(`${API_URL}/settings`);
             return response.data;
         },
-        retry: 10,
+        retry: 3, // Reduced from 10 to 3
         retryDelay: 1000,
+        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+        gcTime: 15 * 60 * 1000, // Garbage collect after 15 minutes
     });
 
     const availableTags = settingsData?.tags || [];

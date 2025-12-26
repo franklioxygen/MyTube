@@ -123,7 +123,23 @@ function AppContent() {
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const queryClient = new QueryClient();
+// Configure QueryClient with memory management settings
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            // Cache data for 5 minutes by default
+            staleTime: 5 * 60 * 1000,
+            // Keep unused data in cache for 10 minutes before garbage collection
+            gcTime: 10 * 60 * 1000, // Previously called cacheTime
+            // Retry failed requests 3 times instead of default
+            retry: 3,
+            // Refetch on window focus only if data is stale
+            refetchOnWindowFocus: false,
+            // Don't refetch on reconnect by default
+            refetchOnReconnect: false,
+        },
+    },
+});
 
 function App() {
     return (
