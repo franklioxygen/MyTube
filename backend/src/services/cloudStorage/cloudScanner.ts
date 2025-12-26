@@ -323,27 +323,100 @@ export async function scanCloudFiles(
 
         // Generate thumbnail using ffmpeg with signed URL
         // ffmpeg can work with HTTP URLs directly
-        try {
-          await execFileSafe(
-            "ffmpeg",
-            [
-              "-i",
-              validatedVideoUrl,
-              "-ss",
-              thumbnailTime,
-              "-vframes",
-              "1",
-              validatedThumbnailPath,
-              "-y",
-            ],
-            { timeout: 30000 }
+        // Use retry mechanism for better robustness
+        let thumbnailGenerated = false;
+        const maxRetries = 3;
+        let lastError: any = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            logger.debug(
+              `[CloudStorage] Generating thumbnail for ${filename} (attempt ${attempt}/${maxRetries})`
+            );
+
+            // Put -ss before -i for faster seeking (input seeking)
+            // Add additional parameters for better stability with HTTP streams
+            await execFileSafe(
+              "ffmpeg",
+              [
+                "-ss",
+                thumbnailTime,
+                "-i",
+                validatedVideoUrl,
+                "-vframes",
+                "1",
+                "-q:v",
+                "2", // High quality JPEG
+                "-vf",
+                "scale=1280:-1", // Scale to max width 1280, maintain aspect ratio
+                validatedThumbnailPath,
+                "-y",
+                "-loglevel",
+                "error", // Reduce log noise
+              ],
+              { timeout: 90000 } // Increased timeout to 90 seconds for large files
+            );
+
+            // Verify thumbnail was created
+            if (fs.existsSync(tempThumbnailPath)) {
+              const stats = fs.statSync(tempThumbnailPath);
+              if (stats.size > 0) {
+                thumbnailGenerated = true;
+                logger.debug(
+                  `[CloudStorage] Successfully generated thumbnail for ${filename} (${stats.size} bytes)`
+                );
+                break;
+              } else {
+                // Empty file, try again
+                logger.warn(
+                  `[CloudStorage] Generated empty thumbnail for ${filename}, retrying...`
+                );
+                if (fs.existsSync(tempThumbnailPath)) {
+                  fs.unlinkSync(tempThumbnailPath);
+                }
+              }
+            } else {
+              logger.warn(
+                `[CloudStorage] Thumbnail file not created for ${filename}, retrying...`
+              );
+            }
+          } catch (error: any) {
+            lastError = error;
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            logger.warn(
+              `[CloudStorage] Thumbnail generation attempt ${attempt}/${maxRetries} failed for ${filename}: ${errorMessage}`
+            );
+
+            // Clean up any partial file
+            if (fs.existsSync(tempThumbnailPath)) {
+              try {
+                fs.unlinkSync(tempThumbnailPath);
+              } catch (cleanupError) {
+                // Ignore cleanup errors
+              }
+            }
+
+            // If this is the last attempt, log the error but don't throw
+            if (attempt === maxRetries) {
+              logger.error(
+                `[CloudStorage] Failed to generate thumbnail for ${filename} after ${maxRetries} attempts:`,
+                error
+              );
+            } else {
+              // Wait a bit before retrying (exponential backoff)
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          }
+        }
+
+        // If thumbnail generation failed, continue without thumbnail
+        // Don't throw error - allow video to be added without thumbnail
+        if (!thumbnailGenerated) {
+          logger.warn(
+            `[CloudStorage] Continuing without thumbnail for ${filename}`
           );
-        } catch (error) {
-          logger.error(
-            `[CloudStorage] Error generating thumbnail for ${filename}:`,
-            error
-          );
-          throw error;
         }
 
         // Upload thumbnail to cloud storage (with correct filename and location)
@@ -351,7 +424,7 @@ export async function scanCloudFiles(
         // uploadFile now supports absolute paths, so we can pass it directly
         // uploadFile will check if file already exists before uploading
         let relativeThumbnailPath: string | undefined = undefined;
-        if (fs.existsSync(tempThumbnailPath)) {
+        if (thumbnailGenerated && fs.existsSync(tempThumbnailPath)) {
           const uploadResult = await uploadFile(
             tempThumbnailPath,
             config,
@@ -436,18 +509,22 @@ export async function scanCloudFiles(
         // Clear cache for the new files
         // Use relative paths (relative to upload root) for cache keys
         clearSignedUrlCache(relativeVideoPath, "video");
-        // For thumbnail cache, use the directory path
-        const thumbnailDirForCache = path
-          .dirname(remoteThumbnailPath)
-          .replace(/\\/g, "/");
-        clearSignedUrlCache(thumbnailDirForCache, "thumbnail");
+        
+        // Only clear thumbnail cache if thumbnail was successfully generated
+        if (thumbnailGenerated && relativeThumbnailPath) {
+          // For thumbnail cache, use the directory path
+          const thumbnailDirForCache = path
+            .dirname(remoteThumbnailPath)
+            .replace(/\\/g, "/");
+          clearSignedUrlCache(thumbnailDirForCache, "thumbnail");
 
-        // Also clear file list cache for the directory where thumbnail was added
-        // remoteThumbnailPath is an absolute path, so we can use it directly
-        const thumbnailDir = path
-          .dirname(remoteThumbnailPath)
-          .replace(/\\/g, "/");
-        clearFileListCache(thumbnailDir);
+          // Also clear file list cache for the directory where thumbnail was added
+          // remoteThumbnailPath is an absolute path, so we can use it directly
+          const thumbnailDir = path
+            .dirname(remoteThumbnailPath)
+            .replace(/\\/g, "/");
+          clearFileListCache(thumbnailDir);
+        }
 
         return { success: true };
       } catch (error: any) {
