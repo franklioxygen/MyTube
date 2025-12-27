@@ -9,7 +9,7 @@ COPY backend/package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 # Install build dependencies for native modules (python3, make, g++)
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ pkgconfig cairo-dev pango-dev libjpeg-turbo-dev giflib-dev librsvg-dev
 RUN npm ci
 
 # Copy backend source
@@ -30,7 +30,7 @@ WORKDIR /app
 
 # Build bgutil-ytdlp-pot-provider
 WORKDIR /app/bgutil-ytdlp-pot-provider/server
-RUN npm install && npx tsc
+RUN CXXFLAGS="-include cstdint" npm install && npx tsc
 WORKDIR /app
 
 RUN npm run build
@@ -50,7 +50,12 @@ RUN apk add --no-cache \
     ffmpeg \
     python3 \
     py3-pip \
-    curl && \
+    curl \
+    cairo \
+    pango \
+    libjpeg-turbo \
+    giflib \
+    librsvg && \
     ln -sf python3 /usr/bin/python
 
 # Install deno for yt-dlp js-runtime (recommended by yt-dlp)
