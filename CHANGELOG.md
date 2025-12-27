@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.7.4 (2025-12-27)
+
+### Refactor
+
+- refactor: Improve video memory management and error handling (27db579)
+
 ## v1.7.3 (2025-12-27)
 
 ### Feat
