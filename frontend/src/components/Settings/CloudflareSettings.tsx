@@ -1,9 +1,7 @@
 import { Alert, Box, CircularProgress, FormControlLabel, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-
-
-
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
 
 interface CloudflareSettingsProps {
@@ -14,12 +12,43 @@ interface CloudflareSettingsProps {
 
 const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, onChange }) => {
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
     const [showCopied, setShowCopied] = useState(false);
 
-    const handleCopyUrl = (url: string) => {
-        navigator.clipboard.writeText(url);
-        setShowCopied(true);
-        setTimeout(() => setShowCopied(false), 2000);
+    const handleCopyUrl = async (url: string) => {
+        try {
+            // Try modern clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+                setShowCopied(true);
+                setTimeout(() => setShowCopied(false), 2000);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = url;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        setShowCopied(true);
+                        setTimeout(() => setShowCopied(false), 2000);
+                    } else {
+                        showSnackbar(t('copyFailed'), 'error');
+                    }
+                } catch (err) {
+                    showSnackbar(t('copyFailed'), 'error');
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            }
+        } catch (err) {
+            showSnackbar(t('copyFailed'), 'error');
+        }
     };
 
     // Poll for Cloudflare Tunnel status
