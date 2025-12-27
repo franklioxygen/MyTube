@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.7.1 (2025-12-26)
+
+### Fix
+
+- fix: Add missing dependencies for canvas in Dockerfile (c8a199c)
+
 ## v1.7.0 (2025-12-26)
 
 ### Fix
