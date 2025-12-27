@@ -574,4 +574,13 @@ export const de = {
   failedToDownloadVideo: "Fehler beim Herunterladen des Videos. Bitte versuchen Sie es erneut.",
   failedToDownload: "Fehler beim Herunterladen. Bitte versuchen Sie es erneut.",
   playlistDownloadStarted: "Playlist-Download gestartet",
+  cleanupTempFilesConfirmMessage: "Dadurch werden alle .ytdl- und .part-Dateien im Upload-Verzeichnis dauerhaft gelöscht. Stellen Sie sicher, dass keine Downloads aktiv sind, bevor Sie fortfahren.",
+  cleanupTempFilesActiveDownloads: "Temporäre Dateien können nicht bereinigt werden, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie zuerst ab.",
+  status: "Status",
+  videoDownloading: "Video wird heruntergeladen",
+  copyUrl: "URL kopieren",
+  new: "NEU",
+  disclaimerTitle: "Haftungsausschluss",
+  disclaimerText: "1. Zweck und Einschränkungen\nDiese Software (einschließlich Code und Dokumentation) ist ausschließlich für persönliches Lernen, Forschung und technischen Austausch bestimmt. Es ist strengstens untersagt, diese Software für kommerzielle Zwecke oder illegale Aktivitäten zu verwenden, die gegen lokale Gesetze und Vorschriften verstoßen.\n\n2. Haftung\nDer Entwickler hat keine Kontrolle darüber, wie Benutzer diese Software verwenden. Jegliche rechtliche Haftung, Streitigkeiten oder Schäden, die aus der illegalen oder unsachgemäßen Verwendung dieser Software entstehen (einschließlich, aber nicht beschränkt auf Urheberrechtsverletzungen), liegen allein beim Benutzer. Der Entwickler übernimmt keine direkte, indirekte oder gesamtschuldnerische Haftung.\n\n3. Änderungen und Verbreitung\nDieses Projekt ist Open Source. Jede Einzelperson oder Organisation, die diesen Code ändert oder forkt, muss die Open-Source-Lizenz einhalten. Wichtig: Wenn Dritte den Code ändern, um die ursprünglichen Benutzerauthentifizierungs-/Sicherheitsmechanismen zu umgehen oder zu entfernen, und solche Versionen verbreiten, trägt der Modifikator/Verteiler die volle Verantwortung für alle Konsequenzen. Wir raten dringend davon ab, Sicherheitsüberprüfungsmechanismen zu umgehen oder zu manipulieren.\n\n4. Gemeinnützige Erklärung\nDies ist ein komplett kostenloses Open-Source-Projekt. Der Entwickler akzeptiert keine Spenden und hat nie Spendenseiten veröffentlicht. Die Software selbst erlaubt keine Gebühren und bietet keine kostenpflichtigen Dienste an. Bitte seien Sie wachsam und hüten Sie sich vor Betrug oder irreführenden Informationen, die behaupten, Gebühren im Namen dieses Projekts zu erheben.",
+
 };
