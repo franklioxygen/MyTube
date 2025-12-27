@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.6.49 (2025-12-26)
+
+### Feat
+
+- feat: Add lazy loading attribute to images (9a955fa)
+- feat: add youtube playlist download feature (e5fcf66)
+
+### Refactor
+
+- refactor: Configure QueryClient with memory management settings (e03db8f)
+
 ## v1.6.48 (2025-12-26)
 
 ### Chore
