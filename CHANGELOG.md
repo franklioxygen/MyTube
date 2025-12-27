@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.7.5 (2025-12-27)
+
+### Refactor
+
+- refactor: Add centralized API client and query configuration (3d0bf34)
+
 ## v1.7.4 (2025-12-27)
 
 ### Refactor
