@@ -1,11 +1,12 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-    COLLECTIONS_DATA_PATH,
-    STATUS_DATA_PATH,
-    VIDEOS_DATA_PATH,
+  COLLECTIONS_DATA_PATH,
+  STATUS_DATA_PATH,
+  VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { cloudflaredService } from "../services/cloudflaredService";
@@ -323,23 +324,23 @@ export const updateSettings = async (
     if (newSettings.cloudflaredTunnelEnabled) {
       // Determine port
       const port = process.env.PORT ? parseInt(process.env.PORT) : 5551;
-      
+
       const shouldRestart = existingSettings.cloudflaredTunnelEnabled;
 
       if (shouldRestart) {
-         // If it was already enabled, we need to restart to apply changes (Token -> No Token, or vice versa)
-         if (newSettings.cloudflaredToken) {
-            cloudflaredService.restart(newSettings.cloudflaredToken);
-         } else {
-            cloudflaredService.restart(undefined, port);
-         }
+        // If it was already enabled, we need to restart to apply changes (Token -> No Token, or vice versa)
+        if (newSettings.cloudflaredToken) {
+          cloudflaredService.restart(newSettings.cloudflaredToken);
+        } else {
+          cloudflaredService.restart(undefined, port);
+        }
       } else {
-         // It was disabled, now enabling -> just start
-         if (newSettings.cloudflaredToken) {
-            cloudflaredService.start(newSettings.cloudflaredToken);
-         } else {
-            cloudflaredService.start(undefined, port);
-         }
+        // It was disabled, now enabling -> just start
+        if (newSettings.cloudflaredToken) {
+          cloudflaredService.start(newSettings.cloudflaredToken);
+        } else {
+          cloudflaredService.start(undefined, port);
+        }
       }
     } else {
       // If disabled, stop
@@ -517,13 +518,13 @@ export const resetPassword = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
-  // Generate random 8-character password
+  // Generate random 8-character password using cryptographically secure random
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let newPassword = "";
-  for (let i = 0; i < 8; i++) {
-    newPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  const randomBytes = crypto.randomBytes(8);
+  const newPassword = Array.from(randomBytes, (byte) =>
+    chars.charAt(byte % chars.length)
+  ).join("");
 
   // Hash the new password
   const salt = await bcrypt.genSalt(10);
@@ -922,4 +923,3 @@ export const getCloudflaredStatus = async (
   const status = cloudflaredService.getStatus();
   res.json(status);
 };
-

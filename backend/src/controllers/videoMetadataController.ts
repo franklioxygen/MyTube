@@ -6,7 +6,7 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
-import { execFileSafe, validateVideoPath, validateImagePath } from "../utils/security";
+import { execFileSafe, validateImagePath, validateVideoPath } from "../utils/security";
 
 /**
  * Rate video
@@ -63,8 +63,11 @@ export const refreshThumbnail = async (
     throw new ValidationError("Video file path not found in record", "video");
   }
 
-  if (!fs.existsSync(videoFilePath)) {
-    throw new NotFoundError("Video file", videoFilePath);
+  // Validate paths to prevent path traversal
+  const validatedVideoPath = validateVideoPath(videoFilePath);
+
+  if (!fs.existsSync(validatedVideoPath)) {
+    throw new NotFoundError("Video file", validatedVideoPath);
   }
 
   // Determine thumbnail path on disk
@@ -89,11 +92,8 @@ export const refreshThumbnail = async (
   }
 
   // Ensure directory exists
-  fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
-
-  // Validate paths to prevent path traversal
-  const validatedVideoPath = validateVideoPath(videoFilePath);
   const validatedThumbnailPath = validateImagePath(thumbnailAbsolutePath);
+  fs.ensureDirSync(path.dirname(validatedThumbnailPath));
 
   // Generate thumbnail using execFileSafe to prevent command injection
   try {

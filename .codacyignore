@@ -1,0 +1,7 @@
+node_modules/
+backend/bgutil-ytdlp-pot-provider/
+dist/
+build/
+coverage/
+.codacy/
+.git/
