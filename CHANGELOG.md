@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.7.0 (2025-12-26)
+
+### Fix
+
+- fix: upgrade vulnerabilities; enhance security (aa8e8f0)
+
+### Refactor
+
+- refactor: Update paths and imports in controllers (1d97659)
+
 ## v1.6.49 (2025-12-26)
 
 ### Feat
@@ -10,6 +20,14 @@
 ### Refactor
 
 - refactor: Configure QueryClient with memory management settings (e03db8f)
+
+### Docs
+
+- docs: Update localization files with new content (0553bc6)
+
+### Test
+
+- test: Improve clipboard functionality and axios mocking (6296f0b)
 
 ## v1.6.48 (2025-12-26)
 
