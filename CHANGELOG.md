@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.7.3 (2025-12-27)
+
+### Feat
+
+- feat: Add function to configure SQLite database (0ec8478)
+
 ## v1.7.2 (2025-12-27)
 
 ### Feat
