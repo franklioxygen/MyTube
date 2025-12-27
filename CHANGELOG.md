@@ -1,5 +1,11 @@
 # Change Log
 
+## v1.7.2 (2025-12-27)
+
+### Feat
+
+- feat: Allow access CloudFlare tunnel in visitor mode (2902ba8)
+
 ## v1.7.1 (2025-12-26)
 
 ### Fix
