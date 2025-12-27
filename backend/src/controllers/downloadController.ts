@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import downloadManager from "../services/downloadManager";
 import * as storageService from "../services/storageService";
-import { successMessage } from "../utils/response";
+import { sendData, sendSuccessMessage } from "../utils/response";
 
 /**
  * Cancel a download
@@ -13,7 +13,7 @@ export const cancelDownload = async (
 ): Promise<void> => {
   const { id } = req.params;
   downloadManager.cancelDownload(id);
-  res.status(200).json(successMessage("Download cancelled"));
+  sendSuccessMessage(res, "Download cancelled");
 };
 
 /**
@@ -26,7 +26,7 @@ export const removeFromQueue = async (
 ): Promise<void> => {
   const { id } = req.params;
   downloadManager.removeFromQueue(id);
-  res.status(200).json(successMessage("Removed from queue"));
+  sendSuccessMessage(res, "Removed from queue");
 };
 
 /**
@@ -38,7 +38,7 @@ export const clearQueue = async (
   res: Response
 ): Promise<void> => {
   downloadManager.clearQueue();
-  res.status(200).json(successMessage("Queue cleared"));
+  sendSuccessMessage(res, "Queue cleared");
 };
 
 /**
@@ -52,7 +52,7 @@ export const getDownloadHistory = async (
 ): Promise<void> => {
   const history = storageService.getDownloadHistory();
   // Return array directly for backward compatibility (frontend expects response.data to be DownloadHistoryItem[])
-  res.status(200).json(history);
+  sendData(res, history);
 };
 
 /**
@@ -65,7 +65,7 @@ export const removeDownloadHistory = async (
 ): Promise<void> => {
   const { id } = req.params;
   storageService.removeDownloadHistoryItem(id);
-  res.status(200).json(successMessage("Removed from history"));
+  sendSuccessMessage(res, "Removed from history");
 };
 
 /**
@@ -77,5 +77,5 @@ export const clearDownloadHistory = async (
   res: Response
 ): Promise<void> => {
   storageService.clearDownloadHistory();
-  res.status(200).json(successMessage("History cleared"));
+  sendSuccessMessage(res, "History cleared");
 };

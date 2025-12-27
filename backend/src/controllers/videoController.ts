@@ -7,11 +7,11 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
-import { successResponse } from "../utils/response";
+import { sendData, sendSuccess, successResponse } from "../utils/response";
 import {
-  execFileSafe,
-  validateImagePath,
-  validateVideoPath,
+    execFileSafe,
+    validateImagePath,
+    validateVideoPath,
 } from "../utils/security";
 
 // Configure Multer for file uploads
@@ -45,7 +45,7 @@ export const getVideos = async (
 ): Promise<void> => {
   const videos = storageService.getVideos();
   // Return array directly for backward compatibility (frontend expects response.data to be Video[])
-  res.status(200).json(videos);
+  sendData(res, videos);
 };
 
 /**
@@ -65,7 +65,7 @@ export const getVideoById = async (
   }
 
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
-  res.status(200).json(video);
+  sendData(res, video);
 };
 
 /**
@@ -83,7 +83,7 @@ export const deleteVideo = async (
     throw new NotFoundError("Video", id);
   }
 
-  res.status(200).json(successResponse(null, "Video deleted successfully"));
+  sendSuccess(res, null, "Video deleted successfully");
 };
 
 /**
@@ -100,7 +100,7 @@ export const getVideoComments = async (
     m.getComments(id)
   );
   // Return comments array directly for backward compatibility (frontend expects response.data to be Comment[])
-  res.status(200).json(comments);
+  sendData(res, comments);
 };
 
 /**
@@ -217,7 +217,7 @@ export const updateVideoDetails = async (
   }
 
   // Return format expected by frontend: { success: true, video: ... }
-  res.status(200).json({
+  sendData(res, {
     success: true,
     video: updatedVideo,
   });
@@ -268,7 +268,7 @@ export const getAuthorChannelUrl = async (
         if (existingVideo) {
           storageService.updateVideo(existingVideo.id, { channelUrl });
         }
-        res.status(200).json({ success: true, channelUrl });
+        sendData(res, { success: true, channelUrl });
         return;
       }
     }
@@ -278,9 +278,7 @@ export const getAuthorChannelUrl = async (
       // If we have the video in database, try to get channelUrl from there first
       // (already checked above, but this is for clarity)
       if (existingVideo && existingVideo.channelUrl) {
-        res
-          .status(200)
-          .json({ success: true, channelUrl: existingVideo.channelUrl });
+        sendData(res, { success: true, channelUrl: existingVideo.channelUrl });
         return;
       }
 
@@ -322,7 +320,7 @@ export const getAuthorChannelUrl = async (
               });
             }
 
-            res.status(200).json({ success: true, channelUrl: spaceUrl });
+            sendData(res, { success: true, channelUrl: spaceUrl });
             return;
           }
         } catch (error) {
@@ -332,9 +330,9 @@ export const getAuthorChannelUrl = async (
     }
 
     // If we couldn't get the channel URL, return null
-    res.status(200).json({ success: true, channelUrl: null });
+    sendData(res, { success: true, channelUrl: null });
   } catch (error) {
     logger.error("Error getting author channel URL:", error);
-    res.status(200).json({ success: true, channelUrl: null });
+    sendData(res, { success: true, channelUrl: null });
   }
 };

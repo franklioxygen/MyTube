@@ -1,19 +1,19 @@
 import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
+import { DownloadResult } from "../services/downloaders/bilibili/types";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
-import { DownloadResult } from "../services/downloaders/bilibili/types";
 import {
-  extractBilibiliVideoId,
-  extractSourceVideoId,
-  extractUrlFromText,
-  isBilibiliUrl,
-  isValidUrl,
-  resolveShortUrl,
-  trimBilibiliUrl,
+    extractBilibiliVideoId,
+    isBilibiliUrl,
+    isValidUrl,
+    processVideoUrl,
+    resolveShortUrl,
+    trimBilibiliUrl
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 
 /**
  * Search for videos
@@ -39,7 +39,7 @@ export const searchVideos = async (
     offset
   );
   // Return { results } format for backward compatibility (frontend expects response.data.results)
-  res.status(200).json({ results });
+  sendData(res, { results });
 };
 
 /**
@@ -56,19 +56,12 @@ export const checkVideoDownloadStatus = async (
     throw new ValidationError("URL is required", "url");
   }
 
-  let videoUrl = extractUrlFromText(url);
-
-  // Resolve shortened URLs
-  if (videoUrl.includes("b23.tv")) {
-    videoUrl = await resolveShortUrl(videoUrl);
-  }
-
-  // Extract source video ID
-  const { id: sourceVideoId, platform } = extractSourceVideoId(videoUrl);
+  // Process URL: extract from text, resolve shortened URLs, extract source video ID
+  const { sourceVideoId } = await processVideoUrl(url);
 
   if (!sourceVideoId) {
     // Return object directly for backward compatibility (frontend expects response.data.found)
-    res.status(200).json({ found: false });
+    sendData(res, { found: false });
     return;
   }
 
@@ -77,39 +70,41 @@ export const checkVideoDownloadStatus = async (
     storageService.checkVideoDownloadBySourceId(sourceVideoId);
 
   if (downloadCheck.found) {
-    // If status is "exists", verify the video still exists in the database
-    if (downloadCheck.status === "exists" && downloadCheck.videoId) {
-      const existingVideo = storageService.getVideoById(downloadCheck.videoId);
-      if (!existingVideo) {
-        // Video was deleted but not marked in download history, update it
-        storageService.markVideoDownloadDeleted(downloadCheck.videoId);
-        // Return object directly for backward compatibility
-        res.status(200).json({
-          found: true,
-          status: "deleted",
-          title: downloadCheck.title,
-          author: downloadCheck.author,
-          downloadedAt: downloadCheck.downloadedAt,
-        });
-        return;
-      }
+    // Verify video exists if status is "exists"
+    const verification = storageService.verifyVideoExists(
+      downloadCheck,
+      storageService.getVideoById
+    );
 
-      // Return object directly for backward compatibility
-      res.status(200).json({
+    if (verification.updatedCheck) {
+      // Video was deleted but not marked, return deleted status
+      sendData(res, {
+        found: true,
+        status: "deleted",
+        title: verification.updatedCheck.title,
+        author: verification.updatedCheck.author,
+        downloadedAt: verification.updatedCheck.downloadedAt,
+      });
+      return;
+    }
+
+    if (verification.exists && verification.video) {
+      // Video exists, return exists status
+      sendData(res, {
         found: true,
         status: "exists",
         videoId: downloadCheck.videoId,
-        title: downloadCheck.title || existingVideo.title,
-        author: downloadCheck.author || existingVideo.author,
+        title: downloadCheck.title || verification.video.title,
+        author: downloadCheck.author || verification.video.author,
         downloadedAt: downloadCheck.downloadedAt,
-        videoPath: existingVideo.videoPath,
-        thumbnailPath: existingVideo.thumbnailPath,
+        videoPath: verification.video.videoPath,
+        thumbnailPath: verification.video.thumbnailPath,
       });
       return;
     }
 
     // Return object directly for backward compatibility
-    res.status(200).json({
+    sendData(res, {
       found: true,
       status: downloadCheck.status,
       title: downloadCheck.title,
@@ -121,7 +116,7 @@ export const checkVideoDownloadStatus = async (
   }
 
   // Return object directly for backward compatibility
-  res.status(200).json({ found: false });
+  sendData(res, { found: false });
 };
 
 /**
@@ -144,123 +139,86 @@ export const downloadVideo = async (
     let videoUrl = youtubeUrl;
 
     if (!videoUrl) {
-      return res.status(400).json({ error: "Video URL is required" });
+      return sendBadRequest(res, "Video URL is required");
     }
 
     logger.info("Processing download request for input:", videoUrl);
 
-    // Extract URL if the input contains text with a URL
-    videoUrl = extractUrlFromText(videoUrl);
-    logger.info("Extracted URL:", videoUrl);
+    // Process URL: extract from text, resolve shortened URLs, extract source video ID
+    const { videoUrl: processedUrl, sourceVideoId, platform } = await processVideoUrl(videoUrl);
+    logger.info("Processed URL:", processedUrl);
 
     // Check if the input is a valid URL
-    if (!isValidUrl(videoUrl)) {
+    if (!isValidUrl(processedUrl)) {
       // If not a valid URL, treat it as a search term
-      return res.status(400).json({
-        error: "Not a valid URL",
-        isSearchTerm: true,
-        searchTerm: videoUrl,
-      });
+      return sendBadRequest(res, "Not a valid URL");
     }
 
-    // Resolve shortened URLs first to get the real URL for checking
-    let resolvedUrl = videoUrl;
-    if (videoUrl.includes("b23.tv")) {
-      resolvedUrl = await resolveShortUrl(videoUrl);
-      logger.info("Resolved shortened URL to:", resolvedUrl);
-    }
-
-    // Extract source video ID for checking download history
-    const { id: sourceVideoId, platform } = extractSourceVideoId(resolvedUrl);
+    // Use processed URL as resolved URL
+    const resolvedUrl = processedUrl;
+    logger.info("Resolved URL to:", resolvedUrl);
 
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
       const downloadCheck =
         storageService.checkVideoDownloadBySourceId(sourceVideoId);
 
-      if (downloadCheck.found) {
-        if (downloadCheck.status === "exists" && downloadCheck.videoId) {
-          // Verify the video still exists
-          const existingVideo = storageService.getVideoById(
-            downloadCheck.videoId
-          );
-          if (existingVideo) {
-            // Video exists, add to download history as "skipped" and return success
-            storageService.addDownloadHistoryItem({
-              id: Date.now().toString(),
-              title: downloadCheck.title || existingVideo.title,
-              author: downloadCheck.author || existingVideo.author,
-              sourceUrl: resolvedUrl,
-              finishedAt: Date.now(),
-              status: "skipped",
-              videoPath: existingVideo.videoPath,
-              thumbnailPath: existingVideo.thumbnailPath,
-              videoId: existingVideo.id,
-            });
+      // Use the consolidated handler to check download status
+      const checkResult = storageService.handleVideoDownloadCheck(
+        downloadCheck,
+        resolvedUrl,
+        storageService.getVideoById,
+        (item) => storageService.addDownloadHistoryItem(item),
+        forceDownload
+      );
 
-            return res.status(200).json({
-              success: true,
-              skipped: true,
-              videoId: downloadCheck.videoId,
-              title: downloadCheck.title || existingVideo.title,
-              author: downloadCheck.author || existingVideo.author,
-              videoPath: existingVideo.videoPath,
-              message: "Video already exists, skipped download",
-            });
-          }
-          // Video was deleted but not marked, update the record
-          storageService.markVideoDownloadDeleted(downloadCheck.videoId);
-        }
+      if (checkResult.shouldSkip && checkResult.response) {
+        // Video should be skipped, return response
+        return sendData(res, checkResult.response);
+      }
 
-        if (downloadCheck.status === "deleted" && !forceDownload) {
-          // Video was previously downloaded but deleted - add to history and skip
-          storageService.addDownloadHistoryItem({
-            id: Date.now().toString(),
-            title: downloadCheck.title || "Unknown Title",
-            author: downloadCheck.author,
-            sourceUrl: resolvedUrl,
-            finishedAt: Date.now(),
-            status: "deleted",
-            downloadedAt: downloadCheck.downloadedAt,
-            deletedAt: downloadCheck.deletedAt,
-          });
+      // If status is "deleted" and not forcing download, handle separately
+      if (downloadCheck.found && downloadCheck.status === "deleted" && !forceDownload) {
+        // Video was previously downloaded but deleted - add to history and skip
+        storageService.addDownloadHistoryItem({
+          id: Date.now().toString(),
+          title: downloadCheck.title || "Unknown Title",
+          author: downloadCheck.author,
+          sourceUrl: resolvedUrl,
+          finishedAt: Date.now(),
+          status: "deleted",
+          downloadedAt: downloadCheck.downloadedAt,
+          deletedAt: downloadCheck.deletedAt,
+        });
 
-          return res.status(200).json({
-            success: true,
-            skipped: true,
-            previouslyDeleted: true,
-            title: downloadCheck.title,
-            author: downloadCheck.author,
-            downloadedAt: downloadCheck.downloadedAt,
-            deletedAt: downloadCheck.deletedAt,
-            message:
-              "Video was previously downloaded but deleted, skipped download",
-          });
-        }
+        return sendData(res, {
+          success: true,
+          skipped: true,
+          previouslyDeleted: true,
+          title: downloadCheck.title,
+          author: downloadCheck.author,
+          downloadedAt: downloadCheck.downloadedAt,
+          deletedAt: downloadCheck.deletedAt,
+          message: "Video was previously downloaded but deleted, skipped download",
+        });
       }
     }
 
     // Determine initial title for the download task
     let initialTitle = "Video";
     try {
-      // Resolve shortened URLs (like b23.tv) first to get correct info
-      if (videoUrl.includes("b23.tv")) {
-        videoUrl = await resolveShortUrl(videoUrl);
-        logger.info("Resolved shortened URL to:", videoUrl);
-      }
-
-      // Try to fetch video info for all URLs
+      // Try to fetch video info for all URLs (using already processed URL)
       logger.info("Fetching video info for title...");
-      const info = await downloadService.getVideoInfo(videoUrl);
+      const info = await downloadService.getVideoInfo(resolvedUrl);
       if (info && info.title) {
         initialTitle = info.title;
         logger.info("Fetched initial title:", initialTitle);
       }
     } catch (err) {
       logger.warn("Failed to fetch video info for title, using default:", err);
-      if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+      if (resolvedUrl.includes("youtube.com") || resolvedUrl.includes("youtu.be")) {
         initialTitle = "YouTube Video";
-      } else if (isBilibiliUrl(videoUrl)) {
+      } else if (isBilibiliUrl(resolvedUrl)) {
         initialTitle = "Bilibili Video";
       }
     }
@@ -272,10 +230,13 @@ export const downloadVideo = async (
     const downloadTask = async (
       registerCancel: (cancel: () => void) => void
     ) => {
+      // Use resolved URL for download (already processed)
+      let downloadUrl = resolvedUrl;
+      
       // Trim Bilibili URL if needed
-      if (isBilibiliUrl(videoUrl)) {
-        videoUrl = trimBilibiliUrl(videoUrl);
-        logger.info("Using trimmed Bilibili URL:", videoUrl);
+      if (isBilibiliUrl(downloadUrl)) {
+        downloadUrl = trimBilibiliUrl(downloadUrl);
+        logger.info("Using trimmed Bilibili URL:", downloadUrl);
 
         // If downloadCollection is true, handle collection/series download
         if (downloadCollection && collectionInfo) {
@@ -303,7 +264,7 @@ export const downloadVideo = async (
 
         // If downloadAllParts is true, handle multi-part download
         if (downloadAllParts) {
-          const videoId = extractBilibiliVideoId(videoUrl);
+          const videoId = extractBilibiliVideoId(downloadUrl);
           if (!videoId) {
             throw new Error("Could not extract Bilibili video ID");
           }
@@ -326,7 +287,7 @@ export const downloadVideo = async (
           );
 
           // Start downloading the first part
-          const baseUrl = videoUrl.split("?")[0];
+          const baseUrl = downloadUrl.split("?")[0];
           const firstPartUrl = `${baseUrl}?p=1`;
 
           // Check if part 1 already exists
@@ -448,7 +409,7 @@ export const downloadVideo = async (
           logger.info("Downloading single Bilibili video part");
 
           const result = await downloadService.downloadSingleBilibiliPart(
-            videoUrl,
+            downloadUrl,
             1,
             1,
             "", // seriesTitle not used when totalParts is 1
@@ -464,10 +425,10 @@ export const downloadVideo = async (
             );
           }
         }
-      } else if (videoUrl.includes("missav") || videoUrl.includes("123av")) {
+      } else if (downloadUrl.includes("missav") || downloadUrl.includes("123av")) {
         // MissAV/123av download
         const videoData = await downloadService.downloadMissAVVideo(
-          videoUrl,
+          downloadUrl,
           downloadId,
           registerCancel
         );
@@ -475,7 +436,7 @@ export const downloadVideo = async (
       } else {
         // YouTube download
         const videoData = await downloadService.downloadYouTubeVideo(
-          videoUrl,
+          downloadUrl,
           downloadId,
           registerCancel
         );
@@ -485,15 +446,15 @@ export const downloadVideo = async (
 
     // Determine type
     let type = "youtube";
-    if (videoUrl.includes("missav") || videoUrl.includes("123av")) {
+    if (resolvedUrl.includes("missav") || resolvedUrl.includes("123av")) {
       type = "missav";
-    } else if (isBilibiliUrl(videoUrl)) {
+    } else if (isBilibiliUrl(resolvedUrl)) {
       type = "bilibili";
     }
 
     // Add to download manager
     downloadManager
-      .addDownload(downloadTask, downloadId, initialTitle, videoUrl, type)
+      .addDownload(downloadTask, downloadId, initialTitle, resolvedUrl, type)
       .then((result: any) => {
         logger.info("Download completed successfully:", result);
       })
@@ -502,16 +463,14 @@ export const downloadVideo = async (
       });
 
     // Return success immediately indicating the download is queued/started
-    res.status(200).json({
+    sendData(res, {
       success: true,
       message: "Download queued",
       downloadId,
     });
   } catch (error: any) {
     logger.error("Error queuing download:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to queue download", details: error.message });
+    sendInternalError(res, "Failed to queue download");
   }
 };
 
@@ -536,7 +495,7 @@ export const getDownloadStatus = async (
     });
   }
   // Return status object directly for backward compatibility (frontend expects response.data to be DownloadStatus)
-  res.status(200).json(status);
+  sendData(res, status);
 };
 
 /**
@@ -577,7 +536,7 @@ export const checkBilibiliParts = async (
   const result = await downloadService.checkBilibiliVideoParts(videoId);
 
   // Return result object directly for backward compatibility (frontend expects response.data.success, response.data.videosNumber)
-  res.status(200).json(result);
+  sendData(res, result);
 };
 
 /**
@@ -619,7 +578,7 @@ export const checkBilibiliCollection = async (
   const result = await downloadService.checkBilibiliCollectionOrSeries(videoId);
 
   // Return result object directly for backward compatibility (frontend expects response.data.success, response.data.type)
-  res.status(200).json(result);
+  sendData(res, result);
 };
 
 /**
@@ -650,10 +609,10 @@ export const checkPlaylist = async (
 
   try {
     const result = await downloadService.checkPlaylist(playlistUrl);
-    res.status(200).json(result);
+    sendData(res, result);
   } catch (error) {
     logger.error("Error checking playlist:", error);
-    res.status(200).json({
+    sendData(res, {
       success: false,
       error: error instanceof Error ? error.message : "Failed to check playlist"
     });

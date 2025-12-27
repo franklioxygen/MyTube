@@ -200,6 +200,34 @@ export function extractSourceVideoId(url: string): {
   return { id: url, platform: "other" };
 }
 
+/**
+ * Process video URL: extract from text, resolve shortened URLs, and extract source video ID
+ * This consolidates the common pattern used across multiple controllers
+ * 
+ * @param input - URL string that may contain text with a URL
+ * @returns Object containing processed videoUrl, sourceVideoId, and platform
+ */
+export async function processVideoUrl(
+  input: string
+): Promise<{
+  videoUrl: string;
+  sourceVideoId: string | null;
+  platform: string;
+}> {
+  // Extract URL from text that might contain a title and URL
+  let videoUrl = extractUrlFromText(input);
+
+  // Resolve shortened URLs (like b23.tv)
+  if (videoUrl.includes("b23.tv")) {
+    videoUrl = await resolveShortUrl(videoUrl);
+  }
+
+  // Extract source video ID and platform
+  const { id: sourceVideoId, platform } = extractSourceVideoId(videoUrl);
+
+  return { videoUrl, sourceVideoId, platform };
+}
+
 // Helper function to create a safe filename that preserves non-Latin characters
 export function sanitizeFilename(filename: string): string {
   // Remove hashtags (e.g. #tag)

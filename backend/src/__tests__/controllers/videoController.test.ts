@@ -2,17 +2,17 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  deleteVideo,
-  getVideoById,
-  getVideos,
-  updateVideoDetails,
+    deleteVideo,
+    getVideoById,
+    getVideos,
+    updateVideoDetails,
 } from "../../controllers/videoController";
 import {
-  checkBilibiliCollection,
-  checkBilibiliParts,
-  downloadVideo,
-  getDownloadStatus,
-  searchVideos,
+    checkBilibiliCollection,
+    checkBilibiliParts,
+    downloadVideo,
+    getDownloadStatus,
+    searchVideos,
 } from "../../controllers/videoDownloadController";
 import { rateVideo } from "../../controllers/videoMetadataController";
 import downloadManager from "../../services/downloadManager";
@@ -63,6 +63,13 @@ describe("VideoController", () => {
       json,
       status,
     };
+    (storageService.handleVideoDownloadCheck as any) = vi.fn().mockReturnValue({
+      shouldSkip: false,
+      shouldForce: false,
+    });
+    (storageService.checkVideoDownloadBySourceId as any) = vi.fn().mockReturnValue({
+      found: false,
+    });
   });
 
   describe("searchVideos", () => {

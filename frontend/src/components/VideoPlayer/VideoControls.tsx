@@ -80,43 +80,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     const videoContainerRef = useRef<HTMLDivElement>(null);
 
     const [subtitleMenuAnchor, setSubtitleMenuAnchor] = useState<null | HTMLElement>(null);
-    const wasPlayingBeforeHidden = useRef<boolean>(false);
+
     const videoSrcRef = useRef<string>('');
     const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    // Handle Page Visibility API for mobile browsers
-    useEffect(() => {
-        const handleVisibilityChange = () => {
-            const videoElement = videoRef.current;
-            if (!videoElement) return;
 
-            if (document.hidden) {
-                // Page is hidden (user switched apps)
-                wasPlayingBeforeHidden.current = !videoElement.paused;
-                if (wasPlayingBeforeHidden.current) {
-                    videoElement.pause();
-                }
-            } else {
-                // Page is visible again
-                // Wait a bit for the page to fully restore before resuming
-                setTimeout(() => {
-                    if (wasPlayingBeforeHidden.current && videoElement && !document.hidden) {
-                        videoElement.play().catch(err => {
-                            console.error('Error resuming playback:', err);
-                            setIsPlaying(false);
-                        });
-                    }
-                }, 100);
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, []);
 
     // Memory management: Clean up video source when component unmounts or src changes
     useEffect(() => {
@@ -141,7 +111,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         if (src) {
             setIsLoading(true);
             setLoadError(null);
-            
+
             // Clear any existing timeout
             if (loadTimeoutRef.current) {
                 clearTimeout(loadTimeoutRef.current);
@@ -159,7 +129,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             // Use preload="metadata" for large files to reduce initial memory usage
             videoElement.preload = 'metadata';
             videoElement.src = src;
-            
+
             // For mobile browsers, try to load the video
             const handleCanPlay = () => {
                 setIsLoading(false);
@@ -282,11 +252,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             if (hideControlsTimerRef.current) {
                 clearTimeout(hideControlsTimerRef.current);
             }
-            
+
             if (isFullscreen) {
                 // Show controls first
                 setControlsVisible(true);
-                
+
                 // After 5 seconds, hide completely
                 hideControlsTimerRef.current = setTimeout(() => {
                     setControlsVisible(false);
@@ -315,12 +285,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
         const handleMouseMove = () => {
             setControlsVisible(true);
-            
+
             // Reset timer on mouse move
             if (hideControlsTimerRef.current) {
                 clearTimeout(hideControlsTimerRef.current);
             }
-            
+
             // Hide again after 5 seconds of no movement
             hideControlsTimerRef.current = setTimeout(() => {
                 setControlsVisible(false);
@@ -485,7 +455,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = Math.floor(seconds % 60);
-        
+
         if (hours > 0) {
             return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
@@ -584,7 +554,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     };
 
     return (
-        <Box 
+        <Box
             ref={videoContainerRef}
             sx={{ width: '100%', bgcolor: 'black', borderRadius: { xs: 0, sm: 2 }, overflow: 'hidden', boxShadow: 4, position: 'relative' }}
         >
@@ -770,17 +740,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             </video>
 
             {/* Custom Controls Area */}
-            <Box 
+            <Box
                 sx={{
                     p: 1,
                     bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
-                    opacity: isFullscreen 
-                        ? (controlsVisible ? 0.3 : 0) 
+                    opacity: isFullscreen
+                        ? (controlsVisible ? 0.3 : 0)
                         : 1,
                     visibility: isFullscreen && !controlsVisible ? 'hidden' : 'visible',
                     transition: 'opacity 0.3s, visibility 0.3s, background-color 0.3s',
                     pointerEvents: isFullscreen && !controlsVisible ? 'none' : 'auto',
-                    '&:hover': { 
+                    '&:hover': {
                         opacity: isFullscreen && controlsVisible ? 1 : (isFullscreen ? 0 : 1)
                     }
                 }}
@@ -802,12 +772,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         {/* Left Side: Volume and Play */}
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mr: { xs: 0.5, sm: 1 } }}>
                             {/* Volume Control (Hidden on mobile/tablet, shown on desktop) */}
-                            <Box 
-                                ref={volumeSliderRef} 
-                                sx={{ 
-                                    position: 'relative', 
-                                    display: { xs: 'none', md: 'flex' }, 
-                                    alignItems: 'center' 
+                            <Box
+                                ref={volumeSliderRef}
+                                sx={{
+                                    position: 'relative',
+                                    display: { xs: 'none', md: 'flex' },
+                                    alignItems: 'center'
                                 }}
                                 onMouseEnter={() => {
                                     if (volumeSliderHideTimerRef.current) {
@@ -895,7 +865,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                                 </IconButton>
                             </Tooltip>
                         </Stack>
-                        
+
                         <Typography variant="caption" sx={{ minWidth: { xs: '35px', sm: '45px' }, textAlign: 'right', fontSize: '0.75rem' }}>
                             {formatTime(currentTime)}
                         </Typography>
@@ -1020,85 +990,85 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     alignItems="center"
                     sx={{ width: '100%', flexWrap: 'wrap' }}
                 >
-                        <Tooltip title="-10m" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(-600)} 
+                    <Tooltip title="-10m" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(-600)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <KeyboardDoubleArrowLeft />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="-1m" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(-60)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <FastRewind />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="-10s" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(-10)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <Replay10 />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="+10s" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(10)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <Forward10 />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="+1m" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(60)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <FastForward />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="+10m" disableHoverListener={isTouch}>
+                        <IconButton
+                            onClick={() => handleSeek(600)}
+                            size="small"
+                            sx={{ padding: { xs: '10px', sm: '8px' } }}
+                        >
+                            <KeyboardDoubleArrowRight />
+                        </IconButton>
+                    </Tooltip>
+
+                    {/* Mobile: Fullscreen, Loop */}
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1 }}>
+                        {/* Fullscreen */}
+                        <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')} disableHoverListener={isTouch}>
+                            <IconButton
+                                onClick={handleToggleFullscreen}
                                 size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
                             >
-                                <KeyboardDoubleArrowLeft />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="-1m" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(-60)} 
-                                size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
-                            >
-                                <FastRewind />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="-10s" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(-10)} 
-                                size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
-                            >
-                                <Replay10 />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="+10s" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(10)} 
-                                size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
-                            >
-                                <Forward10 />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="+1m" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(60)} 
-                                size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
-                            >
-                                <FastForward />
-                            </IconButton>
-                        </Tooltip>
-                        <Tooltip title="+10m" disableHoverListener={isTouch}>
-                            <IconButton 
-                                onClick={() => handleSeek(600)} 
-                                size="small"
-                                sx={{ padding: { xs: '10px', sm: '8px' } }}
-                            >
-                                <KeyboardDoubleArrowRight />
+                                {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
                             </IconButton>
                         </Tooltip>
 
-                        {/* Mobile: Fullscreen, Loop */}
-                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1 }}>
-                            {/* Fullscreen */}
-                            <Tooltip title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')} disableHoverListener={isTouch}>
-                                <IconButton
-                                    onClick={handleToggleFullscreen}
-                                    size="small"
-                                >
-                                    {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
-                                </IconButton>
-                            </Tooltip>
-
-                            {/* Loop */}
-                            <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`} disableHoverListener={isTouch}>
-                                <IconButton
-                                    color={isLooping ? "primary" : "default"}
-                                    onClick={handleToggleLoop}
-                                    size="small"
-                                >
-                                    <Loop />
-                                </IconButton>
-                            </Tooltip>
-                        </Stack>
+                        {/* Loop */}
+                        <Tooltip title={`${t('loop')} ${isLooping ? t('on') : t('off')}`} disableHoverListener={isTouch}>
+                            <IconButton
+                                color={isLooping ? "primary" : "default"}
+                                onClick={handleToggleLoop}
+                                size="small"
+                            >
+                                <Loop />
+                            </IconButton>
+                        </Tooltip>
                     </Stack>
+                </Stack>
             </Box>
         </Box>
     );

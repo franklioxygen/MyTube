@@ -31,6 +31,8 @@ export {
   recordVideoDownload,
   markVideoDownloadDeleted,
   updateVideoDownloadRecord,
+  verifyVideoExists,
+  handleVideoDownloadCheck,
 } from "./videoDownloadTracking";
 
 // Settings

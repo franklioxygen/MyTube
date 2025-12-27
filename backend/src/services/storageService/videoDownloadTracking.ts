@@ -3,7 +3,7 @@ import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { VideoDownloadCheckResult } from "./types";
+import { VideoDownloadCheckResult, Video } from "./types";
 
 /**
  * Check if a video has been downloaded before by its source video ID
@@ -161,5 +161,167 @@ export function updateVideoDownloadRecord(
     logger.error("Error updating video download record", error instanceof Error ? error : new Error(String(error)));
     // Don't throw - download tracking is non-critical
   }
+}
+
+/**
+ * Verify if a video still exists in the database and update download record if needed
+ * This consolidates the common pattern of checking video existence and handling deleted videos
+ * 
+ * @param downloadCheck - Result from checkVideoDownloadBySourceId or checkVideoDownloadByUrl
+ * @param getVideoById - Function to get video by ID from storage service
+ * @returns Object with verification result and updated check if video was deleted
+ */
+export function verifyVideoExists(
+  downloadCheck: VideoDownloadCheckResult,
+  getVideoById: (videoId: string) => Video | undefined
+): {
+  exists: boolean;
+  video?: Video;
+  updatedCheck?: VideoDownloadCheckResult;
+} {
+  // If not found, nothing to verify
+  if (!downloadCheck.found) {
+    return { exists: false };
+  }
+
+  // If status is "exists" and we have a videoId, verify it still exists
+  if (downloadCheck.status === "exists" && downloadCheck.videoId) {
+    const existingVideo = getVideoById(downloadCheck.videoId);
+    
+    if (!existingVideo) {
+      // Video was deleted but not marked in download history, update it
+      markVideoDownloadDeleted(downloadCheck.videoId);
+      
+      // Return updated check result
+      return {
+        exists: false,
+        updatedCheck: {
+          ...downloadCheck,
+          status: "deleted",
+          videoId: undefined,
+          deletedAt: Date.now(),
+        },
+      };
+    }
+
+    // Video exists
+    return {
+      exists: true,
+      video: existingVideo,
+    };
+  }
+
+  // Status is "deleted" or no videoId
+  return {
+    exists: false,
+  };
+}
+
+/**
+ * Handle video download check result and determine appropriate action
+ * This consolidates the logic for handling download checks in controllers
+ * 
+ * @param downloadCheck - Result from checkVideoDownloadBySourceId
+ * @param sourceUrl - Source URL of the video
+ * @param getVideoById - Function to get video by ID from storage service
+ * @param addDownloadHistoryItem - Function to add item to download history
+ * @param forceDownload - Whether to force download even if video was deleted
+ * @returns Object indicating whether to skip download and response data if applicable
+ */
+export function handleVideoDownloadCheck(
+  downloadCheck: VideoDownloadCheckResult,
+  sourceUrl: string,
+  getVideoById: (videoId: string) => Video | undefined,
+  addDownloadHistoryItem: (item: {
+    id: string;
+    title: string;
+    author?: string;
+    sourceUrl: string;
+    finishedAt: number;
+    status: "success" | "failed" | "skipped" | "deleted";
+    videoPath?: string;
+    thumbnailPath?: string;
+    videoId?: string;
+  }) => void,
+  forceDownload: boolean = false
+): {
+  shouldSkip: boolean;
+  shouldForce: boolean;
+  response?: {
+    success: boolean;
+    skipped?: boolean;
+    videoId?: string;
+    title?: string;
+    author?: string;
+    videoPath?: string;
+    thumbnailPath?: string;
+    message?: string;
+  };
+} {
+  // If not found, proceed with download
+  if (!downloadCheck.found) {
+    return { shouldSkip: false, shouldForce: false };
+  }
+
+  // Verify video exists if status is "exists"
+  if (downloadCheck.status === "exists" && downloadCheck.videoId) {
+    const verification = verifyVideoExists(downloadCheck, getVideoById);
+    
+    if (verification.exists && verification.video) {
+      // Video exists, add to download history as "skipped" and return success
+      addDownloadHistoryItem({
+        id: Date.now().toString(),
+        title: downloadCheck.title || verification.video.title,
+        author: downloadCheck.author || verification.video.author,
+        sourceUrl,
+        finishedAt: Date.now(),
+        status: "skipped",
+        videoPath: verification.video.videoPath,
+        thumbnailPath: verification.video.thumbnailPath,
+        videoId: verification.video.id,
+      });
+
+      return {
+        shouldSkip: true,
+        shouldForce: false,
+        response: {
+          success: true,
+          skipped: true,
+          videoId: downloadCheck.videoId,
+          title: downloadCheck.title || verification.video.title,
+          author: downloadCheck.author || verification.video.author,
+          videoPath: verification.video.videoPath,
+          thumbnailPath: verification.video.thumbnailPath,
+          message: "Video already exists, skipped download",
+        },
+      };
+    }
+    
+    // Video was deleted but not marked, update the record
+    if (verification.updatedCheck) {
+      // Record was updated, continue with download check
+    }
+  }
+
+  // If status is "deleted" and not forcing download, skip
+  if (downloadCheck.status === "deleted" && !forceDownload) {
+    return {
+      shouldSkip: true,
+      shouldForce: false,
+      response: {
+        success: true,
+        skipped: true,
+        message: "Video was previously downloaded but deleted. Use force download to re-download.",
+      },
+    };
+  }
+
+  // If forcing download or status is "deleted" with forceDownload=true, proceed
+  if (downloadCheck.status === "deleted" && forceDownload) {
+    return { shouldSkip: false, shouldForce: true };
+  }
+
+  // Default: proceed with download
+  return { shouldSkip: false, shouldForce: false };
 }
 
