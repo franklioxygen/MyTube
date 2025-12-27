@@ -113,7 +113,8 @@ export const useVideoResolution = (video: Video) => {
       // Cleanup: remove event listeners
       videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
       videoElement.removeEventListener("error", handleError);
-      // Cleanup: clear video source to free memory
+      // Cleanup: pause and clear video source to free memory
+      videoElement.pause();
       videoElement.src = "";
       videoElement.load();
     };

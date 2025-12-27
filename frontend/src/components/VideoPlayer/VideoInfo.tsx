@@ -51,17 +51,18 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     const { videoRef, videoResolution, needsDetection } = useVideoResolution(video);
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
-    // Cleanup video element on unmount
+    // Cleanup video element on unmount or when video changes
     useEffect(() => {
         return () => {
             const videoElement = videoRef.current;
             if (videoElement) {
-                // Clear video source to free memory
+                // Pause and clear video source to free memory
+                videoElement.pause();
                 videoElement.src = '';
                 videoElement.load();
             }
         };
-    }, []);
+    }, [video.id]); // Clean up when video ID changes
 
     return (
         <Box sx={{ mt: 2 }}>

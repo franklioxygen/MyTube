@@ -80,6 +80,138 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     const videoContainerRef = useRef<HTMLDivElement>(null);
 
     const [subtitleMenuAnchor, setSubtitleMenuAnchor] = useState<null | HTMLElement>(null);
+    const wasPlayingBeforeHidden = useRef<boolean>(false);
+    const videoSrcRef = useRef<string>('');
+    const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    // Handle Page Visibility API for mobile browsers
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            const videoElement = videoRef.current;
+            if (!videoElement) return;
+
+            if (document.hidden) {
+                // Page is hidden (user switched apps)
+                wasPlayingBeforeHidden.current = !videoElement.paused;
+                if (wasPlayingBeforeHidden.current) {
+                    videoElement.pause();
+                }
+            } else {
+                // Page is visible again
+                // Wait a bit for the page to fully restore before resuming
+                setTimeout(() => {
+                    if (wasPlayingBeforeHidden.current && videoElement && !document.hidden) {
+                        videoElement.play().catch(err => {
+                            console.error('Error resuming playback:', err);
+                            setIsPlaying(false);
+                        });
+                    }
+                }, 100);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    // Memory management: Clean up video source when component unmounts or src changes
+    useEffect(() => {
+        const videoElement = videoRef.current;
+        if (!videoElement) return;
+
+        // Store previous src for cleanup
+        const previousSrc = videoSrcRef.current;
+        videoSrcRef.current = src;
+
+        // Clean up previous source to free memory
+        if (previousSrc && previousSrc !== src) {
+            // Clear previous source
+            videoElement.pause();
+            videoElement.src = '';
+            videoElement.load();
+            setIsLoading(false);
+            setLoadError(null);
+        }
+
+        // Set new source with memory optimization
+        if (src) {
+            setIsLoading(true);
+            setLoadError(null);
+            
+            // Clear any existing timeout
+            if (loadTimeoutRef.current) {
+                clearTimeout(loadTimeoutRef.current);
+            }
+
+            // Set a timeout for loading (30 seconds for large files)
+            loadTimeoutRef.current = setTimeout(() => {
+                if (videoElement.readyState < 2) { // HAVE_CURRENT_DATA
+                    console.warn('Video loading is taking too long');
+                    setLoadError('Video is taking too long to load. Please try again or check your connection.');
+                    setIsLoading(false);
+                }
+            }, 30000);
+
+            // Use preload="metadata" for large files to reduce initial memory usage
+            videoElement.preload = 'metadata';
+            videoElement.src = src;
+            
+            // For mobile browsers, try to load the video
+            const handleCanPlay = () => {
+                setIsLoading(false);
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                    loadTimeoutRef.current = null;
+                }
+            };
+
+            const handleLoadedData = () => {
+                setIsLoading(false);
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                    loadTimeoutRef.current = null;
+                }
+            };
+
+            const handleError = () => {
+                setIsLoading(false);
+                setLoadError('Failed to load video. Please try refreshing the page.');
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                    loadTimeoutRef.current = null;
+                }
+            };
+
+            videoElement.addEventListener('canplay', handleCanPlay);
+            videoElement.addEventListener('loadeddata', handleLoadedData);
+            videoElement.addEventListener('error', handleError);
+
+            return () => {
+                videoElement.removeEventListener('canplay', handleCanPlay);
+                videoElement.removeEventListener('loadeddata', handleLoadedData);
+                videoElement.removeEventListener('error', handleError);
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                }
+            };
+        }
+
+        return () => {
+            // Cleanup on unmount
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+                videoElement.load();
+            }
+            if (loadTimeoutRef.current) {
+                clearTimeout(loadTimeoutRef.current);
+            }
+        };
+    }, [src]);
 
     useEffect(() => {
         if (videoRef.current) {
@@ -482,11 +614,52 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 `}
             </style>
 
+            {/* Loading indicator */}
+            {isLoading && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10,
+                        bgcolor: 'rgba(0, 0, 0, 0.7)',
+                        borderRadius: 2,
+                        p: 2,
+                        color: 'white'
+                    }}
+                >
+                    <Typography variant="body2">{t('loadingVideo') || 'Loading video...'}</Typography>
+                </Box>
+            )}
+
+            {/* Error message */}
+            {loadError && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10,
+                        bgcolor: 'rgba(211, 47, 47, 0.9)',
+                        borderRadius: 2,
+                        p: 2,
+                        color: 'white',
+                        maxWidth: '80%',
+                        textAlign: 'center'
+                    }}
+                >
+                    <Typography variant="body2">{loadError}</Typography>
+                </Box>
+            )}
+
             <video
                 ref={videoRef}
                 style={{ width: '100%', aspectRatio: '16/9', display: 'block', cursor: 'pointer' }}
                 controls={false}
                 src={src}
+                preload="metadata"
                 onClick={handlePlayPause}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
@@ -526,6 +699,60 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 }}
                 onVolumeChange={(e) => {
                     setVolume(e.currentTarget.volume);
+                }}
+                onError={(e) => {
+                    console.error('Video error:', e);
+                    setIsLoading(false);
+                    const videoElement = e.currentTarget;
+                    if (videoElement.error) {
+                        console.error('Video error code:', videoElement.error.code);
+                        console.error('Video error message:', videoElement.error.message);
+                        // Provide user-friendly error messages
+                        let errorMessage = 'Failed to load video.';
+                        switch (videoElement.error?.code) {
+                            case 1: // MEDIA_ERR_ABORTED
+                                errorMessage = 'Video loading was aborted.';
+                                break;
+                            case 2: // MEDIA_ERR_NETWORK
+                                errorMessage = 'Network error while loading video. Please check your connection.';
+                                break;
+                            case 3: // MEDIA_ERR_DECODE
+                                errorMessage = 'Video decoding error. The file may be corrupted.';
+                                break;
+                            case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+                                errorMessage = 'Video format not supported.';
+                                break;
+                        }
+                        setLoadError(errorMessage);
+                    }
+                    if (loadTimeoutRef.current) {
+                        clearTimeout(loadTimeoutRef.current);
+                        loadTimeoutRef.current = null;
+                    }
+                }}
+                onLoadStart={() => {
+                    setIsLoading(true);
+                    setLoadError(null);
+                    // Optimize for large files: use streaming when available
+                    const videoElement = videoRef.current;
+                    if (videoElement) {
+                        // For large files, we want to load progressively
+                        videoElement.preload = 'metadata';
+                    }
+                }}
+                onCanPlay={() => {
+                    setIsLoading(false);
+                    if (loadTimeoutRef.current) {
+                        clearTimeout(loadTimeoutRef.current);
+                        loadTimeoutRef.current = null;
+                    }
+                }}
+                onLoadedData={() => {
+                    setIsLoading(false);
+                    if (loadTimeoutRef.current) {
+                        clearTimeout(loadTimeoutRef.current);
+                        loadTimeoutRef.current = null;
+                    }
                 }}
                 playsInline
                 crossOrigin="anonymous"

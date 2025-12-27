@@ -75,12 +75,103 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         setPlayerMenuAnchor(null);
     };
 
+    const getSyncVideoUrl = (): string | null => {
+        if (videoUrl) return videoUrl;
+
+        if (video.videoPath && !video.videoPath.startsWith('cloud:')) {
+            const videoPath = video.videoPath.startsWith('/') ? video.videoPath : `/${video.videoPath}`;
+            return `${window.location.origin}${videoPath}`;
+        }
+
+        if (video.sourceUrl) return video.sourceUrl;
+
+        return null;
+    };
+
+    const copyToClipboard = (text: string) => {
+        // 1. Try modern Clipboard API (if secure context)
+        if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(() => showSnackbar(t('linkCopied'), 'success'))
+                .catch((err) => {
+                    console.warn('Clipboard writeText failed:', err);
+                    // If writeText fails, we inform the user and try fallback
+                    fallbackCopy(text);
+                });
+            return;
+        }
+
+        // 2. Fallback for non-secure context or older browsers
+        fallbackCopy(text);
+    };
+
+    const fallbackCopy = (text: string) => {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // Ensure strictly hidden but selectable
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            textArea.style.opacity = "0";
+            textArea.setAttribute('readonly', '');
+
+            document.body.appendChild(textArea);
+
+            // iOS-specific selection
+            if (navigator.userAgent.match(/ipad|iphone/i)) {
+                const range = document.createRange();
+                range.selectNodeContents(textArea);
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                textArea.setSelectionRange(0, 999999);
+            } else {
+                textArea.select();
+            }
+
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            if (successful) {
+                showSnackbar(t('linkCopied'), 'success');
+            } else {
+                throw new Error('execCommand returned false');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            // Final fallback: show URL in snackbar/alert for manual copy
+            showSnackbar(`${t('copyFailed')}: ${text}`, 'error');
+        }
+    };
 
     const handlePlayerSelect = async (player: string) => {
-        const resolvedVideoUrl = await getVideoUrl();
+        // Try to get URL synchronously first to preserve user gesture
+        let resolvedVideoUrl = getSyncVideoUrl();
+
+        // If we found it synchronously and we're just copying, do it strictly synchronously if possible
+        if (resolvedVideoUrl && player === 'copy') {
+            copyToClipboard(resolvedVideoUrl);
+            handlePlayerMenuClose();
+            return;
+        }
+
+        if (!resolvedVideoUrl) {
+            // Must fetch async - might lose user gesture for clipboard
+            resolvedVideoUrl = await getVideoUrl();
+        }
 
         if (!resolvedVideoUrl) {
             showSnackbar(t('error') || 'Video URL not available', 'error');
+            handlePlayerMenuClose();
+            return;
+        }
+
+        if (player === 'copy') {
+            copyToClipboard(resolvedVideoUrl);
             handlePlayerMenuClose();
             return;
         }
@@ -89,45 +180,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
         await incrementView(video.id);
 
         try {
-            let playerUrl = '';
-
-            if (player === 'copy') {
-                // Copy logic will be handled below but we need valid logic structure
-            } else {
-                playerUrl = getPlayerUrl(player, resolvedVideoUrl);
-            }
-
-            if (player === 'copy') {
-                // Copy URL to clipboard
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
-                        showSnackbar(t('linkCopied'), 'success');
-                    }).catch(() => {
-                        showSnackbar(t('copyFailed'), 'error');
-                    });
-                } else {
-                    // Fallback
-                    const textArea = document.createElement("textarea");
-                    textArea.value = resolvedVideoUrl;
-                    textArea.style.position = "fixed";
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    try {
-                        const successful = document.execCommand('copy');
-                        if (successful) {
-                            showSnackbar(t('linkCopied'), 'success');
-                        } else {
-                            showSnackbar(t('copyFailed'), 'error');
-                        }
-                    } catch (err) {
-                        showSnackbar(t('copyFailed'), 'error');
-                    }
-                    document.body.removeChild(textArea);
-                }
-                handlePlayerMenuClose();
-                return;
-            }
+            const playerUrl = getPlayerUrl(player, resolvedVideoUrl);
 
             // Try to open the player URL using a hidden anchor element
             // This prevents navigation away from the page
@@ -274,4 +327,3 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
 };
 
 export default VideoActionButtons;
-
