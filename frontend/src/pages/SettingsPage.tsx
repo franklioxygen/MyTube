@@ -496,6 +496,7 @@ const SettingsPage: React.FC = () => {
                             <CloudflareSettings
                                 enabled={settings.cloudflaredTunnelEnabled}
                                 token={settings.cloudflaredToken}
+                                visitorMode={visitorMode}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </Grid>

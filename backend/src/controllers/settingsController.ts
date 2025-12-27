@@ -178,7 +178,7 @@ export const updateSettings = async (
   const mergedSettings = { ...defaultSettings, ...existingSettings };
 
   // Check if visitor mode is enabled
-  // If visitor mode is enabled, only allow disabling it (setting visitorMode to false)
+  // If visitor mode is enabled, only allow disabling it (setting visitorMode to false) or updating CloudFlare settings
   if (mergedSettings.visitorMode === true) {
     // If visitorMode is being explicitly set to false, allow the update
     if (newSettings.visitorMode === false) {
@@ -206,12 +206,30 @@ export const updateSettings = async (
       });
       return;
     }
-    // If visitor mode is enabled and trying to change other settings (without explicitly disabling visitor mode), block it
-    res.status(403).json({
-      success: false,
-      error: "Visitor mode is enabled. Only disabling visitor mode is allowed.",
-    });
-    return;
+
+    // Allow CloudFlare tunnel settings updates (read-only access mechanism, doesn't violate visitor mode)
+    const isOnlyCloudflareUpdate =
+      (newSettings.cloudflaredTunnelEnabled !== undefined ||
+        newSettings.cloudflaredToken !== undefined) &&
+      Object.keys(newSettings).every(
+        (key) =>
+          key === "cloudflaredTunnelEnabled" ||
+          key === "cloudflaredToken" ||
+          key === "visitorMode"
+      );
+
+    if (isOnlyCloudflareUpdate) {
+      // Allow CloudFlare settings updates even in visitor mode
+      // Continue with normal settings update flow below
+    } else {
+      // If visitor mode is enabled and trying to change other settings (without explicitly disabling visitor mode), block it
+      res.status(403).json({
+        success: false,
+        error:
+          "Visitor mode is enabled. Only disabling visitor mode or updating CloudFlare settings is allowed.",
+      });
+      return;
+    }
   }
 
   // Validate settings if needed
@@ -282,6 +300,15 @@ export const updateSettings = async (
     }
   }
 
+  // Preserve CloudFlare settings if not explicitly provided (to prevent stopping tunnel when enabling visitor mode)
+  if (newSettings.cloudflaredTunnelEnabled === undefined) {
+    newSettings.cloudflaredTunnelEnabled =
+      existingSettings.cloudflaredTunnelEnabled;
+  }
+  if (newSettings.cloudflaredToken === undefined) {
+    newSettings.cloudflaredToken = existingSettings.cloudflaredToken;
+  }
+
   storageService.saveSettings(newSettings);
 
   // Check for moveSubtitlesToVideoFolder change
@@ -315,11 +342,16 @@ export const updateSettings = async (
   }
 
   // Handle Cloudflare Tunnel settings changes
-  if (
+  // Only process changes if the values were explicitly provided (not undefined)
+  const cloudflaredEnabledChanged =
+    newSettings.cloudflaredTunnelEnabled !== undefined &&
     newSettings.cloudflaredTunnelEnabled !==
-      existingSettings.cloudflaredTunnelEnabled ||
-    newSettings.cloudflaredToken !== existingSettings.cloudflaredToken
-  ) {
+      existingSettings.cloudflaredTunnelEnabled;
+  const cloudflaredTokenChanged =
+    newSettings.cloudflaredToken !== undefined &&
+    newSettings.cloudflaredToken !== existingSettings.cloudflaredToken;
+
+  if (cloudflaredEnabledChanged || cloudflaredTokenChanged) {
     // If we are enabling it (or it was enabled and config changed)
     if (newSettings.cloudflaredTunnelEnabled) {
       // Determine port
@@ -342,8 +374,8 @@ export const updateSettings = async (
           cloudflaredService.start(undefined, port);
         }
       }
-    } else {
-      // If disabled, stop
+    } else if (cloudflaredEnabledChanged) {
+      // Only stop if explicitly disabled (not if it was undefined)
       cloudflaredService.stop();
     }
   }

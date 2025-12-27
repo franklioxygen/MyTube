@@ -7,10 +7,11 @@ import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
 interface CloudflareSettingsProps {
     enabled?: boolean;
     token?: string;
+    visitorMode?: boolean;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, onChange }) => {
+const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, visitorMode, onChange }) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const [showCopied, setShowCopied] = useState(false);
@@ -64,6 +65,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     <Switch
                         checked={enabled ?? false}
                         onChange={(e) => onChange('cloudflaredTunnelEnabled', e.target.checked)}
+                        disabled={visitorMode ?? false}
                     />
                 }
                 label={t('enableCloudflaredTunnel')}
@@ -77,6 +79,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     value={token || ''}
                     onChange={(e) => onChange('cloudflaredToken', e.target.value)}
                     margin="normal"
+                    disabled={visitorMode ?? false}
                     helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
                 />
             )}

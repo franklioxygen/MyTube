@@ -26,12 +26,15 @@ export const visitorModeSettingsMiddleware = (
     return;
   }
 
-  // For POST requests, check if it's trying to disable visitor mode or verify password
+  // For POST requests, check if it's trying to disable visitor mode, verify password, or update CloudFlare settings
   if (req.method === "POST") {
     // Allow verify-password requests
-    if (req.path.includes("/verify-password") || req.url.includes("/verify-password")) {
-       next();
-       return;
+    if (
+      req.path.includes("/verify-password") ||
+      req.url.includes("/verify-password")
+    ) {
+      next();
+      return;
     }
 
     const body = req.body || {};
@@ -41,10 +44,29 @@ export const visitorModeSettingsMiddleware = (
       next();
       return;
     }
+
+    // Allow CloudFlare tunnel settings updates (read-only access mechanism, doesn't violate visitor mode)
+    const isOnlyCloudflareUpdate =
+      (body.cloudflaredTunnelEnabled !== undefined ||
+        body.cloudflaredToken !== undefined) &&
+      Object.keys(body).every(
+        (key) =>
+          key === "cloudflaredTunnelEnabled" ||
+          key === "cloudflaredToken" ||
+          key === "visitorMode"
+      );
+
+    if (isOnlyCloudflareUpdate) {
+      // Allow CloudFlare settings updates even in visitor mode
+      next();
+      return;
+    }
+
     // Block all other settings updates
     res.status(403).json({
       success: false,
-      error: "Visitor mode is enabled. Only disabling visitor mode is allowed.",
+      error:
+        "Visitor mode is enabled. Only disabling visitor mode or updating CloudFlare settings is allowed.",
     });
     return;
   }
