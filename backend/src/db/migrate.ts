@@ -1,7 +1,7 @@
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import path from 'path';
 import { ROOT_DIR } from '../config/paths';
-import { db } from './index';
+import { db, sqlite, configureDatabase } from './index';
 
 export async function runMigrations() {
   try {
@@ -14,6 +14,13 @@ export async function runMigrations() {
     
     migrate(db, { migrationsFolder });
     console.log('Database migrations completed successfully.');
+    
+    // Re-apply database configuration after migration
+    // This ensures journal_mode is set to DELETE even if migration changed it
+    // or if the database file already existed with WAL mode
+    // This is critical for NTFS/FUSE filesystem compatibility
+    configureDatabase(sqlite);
+    console.log('Database configuration applied (NTFS/FUSE compatible mode).');
 
     // Check for legacy data files and run data migration if found
     const { runMigration: runDataMigration } = await import('../services/migrationService');
