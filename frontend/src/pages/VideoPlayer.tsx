@@ -613,7 +613,13 @@ const VideoPlayer: React.FC = () => {
     };
 
     // Get thumbnail URL for poster
-    const posterUrl = useCloudStorageUrl(video?.thumbnailPath, 'thumbnail');
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video?.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
+    const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
+        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
+        : undefined;
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
@@ -622,7 +628,7 @@ const VideoPlayer: React.FC = () => {
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
                         src={videoUrl || video?.sourceUrl}
-                        poster={posterUrl || video?.thumbnailUrl}
+                        poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
                         onTimeUpdate={handleTimeUpdate}

@@ -54,14 +54,15 @@ RUN apk add --no-cache \
     pango \
     libjpeg-turbo \
     giflib \
-    librsvg && \
+    librsvg \
+    ca-certificates && \
     ln -sf python3 /usr/bin/python
 
 
 
 # Install cloudflared (Binary download)
 ARG TARGETARCH
-RUN curl -L --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
+RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
     chmod +x /usr/local/bin/cloudflared
 
 # Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving

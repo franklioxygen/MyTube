@@ -7,10 +7,10 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import {
-    CLOUD_THUMBNAIL_CACHE_DIR,
-    IMAGES_DIR,
-    SUBTITLES_DIR,
-    VIDEOS_DIR,
+  CLOUD_THUMBNAIL_CACHE_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
@@ -82,7 +82,7 @@ const startServer = async () => {
         },
       })
     );
-    
+
     // Serve Frontend Static Files
     const frontendDist = path.join(__dirname, "../../frontend/dist");
     app.use(express.static(frontendDist));
@@ -214,12 +214,12 @@ const startServer = async () => {
 
     // SPA Fallback for Frontend
     app.get("*", (req, res) => {
-        // Don't serve index.html for API calls that 404
-        if (req.path.startsWith('/api') || req.path.startsWith('/cloud')) {
-            res.status(404).send('Not Found');
-            return;
-        }
-        res.sendFile(path.join(frontendDist, "index.html"));
+      // Don't serve index.html for API calls that 404
+      if (req.path.startsWith("/api") || req.path.startsWith("/cloud")) {
+        res.status(404).send("Not Found");
+        return;
+      }
+      res.sendFile(path.join(frontendDist, "index.html"));
     });
 
     app.listen(PORT, () => {
@@ -247,11 +247,11 @@ const startServer = async () => {
       const settings = storageService.getSettings();
       if (settings.cloudflaredTunnelEnabled) {
         if (settings.cloudflaredToken) {
-           cloudflaredService.start(settings.cloudflaredToken);
+          cloudflaredService.start(settings.cloudflaredToken);
         } else {
-           // Quick Tunnel
-           const port = typeof PORT === 'string' ? parseInt(PORT) : PORT;
-           cloudflaredService.start(undefined, port);
+          // Quick Tunnel
+          const port = typeof PORT === "string" ? parseInt(PORT) : PORT;
+          cloudflaredService.start(undefined, port);
         }
       }
     });
