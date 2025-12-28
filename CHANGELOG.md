@@ -1,6 +1,16 @@
 # Change Log
 
 
+## v1.7.13 (2025-12-28)
+
+### Chore
+
+- chore: Prune Docker builder cache for space optimization (3e18cc2)
+
+### Test
+
+- test: improve test coverage (a01ec2d)
+
 ## v1.7.12 (2025-12-28)
 
 ### Fix
