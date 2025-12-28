@@ -633,7 +633,7 @@ const VideoPlayer: React.FC = () => {
                 {/* Main Content Column */}
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
-                        src={videoUrl || video?.sourceUrl}
+                        src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
