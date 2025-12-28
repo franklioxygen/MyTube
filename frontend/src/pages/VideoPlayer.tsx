@@ -27,7 +27,6 @@ import { Collection, Video } from '../types';
 import { getRecommendations } from '../utils/recommendations';
 import { validateUrlForOpen } from '../utils/urlValidation';
 const API_URL = import.meta.env.VITE_API_URL;
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -472,7 +471,7 @@ const VideoPlayer: React.FC = () => {
         onSuccess: (data, visibility) => {
             if (data.success) {
                 queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, visibility } : old);
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) => 
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                     old ? old.map(v => v.id === id ? { ...v, visibility } : v) : []
                 );
                 showSnackbar(visibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
@@ -613,6 +612,9 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
+    // Get thumbnail URL for poster
+    const posterUrl = useCloudStorageUrl(video?.thumbnailPath, 'thumbnail');
+
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
             <Grid container spacing={{ xs: 0, md: 4 }}>
@@ -620,6 +622,7 @@ const VideoPlayer: React.FC = () => {
                 <Grid size={{ xs: 12, lg: 8 }}>
                     <VideoControls
                         src={videoUrl || video?.sourceUrl}
+                        poster={posterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
                         onTimeUpdate={handleTimeUpdate}

@@ -43,6 +43,7 @@ interface VideoControlsProps {
     onSubtitlesToggle?: (enabled: boolean) => void;
     onLoopToggle?: (enabled: boolean) => void;
     onEnded?: () => void;
+    poster?: string;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -56,7 +57,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     subtitlesEnabled: initialSubtitlesEnabled = true,
     onSubtitlesToggle,
     onLoopToggle,
-    onEnded
+    onEnded,
+    poster
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -131,6 +133,14 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             videoElement.src = src;
 
             // For mobile browsers, try to load the video
+            const handleLoadedMetadata = () => {
+                setIsLoading(false);
+                if (loadTimeoutRef.current) {
+                    clearTimeout(loadTimeoutRef.current);
+                    loadTimeoutRef.current = null;
+                }
+            };
+
             const handleCanPlay = () => {
                 setIsLoading(false);
                 if (loadTimeoutRef.current) {
@@ -156,11 +166,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 }
             };
 
+            videoElement.addEventListener('loadedmetadata', handleLoadedMetadata);
             videoElement.addEventListener('canplay', handleCanPlay);
             videoElement.addEventListener('loadeddata', handleLoadedData);
             videoElement.addEventListener('error', handleError);
 
             return () => {
+                videoElement.removeEventListener('loadedmetadata', handleLoadedMetadata);
                 videoElement.removeEventListener('canplay', handleCanPlay);
                 videoElement.removeEventListener('loadeddata', handleLoadedData);
                 videoElement.removeEventListener('error', handleError);
@@ -726,6 +738,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 }}
                 playsInline
                 crossOrigin="anonymous"
+                poster={poster}
             >
                 {subtitles && subtitles.map((subtitle) => (
                     <track
