@@ -1,10 +1,20 @@
 # Change Log
 
-## v1.7.9 (2025-12-28)
+## v1.7.10 (2025-12-28)
 
 ### Refactor
 
-- refactor: Refactor multiple parts of the codebase (b6af5e1)
+- refactor: Improve file streaming with cleanup and error handling (b76e699)
+
+## v1.7.9 (2025-12-28)
+
+### Fix
+
+- fix: exclude uploads directory from docker build (73b4fe0)
+
+### Refactor
+
+- refactor: Refactor and improve code formatting (1d3f024)
 
 ### Style
 
