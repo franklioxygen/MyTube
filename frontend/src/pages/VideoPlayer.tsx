@@ -6,9 +6,7 @@ import {
     Grid,
     Typography
 } from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CollectionModal from '../components/CollectionModal';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -17,39 +15,26 @@ import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
-import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useVisitorMode } from '../contexts/VisitorModeContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
-import { Collection, Video } from '../types';
-import { getRecommendations } from '../utils/recommendations';
-import { validateUrlForOpen } from '../utils/urlValidation';
-const API_URL = import.meta.env.VITE_API_URL;
+import { useVideoCollections } from '../hooks/useVideoCollections';
+import { useVideoMutations } from '../hooks/useVideoMutations';
+import { useVideoPlayerSettings } from '../hooks/useVideoPlayerSettings';
+import { useVideoProgress } from '../hooks/useVideoProgress';
+import { useVideoQueries } from '../hooks/useVideoQueries';
+import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
+import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
 
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useLanguage();
-    const { showSnackbar } = useSnackbar();
-    const queryClient = useQueryClient();
-
-    const { videos, deleteVideo } = useVideo();
+    const { videos } = useVideo();
     const { visitorMode } = useVisitorMode();
-    const {
-        collections,
-        addToCollection,
-        createCollection,
-        removeFromCollection
-    } = useCollection();
 
-    const [showCollectionModal, setShowCollectionModal] = useState<boolean>(false);
-    const [videoCollections, setVideoCollections] = useState<Collection[]>([]);
-    const [activeCollectionVideoId, setActiveCollectionVideoId] = useState<string | null>(null);
     const [showComments, setShowComments] = useState<boolean>(false);
-    const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
-    const [authorChannelUrl, setAuthorChannelUrl] = useState<string | null>(null);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
         const saved = localStorage.getItem('autoPlayNext');
         return saved !== null ? JSON.parse(saved) : false;
@@ -70,18 +55,11 @@ const VideoPlayer: React.FC = () => {
         isDanger: false
     });
 
-    // Fetch video details
-    const { data: video, isLoading: loading, error } = useQuery({
-        queryKey: ['video', id],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/videos/${id}`);
-            return response.data;
-        },
-        initialData: () => {
-            return videos.find(v => v.id === id);
-        },
-        enabled: !!id,
-        retry: false
+    // Use custom hooks
+    const { video, loading, error, comments, loadingComments } = useVideoQueries({
+        videoId: id,
+        videos,
+        showComments
     });
 
     // Handle error redirect and invisible videos in visitor mode
@@ -101,19 +79,17 @@ const VideoPlayer: React.FC = () => {
         }
     }, [error, navigate, visitorMode, video]);
 
-    // Fetch settings
-    const { data: settings } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
-            return response.data;
-        }
-    });
-
-    const autoPlay = autoPlayNext || settings?.defaultAutoPlay || false;
-    const autoLoop = settings?.defaultAutoLoop || false;
-    const availableTags = Array.isArray(settings?.tags) ? settings.tags : [];
-    const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
+    // Use video player settings hook
+    const { 
+        autoPlay: settingsAutoPlay, 
+        autoLoop, 
+        subtitlesEnabled,
+        availableTags,
+        handleSubtitlesToggle, 
+        handleLoopToggle 
+    } = useVideoPlayerSettings();
+    
+    const autoPlay = autoPlayNext || settingsAutoPlay;
 
     // Get cloud storage URLs
     const videoUrl = useCloudStorageUrl(video?.videoPath, 'video');
@@ -127,183 +103,60 @@ const VideoPlayer: React.FC = () => {
         ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
 
-    // Fetch comments
-    const { data: comments = [], isLoading: loadingComments } = useQuery({
-        queryKey: ['comments', id],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/videos/${id}/comments`);
-            return response.data;
-        },
-        enabled: showComments && !!id
+    // Use custom hooks
+    const {
+        collections,
+        videoCollections,
+        modalVideoCollections,
+        showCollectionModal,
+        handleAddToCollection,
+        handleCloseModal,
+        handleCreateCollection,
+        handleAddToExistingCollection,
+        handleRemoveFromCollection
+    } = useVideoCollections({ videoId: id });
+
+    const {
+        authorChannelUrl,
+        isSubscribed,
+        subscriptionId,
+        showSubscribeModal,
+        setShowSubscribeModal,
+        handleAuthorClick: handleAuthorClickFromHook,
+        handleSubscribe,
+        handleSubscribeConfirm,
+        handleUnsubscribe: handleUnsubscribeFromHook,
+        unsubscribeMutation
+    } = useVideoSubscriptions({ video });
+
+    const {
+        ratingMutation,
+        titleMutation,
+        tagsMutation,
+        visibilityMutation,
+        deleteMutation
+    } = useVideoMutations({
+        videoId: id,
+        onDeleteSuccess: () => navigate('/', { replace: true })
     });
 
-    // Fetch subscriptions
-    const { data: subscriptions = [] } = useQuery({
-        queryKey: ['subscriptions'],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/subscriptions`);
-            return response.data;
-        }
-    });
+    const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video });
+
+    const { relatedVideos } = useVideoRecommendations({ video });
 
     const handleToggleComments = () => {
         setShowComments(!showComments);
     };
 
-    // Find collections that contain the current video (for VideoInfo)
-    useEffect(() => {
-        if (collections && collections.length > 0 && id) {
-            const belongsToCollections = collections.filter(collection =>
-                collection.videos.includes(id)
-            );
-            setVideoCollections(belongsToCollections);
-        } else {
-            setVideoCollections([]);
-        }
-    }, [collections, id]);
-
-    // Calculate collections for the modal (can be current video or sidebar video)
-    const modalVideoCollections = useMemo(() => {
-        if (collections && collections.length > 0 && activeCollectionVideoId) {
-            return collections.filter(collection =>
-                collection.videos.includes(activeCollectionVideoId)
-            );
-        }
-        return [];
-    }, [collections, activeCollectionVideoId]);
-
-    // Get author channel URL and check subscription status
-    useEffect(() => {
-        const fetchChannelUrl = async () => {
-            if (!video || (video.source !== 'youtube' && video.source !== 'bilibili')) {
-                setAuthorChannelUrl(null);
-                return;
-            }
-
-            try {
-                const response = await axios.get(`${API_URL}/videos/author-channel-url`, {
-                    params: { sourceUrl: video.sourceUrl }
-                });
-
-                if (response.data.success && response.data.channelUrl) {
-                    setAuthorChannelUrl(response.data.channelUrl);
-                } else {
-                    setAuthorChannelUrl(null);
-                }
-            } catch (error) {
-                console.error('Error fetching author channel URL:', error);
-                setAuthorChannelUrl(null);
-            }
-        };
-
-        fetchChannelUrl();
-    }, [video]);
-
-    // Check if author is subscribed
-    const isSubscribed = useMemo(() => {
-        if (!subscriptions || subscriptions.length === 0) {
-            return false;
-        }
-
-        // 1. Strict check by Channel URL (most accurate)
-        if (authorChannelUrl) {
-            const hasUrlMatch = subscriptions.some((sub: any) => sub.authorUrl === authorChannelUrl);
-            if (hasUrlMatch) return true;
-        }
-
-        // 2. Fallback check by Author Name and Platform matching
-        // This handles cases where we might have the same author but slightly different URLs (e.g. handle vs channel ID)
-        if (video) {
-            return subscriptions.some((sub: any) => {
-                const nameMatch = sub.author === video.author;
-                // sub.platform is typically "YouTube" or "Bilibili" (capitalized)
-                // video.source is typically "youtube" or "bilibili" (lowercase)
-                const platformMatch = sub.platform?.toLowerCase() === video.source?.toLowerCase();
-                return nameMatch && platformMatch;
-            });
-        }
-
-        return false;
-    }, [authorChannelUrl, subscriptions, video]);
-
-    // Get subscription ID if subscribed
-    const subscriptionId = useMemo(() => {
-        if (!subscriptions || subscriptions.length === 0) {
-            return null;
-        }
-
-        // 1. Strict check by Channel URL
-        if (authorChannelUrl) {
-            const subscription = subscriptions.find((sub: any) => sub.authorUrl === authorChannelUrl);
-            if (subscription) return subscription.id;
-        }
-
-        // 2. Fallback check by Author Name and Platform matching
-        if (video) {
-            const subscription = subscriptions.find((sub: any) => {
-                const nameMatch = sub.author === video.author;
-                const platformMatch = sub.platform?.toLowerCase() === video.source?.toLowerCase();
-                return nameMatch && platformMatch;
-            });
-            if (subscription) return subscription.id;
-        }
-
-        return null;
-    }, [authorChannelUrl, subscriptions, video]);
-
-    // Handle navigation to author videos page or external channel
-    const handleAuthorClick = async () => {
-        if (!video) return;
-
-        // If it's a YouTube or Bilibili video, try to get the channel URL
-        if (video.source === 'youtube' || video.source === 'bilibili') {
-            if (authorChannelUrl) {
-                // Validate URL to prevent open redirect attacks
-                const validatedUrl = validateUrlForOpen(authorChannelUrl);
-                if (validatedUrl) {
-                    // Open the channel URL in a new tab
-                    window.open(validatedUrl, '_blank', 'noopener,noreferrer');
-                    return;
-                }
-            }
-        }
-
-        // Default behavior: navigate to author videos page
-        navigate(`/author/${encodeURIComponent(video.author)}`);
-    };
-
-    // Handle subscribe
-    const handleSubscribe = () => {
-        if (!authorChannelUrl) return;
-        setShowSubscribeModal(true);
-    };
-
-    // Handle subscribe confirmation
-    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean) => {
-        if (!authorChannelUrl || !video) return;
-
-        try {
-            await axios.post(`${API_URL}/subscriptions`, {
-                url: authorChannelUrl,
-                interval,
-                authorName: video.author, // Pass the author name from the video
-                downloadAllPrevious
-            });
-            showSnackbar(t('subscribedSuccessfully'));
-            queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-            setShowSubscribeModal(false);
-        } catch (error: any) {
-            console.error('Error subscribing:', error);
-            if (error.response && error.response.status === 409) {
-                showSnackbar(t('subscriptionAlreadyExists'), 'warning');
-            } else {
-                showSnackbar(t('error'), 'error');
-            }
-            setShowSubscribeModal(false);
+    // Handle author click with navigation
+    const handleAuthorClick = () => {
+        const result = handleAuthorClickFromHook();
+        if (result?.shouldNavigate) {
+            navigate(result.path);
         }
     };
 
-    // Handle unsubscribe
+    // Handle unsubscribe with confirmation modal
     const handleUnsubscribe = () => {
         if (!subscriptionId) return;
 
@@ -311,17 +164,11 @@ const VideoPlayer: React.FC = () => {
             isOpen: true,
             title: t('unsubscribe'),
             message: t('confirmUnsubscribe', { author: video?.author || '' }),
-            onConfirm: async () => {
-                try {
-                    await axios.delete(`${API_URL}/subscriptions/${subscriptionId}`);
-                    showSnackbar(t('unsubscribedSuccessfully'));
-                    queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-                    setConfirmationModal({ ...confirmationModal, isOpen: false });
-                } catch (error) {
-                    console.error('Error unsubscribing:', error);
-                    showSnackbar(t('error'), 'error');
-                    setConfirmationModal({ ...confirmationModal, isOpen: false });
-                }
+            onConfirm: () => {
+                handleUnsubscribeFromHook(() => {
+                    unsubscribeMutation.mutate(subscriptionId);
+                });
+                setConfirmationModal({ ...confirmationModal, isOpen: false });
             },
             confirmText: t('unsubscribe'),
             cancelText: t('cancel'),
@@ -333,25 +180,13 @@ const VideoPlayer: React.FC = () => {
         navigate(`/collection/${collectionId}`);
     };
 
-    // Delete mutation
-    const deleteMutation = useMutation({
-        mutationFn: async (videoId: string) => {
-            return await deleteVideo(videoId);
-        },
-        onSuccess: (result) => {
-            if (result.success) {
-                navigate('/', { replace: true });
-            }
-        }
-    });
-
     const executeDelete = async () => {
         if (!id) return;
-        isDeletingRef.current = true;
+        setIsDeleting(true);
         try {
             await deleteMutation.mutateAsync(id);
         } catch (error) {
-            isDeletingRef.current = false;
+            setIsDeleting(false);
         }
     };
 
@@ -367,45 +202,33 @@ const VideoPlayer: React.FC = () => {
         });
     };
 
-    const handleAddToCollection = (videoId?: string) => {
-        setActiveCollectionVideoId(videoId || id || null);
-        setShowCollectionModal(true);
+    const handleRatingChange = async (newValue: number) => {
+        if (!id) return;
+        await ratingMutation.mutateAsync(newValue);
     };
 
-    const handleCloseModal = () => {
-        setShowCollectionModal(false);
-        setActiveCollectionVideoId(null);
+    const handleSaveTitle = async (newTitle: string) => {
+        if (!id) return;
+        await titleMutation.mutateAsync(newTitle);
     };
 
-    const handleCreateCollection = async (name: string) => {
-        if (!activeCollectionVideoId) return;
-        try {
-            await createCollection(name, activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error creating collection:', error);
-        }
+    const handleUpdateTags = async (newTags: string[]) => {
+        if (!id) return;
+        await tagsMutation.mutateAsync(newTags);
     };
 
-    const handleAddToExistingCollection = async (collectionId: string) => {
-        if (!activeCollectionVideoId) return;
-        try {
-            await addToCollection(collectionId, activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error adding to collection:', error);
-        }
+    const handleToggleVisibility = async () => {
+        if (!id || !video) return;
+        const newVisibility = video.visibility === 0 ? 1 : 0;
+        await visibilityMutation.mutateAsync(newVisibility);
     };
 
     const executeRemoveFromCollection = async () => {
-        if (!activeCollectionVideoId) return;
-
-        try {
-            await removeFromCollection(activeCollectionVideoId);
-        } catch (error) {
-            console.error('Error removing from collection:', error);
-        }
+        await handleRemoveFromCollection();
+        setConfirmationModal({ ...confirmationModal, isOpen: false });
     };
 
-    const handleRemoveFromCollection = () => {
+    const handleRemoveFromCollectionWithConfirm = () => {
         setConfirmationModal({
             isOpen: true,
             title: t('removeFromCollection'),
@@ -416,186 +239,6 @@ const VideoPlayer: React.FC = () => {
             isDanger: true
         });
     };
-
-    // Rating mutation
-    const ratingMutation = useMutation({
-        mutationFn: async (newValue: number) => {
-            await axios.post(`${API_URL}/videos/${id}/rate`, { rating: newValue });
-            return newValue;
-        },
-        onSuccess: (newValue) => {
-            queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, rating: newValue } : old);
-        }
-    });
-
-    const handleRatingChange = async (newValue: number) => {
-        if (!id) return;
-        await ratingMutation.mutateAsync(newValue);
-    };
-
-    // Title mutation
-    const titleMutation = useMutation({
-        mutationFn: async (newTitle: string) => {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { title: newTitle });
-            return response.data;
-        },
-        onSuccess: (data, newTitle) => {
-            if (data.success) {
-                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, title: newTitle } : old);
-                showSnackbar(t('titleUpdated'));
-            }
-        },
-        onError: () => {
-            showSnackbar(t('titleUpdateFailed'), 'error');
-        }
-    });
-
-    const handleSaveTitle = async (newTitle: string) => {
-        if (!id) return;
-        await titleMutation.mutateAsync(newTitle);
-    };
-
-    // Tags mutation
-    const tagsMutation = useMutation({
-        mutationFn: async (newTags: string[]) => {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { tags: newTags });
-            return response.data;
-        },
-        onSuccess: (data, newTags) => {
-            if (data.success) {
-                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, tags: newTags } : old);
-            }
-        },
-        onError: () => {
-            showSnackbar(t('error'), 'error');
-        }
-    });
-
-    const handleUpdateTags = async (newTags: string[]) => {
-        if (!id) return;
-        await tagsMutation.mutateAsync(newTags);
-    };
-
-    // Visibility mutation
-    const visibilityMutation = useMutation({
-        mutationFn: async (visibility: number) => {
-            const response = await axios.put(`${API_URL}/videos/${id}`, { visibility });
-            return response.data;
-        },
-        onSuccess: (data, visibility) => {
-            if (data.success) {
-                queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, visibility } : old);
-                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(v => v.id === id ? { ...v, visibility } : v) : []
-                );
-                showSnackbar(visibility === 1 ? t('showVideo') : t('hideVideo'), 'success');
-            }
-        },
-        onError: () => {
-            showSnackbar(t('error'), 'error');
-        }
-    });
-
-    const handleToggleVisibility = async () => {
-        if (!id || !video) return;
-        const newVisibility = video.visibility === 0 ? 1 : 0;
-        await visibilityMutation.mutateAsync(newVisibility);
-    };
-
-    // Subtitle preference mutation
-    const subtitlePreferenceMutation = useMutation({
-        mutationFn: async (enabled: boolean) => {
-            const response = await axios.post(`${API_URL}/settings`, { ...settings, subtitlesEnabled: enabled });
-            return response.data;
-        },
-        onSuccess: (data) => {
-            if (data.success) {
-                queryClient.setQueryData(['settings'], (old: any) => old ? { ...old, subtitlesEnabled: data.settings.subtitlesEnabled } : old);
-            }
-        },
-        onError: () => {
-            showSnackbar(t('error'), 'error');
-        }
-    });
-
-    const handleSubtitlesToggle = async (enabled: boolean) => {
-        await subtitlePreferenceMutation.mutateAsync(enabled);
-    };
-
-    // Loop preference mutation
-    const loopPreferenceMutation = useMutation({
-        mutationFn: async (enabled: boolean) => {
-            const response = await axios.post(`${API_URL}/settings`, { ...settings, defaultAutoLoop: enabled });
-            return response.data;
-        },
-        onSuccess: (data) => {
-            if (data.success) {
-                queryClient.setQueryData(['settings'], (old: any) => old ? { ...old, defaultAutoLoop: data.settings.defaultAutoLoop } : old);
-            }
-        },
-        onError: () => {
-            showSnackbar(t('error'), 'error');
-        }
-    });
-
-    const handleLoopToggle = async (enabled: boolean) => {
-        await loopPreferenceMutation.mutateAsync(enabled);
-    };
-
-    const [hasViewed, setHasViewed] = useState<boolean>(false);
-    const lastProgressSave = useRef<number>(0);
-    const currentTimeRef = useRef<number>(0);
-    const isDeletingRef = useRef<boolean>(false);
-
-    // Reset hasViewed when video changes
-    useEffect(() => {
-        setHasViewed(false);
-        currentTimeRef.current = 0;
-    }, [id]);
-
-    // Save progress on unmount
-    useEffect(() => {
-        return () => {
-            if (id && currentTimeRef.current > 0 && !isDeletingRef.current) {
-                axios.put(`${API_URL}/videos/${id}/progress`, { progress: Math.floor(currentTimeRef.current) })
-                    .catch(err => console.error('Error saving progress on unmount:', err));
-            }
-        };
-    }, [id]);
-
-    const handleTimeUpdate = (currentTime: number) => {
-        currentTimeRef.current = currentTime;
-
-        // Increment view count after 10 seconds
-        if (currentTime > 10 && !hasViewed && id) {
-            setHasViewed(true);
-            axios.post(`${API_URL}/videos/${id}/view`)
-                .then(res => {
-                    if (res.data.success && video) {
-                        queryClient.setQueryData(['video', id], (old: Video | undefined) => old ? { ...old, viewCount: res.data.viewCount } : old);
-                    }
-                })
-                .catch(err => console.error('Error incrementing view count:', err));
-        }
-
-        // Save progress every 5 seconds
-        const now = Date.now();
-        if (now - lastProgressSave.current > 5000 && id) {
-            lastProgressSave.current = now;
-            axios.put(`${API_URL}/videos/${id}/progress`, { progress: Math.floor(currentTime) })
-                .catch(err => console.error('Error saving progress:', err));
-        }
-    };
-
-    // Get related videos using recommendation algorithm
-    const relatedVideos = useMemo(() => {
-        if (!video) return [];
-        return getRecommendations({
-            currentVideo: video,
-            allVideos: videos,
-            collections: collections
-        }).slice(0, 10);
-    }, [video, videos, collections]);
 
     // Scroll to top when video ID changes
     useEffect(() => {
@@ -696,7 +339,7 @@ const VideoPlayer: React.FC = () => {
                 collections={collections}
                 onAddToCollection={handleAddToExistingCollection}
                 onCreateCollection={handleCreateCollection}
-                onRemoveFromCollection={handleRemoveFromCollection}
+                onRemoveFromCollection={handleRemoveFromCollectionWithConfirm}
             />
 
             <ConfirmationModal
