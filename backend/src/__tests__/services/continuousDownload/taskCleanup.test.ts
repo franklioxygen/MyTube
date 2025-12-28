@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TaskCleanup } from '../../../services/continuousDownload/taskCleanup';
-import { ContinuousDownloadTask } from '../../../services/continuousDownload/types';
-import { VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
-import * as storageService from '../../../services/storageService';
-import { logger } from '../../../utils/logger';
+
+// Mock database first to prevent initialization errors
+vi.mock('../../../db', () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn(),
+    delete: vi.fn(),
+    update: vi.fn(),
+  },
+  sqlite: {
+    prepare: vi.fn(),
+  },
+}));
 
 // Mock dependencies
 vi.mock('../../../services/continuousDownload/videoUrlFetcher');
@@ -48,6 +56,11 @@ vi.mock('fs-extra', () => ({
     }
 }));
 
+import { TaskCleanup } from '../../../services/continuousDownload/taskCleanup';
+import { ContinuousDownloadTask } from '../../../services/continuousDownload/types';
+import { VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
+import * as storageService from '../../../services/storageService';
+import { logger } from '../../../utils/logger';
 import { getVideoInfo } from '../../../services/downloadService';
 import { cleanupVideoArtifacts } from '../../../utils/downloadUtils';
 
