@@ -44,7 +44,6 @@ WORKDIR /app
 # chromium: for Puppeteer (saves ~300MB vs bundled)
 # ffmpeg: for video processing
 # python3: for yt-dlp
-# curl: for installing deno
 RUN apk add --no-cache \
     chromium \
     ffmpeg \
@@ -58,9 +57,7 @@ RUN apk add --no-cache \
     librsvg && \
     ln -sf python3 /usr/bin/python
 
-# Install deno for yt-dlp js-runtime (recommended by yt-dlp)
-RUN curl -fsSL https://deno.land/install.sh | sh -s -- -y && \
-    ln -sf /root/.deno/bin/deno /usr/local/bin/deno
+
 
 # Install cloudflared (Binary download)
 ARG TARGETARCH

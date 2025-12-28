@@ -123,9 +123,11 @@ export async function executeYtDlpJson(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Deno runtime for YouTube n challenge solving
+  // Add Node.js runtime for YouTube n challenge solving.
+  // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
+  // Node.js is already available in the container and provides a stable alternative.
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    args.push("--js-runtime", "deno");
+    args.push("--js-runtime", "node");
   }
 
   args.push(url);
@@ -272,9 +274,11 @@ export function executeYtDlpSpawn(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Deno runtime for YouTube n challenge solving
+  // Add Node.js runtime for YouTube n challenge solving.
+  // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
+  // Node.js is already available in the container and provides a stable alternative.
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    args.push("--js-runtime", "deno");
+    args.push("--js-runtime", "node");
   }
 
   args.push(url);

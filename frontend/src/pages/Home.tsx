@@ -207,13 +207,13 @@ const Home: React.FC = () => {
                 .filter(video => {
                     // Must have lastPlayedAt
                     if (!video.lastPlayedAt) return false;
-                    
+
                     // Apply tag filtering if tags are selected
                     if (selectedTags.length > 0) {
                         const videoTags = video.tags || [];
                         return selectedTags.every(tag => videoTags.includes(tag));
                     }
-                    
+
                     return true;
                 })
                 .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
