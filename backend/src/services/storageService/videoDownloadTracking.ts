@@ -1,9 +1,8 @@
 import { eq } from "drizzle-orm";
-import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { VideoDownloadCheckResult, Video } from "./types";
+import { DownloadHistoryItem, Video, VideoDownloadCheckResult } from "./types";
 
 /**
  * Check if a video has been downloaded before by its source video ID
@@ -32,7 +31,10 @@ export function checkVideoDownloadBySourceId(
 
     return { found: false };
   } catch (error) {
-    logger.error("Error checking video download by source ID", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error checking video download by source ID",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Return not found on error for graceful degradation
     return { found: false };
   }
@@ -65,7 +67,10 @@ export function checkVideoDownloadByUrl(
 
     return { found: false };
   } catch (error) {
-    logger.error("Error checking video download by URL", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error checking video download by URL",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Return not found on error for graceful degradation
     return { found: false };
   }
@@ -111,7 +116,10 @@ export function recordVideoDownload(
       `Recorded video download: ${title || sourceVideoId} (${platform})`
     );
   } catch (error) {
-    logger.error("Error recording video download", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error recording video download",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Don't throw - download tracking is non-critical
   }
 }
@@ -131,7 +139,10 @@ export function markVideoDownloadDeleted(videoId: string): void {
       .run();
     logger.info(`Marked video download as deleted: ${videoId}`);
   } catch (error) {
-    logger.error("Error marking video download as deleted", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error marking video download as deleted",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Don't throw - download tracking is non-critical
   }
 }
@@ -158,7 +169,10 @@ export function updateVideoDownloadRecord(
       .run();
     logger.info(`Updated video download record: ${title || sourceVideoId}`);
   } catch (error) {
-    logger.error("Error updating video download record", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error updating video download record",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Don't throw - download tracking is non-critical
   }
 }
@@ -166,7 +180,7 @@ export function updateVideoDownloadRecord(
 /**
  * Verify if a video still exists in the database and update download record if needed
  * This consolidates the common pattern of checking video existence and handling deleted videos
- * 
+ *
  * @param downloadCheck - Result from checkVideoDownloadBySourceId or checkVideoDownloadByUrl
  * @param getVideoById - Function to get video by ID from storage service
  * @returns Object with verification result and updated check if video was deleted
@@ -187,11 +201,11 @@ export function verifyVideoExists(
   // If status is "exists" and we have a videoId, verify it still exists
   if (downloadCheck.status === "exists" && downloadCheck.videoId) {
     const existingVideo = getVideoById(downloadCheck.videoId);
-    
+
     if (!existingVideo) {
       // Video was deleted but not marked in download history, update it
       markVideoDownloadDeleted(downloadCheck.videoId);
-      
+
       // Return updated check result
       return {
         exists: false,
@@ -220,7 +234,7 @@ export function verifyVideoExists(
 /**
  * Handle video download check result and determine appropriate action
  * This consolidates the logic for handling download checks in controllers
- * 
+ *
  * @param downloadCheck - Result from checkVideoDownloadBySourceId
  * @param sourceUrl - Source URL of the video
  * @param getVideoById - Function to get video by ID from storage service
@@ -232,17 +246,7 @@ export function handleVideoDownloadCheck(
   downloadCheck: VideoDownloadCheckResult,
   sourceUrl: string,
   getVideoById: (videoId: string) => Video | undefined,
-  addDownloadHistoryItem: (item: {
-    id: string;
-    title: string;
-    author?: string;
-    sourceUrl: string;
-    finishedAt: number;
-    status: "success" | "failed" | "skipped" | "deleted";
-    videoPath?: string;
-    thumbnailPath?: string;
-    videoId?: string;
-  }) => void,
+  addDownloadHistoryItem: (item: DownloadHistoryItem) => void,
   forceDownload: boolean = false
 ): {
   shouldSkip: boolean;
@@ -256,6 +260,9 @@ export function handleVideoDownloadCheck(
     videoPath?: string;
     thumbnailPath?: string;
     message?: string;
+    previouslyDeleted?: boolean;
+    downloadedAt?: number;
+    deletedAt?: number;
   };
 } {
   // If not found, proceed with download
@@ -266,7 +273,7 @@ export function handleVideoDownloadCheck(
   // Verify video exists if status is "exists"
   if (downloadCheck.status === "exists" && downloadCheck.videoId) {
     const verification = verifyVideoExists(downloadCheck, getVideoById);
-    
+
     if (verification.exists && verification.video) {
       // Video exists, add to download history as "skipped" and return success
       addDownloadHistoryItem({
@@ -296,7 +303,7 @@ export function handleVideoDownloadCheck(
         },
       };
     }
-    
+
     // Video was deleted but not marked, update the record
     if (verification.updatedCheck) {
       // Record was updated, continue with download check
@@ -305,13 +312,32 @@ export function handleVideoDownloadCheck(
 
   // If status is "deleted" and not forcing download, skip
   if (downloadCheck.status === "deleted" && !forceDownload) {
+    // Video was previously downloaded but deleted - add to history and skip
+    addDownloadHistoryItem({
+      id: Date.now().toString(),
+      title: downloadCheck.title || "Unknown Title",
+      author: downloadCheck.author,
+      sourceUrl,
+      finishedAt: Date.now(),
+      status: "deleted",
+      downloadedAt: downloadCheck.downloadedAt,
+      deletedAt: downloadCheck.deletedAt,
+    });
+
     return {
       shouldSkip: true,
       shouldForce: false,
       response: {
         success: true,
         skipped: true,
-        message: "Video was previously downloaded but deleted. Use force download to re-download.",
+        // clearly indicate it was deleted so frontend shows correct message
+        previouslyDeleted: true,
+        title: downloadCheck.title,
+        author: downloadCheck.author,
+        downloadedAt: downloadCheck.downloadedAt,
+        deletedAt: downloadCheck.deletedAt,
+        message:
+          "Video was previously downloaded but deleted. Use force download to re-download.",
       },
     };
   }
@@ -324,4 +350,3 @@ export function handleVideoDownloadCheck(
   // Default: proceed with download
   return { shouldSkip: false, shouldForce: false };
 }
-
