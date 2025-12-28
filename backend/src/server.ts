@@ -7,10 +7,10 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import {
-  CLOUD_THUMBNAIL_CACHE_DIR,
-  IMAGES_DIR,
-  SUBTITLES_DIR,
-  VIDEOS_DIR,
+    CLOUD_THUMBNAIL_CACHE_DIR,
+    IMAGES_DIR,
+    SUBTITLES_DIR,
+    VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
@@ -58,6 +58,7 @@ const startServer = async () => {
       "/videos",
       express.static(VIDEOS_DIR, {
         setHeaders: (res, path) => {
+          res.setHeader("Access-Control-Allow-Origin", "*");
           if (path.endsWith(".mp4")) {
             res.setHeader("Content-Type", "video/mp4");
           } else if (path.endsWith(".webm")) {
@@ -66,7 +67,14 @@ const startServer = async () => {
         },
       })
     );
-    app.use("/images", express.static(IMAGES_DIR));
+    app.use(
+      "/images",
+      express.static(IMAGES_DIR, {
+        setHeaders: (res) => {
+          res.setHeader("Access-Control-Allow-Origin", "*");
+        },
+      })
+    );
     app.use(
       "/api/cloud/thumbnail-cache",
       express.static(CLOUD_THUMBNAIL_CACHE_DIR)
