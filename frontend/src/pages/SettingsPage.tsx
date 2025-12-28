@@ -11,7 +11,7 @@ import {
     Snackbar,
     Typography
 } from '@mui/material';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -29,10 +29,12 @@ import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVisitorMode } from '../contexts/VisitorModeContext';
+import { useStickyButton } from '../hooks/useStickyButton';
+import { useSettingsMutations } from '../hooks/useSettingsMutations';
+import { useSettingsModals } from '../hooks/useSettingsModals';
 import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
-import { generateTimestamp } from '../utils/formatUtils';
 import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -65,45 +67,25 @@ const SettingsPage: React.FC = () => {
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
     // Modal states
-    const [showDeleteLegacyModal, setShowDeleteLegacyModal] = useState(false);
-    const [showFormatConfirmModal, setShowFormatConfirmModal] = useState(false);
-    const [showMigrateConfirmModal, setShowMigrateConfirmModal] = useState(false);
-    const [showCleanupTempFilesModal, setShowCleanupTempFilesModal] = useState(false);
-    const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({
-        isOpen: false,
-        title: '',
-        message: '',
-        type: 'info'
-    });
+    const modals = useSettingsModals();
+    const {
+        showDeleteLegacyModal,
+        setShowDeleteLegacyModal,
+        showFormatConfirmModal,
+        setShowFormatConfirmModal,
+        showMigrateConfirmModal,
+        setShowMigrateConfirmModal,
+        showCleanupTempFilesModal,
+        setShowCleanupTempFilesModal,
+        infoModal,
+        setInfoModal
+    } = modals;
 
     const [debugMode, setDebugMode] = useState(ConsoleManager.getDebugMode());
 
     // Sticky Save Button Logic
-    const observerTarget = useRef<HTMLDivElement>(null);
-    const [isSticky, setIsSticky] = useState(true);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            if (!observerTarget.current) return;
-            const rect = observerTarget.current.getBoundingClientRect();
-            // If reference element is below the viewport, show sticky button
-            // rect.top is the distance from top of viewport to top of element
-            // window.innerHeight is viewport height
-            // If rect.top > window.innerHeight, it's below the fold.
-            // We adding a small buffer (e.g. 10px) to ensure smooth transition
-            setIsSticky(rect.top > window.innerHeight);
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        window.addEventListener('resize', handleScroll);
-        // Initial check
-        handleScroll();
-
-        return () => {
-            window.removeEventListener('scroll', handleScroll);
-            window.removeEventListener('resize', handleScroll);
-        };
-    }, []);
+    const observerTarget = useRef<HTMLDivElement | null>(null);
+    const isSticky = useStickyButton(observerTarget);
 
     // Fetch settings
     const { data: settingsData } = useQuery({
@@ -124,180 +106,21 @@ const SettingsPage: React.FC = () => {
         }
     }, [settingsData]);
 
-    // Save settings mutation
-    const saveMutation = useMutation({
-        mutationFn: async (newSettings: Settings) => {
-            // Only send password if it has been changed (is not empty)
-            const settingsToSend = { ...newSettings };
-            if (!settingsToSend.password) {
-                delete settingsToSend.password;
-            }
-            await axios.post(`${API_URL}/settings`, settingsToSend);
-        },
-        onSuccess: () => {
-            setMessage({ text: t('settingsSaved'), type: 'success' });
-        },
-        onError: () => {
-            setMessage({ text: t('settingsFailed'), type: 'error' });
-        }
-    });
-
-    // Migrate data mutation
-    const migrateMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/settings/migrate`);
-            return res.data.results;
-        },
-        onSuccess: (results) => {
-            let msg = `${t('migrationReport')}:\n`;
-            let hasData = false;
-
-            if (results.warnings && results.warnings.length > 0) {
-                msg += `\n⚠️ ${t('migrationWarnings')}:\n${results.warnings.join('\n')}\n`;
-            }
-
-            const categories = ['videos', 'collections', 'settings', 'downloads'];
-            categories.forEach(cat => {
-                const data = results[cat];
-                if (data) {
-                    if (data.found) {
-                        msg += `\n✅ ${cat}: ${data.count} ${t('itemsMigrated')}`;
-                        hasData = true;
-                    } else {
-                        msg += `\n❌ ${cat}: ${t('fileNotFound')} ${data.path}`;
-                    }
-                }
-            });
-
-            if (results.errors && results.errors.length > 0) {
-                msg += `\n\n⛔ ${t('migrationErrors')}:\n${results.errors.join('\n')}`;
-            }
-
-            if (!hasData && (!results.errors || results.errors.length === 0)) {
-                msg += `\n\n⚠️ ${t('noDataFilesFound')}`;
-            }
-
-            setInfoModal({
-                isOpen: true,
-                title: hasData ? t('migrationResults') : t('migrationNoData'),
-                message: msg,
-                type: hasData ? 'success' : 'warning'
-            });
-        },
-        onError: (error: any) => {
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: `${t('migrationFailed')}: ${error.response?.data?.details || error.message}`,
-                type: 'error'
-            });
-        }
-    });
-
-    // Cleanup temp files mutation
-    const cleanupMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/cleanup-temp-files`);
-            return res.data;
-        },
-        onSuccess: (data) => {
-            const { deletedCount, errors } = data;
-            let msg = t('cleanupTempFilesSuccess').replace('{count}', deletedCount.toString());
-            if (errors && errors.length > 0) {
-                msg += `\n\nErrors:\n${errors.join('\n')}`;
-            }
-
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: msg,
-                type: errors && errors.length > 0 ? 'warning' : 'success'
-            });
-        },
-        onError: (error: any) => {
-            const errorMsg = error.response?.data?.error === "Cannot clean up while downloads are active"
-                ? t('cleanupTempFilesActiveDownloads')
-                : `${t('cleanupTempFilesFailed')}: ${error.response?.data?.details || error.message}`;
-
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: errorMsg,
-                type: 'error'
-            });
-        }
-    });
-
-    // Delete legacy data mutation
-    const deleteLegacyMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/settings/delete-legacy`);
-            return res.data.results;
-        },
-        onSuccess: (results) => {
-            let msg = `${t('legacyDataDeleted')}\n`;
-            if (results.deleted.length > 0) {
-                msg += `\nDeleted: ${results.deleted.join(', ')}`;
-            }
-            if (results.failed.length > 0) {
-                msg += `\nFailed: ${results.failed.join(', ')}`;
-            }
-
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: msg,
-                type: 'success'
-            });
-        },
-        onError: (error: any) => {
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: `Failed to delete legacy data: ${error.response?.data?.details || error.message}`,
-                type: 'error'
-            });
-        }
-    });
-
-    // Format legacy filenames mutation
-    const formatFilenamesMutation = useMutation({
-        mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/settings/format-filenames`);
-            return res.data.results;
-        },
-        onSuccess: (results) => {
-            // Construct message using translations
-            let msg = t('formatFilenamesSuccess')
-                .replace('{processed}', results.processed.toString())
-                .replace('{renamed}', results.renamed.toString())
-                .replace('{errors}', results.errors.toString());
-
-            if (results.details && results.details.length > 0) {
-                // truncate details if too long
-                const detailsToShow = results.details.slice(0, 10);
-                msg += `\n\n${t('formatFilenamesDetails')}\n${detailsToShow.join('\n')}`;
-                if (results.details.length > 10) {
-                    msg += `\n${t('formatFilenamesMore').replace('{count}', (results.details.length - 10).toString())}`;
-                }
-            }
-
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: msg,
-                type: results.errors > 0 ? 'warning' : 'success'
-            });
-        },
-        onError: (error: any) => {
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: t('formatFilenamesError').replace('{error}', error.response?.data?.details || error.message),
-                type: 'error'
-            });
-        }
-    });
+    // Settings mutations
+    const mutations = useSettingsMutations({ setMessage, setInfoModal });
+    const {
+        saveMutation,
+        migrateMutation,
+        cleanupMutation,
+        deleteLegacyMutation,
+        formatFilenamesMutation,
+        exportDatabaseMutation,
+        importDatabaseMutation,
+        cleanupBackupDatabasesMutation,
+        restoreFromLastBackupMutation,
+        lastBackupInfo,
+        isSaving
+    } = mutations;
 
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
@@ -316,73 +139,6 @@ const SettingsPage: React.FC = () => {
         setSettings(prev => ({ ...prev, tags: newTags }));
     };
 
-    // Export database mutation
-    const exportDatabaseMutation = useMutation({
-        mutationFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/export-database`, {
-                responseType: 'blob'
-            });
-            return response;
-        },
-        onSuccess: (response) => {
-            // Create a blob URL and trigger download
-            const blob = new Blob([response.data], { type: 'application/octet-stream' });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-
-            // Generate filename with timestamp using helper (same format as backend)
-            const timestamp = generateTimestamp();
-            const filename = `mytube-backup-${timestamp}.db`;
-
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-
-            setMessage({ text: t('databaseExportedSuccess'), type: 'success' });
-        },
-        onError: (error: any) => {
-            const errorDetails = error.response?.data?.details || error.message;
-            setMessage({
-                text: `${t('databaseExportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
-                type: 'error'
-            });
-        }
-    });
-
-    // Import database mutation
-    const importDatabaseMutation = useMutation({
-        mutationFn: async (file: File) => {
-            const formData = new FormData();
-            formData.append('file', file);
-            const response = await axios.post(`${API_URL}/settings/import-database`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-            return response.data;
-        },
-        onSuccess: () => {
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: t('databaseImportedSuccess'),
-                type: 'success'
-            });
-        },
-        onError: (error: any) => {
-            const errorDetails = error.response?.data?.details || error.message;
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: `${t('databaseImportFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
-                type: 'error'
-            });
-        }
-    });
-
     const handleExportDatabase = () => {
         exportDatabaseMutation.mutate();
     };
@@ -391,75 +147,13 @@ const SettingsPage: React.FC = () => {
         importDatabaseMutation.mutate(file);
     };
 
-    // Cleanup backup databases mutation
-    const cleanupBackupDatabasesMutation = useMutation({
-        mutationFn: async () => {
-            const response = await axios.post(`${API_URL}/settings/cleanup-backup-databases`);
-            return response.data;
-        },
-        onSuccess: (data) => {
-            setMessage({
-                text: data.message || t('backupDatabasesCleanedUp'),
-                type: 'success'
-            });
-        },
-        onError: (error: any) => {
-            const errorDetails = error.response?.data?.details || error.message;
-            setMessage({
-                text: `${t('backupDatabasesCleanupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
-                type: 'error'
-            });
-        }
-    });
-
     const handleCleanupBackupDatabases = () => {
         cleanupBackupDatabasesMutation.mutate();
     };
 
-    // Get last backup info query
-    const { data: lastBackupInfo, refetch: refetchLastBackupInfo } = useQuery({
-        queryKey: ['lastBackupInfo'],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/last-backup-info`);
-            return response.data;
-        },
-        refetchInterval: 60000, // Refetch every 60 seconds (reduced frequency)
-        staleTime: 30000, // Consider data fresh for 30 seconds
-        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
-    });
-
-    // Restore from last backup mutation
-    const restoreFromLastBackupMutation = useMutation({
-        mutationFn: async () => {
-            const response = await axios.post(`${API_URL}/settings/restore-from-last-backup`);
-            return response.data;
-        },
-        onSuccess: () => {
-            setInfoModal({
-                isOpen: true,
-                title: t('success'),
-                message: t('restoreFromLastBackupSuccess'),
-                type: 'success'
-            });
-            // Refetch last backup info after restore
-            refetchLastBackupInfo();
-        },
-        onError: (error: any) => {
-            const errorDetails = error.response?.data?.details || error.message;
-            setInfoModal({
-                isOpen: true,
-                title: t('error'),
-                message: `${t('restoreFromLastBackupFailed')}${errorDetails ? `: ${errorDetails}` : ''}`,
-                type: 'error'
-            });
-        }
-    });
-
     const handleRestoreFromLastBackup = () => {
         restoreFromLastBackupMutation.mutate();
     };
-
-    const isSaving = saveMutation.isPending || migrateMutation.isPending || cleanupMutation.isPending || deleteLegacyMutation.isPending || formatFilenamesMutation.isPending || exportDatabaseMutation.isPending || importDatabaseMutation.isPending || cleanupBackupDatabasesMutation.isPending || restoreFromLastBackupMutation.isPending;
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
