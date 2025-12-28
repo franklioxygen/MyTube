@@ -338,7 +338,12 @@ const VideoPlayer: React.FC = () => {
 
     const executeDelete = async () => {
         if (!id) return;
-        await deleteMutation.mutateAsync(id);
+        isDeletingRef.current = true;
+        try {
+            await deleteMutation.mutateAsync(id);
+        } catch (error) {
+            isDeletingRef.current = false;
+        }
     };
 
     const handleDelete = () => {
@@ -531,6 +536,7 @@ const VideoPlayer: React.FC = () => {
     const [hasViewed, setHasViewed] = useState<boolean>(false);
     const lastProgressSave = useRef<number>(0);
     const currentTimeRef = useRef<number>(0);
+    const isDeletingRef = useRef<boolean>(false);
 
     // Reset hasViewed when video changes
     useEffect(() => {
@@ -541,7 +547,7 @@ const VideoPlayer: React.FC = () => {
     // Save progress on unmount
     useEffect(() => {
         return () => {
-            if (id && currentTimeRef.current > 0) {
+            if (id && currentTimeRef.current > 0 && !isDeletingRef.current) {
                 axios.put(`${API_URL}/videos/${id}/progress`, { progress: Math.floor(currentTimeRef.current) })
                     .catch(err => console.error('Error saving progress on unmount:', err));
             }
