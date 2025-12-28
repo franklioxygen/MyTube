@@ -1,5 +1,16 @@
 # Change Log
 
+## v1.7.6 (2025-12-27)
+
+### Feat
+
+- feat: Add poster prop to VideoControls component (3632151)
+
+### Refactor
+
+- refactor: Update error logging in video download tracking functions (db16896)
+- refactor: Update yt-dlp to use Node.js runtime alternative (6d04ce4)
+
 ## v1.7.5 (2025-12-27)
 
 ### Refactor
