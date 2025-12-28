@@ -23,6 +23,10 @@ echo "🔍 Checking if Docker is running..."
 $DOCKER_PATH ps > /dev/null 2>&1 || { echo "❌ Docker is not running. Please start Docker and try again."; exit 1; }
 echo "✅ Docker is running!"
 
+# Prune builder cache to free up space
+echo "🧹 Pruning Docker builder cache..."
+$DOCKER_PATH builder prune --all --force
+
 # Function to build backend for a specific platform
 build_backend() {
   local platform=$1
