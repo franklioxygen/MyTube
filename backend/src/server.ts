@@ -154,12 +154,12 @@ const startServer = async () => {
             res.setHeader("Content-Type", "application/octet-stream");
           }
           // Support range requests for video streaming
+          // Always advertise byte range support for videos
+          res.setHeader("Accept-Ranges", "bytes");
+          
           if (range && response.headers["content-range"]) {
             res.setHeader("Content-Range", response.headers["content-range"]);
             res.status(206); // Partial Content
-          }
-          if (response.headers["accept-ranges"]) {
-            res.setHeader("Accept-Ranges", response.headers["accept-ranges"]);
           }
         } else {
           // Image
@@ -179,11 +179,24 @@ const startServer = async () => {
           res.setHeader("Content-Length", response.headers["content-length"]);
         }
 
-        // Stream the file to client
-        response.data.pipe(res);
+        // Stream the file to client with cleanup
+        const stream = response.data;
+        
+        // Handle client disconnect - destroy upstream stream to prevent memory leaks
+        res.on("close", () => {
+          if (stream.destroy) {
+            stream.destroy();
+          }
+        });
 
-        response.data.on("error", (err: Error) => {
-          logger.error("Error streaming cloud file:", err);
+        stream.pipe(res);
+
+        stream.on("error", (err: Error) => {
+          // Only log if it's not a client disconnect (ECONNRESET)
+          if ((err as any).code !== "ECONNRESET") {
+             logger.error("Error streaming cloud file:", err);
+          }
+          
           if (!res.headersSent) {
             res.status(500).send("Error streaming file from cloud storage");
           }
