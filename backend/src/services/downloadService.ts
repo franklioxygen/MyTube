@@ -131,7 +131,8 @@ export async function downloadSingleBilibiliPart(
   totalParts: number,
   seriesTitle: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
+  collectionName?: string
 ): Promise<DownloadResult> {
   return BilibiliDownloader.downloadSinglePart(
     url,
@@ -139,7 +140,8 @@ export async function downloadSingleBilibiliPart(
     totalParts,
     seriesTitle,
     downloadId,
-    onStart
+    onStart,
+    collectionName
   );
 }
 

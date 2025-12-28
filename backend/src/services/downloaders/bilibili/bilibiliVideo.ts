@@ -376,7 +376,8 @@ export async function downloadSinglePart(
   totalParts: number,
   seriesTitle: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
+  collectionName?: string
 ): Promise<DownloadResult> {
   try {
     logger.info(
@@ -395,9 +396,21 @@ export async function downloadSinglePart(
     const videoFilename = `${safeBaseFilename}.${mergeOutputFormat}`;
     const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
+    // Determine directories based on collection name
+    const videoDir = collectionName
+      ? path.join(VIDEOS_DIR, collectionName)
+      : VIDEOS_DIR;
+    const imageDir = collectionName
+      ? path.join(IMAGES_DIR, collectionName)
+      : IMAGES_DIR;
+
+    // Ensure directories exist
+    fs.ensureDirSync(videoDir);
+    fs.ensureDirSync(imageDir);
+
     // Set full paths for video and thumbnail
-    const videoPath = path.join(VIDEOS_DIR, videoFilename);
-    const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
+    const videoPath = path.join(videoDir, videoFilename);
+    const thumbnailPath = path.join(imageDir, thumbnailFilename);
 
     let videoTitle,
       videoAuthor,
@@ -528,9 +541,9 @@ export async function downloadSinglePart(
     const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
     const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
-    // Rename the files
-    const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
-    const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+    // Rename the files (use same directories as before)
+    const newVideoPath = path.join(videoDir, newVideoFilename);
+    const newThumbnailPath = path.join(imageDir, newThumbnailFilename);
 
     // Check if download was cancelled before processing files
     const downloader = new BilibiliDownloaderHelper();
@@ -601,7 +614,11 @@ export async function downloadSinglePart(
     }> = [];
     try {
       logger.info("Attempting to download subtitles...");
-      subtitles = await downloadSubtitles(url, newSafeBaseFilename);
+      subtitles = await downloadSubtitles(
+        url,
+        newSafeBaseFilename,
+        collectionName
+      );
       logger.info(`Downloaded ${subtitles.length} subtitles`);
     } catch (e) {
       // If it's a cancellation error, re-throw it
@@ -646,9 +663,13 @@ export async function downloadSinglePart(
       thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
       subtitles: subtitles.length > 0 ? subtitles : undefined,
       thumbnailUrl: thumbnailUrl || undefined,
-      videoPath: `/videos/${finalVideoFilename}`,
+      videoPath: collectionName
+        ? `/videos/${collectionName}/${finalVideoFilename}`
+        : `/videos/${finalVideoFilename}`,
       thumbnailPath: thumbnailSaved
-        ? `/images/${finalThumbnailFilename}`
+        ? collectionName
+          ? `/images/${collectionName}/${finalThumbnailFilename}`
+          : `/images/${finalThumbnailFilename}`
         : null,
       duration: duration,
       fileSize: fileSize,
@@ -679,12 +700,16 @@ export async function downloadSinglePart(
         const updatedVideo = storageService.updateVideo(existingVideo.id, {
           subtitles: subtitles.length > 0 ? subtitles : undefined,
           videoFilename: finalVideoFilename,
-          videoPath: `/videos/${finalVideoFilename}`,
+          videoPath: collectionName
+            ? `/videos/${collectionName}/${finalVideoFilename}`
+            : `/videos/${finalVideoFilename}`,
           thumbnailFilename: thumbnailSaved
             ? finalThumbnailFilename
             : existingVideo.thumbnailFilename,
           thumbnailPath: thumbnailSaved
-            ? `/images/${finalThumbnailFilename}`
+            ? collectionName
+              ? `/images/${collectionName}/${finalThumbnailFilename}`
+              : `/images/${finalThumbnailFilename}`
             : existingVideo.thumbnailPath,
           duration: duration,
           fileSize: fileSize,

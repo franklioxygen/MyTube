@@ -41,7 +41,7 @@ describe('DownloadService', () => {
 
     it('should call BilibiliDownloader.downloadSinglePart', async () => {
       await downloadService.downloadSingleBilibiliPart('url', 1, 2, 'title');
-      expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith('url', 1, 2, 'title', undefined, undefined);
+      expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith('url', 1, 2, 'title', undefined, undefined, undefined);
     });
 
     it('should call BilibiliDownloader.downloadCollection', async () => {

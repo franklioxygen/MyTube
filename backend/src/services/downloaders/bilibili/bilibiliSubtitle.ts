@@ -12,7 +12,8 @@ import { getCookieHeader } from "./bilibiliCookie";
  */
 export async function downloadSubtitles(
   videoUrl: string,
-  baseFilename: string
+  baseFilename: string,
+  collectionName?: string
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   try {
     const videoId = extractBilibiliVideoId(videoUrl);
@@ -94,8 +95,16 @@ export async function downloadSubtitles(
 
     const savedSubtitles = [];
 
+    // Determine subtitle directory based on collection name
+    const subtitleDir = collectionName
+      ? path.join(SUBTITLES_DIR, collectionName)
+      : SUBTITLES_DIR;
+    const subtitlePathPrefix = collectionName
+      ? `/subtitles/${collectionName}`
+      : `/subtitles`;
+
     // Ensure subtitles directory exists
-    fs.ensureDirSync(SUBTITLES_DIR);
+    fs.ensureDirSync(subtitleDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
     for (const sub of subtitlesData) {
@@ -127,7 +136,7 @@ export async function downloadSubtitles(
 
         if (vttContent) {
           const subFilename = `${baseFilename}.${lang}.vtt`;
-          const subPath = path.join(SUBTITLES_DIR, subFilename);
+          const subPath = path.join(subtitleDir, subFilename);
 
           fs.writeFileSync(subPath, vttContent);
           logger.info(`Saved subtitle file: ${subPath}`);
@@ -135,7 +144,7 @@ export async function downloadSubtitles(
           savedSubtitles.push({
             language: lang,
             filename: subFilename,
-            path: `/subtitles/${subFilename}`,
+            path: `${subtitlePathPrefix}/${subFilename}`,
           });
         } else {
           logger.warn(`Failed to convert subtitle to VTT format for ${lang}`);

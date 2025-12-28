@@ -127,7 +127,8 @@ export class BilibiliDownloader extends BaseDownloader {
     totalParts: number,
     seriesTitle: string,
     downloadId?: string,
-    onStart?: (cancel: () => void) => void
+    onStart?: (cancel: () => void) => void,
+    collectionName?: string
   ): Promise<DownloadResult> {
     return bilibiliVideo.downloadSinglePart(
       url,
@@ -135,7 +136,8 @@ export class BilibiliDownloader extends BaseDownloader {
       totalParts,
       seriesTitle,
       downloadId,
-      onStart
+      onStart,
+      collectionName
     );
   }
 

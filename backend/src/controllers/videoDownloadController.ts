@@ -359,6 +359,15 @@ export const downloadVideo = async (
               }
             }
           } else {
+            // Get collection name if collectionId is provided
+            let collectionName: string | undefined;
+            if (collectionId) {
+              const collection = storageService.getCollectionById(collectionId);
+              if (collection) {
+                collectionName = collection.name || collection.title;
+              }
+            }
+
             // Download the first part
             firstPartResult =
               await downloadService.downloadSingleBilibiliPart(
@@ -367,7 +376,8 @@ export const downloadVideo = async (
                 videosNumber,
                 title || "Bilibili Video",
                 downloadId,
-                registerCancel
+                registerCancel,
+                collectionName
               );
 
             // Add to collection if needed

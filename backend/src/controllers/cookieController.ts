@@ -43,4 +43,3 @@ export const deleteCookies = async (
   cookieService.deleteCookies();
   res.json(successMessage("Cookies deleted successfully"));
 };
-

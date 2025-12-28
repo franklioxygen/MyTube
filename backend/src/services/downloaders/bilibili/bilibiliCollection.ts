@@ -224,7 +224,9 @@ export async function downloadCollection(
           videoNumber,
           videos.length,
           title || "Collection",
-          downloadId
+          downloadId,
+          undefined, // onStart
+          mytubeCollection.name || mytubeCollection.title // collectionName
         );
 
         // If download was successful, add to collection
@@ -360,13 +362,24 @@ export async function downloadRemainingParts(
         );
       }
 
+      // Get collection name if collectionId is provided
+      let collectionName: string | undefined;
+      if (collectionId) {
+        const collection = storageService.getCollectionById(collectionId);
+        if (collection) {
+          collectionName = collection.name || collection.title;
+        }
+      }
+
       // Download this part
       const result = await downloadSinglePart(
         partUrl,
         part,
         totalParts,
         seriesTitle,
-        downloadId
+        downloadId,
+        undefined, // onStart
+        collectionName
       );
 
       if (result.success && result.videoData) {
