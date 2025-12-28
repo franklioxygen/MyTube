@@ -450,6 +450,10 @@ export const ar = {
   deleteTask: "حذف المهمة",
   confirmDeleteTask: "هل أنت متأكد أنك تريد حذف سجل المهمة لـ {author}؟ لا يمكن التراجع عن هذا الإجراء.",
   taskDeleted: "تم حذف المهمة بنجاح",
+  clearFinishedTasks: "مسح المهام المنتهية",
+  tasksCleared: "تم مسح المهام المنتهية بنجاح",
+  confirmClearFinishedTasks: "هل أنت متأكد أنك تريد مسح جميع المهام المنتهية (المكتملة، الملغاة)؟ سيؤدي هذا إلى إزالتها من القائمة ولكن لن يحذف أي ملفات تم تنزيلها.",
+  clear: "مسح",
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc:

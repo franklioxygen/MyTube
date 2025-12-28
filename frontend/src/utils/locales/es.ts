@@ -438,6 +438,10 @@ export const es = {
   deleteTask: "Eliminar tarea",
   confirmDeleteTask: "¿Estás seguro de que quieres eliminar el registro de tarea para {author}? Esta acción no se puede deshacer.",
   taskDeleted: "Tarea eliminada exitosamente",
+  clearFinishedTasks: "Borrar tareas finalizadas",
+  tasksCleared: "Tareas finalizadas borradas con éxito",
+  confirmClearFinishedTasks: "¿Está seguro de que desea borrar todas las tareas finalizadas (completadas, canceladas)? Esto las eliminará de la lista pero no borrará ningún archivo descargado.",
+  clear: "Borrar",
   // Instruction Page
   instructionSection1Title: "1. Descarga y Gestión de Tareas",
   instructionSection1Desc:

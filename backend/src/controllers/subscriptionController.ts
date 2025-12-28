@@ -122,6 +122,18 @@ export const deleteContinuousDownloadTask = async (
 };
 
 /**
+ * Clear all finished continuous download tasks
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const clearFinishedTasks = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  await continuousDownloadService.clearFinishedTasks();
+  res.status(200).json(successMessage("Finished tasks cleared"));
+};
+
+/**
  * Create a continuous download task for a playlist
  * Errors are automatically handled by asyncHandler middleware
  */

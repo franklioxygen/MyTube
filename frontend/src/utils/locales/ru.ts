@@ -458,6 +458,10 @@ export const ru = {
   deleteTask: "Удалить задачу",
   confirmDeleteTask: "Вы уверены, что хотите удалить запись задачи для {author}? Это действие нельзя отменить.",
   taskDeleted: "Задача успешно удалена",
+  clearFinishedTasks: "Очистить завершенные задачи",
+  tasksCleared: "Завершенные задачи успешно очищены",
+  confirmClearFinishedTasks: "Вы уверены, что хотите очистить все завершенные задачи (завершенные, отмененные)? Это удалит их из списка, но не удалит загруженные файлы.",
+  clear: "Очистить",
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
   instructionSection1Desc:

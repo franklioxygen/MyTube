@@ -180,7 +180,8 @@ export const zh = {
   clearing: "清除中...",
   clearThumbnailCacheSuccess: "缩略图缓存清除成功。下次访问时将重新生成。",
   clearThumbnailCacheError: "清除缩略图缓存失败",
-  clearThumbnailCacheConfirmMessage: "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
+  clearThumbnailCacheConfirmMessage:
+    "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
 
   // Manage
   manageContent: "内容管理",
@@ -440,6 +441,10 @@ export const zh = {
   deleteTask: "删除任务",
   confirmDeleteTask: "您确定要删除 {author} 的任务记录吗？此操作无法撤销。",
   taskDeleted: "任务已成功删除",
+  clearFinishedTasks: "清除已完成任务",
+  tasksCleared: "已成功清除已完成的任务",
+  confirmClearFinishedTasks: "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
+  clear: "清除",
 
   // Existing Video Detection
   existingVideoDetected: "检测到已下载视频",

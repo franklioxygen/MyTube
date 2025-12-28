@@ -472,6 +472,10 @@ export const fr = {
   confirmDeleteTask:
     "Êtes-vous sûr de vouloir supprimer l'enregistrement de tâche pour {author} ? Cette action ne peut pas être annulée.",
   taskDeleted: "Tâche supprimée avec succès",
+  clearFinishedTasks: "Effacer les tâches terminées",
+  tasksCleared: "Tâches terminées effacées avec succès",
+  confirmClearFinishedTasks: "Êtes-vous sûr de vouloir effacer toutes les tâches terminées (complétées, annulées) ? Cela les supprimera de la liste mais ne supprimera aucun fichier téléchargé.",
+  clear: "Effacer",
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
   instructionSection1Desc:

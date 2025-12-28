@@ -453,6 +453,10 @@ export const pt = {
   deleteTask: "Excluir tarefa",
   confirmDeleteTask: "Tem certeza de que deseja excluir o registro da tarefa para {author}? Esta ação não pode ser desfeita.",
   taskDeleted: "Tarefa excluída com sucesso",
+  clearFinishedTasks: "Limpar tarefas concluídas",
+  tasksCleared: "Tarefas concluídas limpas com sucesso",
+  confirmClearFinishedTasks: "Tem certeza de que deseja limpar todas as tarefas concluídas (concluídas, canceladas)? Isso as removerá da lista, mas não excluirá nenhum arquivo baixado.",
+  clear: "Limpar",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
   instructionSection1Desc:

@@ -440,6 +440,10 @@ export const ko = {
   deleteTask: "작업 삭제",
   confirmDeleteTask: "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   taskDeleted: "작업이 성공적으로 삭제되었습니다",
+  clearFinishedTasks: "완료된 작업 지우기",
+  tasksCleared: "완료된 작업이 성공적으로 지워졌습니다",
+  confirmClearFinishedTasks: "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
+  clear: "지우기",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc:

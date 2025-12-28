@@ -452,6 +452,11 @@ export const en = {
   confirmDeleteTask:
     "Are you sure you want to delete the task record for {author}? This action cannot be undone.",
   taskDeleted: "Task deleted successfully",
+  clearFinishedTasks: "Clear Finished Tasks",
+  tasksCleared: "Finished tasks cleared successfully",
+  confirmClearFinishedTasks:
+    "Are you sure you want to clear all finished tasks (completed, cancelled)? This will remove them from the list but will not delete any downloaded files.",
+  clear: "Clear",
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",
   instructionSection1Desc:

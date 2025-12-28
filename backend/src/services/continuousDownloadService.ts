@@ -171,6 +171,26 @@ export class ContinuousDownloadService {
   }
 
   /**
+   * Clear all finished tasks (completed or cancelled)
+   */
+  async clearFinishedTasks(): Promise<void> {
+    const tasks = await this.getAllTasks();
+    const finishedTasks = tasks.filter(
+      (task) => task.status === "completed" || task.status === "cancelled"
+    );
+
+    logger.info(`Clearing ${finishedTasks.length} finished tasks`);
+
+    for (const task of finishedTasks) {
+      try {
+        await this.deleteTask(task.id);
+      } catch (error) {
+        logger.error(`Error deleting task ${task.id} during cleanup:`, error);
+      }
+    }
+  }
+
+  /**
    * Process a continuous download task
    */
   private async processTask(taskId: string): Promise<void> {

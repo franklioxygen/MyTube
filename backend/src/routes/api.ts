@@ -133,6 +133,11 @@ router.get(
   "/subscriptions/tasks",
   asyncHandler(subscriptionController.getContinuousDownloadTasks)
 );
+// Specific routes must come before parameterized routes (:id)
+router.delete(
+  "/subscriptions/tasks/clear-finished",
+  asyncHandler(subscriptionController.clearFinishedTasks)
+);
 router.delete(
   "/subscriptions/tasks/:id",
   asyncHandler(subscriptionController.cancelContinuousDownloadTask)

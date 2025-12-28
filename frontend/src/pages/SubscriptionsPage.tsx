@@ -64,6 +64,7 @@ const SubscriptionsPage: React.FC = () => {
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
     const [isCancelTaskModalOpen, setIsCancelTaskModalOpen] = useState(false);
     const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
+    const [isClearFinishedModalOpen, setIsClearFinishedModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<ContinuousDownloadTask | null>(null);
 
     // Use React Query for better caching and memory management
@@ -163,6 +164,23 @@ const SubscriptionsPage: React.FC = () => {
         }
     };
 
+    const handleClearFinishedClick = () => {
+        setIsClearFinishedModalOpen(true);
+    };
+
+    const handleConfirmClearFinished = async () => {
+        try {
+            await axios.delete(`${API_URL}/subscriptions/tasks/clear-finished`);
+            showSnackbar(t('tasksCleared'));
+            refetchTasks();
+        } catch (error) {
+            console.error('Error clearing finished tasks:', error);
+            showSnackbar(t('error'));
+        } finally {
+            setIsClearFinishedModalOpen(false);
+        }
+    };
+
     const getTaskProgress = (task: ContinuousDownloadTask) => {
         if (task.totalVideos === 0) return 0;
         return Math.round((task.currentVideoIndex / task.totalVideos) * 100);
@@ -232,9 +250,22 @@ const SubscriptionsPage: React.FC = () => {
 
             {tasks.length > 0 && (
                 <Box sx={{ mt: 4 }}>
-                    <Typography variant="h5" component="h2" gutterBottom fontWeight="bold">
-                        {t('continuousDownloadTasks')}
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h5" component="h2" fontWeight="bold">
+                            {t('continuousDownloadTasks')}
+                        </Typography>
+                        {!visitorMode && (
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                onClick={handleClearFinishedClick}
+                                startIcon={<DeleteOutline />}
+                                size="small"
+                            >
+                                {t('clearFinishedTasks')}
+                            </Button>
+                        )}
+                    </Box>
                     <TableContainer component={Paper} sx={{ mt: 2 }}>
                         <Table>
                             <TableHead>
@@ -344,6 +375,16 @@ const SubscriptionsPage: React.FC = () => {
                 title={t('deleteTask')}
                 message={t('confirmDeleteTask', { author: selectedTask?.author || '' })}
                 confirmText={t('deleteTask')}
+                cancelText={t('cancel')}
+                isDanger
+            />
+            <ConfirmationModal
+                isOpen={isClearFinishedModalOpen}
+                onClose={() => setIsClearFinishedModalOpen(false)}
+                onConfirm={handleConfirmClearFinished}
+                title={t('clearFinishedTasks')}
+                message={t('confirmClearFinishedTasks')}
+                confirmText={t('clear')}
                 cancelText={t('cancel')}
                 isDanger
             />

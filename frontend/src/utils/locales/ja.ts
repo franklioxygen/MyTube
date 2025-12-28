@@ -444,6 +444,10 @@ export const ja = {
   deleteTask: "タスクを削除",
   confirmDeleteTask: "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
   taskDeleted: "タスクが正常に削除されました",
+  clearFinishedTasks: "完了したタスクをクリア",
+  tasksCleared: "完了したタスクを正常にクリアしました",
+  confirmClearFinishedTasks: "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
+  clear: "クリア",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc:

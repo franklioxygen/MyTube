@@ -423,6 +423,10 @@ export const de = {
   deleteTask: "Aufgabe löschen",
   confirmDeleteTask: "Sind Sie sicher, dass Sie den Aufgaben-Datensatz für {author} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   taskDeleted: "Aufgabe erfolgreich gelöscht",
+  clearFinishedTasks: "Beendete Aufgaben löschen",
+  tasksCleared: "Beendete Aufgaben erfolgreich gelöscht",
+  confirmClearFinishedTasks: "Sind Sie sicher, dass Sie alle beendeten Aufgaben (abgeschlossen, abgebrochen) löschen möchten? Dies entfernt sie aus der Liste, löscht aber keine heruntergeladenen Dateien.",
+  clear: "Löschen",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc:
