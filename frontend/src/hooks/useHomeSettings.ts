@@ -1,0 +1,84 @@
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL;
+
+interface HomeSettings {
+    isSidebarOpen: boolean;
+    itemsPerPage: number;
+    infiniteScroll: boolean;
+    videoColumns: number;
+    settingsLoaded: boolean;
+}
+
+interface UseHomeSettingsReturn extends HomeSettings {
+    setIsSidebarOpen: (value: boolean) => void;
+    setItemsPerPage: (value: number) => void;
+    setInfiniteScroll: (value: boolean) => void;
+    setVideoColumns: (value: number) => void;
+    handleSidebarToggle: () => Promise<void>;
+}
+
+export const useHomeSettings = (): UseHomeSettingsReturn => {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
+    const [infiniteScroll, setInfiniteScroll] = useState(false);
+    const [videoColumns, setVideoColumns] = useState(4);
+    const [itemsPerPage, setItemsPerPage] = useState(12);
+
+    // Fetch settings on mount
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings`);
+                if (response.data) {
+                    if (typeof response.data.homeSidebarOpen !== 'undefined') {
+                        setIsSidebarOpen(response.data.homeSidebarOpen);
+                    }
+                    if (typeof response.data.itemsPerPage !== 'undefined') {
+                        setItemsPerPage(response.data.itemsPerPage);
+                    }
+                    if (typeof response.data.infiniteScroll !== 'undefined') {
+                        setInfiniteScroll(response.data.infiniteScroll);
+                    }
+                    if (typeof response.data.videoColumns !== 'undefined') {
+                        setVideoColumns(response.data.videoColumns);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch settings:', error);
+            } finally {
+                setSettingsLoaded(true);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleSidebarToggle = async () => {
+        const newState = !isSidebarOpen;
+        setIsSidebarOpen(newState);
+        try {
+            const response = await axios.get(`${API_URL}/settings`);
+            const currentSettings = response.data;
+            await axios.post(`${API_URL}/settings`, {
+                ...currentSettings,
+                homeSidebarOpen: newState
+            });
+        } catch (error) {
+            console.error('Failed to save sidebar state:', error);
+        }
+    };
+
+    return {
+        isSidebarOpen,
+        itemsPerPage,
+        infiniteScroll,
+        videoColumns,
+        settingsLoaded,
+        setIsSidebarOpen,
+        setItemsPerPage,
+        setInfiniteScroll,
+        setVideoColumns,
+        handleSidebarToggle
+    };
+};
