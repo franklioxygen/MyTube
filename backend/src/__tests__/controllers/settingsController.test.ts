@@ -2,12 +2,15 @@ import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteLegacyData, getSettings, migrateData, updateSettings, verifyPassword } from '../../controllers/settingsController';
+import { deleteLegacyData, getSettings, migrateData, updateSettings } from '../../controllers/settingsController';
+import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
 vi.mock('../../services/downloadManager');
+vi.mock('../../services/passwordService');
+vi.mock('../../services/loginAttemptService');
 vi.mock('bcryptjs');
 vi.mock('fs-extra');
 vi.mock('../../services/migrationService', () => ({
@@ -65,12 +68,13 @@ describe('SettingsController', () => {
     it('should hash password if provided', async () => {
       req.body = { password: 'pass' };
       (storageService.getSettings as any).mockReturnValue({});
-      (bcrypt.genSalt as any).mockResolvedValue('salt');
-      (bcrypt.hash as any).mockResolvedValue('hashed');
+      const passwordService = await import('../../services/passwordService');
+      (passwordService.hashPassword as any).mockResolvedValue('hashed');
 
       await updateSettings(req as Request, res as Response);
 
-      expect(bcrypt.hash).toHaveBeenCalledWith('pass', 'salt');
+      expect(passwordService.hashPassword).toHaveBeenCalledWith('pass');
+      expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ password: 'hashed' }));
     });
 
     it('should validate and update itemsPerPage', async () => {
@@ -90,28 +94,33 @@ describe('SettingsController', () => {
   describe('verifyPassword', () => {
     it('should verify correct password', async () => {
       req.body = { password: 'pass' };
-      (storageService.getSettings as any).mockReturnValue({ loginEnabled: true, password: 'hashed' });
-      (bcrypt.compare as any).mockResolvedValue(true);
+      const passwordService = await import('../../services/passwordService');
+      (passwordService.verifyPassword as any).mockResolvedValue({ success: true });
 
       await verifyPassword(req as Request, res as Response);
 
+      expect(passwordService.verifyPassword).toHaveBeenCalledWith('pass');
       expect(json).toHaveBeenCalledWith({ success: true });
     });
 
     it('should reject incorrect password', async () => {
       req.body = { password: 'wrong' };
-      (storageService.getSettings as any).mockReturnValue({ loginEnabled: true, password: 'hashed' });
-      (bcrypt.compare as any).mockResolvedValue(false);
+      const passwordService = await import('../../services/passwordService');
+      (passwordService.verifyPassword as any).mockResolvedValue({
+        success: false,
+        message: 'Incorrect password',
+      });
 
       await verifyPassword(req as Request, res as Response);
 
+      expect(passwordService.verifyPassword).toHaveBeenCalledWith('wrong');
       expect(status).toHaveBeenCalledWith(401);
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
         success: false, 
         message: 'Incorrect password' 
       }));
     });
-    });
+  });
 
   describe('migrateData', () => {
     it('should run migration', async () => {

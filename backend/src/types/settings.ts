@@ -1,0 +1,53 @@
+export interface Settings {
+  loginEnabled: boolean;
+  password?: string;
+  defaultAutoPlay: boolean;
+  defaultAutoLoop: boolean;
+  maxConcurrentDownloads: number;
+  language: string;
+  tags?: string[];
+  cloudDriveEnabled?: boolean;
+  openListApiUrl?: string;
+  openListToken?: string;
+  openListPublicUrl?: string;
+  cloudDrivePath?: string;
+  cloudDriveScanPaths?: string;
+  homeSidebarOpen?: boolean;
+  subtitlesEnabled?: boolean;
+  websiteName?: string;
+  itemsPerPage?: number;
+  ytDlpConfig?: string;
+  showYoutubeSearch?: boolean;
+  proxyOnlyYoutube?: boolean;
+  moveSubtitlesToVideoFolder?: boolean;
+  moveThumbnailsToVideoFolder?: boolean;
+  visitorMode?: boolean;
+  infiniteScroll?: boolean;
+  videoColumns?: number;
+  cloudflaredTunnelEnabled?: boolean;
+  cloudflaredToken?: string;
+}
+
+export const defaultSettings: Settings = {
+  loginEnabled: false,
+  password: "",
+  defaultAutoPlay: false,
+  defaultAutoLoop: false,
+  maxConcurrentDownloads: 3,
+  language: "en",
+  cloudDriveEnabled: false,
+  openListApiUrl: "",
+  openListToken: "",
+  openListPublicUrl: "",
+  cloudDrivePath: "",
+  cloudDriveScanPaths: "",
+  homeSidebarOpen: true,
+  subtitlesEnabled: true,
+  websiteName: "MyTube",
+  itemsPerPage: 12,
+  showYoutubeSearch: true,
+  visitorMode: false,
+  infiniteScroll: false,
+  videoColumns: 4,
+};
+
