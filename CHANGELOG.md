@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.7.8 (2025-12-27)
+
+### Refactor
+
+- refactor: refactor collection (7f0d340)
+- refactor: refactor collection (286401c)
+- refactor: Consolidate file moving operations into file manager (56662e5)
+- refactor: breakdown settingsController (63ea6a1)
+- refactor: breakdown VideoControls (d33d3b1)
+
 ## v1.7.7 (2025-12-27)
 
 ### Feat

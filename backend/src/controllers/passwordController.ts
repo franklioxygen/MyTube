@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import * as passwordService from "../services/passwordService";
-import { successMessage } from "../utils/response";
 
 /**
  * Check if password authentication is enabled
@@ -58,5 +57,3 @@ export const resetPassword = async (
       "Password has been reset. Check backend logs for the new password.",
   });
 };
-
-
