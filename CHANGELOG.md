@@ -1,5 +1,41 @@
 # Change Log
 
+
+## v1.7.12 (2025-12-28)
+
+### Fix
+
+- fix: fix task cleanup test (6d07967)
+
+## v1.7.11 (2025-12-28)
+
+### Feat
+
+- feat: add HomeHeader, HomeSidebar, VideoGrid components (00b192b)
+- feat: Add custom hooks for managing modals and mutations (128624b)
+
+### Fix
+
+- fix: Update VideoPlayer to handle null src value (05df7e2)
+
+### Refactor
+
+- refactor: Improve error handling in delete operation (7002387)
+- refactor: Remove duplicate code for getting poster thumbnail URL (630ecd2)
+- refactor: Reorder import statements for consistency (fb3a627)
+- refactor: refactor bilibiliVideo.ts (a1289d9)
+- refactor: refactor videoplayer page (8a00ef2)
+- refactor: refactor videocard (ea9ead5)
+
+### Style
+
+- style: Improve code formatting and indentation (a4a24c0)
+
+### Test
+
+- test: improve test coverage (a1ede96)
+- test: Mock database and dependencies in taskCleanup.test file (6d07967)
+
 ## v1.7.10 (2025-12-28)
 
 ### Refactor
