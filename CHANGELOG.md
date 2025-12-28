@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.7.7 (2025-12-27)
+
+### Feat
+
+- feat: Add functionality to clear finished tasks (604ff71)
+
+### Refactor
+
+- refactor: breakdown continuousDownloadService (68d4b8a)
+
 ## v1.7.6 (2025-12-27)
 
 ### Feat
