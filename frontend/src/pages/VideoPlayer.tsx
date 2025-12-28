@@ -118,6 +118,15 @@ const VideoPlayer: React.FC = () => {
     // Get cloud storage URLs
     const videoUrl = useCloudStorageUrl(video?.videoPath, 'video');
 
+    // Get thumbnail URL for poster
+    // Only load thumbnail from cloud if the video itself is in cloud storage
+    const isVideoInCloud = video?.videoPath?.startsWith('cloud:') ?? false;
+    const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
+    const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
+        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
+        : undefined;
+
     // Fetch comments
     const { data: comments = [], isLoading: loadingComments } = useQuery({
         queryKey: ['comments', id],
@@ -617,15 +626,6 @@ const VideoPlayer: React.FC = () => {
             navigate(`/video/${relatedVideos[0].id}`);
         }
     };
-
-    // Get thumbnail URL for poster
-    // Only load thumbnail from cloud if the video itself is in cloud storage
-    const isVideoInCloud = video?.videoPath?.startsWith('cloud:') ?? false;
-    const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
-    const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
-        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
-        : undefined;
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
