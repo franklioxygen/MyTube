@@ -1,5 +1,15 @@
 # Change Log
 
+## v1.7.9 (2025-12-28)
+
+### Refactor
+
+- refactor: Refactor multiple parts of the codebase (b6af5e1)
+
+### Style
+
+- style: Improve code formatting and add error retries (d0c316a)
+
 ## v1.7.8 (2025-12-27)
 
 ### Refactor
