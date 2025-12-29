@@ -3,7 +3,7 @@
  */
 
 export const VERSION = {
-  number: "1.1.0",
+  number: "1.7.15",
   buildDate: new Date().toISOString().split("T")[0],
   name: "MyTube Backend Server",
   displayVersion: function () {

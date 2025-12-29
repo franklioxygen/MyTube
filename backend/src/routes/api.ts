@@ -5,6 +5,7 @@ import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
 import * as scanController from "../controllers/scanController";
 import * as subscriptionController from "../controllers/subscriptionController";
+import * as systemController from "../controllers/systemController";
 import * as videoController from "../controllers/videoController";
 import * as videoDownloadController from "../controllers/videoDownloadController";
 import * as videoMetadataController from "../controllers/videoMetadataController";
@@ -161,5 +162,8 @@ router.delete(
   "/cloud/thumbnail-cache",
   asyncHandler(cloudStorageController.clearThumbnailCacheEndpoint)
 );
+
+// System routes
+router.get("/system/version", asyncHandler(systemController.getLatestVersion));
 
 export default router;
