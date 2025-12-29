@@ -1,6 +1,6 @@
 
 import { spawn } from 'child_process';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cloudflaredService } from '../../services/cloudflaredService';
 
 // Mock dependencies
@@ -11,7 +11,7 @@ vi.mock('child_process', () => ({
 vi.mock('../../utils/logger');
 
 describe('cloudflaredService', () => {
-    let mockProcess: any;
+    let mockProcess: { stdout: { on: any }; stderr: { on: any }; on: any; kill: any };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -21,7 +21,7 @@ describe('cloudflaredService', () => {
             on: vi.fn(),
             kill: vi.fn(),
         };
-        (spawn as any).mockReturnValue(mockProcess);
+        (spawn as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockProcess);
     });
 
     afterEach(() => {

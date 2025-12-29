@@ -46,7 +46,7 @@ describe('security', () => {
 
     describe('execFileSafe', () => {
         it('should call execFile', async () => {
-            (execFile as any).mockImplementation((cmd, args, opts, cb) => cb(null, 'stdout', 'stderr'));
+            (execFile as any).mockImplementation((cmd: string, args: string[], opts: any, cb: (err: any, stdout: string, stderr: string) => void) => cb(null, 'stdout', 'stderr'));
             
             const result = await security.execFileSafe('ls', ['-la']);
             expect(execFile).toHaveBeenCalled();

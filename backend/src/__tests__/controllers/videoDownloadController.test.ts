@@ -8,8 +8,6 @@ import * as helpers from '../../utils/helpers';
 // Mock dependencies
 vi.mock('../../services/downloadManager', () => ({
     default: {
-        getVideoByUrl: vi.fn(),
-        getDownloadStatus: vi.fn(),
         addDownload: vi.fn(),
     }
 }));
