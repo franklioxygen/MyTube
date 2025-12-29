@@ -64,6 +64,7 @@ git add package.json frontend/package.json backend/package.json package-lock.jso
 git commit -m "chore(release): v$NEW_VERSION"
 git tag "v$NEW_VERSION"
 git push origin master
+git push origin "v$NEW_VERSION"
 
 echo "✅ Version bumped and tagged: v$NEW_VERSION"
 

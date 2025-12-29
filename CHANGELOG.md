@@ -1,6 +1,18 @@
 # Change Log
 
 
+## v1.7.16 (2025-12-29)
+
+### Feat
+
+- feat(api): Add system controller and version check endpoint (db3d917)
+- feat: Add pause on focus loss functionality (a664baf)
+
+### Style
+
+- style: Update spacing to use Grid component in UpNextSidebar (21c3f4c)
+
+
 ## v1.7.15 (2025-12-29)
 
 ### Feat
