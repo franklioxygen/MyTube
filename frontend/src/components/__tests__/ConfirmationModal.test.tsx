@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConfirmationModal from '../ConfirmationModal';
 
@@ -28,10 +29,11 @@ describe('ConfirmationModal', () => {
         expect(screen.queryByText('Confirm Action')).not.toBeInTheDocument();
     });
 
-    it('calls onConfirm and onClose when confirm button is clicked', () => {
+    it('calls onConfirm and onClose when confirm button is clicked', async () => {
         render(<ConfirmationModal {...defaultProps} />);
 
-        fireEvent.click(screen.getByText('Confirm')); // Default text
+        const user = userEvent.setup();
+        await user.click(screen.getByText('Confirm')); // Default text
 
         expect(defaultProps.onConfirm).toHaveBeenCalledTimes(1);
         expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
@@ -41,10 +43,11 @@ describe('ConfirmationModal', () => {
         );
     });
 
-    it('calls onClose when cancel button is clicked', () => {
+    it('calls onClose when cancel button is clicked', async () => {
         render(<ConfirmationModal {...defaultProps} />);
 
-        fireEvent.click(screen.getByText('Cancel')); // Default text
+        const user = userEvent.setup();
+        await user.click(screen.getByText('Cancel')); // Default text
 
         expect(defaultProps.onClose).toHaveBeenCalled();
         expect(defaultProps.onConfirm).not.toHaveBeenCalled();

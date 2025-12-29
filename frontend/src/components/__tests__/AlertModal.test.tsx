@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import AlertModal from '../AlertModal';
 
@@ -27,9 +28,10 @@ describe('AlertModal', () => {
         expect(screen.queryByText('Test Title')).not.toBeInTheDocument();
     });
 
-    it('should call onClose when confirm button is clicked', () => {
+    it('should call onClose when confirm button is clicked', async () => {
         render(<AlertModal {...defaultProps} />);
-        fireEvent.click(screen.getByText('OK'));
+        const user = userEvent.setup();
+        await user.click(screen.getByText('OK'));
         expect(defaultProps.onClose).toHaveBeenCalled();
     });
 });
