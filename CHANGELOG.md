@@ -1,6 +1,33 @@
 # Change Log
 
 
+## v1.7.15 (2025-12-29)
+
+### Feat
+
+- feat: Add cloud storage redirect functionality (b52547b)
+
+### Refactor
+
+- refactor: Remove unnecessary cache flag from Docker build commands (5422e47)
+
+## v1.7.14 (2025-12-29)
+
+### Style
+
+- style: update import statements in test files (01292ce)
+
+### Test
+
+- test(useVideoHoverPreview): Add hover delay for desktop (694b4f3)
+- test: Add unit tests for cloud storage utils and URL validation (5b78b8a)
+- test: Implement Missing Tests (37a57dc)
+- test(SubscriptionModal): Add subscription modal tests (aaa5a46)
+- test: Add unit tests for new components and features (0acbcb7)
+- test: Add unit tests for video card utils and player utils (0e42c65)
+- test(useViewMode): add hook for managing view mode (80c6efd)
+- test: Add unit tests for various utils functions (c998780)
+
 ## v1.7.13 (2025-12-28)
 
 ### Chore
