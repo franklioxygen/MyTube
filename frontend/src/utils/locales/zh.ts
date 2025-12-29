@@ -58,6 +58,7 @@ export const zh = {
   settingsFailed: "保存设置失败",
   debugMode: "调试模式",
   debugModeDescription: "显示或隐藏控制台消息（需要刷新）",
+  pauseOnFocusLoss: "失去焦点时暂停",
   tagsManagement: "标签管理",
   newTag: "新标签",
   tags: "标签",

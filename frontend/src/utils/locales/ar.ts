@@ -58,6 +58,7 @@ export const ar = {
   settingsFailed: "فشل حفظ الإعدادات",
   debugMode: "وضع التصحيح",
   debugModeDescription: "إظهار أو إخفاء رسائل وحدة التحكم (يتطلب التحديث)",
+  pauseOnFocusLoss: "إيقاف مؤقت عند فقدان التركيز",
   tagsManagement: "إدارة العلامات",
   newTag: "علامة جديدة",
   tags: "العلامات",

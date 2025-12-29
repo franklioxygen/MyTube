@@ -25,6 +25,7 @@ export function useVideoPlayerSettings() {
     const autoPlay = settings?.defaultAutoPlay || false;
     const autoLoop = settings?.defaultAutoLoop || false;
     const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
+    const pauseOnFocusLoss = settings?.pauseOnFocusLoss || false;
 
     // Subtitle preference mutation
     const subtitlePreferenceMutation = useMutation({
@@ -82,6 +83,7 @@ export function useVideoPlayerSettings() {
         autoPlay,
         autoLoop,
         subtitlesEnabled,
+        pauseOnFocusLoss,
         availableTags,
         handleSubtitlesToggle,
         handleLoopToggle

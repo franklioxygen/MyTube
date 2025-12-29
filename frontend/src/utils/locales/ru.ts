@@ -72,6 +72,7 @@ export const ru = {
   debugMode: "Режим отладки",
   debugModeDescription:
     "Показать или скрыть сообщения консоли (требуется обновление)",
+  pauseOnFocusLoss: "Пауза при потере фокуса",
   tagsManagement: "Управление тегами",
   newTag: "Новый тег",
   tags: "Теги",

@@ -24,6 +24,15 @@ const VideoDefaultSettings: React.FC<VideoDefaultSettingsProps> = ({ settings, o
                     }
                     label={t('autoPlay')}
                 />
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.pauseOnFocusLoss || false}
+                            onChange={(e) => onChange('pauseOnFocusLoss', e.target.checked)}
+                        />
+                    }
+                    label={t('pauseOnFocusLoss') || "Pause video when window loses focus"}
+                />
             </Box>
         </Box>
     );

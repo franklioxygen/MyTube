@@ -80,15 +80,16 @@ const VideoPlayer: React.FC = () => {
     }, [error, navigate, visitorMode, video]);
 
     // Use video player settings hook
-    const { 
-        autoPlay: settingsAutoPlay, 
-        autoLoop, 
+    const {
+        autoPlay: settingsAutoPlay,
+        autoLoop,
         subtitlesEnabled,
         availableTags,
-        handleSubtitlesToggle, 
-        handleLoopToggle 
+        handleSubtitlesToggle,
+        handleLoopToggle,
+        pauseOnFocusLoss
     } = useVideoPlayerSettings();
-    
+
     const autoPlay = autoPlayNext || settingsAutoPlay;
 
     // Get cloud storage URLs
@@ -280,6 +281,7 @@ const VideoPlayer: React.FC = () => {
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
                         autoPlay={autoPlay}
                         autoLoop={autoLoop}
+                        pauseOnFocusLoss={pauseOnFocusLoss}
                         onTimeUpdate={handleTimeUpdate}
                         startTime={video.progress || 0}
                         subtitles={video.subtitles}

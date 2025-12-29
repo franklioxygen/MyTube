@@ -63,6 +63,7 @@ export const ja = {
   debugMode: "デバッグモード",
   debugModeDescription:
     "コンソールメッセージを表示または非表示にします（更新が必要）",
+  pauseOnFocusLoss: "フォーカス喪失時に一時停止",
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
   tags: "タグ",

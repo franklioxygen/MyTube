@@ -60,6 +60,7 @@ export const ko = {
   settingsFailed: "설정 저장 실패",
   debugMode: "디버그 모드",
   debugModeDescription: "콘솔 메시지 표시 또는 숨기기 (새로 고침 필요)",
+  pauseOnFocusLoss: "포커스 손실 시 일시 중지",
   tagsManagement: "태그 관리",
   newTag: "새 태그",
   tags: "태그",

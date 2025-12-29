@@ -59,6 +59,7 @@ export const de = {
   debugMode: "Debug-Modus",
   debugModeDescription:
     "Konsolenmeldungen anzeigen oder ausblenden (erfordert Aktualisierung)",
+  pauseOnFocusLoss: "Pause bei Fokusverlust",
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
   tags: "Tags",

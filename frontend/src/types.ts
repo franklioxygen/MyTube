@@ -84,4 +84,5 @@ export interface Settings {
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
+  pauseOnFocusLoss?: boolean;
 }

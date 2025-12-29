@@ -58,6 +58,7 @@ export const en = {
   settingsFailed: "Failed to save settings",
   debugMode: "Debug Mode",
   debugModeDescription: "Show or hide console messages (requires refresh)",
+  pauseOnFocusLoss: "Pause on Focus Loss",
   tagsManagement: "Tags Management",
   newTag: "New Tag",
   tags: "Tags",

@@ -26,6 +26,7 @@ export interface Settings {
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
+  pauseOnFocusLoss?: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -49,6 +50,7 @@ export const defaultSettings: Settings = {
   visitorMode: false,
   infiniteScroll: false,
   videoColumns: 4,
+  pauseOnFocusLoss: false,
 };
 
 

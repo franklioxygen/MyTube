@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import React, { useEffect } from 'react';
 import ControlsOverlay from './ControlsOverlay';
+import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSubtitles } from './hooks/useSubtitles';
@@ -13,6 +14,7 @@ interface VideoControlsProps {
     src: string;
     autoPlay?: boolean;
     autoLoop?: boolean;
+    pauseOnFocusLoss?: boolean;
     onTimeUpdate?: (currentTime: number) => void;
     onLoadedMetadata?: (duration: number) => void;
     startTime?: number;
@@ -28,6 +30,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     src,
     autoPlay = false,
     autoLoop = false,
+    pauseOnFocusLoss = false,
     onTimeUpdate,
     onLoadedMetadata,
     startTime = 0,
@@ -47,6 +50,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         onTimeUpdate,
         onLoadedMetadata
     });
+
+    // Auto-pause on focus loss
+    useFocusPause(videoPlayer.videoRef, pauseOnFocusLoss);
 
     // Fullscreen management
     const fullscreen = useFullscreen(videoPlayer.videoRef);

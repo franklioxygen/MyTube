@@ -63,6 +63,7 @@ export const pt = {
   debugMode: "Modo de Depuração",
   debugModeDescription:
     "Mostrar ou ocultar mensagens do console (requer atualização)",
+  pauseOnFocusLoss: "Pausar ao perder o foco",
   tagsManagement: "Gerenciamento de Tags",
   newTag: "Nova Tag",
   tags: "Tags",

@@ -69,6 +69,7 @@ export const es = {
   debugMode: "Modo de Depuración",
   debugModeDescription:
     "Mostrar u ocultar mensajes de consola (requiere actualización)",
+  pauseOnFocusLoss: "Pausar al perder el foco",
   tagsManagement: "Gestión de Etiquetas",
   newTag: "Nueva Etiqueta",
   tags: "Etiquetas",

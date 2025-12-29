@@ -63,6 +63,7 @@ export const fr = {
   debugMode: "Mode débogage",
   debugModeDescription:
     "Afficher ou masquer les messages de la console (nécessite une actualisation)",
+  pauseOnFocusLoss: "Pause lors de la perte de focus",
   tagsManagement: "Gestion des tags",
   newTag: "Nouveau tag",
   tags: "Tags",
