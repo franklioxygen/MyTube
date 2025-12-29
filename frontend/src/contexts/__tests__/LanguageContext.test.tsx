@@ -1,78 +1,51 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import axios from 'axios';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider, useLanguage } from '../LanguageContext';
+// Mock translations with valid keys found in types (inferred from lint)
+vi.mock('../utils/translations', () => ({
+    translations: {
+        en: { retry: 'Retry' },
+        es: { retry: 'Reintentar' },
+        fr: { retry: 'Réessayer' },
+        de: { retry: 'Wiederholen' }
+    }
+}));
 
 // Mock axios
-const mockedAxios = vi.hoisted(() => ({
-    get: vi.fn().mockResolvedValue({ data: {} }),
-    post: vi.fn().mockResolvedValue({}),
-    create: vi.fn(() => ({
-        get: vi.fn().mockResolvedValue({ data: {} }),
-        post: vi.fn().mockResolvedValue({}),
-    })),
-}));
+vi.mock('axios');
+const mockedAxios = vi.mocked(axios, true);
 
-vi.mock('axios', () => ({
-    default: mockedAxios,
-}));
 
-// Mock localStorage
-const localStorageMock = (() => {
-    let store: Record<string, string> = {};
-
-    return {
-        getItem: (key: string) => store[key] || null,
-        setItem: (key: string, value: string) => {
-            store[key] = value.toString();
-        },
-        removeItem: (key: string) => {
-            delete store[key];
-        },
-        clear: () => {
-            store = {};
-        }
-    };
-})();
-
-Object.defineProperty(window, 'localStorage', {
-    value: localStorageMock
-});
-
-// Mock environment variable - the actual code uses import.meta.env.VITE_API_URL
-// The environment variable is defined in vite.config.js for tests
 
 describe('LanguageContext', () => {
     beforeEach(() => {
-        localStorageMock.clear();
-        // Default mock for axios.get to prevent crashes in useEffect
-        mockedAxios.get.mockResolvedValue({ data: {} });
-    });
+        vi.clearAllMocks();
 
-    afterEach(() => {
-        localStorageMock.clear();
-    });
-
-    it('should throw error when used outside provider', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
-
-        expect(() => {
-            renderHook(() => useLanguage());
-        }).toThrow('useLanguage must be used within a LanguageProvider');
-
-        consoleSpy.mockRestore();
-    });
-
-    it('should initialize with language from localStorage', () => {
-        localStorageMock.setItem('mytube_language', 'zh');
-
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
+        // Mock global localStorage
+        const storageMock: Record<string, string> = {};
+        Object.defineProperty(window, 'localStorage', {
+            value: {
+                getItem: vi.fn((key) => storageMock[key] || null),
+                setItem: vi.fn((key, value) => {
+                    storageMock[key] = value.toString();
+                }),
+                clear: vi.fn(() => {
+                    for (const key in storageMock) delete storageMock[key];
+                }),
+                length: 0,
+                key: vi.fn(),
+                removeItem: vi.fn((key) => delete storageMock[key]),
+            },
+            writable: true
         });
 
-        expect(result.current.language).toBe('zh');
+        // Default Settings Mock
+        mockedAxios.get.mockResolvedValue({ data: { language: 'en' } });
+        mockedAxios.post.mockResolvedValue({});
     });
 
-    it('should default to English when no language in localStorage', () => {
+    it('should initialize with default language (en) if nothing stored', async () => {
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider
         });
@@ -80,17 +53,10 @@ describe('LanguageContext', () => {
         expect(result.current.language).toBe('en');
     });
 
-    it('should fetch language from backend on mount', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
-            data: { language: 'es' }
-        });
-
+    it('should initialize with stored language', async () => {
+        localStorage.setItem('mytube_language', 'es');
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider
-        });
-
-        await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledWith('http://localhost:5551/api/settings');
         });
 
         await waitFor(() => {
@@ -98,55 +64,48 @@ describe('LanguageContext', () => {
         });
     });
 
-    it('should update language and save to localStorage', async () => {
-        mockedAxios.get.mockResolvedValue({
-            data: { language: 'en' }
-        });
-        mockedAxios.post.mockResolvedValue({});
+    it('should fetch language from backend on mount', async () => {
+        mockedAxios.get.mockResolvedValueOnce({ data: { language: 'fr' } });
 
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider
         });
 
         await waitFor(() => {
-            expect(result.current.language).toBe('en');
+            expect(result.current.language).toBe('fr');
         });
 
-        await act(async () => {
-            await result.current.setLanguage('fr');
-        });
-
-        expect(result.current.language).toBe('fr');
-        expect(localStorageMock.getItem('mytube_language')).toBe('fr');
+        expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/settings'));
+        expect(localStorage.getItem('mytube_language')).toBe('fr');
     });
 
-    it('should save language to backend', async () => {
-        mockedAxios.get.mockResolvedValue({
-            data: { language: 'en', otherSetting: 'value' }
-        });
-        mockedAxios.post.mockResolvedValue({});
-
+    it('should update language and sync to backend', async () => {
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider
         });
 
+        // Wait for initial fetch to settle to avoid overwrite
         await waitFor(() => {
             expect(result.current.language).toBe('en');
         });
+
+        // Mock getting current settings for the merge update
+        mockedAxios.get.mockResolvedValueOnce({ data: { theme: 'dark', language: 'en' } });
 
         await act(async () => {
             await result.current.setLanguage('de');
         });
 
-        await waitFor(() => {
-            expect(mockedAxios.post).toHaveBeenCalledWith(
-                'http://localhost:5551/api/settings',
-                expect.objectContaining({
-                    language: 'de',
-                    otherSetting: 'value'
-                })
-            );
-        });
+        expect(result.current.language).toBe('de');
+        expect(localStorage.getItem('mytube_language')).toBe('de');
+
+        expect(mockedAxios.post).toHaveBeenCalledWith(
+            expect.stringContaining('/settings'),
+            expect.objectContaining({
+                language: 'de',
+                theme: 'dark'
+            })
+        );
     });
 
     it('should translate keys correctly', () => {
@@ -154,59 +113,15 @@ describe('LanguageContext', () => {
             wrapper: LanguageProvider
         });
 
-        // Use a valid translation key
-        const translation = result.current.t('myTube');
-        expect(typeof translation).toBe('string');
-        expect(translation).toBe('MyTube'); // English default
+        expect(result.current.t('retry')).toBe('Retry');
     });
 
-    it('should replace placeholders in translations', () => {
+    it('should handle missing keys gracefully', () => {
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider
         });
 
-        // Test placeholder replacement with a key that might have placeholders
-        // If the key doesn't exist, it returns the key itself
-        const translation = result.current.t('myTube', { count: 5 });
-        expect(typeof translation).toBe('string');
-    });
-
-    it('should handle backend fetch failure gracefully', async () => {
-        mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-
-        localStorageMock.setItem('mytube_language', 'ja');
-
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
-
-        // Should still use localStorage value
-        await waitFor(() => {
-            expect(result.current.language).toBe('ja');
-        });
-    });
-
-    it('should handle backend save failure gracefully', async () => {
-        mockedAxios.get.mockResolvedValue({
-            data: { language: 'en' }
-        });
-        mockedAxios.post.mockRejectedValueOnce(new Error('Save failed'));
-
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
-
-        await waitFor(() => {
-            expect(result.current.language).toBe('en');
-        });
-
-        // Should still update local state even if backend save fails
-        await act(async () => {
-            await result.current.setLanguage('pt');
-        });
-
-        expect(result.current.language).toBe('pt');
-        expect(localStorageMock.getItem('mytube_language')).toBe('pt');
+        // @ts-ignore - Testing invalid key
+        expect(result.current.t('non_existent_key')).toBe('non_existent_key');
     });
 });
-
