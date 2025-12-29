@@ -34,7 +34,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    
+
     // Get collection information
     const collectionInfo = getVideoCardCollectionInfo(
         video,
@@ -45,9 +45,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
     // Hooks for different concerns
     const hoverPreview = useVideoHoverPreview({ videoPath: video.videoPath });
     const metadata = useVideoCardMetadata({ video });
-    const playerSelection = usePlayerSelection({ 
-        video, 
-        getVideoUrl: metadata.getVideoUrl 
+    const playerSelection = usePlayerSelection({
+        video,
+        getVideoUrl: metadata.getVideoUrl
     });
     const actions = useVideoCardActions({
         video,
@@ -72,7 +72,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 borderRadius: isMobile ? 0 : undefined,
                 ...(!isMobile && {
                     '&:hover': {
-                        transform: 'translateY(-4px)',
                         boxShadow: theme.shadows[8],
                         '& .delete-btn': {
                             opacity: 1
@@ -82,8 +81,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                         }
                     }
                 }),
-                border: collectionInfo.isFirstInAnyCollection 
-                    ? `1px solid ${theme.palette.primary.main}` 
+                border: collectionInfo.isFirstInAnyCollection
+                    ? `1px solid ${theme.palette.primary.main}`
                     : 'none'
             }}
         >

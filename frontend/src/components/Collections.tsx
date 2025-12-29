@@ -71,12 +71,13 @@ const Collections: React.FC<CollectionsProps> = ({ collections, onItemClick }) =
                                 label={`${Math.floor(collection.videos?.length || 0)}`}
                                 size="small"
                                 variant="outlined"
-                                sx={{ 
-                                    height: 20, 
-                                    minWidth: 20, 
+                                sx={{
+                                    height: 20,
+                                    minWidth: 20,
                                     ml: 1,
+                                    flexShrink: 0,
                                     '& .MuiChip-label': {
-                                        padding: '0 4px',
+                                        padding: '0 6px',
                                         fontSize: '0.75rem'
                                     }
                                 }}

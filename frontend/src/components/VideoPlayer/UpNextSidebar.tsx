@@ -8,6 +8,7 @@ import {
     CardMedia,
     Chip,
     FormControlLabel,
+    Grid,
     IconButton,
     Skeleton,
     Stack,
@@ -134,57 +135,58 @@ const UpNextSidebar: React.FC<UpNextSidebarProps> = ({
                     sx={{ ml: 0, mr: 0 }}
                 />
             </Stack>
-            <Stack spacing={2}>
+            <Grid container spacing={2}>
                 {relatedVideos.map(relatedVideo => (
-                    <Card
-                        key={relatedVideo.id}
-                        sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, position: 'relative' }}
-                        onClick={() => onVideoClick(relatedVideo.id)}
-                        onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
-                        onMouseLeave={() => setHoveredVideoId(null)}
-                    >
-                        <SidebarThumbnail video={relatedVideo} />
+                    <Grid key={relatedVideo.id} size={{ xs: 12, md: 6, lg: 12 }}>
+                        <Card
+                            sx={{ display: 'flex', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, position: 'relative' }}
+                            onClick={() => onVideoClick(relatedVideo.id)}
+                            onMouseEnter={() => setHoveredVideoId(relatedVideo.id)}
+                            onMouseLeave={() => setHoveredVideoId(null)}
+                        >
+                            <SidebarThumbnail video={relatedVideo} />
 
-                        <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 }, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                            <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                                {relatedVideo.title}
-                            </Typography>
-                            <Typography variant="caption" display="block" color="text.secondary">
-                                {relatedVideo.author}
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mt: 'auto' }}>
-                                <Typography variant="caption" color="text.secondary">
-                                    {formatDate(relatedVideo.date)}
+                            <CardContent sx={{ flex: '1 1 auto', minWidth: 0, p: 1, '&:last-child': { pb: 1 }, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                                <Typography variant="body2" fontWeight="bold" sx={{ lineHeight: 1.2, mb: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    {relatedVideo.title}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                                    ·  {relatedVideo.viewCount || 0} {t('views')}
+                                <Typography variant="caption" display="block" color="text.secondary">
+                                    {relatedVideo.author}
                                 </Typography>
-                            </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mt: 'auto' }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {formatDate(relatedVideo.date)}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                        ·  {relatedVideo.viewCount || 0} {t('views')}
+                                    </Typography>
+                                </Box>
 
-                            {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !visitorMode && (
-                                <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => handleAddToCollectionClick(e, relatedVideo.id)}
-                                        sx={{
-                                            position: 'absolute',
-                                            bottom: 4,
-                                            right: 4,
-                                            padding: 0.5,
-                                            bgcolor: 'rgba(0,0,0,0.9)',
-                                        }}
-                                    >
-                                        <Add fontSize="small" />
-                                    </IconButton>
-                                </Tooltip>
-                            )}
-                        </CardContent>
-                    </Card>
+                                {hoveredVideoId === relatedVideo.id && !isMobile && !isTouch && !visitorMode && (
+                                    <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => handleAddToCollectionClick(e, relatedVideo.id)}
+                                            sx={{
+                                                position: 'absolute',
+                                                bottom: 4,
+                                                right: 4,
+                                                padding: 0.5,
+                                                bgcolor: 'rgba(0,0,0,0.9)',
+                                            }}
+                                        >
+                                            <Add fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </Grid>
                 ))}
-                {relatedVideos.length === 0 && (
-                    <Typography variant="body2" color="text.secondary">{t('noOtherVideos')}</Typography>
-                )}
-            </Stack>
+            </Grid>
+            {relatedVideos.length === 0 && (
+                <Typography variant="body2" color="text.secondary">{t('noOtherVideos')}</Typography>
+            )}
         </Box>
     );
 };
