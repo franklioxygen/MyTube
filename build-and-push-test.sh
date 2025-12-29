@@ -23,9 +23,7 @@ echo "🔍 Checking if Docker is running..."
 $DOCKER_PATH ps > /dev/null 2>&1 || { echo "❌ Docker is not running. Please start Docker and try again."; exit 1; }
 echo "✅ Docker is running!"
 
-# Prune builder cache to free up space
-echo "🧹 Pruning Docker builder cache..."
-$DOCKER_PATH builder prune --all --force
+
 
 # Function to build backend for a specific platform
 build_backend() {
@@ -35,7 +33,7 @@ build_backend() {
   echo "🏗️ Building backend for $platform..."
   # Run build from root context to allow copying frontend files
   # Use -f backend/Dockerfile to specify the Dockerfile path
-  $DOCKER_PATH build --no-cache --platform $platform -f backend/Dockerfile -t $tag .
+  $DOCKER_PATH build --platform $platform -f backend/Dockerfile -t $tag .
   
   echo "🚀 Pushing backend image: $tag"
   $DOCKER_PATH push $tag
@@ -51,7 +49,7 @@ build_frontend() {
   
   echo "🏗️ Building frontend for $platform..."
   cd frontend
-  $DOCKER_PATH build --no-cache --platform $platform \
+  $DOCKER_PATH build --platform $platform \
     --build-arg VITE_API_URL="$VITE_API_URL" \
     --build-arg VITE_BACKEND_URL="$VITE_BACKEND_URL" \
     -t $tag .
