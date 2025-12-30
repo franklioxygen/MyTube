@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.20 (2025-12-30)
+
+### Chore
+
+- chore: Update language support to include Russian and update api document (b204fc5)
+
 ## v1.7.19 (2025-12-29)
 
 ### Test
