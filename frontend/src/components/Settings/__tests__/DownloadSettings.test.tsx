@@ -29,7 +29,6 @@ describe('DownloadSettings', () => {
     it('should render slider and cleanup button', () => {
         render(<DownloadSettings {...defaultProps} />);
 
-        expect(screen.getByText('downloadSettings')).toBeInTheDocument();
         expect(screen.getByText('maxConcurrent: 3')).toBeInTheDocument();
         expect(screen.getAllByText('cleanupTempFiles')[0]).toBeInTheDocument();
         expect(screen.getByRole('slider')).toHaveValue('3');

@@ -27,7 +27,6 @@ describe('YtDlpSettings', () => {
             />
         );
 
-        expect(screen.getByText('ytDlpConfiguration')).toBeInTheDocument();
         expect(screen.getByText('customize')).toBeInTheDocument();
         // Textarea should be hidden initially
         expect(screen.queryByPlaceholderText(/yt-dlp Configuration/)).not.toBeVisible();

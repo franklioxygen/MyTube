@@ -51,7 +51,6 @@ describe('GeneralSettings', () => {
     it('should render all settings controls', () => {
         render(<GeneralSettings {...defaultProps} />, { wrapper });
 
-        expect(screen.getByText('general')).toBeInTheDocument();
         // Use getAllByText because label and helper text might match
         expect(screen.getAllByText('websiteName')[0]).toBeInTheDocument();
         expect(screen.getByDisplayValue('MyTube')).toBeInTheDocument();

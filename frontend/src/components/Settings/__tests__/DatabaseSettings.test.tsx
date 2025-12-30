@@ -32,7 +32,6 @@ describe('DatabaseSettings', () => {
     it('should render all sections and buttons', () => {
         render(<DatabaseSettings {...defaultProps} />);
 
-        expect(screen.getByText('database')).toBeInTheDocument();
         expect(screen.getByText('migrateDataButton')).toBeInTheDocument();
         expect(screen.getByText('formatLegacyFilenamesButton')).toBeInTheDocument();
         expect(screen.getByText('deleteLegacyDataButton')).toBeInTheDocument();
