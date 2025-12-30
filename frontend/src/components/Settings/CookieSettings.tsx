@@ -83,6 +83,9 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
 
     return (
         <Box>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+                {t('cookieSettings') || 'Cookie Settings'}
+            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('cookieUploadDescription') || 'Upload cookies.txt to pass YouTube bot checks and enable Bilibili subtitle downloads. The file will be renamed to cookies.txt automatically. (Example: use "Get cookies.txt LOCALLY" extension to export cookies)'}
             </Typography>
@@ -114,19 +117,21 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
                         </Button>
                     </Box>
                 )}
-
-                {isLoading ? (
-                    <CircularProgress size={24} />
-                ) : cookieStatus?.exists ? (
-                    <Alert icon={<CheckCircle fontSize="inherit" />} severity="success">
-                        {t('cookiesFound') || 'cookies.txt found'}
-                    </Alert>
-                ) : (
-                    <Alert icon={<ErrorOutline fontSize="inherit" />} severity="warning">
-                        {t('cookiesNotFound') || 'cookies.txt not found'}
-                    </Alert>
-                )}
             </Box>
+
+            {isLoading ? (
+                <Box sx={{ mt: 2 }}>
+                    <CircularProgress size={24} />
+                </Box>
+            ) : cookieStatus?.exists ? (
+                <Alert icon={<CheckCircle fontSize="inherit" />} severity="success" sx={{ mt: 2 }}>
+                    {t('cookiesFound') || 'cookies.txt found'}
+                </Alert>
+            ) : (
+                <Alert icon={<ErrorOutline fontSize="inherit" />} severity="warning" sx={{ mt: 2 }}>
+                    {t('cookiesNotFound') || 'cookies.txt not found'}
+                </Alert>
+            )}
 
             <ConfirmationModal
                 isOpen={showDeleteConfirm}
