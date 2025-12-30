@@ -22,7 +22,6 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
             <Typography gutterBottom>
                 {t('maxConcurrent')}: {settings.maxConcurrentDownloads}
             </Typography>

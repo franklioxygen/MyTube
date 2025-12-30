@@ -288,7 +288,6 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('cloudDriveSettings')} (beta)</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('cloudDriveDescription')}
             </Typography>

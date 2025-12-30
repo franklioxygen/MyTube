@@ -83,7 +83,6 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('cookieSettings') || 'Cookie Settings'}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('cookieUploadDescription') || 'Upload cookies.txt to pass YouTube bot checks and enable Bilibili subtitle downloads. The file will be renamed to cookies.txt automatically. (Example: use "Get cookies.txt LOCALLY" extension to export cookies)'}
             </Typography>

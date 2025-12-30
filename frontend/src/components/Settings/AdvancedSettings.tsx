@@ -19,7 +19,6 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ debugMode, onDebugM
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('debugMode')}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('debugModeDescription')}
             </Typography>

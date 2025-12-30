@@ -1,4 +1,4 @@
-import { Box, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
+import { Box, FormControlLabel, Switch, TextField } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
@@ -13,7 +13,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('security')}</Typography>
             <FormControlLabel
                 control={
                     <Switch

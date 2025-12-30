@@ -129,7 +129,6 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('database')}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 {t('migrateDataDescription')}
             </Typography>

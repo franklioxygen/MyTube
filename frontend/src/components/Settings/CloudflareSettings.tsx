@@ -57,9 +57,6 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
 
     return (
         <Box>
-            <Typography variant="h6" >
-                {t('cloudflaredTunnel')}
-            </Typography>
             <FormControlLabel
                 control={
                     <Switch

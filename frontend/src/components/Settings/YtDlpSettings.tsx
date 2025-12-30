@@ -242,9 +242,6 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
         <Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, mb: 2 }}>
                 <Box>
-                    <Typography variant="h6" gutterBottom>
-                        {t('ytDlpConfiguration') || 'yt-dlp Configuration'}
-                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                         {t('ytDlpConfigurationDescription') || 'Configure yt-dlp options. See '}
                         <Link

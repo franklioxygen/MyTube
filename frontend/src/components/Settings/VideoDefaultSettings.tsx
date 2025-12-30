@@ -1,4 +1,4 @@
-import { Box, FormControlLabel, Switch, Typography } from '@mui/material';
+import { Box, FormControlLabel, Switch } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
@@ -13,7 +13,6 @@ const VideoDefaultSettings: React.FC<VideoDefaultSettingsProps> = ({ settings, o
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('videoDefaults')}</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <FormControlLabel
                     control={

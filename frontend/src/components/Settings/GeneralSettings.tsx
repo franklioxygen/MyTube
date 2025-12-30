@@ -135,7 +135,6 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = (props) => {
 
     return (
         <Box>
-            <Typography variant="h6" gutterBottom>{t('general')}</Typography>
             <Box sx={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {!isVisitorMode && (
                     <>
