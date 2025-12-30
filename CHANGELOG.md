@@ -1,6 +1,21 @@
 # Change Log
 
 
+## v1.7.17 (2025-12-29)
+
+### Feat
+
+- feat: Update version to 1.7.17 and add CollapsibleSection (e56db6d)
+
+### Style
+
+- style: Improve formatting in DownloadsMenu component (094e628)
+
+### Test
+
+- test: remove unnecessary text assertions (c9e15a7)
+
+
 ## v1.7.16 (2025-12-29)
 
 ### Feat
