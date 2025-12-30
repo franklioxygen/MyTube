@@ -21,6 +21,9 @@ export default defineConfig({
         'src/db/**', // Database config
         'src/scripts/**', // Scripts
         'src/routes/**', // Route configuration files
+        'src/config/**', // Config files
+        'src/types/**', // Type definitions
+        'bgutil-ytdlp-pot-provider/**',
       ],
     },
   },

@@ -54,5 +54,20 @@ export default defineConfig({
     env: {
       VITE_API_URL: "http://localhost:5551/api",
     },
+    coverage: {
+      provider: 'v8',
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        '**/*.config.js',
+        '**/*.config.ts',
+        '**/__tests__/**',
+        'src/vite-env.d.ts', // Types
+        'src/types.ts', // Types
+        'src/theme.ts', // Theme config
+        'src/setupTests.ts', // Test setup
+        'src/version.ts', // Version constant
+      ],
+    },
   },
 });
