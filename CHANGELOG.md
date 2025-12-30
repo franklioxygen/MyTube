@@ -1,6 +1,14 @@
 # Change Log
 
 
+## v1.7.19 (2025-12-29)
+
+### Test
+
+- test: improve frontend test coverage (cb808a3)
+- test: improve backend test coverage (3a16577)
+
+
 ## v1.7.18 (2025-12-29)
 
 ### Refactor
