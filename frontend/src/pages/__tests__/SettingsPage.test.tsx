@@ -7,6 +7,9 @@ const mockSettingsData = { data: {} };
 vi.mock('@tanstack/react-query', () => ({
     useQuery: vi.fn(() => mockSettingsData),
     useMutation: vi.fn(),
+    useQueryClient: vi.fn(() => ({
+        invalidateQueries: vi.fn(),
+    })),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => {
@@ -67,8 +70,12 @@ vi.mock('../../hooks/useStickyButton', () => ({
 }));
 
 // Mock Child Components to simplify testing
-vi.mock('../../components/Settings/GeneralSettings', () => ({
-    default: () => <div data-testid="general-settings">GeneralSettings</div>,
+vi.mock('../../components/Settings/BasicSettings', () => ({
+    default: () => <div data-testid="basic-settings">BasicSettings</div>,
+}));
+
+vi.mock('../../components/Settings/InterfaceDisplaySettings', () => ({
+    default: () => <div data-testid="interface-display-settings">InterfaceDisplaySettings</div>,
 }));
 
 vi.mock('../../components/Settings/CloudflareSettings', () => ({
@@ -134,7 +141,8 @@ describe('SettingsPage', () => {
     it('renders all settings sections', async () => {
         render(<SettingsPage />);
 
-        expect(screen.getByTestId('general-settings')).toBeInTheDocument();
+        expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
+        expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
         expect(screen.getByTestId('cloudflare-settings')).toBeInTheDocument();
         // Since visitorMode is mocked to false, these should be visible
         expect(screen.getByTestId('cookie-settings')).toBeInTheDocument();

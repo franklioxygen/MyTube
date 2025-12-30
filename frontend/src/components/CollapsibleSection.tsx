@@ -10,7 +10,7 @@ interface CollapsibleSectionProps {
 
 const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, defaultExpanded = true }) => {
     return (
-        <Accordion defaultExpanded={defaultExpanded} sx={{ width: '100%', mb: 2 }}>
+        <Accordion defaultExpanded={defaultExpanded} sx={{ width: '100%', mb: 0.25 }}>
             <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls={`panel-${title.replace(/\s+/g, '-').toLowerCase()}-content`}

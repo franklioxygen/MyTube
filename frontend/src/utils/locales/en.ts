@@ -34,6 +34,15 @@ export const en = {
   security: "Security",
   videoDefaults: "Video Player Defaults",
   downloadSettings: "Download Settings",
+  // Settings Categories
+  basicSettings: "Basic Settings",
+  interfaceDisplay: "Interface & Display",
+  securityAccess: "Security & Access",
+  videoPlayback: "Video Playback",
+  downloadStorage: "Download & Storage",
+  contentManagement: "Content Management",
+  dataManagement: "Data Management",
+  advanced: "Advanced",
   language: "Language",
   websiteName: "Website Name",
   websiteNameHelper: "{current}/{max} characters (Default: {default})",
@@ -616,4 +625,5 @@ export const en = {
   noBackupAvailable: "No backup available",
   failedToDownloadVideo: "Failed to download video. Please try again.",
   failedToDownload: "Failed to download. Please try again.",
+
 };

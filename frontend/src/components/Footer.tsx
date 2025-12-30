@@ -3,6 +3,25 @@ import { Box, Chip, Container, Link, Tooltip, Typography, useTheme } from '@mui/
 import { useEffect, useState } from 'react';
 import { api } from '../utils/apiClient';
 
+// Helper to compare semantic versions (v1 > v2)
+const isNewerVersion = (latest: string, current: string): boolean => {
+    try {
+        const v1 = latest.split('.').map(Number);
+        const v2 = current.split('.').map(Number);
+        
+        for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+            const num1 = v1[i] || 0;
+            const num2 = v2[i] || 0;
+            if (num1 > num2) return true;
+            if (num1 < num2) return false;
+        }
+        return false;
+    } catch (e) {
+        // Fallback to string comparison if parsing fails
+        return latest !== current;
+    }
+};
+
 const Footer = () => {
     const theme = useTheme();
     const [updateInfo, setUpdateInfo] = useState<{
@@ -15,8 +34,21 @@ const Footer = () => {
         const checkVersion = async () => {
             try {
                 const response = await api.get('/system/version');
-                if (response.data && response.data.hasUpdate) {
-                    setUpdateInfo(response.data);
+                if (response.data && response.data.latestVersion) {
+                    const currentVersion = import.meta.env.VITE_APP_VERSION;
+                    const latestVersion = response.data.latestVersion;
+                    // Compare frontend version with latest version
+                    const hasUpdate = isNewerVersion(latestVersion, currentVersion);
+                    
+                    if (hasUpdate) {
+                        setUpdateInfo({
+                            hasUpdate: true,
+                            latestVersion,
+                            releaseUrl: response.data.releaseUrl || ''
+                        });
+                    } else {
+                        setUpdateInfo(null);
+                    }
                 }
             } catch (error) {
                 // Silently fail for version check
