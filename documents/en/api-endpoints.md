@@ -14,6 +14,8 @@
   - Query params: `url` (required)
 - `GET /api/check-bilibili-collection` - Check if a Bilibili URL is a collection/series
   - Query params: `url` (required)
+- `GET /api/check-playlist` - Check if a URL is a supported playlist
+  - Query params: `url` (required)
 - `GET /api/download-status` - Get status of active downloads
   - Returns: `{ active: [], queued: [] }`
 
@@ -68,12 +70,23 @@
   - `platform`: 'YouTube' (default) or 'Bilibili'
 - `DELETE /api/subscriptions/:id` - Delete a subscription
 
+## Continuous Download Tasks (Subscriptions)
+
+- `GET /api/subscriptions/tasks` - Get all continuous download tasks
+  - Query params: `page` (optional), `limit` (optional)
+- `POST /api/subscriptions/tasks/playlist` - Create a new playlist download task
+  - Body: `{ url: string, ...options }`
+- `DELETE /api/subscriptions/tasks/:id` - Cancel a continuous download task
+- `DELETE /api/subscriptions/tasks/:id/delete` - Delete a task record
+- `DELETE /api/subscriptions/tasks/clear-finished` - Clear all finished tasks
+
 ## Settings & System
 
 - `GET /api/settings` - Get application settings
 - `POST /api/settings` - Update application settings
   - Body: `{ [key: string]: any }` - Settings object
   - Supports: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath`, and other settings
+- `GET /api/settings/cloudflared/status` - Get Cloudflare Tunnel status
 - `GET /api/settings/password-enabled` - Check if password protection is enabled
 - `POST /api/settings/verify-password` - Verify login password
   - Body: `{ password: string }`

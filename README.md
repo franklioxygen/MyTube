@@ -1,6 +1,6 @@
 # MyTube
 
-A YouTube/Bilibili/MissAV video downloader and player that supports channel subscriptions and auto-downloads, allowing you to save videos and thumbnails locally. Organize your videos into collections for easy access and management. Now supports [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##), including Weibo, Xiaohongshu, X.com, etc.
+Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##). Features channel subscriptions, auto-downloads, and local storage for media. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
 
 [![GitHub License](https://img.shields.io/github/license/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
@@ -30,7 +30,7 @@ A YouTube/Bilibili/MissAV video downloader and player that supports channel subs
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
 - **Login Protection**: Secure your application with a password login page.
-- **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, and Portuguese.
+- **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Pagination**: Efficiently browse large libraries with pagination support.
 - **Subscriptions**: Manage subscriptions to channels or creators to automatically download new content.
 - **Video Rating**: Rate your videos with a 5-star system.

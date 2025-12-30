@@ -13,7 +13,9 @@
   - 查询参数: `url` (必需)
 - `GET /api/check-bilibili-collection` - 检查 Bilibili URL 是否为合集/系列
   - 查询参数: `url` (必需)
-- `GET /api/download-status` - 获取当前下载状态
+- `GET /api/check-playlist` - 检查 URL 是否为受支持的播放列表
+  - 查询参数: `url` (必需)
+- `GET /api/download-status` - 获取活动下载的状态
   - 返回: `{ active: [], queued: [] }`
 
 ## 视频管理
@@ -63,11 +65,22 @@
   - `platform`: 'YouTube' (默认) 或 'Bilibili'
 - `DELETE /api/subscriptions/:id` - 删除订阅
 
+## 持续下载任务 (订阅)
+
+- `GET /api/subscriptions/tasks` - 获取所有持续下载任务
+  - 查询参数: `page` (可选), `limit` (可选)
+- `POST /api/subscriptions/tasks/playlist` - 创建新的播放列表下载任务
+  - Body: `{ url: string, ...options }`
+- `DELETE /api/subscriptions/tasks/:id` - 取消持续下载任务
+- `DELETE /api/subscriptions/tasks/:id/delete` - 删除任务记录
+- `DELETE /api/subscriptions/tasks/clear-finished` - 清除所有已完成的任务
+
 ## 设置与系统
 - `GET /api/settings` - 获取应用设置
 - `POST /api/settings` - 更新应用设置
   - 请求体: `{ [key: string]: any }` - 设置对象
-  - 支持: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath` 等设置
+  - 支持: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath` 及其他设置
+- `GET /api/settings/cloudflared/status` - 获取 Cloudflare Tunnel 状态
 - `GET /api/settings/password-enabled` - 检查是否启用了密码保护
 - `POST /api/settings/verify-password` - 验证登录密码
   - 请求体: `{ password: string }`

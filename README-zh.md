@@ -1,6 +1,6 @@
 # MyTube
 
-一个 YouTube/Bilibili/MissAV 视频下载和播放应用，支持频道订阅与自动下载，允许您将视频及其缩略图本地保存。将您的视频整理到收藏夹中，以便轻松访问和管理。现已支持[yt-dlp 所有网址](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##)，包括微博，小红书，X.com 等。
+支持 YouTube、Bilibili、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##) 的自托管视频下载器与播放器。具备频道订阅、自动下载及本地化存储功能。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
 
 [![GitHub License](https://img.shields.io/github/license/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
@@ -31,7 +31,7 @@
 - **收藏夹**：创建自定义收藏夹以整理您的视频。
 - **订阅功能**：订阅您喜爱的频道，并在新视频发布时自动下载。
 - **登录保护**：通过密码登录页面保护您的应用。
-- **国际化**：支持多种语言，包括英语、中文、西班牙语、法语、德语、日语、韩语、阿拉伯语和葡萄牙语。
+- **国际化**：支持多种语言，包括英语、中文、西班牙语、法语、德语、日语、韩语、阿拉伯语、葡萄牙语和俄语。
 - **分页功能**：支持分页浏览，高效管理大量视频。
 - **视频评分**：使用 5 星评级系统为您的视频评分。
 - **移动端优化**：移动端友好的标签菜单和针对小屏幕优化的布局。
