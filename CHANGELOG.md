@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.18 (2025-12-29)
+
+### Refactor
+
+- refactor: reorgnize settings page (f812fe4)
+
 ## v1.7.17 (2025-12-29)
 
 ### Feat
