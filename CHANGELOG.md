@@ -1,6 +1,23 @@
 # Change Log
 
 
+## v1.7.22 (2025-12-30)
+
+### Feat
+
+- feat: Add risk command scanning for hook uploads (c32fa3e)
+
+### Refactor
+
+- refactor: Improve handling of absolute paths in security functions (351f187)
+
+## v1.7.21 (2025-12-30)
+
+### Feat
+
+- feat: Add hook functionality for task lifecycle (6f1a1cd)
+- feat: add task hooks (8ac9e99)
+
 ## v1.7.20 (2025-12-30)
 
 ### Chore
