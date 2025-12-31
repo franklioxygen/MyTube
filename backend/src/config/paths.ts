@@ -13,3 +13,4 @@ export const DATA_DIR: string = path.join(ROOT_DIR, "data");
 export const VIDEOS_DATA_PATH: string = path.join(DATA_DIR, "videos.json");
 export const STATUS_DATA_PATH: string = path.join(DATA_DIR, "status.json");
 export const COLLECTIONS_DATA_PATH: string = path.join(DATA_DIR, "collections.json");
+export const HOOKS_DIR: string = path.join(DATA_DIR, "hooks");

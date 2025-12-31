@@ -2,30 +2,33 @@ import express from "express";
 import multer from "multer";
 import os from "os";
 import {
-  deleteLegacyData,
-  formatFilenames,
-  getCloudflaredStatus,
-  getSettings,
-  migrateData,
-  updateSettings,
-} from "../controllers/settingsController";
-import {
-  checkCookies,
-  deleteCookies,
-  uploadCookies,
+    checkCookies,
+    deleteCookies,
+    uploadCookies,
 } from "../controllers/cookieController";
 import {
-  cleanupBackupDatabases,
-  exportDatabase,
-  getLastBackupInfo,
-  importDatabase,
-  restoreFromLastBackup,
+    cleanupBackupDatabases,
+    exportDatabase,
+    getLastBackupInfo,
+    importDatabase,
+    restoreFromLastBackup,
 } from "../controllers/databaseBackupController";
 import {
-  getPasswordEnabled,
-  resetPassword,
-  verifyPassword,
+    deleteHook,
+    getHookStatus,
+    uploadHook,
+} from "../controllers/hookController";
+import {
+    getPasswordEnabled
 } from "../controllers/passwordController";
+import {
+    deleteLegacyData,
+    formatFilenames,
+    getCloudflaredStatus,
+    getSettings,
+    migrateData,
+    updateSettings,
+} from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
 
 const router = express.Router();
@@ -40,8 +43,8 @@ router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
-router.post("/verify-password", asyncHandler(verifyPassword));
-router.post("/reset-password", asyncHandler(resetPassword));
+
+// ... existing imports ...
 
 // Cookie routes
 router.post(
@@ -51,6 +54,15 @@ router.post(
 );
 router.post("/delete-cookies", asyncHandler(deleteCookies));
 router.get("/check-cookies", asyncHandler(checkCookies));
+
+// Hook routes
+router.post(
+  "/hooks/:name",
+  upload.single("file"),
+  asyncHandler(uploadHook)
+);
+router.delete("/hooks/:name", asyncHandler(deleteHook));
+router.get("/hooks/status", asyncHandler(getHookStatus));
 
 // Database backup routes
 router.get("/export-database", asyncHandler(exportDatabase));

@@ -1,0 +1,117 @@
+import child_process from "child_process";
+import fs from "fs";
+import path from "path";
+import util from "util";
+import { HOOKS_DIR } from "../config/paths";
+import { logger } from "../utils/logger";
+
+export interface HookContext {
+  taskId: string;
+  taskTitle: string;
+  sourceUrl?: string;
+  status: "start" | "success" | "fail" | "cancel";
+  videoPath?: string;
+  thumbnailPath?: string;
+  error?: string;
+}
+
+const execPromise = util.promisify(child_process.exec);
+
+export class HookService {
+  /**
+   * Initialize hooks directory
+   */
+  static initialize(): void {
+    if (!fs.existsSync(HOOKS_DIR)) {
+      fs.mkdirSync(HOOKS_DIR, { recursive: true });
+    }
+  }
+
+  /**
+   * Execute a hook script if it exists
+   */
+  static async executeHook(
+    eventName: string,
+    context: Record<string, string | undefined>
+  ): Promise<void> {
+    try {
+      const hookPath = path.join(HOOKS_DIR, `${eventName}.sh`);
+
+      if (!fs.existsSync(hookPath)) {
+        return;
+      }
+
+      logger.info(
+        `[HookService] Executing hook: ${eventName} (${hookPath})`
+      );
+
+      // Ensure the script is executable
+      fs.chmodSync(hookPath, "755");
+
+      const env: Record<string, string> = { ...process.env } as Record<string, string>;
+      
+      if (context.taskId) env.MYTUBE_TASK_ID = context.taskId;
+      if (context.taskTitle) env.MYTUBE_TASK_TITLE = context.taskTitle;
+      if (context.sourceUrl) env.MYTUBE_SOURCE_URL = context.sourceUrl;
+      if (context.status) env.MYTUBE_TASK_STATUS = context.status;
+      if (context.videoPath) env.MYTUBE_VIDEO_PATH = context.videoPath;
+      if (context.thumbnailPath) env.MYTUBE_THUMBNAIL_PATH = context.thumbnailPath;
+      if (context.error) env.MYTUBE_ERROR = context.error;
+
+      await execPromise(`bash "${hookPath}"`, { env });
+      logger.info(`[HookService] Hook ${eventName} executed successfully.`);
+    } catch (error: any) {
+      logger.error(
+        `[HookService] Error executing hook ${eventName}: ${error.message}`
+      );
+      // We log but don't re-throw to prevent hook failures from stopping the task
+    }
+  }
+  /**
+   * Upload a hook script
+   */
+  static uploadHook(hookName: string, filePath: string): void {
+    this.initialize();
+    const destPath = path.join(HOOKS_DIR, `${hookName}.sh`);
+    
+    // Move and rename the uploaded file
+    fs.copyFileSync(filePath, destPath);
+    // Cleanup original upload
+    fs.unlinkSync(filePath);
+    
+    // Make executable
+    fs.chmodSync(destPath, "755");
+    logger.info(`[HookService] Uploaded hook script: ${destPath}`);
+  }
+
+  /**
+   * Delete a hook script
+   */
+  static deleteHook(hookName: string): boolean {
+    const hookPath = path.join(HOOKS_DIR, `${hookName}.sh`);
+    if (fs.existsSync(hookPath)) {
+      fs.unlinkSync(hookPath);
+      logger.info(`[HookService] Deleted hook script: ${hookPath}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get hook status
+   */
+  static getHookStatus(): Record<string, boolean> {
+    this.initialize();
+    const hooks = [
+      "task_before_start",
+      "task_success",
+      "task_fail",
+      "task_cancel",
+    ];
+    
+    return hooks.reduce((acc, hook) => {
+      acc[hook] = fs.existsSync(path.join(HOOKS_DIR, `${hook}.sh`));
+      return acc;
+    }, {} as Record<string, boolean>);
+  }
+}

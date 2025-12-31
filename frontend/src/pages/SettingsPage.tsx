@@ -22,6 +22,7 @@ import CloudflareSettings from '../components/Settings/CloudflareSettings';
 import CookieSettings from '../components/Settings/CookieSettings';
 import DatabaseSettings from '../components/Settings/DatabaseSettings';
 import DownloadSettings from '../components/Settings/DownloadSettings';
+import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import TagsSettings from '../components/Settings/TagsSettings';
@@ -64,7 +65,8 @@ const SettingsPage: React.FC = () => {
         showYoutubeSearch: true,
         proxyOnlyYoutube: false,
         moveSubtitlesToVideoFolder: false,
-        moveThumbnailsToVideoFolder: false
+        moveThumbnailsToVideoFolder: false,
+        hooks: {}
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -314,10 +316,16 @@ const SettingsPage: React.FC = () => {
                                 {/* 8. Advanced */}
                                 <Grid size={12}>
                                     <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
-                                        <AdvancedSettings
-                                            debugMode={debugMode}
-                                            onDebugModeChange={setDebugMode}
-                                        />
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                            <AdvancedSettings
+                                                debugMode={debugMode}
+                                                onDebugModeChange={setDebugMode}
+                                            />
+                                            <HookSettings
+                                                settings={settings}
+                                                onChange={handleChange}
+                                            />
+                                        </Box>
                                     </CollapsibleSection>
                                 </Grid>
                             </>

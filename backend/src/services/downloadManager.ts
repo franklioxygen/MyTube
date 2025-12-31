@@ -1,11 +1,12 @@
 import {
-  DownloadCancelledError,
-  isCancelledError,
+    DownloadCancelledError,
+    isCancelledError,
 } from "../errors/DownloadErrors";
 import { extractSourceVideoId } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { CloudStorageService } from "./CloudStorageService";
 import { createDownloadTask } from "./downloadService";
+import { HookService } from "./hookService";
 import * as storageService from "./storageService";
 
 interface DownloadTask {
@@ -179,6 +180,14 @@ class DownloadManager {
         sourceUrl: task.sourceUrl,
       });
 
+      // Execute hook
+      HookService.executeHook("task_cancel", {
+        taskId: task.id,
+        taskTitle: task.title,
+        sourceUrl: task.sourceUrl,
+        status: "cancel",
+      });
+
       // Clean up internal state
       this.activeTasks.delete(id);
       this.activeDownloads--;
@@ -259,6 +268,15 @@ class DownloadManager {
 
     try {
       console.log(`Starting download: ${task.title} (${task.id})`);
+
+      // Execute hook
+      await HookService.executeHook("task_before_start", {
+        taskId: task.id,
+        taskTitle: task.title,
+        sourceUrl: task.sourceUrl,
+        status: "start",
+      });
+
       const result = await task.downloadFn((cancel) => {
         task.cancelFn = cancel;
       });
@@ -345,6 +363,18 @@ class DownloadManager {
         }
       }
 
+
+
+      // Execute hook - Await this so user script can process local file before cloud upload/delete
+      await HookService.executeHook("task_success", {
+        taskId: task.id,
+        taskTitle: finalTitle || task.title,
+        sourceUrl: task.sourceUrl,
+        status: "success",
+        videoPath: videoData.videoPath,
+        thumbnailPath: videoData.thumbnailPath,
+      });
+
       // Trigger Cloud Upload (Async, don't await to block queue processing?)
       // Actually, we might want to await it if we want to ensure it's done before resolving,
       // but that would block the download queue.
@@ -378,6 +408,15 @@ class DownloadManager {
           sourceUrl: task.sourceUrl,
         });
       }
+
+      // Execute hook
+      HookService.executeHook("task_fail", {
+        taskId: task.id,
+        taskTitle: task.title,
+        sourceUrl: task.sourceUrl,
+        status: "fail",
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       task.reject(error);
     } finally {

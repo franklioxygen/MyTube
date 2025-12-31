@@ -85,4 +85,10 @@ export interface Settings {
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
   pauseOnFocusLoss?: boolean;
+  hooks?: {
+    task_before_start?: string;
+    task_success?: string;
+    task_fail?: string;
+    task_cancel?: string;
+  };
 }

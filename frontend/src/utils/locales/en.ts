@@ -114,6 +114,24 @@ export const en = {
   cleanupTempFilesConfirmTitle: "Clean Up Temporary Files?",
   cleanupTempFilesConfirmMessage:
     "This will permanently delete all .ytdl and .part files in the uploads directory. Make sure there are no active downloads before proceeding.",
+
+  // Task Hooks
+  taskHooks: 'Task Hooks',
+  taskHooksDescription: 'Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
+  taskHooksWarning: 'Warning: Commands run with the server\'s permissions. Use with caution.',
+  hookTaskBeforeStart: 'Before Task Start',
+  hookTaskBeforeStartHelper: 'Executes before the download begins.',
+  hookTaskSuccess: 'Task Success',
+  hookTaskSuccessHelper: 'Executes after successful download, before cloud upload/deletion (awaits completion).',
+  hookTaskFail: 'Task Failed',
+  hookTaskFailHelper: 'Executes when a task fails.',
+  hookTaskCancel: 'Task Cancelled',
+  hookTaskCancelHelper: 'Executes when a task is manually cancelled.',
+  found: 'Found',
+  notFound: 'Not Set',
+  deleteHook: 'Delete Hook Script',
+  confirmDeleteHook: 'Are you sure you want to delete this hook script?',
+  uploadHook: 'Upload .sh',
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
   formatFilenamesSuccess:
