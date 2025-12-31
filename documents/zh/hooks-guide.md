@@ -33,30 +33,47 @@ MyTube允许您在下载任务生命周期的不同阶段执行自定义Shell脚
 1. 转到 **设置 (Settings)**。
 2. 向下滚动到 **高级设置 (Advanced Settings)**。
 3. 找到 **任务钩子 (Task Hooks)** 部分。
-4. 输入您想要为特定事件执行的Shell命令。
-5. 点击 **保存 (Save)**。
+4. 为特定事件上传您的 `.sh` 脚本。
+5. 您可以根据需要删除或重新上传脚本。
+
+## 查看日志 (Viewing Logs)
+
+脚本的任何输出 (stdout/stderr) 都将被捕获并记录到 MyTube 服务器控制台。
+- 标准输出 (`echo "..."`) 记录为 `INFO`。
+- 标准错误 (`>&2 echo "..."`) 记录为 `WARN`。
+
+示例：
+```bash
+echo "Hook started for task $MYTUBE_TASK_ID"
+```
+在服务器日志中将显示为：
+`[INFO] [HookService] task_success stdout: Hook started for task 123...`
 
 ## 示例 (Examples)
 
 ### 1. 简单日志记录
-将每个成功的下载记录到文件中。
+将每个成功的下载记录到自定义文件中。
 **钩子:** `task_success`
 ```bash
-echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /path/to/mytube_downloads.log
+#!/bin/bash
+# 请提供日志文件的完整路径
+echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /tmp/mytube_downloads.log
 ```
 
 ### 2. 发送通知 (例如 ntfy.sh)
 当任务失败时发送通知。
 **钩子:** `task_fail`
 ```bash
+#!/bin/bash
 curl -d "MyTube Download Failed: $MYTUBE_TASK_TITLE - $MYTUBE_ERROR" https://ntfy.sh/my_topic
 ```
 
 ### 3. 文件后处理
-运行脚本处理文件（例如，移动文件或重新编码）。
+运行 Python 脚本处理文件。
 **钩子:** `task_success`
 ```bash
-/path/to/my_processing_script.sh "$MYTUBE_VIDEO_PATH"
+#!/bin/bash
+python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
 ```
 
 ## 安全警告 (Security Warning)

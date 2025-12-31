@@ -118,6 +118,10 @@ vi.mock('../../components/Settings/AdvancedSettings', () => ({
     default: () => <div data-testid="advanced-settings">AdvancedSettings</div>,
 }));
 
+vi.mock('../../components/Settings/HookSettings', () => ({
+    default: () => <div data-testid="hook-settings">HookSettings</div>,
+}));
+
 vi.mock('../../components/ConfirmationModal', () => ({
     default: ({ isOpen, title }: any) => (
         isOpen ? <div data-testid="confirmation-modal">{title}</div> : null
@@ -154,6 +158,7 @@ describe('SettingsPage', () => {
         expect(screen.getByTestId('database-settings')).toBeInTheDocument();
         expect(screen.getByTestId('ytdlp-settings')).toBeInTheDocument();
         expect(screen.getByTestId('advanced-settings')).toBeInTheDocument();
+        expect(screen.getByTestId('hook-settings')).toBeInTheDocument();
     });
 
     it('renders save button', () => {

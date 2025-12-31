@@ -33,30 +33,47 @@ You can configure hooks in the web interface:
 1. Go to **Settings**.
 2. Scroll down to **Advanced Settings**.
 3. Find the **Task Hooks** section.
-4. Enter your shell commands for the desired events.
-5. Click **Save**.
+4. Upload your `.sh` scripts for the desired events.
+5. You can Delete or Re-upload scripts as needed.
+
+## Viewing Logs
+
+Any output from your script (stdout/stderr) will be captured and logged to the MyTube server console.
+- Standard output (`echo "..."`) is logged as `INFO`.
+- Standard error (`>&2 echo "..."`) is logged as `WARN`.
+
+Example:
+```bash
+echo "Hook started for task $MYTUBE_TASK_ID"
+```
+Will appear in server logs as:
+`[INFO] [HookService] task_success stdout: Hook started for task 123...`
 
 ## Examples
 
 ### 1. Simple Logging
-Log every successful download to a file.
+Log every successful download to a custom file.
 **Hook:** `task_success`
 ```bash
-echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /path/to/mytube_downloads.log
+#!/bin/bash
+# Provide full path to your log file
+echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /tmp/mytube_downloads.log
 ```
 
 ### 2. Send Notification (e.g., ntfy.sh)
 Send a notification when a task fails.
 **Hook:** `task_fail`
 ```bash
+#!/bin/bash
 curl -d "MyTube Download Failed: $MYTUBE_TASK_TITLE - $MYTUBE_ERROR" https://ntfy.sh/my_topic
 ```
 
 ### 3. File Post-Processing
-Run a script to process the file (e.g., move it or re-encode it).
+Run a python script to process the file.
 **Hook:** `task_success`
 ```bash
-/path/to/my_processing_script.sh "$MYTUBE_VIDEO_PATH"
+#!/bin/bash
+python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
 ```
 
 ## Security Warning

@@ -58,7 +58,15 @@ export class HookService {
       if (context.thumbnailPath) env.MYTUBE_THUMBNAIL_PATH = context.thumbnailPath;
       if (context.error) env.MYTUBE_ERROR = context.error;
 
-      await execPromise(`bash "${hookPath}"`, { env });
+      const { stdout, stderr } = await execPromise(`bash "${hookPath}"`, { env });
+      
+      if (stdout && stdout.trim()) {
+        logger.info(`[HookService] ${eventName} stdout: ${stdout.trim()}`);
+      }
+      if (stderr && stderr.trim()) {
+        logger.warn(`[HookService] ${eventName} stderr: ${stderr.trim()}`);
+      }
+
       logger.info(`[HookService] Hook ${eventName} executed successfully.`);
     } catch (error: any) {
       logger.error(
