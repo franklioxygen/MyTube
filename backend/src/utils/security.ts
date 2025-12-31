@@ -58,8 +58,12 @@ export function validatePathWithinDirectory(
 
   // Reconstruct paths from validated components only
   // This ensures no path traversal sequences can exist
-  const sanitizedFilePath = path.join(...sanitizedFilePathParts);
-  const sanitizedAllowedDir = path.join(...sanitizedAllowedDirParts);
+  const sanitizedFilePath = path.isAbsolute(filePath)
+    ? path.sep + path.join(...sanitizedFilePathParts)
+    : path.join(...sanitizedFilePathParts);
+  const sanitizedAllowedDir = path.isAbsolute(allowedDir)
+    ? path.sep + path.join(...sanitizedAllowedDirParts)
+    : path.join(...sanitizedAllowedDirParts);
 
   // Final validation: ensure reconstructed paths don't contain traversal sequences
   if (sanitizedFilePath.includes("..") || sanitizedAllowedDir.includes("..")) {
@@ -130,8 +134,12 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
 
   // Reconstruct paths from validated components only
   // This ensures no path traversal sequences can exist
-  const sanitizedFilePath = path.join(...sanitizedFilePathParts);
-  const sanitizedAllowedDir = path.join(...sanitizedAllowedDirParts);
+  const sanitizedFilePath = path.isAbsolute(filePath)
+    ? path.sep + path.join(...sanitizedFilePathParts)
+    : path.join(...sanitizedFilePathParts);
+  const sanitizedAllowedDir = path.isAbsolute(allowedDir)
+    ? path.sep + path.join(...sanitizedAllowedDirParts)
+    : path.join(...sanitizedAllowedDirParts);
 
   // Final validation: ensure reconstructed paths don't contain traversal sequences
   if (sanitizedFilePath.includes("..") || sanitizedAllowedDir.includes("..")) {
