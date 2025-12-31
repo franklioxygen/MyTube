@@ -23,7 +23,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.44.7",
-    "express": "^4.18.2",
+    "express": "^4.22.0",
     "fs-extra": "^11.2.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
