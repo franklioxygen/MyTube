@@ -132,6 +132,8 @@ export const en = {
   deleteHook: 'Delete Hook Script',
   confirmDeleteHook: 'Are you sure you want to delete this hook script?',
   uploadHook: 'Upload .sh',
+  enterPasswordToUploadHook: 'Please enter your password to upload this hook script.',
+  riskCommandDetected: 'Risk command detected: {command}. Upload rejected.',
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
   formatFilenamesSuccess:

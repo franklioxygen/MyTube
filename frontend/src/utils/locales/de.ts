@@ -598,6 +598,8 @@ export const de = {
   taskHooks: 'Aufgaben-Hoks',
   taskHooksDescription: 'Führen Sie benutzerdefinierte Shell-Befehle an bestimmten Punkten im Aufgabenlebenszyklus aus. Verfügbare Umgebungsvariablen: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: 'Warnung: Befehle werden mit den Berechtigungen des Servers ausgeführt. Mit Vorsicht verwenden.',
+  enterPasswordToUploadHook: 'Bitte geben Sie Ihr Passwort ein, um dieses Hook-Skript hochzuladen.',
+  riskCommandDetected: 'Risikobefehl erkannt: {command}. Upload abgelehnt.',
   hookTaskBeforeStart: 'Vor Aufgabenstart',
   hookTaskBeforeStartHelper: 'Wird ausgeführt, bevor der Download beginnt.',
   hookTaskSuccess: 'Aufgabe Erfolgreich',

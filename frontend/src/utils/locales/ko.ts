@@ -614,6 +614,8 @@ export const ko = {
   taskHooks: '태스크 훅',
   taskHooksDescription: '태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: '경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.',
+  enterPasswordToUploadHook: '이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.',
+  riskCommandDetected: '위험한 명령 감지됨: {command}. 업로드 거부됨.',
   hookTaskBeforeStart: '태스크 시작 전',
   hookTaskBeforeStartHelper: '다운로드가 시작되기 전에 실행됩니다.',
   hookTaskSuccess: '태스크 성공',

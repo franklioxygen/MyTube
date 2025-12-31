@@ -626,6 +626,8 @@ export const ja = {
   taskHooks: 'タスクフック',
   taskHooksDescription: 'タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。',
   taskHooksWarning: '警告: コマンドはサーバーの権限で実行されます。注意して使用してください。',
+  enterPasswordToUploadHook: 'このフック・スクリプトをアップロードするにはパスワードを入力してください。',
+  riskCommandDetected: '危険なコマンドが検出されました: {command}。アップロードは拒否されました。',
   hookTaskBeforeStart: 'タスク開始前',
   hookTaskBeforeStartHelper: 'ダウンロードが始まる前に実行されます。',
   hookTaskSuccess: 'タスク成功',

@@ -620,6 +620,8 @@ export const ru = {
   taskHooks: 'Хуки Задач',
   taskHooksDescription: 'Выполняйте пользовательские shell-команды в определенные моменты жизненного цикла задачи. Доступные переменные окружения: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: 'Предупреждение: Команды выполняются с правами сервера. Используйте с осторожностью.',
+  enterPasswordToUploadHook: 'Пожалуйста, введите пароль для загрузки этого Hook-скрипта.',
+  riskCommandDetected: 'Обнаружена опасная команда: {command}. Загрузка отклонена.',
   hookTaskBeforeStart: 'Перед Началом Задачи',
   hookTaskBeforeStartHelper: 'Выполняется перед началом загрузки.',
   hookTaskSuccess: 'Успех Задачи',

@@ -28,8 +28,52 @@ export const uploadHook = async (
     throw new ValidationError("Invalid hook name", "name");
   }
 
+  // Scan for risk commands
+  const riskCommand = scanForRiskCommands(req.file.path);
+  if (riskCommand) {
+    // Delete the file immediately
+    require("fs").unlinkSync(req.file.path);
+    throw new ValidationError(
+      `Risk command detected: ${riskCommand}. Upload rejected.`,
+      "file"
+    );
+  }
+
   HookService.uploadHook(name, req.file.path);
   res.json(successMessage(`Hook ${name} uploaded successfully`));
+};
+
+/**
+ * Scan file for risk commands
+ */
+const scanForRiskCommands = (filePath: string): string | null => {
+  const fs = require("fs");
+  const content = fs.readFileSync(filePath, "utf-8");
+
+  // List of risky patterns
+  // We use regex to match commands, trying to avoid false positives in comments if possible,
+  // but for safety, even commented dangerous commands might be flagged or we just accept strictness.
+  // A simple include check is safer for now.
+  const riskyPatterns = [
+    { pattern: /rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+|-[a-zA-Z]*f[a-zA-Z]*\s+)*-?[rf][a-zA-Z]*\s+.*[\/\*]/, name: "rm -rf / (recursive delete)" }, // Matches rm -rf /, rm -fr *, etc roughly
+    { pattern: /mkfs/, name: "mkfs (format disk)" },
+    { pattern: /dd\s+if=/, name: "dd (disk write)" },
+    { pattern: /:[:\(\)\{\}\s|&]+;:/, name: "fork bomb" },
+    { pattern: />\s*\/dev\/sd/, name: "write to block device" },
+    { pattern: />\s*\/dev\/nvme/, name: "write to block device" },
+    { pattern: /mv\s+.*[\s\/]+\//, name: "mv to root" }, // deeply simplified, but mv / is dangerous
+    { pattern: /chmod\s+.*777\s+\//, name: "chmod 777 root" },
+    { pattern: /wget\s+http/, name: "wget (potential malware download)" },
+    { pattern: /curl\s+http/, name: "curl (potential malware download)" },
+  ];
+
+  for (const risk of riskyPatterns) {
+    if (risk.pattern.test(content)) {
+      return risk.name;
+    }
+  }
+
+  return null;
 };
 
 /**

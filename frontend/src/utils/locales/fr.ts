@@ -647,6 +647,8 @@ export const fr = {
   taskHooks: 'Crochets de Tâche',
   taskHooksDescription: 'Exécutez des commandes shell personnalisées à des points spécifiques du cycle de vie de la tâche. Variables d\'environnement disponibles : MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: 'Avertissement : Les commandes s\'exécutent avec les permissions du serveur. À utiliser avec prudence.',
+  enterPasswordToUploadHook: 'Veuillez entrer votre mot de passe pour télécharger ce script Hook.',
+  riskCommandDetected: 'Commande à risque détectée : {command}. Téléchargement rejeté.',
   hookTaskBeforeStart: 'Avant le Début de la Tâche',
   hookTaskBeforeStartHelper: 'S\'exécute avant le début du téléchargement.',
   hookTaskSuccess: 'Tâche Réussie',

@@ -615,6 +615,8 @@ export const ar = {
   taskHooks: 'خطافات المهام',
   taskHooksDescription: 'نفذ أوامر shell مخصصة في نقاط محددة من دورة حياة المهمة. متغيرات البيئة المتاحة: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: 'تحذير: يتم تشغيل الأوامر بصلاحيات الخادم. استخدم بحذر.',
+  enterPasswordToUploadHook: 'الرجاء إدخال كلمة المرور لتحميل نص Hook هذا.',
+  riskCommandDetected: 'تم اكتشاف أمر خطر: {command}. تم رفض التحميل.',
   hookTaskBeforeStart: 'قبل بدء المهمة',
   hookTaskBeforeStartHelper: 'ينفذ قبل بدء التنزيل.',
   hookTaskSuccess: 'نجاح المهمة',

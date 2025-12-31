@@ -625,6 +625,8 @@ export const pt = {
   taskHooks: 'Ganchos de Tarefa',
   taskHooksDescription: 'Execute comandos shell personalizados em pontos específicos do ciclo de vida da tarefa. Variáveis de ambiente disponíveis: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
   taskHooksWarning: 'Aviso: Os comandos são executados com as permissões do servidor. Use com cautela.',
+  enterPasswordToUploadHook: 'Por favor, digite sua senha para fazer upload deste script Hook.',
+  riskCommandDetected: 'Comando de risco detectado: {command}. Upload rejeitado.',
   hookTaskBeforeStart: 'Antes do Início da Tarefa',
   hookTaskBeforeStartHelper: 'Executa antes do download começar.',
   hookTaskSuccess: 'Tarefa com Sucesso',

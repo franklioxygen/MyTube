@@ -19,7 +19,8 @@ import {
     uploadHook,
 } from "../controllers/hookController";
 import {
-    getPasswordEnabled
+    getPasswordEnabled,
+    verifyPassword
 } from "../controllers/passwordController";
 import {
     deleteLegacyData,
@@ -43,6 +44,7 @@ router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
+router.post("/verify-password", asyncHandler(verifyPassword));
 
 // ... existing imports ...
 

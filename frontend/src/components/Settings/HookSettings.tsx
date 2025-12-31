@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import ConfirmationModal from '../ConfirmationModal';
+import PasswordModal from '../PasswordModal';
 
 interface HookSettingsProps {
     settings: Settings;
@@ -17,6 +18,11 @@ const API_URL = import.meta.env.VITE_API_URL;
 const HookSettings: React.FC<HookSettingsProps> = () => {
     const { t } = useLanguage();
     const [deleteHookName, setDeleteHookName] = useState<string | null>(null);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [passwordError, setPasswordError] = useState<string | undefined>(undefined);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [pendingUpload, setPendingUpload] = useState<{ hookName: string; file: File } | null>(null);
+    const [uploadError, setUploadError] = useState<string | null>(null);
 
     const { data: hookStatus, refetch: refetchHooks, isLoading } = useQuery({
         queryKey: ['hookStatus'],
@@ -36,6 +42,20 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         },
         onSuccess: () => {
             refetchHooks();
+            setPendingUpload(null);
+            setUploadError(null);
+        },
+        onError: (error: any) => {
+            console.error('Upload failed:', error);
+            const message = error.response?.data?.message || error.message;
+            // Try to match risk command error
+            // Backend sends: "Risk command detected: {command}. Upload rejected."
+            const riskMatch = message?.match(/Risk command detected: (.*)\. Upload rejected\./);
+            if (riskMatch && riskMatch[1]) {
+                setUploadError(t('riskCommandDetected', { command: riskMatch[1] }));
+            } else {
+                setUploadError(message || t('uploadFailed'));
+            }
         }
     });
 
@@ -58,10 +78,35 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
             return;
         }
 
-        uploadMutation.mutate({ hookName, file });
-
         // Reset input so the same file can be selected again
         e.target.value = '';
+
+        setPendingUpload({ hookName, file });
+        setPasswordError(undefined);
+        setUploadError(null);
+        setShowPasswordModal(true);
+    };
+
+    const handlePasswordConfirm = async (password: string) => {
+        setIsVerifying(true);
+        setPasswordError(undefined);
+        try {
+            await axios.post(`${API_URL}/settings/verify-password`, { password });
+            setShowPasswordModal(false);
+            if (pendingUpload) {
+                uploadMutation.mutate(pendingUpload);
+            }
+        } catch (error: any) {
+            console.error('Password verification failed:', error);
+            if (error.response?.status === 429) {
+                const waitTime = error.response.data.waitTime;
+                setPasswordError(t('tooManyAttempts') + ` Try again in ${Math.ceil(waitTime / 1000)}s`);
+            } else {
+                setPasswordError(t('incorrectPassword'));
+            }
+        } finally {
+            setIsVerifying(false);
+        }
     };
 
     const handleDelete = (hookName: string) => {
@@ -108,6 +153,12 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 <Alert severity="info" sx={{ mb: 3 }}>
                     {t('taskHooksWarning')}
                 </Alert>
+
+                {uploadError && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setUploadError(null)}>
+                        {uploadError}
+                    </Alert>
+                )}
 
                 {isLoading ? (
                     <CircularProgress />
@@ -184,6 +235,20 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 confirmText={t('delete') || 'Delete'}
                 cancelText={t('cancel') || 'Cancel'}
                 isDanger={true}
+            />
+
+            <PasswordModal
+                isOpen={showPasswordModal}
+                onClose={() => {
+                    setShowPasswordModal(false);
+                    setPendingUpload(null);
+                    setPasswordError(undefined);
+                }}
+                onConfirm={handlePasswordConfirm}
+                title={t('enterPassword')}
+                message={t('enterPasswordToUploadHook') || 'Please enter your password to upload this hook script.'}
+                error={passwordError}
+                isLoading={isVerifying}
             />
         </Box>
     );

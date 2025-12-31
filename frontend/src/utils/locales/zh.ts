@@ -612,6 +612,8 @@ export const zh = {
   taskHooks: '任务钩子',
   taskHooksDescription: '在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。',
   taskHooksWarning: '警告：命令将以服务器权限运行。请谨慎使用。',
+  enterPasswordToUploadHook: '请输入密码以上传此 Hook 脚本。',
+  riskCommandDetected: '检测到危险命令：{command}。上传已拒绝。',
   hookTaskBeforeStart: '任务开始前',
   hookTaskBeforeStartHelper: '在下载开始前执行。',
   hookTaskSuccess: '任务成功',
