@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.24 (2026-01-01)
+
+### Refactor
+
+- refactor: Explicitly preserve network-related options (90a2445)
+
 ## v1.7.23 (2026-01-01)
 
 ### Feat
