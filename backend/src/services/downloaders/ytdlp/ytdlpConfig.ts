@@ -37,6 +37,7 @@ export function prepareDownloadFlags(
   }
 
   // Prepare base flags from user config (excluding output options we manage)
+  // Explicitly preserve network-related options like proxy
   const {
     output: _output, // Ignore user output template (we manage this)
     o: _o,
@@ -50,8 +51,17 @@ export function prepareDownloadFlags(
     convertSubs: userConvertSubs,
     // Extract user merge output format (use it if provided)
     mergeOutputFormat: userMergeOutputFormat,
+    proxy: _proxy, // Proxy is handled separately in networkOptions to ensure it's preserved
     ...safeUserConfig
   } = config;
+
+  // Explicitly preserve proxy and other network options to ensure they're not lost
+  // This is critical for download operations that need proxy settings
+  const networkOptions: Record<string, any> = {};
+  if (config.proxy) {
+    networkOptions.proxy = config.proxy;
+    logger.debug("Preserving proxy in networkOptions:", config.proxy);
+  }
 
   // Get format sort option if user specified it
   const formatSortValue = userFormatSort || userFormatSort2;
@@ -73,8 +83,10 @@ export function prepareDownloadFlags(
   const mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
 
   // Prepare flags - defaults first, then user config to allow overrides
+  // Network options (like proxy) are applied last to ensure they're not overridden
   const flags: YtDlpFlags = {
     ...safeUserConfig, // Apply user config
+    ...networkOptions, // Explicitly apply network options (proxy, etc.) to ensure they're preserved
     output: outputPath, // Always use our output path with correct extension
     format: defaultFormat,
     // Use user preferences if provided, otherwise use defaults
@@ -99,7 +111,9 @@ export function prepareDownloadFlags(
         "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
     }
     // Ensure merge output format is mp4 (already handled above, but log it)
-    logger.info("Twitter/X URL detected - using MP4 format for Safari compatibility");
+    logger.info(
+      "Twitter/X URL detected - using MP4 format for Safari compatibility"
+    );
   }
 
   // Add YouTube specific flags if it's a YouTube URL
@@ -151,6 +165,16 @@ export function prepareDownloadFlags(
   // Remove the extractorArgs if not needed - let yt-dlp handle it
   if (!flags.extractorArgs) {
     delete flags.extractorArgs;
+  }
+
+  // Log proxy in final flags for debugging
+  if (flags.proxy) {
+    logger.debug("Proxy in final flags:", flags.proxy);
+  } else if (config.proxy) {
+    logger.warn(
+      "Proxy was in config but not in final flags. Config proxy:",
+      config.proxy
+    );
   }
 
   logger.debug("Final yt-dlp flags:", flags);

@@ -11,6 +11,7 @@ import { ProgressTracker } from "../../../utils/progressTracker";
 import {
   executeYtDlpJson,
   executeYtDlpSpawn,
+  getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
@@ -86,8 +87,13 @@ export async function downloadVideo(
   try {
     const PROVIDER_SCRIPT = getProviderScript();
 
+    // Get user's yt-dlp configuration for network options (including proxy)
+    const userConfig = getUserYtDlpConfig(videoUrl);
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
     // Get video info first
     const info = await executeYtDlpJson(videoUrl, {
+      ...networkConfig,
       noWarnings: true,
       preferFreeFormats: true,
       ...(PROVIDER_SCRIPT
@@ -142,15 +148,31 @@ export async function downloadVideo(
       });
     }
 
-    // Get user's yt-dlp configuration
-    const userConfig = getUserYtDlpConfig(videoUrl);
+    // Get user's yt-dlp configuration (reuse from above if available, otherwise fetch again)
+    // Note: userConfig was already fetched above, but we need to ensure it's still valid
+    const downloadUserConfig = userConfig || getUserYtDlpConfig(videoUrl);
+
+    // Log proxy configuration for debugging
+    if (downloadUserConfig.proxy) {
+      logger.info("Using proxy for download:", downloadUserConfig.proxy);
+    }
 
     // Prepare download flags
     const { flags, mergeOutputFormat } = prepareDownloadFlags(
       videoUrl,
       newVideoPath,
-      userConfig
+      downloadUserConfig
     );
+
+    // Log final flags to verify proxy is included
+    if (flags.proxy) {
+      logger.info("Proxy included in download flags:", flags.proxy);
+    } else {
+      logger.warn(
+        "Proxy not found in download flags. User config proxy:",
+        downloadUserConfig.proxy
+      );
+    }
 
     // Update the video path to use the correct extension based on merge format
     const videoExtension = mergeOutputFormat;
