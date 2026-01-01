@@ -1,6 +1,13 @@
 # Change Log
 
 
+## v1.7.24 (2026-01-01)
+
+### Feat
+
+- feat: Add logic to refresh thumbnail with random timestamp (6bbb40e)
+- feat: Add reset password route and update dependencies (c00b552)
+
 ## v1.7.23 (2026-01-01)
 
 ### Feat
