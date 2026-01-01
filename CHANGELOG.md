@@ -1,6 +1,16 @@
 # Change Log
 
 
+## v1.7.23 (2026-01-01)
+
+### Feat
+
+- feat: Add reset password route (845e184)
+
+### Fix
+
+- fix: backend/package.json & backend/package-lock.json to reduce vulnerabilities (b0428b9)
+
 ## v1.7.22 (2025-12-30)
 
 ### Feat
