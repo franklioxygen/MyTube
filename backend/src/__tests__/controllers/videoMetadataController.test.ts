@@ -2,10 +2,14 @@
 import { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as videoMetadataController from '../../controllers/videoMetadataController';
+import * as metadataService from '../../services/metadataService';
 import * as storageService from '../../services/storageService';
 
 // Mock dependencies
 vi.mock('../../services/storageService');
+vi.mock('../../services/metadataService', () => ({
+    getVideoDuration: vi.fn()
+}));
 vi.mock('../../utils/security', () => ({
     validateVideoPath: vi.fn((path) => path),
     validateImagePath: vi.fn((path) => path),
@@ -106,6 +110,39 @@ describe('videoMetadataController', () => {
                 success: true,
                 data: { progress: 50 }
             }));
+        });
+    });
+
+    describe('refreshThumbnail', () => {
+        it('should refresh thumbnail with random timestamp', async () => {
+            mockReq.params = { id: '123' };
+            const mockVideo = { 
+                id: '123', 
+                videoPath: '/videos/test.mp4',
+                thumbnailPath: '/images/test.jpg',
+                thumbnailFilename: 'test.jpg'
+            };
+            (storageService.getVideoById as any).mockReturnValue(mockVideo);
+            (metadataService.getVideoDuration as any).mockResolvedValue(100); // 100 seconds duration
+
+            await videoMetadataController.refreshThumbnail(mockReq as Request, mockRes as Response);
+
+            expect(storageService.getVideoById).toHaveBeenCalledWith('123');
+            expect(metadataService.getVideoDuration).toHaveBeenCalled();
+            
+            // Verify execFileSafe was called with ffmpeg
+            // The exact arguments depend on the random timestamp, but we can verify the structure
+            const security = await import('../../utils/security');
+            expect(security.execFileSafe).toHaveBeenCalledWith(
+                'ffmpeg',
+                expect.arrayContaining([
+                    '-i', expect.stringContaining('test.mp4'),
+                    '-ss', expect.stringMatching(/^\d{2}:\d{2}:\d{2}$/),
+                    '-vframes', '1',
+                    expect.stringContaining('test.jpg'),
+                    '-y'
+                ])
+            );
         });
     });
 });

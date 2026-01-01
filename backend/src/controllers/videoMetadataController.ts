@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
@@ -95,11 +96,31 @@ export const refreshThumbnail = async (
   const validatedThumbnailPath = validateImagePath(thumbnailAbsolutePath);
   fs.ensureDirSync(path.dirname(validatedThumbnailPath));
 
+  // Calculate random timestamp
+  let timestamp = "00:00:00";
+  try {
+    const duration = await getVideoDuration(validatedVideoPath);
+    if (duration && duration > 0) {
+      // Pick a random second, avoiding the very beginning and very end if possible
+      // But for simplicity and to match request "random frame", valid random second is fine.
+      // Let's ensure we don't go past the end.
+      const randomSecond = Math.floor(Math.random() * duration);
+      const hours = Math.floor(randomSecond / 3600);
+      const minutes = Math.floor((randomSecond % 3600) / 60);
+      const seconds = randomSecond % 60;
+      timestamp = `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    }
+  } catch (err) {
+    logger.warn("Failed to get video duration for random thumbnail, using default 00:00:00", err);
+  }
+
   // Generate thumbnail using execFileSafe to prevent command injection
   try {
     await execFileSafe("ffmpeg", [
       "-i", validatedVideoPath,
-      "-ss", "00:00:00",
+      "-ss", timestamp,
       "-vframes", "1",
       validatedThumbnailPath,
       "-y"
