@@ -2,7 +2,7 @@ import { Box, CardContent, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Video } from '../../types';
-import { formatDate } from '../../utils/formatUtils';
+import { formatRelativeDownloadTime } from '../../utils/formatUtils';
 import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 
 interface VideoCardContentProps {
@@ -72,7 +72,7 @@ export const VideoCardContent: React.FC<VideoCardContentProps> = ({
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <Typography variant="caption" color="text.secondary">
-                        {formatDate(video.date)}
+                        {formatRelativeDownloadTime(video.addedAt, video.date, t)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
                         {video.viewCount || 0} {t('views')}

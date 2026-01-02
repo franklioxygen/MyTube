@@ -86,7 +86,7 @@ describe('CollectionCard', () => {
         );
 
         expect(screen.getByText(/Test Collection/i)).toBeInTheDocument();
-        expect(screen.getByText(/2 videos/i)).toBeInTheDocument();
+        expect(screen.getByText('2')).toBeInTheDocument();
     });
 
     it('renders collection creation date', () => {
@@ -131,7 +131,7 @@ describe('CollectionCard', () => {
         );
 
         // Should show folder icon (via Material-UI icon)
-        expect(screen.getByText(/0 videos/i)).toBeInTheDocument();
+        expect(screen.getByText('0')).toBeInTheDocument();
     });
 
     it('displays up to 4 thumbnails in grid', () => {

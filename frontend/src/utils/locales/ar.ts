@@ -366,6 +366,11 @@ export const ar = {
   unknownDate: "تاريخ غير معروف",
   part: "جزء",
   collection: "مجموعة",
+  justNow: "الآن",
+  hoursAgo: "منذ {hours} ساعة",
+  today: "اليوم",
+  thisWeek: "هذا الأسبوع",
+  weeksAgo: "منذ {weeks} أسبوع",
 
   // Upload Modal
   selectVideoFile: "اختر ملف فيديو",

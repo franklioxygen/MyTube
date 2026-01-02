@@ -375,6 +375,11 @@ export const en = {
   part: "Part",
   collection: "Collection",
   new: "NEW",
+  justNow: "Just now",
+  hoursAgo: "{hours} hours ago",
+  today: "Today",
+  thisWeek: "This week",
+  weeksAgo: "{weeks} weeks ago",
 
   // Upload Modal
   selectVideoFile: "Select Video File",

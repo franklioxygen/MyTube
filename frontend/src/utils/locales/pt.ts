@@ -364,6 +364,11 @@ export const pt = {
   unknownDate: "Data desconhecida",
   part: "Parte",
   collection: "Coleção",
+  justNow: "Agora mesmo",
+  hoursAgo: "Há {hours} horas",
+  today: "Hoje",
+  thisWeek: "Esta semana",
+  weeksAgo: "Há {weeks} semanas",
 
   // Upload Modal
   selectVideoFile: "Selecionar Arquivo de Vídeo",

@@ -10,6 +10,7 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 
 vi.mock('../../../utils/formatUtils', () => ({
     formatDate: () => '2023-01-01',
+    formatRelativeDownloadTime: () => '2023-01-01',
 }));
 
 

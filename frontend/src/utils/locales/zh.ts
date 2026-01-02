@@ -357,6 +357,11 @@ export const zh = {
   unknownDate: "未知日期",
   part: "分P",
   collection: "合集",
+  justNow: "刚刚",
+  hoursAgo: "{hours}小时前",
+  today: "今天",
+  thisWeek: "本周",
+  weeksAgo: "{weeks}周前",
 
   // Upload Modal
   selectVideoFile: "选择视频文件",

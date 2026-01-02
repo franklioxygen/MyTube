@@ -381,6 +381,11 @@ export const fr = {
   unknownDate: "Date inconnue",
   part: "Partie",
   collection: "Collection",
+  justNow: "À l'instant",
+  hoursAgo: "Il y a {hours} heures",
+  today: "Aujourd'hui",
+  thisWeek: "Cette semaine",
+  weeksAgo: "Il y a {weeks} semaines",
 
   // Upload Modal
   selectVideoFile: "Sélectionner un fichier vidéo",

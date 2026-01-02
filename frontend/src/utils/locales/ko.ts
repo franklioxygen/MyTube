@@ -356,6 +356,11 @@ export const ko = {
   unknownDate: "알 수 없는 날짜",
   part: "파트",
   collection: "컬렉션",
+  justNow: "방금",
+  hoursAgo: "{hours}시간 전",
+  today: "오늘",
+  thisWeek: "이번 주",
+  weeksAgo: "{weeks}주 전",
 
   // Upload Modal
   selectVideoFile: "동영상 파일 선택",

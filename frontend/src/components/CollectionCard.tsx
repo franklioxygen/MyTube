@@ -41,12 +41,11 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
-                transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s, border-color 0.3s',
+                transition: 'transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s',
                 '&:hover': {
                     transform: 'translateY(-4px)',
                     boxShadow: theme.shadows[8],
-                },
-                border: `1px solid ${theme.palette.secondary.main}`
+                }
             }}
         >
             <CardActionArea onClick={handleClick} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
@@ -76,7 +75,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
                     <Chip
                         icon={<Folder />}
-                        label={`${collection.videos.length} videos`}
+                        label={collection.videos.length}
                         color="secondary"
                         size="small"
                         sx={{ position: 'absolute', bottom: 8, right: 8 }}

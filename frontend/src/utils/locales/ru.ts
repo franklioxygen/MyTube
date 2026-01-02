@@ -374,6 +374,11 @@ export const ru = {
   unknownDate: "Неизвестная дата",
   part: "Часть",
   collection: "Коллекция",
+  justNow: "Только что",
+  hoursAgo: "{hours} часов назад",
+  today: "Сегодня",
+  thisWeek: "На этой неделе",
+  weeksAgo: "{weeks} недель назад",
 
   // Upload Modal
   selectVideoFile: "Выберите видеофайл",

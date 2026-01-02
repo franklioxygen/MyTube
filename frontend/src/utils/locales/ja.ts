@@ -359,6 +359,11 @@ export const ja = {
   unknownDate: "不明な日付",
   part: "パート",
   collection: "コレクション",
+  justNow: "たった今",
+  hoursAgo: "{hours}時間前",
+  today: "今日",
+  thisWeek: "今週",
+  weeksAgo: "{weeks}週間前",
 
   // Upload Modal
   selectVideoFile: "動画ファイルを選択",
