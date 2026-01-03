@@ -8,6 +8,11 @@ import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
+import {
+  flagsToArgs,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+} from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -150,33 +155,50 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnail: thumbnailUrl,
       });
 
-      // 3. Select the best m3u8 URL from collected URLs
-      // Prefer specific quality playlists over master playlists
+      // 3. Get user's yt-dlp configuration early to check for format sort
+      // This helps determine m3u8 URL selection strategy and will be reused later
+      const userConfig = getUserYtDlpConfig(url);
+      const hasFormatSort = !!(userConfig.S || userConfig.formatSort);
+
+      // 4. Select the best m3u8 URL from collected URLs
+      // If user specified format sort, prefer master playlists so yt-dlp can choose resolution
+      // Otherwise, prefer specific quality playlists
       let m3u8Url: string | null = null;
       if (m3u8Urls.length > 0) {
-        // Sort URLs: prefer specific quality playlists, avoid master playlists
+        // Sort URLs based on whether user wants format sort
         const sortedUrls = m3u8Urls.sort((a, b) => {
           const aIsMaster =
             a.includes("/playlist.m3u8") || a.includes("/master/");
           const bIsMaster =
             b.includes("/playlist.m3u8") || b.includes("/master/");
 
-          // Prefer non-master playlists
-          if (aIsMaster && !bIsMaster) return 1;
-          if (!aIsMaster && bIsMaster) return -1;
-
-          // Among non-master playlists, prefer higher quality (480p > 240p)
-          const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
-          const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
-          const aQualityNum = parseInt(aQuality) || 0;
-          const bQualityNum = parseInt(bQuality) || 0;
-
-          return bQualityNum - aQualityNum; // Higher quality first
+          if (hasFormatSort) {
+            // When format sort is specified, prefer master playlists
+            // so yt-dlp can apply format sort to choose the right resolution
+            if (aIsMaster && !bIsMaster) return -1; // Master playlist first
+            if (!aIsMaster && bIsMaster) return 1;
+            // Among master playlists or non-master playlists, prefer higher quality
+            const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
+            const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
+            const aQualityNum = parseInt(aQuality) || 0;
+            const bQualityNum = parseInt(bQuality) || 0;
+            return bQualityNum - aQualityNum; // Higher quality first
+          } else {
+            // Default behavior: prefer specific quality playlists over master playlists
+            if (aIsMaster && !bIsMaster) return 1;
+            if (!aIsMaster && bIsMaster) return -1;
+            // Among non-master playlists, prefer higher quality (480p > 240p)
+            const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
+            const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
+            const aQualityNum = parseInt(aQuality) || 0;
+            const bQualityNum = parseInt(bQuality) || 0;
+            return bQualityNum - aQualityNum; // Higher quality first
+          }
         });
 
         m3u8Url = sortedUrls[0];
         logger.info(
-          `Selected m3u8 URL from ${m3u8Urls.length} candidates:`,
+          `Selected m3u8 URL from ${m3u8Urls.length} candidates (format sort: ${hasFormatSort}):`,
           m3u8Url
         );
         if (sortedUrls.length > 1) {
@@ -184,7 +206,7 @@ export class MissAVDownloader extends BaseDownloader {
         }
       }
 
-      // 4. If m3u8 URL was not found via network, try regex extraction as fallback
+      // 5. If m3u8 URL was not found via network, try regex extraction as fallback
       if (!m3u8Url) {
         logger.info(
           "m3u8 URL not found via network, trying regex extraction..."
@@ -229,19 +251,26 @@ export class MissAVDownloader extends BaseDownloader {
         );
       }
 
-      // 5. Update the safe base filename with the actual title
+      // 5. Get network configuration from user config (already loaded above)
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      // Get merge output format from user config or default to mp4
+      const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+
+      // 6. Update the safe base filename with the actual title
+      // Use the correct extension based on merge output format
       const newSafeBaseFilename = formatVideoFilename(
         videoTitle,
         videoAuthor,
         videoDate
       );
-      const newVideoFilename = `${newSafeBaseFilename}.mp4`;
+      const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
       const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
       const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
-      // 6. Download the video using yt-dlp with the m3u8 URL
+      // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
       logger.info("Downloading video to:", newVideoPath);
       logger.info("Download ID:", downloadId);
@@ -257,18 +286,52 @@ export class MissAVDownloader extends BaseDownloader {
         );
       }
 
+      // Get format sort option if user specified it
+      const formatSortValue = userConfig.S || userConfig.formatSort;
+
+      // Default format - use bestvideo*+bestaudio/best to support highest resolution
+      // This allows downloading 1080p or higher if available
+      let downloadFormat = "bestvideo*+bestaudio/best";
+
+      // If user specified a format, use it
+      if (userConfig.f || userConfig.format) {
+        downloadFormat = userConfig.f || userConfig.format;
+        logger.info("Using user-specified format for MissAV:", downloadFormat);
+      } else if (formatSortValue) {
+        // If user specified format sort but not format, use a more permissive format
+        // that allows format sort to work properly with m3u8 streams
+        // This ensures format sort (e.g., -S res:360) can properly filter resolutions
+        downloadFormat = "bestvideo+bestaudio/best";
+        logger.info(
+          "Using permissive format with format sort for MissAV:",
+          downloadFormat,
+          "format sort:",
+          formatSortValue
+        );
+      }
+
       // Prepare flags for yt-dlp to download m3u8 stream
       // Dynamically determine Referer based on the input URL domain
-      const urlObj = new URL(url);
-      const referer = `${urlObj.protocol}//${urlObj.host}/`;
+      const urlObjForReferer = new URL(url);
+      const referer = `${urlObjForReferer.protocol}//${urlObjForReferer.host}/`;
       logger.info("Using Referer:", referer);
 
+      // Prepare flags object - merge user config with required settings
       const flags: any = {
+        ...networkConfig, // Apply network settings (proxy, etc.)
         output: newVideoPath,
-        format: "best",
-        mergeOutputFormat: "mp4",
+        format: downloadFormat,
+        mergeOutputFormat: mergeOutputFormat,
         addHeader: [`Referer:${referer}`, `User-Agent:${userAgent}`],
       };
+
+      // Apply format sort if user specified it
+      if (formatSortValue) {
+        flags.formatSort = formatSortValue;
+        logger.info("Using format sort for MissAV:", formatSortValue);
+      }
+
+      logger.info("Final MissAV yt-dlp flags:", flags);
 
       // Use ProgressTracker for centralized progress parsing
       const progressTracker = new ProgressTracker(downloadId);
@@ -286,20 +349,15 @@ export class MissAVDownloader extends BaseDownloader {
 
       logger.info("Starting yt-dlp process with spawn...");
 
-      // Convert flags object to array of args
-      const args = [
-        m3u8Url,
-        "--output",
-        newVideoPath,
-        "--format",
-        "best",
-        "--merge-output-format",
-        "mp4",
-        "--add-header",
-        `Referer:${referer}`,
-        "--add-header",
-        `User-Agent:${userAgent}`,
-      ];
+      // Convert flags object to array of args using the utility function
+      const args = [m3u8Url, ...flagsToArgs(flags)];
+
+      // Log the full command for debugging
+      logger.info(
+        "Executing yt-dlp command:",
+        YT_DLP_PATH,
+        args.join(" ")
+      );
 
       try {
         await new Promise<void>((resolve, reject) => {
@@ -357,7 +415,7 @@ export class MissAVDownloader extends BaseDownloader {
         throw error;
       }
 
-      // 7. Download and save the thumbnail
+      // 8. Download and save the thumbnail
       if (thumbnailUrl) {
         // Use base class method via temporary instance
         const downloader = new MissAVDownloader();
@@ -367,7 +425,7 @@ export class MissAVDownloader extends BaseDownloader {
         );
       }
 
-      // 8. Get video duration
+      // 9. Get video duration
       let duration: string | undefined;
       try {
         const { getVideoDuration } = await import(
@@ -381,7 +439,7 @@ export class MissAVDownloader extends BaseDownloader {
         logger.error("Failed to extract duration from MissAV video:", e);
       }
 
-      // 9. Get file size
+      // 10. Get file size
       let fileSize: string | undefined;
       try {
         if (fs.existsSync(newVideoPath)) {
@@ -392,7 +450,7 @@ export class MissAVDownloader extends BaseDownloader {
         logger.error("Failed to get file size:", e);
       }
 
-      // 10. Save metadata
+      // 11. Save metadata
       const videoData: Video = {
         id: timestamp.toString(),
         title: videoTitle,
@@ -419,19 +477,52 @@ export class MissAVDownloader extends BaseDownloader {
       return videoData;
     } catch (error: any) {
       logger.error("Error in downloadMissAVVideo:", error);
-      // Cleanup
-      const newSafeBaseFilename = formatVideoFilename(
-        videoTitle,
-        videoAuthor,
-        videoDate
-      );
-      const newVideoPath = path.join(VIDEOS_DIR, `${newSafeBaseFilename}.mp4`);
-      const newThumbnailPath = path.join(
-        IMAGES_DIR,
-        `${newSafeBaseFilename}.jpg`
-      );
-      if (fs.existsSync(newVideoPath)) await safeRemove(newVideoPath);
-      if (fs.existsSync(newThumbnailPath)) await safeRemove(newThumbnailPath);
+      // Cleanup - try to get the correct extension from config, fallback to mp4
+      try {
+        const cleanupConfig = getUserYtDlpConfig(url);
+        const cleanupFormat = cleanupConfig.mergeOutputFormat || "mp4";
+        const cleanupSafeBaseFilename = formatVideoFilename(
+          videoTitle,
+          videoAuthor,
+          videoDate
+        );
+        const cleanupVideoPath = path.join(
+          VIDEOS_DIR,
+          `${cleanupSafeBaseFilename}.${cleanupFormat}`
+        );
+        const cleanupThumbnailPath = path.join(
+          IMAGES_DIR,
+          `${cleanupSafeBaseFilename}.jpg`
+        );
+        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
+        if (fs.existsSync(cleanupThumbnailPath))
+          await safeRemove(cleanupThumbnailPath);
+        // Also try mp4 in case the file was created with default extension
+        const cleanupVideoPathMp4 = path.join(
+          VIDEOS_DIR,
+          `${cleanupSafeBaseFilename}.mp4`
+        );
+        if (fs.existsSync(cleanupVideoPathMp4))
+          await safeRemove(cleanupVideoPathMp4);
+      } catch (cleanupError) {
+        // If cleanup fails, try with default mp4 extension
+        const cleanupSafeBaseFilename = formatVideoFilename(
+          videoTitle,
+          videoAuthor,
+          videoDate
+        );
+        const cleanupVideoPath = path.join(
+          VIDEOS_DIR,
+          `${cleanupSafeBaseFilename}.mp4`
+        );
+        const cleanupThumbnailPath = path.join(
+          IMAGES_DIR,
+          `${cleanupSafeBaseFilename}.jpg`
+        );
+        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
+        if (fs.existsSync(cleanupThumbnailPath))
+          await safeRemove(cleanupThumbnailPath);
+      }
       throw error;
     }
   }
