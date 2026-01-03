@@ -54,6 +54,8 @@ export const en = {
   enableLogin: "Enable Login Protection",
   allowPasswordLogin: "Allow Password Login",
   allowPasswordLoginHelper: "When disabled, password login is not available. You must have at least one passkey to disable password login.",
+  allowResetPassword: "Allow Reset Password",
+  allowResetPasswordHelper: "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
   password: "Password",
   enterPassword: "Enter Password",
   togglePasswordVisibility: "Toggle password visibility",

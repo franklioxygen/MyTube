@@ -57,6 +57,8 @@ export const pt = {
   enableLogin: "Ativar Proteção de Login",
   allowPasswordLogin: "Permitir Login com Senha",
   allowPasswordLoginHelper: "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
+  allowResetPassword: "Permitir Redefinir Senha",
+  allowResetPasswordHelper: "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
   password: "Senha",
   enterPassword: "Digite a senha",
   togglePasswordVisibility: "Alternar visibilidade da senha",

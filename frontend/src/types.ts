@@ -60,6 +60,7 @@ export interface Settings {
   password?: string;
   isPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
+  allowResetPassword?: boolean;
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;

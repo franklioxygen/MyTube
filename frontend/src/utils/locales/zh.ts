@@ -54,6 +54,8 @@ export const zh = {
   enableLogin: "启用登录保护",
   allowPasswordLogin: "允许密码登录",
   allowPasswordLoginHelper: "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
+  allowResetPassword: "允许重置密码",
+  allowResetPasswordHelper: "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
   password: "密码",
   enterPassword: "输入密码",
   togglePasswordVisibility: "切换密码可见性",

@@ -162,6 +162,22 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         </Typography>
                     </Box>
 
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={settings.allowResetPassword !== false}
+                                onChange={(e) => onChange('allowResetPassword', e.target.checked)}
+                                disabled={!settings.loginEnabled}
+                            />
+                        }
+                        label={t('allowResetPassword') || 'Allow Reset Password'}
+                    />
+                    <Box sx={{ mt: 1, mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {t('allowResetPasswordHelper') || 'When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.'}
+                        </Typography>
+                    </Box>
+
                     {settings.passwordLoginAllowed !== false && (
                         <TextField
                             fullWidth

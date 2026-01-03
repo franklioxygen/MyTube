@@ -56,6 +56,8 @@ export const ko = {
   enableLogin: "로그인 보호 활성화",
   allowPasswordLogin: "비밀번호 로그인 허용",
   allowPasswordLoginHelper: "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
+  allowResetPassword: "비밀번호 재설정 허용",
+  allowResetPasswordHelper: "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
   password: "비밀번호",
   enterPassword: "비밀번호 입력",
   togglePasswordVisibility: "비밀번호 표시 전환",

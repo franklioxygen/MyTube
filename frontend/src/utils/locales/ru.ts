@@ -66,6 +66,8 @@ export const ru = {
   enableLogin: "Включить защиту входа",
   allowPasswordLogin: "Разрешить вход по паролю",
   allowPasswordLoginHelper: "При отключении вход по паролю недоступен. Для отключения входа по паролю необходимо иметь хотя бы один ключ доступа.",
+  allowResetPassword: "Разрешить сброс пароля",
+  allowResetPasswordHelper: "При отключении кнопка сброса пароля не будет отображаться на странице входа, а API сброса пароля будет заблокирована.",
   password: "Пароль",
   enterPassword: "Введите пароль",
   togglePasswordVisibility: "Показать/скрыть пароль",

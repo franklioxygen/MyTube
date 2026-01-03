@@ -53,6 +53,8 @@ export const de = {
   enableLogin: "Anmeldeschutz aktivieren",
   allowPasswordLogin: "Passwort-Anmeldung zulassen",
   allowPasswordLoginHelper: "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
+  allowResetPassword: "Passwort zurücksetzen zulassen",
+  allowResetPasswordHelper: "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
   password: "Passwort",
   enterPassword: "Passwort eingeben",
   togglePasswordVisibility: "Passwort sichtbar machen",

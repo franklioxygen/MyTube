@@ -117,6 +117,13 @@ export async function resetPassword(): Promise<string> {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
 
+  // Check if password reset is allowed (defaults to true for backward compatibility)
+  const allowResetPassword = mergedSettings.allowResetPassword !== false;
+
+  if (!allowResetPassword) {
+    throw new Error("Password reset is not allowed. The allowResetPassword setting is disabled.");
+  }
+
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
 

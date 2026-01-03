@@ -57,6 +57,7 @@ const LoginPage: React.FC = () => {
     });
 
     const passwordLoginAllowed = settingsData?.passwordLoginAllowed !== false;
+    const allowResetPassword = settingsData?.allowResetPassword !== false;
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -426,16 +427,18 @@ const LoginPage: React.FC = () => {
                                             : (t('loginWithPasskey') || 'Login with Passkey')}
                                     </Button>
                                 )}
-                                <Button
-                                    fullWidth
-                                    variant="outlined"
-                                    startIcon={<Refresh />}
-                                    onClick={() => setShowResetModal(true)}
-                                    sx={{ mb: 2 }}
-                                    disabled={resetPasswordMutation.isPending}
-                                >
-                                    {t('resetPassword')}
-                                </Button>
+                                {allowResetPassword && (
+                                    <Button
+                                        fullWidth
+                                        variant="outlined"
+                                        startIcon={<Refresh />}
+                                        onClick={() => setShowResetModal(true)}
+                                        sx={{ mb: 2 }}
+                                        disabled={resetPasswordMutation.isPending}
+                                    >
+                                        {t('resetPassword')}
+                                    </Button>
+                                )}
                                 <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
                                     {waitTime > 0 && (
                                         <Alert severity="warning" sx={{ width: '100%' }}>

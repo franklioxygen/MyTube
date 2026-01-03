@@ -64,6 +64,8 @@ export const es = {
   enableLogin: "Habilitar Protección de Inicio de Sesión",
   allowPasswordLogin: "Permitir Inicio de Sesión con Contraseña",
   allowPasswordLoginHelper: "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
+  allowResetPassword: "Permitir Restablecer Contraseña",
+  allowResetPasswordHelper: "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
   password: "Contraseña",
   enterPassword: "Introducir contraseña",
   togglePasswordVisibility: "Alternar visibilidad de contraseña",
