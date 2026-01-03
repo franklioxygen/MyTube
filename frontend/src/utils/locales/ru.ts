@@ -64,6 +64,8 @@ export const ru = {
   videoColumns: "Колонки видео (Главная страница)",
   columnsCount: "{count} колонок",
   enableLogin: "Включить защиту входа",
+  allowPasswordLogin: "Разрешить вход по паролю",
+  allowPasswordLoginHelper: "При отключении вход по паролю недоступен. Для отключения входа по паролю необходимо иметь хотя бы один ключ доступа.",
   password: "Пароль",
   enterPassword: "Введите пароль",
   togglePasswordVisibility: "Показать/скрыть пароль",

@@ -51,6 +51,8 @@ export const de = {
   videoColumns: "Videospalten (Startseite)",
   columnsCount: "{count} Spalten",
   enableLogin: "Anmeldeschutz aktivieren",
+  allowPasswordLogin: "Passwort-Anmeldung zulassen",
+  allowPasswordLoginHelper: "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
   password: "Passwort",
   enterPassword: "Passwort eingeben",
   togglePasswordVisibility: "Passwort sichtbar machen",

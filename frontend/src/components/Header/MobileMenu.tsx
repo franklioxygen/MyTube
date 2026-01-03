@@ -1,6 +1,9 @@
-import { Settings, VideoLibrary } from '@mui/icons-material';
-import { Box, Button, Collapse, Stack } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Logout, Settings, VideoLibrary } from '@mui/icons-material';
+import { Box, Button, Collapse, Divider, Stack } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Collection, Video } from '../../types';
@@ -45,7 +48,33 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onTagToggle
 }) => {
     const { t } = useLanguage();
+    const { logout } = useAuth();
     const { visitorMode } = useVisitorMode();
+    const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    // Check if login is enabled
+    const { data: settingsData } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
+                return response.data;
+            } catch (error) {
+                return null;
+            }
+        },
+        retry: 1,
+        retryDelay: 1000,
+    });
+
+    const loginEnabled = settingsData?.loginEnabled || false;
+
+    const handleLogout = () => {
+        onClose();
+        logout();
+        navigate('/');
+    };
 
     return (
         <Collapse in={open} sx={{ width: '100%' }}>
@@ -90,6 +119,22 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                             {t('settings')}
                         </Button>
                     </Box>
+
+                    {/* Logout Button */}
+                    {loginEnabled && (
+                        <>
+                            <Divider />
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                fullWidth
+                                onClick={handleLogout}
+                                startIcon={<Logout />}
+                            >
+                                {t('logout')}
+                            </Button>
+                        </>
+                    )}
 
                     {/* Mobile Navigation Items */}
                     <Box sx={{ mt: 2 }}>

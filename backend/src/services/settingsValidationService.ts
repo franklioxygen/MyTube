@@ -137,9 +137,19 @@ export async function prepareSettingsForSave(
   const prepared = { ...newSettings };
 
   // Handle password hashing
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = existingSettings.passwordLoginAllowed !== false;
+  
   if (prepared.password) {
-    // If password is provided, hash it
-    prepared.password = await hashPassword(prepared.password);
+    // If password login is not allowed, reject password updates
+    if (!passwordLoginAllowed) {
+      // Remove password from prepared settings to prevent update
+      delete prepared.password;
+      logger.warn("Password update rejected: password login is not allowed");
+    } else {
+      // If password is provided and allowed, hash it
+      prepared.password = await hashPassword(prepared.password);
+    }
   } else {
     // If password is empty/not provided, keep existing password
     prepared.password = existingSettings.password;

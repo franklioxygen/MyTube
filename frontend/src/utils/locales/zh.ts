@@ -52,6 +52,8 @@ export const zh = {
   videoColumns: "视频列数 (主页)",
   columnsCount: "{count} 列",
   enableLogin: "启用登录保护",
+  allowPasswordLogin: "允许密码登录",
+  allowPasswordLoginHelper: "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
   password: "密码",
   enterPassword: "输入密码",
   togglePasswordVisibility: "切换密码可见性",

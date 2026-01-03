@@ -55,6 +55,8 @@ export const pt = {
   videoColumns: "Colunas de vídeo (Página inicial)",
   columnsCount: "{count} Colunas",
   enableLogin: "Ativar Proteção de Login",
+  allowPasswordLogin: "Permitir Login com Senha",
+  allowPasswordLoginHelper: "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
   password: "Senha",
   enterPassword: "Digite a senha",
   togglePasswordVisibility: "Alternar visibilidade da senha",

@@ -55,6 +55,8 @@ export const fr = {
   videoColumns: "Colonnes vidéo (Accueil)",
   columnsCount: "{count} Colonnes",
   enableLogin: "Activer la protection par connexion",
+  allowPasswordLogin: "Autoriser la connexion par mot de passe",
+  allowPasswordLoginHelper: "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
   password: "Mot de passe",
   enterPassword: "Entrez le mot de passe",
   togglePasswordVisibility: "Afficher/Masquer le mot de passe",

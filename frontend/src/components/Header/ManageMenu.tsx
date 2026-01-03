@@ -1,13 +1,17 @@
-import { Help, Settings, VideoLibrary } from '@mui/icons-material';
+import { Help, Logout, Settings, VideoLibrary } from '@mui/icons-material';
 import {
     alpha,
+    Divider,
     Fade,
     Menu,
     MenuItem,
     useMediaQuery,
     useTheme
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface ManageMenuProps {
@@ -21,8 +25,33 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
 }) => {
     const navigate = useNavigate();
     const { t } = useLanguage();
+    const { logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    // Check if login is enabled
+    const { data: settingsData } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
+                return response.data;
+            } catch (error) {
+                return null;
+            }
+        },
+        retry: 1,
+        retryDelay: 1000,
+    });
+
+    const loginEnabled = settingsData?.loginEnabled || false;
+
+    const handleLogout = () => {
+        onClose();
+        logout();
+        navigate('/');
+    };
 
     return (
         <Menu
@@ -68,6 +97,12 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
                 <MenuItem onClick={() => { onClose(); navigate('/instruction'); }}>
                     <Help sx={{ mr: 2 }} /> {t('instruction')}
                 </MenuItem>
+                {loginEnabled && <Divider />}
+                {loginEnabled && (
+                    <MenuItem onClick={handleLogout}>
+                        <Logout sx={{ mr: 2 }} /> {t('logout')}
+                    </MenuItem>
+                )}
             </Menu>
     );
 };

@@ -52,6 +52,8 @@ export const ar = {
   videoColumns: "أعمدة الفيديو (الصفحة الرئيسية)",
   columnsCount: "{count} أعمدة",
   enableLogin: "تفعيل حماية تسجيل الدخول",
+  allowPasswordLogin: "السماح بتسجيل الدخول بكلمة المرور",
+  allowPasswordLoginHelper: "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
   password: "كلمة المرور",
   enterPassword: "أدخل كلمة المرور",
   togglePasswordVisibility: "تبديل رؤية كلمة المرور",

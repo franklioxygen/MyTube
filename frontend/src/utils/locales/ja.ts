@@ -54,6 +54,8 @@ export const ja = {
   videoColumns: "ビデオ列数 (ホームページ)",
   columnsCount: "{count} 列",
   enableLogin: "ログイン保護を有効にする",
+  allowPasswordLogin: "パスワードログインを許可",
+  allowPasswordLoginHelper: "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
   password: "パスワード",
   enterPassword: "パスワードを入力",
   togglePasswordVisibility: "パスワードの表示切り替え",

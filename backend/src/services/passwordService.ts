@@ -6,17 +6,30 @@ import { logger } from "../utils/logger";
 import { Settings, defaultSettings } from "../types/settings";
 
 /**
+ * Check if login is required (loginEnabled is true)
+ */
+export function isLoginRequired(): boolean {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+  return mergedSettings.loginEnabled === true;
+}
+
+/**
  * Check if password authentication is enabled
  */
 export function isPasswordEnabled(): {
   enabled: boolean;
   waitTime?: number;
+  loginRequired?: boolean;
 } {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
 
-  // Return true only if login is enabled AND a password is set
-  const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password;
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  // Return true only if login is enabled AND a password is set AND password login is allowed
+  const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password && passwordLoginAllowed;
 
   // Check for remaining wait time
   const remainingWaitTime = loginAttemptService.canAttemptLogin();
@@ -24,6 +37,7 @@ export function isPasswordEnabled(): {
   return {
     enabled: isEnabled,
     waitTime: remainingWaitTime > 0 ? remainingWaitTime : undefined,
+    loginRequired: mergedSettings.loginEnabled === true,
   };
 }
 
@@ -40,6 +54,16 @@ export async function verifyPassword(
 }> {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  if (!passwordLoginAllowed) {
+    return {
+      success: false,
+      message: "Password login is not allowed. Please use passkey authentication.",
+    };
+  }
 
   if (!mergedSettings.password) {
     // If no password set but login enabled, allow access
@@ -90,6 +114,16 @@ export async function hashPassword(password: string): Promise<string> {
  * Returns the new password (should be logged, not sent to frontend)
  */
 export async function resetPassword(): Promise<string> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  if (!passwordLoginAllowed) {
+    throw new Error("Password reset is not allowed when password login is disabled");
+  }
+
   // Generate random 8-character password using cryptographically secure random
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -102,8 +136,6 @@ export async function resetPassword(): Promise<string> {
   const hashedPassword = await hashPassword(newPassword);
 
   // Update settings with new password
-  const settings = storageService.getSettings();
-  const mergedSettings = { ...defaultSettings, ...settings };
   mergedSettings.password = hashedPassword;
   mergedSettings.loginEnabled = true; // Ensure login is enabled
 

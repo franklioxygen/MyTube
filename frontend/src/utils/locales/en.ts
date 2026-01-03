@@ -52,6 +52,8 @@ export const en = {
   videoColumns: "Video Columns (Homepage)",
   columnsCount: "{count} Columns",
   enableLogin: "Enable Login Protection",
+  allowPasswordLogin: "Allow Password Login",
+  allowPasswordLoginHelper: "When disabled, password login is not available. You must have at least one passkey to disable password login.",
   password: "Password",
   enterPassword: "Enter Password",
   togglePasswordVisibility: "Toggle password visibility",

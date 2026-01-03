@@ -1,4 +1,4 @@
-import { Box, Button, FormControlLabel, Switch, TextField } from '@mui/material';
+import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
@@ -146,18 +146,36 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
             {settings.loginEnabled && (
                 <Box sx={{ mt: 2, maxWidth: 400 }}>
-                    <TextField
-                        fullWidth
-                        label={t('password')}
-                        type="password"
-                        value={settings.password || ''}
-                        onChange={(e) => onChange('password', e.target.value)}
-                        helperText={
-                            settings.isPasswordSet
-                                ? t('passwordHelper')
-                                : t('passwordSetHelper')
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={settings.passwordLoginAllowed !== false}
+                                onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
+                                disabled={!settings.loginEnabled || !passkeysExist}
+                            />
                         }
+                        label={t('allowPasswordLogin') || 'Allow Password Login'}
                     />
+                    <Box sx={{ mt: 1, mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {t('allowPasswordLoginHelper') || 'When disabled, password login is not available. You must have at least one passkey to disable password login.'}
+                        </Typography>
+                    </Box>
+
+                    {settings.passwordLoginAllowed !== false && (
+                        <TextField
+                            fullWidth
+                            label={t('password')}
+                            type="password"
+                            value={settings.password || ''}
+                            onChange={(e) => onChange('password', e.target.value)}
+                            helperText={
+                                settings.isPasswordSet
+                                    ? t('passwordHelper')
+                                    : t('passwordSetHelper')
+                            }
+                        />
+                    )}
 
                     <Box sx={{ mt: 3 }}>
                         <Box sx={{ mb: 2 }}>

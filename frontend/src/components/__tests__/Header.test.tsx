@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from '../../contexts/AuthContext';
 import Header from '../Header';
 
 // Mock contexts
@@ -92,11 +93,13 @@ describe('Header', () => {
         });
         return render(
             <QueryClientProvider client={queryClient}>
-                <ThemeProvider theme={theme}>
-                    <BrowserRouter>
-                        <Header {...defaultProps} {...props} />
-                    </BrowserRouter>
-                </ThemeProvider>
+                <AuthProvider>
+                    <ThemeProvider theme={theme}>
+                        <BrowserRouter>
+                            <Header {...defaultProps} {...props} />
+                        </BrowserRouter>
+                    </ThemeProvider>
+                </AuthProvider>
             </QueryClientProvider>
         );
     };
@@ -124,14 +127,14 @@ describe('Header', () => {
         // and fall back to the default name. We verify the component renders correctly either way.
         const logo = screen.getByAltText('MyTube Logo');
         expect(logo).toBeInTheDocument();
-        
+
         // Wait for the component to stabilize after async operations
         await waitFor(() => {
             // The title should be either "TestTube" (if settings succeeds) or "MyTube" (default)
             const title = screen.queryByText('TestTube') || screen.queryByText('MyTube');
             expect(title).toBeInTheDocument();
         }, { timeout: 2000 });
-        
+
         // Logo should always be present
         expect(logo).toBeInTheDocument();
     });

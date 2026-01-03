@@ -41,7 +41,7 @@ const LoginPage: React.FC = () => {
     const { login } = useAuth();
     const queryClient = useQueryClient();
 
-    // Fetch website name from settings
+    // Fetch website name and settings from settings
     const { data: settingsData } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
@@ -55,6 +55,8 @@ const LoginPage: React.FC = () => {
         retry: 1,
         retryDelay: 1000,
     });
+
+    const passwordLoginAllowed = settingsData?.passwordLoginAllowed !== false;
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -99,9 +101,9 @@ const LoginPage: React.FC = () => {
         }
     }, [statusData]);
 
-    // Auto-login if password is not enabled
+    // Auto-login only if login is not required
     useEffect(() => {
-        if (statusData && statusData.enabled === false) {
+        if (statusData && statusData.loginRequired === false) {
             login();
         }
     }, [statusData, login]);
@@ -350,61 +352,79 @@ const LoginPage: React.FC = () => {
                                 </Typography>
                             </Box>
                             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-                                <TextField
-                                    margin="normal"
-                                    required
-                                    fullWidth
-                                    name="password"
-                                    label={t('password')}
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password"
-                                    autoComplete="current-password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    autoFocus
-                                    disabled={waitTime > 0 || loginMutation.isPending}
-                                    helperText={t('defaultPasswordHint') || "Default password: 123"}
-                                    slotProps={{
-                                        input: {
-                                            endAdornment: (
-                                                <InputAdornment position="end">
-                                                    <IconButton
-                                                        aria-label={t('togglePasswordVisibility')}
-                                                        onClick={() => setShowPassword(!showPassword)}
-                                                        edge="end"
-                                                    >
-                                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                                    </IconButton>
-                                                </InputAdornment>
-                                            )
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    type="submit"
-                                    fullWidth
-                                    variant="contained"
-                                    sx={{ mt: 3, mb: 2 }}
-                                    disabled={loginMutation.isPending || waitTime > 0}
-                                >
-                                    {loginMutation.isPending ? (t('verifying') || 'Verifying...') : t('signIn')}
-                                </Button>
-                                {passkeysExist && (
+                                {passwordLoginAllowed && (
                                     <>
-                                        <Divider sx={{ my: 2 }}>OR</Divider>
-                                        <Button
+                                        <TextField
+                                            margin="normal"
+                                            required
                                             fullWidth
-                                            variant="outlined"
-                                            startIcon={<Fingerprint />}
-                                            onClick={handlePasskeyLogin}
-                                            sx={{ mb: 2 }}
-                                            disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                            name="password"
+                                            label={t('password')}
+                                            type={showPassword ? 'text' : 'password'}
+                                            id="password"
+                                            autoComplete="current-password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            autoFocus
+                                            disabled={waitTime > 0 || loginMutation.isPending}
+                                            helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                            slotProps={{
+                                                input: {
+                                                    endAdornment: (
+                                                        <InputAdornment position="end">
+                                                            <IconButton
+                                                                aria-label={t('togglePasswordVisibility')}
+                                                                onClick={() => setShowPassword(!showPassword)}
+                                                                edge="end"
+                                                            >
+                                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            type="submit"
+                                            fullWidth
+                                            variant="contained"
+                                            sx={{ mt: 3, mb: 2 }}
+                                            disabled={loginMutation.isPending || waitTime > 0}
                                         >
-                                            {passkeyLoginMutation.isPending
-                                                ? (t('authenticating') || 'Authenticating...')
-                                                : (t('loginWithPasskey') || 'Login with Passkey')}
+                                            {loginMutation.isPending ? (t('verifying') || 'Verifying...') : t('signIn')}
                                         </Button>
+                                        {passkeysExist && (
+                                            <>
+                                                <Divider sx={{ my: 2 }}>OR</Divider>
+                                                <Button
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    startIcon={<Fingerprint />}
+                                                    onClick={handlePasskeyLogin}
+                                                    sx={{ mb: 2 }}
+                                                    disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                >
+                                                    {passkeyLoginMutation.isPending
+                                                        ? (t('authenticating') || 'Authenticating...')
+                                                        : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                </Button>
+                                            </>
+                                        )}
                                     </>
+                                )}
+                                {!passwordLoginAllowed && passkeysExist && (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        startIcon={<Fingerprint />}
+                                        onClick={handlePasskeyLogin}
+                                        sx={{ mt: 3, mb: 2 }}
+                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                    >
+                                        {passkeyLoginMutation.isPending
+                                            ? (t('authenticating') || 'Authenticating...')
+                                            : (t('loginWithPasskey') || 'Login with Passkey')}
+                                    </Button>
                                 )}
                                 <Button
                                     fullWidth

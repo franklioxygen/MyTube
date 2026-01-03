@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const response = await axios.get(`${API_URL}/settings`);
                 const { loginEnabled, isPasswordSet } = response.data;
 
-                // Login is required only if enabled AND a password is set
+                // Login is required if loginEnabled is true (regardless of password or passkey)
                 if (!loginEnabled || !isPasswordSet) {
                     setLoginRequired(false);
                     setIsAuthenticated(true);

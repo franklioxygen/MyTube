@@ -62,6 +62,8 @@ export const es = {
   videoColumns: "Columnas de video (Página de inicio)",
   columnsCount: "{count} Columnas",
   enableLogin: "Habilitar Protección de Inicio de Sesión",
+  allowPasswordLogin: "Permitir Inicio de Sesión con Contraseña",
+  allowPasswordLoginHelper: "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
   password: "Contraseña",
   enterPassword: "Introducir contraseña",
   togglePasswordVisibility: "Alternar visibilidad de contraseña",
