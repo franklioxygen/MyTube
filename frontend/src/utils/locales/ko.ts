@@ -317,6 +317,7 @@ export const ko = {
   resetPasswordSuccess:
     "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
   resetPasswordDisabledInfo: "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
+  resetPasswordScriptGuide: "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
   // Passkeys

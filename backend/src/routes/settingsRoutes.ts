@@ -20,6 +20,7 @@ import {
 } from "../controllers/hookController";
 import {
   getPasswordEnabled,
+  getResetPasswordCooldown,
   resetPassword,
   verifyPassword,
 } from "../controllers/passwordController";
@@ -54,6 +55,7 @@ router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
+router.get("/reset-password-cooldown", asyncHandler(getResetPasswordCooldown));
 router.post("/verify-password", asyncHandler(verifyPassword));
 router.post("/reset-password", asyncHandler(resetPassword));
 

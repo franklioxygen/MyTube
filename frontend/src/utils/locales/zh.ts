@@ -53,9 +53,11 @@ export const zh = {
   columnsCount: "{count} 列",
   enableLogin: "启用登录保护",
   allowPasswordLogin: "允许密码登录",
-  allowPasswordLoginHelper: "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
+  allowPasswordLoginHelper:
+    "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
   allowResetPassword: "允许重置密码",
-  allowResetPasswordHelper: "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
+  allowResetPasswordHelper:
+    "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
   password: "密码",
   enterPassword: "输入密码",
   togglePasswordVisibility: "切换密码可见性",
@@ -304,7 +306,10 @@ export const zh = {
     "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
   resetPasswordConfirm: "重置",
   resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
-  resetPasswordDisabledInfo: "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
+  resetPasswordDisabledInfo:
+    "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
+  resetPasswordScriptGuide:
+    "要手动重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n如果未提供密码，将生成一个随机的8位密码。",
   waitTimeMessage: "请等待 {time} 后再试。",
   tooManyAttempts: "失败尝试次数过多。",
   // Passkeys
@@ -312,8 +317,10 @@ export const zh = {
   creatingPasskey: "创建中...",
   passkeyCreated: "通行密钥创建成功",
   passkeyCreationFailed: "创建通行密钥失败，请重试。",
-  passkeyWebAuthnNotSupported: "此浏览器不支持 WebAuthn。请使用支持 WebAuthn 的现代浏览器。",
-  passkeyRequiresHttps: "WebAuthn 需要 HTTPS 或 localhost。请通过 HTTPS 访问应用程序，或使用 localhost 而不是 IP 地址。",
+  passkeyWebAuthnNotSupported:
+    "此浏览器不支持 WebAuthn。请使用支持 WebAuthn 的现代浏览器。",
+  passkeyRequiresHttps:
+    "WebAuthn 需要 HTTPS 或 localhost。请通过 HTTPS 访问应用程序，或使用 localhost 而不是 IP 地址。",
   removePasskeys: "删除所有通行密钥",
   removePasskeysTitle: "删除所有通行密钥",
   removePasskeysMessage: "您确定要删除所有通行密钥吗？此操作无法撤销。",
@@ -322,7 +329,8 @@ export const zh = {
   loginWithPasskey: "使用通行密钥登录",
   authenticating: "验证中...",
   passkeyLoginFailed: "通行密钥验证失败，请重试。",
-  passkeyErrorPermissionDenied: "用户代理或平台在当前上下文中不允许该请求，可能是因为用户拒绝了权限。",
+  passkeyErrorPermissionDenied:
+    "用户代理或平台在当前上下文中不允许该请求，可能是因为用户拒绝了权限。",
   passkeyErrorAlreadyRegistered: "该认证器之前已注册。",
   linkCopied: "链接已复制到剪贴板",
   copyFailed: "复制链接失败",
@@ -480,7 +488,8 @@ export const zh = {
   taskDeleted: "任务已成功删除",
   clearFinishedTasks: "清除已完成任务",
   tasksCleared: "已成功清除已完成的任务",
-  confirmClearFinishedTasks: "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
+  confirmClearFinishedTasks:
+    "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
   clear: "清除",
 
   // Existing Video Detection
@@ -636,24 +645,25 @@ export const zh = {
   copyUrl: "复制链接",
   new: "新",
   // Task Hooks
-  taskHooks: '任务钩子',
-  taskHooksDescription: '在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。',
-  taskHooksWarning: '警告：命令将以服务器权限运行。请谨慎使用。',
-  enterPasswordToUploadHook: '请输入密码以上传此 Hook 脚本。',
-  riskCommandDetected: '检测到危险命令：{command}。上传已拒绝。',
-  hookTaskBeforeStart: '任务开始前',
-  hookTaskBeforeStartHelper: '在下载开始前执行。',
-  hookTaskSuccess: '任务成功',
-  hookTaskSuccessHelper: '在下载成功后，云上传/删除前执行 (等待完成)。',
-  hookTaskFail: '任务失败',
-  hookTaskFailHelper: '当任务失败时执行。',
-  hookTaskCancel: '任务取消',
-  hookTaskCancelHelper: '当任务被手动取消时执行。',
-  found: '已找到',
-  notFound: '未设置',
-  deleteHook: '删除钩子脚本',
-  confirmDeleteHook: '确定要删除此钩子脚本吗？',
-  uploadHook: '上传 .sh',
+  taskHooks: "任务钩子",
+  taskHooksDescription:
+    "在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
+  taskHooksWarning: "警告：命令将以服务器权限运行。请谨慎使用。",
+  enterPasswordToUploadHook: "请输入密码以上传此 Hook 脚本。",
+  riskCommandDetected: "检测到危险命令：{command}。上传已拒绝。",
+  hookTaskBeforeStart: "任务开始前",
+  hookTaskBeforeStartHelper: "在下载开始前执行。",
+  hookTaskSuccess: "任务成功",
+  hookTaskSuccessHelper: "在下载成功后，云上传/删除前执行 (等待完成)。",
+  hookTaskFail: "任务失败",
+  hookTaskFailHelper: "当任务失败时执行。",
+  hookTaskCancel: "任务取消",
+  hookTaskCancelHelper: "当任务被手动取消时执行。",
+  found: "已找到",
+  notFound: "未设置",
+  deleteHook: "删除钩子脚本",
+  confirmDeleteHook: "确定要删除此钩子脚本吗？",
+  uploadHook: "上传 .sh",
 
   disclaimerTitle: "免责声明",
   disclaimerText:

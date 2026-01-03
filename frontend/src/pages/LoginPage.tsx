@@ -39,6 +39,7 @@ const LoginPage: React.FC = () => {
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [websiteName, setWebsiteName] = useState('MyTube');
+    const [resetPasswordCooldown, setResetPasswordCooldown] = useState(0); // in milliseconds
     const { t } = useLanguage();
     const { login } = useAuth();
     const queryClient = useQueryClient();
@@ -97,12 +98,40 @@ const LoginPage: React.FC = () => {
 
     const passkeysExist = passkeysData?.exists || false;
 
+    // Fetch reset password cooldown from backend
+    const { data: cooldownData } = useQuery({
+        queryKey: ['resetPasswordCooldown'],
+        queryFn: async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings/reset-password-cooldown`, { timeout: 5000 });
+                return response.data;
+            } catch (error) {
+                return { cooldown: 0 };
+            }
+        },
+        retry: 1,
+        retryDelay: 1000,
+        enabled: !isCheckingConnection && !isConnectionError,
+        refetchInterval: (query) => {
+            // Refetch every second if there's an active cooldown
+            const cooldown = query.state.data?.cooldown || 0;
+            return cooldown > 0 ? 1000 : false;
+        },
+    });
+
     // Initialize wait time from server response
     useEffect(() => {
         if (statusData && statusData.waitTime) {
             setWaitTime(statusData.waitTime);
         }
     }, [statusData]);
+
+    // Update reset password cooldown from server response
+    useEffect(() => {
+        if (cooldownData && cooldownData.cooldown !== undefined) {
+            setResetPasswordCooldown(cooldownData.cooldown);
+        }
+    }, [cooldownData]);
 
     // Auto-login only if login is not required
     useEffect(() => {
@@ -123,6 +152,19 @@ const LoginPage: React.FC = () => {
             return () => clearInterval(interval);
         }
     }, [waitTime]);
+
+    // Countdown timer for reset password cooldown (updates local state while server refetches)
+    useEffect(() => {
+        if (resetPasswordCooldown > 0) {
+            const interval = setInterval(() => {
+                setResetPasswordCooldown((prev) => {
+                    const newTime = prev - 1000;
+                    return newTime > 0 ? newTime : 0;
+                });
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [resetPasswordCooldown]);
 
     // Use dark theme for login page to match app style
     const theme = getTheme('dark');
@@ -196,13 +238,22 @@ const LoginPage: React.FC = () => {
             setShowResetModal(false);
             setError('');
             setWaitTime(0);
+            // Invalidate queries to refresh cooldown status
             queryClient.invalidateQueries({ queryKey: ['healthCheck'] });
+            queryClient.invalidateQueries({ queryKey: ['resetPasswordCooldown'] });
             // Show success message
             showAlert(t('success'), t('resetPasswordSuccess'));
         },
         onError: (err: any) => {
             console.error('Reset password error:', err);
-            showAlert(t('error'), t('loginFailed'));
+            if (err.response && err.response.data && err.response.data.message) {
+                // Server returned a specific error message (likely cooldown)
+                showAlert(t('error'), err.response.data.message);
+                // Refresh cooldown status
+                queryClient.invalidateQueries({ queryKey: ['resetPasswordCooldown'] });
+            } else {
+                showAlert(t('error'), t('loginFailed'));
+            }
         }
     });
 
@@ -442,9 +493,11 @@ const LoginPage: React.FC = () => {
                                         startIcon={<Refresh />}
                                         onClick={() => setShowResetModal(true)}
                                         sx={{ mb: 2 }}
-                                        disabled={resetPasswordMutation.isPending}
+                                        disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
                                     >
-                                        {t('resetPassword')}
+                                        {resetPasswordCooldown > 0
+                                            ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
+                                            : t('resetPassword')}
                                     </Button>
                                 )}
                                 {!allowResetPassword && passwordLoginAllowed && (
@@ -489,7 +542,7 @@ const LoginPage: React.FC = () => {
                 onClose={() => setShowResetModal(false)}
                 onConfirm={handleResetPassword}
                 title={t('resetPasswordTitle')}
-                message={t('resetPasswordMessage')}
+                message={`${t('resetPasswordMessage')}\n\n${t('resetPasswordScriptGuide')}`}
                 confirmText={t('resetPasswordConfirm')}
                 cancelText={t('cancel')}
                 isDanger={true}

@@ -109,6 +109,28 @@ export async function hashPassword(password: string): Promise<string> {
   return await bcrypt.hash(password, salt);
 }
 
+const RESET_PASSWORD_COOLDOWN = 60 * 60 * 1000; // 1 hour in milliseconds
+
+/**
+ * Get the remaining cooldown time for password reset
+ * Returns the remaining time in milliseconds, or 0 if no cooldown
+ */
+export function getResetPasswordCooldown(): number {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  const lastResetTime = (mergedSettings as any).lastPasswordResetTime as number | undefined;
+  
+  if (!lastResetTime) {
+    return 0;
+  }
+
+  const timeSinceLastReset = Date.now() - lastResetTime;
+  const remainingCooldown = RESET_PASSWORD_COOLDOWN - timeSinceLastReset;
+
+  return remainingCooldown > 0 ? remainingCooldown : 0;
+}
+
 /**
  * Reset password to a random 8-character string
  * Returns the new password (should be logged, not sent to frontend)
@@ -131,6 +153,13 @@ export async function resetPassword(): Promise<string> {
     throw new Error("Password reset is not allowed when password login is disabled");
   }
 
+  // Check cooldown period (1 hour)
+  const remainingCooldown = getResetPasswordCooldown();
+  if (remainingCooldown > 0) {
+    const minutes = Math.ceil(remainingCooldown / (60 * 1000));
+    throw new Error(`Password reset is on cooldown. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before trying again.`);
+  }
+
   // Generate random 8-character password using cryptographically secure random
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -142,9 +171,10 @@ export async function resetPassword(): Promise<string> {
   // Hash the new password
   const hashedPassword = await hashPassword(newPassword);
 
-  // Update settings with new password
+  // Update settings with new password and reset timestamp
   mergedSettings.password = hashedPassword;
   mergedSettings.loginEnabled = true; // Ensure login is enabled
+  (mergedSettings as any).lastPasswordResetTime = Date.now();
 
   storageService.saveSettings(mergedSettings);
 

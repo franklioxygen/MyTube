@@ -315,6 +315,7 @@ export const ar = {
   resetPasswordSuccess:
     "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
   resetPasswordDisabledInfo: "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
+  resetPasswordScriptGuide: "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
   // Passkeys
