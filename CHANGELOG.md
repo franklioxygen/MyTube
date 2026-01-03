@@ -1,6 +1,16 @@
 # Change Log
 
 
+## v1.7.25 (2026-01-02)
+
+### Feat
+
+- feat: add passkey feature (6fdfa90)
+
+### Refactor
+
+- refactor: Update formatUtils to use formatRelativeDownloadTime function (c9657ba)
+
 ## v1.7.24 (2026-01-01)
 
 ### Refactor
