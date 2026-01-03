@@ -1,6 +1,21 @@
 # Change Log
 
 
+## v1.7.27 (2026-01-03)
+
+### Feat
+
+- feat: Add endpoint for retrieving reset password cooldown (092a79f)
+- feat: Add WebAuthn error translations (9296390)
+
+## v1.7.26 (2026-01-03)
+
+### Feat
+
+- feat: Add script to reset password securely (1b9451b)
+- feat: Add allowResetPassword setting and UI components (9968268)
+- feat: Add password login permission handling (ce544ff)
+
 ## v1.7.25 (2026-01-02)
 
 ### Feat
