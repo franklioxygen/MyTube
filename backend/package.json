@@ -16,6 +16,7 @@
   "license": "ISC",
   "description": "Backend for MyTube video streaming website",
   "dependencies": {
+    "@simplewebauthn/server": "^13.2.2",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.6",

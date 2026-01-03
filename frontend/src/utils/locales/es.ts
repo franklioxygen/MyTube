@@ -56,7 +56,8 @@ export const es = {
   websiteName: "Nombre del sitio web",
   websiteNameHelper: "{current}/{max} caracteres (Predeterminado: {default})",
   infiniteScroll: "Desplazamiento infinito",
-  infiniteScrollDisabled: "Desactivado cuando el desplazamiento infinito está habilitado",
+  infiniteScrollDisabled:
+    "Desactivado cuando el desplazamiento infinito está habilitado",
   maxVideoColumns: "Columnas de video máximas (Página de inicio)",
   videoColumns: "Columnas de video (Página de inicio)",
   columnsCount: "{count} Columnas",
@@ -139,8 +140,10 @@ export const es = {
   showYoutubeSearch: "Mostrar resultados de búsqueda de YouTube",
   visitorMode: "Modo Visitante (Solo lectura)",
   visitorModeReadOnly: "Modo visitante: Solo lectura",
-  visitorModeDescription: "Modo de solo lectura. Los videos ocultos no serán visibles para los visitantes.",
-  visitorModePasswordPrompt: "Por favor, introduzca la contraseña del sitio web para cambiar la configuración del modo visitante.",
+  visitorModeDescription:
+    "Modo de solo lectura. Los videos ocultos no serán visibles para los visitantes.",
+  visitorModePasswordPrompt:
+    "Por favor, introduzca la contraseña del sitio web para cambiar la configuración del modo visitante.",
   cleanupTempFilesSuccess:
     "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
   cleanupTempFilesFailed: "Error al limpiar archivos temporales",
@@ -170,11 +173,13 @@ export const es = {
   apiUrlHelper: "ej. https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "URL Público",
-  publicUrlHelper: "Dominio público para acceder a archivos (ej. https://your-cloudflare-tunnel-domain.com). Si se establece, se usará en lugar de la URL de la API para acceder a archivos.",
+  publicUrlHelper:
+    "Dominio público para acceder a archivos (ej. https://your-cloudflare-tunnel-domain.com). Si se establece, se usará en lugar de la URL de la API para acceder a archivos.",
   uploadPath: "Ruta de carga",
   cloudDrivePathHelper: "Ruta del directorio en la nube, ej. /mytube-uploads",
   scanPaths: "Rutas de escaneo",
-  scanPathsHelper: "Una ruta por línea. Se escanearán videos de estas rutas. Si está vacío, se usará la ruta de carga. Ejemplo:\n/a/Peliculas\n/b/Documentales",
+  scanPathsHelper:
+    "Una ruta por línea. Se escanearán videos de estas rutas. Si está vacío, se usará la ruta de carga. Ejemplo:\n/a/Peliculas\n/b/Documentales",
   cloudDriveNote:
     "Después de habilitar esta función, los videos recién descargados se subirán automáticamente al almacenamiento en la nube y se eliminarán los archivos locales. Los videos se reproducirán desde el almacenamiento en la nube a través de un proxy.",
   cloudScanAdded: "Añadido desde la nube",
@@ -182,26 +187,33 @@ export const es = {
   testConnection: "Probar Conexión",
   sync: "Sincronizar",
   syncToCloud: "Sincronización bidireccional",
-  syncWarning: "Esta operación subirá videos locales a la nube y buscará nuevos archivos en el almacenamiento en la nube. Los archivos locales se eliminarán después de la carga.",
+  syncWarning:
+    "Esta operación subirá videos locales a la nube y buscará nuevos archivos en el almacenamiento en la nube. Los archivos locales se eliminarán después de la carga.",
   syncing: "Sincronizando...",
   syncCompleted: "Sincronización Completada",
   syncFailed: "Sincronización Fallida",
   syncReport: "Total: {total} | Cargados: {uploaded} | Fallidos: {failed}",
   syncErrors: "Errores:",
   fillApiUrlToken: "Por favor complete primero la URL de la API y el Token",
-  connectionTestSuccess: "¡Prueba de conexión exitosa! La configuración es válida.",
-  connectionFailedStatus: "Conexión fallida: El servidor devolvió el estado {status}",
-  connectionFailedUrl: "No se puede conectar al servidor. Por favor verifique la URL de la API.",
+  connectionTestSuccess:
+    "¡Prueba de conexión exitosa! La configuración es válida.",
+  connectionFailedStatus:
+    "Conexión fallida: El servidor devolvió el estado {status}",
+  connectionFailedUrl:
+    "No se puede conectar al servidor. Por favor verifique la URL de la API.",
   authFailed: "Autentiación fallida. Por favor verifique su token.",
   connectionTestFailed: "Prueba de conexión fallida: {error}",
   syncFailedMessage: "Sincronización fallida. Por favor intente de nuevo.",
-  foundVideosToSync: "Se encontraron {count} videos con archivos locales para sincronizar",
+  foundVideosToSync:
+    "Se encontraron {count} videos con archivos locales para sincronizar",
   uploadingVideo: "Subiendo: {title}",
   clearThumbnailCache: "Borrar caché local de miniaturas",
   clearing: "Borrando...",
-  clearThumbnailCacheSuccess: "Caché de miniaturas borrado con éxito. Las miniaturas se regenerarán la próxima vez que se acceda a ellas.",
+  clearThumbnailCacheSuccess:
+    "Caché de miniaturas borrado con éxito. Las miniaturas se regenerarán la próxima vez que se acceda a ellas.",
   clearThumbnailCacheError: "Error al borrar el caché de miniaturas",
-  clearThumbnailCacheConfirmMessage: "Esto borrará todas las miniaturas almacenadas en caché localmente para videos en la nube. Las miniaturas se regenerarán desde el almacenamiento en la nube la próxima vez que se acceda a ellas. ¿Continuar?",
+  clearThumbnailCacheConfirmMessage:
+    "Esto borrará todas las miniaturas almacenadas en caché localmente para videos en la nube. Las miniaturas se regenerarán desde el almacenamiento en la nube la próxima vez que se acceda a ellas. ¿Continuar?",
 
   manageContent: "Gestionar Contenido",
   videos: "Videos",
@@ -300,7 +312,8 @@ export const es = {
   openInExternalPlayer: "Abrir en reproductor externo",
   playWith: "Reproducir con...",
   deleteAllFilteredVideos: "Eliminar todos los videos filtrados",
-  confirmDeleteFilteredVideos: "¿Está seguro de que desea eliminar {count} videos filtrados por las etiquetas seleccionadas?",
+  confirmDeleteFilteredVideos:
+    "¿Está seguro de que desea eliminar {count} videos filtrados por las etiquetas seleccionadas?",
   deleteFilteredVideosSuccess: "Se han eliminado {count} videos con éxito.",
   deletingVideos: "Eliminando videos...",
   signIn: "Iniciar Sesión",
@@ -322,8 +335,27 @@ export const es = {
     "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
+  // Passkeys
+  createPasskey: "Crear clave de acceso",
+  creatingPasskey: "Creando...",
+  passkeyCreated: "Clave de acceso creada exitosamente",
+  passkeyCreationFailed:
+    "Error al crear la clave de acceso. Por favor, inténtelo de nuevo.",
+  removePasskeys: "Eliminar todas las claves de acceso",
+  removePasskeysTitle: "Eliminar todas las claves de acceso",
+  removePasskeysMessage:
+    "¿Está seguro de que desea eliminar todas las claves de acceso? Esta acción no se puede deshacer.",
+  passkeysRemoved: "Todas las claves de acceso han sido eliminadas",
+  passkeysRemoveFailed:
+    "Error al eliminar las claves de acceso. Por favor, inténtelo de nuevo.",
+  loginWithPasskey: "Iniciar sesión con clave de acceso",
+  authenticating: "Autenticando...",
+  passkeyLoginFailed:
+    "Error en la autenticación con clave de acceso. Por favor, inténtelo de nuevo.",
   linkCopied: "Enlace copiado al portapapeles",
   copyFailed: "Error al copiar enlace",
+  passkeyRequiresHttps: "WebAuthn requiere HTTPS o localhost. Por favor, acceda a la aplicación a través de HTTPS o utilice localhost en lugar de una dirección IP.",
+  passkeyWebAuthnNotSupported: "WebAuthn no es compatible con este navegador. Por favor, utilice un navegador moderno que sea compatible con WebAuthn.",
 
   // Collection Page: "Cargando colección...", collectionNotFound: "Colección no encontrada",
   noVideosInCollection: "No hay videos en esta colección.",
@@ -333,7 +365,8 @@ export const es = {
   unknownAuthor: "Desconocido",
   noVideosForAuthor: "No se encontraron videos para este autor.",
   deleteAuthor: "Eliminar Autor",
-  deleteAuthorConfirmation: "¿Está seguro de que desea eliminar al autor {author}? Esto eliminará todos los videos asociados con este autor.",
+  deleteAuthorConfirmation:
+    "¿Está seguro de que desea eliminar al autor {author}? Esto eliminará todos los videos asociados con este autor.",
   authorDeletedSuccessfully: "Autor eliminado con éxito",
   failedToDeleteAuthor: "Error al eliminar autor",
   deleteCollectionTitle: "Eliminar Colección",
@@ -375,7 +408,8 @@ export const es = {
   authorOrPlaylist: "Autor / Lista de reproducción",
   playlistDetected: "Lista de reproducción detectada",
   playlistHasVideos: "Esta lista de reproducción tiene {count} videos.",
-  downloadPlaylistAndCreateCollection: "¿Descargar videos de la lista de reproducción y crear una colección para ella?",
+  downloadPlaylistAndCreateCollection:
+    "¿Descargar videos de la lista de reproducción y crear una colección para ella?",
   collectionHasVideos: "Esta colección de Bilibili tiene {count} videos.",
   seriesHasVideos: "Esta serie de Bilibili tiene {count} videos.",
   videoHasParts: "Este video de Bilibili tiene {count} partes.",
@@ -438,7 +472,8 @@ export const es = {
   subscriptionAlreadyExists: "Ya estás suscrito a este autor.",
   minutes: "minutos",
   never: "Nunca",
-  downloadAllPreviousVideos: "Descargar todos los videos anteriores de este autor",
+  downloadAllPreviousVideos:
+    "Descargar todos los videos anteriores de este autor",
   downloadAllPreviousWarning:
     "Advertencia: Esto descargará todos los videos anteriores de este autor. Esto puede consumir un espacio de almacenamiento significativo y podría activar mecanismos de detección de bots que pueden resultar en prohibiciones temporales o permanentes de la plataforma. Úselo bajo su propio riesgo.",
   continuousDownloadTasks: "Tareas de descarga continua",
@@ -448,14 +483,17 @@ export const es = {
   taskStatusCancelled: "Cancelado",
   downloaded: "Descargado",
   cancelTask: "Cancelar tarea",
-  confirmCancelTask: "¿Estás seguro de que quieres cancelar la tarea de descarga para {author}?",
+  confirmCancelTask:
+    "¿Estás seguro de que quieres cancelar la tarea de descarga para {author}?",
   taskCancelled: "Tarea cancelada exitosamente",
   deleteTask: "Eliminar tarea",
-  confirmDeleteTask: "¿Estás seguro de que quieres eliminar el registro de tarea para {author}? Esta acción no se puede deshacer.",
+  confirmDeleteTask:
+    "¿Estás seguro de que quieres eliminar el registro de tarea para {author}? Esta acción no se puede deshacer.",
   taskDeleted: "Tarea eliminada exitosamente",
   clearFinishedTasks: "Borrar tareas finalizadas",
   tasksCleared: "Tareas finalizadas borradas con éxito",
-  confirmClearFinishedTasks: "¿Está seguro de que desea borrar todas las tareas finalizadas (completadas, canceladas)? Esto las eliminará de la lista pero no borrará ningún archivo descargado.",
+  confirmClearFinishedTasks:
+    "¿Está seguro de que desea borrar todas las tareas finalizadas (completadas, canceladas)? Esto las eliminará de la lista pero no borrará ningún archivo descargado.",
   clear: "Borrar",
   // Instruction Page
   instructionSection1Title: "1. Descarga y Gestión de Tareas",
@@ -586,7 +624,8 @@ export const es = {
   cloudflaredTunnel: "Túnel Cloudflare",
   enableCloudflaredTunnel: "Habilitar túnel Cloudflare",
   cloudflaredToken: "Token del túnel (Opcional)",
-  cloudflaredTokenHelper: "Pegue su token de túnel aquí, o déjelo vacío para usar un Quick Tunnel aleatorio.",
+  cloudflaredTokenHelper:
+    "Pegue su token de túnel aquí, o déjelo vacío para usar un Quick Tunnel aleatorio.",
   waitingForUrl: "Esperando URL de Quick Tunnel...",
   running: "Ejecutando",
   stopped: "Detenido",
@@ -594,8 +633,10 @@ export const es = {
   accountTag: "Etiqueta de cuenta",
   copied: "¡Copiado!",
   clickToCopy: "Clic para copiar",
-  quickTunnelWarning: "Las URL de Quick Tunnel cambian cada vez que se reinicia el túnel.",
-  managedInDashboard: "El nombre de host público se gestiona en su panel de control de Cloudflare Zero Trust.",
+  quickTunnelWarning:
+    "Las URL de Quick Tunnel cambian cada vez que se reinicia el túnel.",
+  managedInDashboard:
+    "El nombre de host público se gestiona en su panel de control de Cloudflare Zero Trust.",
   failedToDownloadVideo: "Error al descargar el video. Inténtalo de nuevo.",
   failedToDownload: "Error al descargar. Inténtalo de nuevo.",
   playlistDownloadStarted: "Descarga de lista de reproducción iniciada",
@@ -607,24 +648,28 @@ export const es = {
   copyUrl: "Copiar URL",
   new: "NUEVO",
   // Task Hooks
-  taskHooks: 'Ganchos de Tarea',
-  taskHooksDescription: 'Ejecute comandos de shell personalizados en puntos específicos del ciclo de vida de la tarea. Variables de entorno disponibles: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
-  taskHooksWarning: 'Advertencia: Los comandos se ejecutan con los permisos del servidor. Úselo con precaución.',
-  hookTaskBeforeStart: 'Antes del Inicio de la Tarea',
-  hookTaskBeforeStartHelper: 'Se ejecuta antes de que comience la descarga.',
-  hookTaskSuccess: 'Tarea Exitosa',
-  hookTaskSuccessHelper: 'Se ejecuta después de una descarga exitosa, antes de la carga/eliminación en la nube (espera finalización).',
-  hookTaskFail: 'Tarea Fallida',
-  hookTaskFailHelper: 'Se ejecuta cuando falla una tarea.',
-  hookTaskCancel: 'Tarea Cancelada',
-  hookTaskCancelHelper: 'Se ejecuta cuando una tarea se cancela manualmente.',
-  found: 'Encontrado',
-  notFound: 'No Establecido',
-  deleteHook: 'Eliminar Script de Gancho',
-  confirmDeleteHook: '¿Está seguro de que desea eliminar este script de gancho?',
-  uploadHook: 'Subir .sh',
+  taskHooks: "Ganchos de Tarea",
+  taskHooksDescription:
+    "Ejecute comandos de shell personalizados en puntos específicos del ciclo de vida de la tarea. Variables de entorno disponibles: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning:
+    "Advertencia: Los comandos se ejecutan con los permisos del servidor. Úselo con precaución.",
+  hookTaskBeforeStart: "Antes del Inicio de la Tarea",
+  hookTaskBeforeStartHelper: "Se ejecuta antes de que comience la descarga.",
+  hookTaskSuccess: "Tarea Exitosa",
+  hookTaskSuccessHelper:
+    "Se ejecuta después de una descarga exitosa, antes de la carga/eliminación en la nube (espera finalización).",
+  hookTaskFail: "Tarea Fallida",
+  hookTaskFailHelper: "Se ejecuta cuando falla una tarea.",
+  hookTaskCancel: "Tarea Cancelada",
+  hookTaskCancelHelper: "Se ejecuta cuando una tarea se cancela manualmente.",
+  found: "Encontrado",
+  notFound: "No Establecido",
+  deleteHook: "Eliminar Script de Gancho",
+  confirmDeleteHook:
+    "¿Está seguro de que desea eliminar este script de gancho?",
+  uploadHook: "Subir .sh",
 
   disclaimerTitle: "Descargo de responsabilidad",
-  disclaimerText: "1. Propósito y Restricciones\nEste software (incluyendo código y documentación) está destinado únicamente para aprendizaje personal, investigación e intercambio técnico. Está estrictamente prohibido utilizar este software para fines comerciales o actividades ilegales que violen las leyes y regulaciones locales.\n\n2. Responsabilidad\nEl desarrollador desconoce y no tiene control sobre cómo los usuarios utilizan este software. Cualquier responsabilidad legal, disputa o daño derivado del uso ilegal o indebido de este software (incluyendo, entre otros, la infracción de derechos de autor) recaerá únicamente en el usuario. El desarrollador no asume ninguna responsabilidad directa, indirecta o conjunta.\n\n3. Modificaciones y Distribución\nEste proyecto es de código abierto. Cualquier individuo u organización que modifique o bifurque este código debe cumplir con la licencia de código abierto. Importante: Si un tercero modifica el código para eludir o eliminar los mecanismos originales de autenticación/seguridad del usuario y distribuye dichas versiones, el modificador/distribuidor asume toda la responsabilidad por cualquier consecuencia. Desaconsejamos encarecidamente eludir o manipular cualquier mecanismo de verificación de seguridad.\n\n4. Declaración Sin Fines de Lucro\nEste es un proyecto de código abierto completamente gratuito. El desarrollador no acepta donaciones y nunca ha publicado páginas de donación. El software en sí no permite cargos y no ofrece servicios pagos. Por favor, esté atento y tenga cuidado con cualquier estafa o información engañosa que reclame cobrar tarifas en nombre de este proyecto.",
-
+  disclaimerText:
+    "1. Propósito y Restricciones\nEste software (incluyendo código y documentación) está destinado únicamente para aprendizaje personal, investigación e intercambio técnico. Está estrictamente prohibido utilizar este software para fines comerciales o actividades ilegales que violen las leyes y regulaciones locales.\n\n2. Responsabilidad\nEl desarrollador desconoce y no tiene control sobre cómo los usuarios utilizan este software. Cualquier responsabilidad legal, disputa o daño derivado del uso ilegal o indebido de este software (incluyendo, entre otros, la infracción de derechos de autor) recaerá únicamente en el usuario. El desarrollador no asume ninguna responsabilidad directa, indirecta o conjunta.\n\n3. Modificaciones y Distribución\nEste proyecto es de código abierto. Cualquier individuo u organización que modifique o bifurque este código debe cumplir con la licencia de código abierto. Importante: Si un tercero modifica el código para eludir o eliminar los mecanismos originales de autenticación/seguridad del usuario y distribuye dichas versiones, el modificador/distribuidor asume toda la responsabilidad por cualquier consecuencia. Desaconsejamos encarecidamente eludir o manipular cualquier mecanismo de verificación de seguridad.\n\n4. Declaración Sin Fines de Lucro\nEste es un proyecto de código abierto completamente gratuito. El desarrollador no acepta donaciones y nunca ha publicado páginas de donación. El software en sí no permite cargos y no ofrece servicios pagos. Por favor, esté atento y tenga cuidado con cualquier estafa o información engañosa que reclame cobrar tarifas en nombre de este proyecto.",
 };

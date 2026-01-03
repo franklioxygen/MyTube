@@ -131,8 +131,10 @@ export const ko = {
   showYoutubeSearch: "YouTube 검색 결과 표시",
   visitorMode: "방문자 모드 (읽기 전용)",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
-  visitorModeDescription: "읽기 전용 모드. 숨겨진 동영상은 방문자에게 표시되지 않습니다.",
-  visitorModePasswordPrompt: "방문자 모드 설정을 변경하려면 웹사이트 비밀번호를 입력하세요.",
+  visitorModeDescription:
+    "읽기 전용 모드. 숨겨진 동영상은 방문자에게 표시되지 않습니다.",
+  visitorModePasswordPrompt:
+    "방문자 모드 설정을 변경하려면 웹사이트 비밀번호를 입력하세요.",
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
 
@@ -161,12 +163,14 @@ export const ko = {
   apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
   token: "토큰",
   publicUrl: "공개 URL",
-  publicUrlHelper: "파일 액세스를 위한 공개 도메인 (예: https://your-cloudflare-tunnel-domain.com). 설정된 경우 파일 액세스에 API URL 대신 이것이 사용됩니다.",
+  publicUrlHelper:
+    "파일 액세스를 위한 공개 도메인 (예: https://your-cloudflare-tunnel-domain.com). 설정된 경우 파일 액세스에 API URL 대신 이것이 사용됩니다.",
   uploadPath: "업로드 경로",
   cloudDrivePathHelper:
     "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
   scanPaths: "스캔 경로",
-  scanPathsHelper: "줄당 하나의 경로. 이 경로에서 동영상을 스캔합니다. 비어 있으면 업로드 경로를 사용합니다. 예:\n/a/영화\n/b/다큐멘터리",
+  scanPathsHelper:
+    "줄당 하나의 경로. 이 경로에서 동영상을 스캔합니다. 비어 있으면 업로드 경로를 사용합니다. 예:\n/a/영화\n/b/다큐멘터리",
   cloudDriveNote:
     "이 기능을 활성화한 후 새로 다운로드된 비디오는 자동으로 클라우드 스토리지에 업로드되고 로컬 파일은 삭제됩니다. 비디오는 프록시를 통해 클라우드 스토리지에서 재생됩니다.",
   cloudScanAdded: "클라우드에서 추가됨",
@@ -174,7 +178,8 @@ export const ko = {
   testConnection: "연결 테스트",
   sync: "동기화",
   syncToCloud: "양방향 동기화",
-  syncWarning: "이 작업은 로컬 동영상을 클라우드로 업로드하고 클라우드 저장소에서 새 파일을 검색합니다. 업로드 후 로컬 파일은 삭제됩니다。",
+  syncWarning:
+    "이 작업은 로컬 동영상을 클라우드로 업로드하고 클라우드 저장소에서 새 파일을 검색합니다. 업로드 후 로컬 파일은 삭제됩니다。",
   syncing: "동기화 중...",
   syncCompleted: "동기화 완료",
   syncFailed: "동기화 실패",
@@ -191,9 +196,11 @@ export const ko = {
   uploadingVideo: "업로드 중: {title}",
   clearThumbnailCache: "썸네일 로컬 캐시 지우기",
   clearing: "지우는 중...",
-  clearThumbnailCacheSuccess: "썸네일 캐시가 성공적으로 지워졌습니다. 썸네일은 다음에 액세스할 때 재생성됩니다.",
+  clearThumbnailCacheSuccess:
+    "썸네일 캐시가 성공적으로 지워졌습니다. 썸네일은 다음에 액세스할 때 재생성됩니다.",
   clearThumbnailCacheError: "썸네일 캐시 지우기 실패",
-  clearThumbnailCacheConfirmMessage: "이 작업은 클라우드 비디오에 대해 로컬로 캐시된 모든 썸네일을 지웁니다. 썸네일은 다음에 액세스할 때 클라우드 저장소에서 재생성됩니다. 계속하시겠습니까?",
+  clearThumbnailCacheConfirmMessage:
+    "이 작업은 클라우드 비디오에 대해 로컬로 캐시된 모든 썸네일을 지웁니다. 썸네일은 다음에 액세스할 때 클라우드 저장소에서 재생성됩니다. 계속하시겠습니까?",
 
   // Manage
   manageContent: "콘텐츠 관리",
@@ -282,7 +289,8 @@ export const ko = {
   openInExternalPlayer: "외부 플레이어에서 열기",
   playWith: "다음으로 재생...",
   deleteAllFilteredVideos: "필터링된 모든 동영상 삭제",
-  confirmDeleteFilteredVideos: "선택한 태그로 필터링된 {count}개의 동영상을 삭제하시겠습니까?",
+  confirmDeleteFilteredVideos:
+    "선택한 태그로 필터링된 {count}개의 동영상을 삭제하시겠습니까?",
   deleteFilteredVideosSuccess: "{count}개의 동영상을 성공적으로 삭제했습니다.",
   deletingVideos: "동영상 삭제 중...",
 
@@ -306,8 +314,24 @@ export const ko = {
     "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
+  // Passkeys
+  createPasskey: "패스키 만들기",
+  creatingPasskey: "만드는 중...",
+  passkeyCreated: "패스키가 성공적으로 생성되었습니다",
+  passkeyCreationFailed: "패스키 생성에 실패했습니다. 다시 시도해 주세요.",
+  removePasskeys: "모든 패스키 제거",
+  removePasskeysTitle: "모든 패스키 제거",
+  removePasskeysMessage:
+    "모든 패스키를 제거하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  passkeysRemoved: "모든 패스키가 제거되었습니다",
+  passkeysRemoveFailed: "패스키 제거에 실패했습니다. 다시 시도해 주세요.",
+  loginWithPasskey: "패스키로 로그인",
+  authenticating: "인증 중...",
+  passkeyLoginFailed: "패스키 인증에 실패했습니다. 다시 시도해 주세요.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
   copyFailed: "링크 복사 실패",
+  passkeyRequiresHttps: "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",
+  passkeyWebAuthnNotSupported: "이 브라우저는 WebAuthn을 지원하지 않습니다. WebAuthn을 지원하는 최신 브라우저를 사용하십시오.",
 
   // Collection Page
   loadingCollection: "컬렉션 로드 중...",
@@ -377,7 +401,8 @@ export const ko = {
   authorOrPlaylist: "작성자 / 재생 목록",
   playlistDetected: "재생 목록 감지됨",
   playlistHasVideos: "이 재생 목록에는 {count}개의 동영상이 있습니다.",
-  downloadPlaylistAndCreateCollection: "재생 목록 동영상을 다운로드하고 컬렉션을 만드시겠습니까?",
+  downloadPlaylistAndCreateCollection:
+    "재생 목록 동영상을 다운로드하고 컬렉션을 만드시겠습니까?",
   collectionHasVideos: "이 Bilibili 컬렉션에는 {count}개의 동영상이 있습니다.",
   seriesHasVideos: "이 Bilibili 시리즈에는 {count}개의 동영상이 있습니다.",
   videoHasParts: "이 Bilibili 동영상에는 {count}개의 파트가 있습니다.",
@@ -453,11 +478,13 @@ export const ko = {
   confirmCancelTask: "{author}님의 다운로드 작업을 취소하시겠습니까?",
   taskCancelled: "작업이 성공적으로 취소되었습니다",
   deleteTask: "작업 삭제",
-  confirmDeleteTask: "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  confirmDeleteTask:
+    "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   taskDeleted: "작업이 성공적으로 삭제되었습니다",
   clearFinishedTasks: "완료된 작업 지우기",
   tasksCleared: "완료된 작업이 성공적으로 지워졌습니다",
-  confirmClearFinishedTasks: "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
+  confirmClearFinishedTasks:
+    "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
   clear: "지우기",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
@@ -591,7 +618,8 @@ export const ko = {
   lastBackupDate: "마지막 백업 날짜",
   noBackupAvailable: "사용 가능한 백업 없음",
   deleteAuthor: "작성자 삭제",
-  deleteAuthorConfirmation: "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
+  deleteAuthorConfirmation:
+    "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
   authorDeletedSuccessfully: "작성자가 성공적으로 삭제되었습니다",
   failedToDeleteAuthor: "작성자 삭제 실패",
 
@@ -599,7 +627,8 @@ export const ko = {
   cloudflaredTunnel: "Cloudflare 터널",
   enableCloudflaredTunnel: "Cloudflare 터널 활성화",
   cloudflaredToken: "터널 토큰 (선택 사항)",
-  cloudflaredTokenHelper: "여기에 터널 토큰을 붙여넣거나, 임의의 Quick Tunnel을 사용하려면 비워 두세요.",
+  cloudflaredTokenHelper:
+    "여기에 터널 토큰을 붙여넣거나, 임의의 Quick Tunnel을 사용하려면 비워 두세요.",
   waitingForUrl: "Quick Tunnel URL 대기 중...",
   running: "실행 중",
   stopped: "중지됨",
@@ -607,8 +636,10 @@ export const ko = {
   accountTag: "계정 태그",
   copied: "복사됨!",
   clickToCopy: "클릭하여 복사",
-  quickTunnelWarning: "Quick Tunnel URL은 터널이 다시 시작될 때마다 변경됩니다.",
-  managedInDashboard: "공개 호스트 이름은 Cloudflare Zero Trust 대시보드에서 관리됩니다.",
+  quickTunnelWarning:
+    "Quick Tunnel URL은 터널이 다시 시작될 때마다 변경됩니다.",
+  managedInDashboard:
+    "공개 호스트 이름은 Cloudflare Zero Trust 대시보드에서 관리됩니다.",
   failedToDownloadVideo: "동영상 다운로드에 실패했습니다. 다시 시도해 주세요.",
   failedToDownload: "다운로드에 실패했습니다. 다시 시도해 주세요.",
   playlistDownloadStarted: "재생 목록 다운로드가 시작되었습니다",
@@ -616,26 +647,30 @@ export const ko = {
   copyUrl: "URL 복사",
   new: "신규",
   // Task Hooks
-  taskHooks: '태스크 훅',
-  taskHooksDescription: '태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
-  taskHooksWarning: '경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.',
-  enterPasswordToUploadHook: '이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.',
-  riskCommandDetected: '위험한 명령 감지됨: {command}. 업로드 거부됨.',
-  hookTaskBeforeStart: '태스크 시작 전',
-  hookTaskBeforeStartHelper: '다운로드가 시작되기 전에 실행됩니다.',
-  hookTaskSuccess: '태스크 성공',
-  hookTaskSuccessHelper: '다운로드 성공 후, 클라우드 업로드/삭제 전에 실행됩니다 (완료 대기).',
-  hookTaskFail: '태스크 실패',
-  hookTaskFailHelper: '태스크가 실패할 때 실행됩니다.',
-  hookTaskCancel: '태스크 취소됨',
-  hookTaskCancelHelper: '태스크가 수동으로 취소될 때 실행됩니다.',
-  found: '찾음',
-  notFound: '설정되지 않음',
-  deleteHook: '훅 스크립트 삭제',
-  confirmDeleteHook: '이 훅 스크립트를 삭제하시겠습니까?',
-  uploadHook: '업로드 .sh',
+  taskHooks: "태스크 훅",
+  taskHooksDescription:
+    "태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning:
+    "경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.",
+  enterPasswordToUploadHook:
+    "이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.",
+  riskCommandDetected: "위험한 명령 감지됨: {command}. 업로드 거부됨.",
+  hookTaskBeforeStart: "태스크 시작 전",
+  hookTaskBeforeStartHelper: "다운로드가 시작되기 전에 실행됩니다.",
+  hookTaskSuccess: "태스크 성공",
+  hookTaskSuccessHelper:
+    "다운로드 성공 후, 클라우드 업로드/삭제 전에 실행됩니다 (완료 대기).",
+  hookTaskFail: "태스크 실패",
+  hookTaskFailHelper: "태스크가 실패할 때 실행됩니다.",
+  hookTaskCancel: "태스크 취소됨",
+  hookTaskCancelHelper: "태스크가 수동으로 취소될 때 실행됩니다.",
+  found: "찾음",
+  notFound: "설정되지 않음",
+  deleteHook: "훅 스크립트 삭제",
+  confirmDeleteHook: "이 훅 스크립트를 삭제하시겠습니까?",
+  uploadHook: "업로드 .sh",
 
   disclaimerTitle: "면책 조항",
-  disclaimerText: "1. 목적 및 제한\n이 소프트웨어(코드 및 문서 포함)는 개인적인 학습, 연구 및 기술 교류만을 목적으로 합니다. 이 소프트웨어를 상업적 목적으로 사용하거나 현지 법률 및 규정을 위반하는 불법 활동에 사용하는 것은 엄격히 금지됩니다.\n\n2. 책임\n개발자는 사용자가 이 소프트웨어를 어떻게 사용하는지 알지 못하며 통제할 수 없습니다. 이 소프트웨어의 불법적 또는 부적절한 사용(저작권 침해를 포함하되 이에 국한되지 않음)으로 인해 발생하는 모든 법적 책임, 분쟁 또는 손해는 전적으로 사용자가 부담해야 합니다. 개발자는 어떠한 직접적, 간접적 또는 공동 책임도 지지 않습니다.\n\n3. 수정 및 배포\n이 프로젝트는 오픈 소스입니다. 이 코드를 수정하거나 포크하는 개인이나 조직은 오픈 소스 라이선스를 준수해야 합니다. 중요: 제3자가 원래의 사용자 인증/보안 메커니즘을 우회하거나 제거하기 위해 코드를 수정하고 이러한 버전을 배포하는 경우, 수정자/배포자는 모든 결과에 대해 전적인 책임을 집니다. 보안 검증 메커니즘을 우회하거나 변조하는 것을 강력히 권장하지 않습니다.\n\n4. 비영리 성명\n이것은 완전히 무료인 오픈 소스 프로젝트입니다. 개발자는 기부를 받지 않으며 기부 페이지를 게시한 적이 없습니다. 소프트웨어 자체는 요금을 부과하지 않으며 유료 서비스를 제공하지 않습니다. 이 프로젝트를 대신하여 수수료를 징수한다고 주장하는 사기나 오해의 소지가 있는 정보에 주의하시기 바랍니다.",
-
+  disclaimerText:
+    "1. 목적 및 제한\n이 소프트웨어(코드 및 문서 포함)는 개인적인 학습, 연구 및 기술 교류만을 목적으로 합니다. 이 소프트웨어를 상업적 목적으로 사용하거나 현지 법률 및 규정을 위반하는 불법 활동에 사용하는 것은 엄격히 금지됩니다.\n\n2. 책임\n개발자는 사용자가 이 소프트웨어를 어떻게 사용하는지 알지 못하며 통제할 수 없습니다. 이 소프트웨어의 불법적 또는 부적절한 사용(저작권 침해를 포함하되 이에 국한되지 않음)으로 인해 발생하는 모든 법적 책임, 분쟁 또는 손해는 전적으로 사용자가 부담해야 합니다. 개발자는 어떠한 직접적, 간접적 또는 공동 책임도 지지 않습니다.\n\n3. 수정 및 배포\n이 프로젝트는 오픈 소스입니다. 이 코드를 수정하거나 포크하는 개인이나 조직은 오픈 소스 라이선스를 준수해야 합니다. 중요: 제3자가 원래의 사용자 인증/보안 메커니즘을 우회하거나 제거하기 위해 코드를 수정하고 이러한 버전을 배포하는 경우, 수정자/배포자는 모든 결과에 대해 전적인 책임을 집니다. 보안 검증 메커니즘을 우회하거나 변조하는 것을 강력히 권장하지 않습니다.\n\n4. 비영리 성명\n이것은 완전히 무료인 오픈 소스 프로젝트입니다. 개발자는 기부를 받지 않으며 기부 페이지를 게시한 적이 없습니다. 소프트웨어 자체는 요금을 부과하지 않으며 유료 서비스를 제공하지 않습니다. 이 프로젝트를 대신하여 수수료를 징수한다고 주장하는 사기나 오해의 소지가 있는 정보에 주의하시기 바랍니다.",
 };

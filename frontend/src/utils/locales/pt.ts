@@ -134,8 +134,10 @@ export const pt = {
   showYoutubeSearch: "Mostrar resultados de pesquisa do YouTube",
   visitorMode: "Modo Visitante (Somente leitura)",
   visitorModeReadOnly: "Modo visitante: Somente leitura",
-  visitorModeDescription: "Modo somente leitura. Vídeos ocultos não serão visíveis para visitantes.",
-  visitorModePasswordPrompt: "Por favor, digite a senha do site para alterar as configurações do modo visitante.",
+  visitorModeDescription:
+    "Modo somente leitura. Vídeos ocultos não serão visíveis para visitantes.",
+  visitorModePasswordPrompt:
+    "Por favor, digite a senha do site para alterar as configurações do modo visitante.",
   cleanupTempFilesSuccess:
     "{count} arquivo(s) temporário(s) excluído(s) com sucesso.",
   cleanupTempFilesFailed: "Falha ao limpar arquivos temporários",
@@ -165,11 +167,13 @@ export const pt = {
   apiUrlHelper: "ex. https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "URL Público",
-  publicUrlHelper: "Domínio público para acessar arquivos (ex. https://your-cloudflare-tunnel-domain.com). Se definido, será usado em vez da URL da API para acessar arquivos.",
+  publicUrlHelper:
+    "Domínio público para acessar arquivos (ex. https://your-cloudflare-tunnel-domain.com). Se definido, será usado em vez da URL da API para acessar arquivos.",
   uploadPath: "Caminho de upload",
   cloudDrivePathHelper: "Caminho do diretório na nuvem, ex. /mytube-uploads",
   scanPaths: "Caminhos de Varredura",
-  scanPathsHelper: "Um caminho por linha. Os vídeos serão verificados a partir desses caminhos. Se vazio, usará o caminho de upload. Exemplo:\n/a/Filmes\n/b/Documentários",
+  scanPathsHelper:
+    "Um caminho por linha. Os vídeos serão verificados a partir desses caminhos. Se vazio, usará o caminho de upload. Exemplo:\n/a/Filmes\n/b/Documentários",
   cloudDriveNote:
     "Após habilitar este recurso, os vídeos recém-baixados serão automaticamente enviados para o armazenamento em nuvem e os arquivos locais serão excluídos. Os vídeos serão reproduzidos do armazenamento em nuvem via proxy.",
   cloudScanAdded: "Adicionado da nuvem",
@@ -177,26 +181,33 @@ export const pt = {
   testConnection: "Testar Conexão",
   sync: "Sincronizar",
   syncToCloud: "Sincronização Bidirecional",
-  syncWarning: "Esta operação fará upload de vídeos locais para a nuvem e verificará se há novos arquivos no armazenamento em nuvem. Os arquivos locais serão excluídos após o upload.",
+  syncWarning:
+    "Esta operação fará upload de vídeos locais para a nuvem e verificará se há novos arquivos no armazenamento em nuvem. Os arquivos locais serão excluídos após o upload.",
   syncing: "Sincronizando...",
   syncCompleted: "Sincronização Concluída",
   syncFailed: "Falha na Sincronização",
   syncReport: "Total: {total} | Enviados: {uploaded} | Falhos: {failed}",
   syncErrors: "Erros:",
   fillApiUrlToken: "Por favor, preencha a URL da API e o Token primeiro",
-  connectionTestSuccess: "Teste de conexão bem-sucedido! As configurações são válidas.",
-  connectionFailedStatus: "Falha na conexão: O servidor retornou o status {status}",
-  connectionFailedUrl: "Não é possível conectar ao servidor. Verifique a URL da API.",
+  connectionTestSuccess:
+    "Teste de conexão bem-sucedido! As configurações são válidas.",
+  connectionFailedStatus:
+    "Falha na conexão: O servidor retornou o status {status}",
+  connectionFailedUrl:
+    "Não é possível conectar ao servidor. Verifique a URL da API.",
   authFailed: "Falha na autenticação. Verifique seu token.",
   connectionTestFailed: "Falha no teste de conexão: {error}",
   syncFailedMessage: "Falha na sincronização. Tente novamente.",
-  foundVideosToSync: "Encontrados {count} vídeos com arquivos locais para sincronizar",
+  foundVideosToSync:
+    "Encontrados {count} vídeos com arquivos locais para sincronizar",
   uploadingVideo: "Enviando: {title}",
   clearThumbnailCache: "Limpar Cache Local de Miniaturas",
   clearing: "Limpando...",
-  clearThumbnailCacheSuccess: "Cache de miniaturas limpo com sucesso. As miniaturas serão regeneradas na próxima vez que forem acessadas.",
+  clearThumbnailCacheSuccess:
+    "Cache de miniaturas limpo com sucesso. As miniaturas serão regeneradas na próxima vez que forem acessadas.",
   clearThumbnailCacheError: "Falha ao limpar cache de miniaturas",
-  clearThumbnailCacheConfirmMessage: "Isso limpará todas as miniaturas armazenadas localmente para vídeos na nuvem. As miniaturas serão regeneradas do armazenamento em nuvem na próxima vez que forem acessadas. Continuar?",
+  clearThumbnailCacheConfirmMessage:
+    "Isso limpará todas as miniaturas armazenadas localmente para vídeos na nuvem. As miniaturas serão regeneradas do armazenamento em nuvem na próxima vez que forem acessadas. Continuar?",
 
   // Manage
   manageContent: "Gerenciar Conteúdo",
@@ -294,7 +305,8 @@ export const pt = {
   openInExternalPlayer: "Abrir no player externo",
   playWith: "Reproduzir com...",
   deleteAllFilteredVideos: "Excluir todos os vídeos filtrados",
-  confirmDeleteFilteredVideos: "Tem certeza de que deseja excluir {count} vídeos filtrados pelas tags selecionadas?",
+  confirmDeleteFilteredVideos:
+    "Tem certeza de que deseja excluir {count} vídeos filtrados pelas tags selecionadas?",
   deleteFilteredVideosSuccess: "{count} vídeos excluídos com sucesso.",
   deletingVideos: "Excluindo vídeos...",
 
@@ -318,8 +330,27 @@ export const pt = {
     "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
   waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
   tooManyAttempts: "Muitas tentativas falharam.",
+  // Passkeys
+  createPasskey: "Criar chave de acesso",
+  creatingPasskey: "Criando...",
+  passkeyCreated: "Chave de acesso criada com sucesso",
+  passkeyCreationFailed:
+    "Falha ao criar chave de acesso. Por favor, tente novamente.",
+  removePasskeys: "Remover todas as chaves de acesso",
+  removePasskeysTitle: "Remover todas as chaves de acesso",
+  removePasskeysMessage:
+    "Tem certeza de que deseja remover todas as chaves de acesso? Esta ação não pode ser desfeita.",
+  passkeysRemoved: "Todas as chaves de acesso foram removidas",
+  passkeysRemoveFailed:
+    "Falha ao remover chaves de acesso. Por favor, tente novamente.",
+  loginWithPasskey: "Entrar com chave de acesso",
+  authenticating: "Autenticando...",
+  passkeyLoginFailed:
+    "Falha na autenticação com chave de acesso. Por favor, tente novamente.",
   linkCopied: "Link copiado para a área de transferência",
   copyFailed: "Falha ao copiar link",
+  passkeyRequiresHttps: "WebAuthn requer HTTPS ou localhost. Por favor, acesse o aplicativo via HTTPS ou use localhost em vez de um endereço IP.",
+  passkeyWebAuthnNotSupported: "WebAuthn não é suportado neste navegador. Por favor, use um navegador moderno que suporte WebAuthn.",
 
   // Collection Page
   loadingCollection: "Carregando coleção...",
@@ -333,7 +364,8 @@ export const pt = {
   unknownAuthor: "Desconhecido",
   noVideosForAuthor: "Nenhum vídeo encontrado para este autor.",
   deleteAuthor: "Excluir Autor",
-  deleteAuthorConfirmation: "Tem certeza de que deseja excluir o autor {author}? Isso excluirá todos os vídeos associados a este autor.",
+  deleteAuthorConfirmation:
+    "Tem certeza de que deseja excluir o autor {author}? Isso excluirá todos os vídeos associados a este autor.",
   authorDeletedSuccessfully: "Autor excluído com sucesso",
   failedToDeleteAuthor: "Falha ao excluir autor",
 
@@ -385,7 +417,8 @@ export const pt = {
   authorOrPlaylist: "Autor / Lista de reprodução",
   playlistDetected: "Lista de reprodução detectada",
   playlistHasVideos: "Esta lista de reprodução tem {count} vídeos.",
-  downloadPlaylistAndCreateCollection: "Baixar vídeos da lista de reprodução e criar uma coleção para ela?",
+  downloadPlaylistAndCreateCollection:
+    "Baixar vídeos da lista de reprodução e criar uma coleção para ela?",
   collectionHasVideos: "Esta coleção Bilibili tem {count} vídeos.",
   previouslyDeletedVideo: "Vídeo Anteriormente Excluído",
   previouslyDeleted: "Anteriormente excluído",
@@ -463,14 +496,17 @@ export const pt = {
   taskStatusCancelled: "Cancelado",
   downloaded: "Baixado",
   cancelTask: "Cancelar tarefa",
-  confirmCancelTask: "Tem certeza de que deseja cancelar a tarefa de download para {author}?",
+  confirmCancelTask:
+    "Tem certeza de que deseja cancelar a tarefa de download para {author}?",
   taskCancelled: "Tarefa cancelada com sucesso",
   deleteTask: "Excluir tarefa",
-  confirmDeleteTask: "Tem certeza de que deseja excluir o registro da tarefa para {author}? Esta ação não pode ser desfeita.",
+  confirmDeleteTask:
+    "Tem certeza de que deseja excluir o registro da tarefa para {author}? Esta ação não pode ser desfeita.",
   taskDeleted: "Tarefa excluída com sucesso",
   clearFinishedTasks: "Limpar tarefas concluídas",
   tasksCleared: "Tarefas concluídas limpas com sucesso",
-  confirmClearFinishedTasks: "Tem certeza de que deseja limpar todas as tarefas concluídas (concluídas, canceladas)? Isso as removerá da lista, mas não excluirá nenhum arquivo baixado.",
+  confirmClearFinishedTasks:
+    "Tem certeza de que deseja limpar todas as tarefas concluídas (concluídas, canceladas)? Isso as removerá da lista, mas não excluirá nenhum arquivo baixado.",
   clear: "Limpar",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
@@ -611,7 +647,8 @@ export const pt = {
   cloudflaredTunnel: "Túnel Cloudflare",
   enableCloudflaredTunnel: "Habilitar Túnel Cloudflare",
   cloudflaredToken: "Token do Túnel (Opcional)",
-  cloudflaredTokenHelper: "Cole o token do túnel aqui, ou deixe em branco para usar um Túnel Rápido aleatório.",
+  cloudflaredTokenHelper:
+    "Cole o token do túnel aqui, ou deixe em branco para usar um Túnel Rápido aleatório.",
   waitingForUrl: "Aguardando URL do Túnel Rápido...",
   running: "Executando",
   stopped: "Parado",
@@ -619,33 +656,40 @@ export const pt = {
   accountTag: "Tag da Conta",
   copied: "Copiado!",
   clickToCopy: "Clique para copiar",
-  quickTunnelWarning: "URLs de Túnel Rápido mudam toda vez que o túnel é reiniciado.",
-  managedInDashboard: "O nome do host público é gerenciado no painel Cloudflare Zero Trust.",
+  quickTunnelWarning:
+    "URLs de Túnel Rápido mudam toda vez que o túnel é reiniciado.",
+  managedInDashboard:
+    "O nome do host público é gerenciado no painel Cloudflare Zero Trust.",
   failedToDownloadVideo: "Falha ao baixar o vídeo. Por favor, tente novamente.",
   failedToDownload: "Falha ao baixar. Por favor, tente novamente.",
   playlistDownloadStarted: "Download da playlist iniciado",
   copyUrl: "Copiar URL",
   new: "NOVO",
   // Task Hooks
-  taskHooks: 'Ganchos de Tarefa',
-  taskHooksDescription: 'Execute comandos shell personalizados em pontos específicos do ciclo de vida da tarefa. Variáveis de ambiente disponíveis: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
-  taskHooksWarning: 'Aviso: Os comandos são executados com as permissões do servidor. Use com cautela.',
-  enterPasswordToUploadHook: 'Por favor, digite sua senha para fazer upload deste script Hook.',
-  riskCommandDetected: 'Comando de risco detectado: {command}. Upload rejeitado.',
-  hookTaskBeforeStart: 'Antes do Início da Tarefa',
-  hookTaskBeforeStartHelper: 'Executa antes do download começar.',
-  hookTaskSuccess: 'Tarefa com Sucesso',
-  hookTaskSuccessHelper: 'Executa após download bem-sucedido, antes do upload/exclusão na nuvem (aguarda conclusão).',
-  hookTaskFail: 'Falha na Tarefa',
-  hookTaskFailHelper: 'Executa quando uma tarefa falha.',
-  hookTaskCancel: 'Tarefa Cancelada',
-  hookTaskCancelHelper: 'Executa quando uma tarefa é cancelada manualmente.',
-  found: 'Encontrado',
-  notFound: 'Não Definido',
-  deleteHook: 'Excluir Script de Gancho',
-  confirmDeleteHook: 'Tem certeza que deseja excluir este script de gancho?',
-  uploadHook: 'Enviar .sh',
+  taskHooks: "Ganchos de Tarefa",
+  taskHooksDescription:
+    "Execute comandos shell personalizados em pontos específicos do ciclo de vida da tarefa. Variáveis de ambiente disponíveis: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning:
+    "Aviso: Os comandos são executados com as permissões do servidor. Use com cautela.",
+  enterPasswordToUploadHook:
+    "Por favor, digite sua senha para fazer upload deste script Hook.",
+  riskCommandDetected:
+    "Comando de risco detectado: {command}. Upload rejeitado.",
+  hookTaskBeforeStart: "Antes do Início da Tarefa",
+  hookTaskBeforeStartHelper: "Executa antes do download começar.",
+  hookTaskSuccess: "Tarefa com Sucesso",
+  hookTaskSuccessHelper:
+    "Executa após download bem-sucedido, antes do upload/exclusão na nuvem (aguarda conclusão).",
+  hookTaskFail: "Falha na Tarefa",
+  hookTaskFailHelper: "Executa quando uma tarefa falha.",
+  hookTaskCancel: "Tarefa Cancelada",
+  hookTaskCancelHelper: "Executa quando uma tarefa é cancelada manualmente.",
+  found: "Encontrado",
+  notFound: "Não Definido",
+  deleteHook: "Excluir Script de Gancho",
+  confirmDeleteHook: "Tem certeza que deseja excluir este script de gancho?",
+  uploadHook: "Enviar .sh",
   disclaimerTitle: "Isenção de responsabilidade",
-  disclaimerText: "1. Objetivo e Restrições\nEste software (incluindo código e documentação) destina-se exclusivamente a aprendizagem pessoal, pesquisa e intercâmbio técnico. É estritamente proibido usar este software para fins comerciais ou para quaisquer atividades ilegais que violem as leis e regulamentos locais.\n\n2. Responsabilidade\nO desenvolvedor desconhece e não tem controle sobre como os usuários utilizam este software. Quaisquer responsabilidades legais, disputas ou danos decorrentes do uso ilegal ou impróprio deste software (incluindo, mas não se limitando a violação de direitos autorais) serão de responsabilidade exclusiva do usuário. O desenvolvedor não assume nenhuma responsabilidade direta, indireta ou conjunta.\n\n3. Modificações e Distribuição\nEste projeto é de código aberto. Qualquer indivíduo ou organização que modifique ou faça fork deste código deve cumprir a licença de código aberto. Importante: Se um terceiro modificar o código para contornar ou remover os mecanismos originais de autenticação/segurança do usuário e distribuir tais versões, o modificador/distribuidor assume total responsabilidade por quaisquer consequências. Desaconselhamos fortemente contornar ou adulterar quaisquer mecanismos de verificação de segurança.\n\n4. Declaração Sem Fins Lucrativos\nEste é um projeto de código aberto totalmente gratuito. O desenvolvedor não aceita doações e nunca publicou páginas de doação. O software em si não permite cobranças e não oferece serviços pagos. Por favor, esteja vigilante e cuidado com quaisquer golpes ou informações enganosas que aleguem cobrar taxas em nome deste projeto.",
-
+  disclaimerText:
+    "1. Objetivo e Restrições\nEste software (incluindo código e documentação) destina-se exclusivamente a aprendizagem pessoal, pesquisa e intercâmbio técnico. É estritamente proibido usar este software para fins comerciais ou para quaisquer atividades ilegais que violem as leis e regulamentos locais.\n\n2. Responsabilidade\nO desenvolvedor desconhece e não tem controle sobre como os usuários utilizam este software. Quaisquer responsabilidades legais, disputas ou danos decorrentes do uso ilegal ou impróprio deste software (incluindo, mas não se limitando a violação de direitos autorais) serão de responsabilidade exclusiva do usuário. O desenvolvedor não assume nenhuma responsabilidade direta, indireta ou conjunta.\n\n3. Modificações e Distribuição\nEste projeto é de código aberto. Qualquer indivíduo ou organização que modifique ou faça fork deste código deve cumprir a licença de código aberto. Importante: Se um terceiro modificar o código para contornar ou remover os mecanismos originais de autenticação/segurança do usuário e distribuir tais versões, o modificador/distribuidor assume total responsabilidade por quaisquer consequências. Desaconselhamos fortemente contornar ou adulterar quaisquer mecanismos de verificação de segurança.\n\n4. Declaração Sem Fins Lucrativos\nEste é um projeto de código aberto totalmente gratuito. O desenvolvedor não aceita doações e nunca publicou páginas de doação. O software em si não permite cobranças e não oferece serviços pagos. Por favor, esteja vigilante e cuidado com quaisquer golpes ou informações enganosas que aleguem cobrar taxas em nome deste projeto.",
 };

@@ -208,9 +208,11 @@ export const fr = {
   uploadingVideo: "Téléversement : {title}",
   clearThumbnailCache: "Vider le cache des miniatures locales",
   clearing: "Nettoyage...",
-  clearThumbnailCacheSuccess: "Cache des miniatures vidé avec succès. Les miniatures seront régénérées lors du prochain accès.",
+  clearThumbnailCacheSuccess:
+    "Cache des miniatures vidé avec succès. Les miniatures seront régénérées lors du prochain accès.",
   clearThumbnailCacheError: "Échec du vidage du cache des miniatures",
-  clearThumbnailCacheConfirmMessage: "Cela effacera toutes les miniatures mises en cache localement pour les vidéos cloud. Les miniatures seront régénérées à partir du stockage cloud lors du prochain accès. Continuer ?",
+  clearThumbnailCacheConfirmMessage:
+    "Cela effacera toutes les miniatures mises en cache localement pour les vidéos cloud. Les miniatures seront régénérées à partir du stockage cloud lors du prochain accès. Continuer ?",
 
   // Manage
   manageContent: "Gérer le contenu",
@@ -333,8 +335,27 @@ export const fr = {
     "Le mot de passe a été réinitialisé. Consultez les journaux du backend pour le nouveau mot de passe.",
   waitTimeMessage: "Veuillez attendre {time} avant de réessayer.",
   tooManyAttempts: "Trop de tentatives échouées.",
+  // Passkeys
+  createPasskey: "Créer une clé d'accès",
+  creatingPasskey: "Création en cours...",
+  passkeyCreated: "Clé d'accès créée avec succès",
+  passkeyCreationFailed:
+    "Échec de la création de la clé d'accès. Veuillez réessayer.",
+  removePasskeys: "Supprimer toutes les clés d'accès",
+  removePasskeysTitle: "Supprimer toutes les clés d'accès",
+  removePasskeysMessage:
+    "Êtes-vous sûr de vouloir supprimer toutes les clés d'accès ? Cette action ne peut pas être annulée.",
+  passkeysRemoved: "Toutes les clés d'accès ont été supprimées",
+  passkeysRemoveFailed:
+    "Échec de la suppression des clés d'accès. Veuillez réessayer.",
+  loginWithPasskey: "Se connecter avec une clé d'accès",
+  authenticating: "Authentification en cours...",
+  passkeyLoginFailed:
+    "Échec de l'authentification par clé d'accès. Veuillez réessayer.",
   linkCopied: "Lien copié dans le presse-papiers",
   copyFailed: "Échec de la copie du lien",
+  passkeyRequiresHttps: "WebAuthn nécessite HTTPS ou localhost. Veuillez accéder à l'application via HTTPS ou utiliser localhost au lieu d'une adresse IP.",
+  passkeyWebAuthnNotSupported: "WebAuthn n'est pas supporté par ce navigateur. Veuillez utiliser un navigateur moderne qui supporte WebAuthn.",
 
   // Collection Page
   loadingCollection: "Chargement de la collection...",
@@ -402,7 +423,8 @@ export const fr = {
   authorOrPlaylist: "Auteur / Playlist",
   playlistDetected: "Playlist détectée",
   playlistHasVideos: "Cette playlist contient {count} vidéos.",
-  downloadPlaylistAndCreateCollection: "Télécharger les vidéos de la playlist et créer une collection pour celle-ci ?",
+  downloadPlaylistAndCreateCollection:
+    "Télécharger les vidéos de la playlist et créer une collection pour celle-ci ?",
   collectionHasVideos: "Cette collection Bilibili contient {count} vidéos.",
   seriesHasVideos: "Cette série Bilibili contient {count} vidéos.",
   videoHasParts: "Cette vidéo Bilibili contient {count} parties.",
@@ -489,7 +511,8 @@ export const fr = {
   taskDeleted: "Tâche supprimée avec succès",
   clearFinishedTasks: "Effacer les tâches terminées",
   tasksCleared: "Tâches terminées effacées avec succès",
-  confirmClearFinishedTasks: "Êtes-vous sûr de vouloir effacer toutes les tâches terminées (complétées, annulées) ? Cela les supprimera de la liste mais ne supprimera aucun fichier téléchargé.",
+  confirmClearFinishedTasks:
+    "Êtes-vous sûr de vouloir effacer toutes les tâches terminées (complétées, annulées) ? Cela les supprimera de la liste mais ne supprimera aucun fichier téléchargé.",
   clear: "Effacer",
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
@@ -633,7 +656,8 @@ export const fr = {
   cloudflaredTunnel: "Tunnel Cloudflare",
   enableCloudflaredTunnel: "Activer le tunnel Cloudflare",
   cloudflaredToken: "Jeton de tunnel (Optionnel)",
-  cloudflaredTokenHelper: "Collez votre jeton de tunnel ici, ou laissez vide pour utiliser un Quick Tunnel aléatoire.",
+  cloudflaredTokenHelper:
+    "Collez votre jeton de tunnel ici, ou laissez vide pour utiliser un Quick Tunnel aléatoire.",
   waitingForUrl: "En attente de l'URL Quick Tunnel...",
   running: "En cours",
   stopped: "Arrêté",
@@ -641,34 +665,43 @@ export const fr = {
   accountTag: "Tag de compte",
   copied: "Copié !",
   clickToCopy: "Cliquer pour copier",
-  quickTunnelWarning: "Les URL Quick Tunnel changent à chaque redémarrage du tunnel.",
-  managedInDashboard: "Le nom d'hôte public est géré dans votre tableau de bord Cloudflare Zero Trust.",
-  failedToDownloadVideo: "Échec du téléchargement de la vidéo. Veuillez réessayer.",
+  quickTunnelWarning:
+    "Les URL Quick Tunnel changent à chaque redémarrage du tunnel.",
+  managedInDashboard:
+    "Le nom d'hôte public est géré dans votre tableau de bord Cloudflare Zero Trust.",
+  failedToDownloadVideo:
+    "Échec du téléchargement de la vidéo. Veuillez réessayer.",
   failedToDownload: "Échec du téléchargement. Veuillez réessayer.",
   playlistDownloadStarted: "Téléchargement de la playlist commencé",
   copyUrl: "Copier l'URL",
   new: "NOUVEAU",
   // Task Hooks
-  taskHooks: 'Crochets de Tâche',
-  taskHooksDescription: 'Exécutez des commandes shell personnalisées à des points spécifiques du cycle de vie de la tâche. Variables d\'environnement disponibles : MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
-  taskHooksWarning: 'Avertissement : Les commandes s\'exécutent avec les permissions du serveur. À utiliser avec prudence.',
-  enterPasswordToUploadHook: 'Veuillez entrer votre mot de passe pour télécharger ce script Hook.',
-  riskCommandDetected: 'Commande à risque détectée : {command}. Téléchargement rejeté.',
-  hookTaskBeforeStart: 'Avant le Début de la Tâche',
-  hookTaskBeforeStartHelper: 'S\'exécute avant le début du téléchargement.',
-  hookTaskSuccess: 'Tâche Réussie',
-  hookTaskSuccessHelper: 'S\'exécute après un téléchargement réussi, avant le téléchargement/suppression cloud (attend la fin).',
-  hookTaskFail: 'Tâche Échouée',
-  hookTaskFailHelper: 'S\'exécute lorsqu\'une tâche échoue.',
-  hookTaskCancel: 'Tâche Annulée',
-  hookTaskCancelHelper: 'S\'exécute lorsqu\'une tâche est annulée manuellement.',
-  found: 'Trouvé',
-  notFound: 'Non Défini',
-  deleteHook: 'Supprimer le Script de Crochet',
-  confirmDeleteHook: 'Êtes-vous sûr de vouloir supprimer ce script de crochet ?',
-  uploadHook: 'Téléverser .sh',
+  taskHooks: "Crochets de Tâche",
+  taskHooksDescription:
+    "Exécutez des commandes shell personnalisées à des points spécifiques du cycle de vie de la tâche. Variables d'environnement disponibles : MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning:
+    "Avertissement : Les commandes s'exécutent avec les permissions du serveur. À utiliser avec prudence.",
+  enterPasswordToUploadHook:
+    "Veuillez entrer votre mot de passe pour télécharger ce script Hook.",
+  riskCommandDetected:
+    "Commande à risque détectée : {command}. Téléchargement rejeté.",
+  hookTaskBeforeStart: "Avant le Début de la Tâche",
+  hookTaskBeforeStartHelper: "S'exécute avant le début du téléchargement.",
+  hookTaskSuccess: "Tâche Réussie",
+  hookTaskSuccessHelper:
+    "S'exécute après un téléchargement réussi, avant le téléchargement/suppression cloud (attend la fin).",
+  hookTaskFail: "Tâche Échouée",
+  hookTaskFailHelper: "S'exécute lorsqu'une tâche échoue.",
+  hookTaskCancel: "Tâche Annulée",
+  hookTaskCancelHelper: "S'exécute lorsqu'une tâche est annulée manuellement.",
+  found: "Trouvé",
+  notFound: "Non Défini",
+  deleteHook: "Supprimer le Script de Crochet",
+  confirmDeleteHook:
+    "Êtes-vous sûr de vouloir supprimer ce script de crochet ?",
+  uploadHook: "Téléverser .sh",
 
   disclaimerTitle: "Avis de non-responsabilité",
-  disclaimerText: "1. Objectif et Restrictions\nCe logiciel (y compris le code et la documentation) est destiné uniquement à l'apprentissage personnel, à la recherche et à l'échange technique. Il est strictement interdit d'utiliser ce logiciel à des fins commerciales ou pour toute activité illégale violant les lois et réglementations locales.\n\n2. Responsabilité\nLe développeur n'a aucune connaissance et aucun contrôle sur la façon dont les utilisateurs utilisent ce logiciel. Toute responsabilité légale, litige ou dommage découlant de l'utilisation illégale ou inappropriée de ce logiciel (y compris, mais sans s'y limiter, la violation du droit d'auteur) sera à la charge exclusive de l'utilisateur. Le développeur n'assume aucune responsabilité directe, indirecte ou conjointe.\n\n3. Modifications et Distribution\nCe projet est open source. Tout individu ou organisation modifiant ou forkant ce code doit se conformer à la licence open source. Important : Si un tiers modifie le code pour contourner ou supprimer les mécanismes d'authentification/sécurité d'origine de l'utilisateur et distribue de telles versions, le modificateur/distributeur porte l'entière responsabilité de toutes les conséquences. Nous déconseillons fortement de contourner ou d'altérer tout mécanisme de vérification de sécurité.\n\n4. Déclaration à But Non Lucratif\nCeci est un projet open source entièrement gratuit. Le développeur n'accepte pas de dons et n'a jamais publié de pages de dons. Le logiciel lui-même ne permet aucun frais et n'offre aucun service payant. Veuillez être vigilant et vous méfier de toute arnaque ou information trompeuse prétendant percevoir des frais au nom de ce projet.",
-
+  disclaimerText:
+    "1. Objectif et Restrictions\nCe logiciel (y compris le code et la documentation) est destiné uniquement à l'apprentissage personnel, à la recherche et à l'échange technique. Il est strictement interdit d'utiliser ce logiciel à des fins commerciales ou pour toute activité illégale violant les lois et réglementations locales.\n\n2. Responsabilité\nLe développeur n'a aucune connaissance et aucun contrôle sur la façon dont les utilisateurs utilisent ce logiciel. Toute responsabilité légale, litige ou dommage découlant de l'utilisation illégale ou inappropriée de ce logiciel (y compris, mais sans s'y limiter, la violation du droit d'auteur) sera à la charge exclusive de l'utilisateur. Le développeur n'assume aucune responsabilité directe, indirecte ou conjointe.\n\n3. Modifications et Distribution\nCe projet est open source. Tout individu ou organisation modifiant ou forkant ce code doit se conformer à la licence open source. Important : Si un tiers modifie le code pour contourner ou supprimer les mécanismes d'authentification/sécurité d'origine de l'utilisateur et distribue de telles versions, le modificateur/distributeur porte l'entière responsabilité de toutes les conséquences. Nous déconseillons fortement de contourner ou d'altérer tout mécanisme de vérification de sécurité.\n\n4. Déclaration à But Non Lucratif\nCeci est un projet open source entièrement gratuit. Le développeur n'accepte pas de dons et n'a jamais publié de pages de dons. Le logiciel lui-même ne permet aucun frais et n'offre aucun service payant. Veuillez être vigilant et vous méfier de toute arnaque ou information trompeuse prétendant percevoir des frais au nom de ce projet.",
 };

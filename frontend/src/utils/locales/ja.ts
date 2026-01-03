@@ -134,8 +134,10 @@ export const ja = {
   showYoutubeSearch: "YouTube検索結果を表示",
   visitorMode: "ビジターモード（読み取り専用）",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
-  visitorModeDescription: "読み取り専用モード。非表示の動画は訪問者には表示されません。",
-  visitorModePasswordPrompt: "ビジターモードの設定を変更するには、ウェブサイトのパスワードを入力してください。",
+  visitorModeDescription:
+    "読み取り専用モード。非表示の動画は訪問者には表示されません。",
+  visitorModePasswordPrompt:
+    "ビジターモードの設定を変更するには、ウェブサイトのパスワードを入力してください。",
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 
@@ -164,12 +166,14 @@ export const ja = {
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
   token: "トークン",
   publicUrl: "公開URL",
-  publicUrlHelper: "ファイルにアクセスするための公開ドメイン（例: https://your-cloudflare-tunnel-domain.com）。設定されている場合、ファイルアクセスにはAPI URLの代わりにこれが使用されます。",
+  publicUrlHelper:
+    "ファイルにアクセスするための公開ドメイン（例: https://your-cloudflare-tunnel-domain.com）。設定されている場合、ファイルアクセスにはAPI URLの代わりにこれが使用されます。",
   uploadPath: "アップロードパス",
   cloudDrivePathHelper:
     "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
   scanPaths: "スキャンパス",
-  scanPathsHelper: "1行に1つのパスを入力してください。これらのパスから動画がスキャンされます。空の場合はアップロードパスが使用されます。例：\n/a/映画\n/b/ドキュメンタリー",
+  scanPathsHelper:
+    "1行に1つのパスを入力してください。これらのパスから動画がスキャンされます。空の場合はアップロードパスが使用されます。例：\n/a/映画\n/b/ドキュメンタリー",
   cloudDriveNote:
     "この機能を有効にすると、新しくダウンロードされた動画は自動的にクラウドストレージにアップロードされ、ローカルファイルは削除されます。動画はプロキシ経由でクラウドストレージから再生されます。",
   cloudScanAdded: "クラウドから追加",
@@ -177,7 +181,8 @@ export const ja = {
   testConnection: "接続をテスト",
   sync: "同期",
   syncToCloud: "双方向同期",
-  syncWarning: "この操作はローカル動画をクラウドにアップロードし、クラウド上の新しいファイルをスキャンします。アップロード後、ローカルファイルは削除されます。",
+  syncWarning:
+    "この操作はローカル動画をクラウドにアップロードし、クラウド上の新しいファイルをスキャンします。アップロード後、ローカルファイルは削除されます。",
   syncing: "同期中...",
   syncCompleted: "同期完了",
   syncFailed: "同期に失敗しました",
@@ -185,18 +190,22 @@ export const ja = {
   syncErrors: "エラー:",
   fillApiUrlToken: "API URLとトークンを入力してください",
   connectionTestSuccess: "接続テスト成功！設定は有効です。",
-  connectionFailedStatus: "接続失敗：サーバーがステータス {status} を返しました",
+  connectionFailedStatus:
+    "接続失敗：サーバーがステータス {status} を返しました",
   connectionFailedUrl: "サーバーに接続できません。API URLを確認してください。",
   authFailed: "認証に失敗しました。トークンを確認してください。",
   connectionTestFailed: "接続テスト失敗：{error}",
   syncFailedMessage: "同期に失敗しました。もう一度お試しください。",
-  foundVideosToSync: "同期するローカルファイルを持つ動画が {count} 件見つかりました",
+  foundVideosToSync:
+    "同期するローカルファイルを持つ動画が {count} 件見つかりました",
   uploadingVideo: "アップロード中: {title}",
   clearThumbnailCache: "サムネイルのローカルキャッシュをクリア",
   clearing: "クリア中...",
-  clearThumbnailCacheSuccess: "サムネイルキャッシュが正常にクリアされました。サムネイルは次回のアクセス時に再生成されます。",
+  clearThumbnailCacheSuccess:
+    "サムネイルキャッシュが正常にクリアされました。サムネイルは次回のアクセス時に再生成されます。",
   clearThumbnailCacheError: "サムネイルキャッシュのクリアに失敗しました",
-  clearThumbnailCacheConfirmMessage: "クラウド動画用にローカルにキャッシュされたすべてのサムネイルをクリアします。サムネイルは次回のアクセス時にクラウドストレージから再生成されます。続行しますか？",
+  clearThumbnailCacheConfirmMessage:
+    "クラウド動画用にローカルにキャッシュされたすべてのサムネイルをクリアします。サムネイルは次回のアクセス時にクラウドストレージから再生成されます。続行しますか？",
 
   // Manage
   manageContent: "コンテンツの管理",
@@ -285,7 +294,8 @@ export const ja = {
   openInExternalPlayer: "外部プレーヤーで開く",
   playWith: "で再生...",
   deleteAllFilteredVideos: "フィルタリングされた動画をすべて削除",
-  confirmDeleteFilteredVideos: "選択されたタグでフィルタリングされた {count} 本の動画を削除してもよろしいですか？",
+  confirmDeleteFilteredVideos:
+    "選択されたタグでフィルタリングされた {count} 本の動画を削除してもよろしいですか？",
   deleteFilteredVideosSuccess: "{count} 本の動画を削除しました。",
   deletingVideos: "動画を削除中...",
 
@@ -309,8 +319,26 @@ export const ja = {
     "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
+  // Passkeys
+  createPasskey: "パスキーを作成",
+  creatingPasskey: "作成中...",
+  passkeyCreated: "パスキーが正常に作成されました",
+  passkeyCreationFailed:
+    "パスキーの作成に失敗しました。もう一度お試しください。",
+  removePasskeys: "すべてのパスキーを削除",
+  removePasskeysTitle: "すべてのパスキーを削除",
+  removePasskeysMessage:
+    "すべてのパスキーを削除してもよろしいですか？この操作は元に戻せません。",
+  passkeysRemoved: "すべてのパスキーが削除されました",
+  passkeysRemoveFailed:
+    "パスキーの削除に失敗しました。もう一度お試しください。",
+  loginWithPasskey: "パスキーでログイン",
+  authenticating: "認証中...",
+  passkeyLoginFailed: "パスキー認証に失敗しました。もう一度お試しください。",
   linkCopied: "リンクをクリップボードにコピーしました",
   copyFailed: "リンクのコピーに失敗しました",
+  passkeyRequiresHttps: "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",
+  passkeyWebAuthnNotSupported: "このブラウザはWebAuthnをサポートしていません。WebAuthnをサポートする最新のブラウザを使用してください。",
 
   // Collection Page
   loadingCollection: "コレクションを読み込み中...",
@@ -380,7 +408,8 @@ export const ja = {
   authorOrPlaylist: "作者 / 再生リスト",
   playlistDetected: "プレイリストが検出されました",
   playlistHasVideos: "このプレイリストには{count}本の動画があります。",
-  downloadPlaylistAndCreateCollection: "プレイリストの動画をダウンロードして、コレクションを作成しますか？",
+  downloadPlaylistAndCreateCollection:
+    "プレイリストの動画をダウンロードして、コレクションを作成しますか？",
   collectionHasVideos:
     "このBilibiliコレクションには{count}個の動画があります。",
   seriesHasVideos: "このBilibiliシリーズには{count}個の動画があります。",
@@ -454,14 +483,17 @@ export const ja = {
   taskStatusCancelled: "キャンセル済み",
   downloaded: "ダウンロード済み",
   cancelTask: "タスクをキャンセル",
-  confirmCancelTask: "{author} のダウンロードタスクをキャンセルしてもよろしいですか？",
+  confirmCancelTask:
+    "{author} のダウンロードタスクをキャンセルしてもよろしいですか？",
   taskCancelled: "タスクが正常にキャンセルされました",
   deleteTask: "タスクを削除",
-  confirmDeleteTask: "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
+  confirmDeleteTask:
+    "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
   taskDeleted: "タスクが正常に削除されました",
   clearFinishedTasks: "完了したタスクをクリア",
   tasksCleared: "完了したタスクを正常にクリアしました",
-  confirmClearFinishedTasks: "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
+  confirmClearFinishedTasks:
+    "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
   clear: "クリア",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
@@ -600,7 +632,8 @@ export const ja = {
   lastBackupDate: "最後のバックアップ日時",
   noBackupAvailable: "利用可能なバックアップがありません",
   deleteAuthor: "著者を削除",
-  deleteAuthorConfirmation: "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
+  deleteAuthorConfirmation:
+    "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
   authorDeletedSuccessfully: "著者が正常に削除されました",
   failedToDeleteAuthor: "著者の削除に失敗しました",
 
@@ -608,7 +641,8 @@ export const ja = {
   cloudflaredTunnel: "Cloudflare Tunnel",
   enableCloudflaredTunnel: "Cloudflare Tunnelを有効にする",
   cloudflaredToken: "トンネルトークン (オプション)",
-  cloudflaredTokenHelper: "ここにトンネルトークンを貼り付けるか、空のままにしてランダムなQuick Tunnelを使用します。",
+  cloudflaredTokenHelper:
+    "ここにトンネルトークンを貼り付けるか、空のままにしてランダムなQuick Tunnelを使用します。",
   waitingForUrl: "Quick Tunnel URLを待機中...",
   running: "実行中",
   stopped: "停止",
@@ -616,9 +650,12 @@ export const ja = {
   accountTag: "アカウントタグ",
   copied: "コピーしました！",
   clickToCopy: "クリックしてコピー",
-  quickTunnelWarning: "Quick TunnelのURLは、トンネルが再起動するたびに変更されます。",
-  managedInDashboard: "パブリックホスト名はCloudflare Zero Trustダッシュボードで管理されています。",
-  failedToDownloadVideo: "動画のダウンロードに失敗しました。もう一度お試しください。",
+  quickTunnelWarning:
+    "Quick TunnelのURLは、トンネルが再起動するたびに変更されます。",
+  managedInDashboard:
+    "パブリックホスト名はCloudflare Zero Trustダッシュボードで管理されています。",
+  failedToDownloadVideo:
+    "動画のダウンロードに失敗しました。もう一度お試しください。",
   failedToDownload: "ダウンロードに失敗しました。もう一度お試しください。",
   playlistDownloadStarted: "プレイリストのダウンロードが開始されました",
   deleteFailed: "削除に失敗しました",
@@ -628,26 +665,31 @@ export const ja = {
   copyUrl: "URLをコピー",
   new: "新規",
   // Task Hooks
-  taskHooks: 'タスクフック',
-  taskHooksDescription: 'タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。',
-  taskHooksWarning: '警告: コマンドはサーバーの権限で実行されます。注意して使用してください。',
-  enterPasswordToUploadHook: 'このフック・スクリプトをアップロードするにはパスワードを入力してください。',
-  riskCommandDetected: '危険なコマンドが検出されました: {command}。アップロードは拒否されました。',
-  hookTaskBeforeStart: 'タスク開始前',
-  hookTaskBeforeStartHelper: 'ダウンロードが始まる前に実行されます。',
-  hookTaskSuccess: 'タスク成功',
-  hookTaskSuccessHelper: 'ダウンロード成功後、クラウドアップロード/削除の前に実行されます（完了を待ちます）。',
-  hookTaskFail: 'タスク失敗',
-  hookTaskFailHelper: 'タスクが失敗したときに実行されます。',
-  hookTaskCancel: 'タスクキャンセル',
-  hookTaskCancelHelper: 'タスクが手動でキャンセルされたときに実行されます。',
-  found: '見つかりました',
-  notFound: '未設定',
-  deleteHook: 'フックスクリプトを削除',
-  confirmDeleteHook: 'このフックスクリプトを削除してもよろしいですか？',
-  uploadHook: 'アップロード .sh',
+  taskHooks: "タスクフック",
+  taskHooksDescription:
+    "タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
+  taskHooksWarning:
+    "警告: コマンドはサーバーの権限で実行されます。注意して使用してください。",
+  enterPasswordToUploadHook:
+    "このフック・スクリプトをアップロードするにはパスワードを入力してください。",
+  riskCommandDetected:
+    "危険なコマンドが検出されました: {command}。アップロードは拒否されました。",
+  hookTaskBeforeStart: "タスク開始前",
+  hookTaskBeforeStartHelper: "ダウンロードが始まる前に実行されます。",
+  hookTaskSuccess: "タスク成功",
+  hookTaskSuccessHelper:
+    "ダウンロード成功後、クラウドアップロード/削除の前に実行されます（完了を待ちます）。",
+  hookTaskFail: "タスク失敗",
+  hookTaskFailHelper: "タスクが失敗したときに実行されます。",
+  hookTaskCancel: "タスクキャンセル",
+  hookTaskCancelHelper: "タスクが手動でキャンセルされたときに実行されます。",
+  found: "見つかりました",
+  notFound: "未設定",
+  deleteHook: "フックスクリプトを削除",
+  confirmDeleteHook: "このフックスクリプトを削除してもよろしいですか？",
+  uploadHook: "アップロード .sh",
 
   disclaimerTitle: "免責事項",
-  disclaimerText: "1. 目的と制限\nこのソフトウェア（コードおよびドキュメントを含む）は、個人の学習、研究、および技術交流のみを目的としています。このソフトウェアを商業目的で使用すること、または地域の法律や規制に違反する違法行為に使用することは固く禁じられています。\n\n2. 責任\n開発者は、ユーザーがこのソフトウェアをどのように使用するかについて認識しておらず、管理もしていません。このソフトウェアの違法または不適切な使用（著作権侵害を含むがこれに限定されない）から生じる法的責任、紛争、または損害は、ユーザーのみが負担するものとします。開発者は、直接的、間接的、または連帯責任を負いません。\n\n3. 修正と配布\nこのプロジェクトはオープンソースです。このコードを修正またはフォークする個人または組織は、オープンソースライセンスを遵守する必要があります。重要：第三者が元のユーザー認証/セキュリティメカニズムを回避または削除するためにコードを修正し、そのようなバージョンを配布する場合、修正者/配布者はすべての結果に対して全責任を負います。セキュリティ検証メカニズムを回避または改ざんすることを強くお勧めしません。\n\n4. 非営利声明\nこれは完全に無料のオープンソースプロジェクトです。開発者は寄付を受け付けておらず、寄付ページを公開したこともありません。ソフトウェア自体は料金を許可しておらず、有料サービスも提供していません。このプロジェクトに代わって料金を徴収すると主張する詐欺や誤解を招く情報には十分ご注意ください。",
-
+  disclaimerText:
+    "1. 目的と制限\nこのソフトウェア（コードおよびドキュメントを含む）は、個人の学習、研究、および技術交流のみを目的としています。このソフトウェアを商業目的で使用すること、または地域の法律や規制に違反する違法行為に使用することは固く禁じられています。\n\n2. 責任\n開発者は、ユーザーがこのソフトウェアをどのように使用するかについて認識しておらず、管理もしていません。このソフトウェアの違法または不適切な使用（著作権侵害を含むがこれに限定されない）から生じる法的責任、紛争、または損害は、ユーザーのみが負担するものとします。開発者は、直接的、間接的、または連帯責任を負いません。\n\n3. 修正と配布\nこのプロジェクトはオープンソースです。このコードを修正またはフォークする個人または組織は、オープンソースライセンスを遵守する必要があります。重要：第三者が元のユーザー認証/セキュリティメカニズムを回避または削除するためにコードを修正し、そのようなバージョンを配布する場合、修正者/配布者はすべての結果に対して全責任を負います。セキュリティ検証メカニズムを回避または改ざんすることを強くお勧めしません。\n\n4. 非営利声明\nこれは完全に無料のオープンソースプロジェクトです。開発者は寄付を受け付けておらず、寄付ページを公開したこともありません。ソフトウェア自体は料金を許可しておらず、有料サービスも提供していません。このプロジェクトに代わって料金を徴収すると主張する詐欺や誤解を招く情報には十分ご注意ください。",
 };

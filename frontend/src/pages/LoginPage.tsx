@@ -1,4 +1,4 @@
-import { ErrorOutline, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { ErrorOutline, Fingerprint, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
@@ -7,16 +7,19 @@ import {
     CircularProgress,
     Container,
     CssBaseline,
+    Divider,
     IconButton,
     InputAdornment,
     TextField,
     ThemeProvider,
     Typography
 } from '@mui/material';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import logo from '../assets/logo.svg';
+import AlertModal from '../components/AlertModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -30,6 +33,9 @@ const LoginPage: React.FC = () => {
     const [error, setError] = useState('');
     const [waitTime, setWaitTime] = useState(0); // in milliseconds
     const [showResetModal, setShowResetModal] = useState(false);
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
     const [websiteName, setWebsiteName] = useState('MyTube');
     const { t } = useLanguage();
     const { login } = useAuth();
@@ -67,6 +73,24 @@ const LoginPage: React.FC = () => {
         retry: 1,
         retryDelay: 1000,
     });
+
+    // Check if passkeys exist
+    const { data: passkeysData } = useQuery({
+        queryKey: ['passkeys-exists'],
+        queryFn: async () => {
+            try {
+                const response = await axios.get(`${API_URL}/settings/passkeys/exists`, { timeout: 5000 });
+                return response.data;
+            } catch (error) {
+                return { exists: false };
+            }
+        },
+        retry: 1,
+        retryDelay: 1000,
+        enabled: !isCheckingConnection && !isConnectionError,
+    });
+
+    const passkeysExist = passkeysData?.exists || false;
 
     // Initialize wait time from server response
     useEffect(() => {
@@ -110,6 +134,12 @@ const LoginPage: React.FC = () => {
         return `${days} day${days !== 1 ? 's' : ''}`;
     };
 
+    const showAlert = (title: string, message: string) => {
+        setAlertTitle(title);
+        setAlertMessage(message);
+        setAlertOpen(true);
+    };
+
     const loginMutation = useMutation({
         mutationFn: async (password: string) => {
             const response = await axios.post(`${API_URL}/settings/verify-password`, { password });
@@ -120,7 +150,7 @@ const LoginPage: React.FC = () => {
                 setWaitTime(0); // Reset wait time on success
                 login();
             } else {
-                setError(t('incorrectPassword'));
+                showAlert(t('error'), t('incorrectPassword'));
             }
         },
         onError: (err: any) => {
@@ -132,26 +162,22 @@ const LoginPage: React.FC = () => {
                     const waitTimeMs = responseData.waitTime || 0;
                     setWaitTime(waitTimeMs);
                     const formattedTime = formatWaitTime(waitTimeMs);
-                    setError(
-                        `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`
-                    );
+                    showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
                 } else if (err.response.status === 401) {
                     // Incorrect password - check if wait time is returned
                     const waitTimeMs = responseData.waitTime || 0;
                     if (waitTimeMs > 0) {
                         setWaitTime(waitTimeMs);
                         const formattedTime = formatWaitTime(waitTimeMs);
-                        setError(
-                            `${t('incorrectPassword')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`
-                        );
+                        showAlert(t('error'), `${t('incorrectPassword')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
                     } else {
-                        setError(t('incorrectPassword'));
+                        showAlert(t('error'), t('incorrectPassword'));
                     }
                 } else {
-                    setError(t('loginFailed'));
+                    showAlert(t('error'), t('loginFailed'));
                 }
             } else {
-                setError(t('loginFailed'));
+                showAlert(t('error'), t('loginFailed'));
             }
         }
     });
@@ -167,11 +193,58 @@ const LoginPage: React.FC = () => {
             setWaitTime(0);
             queryClient.invalidateQueries({ queryKey: ['healthCheck'] });
             // Show success message
-            alert(t('resetPasswordSuccess'));
+            showAlert(t('success'), t('resetPasswordSuccess'));
         },
         onError: (err: any) => {
             console.error('Reset password error:', err);
-            setError(t('loginFailed'));
+            showAlert(t('error'), t('loginFailed'));
+        }
+    });
+
+    // Passkey authentication mutation
+    const passkeyLoginMutation = useMutation({
+        mutationFn: async () => {
+
+
+            // Step 1: Get authentication options
+            const optionsResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate`);
+            const { options, challenge } = optionsResponse.data;
+
+            // Step 2: Start authentication with browser
+            const assertionResponse = await startAuthentication(options);
+
+            // Step 3: Verify authentication
+            const verifyResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate/verify`, {
+                body: assertionResponse,
+                challenge,
+            });
+
+            if (!verifyResponse.data.success) {
+                throw new Error('Passkey authentication failed');
+            }
+
+            return verifyResponse.data;
+        },
+        onSuccess: () => {
+            setError('');
+            setWaitTime(0);
+            login();
+        },
+        onError: (err: any) => {
+            console.error('Passkey login error:', err);
+            // Extract error message from axios response or error object
+            let errorMessage = t('passkeyLoginFailed') || 'Passkey authentication failed. Please try again.';
+            
+            if (err?.response?.data?.error) {
+                // Backend error message (e.g., "No passkeys registered" or "No passkeys found for RP_ID")
+                errorMessage = err.response.data.error;
+            } else if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err?.message) {
+                errorMessage = err.message;
+            }
+            
+            showAlert(t('error'), errorMessage);
         }
     });
 
@@ -186,6 +259,32 @@ const LoginPage: React.FC = () => {
 
     const handleResetPassword = () => {
         resetPasswordMutation.mutate();
+    };
+
+    const handlePasskeyLogin = () => {
+        // Check if we're in a secure context (HTTPS or localhost)
+        // This is the most important check - WebAuthn requires secure context
+        if (!window.isSecureContext) {
+            const hostname = window.location.hostname;
+            const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+            if (!isLocalhost) {
+                showAlert(t('error'), t('passkeyRequiresHttps') || 'WebAuthn requires HTTPS or localhost. Please access the application via HTTPS or use localhost instead of an IP address.');
+                return;
+            }
+        }
+
+        // Check if WebAuthn is supported
+        // Check multiple ways to detect WebAuthn support
+        const hasWebAuthn =
+            typeof window.PublicKeyCredential !== 'undefined' ||
+            (typeof navigator !== 'undefined' && 'credentials' in navigator && 'create' in navigator.credentials);
+
+        if (!hasWebAuthn) {
+            showAlert(t('error'), t('passkeyWebAuthnNotSupported') || 'WebAuthn is not supported in this browser. Please use a modern browser that supports WebAuthn.');
+            return;
+        }
+
+        passkeyLoginMutation.mutate();
     };
 
     return (
@@ -290,6 +389,23 @@ const LoginPage: React.FC = () => {
                                 >
                                     {loginMutation.isPending ? (t('verifying') || 'Verifying...') : t('signIn')}
                                 </Button>
+                                {passkeysExist && (
+                                    <>
+                                        <Divider sx={{ my: 2 }}>OR</Divider>
+                                        <Button
+                                            fullWidth
+                                            variant="outlined"
+                                            startIcon={<Fingerprint />}
+                                            onClick={handlePasskeyLogin}
+                                            sx={{ mb: 2 }}
+                                            disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                        >
+                                            {passkeyLoginMutation.isPending
+                                                ? (t('authenticating') || 'Authenticating...')
+                                                : (t('loginWithPasskey') || 'Login with Passkey')}
+                                        </Button>
+                                    </>
+                                )}
                                 <Button
                                     fullWidth
                                     variant="outlined"
@@ -326,6 +442,12 @@ const LoginPage: React.FC = () => {
                 confirmText={t('resetPasswordConfirm')}
                 cancelText={t('cancel')}
                 isDanger={true}
+            />
+            <AlertModal
+                open={alertOpen}
+                onClose={() => setAlertOpen(false)}
+                title={alertTitle}
+                message={alertMessage}
             />
         </ThemeProvider>
     );

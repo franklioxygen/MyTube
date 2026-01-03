@@ -24,6 +24,15 @@ import {
   verifyPassword,
 } from "../controllers/passwordController";
 import {
+  checkPasskeysExist,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  getPasskeys,
+  removeAllPasskeys,
+  verifyAuthentication,
+  verifyRegistration,
+} from "../controllers/passkeyController";
+import {
   deleteLegacyData,
   formatFilenames,
   getCloudflaredStatus,
@@ -47,6 +56,15 @@ router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
 router.post("/verify-password", asyncHandler(verifyPassword));
 router.post("/reset-password", asyncHandler(resetPassword));
+
+// Passkey routes
+router.get("/passkeys", asyncHandler(getPasskeys));
+router.get("/passkeys/exists", asyncHandler(checkPasskeysExist));
+router.post("/passkeys/register", asyncHandler(generateRegistrationOptions));
+router.post("/passkeys/register/verify", asyncHandler(verifyRegistration));
+router.post("/passkeys/authenticate", asyncHandler(generateAuthenticationOptions));
+router.post("/passkeys/authenticate/verify", asyncHandler(verifyAuthentication));
+router.delete("/passkeys", asyncHandler(removeAllPasskeys));
 
 // ... existing imports ...
 
