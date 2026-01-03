@@ -9,6 +9,7 @@
     "generate": "drizzle-kit generate",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
+    "reset-password": "ts-node scripts/reset-password.ts",
     "postinstall": "node -e \"const fs = require('fs'); const cp = require('child_process'); const p = 'bgutil-ytdlp-pot-provider/server'; if (fs.existsSync(p)) { console.log('Building provider...'); cp.execSync('npm install && npx tsc', { cwd: p, stdio: 'inherit' }); } else { console.log('Skipping provider build: ' + p + ' not found'); }\""
   },
   "keywords": [],

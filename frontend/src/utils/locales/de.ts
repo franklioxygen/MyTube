@@ -314,6 +314,7 @@ export const de = {
   resetPasswordConfirm: "Zurücksetzen",
   resetPasswordSuccess:
     "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
+  resetPasswordDisabledInfo: "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
   // Passkeys

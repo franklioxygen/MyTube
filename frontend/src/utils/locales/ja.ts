@@ -321,6 +321,7 @@ export const ja = {
   resetPasswordConfirm: "リセット",
   resetPasswordSuccess:
     "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
+  resetPasswordDisabledInfo: "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
   // Passkeys

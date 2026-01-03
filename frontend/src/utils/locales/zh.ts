@@ -304,6 +304,7 @@ export const zh = {
     "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
   resetPasswordConfirm: "重置",
   resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
+  resetPasswordDisabledInfo: "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
   waitTimeMessage: "请等待 {time} 后再试。",
   tooManyAttempts: "失败尝试次数过多。",
   // Passkeys

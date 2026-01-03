@@ -332,6 +332,7 @@ export const ru = {
   resetPasswordConfirm: "Сбросить",
   resetPasswordSuccess:
     "Пароль был сброшен. Проверьте логи бэкенда для нового пароля.",
+  resetPasswordDisabledInfo: "Сброс пароля отключен. Чтобы сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЭто сгенерирует новый случайный пароль и включит вход по паролю.",
   waitTimeMessage: "Пожалуйста, подождите {time} перед повторной попыткой.",
   tooManyAttempts: "Слишком много неудачных попыток.",
   // Passkeys

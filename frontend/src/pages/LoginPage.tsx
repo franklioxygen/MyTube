@@ -1,4 +1,4 @@
-import { ErrorOutline, Fingerprint, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { ErrorOutline, Fingerprint, InfoOutlined, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
@@ -12,6 +12,7 @@ import {
     InputAdornment,
     TextField,
     ThemeProvider,
+    Tooltip,
     Typography
 } from '@mui/material';
 import { startAuthentication } from '@simplewebauthn/browser';
@@ -438,6 +439,26 @@ const LoginPage: React.FC = () => {
                                     >
                                         {t('resetPassword')}
                                     </Button>
+                                )}
+                                {!allowResetPassword && passwordLoginAllowed && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                                        <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
+                                            <IconButton
+                                                onClick={() => showAlert(
+                                                    t('resetPassword') || 'Reset Password',
+                                                    t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
+                                                )}
+                                                color="primary"
+                                                sx={{ 
+                                                    '&:hover': {
+                                                        backgroundColor: 'action.hover'
+                                                    }
+                                                }}
+                                            >
+                                                <InfoOutlined />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
                                 )}
                                 <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
                                     {waitTime > 0 && (

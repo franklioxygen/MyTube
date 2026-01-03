@@ -337,6 +337,7 @@ export const fr = {
   resetPasswordConfirm: "Réinitialiser",
   resetPasswordSuccess:
     "Le mot de passe a été réinitialisé. Consultez les journaux du backend pour le nouveau mot de passe.",
+  resetPasswordDisabledInfo: "La réinitialisation du mot de passe est désactivée. Pour réinitialiser votre mot de passe, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nCela générera un nouveau mot de passe aléatoire et activera la connexion par mot de passe.",
   waitTimeMessage: "Veuillez attendre {time} avant de réessayer.",
   tooManyAttempts: "Trop de tentatives échouées.",
   // Passkeys

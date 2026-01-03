@@ -146,6 +146,23 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
             {settings.loginEnabled && (
                 <Box sx={{ mt: 2, maxWidth: 400 }}>
+
+                    {settings.passwordLoginAllowed !== false && (
+                        <TextField
+                            fullWidth
+                            sx={{ mb: 2 }}
+                            label={t('password')}
+                            type="password"
+                            value={settings.password || ''}
+                            onChange={(e) => onChange('password', e.target.value)}
+                            helperText={
+                                settings.isPasswordSet
+                                    ? t('passwordHelper')
+                                    : t('passwordSetHelper')
+                            }
+                        />
+                    )}
+
                     <FormControlLabel
                         control={
                             <Switch
@@ -177,21 +194,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             {t('allowResetPasswordHelper') || 'When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.'}
                         </Typography>
                     </Box>
-
-                    {settings.passwordLoginAllowed !== false && (
-                        <TextField
-                            fullWidth
-                            label={t('password')}
-                            type="password"
-                            value={settings.password || ''}
-                            onChange={(e) => onChange('password', e.target.value)}
-                            helperText={
-                                settings.isPasswordSet
-                                    ? t('passwordHelper')
-                                    : t('passwordSetHelper')
-                            }
-                        />
-                    )}
 
                     <Box sx={{ mt: 3 }}>
                         <Box sx={{ mb: 2 }}>

@@ -337,6 +337,7 @@ export const es = {
   resetPasswordConfirm: "Restablecer",
   resetPasswordSuccess:
     "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
+  resetPasswordDisabledInfo: "El restablecimiento de contraseña está deshabilitado. Para restablecer su contraseña, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nEsto generará una nueva contraseña aleatoria y habilitará el inicio de sesión con contraseña.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
   // Passkeys

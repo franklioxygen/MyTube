@@ -328,6 +328,7 @@ export const en = {
   resetPasswordConfirm: "Reset",
   resetPasswordSuccess:
     "Password has been reset. Check backend logs for the new password.",
+  resetPasswordDisabledInfo: "Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.",
   waitTimeMessage: "Please wait {time} before trying again.",
   tooManyAttempts: "Too many failed attempts.",
   // Passkeys

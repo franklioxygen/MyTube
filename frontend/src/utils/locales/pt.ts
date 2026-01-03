@@ -332,6 +332,7 @@ export const pt = {
   resetPasswordConfirm: "Redefinir",
   resetPasswordSuccess:
     "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
+  resetPasswordDisabledInfo: "A redefinição de senha está desabilitada. Para redefinir sua senha, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nIsso gerará uma nova senha aleatória e habilitará o login com senha.",
   waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
   tooManyAttempts: "Muitas tentativas falharam.",
   // Passkeys
