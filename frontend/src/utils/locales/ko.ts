@@ -333,6 +333,8 @@ export const ko = {
   loginWithPasskey: "패스키로 로그인",
   authenticating: "인증 중...",
   passkeyLoginFailed: "패스키 인증에 실패했습니다. 다시 시도해 주세요.",
+  passkeyErrorPermissionDenied: "사용자 에이전트 또는 플랫폼이 현재 컨텍스트에서 요청을 허용하지 않습니다. 사용자가 권한을 거부했을 수 있습니다.",
+  passkeyErrorAlreadyRegistered: "인증기가 이전에 등록되었습니다.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
   copyFailed: "링크 복사 실패",
   passkeyRequiresHttps: "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",

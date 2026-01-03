@@ -334,6 +334,8 @@ export const de = {
   authenticating: "Wird authentifiziert...",
   passkeyLoginFailed:
     "Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  passkeyErrorPermissionDenied: "Die Anfrage wird vom Benutzer-Agenten oder der Plattform im aktuellen Kontext nicht zugelassen, möglicherweise weil der Benutzer die Berechtigung verweigert hat.",
+  passkeyErrorAlreadyRegistered: "Der Authentifikator wurde bereits zuvor registriert.",
   linkCopied: "Link in die Zwischenablage kopiert",
   copyFailed: "Link konnte nicht kopiert werden",
   passkeyRequiresHttps: "WebAuthn erfordert HTTPS oder localhost. Bitte greifen Sie über HTTPS auf die Anwendung zu oder verwenden Sie localhost anstelle einer IP-Adresse.",

@@ -322,6 +322,8 @@ export const zh = {
   loginWithPasskey: "使用通行密钥登录",
   authenticating: "验证中...",
   passkeyLoginFailed: "通行密钥验证失败，请重试。",
+  passkeyErrorPermissionDenied: "用户代理或平台在当前上下文中不允许该请求，可能是因为用户拒绝了权限。",
+  passkeyErrorAlreadyRegistered: "该认证器之前已注册。",
   linkCopied: "链接已复制到剪贴板",
   copyFailed: "复制链接失败",
 

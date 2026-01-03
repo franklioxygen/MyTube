@@ -2,9 +2,10 @@ import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@m
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
 
@@ -38,6 +39,13 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     });
 
     const passkeysExist = passkeysData?.exists || false;
+
+    // If passkeys don't exist, automatically enable and lock password login
+    useEffect(() => {
+        if (!passkeysExist && settings.loginEnabled && settings.passwordLoginAllowed === false) {
+            onChange('passwordLoginAllowed', true);
+        }
+    }, [passkeysExist, settings.loginEnabled, settings.passwordLoginAllowed, onChange]);
 
     // Create passkey mutation
     const createPasskeyMutation = useMutation({
@@ -80,6 +88,12 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                 errorMessage = error.response.data.message;
             } else if (error?.message) {
                 errorMessage = error.message;
+            }
+            
+            // Check if this is a WebAuthn error that can be translated
+            const translationKey = getWebAuthnErrorTranslationKey(errorMessage);
+            if (translationKey) {
+                errorMessage = t(translationKey) || errorMessage;
             }
             
             showAlert(t('error'), errorMessage);
@@ -166,7 +180,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                     <FormControlLabel
                         control={
                             <Switch
-                                checked={settings.passwordLoginAllowed !== false}
+                                checked={!passkeysExist ? true : (settings.passwordLoginAllowed !== false)}
                                 onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
                                 disabled={!settings.loginEnabled || !passkeysExist}
                             />

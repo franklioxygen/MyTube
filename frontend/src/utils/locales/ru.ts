@@ -352,6 +352,8 @@ export const ru = {
   authenticating: "Аутентификация...",
   passkeyLoginFailed:
     "Ошибка аутентификации с помощью ключа доступа. Пожалуйста, попробуйте снова.",
+  passkeyErrorPermissionDenied: "Запрос не разрешен пользовательским агентом или платформой в текущем контексте, возможно, потому что пользователь отклонил разрешение.",
+  passkeyErrorAlreadyRegistered: "Аутентификатор был ранее зарегистрирован.",
   linkCopied: "Ссылка скопирована в буфер обмена",
   copyFailed: "Не удалось скопировать ссылку",
   passkeyRequiresHttps: "WebAuthn требует HTTPS или localhost. Пожалуйста, войдите в приложение через HTTPS или используйте localhost вместо IP-адреса.",

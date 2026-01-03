@@ -331,6 +331,8 @@ export const ar = {
   loginWithPasskey: "تسجيل الدخول بمفتاح المرور",
   authenticating: "جاري المصادقة...",
   passkeyLoginFailed: "فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.",
+  passkeyErrorPermissionDenied: "لا يُسمح بالطلب من قبل وكيل المستخدم أو المنصة في السياق الحالي، ربما لأن المستخدم رفض الإذن.",
+  passkeyErrorAlreadyRegistered: "تم تسجيل المصادق مسبقاً.",
   linkCopied: "تم نسخ الرابط إلى الحافظة",
   copyFailed: "فشل نسخ الرابط",
   passkeyRequiresHttps: "يتطلب WebAuthn استخدام HTTPS أو localhost. يرجى الدخول إلى التطبيق عبر HTTPS أو استخدام localhost بدلاً من عنوان IP.",

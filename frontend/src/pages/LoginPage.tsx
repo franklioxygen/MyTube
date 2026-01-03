@@ -25,6 +25,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
+import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -246,6 +247,12 @@ const LoginPage: React.FC = () => {
                 errorMessage = err.response.data.message;
             } else if (err?.message) {
                 errorMessage = err.message;
+            }
+            
+            // Check if this is a WebAuthn error that can be translated
+            const translationKey = getWebAuthnErrorTranslationKey(errorMessage);
+            if (translationKey) {
+                errorMessage = t(translationKey) || errorMessage;
             }
             
             showAlert(t('error'), errorMessage);

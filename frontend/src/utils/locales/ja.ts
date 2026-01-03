@@ -340,6 +340,8 @@ export const ja = {
   loginWithPasskey: "パスキーでログイン",
   authenticating: "認証中...",
   passkeyLoginFailed: "パスキー認証に失敗しました。もう一度お試しください。",
+  passkeyErrorPermissionDenied: "ユーザーエージェントまたはプラットフォームが現在のコンテキストでリクエストを許可していません。ユーザーが権限を拒否した可能性があります。",
+  passkeyErrorAlreadyRegistered: "認証器は以前に登録されています。",
   linkCopied: "リンクをクリップボードにコピーしました",
   copyFailed: "リンクのコピーに失敗しました",
   passkeyRequiresHttps: "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",

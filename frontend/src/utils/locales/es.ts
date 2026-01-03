@@ -357,6 +357,8 @@ export const es = {
   authenticating: "Autenticando...",
   passkeyLoginFailed:
     "Error en la autenticación con clave de acceso. Por favor, inténtelo de nuevo.",
+  passkeyErrorPermissionDenied: "La solicitud no está permitida por el agente de usuario o la plataforma en el contexto actual, posiblemente porque el usuario denegó el permiso.",
+  passkeyErrorAlreadyRegistered: "El autenticador ya estaba registrado previamente.",
   linkCopied: "Enlace copiado al portapapeles",
   copyFailed: "Error al copiar enlace",
   passkeyRequiresHttps: "WebAuthn requiere HTTPS o localhost. Por favor, acceda a la aplicación a través de HTTPS o utilice localhost en lugar de una dirección IP.",

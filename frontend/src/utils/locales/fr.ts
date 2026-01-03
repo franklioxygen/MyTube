@@ -357,6 +357,8 @@ export const fr = {
   authenticating: "Authentification en cours...",
   passkeyLoginFailed:
     "Échec de l'authentification par clé d'accès. Veuillez réessayer.",
+  passkeyErrorPermissionDenied: "La demande n'est pas autorisée par l'agent utilisateur ou la plateforme dans le contexte actuel, peut-être parce que l'utilisateur a refusé l'autorisation.",
+  passkeyErrorAlreadyRegistered: "L'authentificateur a déjà été enregistré précédemment.",
   linkCopied: "Lien copié dans le presse-papiers",
   copyFailed: "Échec de la copie du lien",
   passkeyRequiresHttps: "WebAuthn nécessite HTTPS ou localhost. Veuillez accéder à l'application via HTTPS ou utiliser localhost au lieu d'une adresse IP.",

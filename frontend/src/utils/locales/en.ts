@@ -346,6 +346,8 @@ export const en = {
   loginWithPasskey: "Login with Passkey",
   authenticating: "Authenticating...",
   passkeyLoginFailed: "Passkey authentication failed. Please try again.",
+  passkeyErrorPermissionDenied: "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.",
+  passkeyErrorAlreadyRegistered: "The authenticator was previously registered.",
   linkCopied: "Link copied to clipboard",
   copyFailed: "Failed to copy link",
   copyUrl: "Copy URL",
