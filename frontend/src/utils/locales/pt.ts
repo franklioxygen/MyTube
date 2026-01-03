@@ -56,9 +56,11 @@ export const pt = {
   columnsCount: "{count} Colunas",
   enableLogin: "Ativar Proteção de Login",
   allowPasswordLogin: "Permitir Login com Senha",
-  allowPasswordLoginHelper: "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
+  allowPasswordLoginHelper:
+    "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
   allowResetPassword: "Permitir Redefinir Senha",
-  allowResetPasswordHelper: "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
+  allowResetPasswordHelper:
+    "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
   password: "Senha",
   enterPassword: "Digite a senha",
   togglePasswordVisibility: "Alternar visibilidade da senha",
@@ -332,8 +334,10 @@ export const pt = {
   resetPasswordConfirm: "Redefinir",
   resetPasswordSuccess:
     "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
-  resetPasswordDisabledInfo: "A redefinição de senha está desabilitada. Para redefinir sua senha, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nIsso gerará uma nova senha aleatória e habilitará o login com senha.",
-  resetPasswordScriptGuide: "Para redefinir a senha manualmente, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nSe nenhuma senha for fornecida, uma senha aleatória de 8 caracteres será gerada.",
+  resetPasswordDisabledInfo:
+    "A redefinição de senha está desabilitada. Para redefinir sua senha, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nIsso gerará uma nova senha aleatória e habilitará o login com senha.",
+  resetPasswordScriptGuide:
+    "Para redefinir a senha manualmente, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nSe nenhuma senha for fornecida, uma senha aleatória de 8 caracteres será gerada.",
   waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
   tooManyAttempts: "Muitas tentativas falharam.",
   // Passkeys
@@ -353,12 +357,16 @@ export const pt = {
   authenticating: "Autenticando...",
   passkeyLoginFailed:
     "Falha na autenticação com chave de acesso. Por favor, tente novamente.",
-  passkeyErrorPermissionDenied: "A solicitação não é permitida pelo agente do usuário ou pela plataforma no contexto atual, possivelmente porque o usuário negou a permissão.",
-  passkeyErrorAlreadyRegistered: "O autenticador já foi registrado anteriormente.",
+  passkeyErrorPermissionDenied:
+    "A solicitação não é permitida pelo agente do usuário ou pela plataforma no contexto atual, possivelmente porque o usuário negou a permissão.",
+  passkeyErrorAlreadyRegistered:
+    "O autenticador já foi registrado anteriormente.",
   linkCopied: "Link copiado para a área de transferência",
   copyFailed: "Falha ao copiar link",
-  passkeyRequiresHttps: "WebAuthn requer HTTPS ou localhost. Por favor, acesse o aplicativo via HTTPS ou use localhost em vez de um endereço IP.",
-  passkeyWebAuthnNotSupported: "WebAuthn não é suportado neste navegador. Por favor, use um navegador moderno que suporte WebAuthn.",
+  passkeyRequiresHttps:
+    "WebAuthn requer HTTPS ou localhost. Por favor, acesse o aplicativo via HTTPS ou use localhost em vez de um endereço IP.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn não é suportado neste navegador. Por favor, use um navegador moderno que suporte WebAuthn.",
 
   // Collection Page
   loadingCollection: "Carregando coleção...",

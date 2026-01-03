@@ -24,6 +24,7 @@ import AlertModal from '../components/AlertModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useVisitorMode } from '../contexts/VisitorModeContext';
 import getTheme from '../theme';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
@@ -42,6 +43,7 @@ const LoginPage: React.FC = () => {
     const [resetPasswordCooldown, setResetPasswordCooldown] = useState(0); // in milliseconds
     const { t } = useLanguage();
     const { login } = useAuth();
+    const { visitorMode } = useVisitorMode();
     const queryClient = useQueryClient();
 
     // Fetch website name and settings from settings
@@ -398,7 +400,12 @@ const LoginPage: React.FC = () => {
                                     <Typography variant="h4" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
                                         {websiteName}
                                     </Typography>
-                                    {websiteName !== 'MyTube' && (
+                                    {visitorMode && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.2, mt: 0.5 }}>
+                                            {t('visitorMode')}
+                                        </Typography>
+                                    )}
+                                    {websiteName !== 'MyTube' && !visitorMode && (
                                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', lineHeight: 1.2, mt: 0.25 }}>
                                             Powered by MyTube
                                         </Typography>
@@ -453,7 +460,7 @@ const LoginPage: React.FC = () => {
                                         >
                                             {loginMutation.isPending ? (t('verifying') || 'Verifying...') : t('signIn')}
                                         </Button>
-                                        {passkeysExist && (
+                                        {passkeysExist && !visitorMode && (
                                             <>
                                                 <Divider sx={{ my: 2 }}>OR</Divider>
                                                 <Button
@@ -472,7 +479,7 @@ const LoginPage: React.FC = () => {
                                         )}
                                     </>
                                 )}
-                                {!passwordLoginAllowed && passkeysExist && (
+                                {!passwordLoginAllowed && passkeysExist && !visitorMode && (
                                     <Button
                                         fullWidth
                                         variant="contained"
@@ -486,7 +493,7 @@ const LoginPage: React.FC = () => {
                                             : (t('loginWithPasskey') || 'Login with Passkey')}
                                     </Button>
                                 )}
-                                {allowResetPassword && (
+                                {allowResetPassword && !visitorMode && (
                                     <Button
                                         fullWidth
                                         variant="outlined"

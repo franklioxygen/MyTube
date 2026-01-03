@@ -53,9 +53,11 @@ export const en = {
   columnsCount: "{count} Columns",
   enableLogin: "Enable Login Protection",
   allowPasswordLogin: "Allow Password Login",
-  allowPasswordLoginHelper: "When disabled, password login is not available. You must have at least one passkey to disable password login.",
+  allowPasswordLoginHelper:
+    "When disabled, password login is not available. You must have at least one passkey to disable password login.",
   allowResetPassword: "Allow Reset Password",
-  allowResetPasswordHelper: "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
+  allowResetPasswordHelper:
+    "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
   password: "Password",
   enterPassword: "Enter Password",
   togglePasswordVisibility: "Toggle password visibility",
@@ -120,24 +122,28 @@ export const en = {
     "This will permanently delete all .ytdl and .part files in the uploads directory. Make sure there are no active downloads before proceeding.",
 
   // Task Hooks
-  taskHooks: 'Task Hooks',
-  taskHooksDescription: 'Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.',
-  taskHooksWarning: 'Warning: Commands run with the server\'s permissions. Use with caution.',
-  hookTaskBeforeStart: 'Before Task Start',
-  hookTaskBeforeStartHelper: 'Executes before the download begins.',
-  hookTaskSuccess: 'Task Success',
-  hookTaskSuccessHelper: 'Executes after successful download, before cloud upload/deletion (awaits completion).',
-  hookTaskFail: 'Task Failed',
-  hookTaskFailHelper: 'Executes when a task fails.',
-  hookTaskCancel: 'Task Cancelled',
-  hookTaskCancelHelper: 'Executes when a task is manually cancelled.',
-  found: 'Found',
-  notFound: 'Not Set',
-  deleteHook: 'Delete Hook Script',
-  confirmDeleteHook: 'Are you sure you want to delete this hook script?',
-  uploadHook: 'Upload .sh',
-  enterPasswordToUploadHook: 'Please enter your password to upload this hook script.',
-  riskCommandDetected: 'Risk command detected: {command}. Upload rejected.',
+  taskHooks: "Task Hooks",
+  taskHooksDescription:
+    "Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning:
+    "Warning: Commands run with the server's permissions. Use with caution.",
+  hookTaskBeforeStart: "Before Task Start",
+  hookTaskBeforeStartHelper: "Executes before the download begins.",
+  hookTaskSuccess: "Task Success",
+  hookTaskSuccessHelper:
+    "Executes after successful download, before cloud upload/deletion (awaits completion).",
+  hookTaskFail: "Task Failed",
+  hookTaskFailHelper: "Executes when a task fails.",
+  hookTaskCancel: "Task Cancelled",
+  hookTaskCancelHelper: "Executes when a task is manually cancelled.",
+  found: "Found",
+  notFound: "Not Set",
+  deleteHook: "Delete Hook Script",
+  confirmDeleteHook: "Are you sure you want to delete this hook script?",
+  uploadHook: "Upload .sh",
+  enterPasswordToUploadHook:
+    "Please enter your password to upload this hook script.",
+  riskCommandDetected: "Risk command detected: {command}. Upload rejected.",
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
   formatFilenamesSuccess:
@@ -214,9 +220,11 @@ export const en = {
   uploadingVideo: "Uploading: {title}",
   clearThumbnailCache: "Clear Thumbnail Local Cache",
   clearing: "Clearing...",
-  clearThumbnailCacheSuccess: "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
+  clearThumbnailCacheSuccess:
+    "Thumbnail cache cleared successfully. Thumbnails will be regenerated when accessed next time.",
   clearThumbnailCacheError: "Failed to clear thumbnail cache",
-  clearThumbnailCacheConfirmMessage: "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
+  clearThumbnailCacheConfirmMessage:
+    "This will clear all locally cached thumbnails for cloud videos. Thumbnails will be regenerated from cloud storage when accessed next time. Continue?",
 
   // Manage
   manageContent: "Manage Content",
@@ -328,8 +336,10 @@ export const en = {
   resetPasswordConfirm: "Reset",
   resetPasswordSuccess:
     "Password has been reset. Check backend logs for the new password.",
-  resetPasswordDisabledInfo: "Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.",
-  resetPasswordScriptGuide: "To reset password manually, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nIf no password is provided, a random 8-character password will be generated.",
+  resetPasswordDisabledInfo:
+    "Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.",
+  resetPasswordScriptGuide:
+    "To reset password manually, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nIf no password is provided, a random 8-character password will be generated.",
   waitTimeMessage: "Please wait {time} before trying again.",
   tooManyAttempts: "Too many failed attempts.",
   // Passkeys
@@ -337,17 +347,21 @@ export const en = {
   creatingPasskey: "Creating...",
   passkeyCreated: "Passkey created successfully",
   passkeyCreationFailed: "Failed to create passkey. Please try again.",
-  passkeyWebAuthnNotSupported: "WebAuthn is not supported in this browser. Please use a modern browser that supports WebAuthn.",
-  passkeyRequiresHttps: "WebAuthn requires HTTPS or localhost. Please access the application via HTTPS or use localhost instead of an IP address.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn is not supported in this browser. Please use a modern browser that supports WebAuthn.",
+  passkeyRequiresHttps:
+    "WebAuthn requires HTTPS or localhost. Please access the application via HTTPS or use localhost instead of an IP address.",
   removePasskeys: "Remove All Passkeys",
   removePasskeysTitle: "Remove All Passkeys",
-  removePasskeysMessage: "Are you sure you want to remove all passkeys? This action cannot be undone.",
+  removePasskeysMessage:
+    "Are you sure you want to remove all passkeys? This action cannot be undone.",
   passkeysRemoved: "All passkeys have been removed",
   passkeysRemoveFailed: "Failed to remove passkeys. Please try again.",
   loginWithPasskey: "Login with Passkey",
   authenticating: "Authenticating...",
   passkeyLoginFailed: "Passkey authentication failed. Please try again.",
-  passkeyErrorPermissionDenied: "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.",
+  passkeyErrorPermissionDenied:
+    "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.",
   passkeyErrorAlreadyRegistered: "The authenticator was previously registered.",
   linkCopied: "Link copied to clipboard",
   copyFailed: "Failed to copy link",
@@ -419,7 +433,8 @@ export const en = {
   authorOrPlaylist: "Author / Playlist",
   playlistDetected: "Playlist Detected",
   playlistHasVideos: "This playlist has {count} videos.",
-  downloadPlaylistAndCreateCollection: "Download playlist videos and create a Collection for it?",
+  downloadPlaylistAndCreateCollection:
+    "Download playlist videos and create a Collection for it?",
   playlistDownloadStarted: "Playlist download started",
   collectionHasVideos: "This Bilibili collection has {count} videos.",
   seriesHasVideos: "This Bilibili series has {count} videos.",
@@ -633,7 +648,8 @@ export const en = {
   cloudflaredTunnel: "Cloudflare Tunnel",
   enableCloudflaredTunnel: "Enable Cloudflare Tunnel",
   cloudflaredToken: "Tunnel Token (Optional)",
-  cloudflaredTokenHelper: "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+  cloudflaredTokenHelper:
+    "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
   waitingForUrl: "Waiting for Quick Tunnel URL...",
   running: "Running",
   stopped: "Stopped",
@@ -641,8 +657,10 @@ export const en = {
   accountTag: "Account Tag",
   copied: "Copied!",
   clickToCopy: "Click to copy",
-  quickTunnelWarning: "Quick Tunnel URLs change every time the tunnel restarts.",
-  managedInDashboard: "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
+  quickTunnelWarning:
+    "Quick Tunnel URLs change every time the tunnel restarts.",
+  managedInDashboard:
+    "Public hostname is managed in your Cloudflare Zero Trust Dashboard.",
 
   // Database Export/Import
   exportImportDatabase: "Export/Import Database",
@@ -673,5 +691,4 @@ export const en = {
   noBackupAvailable: "No backup available",
   failedToDownloadVideo: "Failed to download video. Please try again.",
   failedToDownload: "Failed to download. Please try again.",
-
 };

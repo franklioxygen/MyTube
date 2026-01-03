@@ -52,9 +52,11 @@ export const de = {
   columnsCount: "{count} Spalten",
   enableLogin: "Anmeldeschutz aktivieren",
   allowPasswordLogin: "Passwort-Anmeldung zulassen",
-  allowPasswordLoginHelper: "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
+  allowPasswordLoginHelper:
+    "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
   allowResetPassword: "Passwort zurücksetzen zulassen",
-  allowResetPasswordHelper: "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
+  allowResetPasswordHelper:
+    "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
   password: "Passwort",
   enterPassword: "Passwort eingeben",
   togglePasswordVisibility: "Passwort sichtbar machen",
@@ -314,8 +316,10 @@ export const de = {
   resetPasswordConfirm: "Zurücksetzen",
   resetPasswordSuccess:
     "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
-  resetPasswordDisabledInfo: "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
-  resetPasswordScriptGuide: "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
+  resetPasswordDisabledInfo:
+    "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
+  resetPasswordScriptGuide:
+    "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
   // Passkeys
@@ -335,12 +339,16 @@ export const de = {
   authenticating: "Wird authentifiziert...",
   passkeyLoginFailed:
     "Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
-  passkeyErrorPermissionDenied: "Die Anfrage wird vom Benutzer-Agenten oder der Plattform im aktuellen Kontext nicht zugelassen, möglicherweise weil der Benutzer die Berechtigung verweigert hat.",
-  passkeyErrorAlreadyRegistered: "Der Authentifikator wurde bereits zuvor registriert.",
+  passkeyErrorPermissionDenied:
+    "Die Anfrage wird vom Benutzer-Agenten oder der Plattform im aktuellen Kontext nicht zugelassen, möglicherweise weil der Benutzer die Berechtigung verweigert hat.",
+  passkeyErrorAlreadyRegistered:
+    "Der Authentifikator wurde bereits zuvor registriert.",
   linkCopied: "Link in die Zwischenablage kopiert",
   copyFailed: "Link konnte nicht kopiert werden",
-  passkeyRequiresHttps: "WebAuthn erfordert HTTPS oder localhost. Bitte greifen Sie über HTTPS auf die Anwendung zu oder verwenden Sie localhost anstelle einer IP-Adresse.",
-  passkeyWebAuthnNotSupported: "WebAuthn wird in diesem Browser nicht unterstützt. Bitte verwenden Sie einen modernen Browser, der WebAuthn unterstützt.",
+  passkeyRequiresHttps:
+    "WebAuthn erfordert HTTPS oder localhost. Bitte greifen Sie über HTTPS auf die Anwendung zu oder verwenden Sie localhost anstelle einer IP-Adresse.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn wird in diesem Browser nicht unterstützt. Bitte verwenden Sie einen modernen Browser, der WebAuthn unterstützt.",
   loadingCollection: "Sammlung wird geladen...",
   collectionNotFound: "Sammlung nicht gefunden",
   noVideosInCollection: "Keine Videos in dieser Sammlung.",

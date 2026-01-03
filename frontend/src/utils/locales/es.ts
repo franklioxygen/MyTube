@@ -63,9 +63,11 @@ export const es = {
   columnsCount: "{count} Columnas",
   enableLogin: "Habilitar Protección de Inicio de Sesión",
   allowPasswordLogin: "Permitir Inicio de Sesión con Contraseña",
-  allowPasswordLoginHelper: "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
+  allowPasswordLoginHelper:
+    "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
   allowResetPassword: "Permitir Restablecer Contraseña",
-  allowResetPasswordHelper: "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
+  allowResetPasswordHelper:
+    "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
   password: "Contraseña",
   enterPassword: "Introducir contraseña",
   togglePasswordVisibility: "Alternar visibilidad de contraseña",
@@ -337,8 +339,10 @@ export const es = {
   resetPasswordConfirm: "Restablecer",
   resetPasswordSuccess:
     "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
-  resetPasswordDisabledInfo: "El restablecimiento de contraseña está deshabilitado. Para restablecer su contraseña, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nEsto generará una nueva contraseña aleatoria y habilitará el inicio de sesión con contraseña.",
-  resetPasswordScriptGuide: "Para restablecer la contraseña manualmente, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nSi no se proporciona una contraseña, se generará una contraseña aleatoria de 8 caracteres.",
+  resetPasswordDisabledInfo:
+    "El restablecimiento de contraseña está deshabilitado. Para restablecer su contraseña, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nEsto generará una nueva contraseña aleatoria y habilitará el inicio de sesión con contraseña.",
+  resetPasswordScriptGuide:
+    "Para restablecer la contraseña manualmente, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nSi no se proporciona una contraseña, se generará una contraseña aleatoria de 8 caracteres.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
   // Passkeys
@@ -358,12 +362,16 @@ export const es = {
   authenticating: "Autenticando...",
   passkeyLoginFailed:
     "Error en la autenticación con clave de acceso. Por favor, inténtelo de nuevo.",
-  passkeyErrorPermissionDenied: "La solicitud no está permitida por el agente de usuario o la plataforma en el contexto actual, posiblemente porque el usuario denegó el permiso.",
-  passkeyErrorAlreadyRegistered: "El autenticador ya estaba registrado previamente.",
+  passkeyErrorPermissionDenied:
+    "La solicitud no está permitida por el agente de usuario o la plataforma en el contexto actual, posiblemente porque el usuario denegó el permiso.",
+  passkeyErrorAlreadyRegistered:
+    "El autenticador ya estaba registrado previamente.",
   linkCopied: "Enlace copiado al portapapeles",
   copyFailed: "Error al copiar enlace",
-  passkeyRequiresHttps: "WebAuthn requiere HTTPS o localhost. Por favor, acceda a la aplicación a través de HTTPS o utilice localhost en lugar de una dirección IP.",
-  passkeyWebAuthnNotSupported: "WebAuthn no es compatible con este navegador. Por favor, utilice un navegador moderno que sea compatible con WebAuthn.",
+  passkeyRequiresHttps:
+    "WebAuthn requiere HTTPS o localhost. Por favor, acceda a la aplicación a través de HTTPS o utilice localhost en lugar de una dirección IP.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn no es compatible con este navegador. Por favor, utilice un navegador moderno que sea compatible con WebAuthn.",
 
   // Collection Page: "Cargando colección...", collectionNotFound: "Colección no encontrada",
   noVideosInCollection: "No hay videos en esta colección.",

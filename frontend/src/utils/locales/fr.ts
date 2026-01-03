@@ -56,9 +56,11 @@ export const fr = {
   columnsCount: "{count} Colonnes",
   enableLogin: "Activer la protection par connexion",
   allowPasswordLogin: "Autoriser la connexion par mot de passe",
-  allowPasswordLoginHelper: "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
+  allowPasswordLoginHelper:
+    "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
   allowResetPassword: "Autoriser la réinitialisation du mot de passe",
-  allowResetPasswordHelper: "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",
+  allowResetPasswordHelper:
+    "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",
   password: "Mot de passe",
   enterPassword: "Entrez le mot de passe",
   togglePasswordVisibility: "Afficher/Masquer le mot de passe",
@@ -337,8 +339,10 @@ export const fr = {
   resetPasswordConfirm: "Réinitialiser",
   resetPasswordSuccess:
     "Le mot de passe a été réinitialisé. Consultez les journaux du backend pour le nouveau mot de passe.",
-  resetPasswordDisabledInfo: "La réinitialisation du mot de passe est désactivée. Pour réinitialiser votre mot de passe, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nCela générera un nouveau mot de passe aléatoire et activera la connexion par mot de passe.",
-  resetPasswordScriptGuide: "Pour réinitialiser le mot de passe manuellement, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nSi aucun mot de passe n'est fourni, un mot de passe aléatoire de 8 caractères sera généré.",
+  resetPasswordDisabledInfo:
+    "La réinitialisation du mot de passe est désactivée. Pour réinitialiser votre mot de passe, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nCela générera un nouveau mot de passe aléatoire et activera la connexion par mot de passe.",
+  resetPasswordScriptGuide:
+    "Pour réinitialiser le mot de passe manuellement, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nSi aucun mot de passe n'est fourni, un mot de passe aléatoire de 8 caractères sera généré.",
   waitTimeMessage: "Veuillez attendre {time} avant de réessayer.",
   tooManyAttempts: "Trop de tentatives échouées.",
   // Passkeys
@@ -358,12 +362,16 @@ export const fr = {
   authenticating: "Authentification en cours...",
   passkeyLoginFailed:
     "Échec de l'authentification par clé d'accès. Veuillez réessayer.",
-  passkeyErrorPermissionDenied: "La demande n'est pas autorisée par l'agent utilisateur ou la plateforme dans le contexte actuel, peut-être parce que l'utilisateur a refusé l'autorisation.",
-  passkeyErrorAlreadyRegistered: "L'authentificateur a déjà été enregistré précédemment.",
+  passkeyErrorPermissionDenied:
+    "La demande n'est pas autorisée par l'agent utilisateur ou la plateforme dans le contexte actuel, peut-être parce que l'utilisateur a refusé l'autorisation.",
+  passkeyErrorAlreadyRegistered:
+    "L'authentificateur a déjà été enregistré précédemment.",
   linkCopied: "Lien copié dans le presse-papiers",
   copyFailed: "Échec de la copie du lien",
-  passkeyRequiresHttps: "WebAuthn nécessite HTTPS ou localhost. Veuillez accéder à l'application via HTTPS ou utiliser localhost au lieu d'une adresse IP.",
-  passkeyWebAuthnNotSupported: "WebAuthn n'est pas supporté par ce navigateur. Veuillez utiliser un navigateur moderne qui supporte WebAuthn.",
+  passkeyRequiresHttps:
+    "WebAuthn nécessite HTTPS ou localhost. Veuillez accéder à l'application via HTTPS ou utiliser localhost au lieu d'une adresse IP.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn n'est pas supporté par ce navigateur. Veuillez utiliser un navigateur moderne qui supporte WebAuthn.",
 
   // Collection Page
   loadingCollection: "Chargement de la collection...",

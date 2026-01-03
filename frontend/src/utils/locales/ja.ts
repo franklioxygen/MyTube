@@ -55,9 +55,11 @@ export const ja = {
   columnsCount: "{count} 列",
   enableLogin: "ログイン保護を有効にする",
   allowPasswordLogin: "パスワードログインを許可",
-  allowPasswordLoginHelper: "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
+  allowPasswordLoginHelper:
+    "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
   allowResetPassword: "パスワードリセットを許可",
-  allowResetPasswordHelper: "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
+  allowResetPasswordHelper:
+    "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
   password: "パスワード",
   enterPassword: "パスワードを入力",
   togglePasswordVisibility: "パスワードの表示切り替え",
@@ -321,8 +323,10 @@ export const ja = {
   resetPasswordConfirm: "リセット",
   resetPasswordSuccess:
     "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
-  resetPasswordDisabledInfo: "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
-  resetPasswordScriptGuide: "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
+  resetPasswordDisabledInfo:
+    "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
+  resetPasswordScriptGuide:
+    "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
   // Passkeys
@@ -341,12 +345,15 @@ export const ja = {
   loginWithPasskey: "パスキーでログイン",
   authenticating: "認証中...",
   passkeyLoginFailed: "パスキー認証に失敗しました。もう一度お試しください。",
-  passkeyErrorPermissionDenied: "ユーザーエージェントまたはプラットフォームが現在のコンテキストでリクエストを許可していません。ユーザーが権限を拒否した可能性があります。",
+  passkeyErrorPermissionDenied:
+    "ユーザーエージェントまたはプラットフォームが現在のコンテキストでリクエストを許可していません。ユーザーが権限を拒否した可能性があります。",
   passkeyErrorAlreadyRegistered: "認証器は以前に登録されています。",
   linkCopied: "リンクをクリップボードにコピーしました",
   copyFailed: "リンクのコピーに失敗しました",
-  passkeyRequiresHttps: "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",
-  passkeyWebAuthnNotSupported: "このブラウザはWebAuthnをサポートしていません。WebAuthnをサポートする最新のブラウザを使用してください。",
+  passkeyRequiresHttps:
+    "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",
+  passkeyWebAuthnNotSupported:
+    "このブラウザはWebAuthnをサポートしていません。WebAuthnをサポートする最新のブラウザを使用してください。",
 
   // Collection Page
   loadingCollection: "コレクションを読み込み中...",

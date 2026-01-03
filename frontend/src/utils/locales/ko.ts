@@ -55,9 +55,11 @@ export const ko = {
   columnsCount: "{count} 열",
   enableLogin: "로그인 보호 활성화",
   allowPasswordLogin: "비밀번호 로그인 허용",
-  allowPasswordLoginHelper: "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
+  allowPasswordLoginHelper:
+    "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
   allowResetPassword: "비밀번호 재설정 허용",
-  allowResetPasswordHelper: "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
+  allowResetPasswordHelper:
+    "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
   password: "비밀번호",
   enterPassword: "비밀번호 입력",
   togglePasswordVisibility: "비밀번호 표시 전환",
@@ -316,8 +318,10 @@ export const ko = {
   resetPasswordConfirm: "재설정",
   resetPasswordSuccess:
     "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
-  resetPasswordDisabledInfo: "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
-  resetPasswordScriptGuide: "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
+  resetPasswordDisabledInfo:
+    "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
+  resetPasswordScriptGuide:
+    "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
   // Passkeys
@@ -334,12 +338,15 @@ export const ko = {
   loginWithPasskey: "패스키로 로그인",
   authenticating: "인증 중...",
   passkeyLoginFailed: "패스키 인증에 실패했습니다. 다시 시도해 주세요.",
-  passkeyErrorPermissionDenied: "사용자 에이전트 또는 플랫폼이 현재 컨텍스트에서 요청을 허용하지 않습니다. 사용자가 권한을 거부했을 수 있습니다.",
+  passkeyErrorPermissionDenied:
+    "사용자 에이전트 또는 플랫폼이 현재 컨텍스트에서 요청을 허용하지 않습니다. 사용자가 권한을 거부했을 수 있습니다.",
   passkeyErrorAlreadyRegistered: "인증기가 이전에 등록되었습니다.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
   copyFailed: "링크 복사 실패",
-  passkeyRequiresHttps: "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",
-  passkeyWebAuthnNotSupported: "이 브라우저는 WebAuthn을 지원하지 않습니다. WebAuthn을 지원하는 최신 브라우저를 사용하십시오.",
+  passkeyRequiresHttps:
+    "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",
+  passkeyWebAuthnNotSupported:
+    "이 브라우저는 WebAuthn을 지원하지 않습니다. WebAuthn을 지원하는 최신 브라우저를 사용하십시오.",
 
   // Collection Page
   loadingCollection: "컬렉션 로드 중...",

@@ -65,9 +65,11 @@ export const ru = {
   columnsCount: "{count} колонок",
   enableLogin: "Включить защиту входа",
   allowPasswordLogin: "Разрешить вход по паролю",
-  allowPasswordLoginHelper: "При отключении вход по паролю недоступен. Для отключения входа по паролю необходимо иметь хотя бы один ключ доступа.",
+  allowPasswordLoginHelper:
+    "При отключении вход по паролю недоступен. Для отключения входа по паролю необходимо иметь хотя бы один ключ доступа.",
   allowResetPassword: "Разрешить сброс пароля",
-  allowResetPasswordHelper: "При отключении кнопка сброса пароля не будет отображаться на странице входа, а API сброса пароля будет заблокирована.",
+  allowResetPasswordHelper:
+    "При отключении кнопка сброса пароля не будет отображаться на странице входа, а API сброса пароля будет заблокирована.",
   password: "Пароль",
   enterPassword: "Введите пароль",
   togglePasswordVisibility: "Показать/скрыть пароль",
@@ -332,8 +334,10 @@ export const ru = {
   resetPasswordConfirm: "Сбросить",
   resetPasswordSuccess:
     "Пароль был сброшен. Проверьте логи бэкенда для нового пароля.",
-  resetPasswordDisabledInfo: "Сброс пароля отключен. Чтобы сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЭто сгенерирует новый случайный пароль и включит вход по паролю.",
-  resetPasswordScriptGuide: "Чтобы вручную сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЕсли пароль не указан, будет сгенерирован случайный 8-символьный пароль.",
+  resetPasswordDisabledInfo:
+    "Сброс пароля отключен. Чтобы сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЭто сгенерирует новый случайный пароль и включит вход по паролю.",
+  resetPasswordScriptGuide:
+    "Чтобы вручную сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЕсли пароль не указан, будет сгенерирован случайный 8-символьный пароль.",
   waitTimeMessage: "Пожалуйста, подождите {time} перед повторной попыткой.",
   tooManyAttempts: "Слишком много неудачных попыток.",
   // Passkeys
@@ -353,12 +357,15 @@ export const ru = {
   authenticating: "Аутентификация...",
   passkeyLoginFailed:
     "Ошибка аутентификации с помощью ключа доступа. Пожалуйста, попробуйте снова.",
-  passkeyErrorPermissionDenied: "Запрос не разрешен пользовательским агентом или платформой в текущем контексте, возможно, потому что пользователь отклонил разрешение.",
+  passkeyErrorPermissionDenied:
+    "Запрос не разрешен пользовательским агентом или платформой в текущем контексте, возможно, потому что пользователь отклонил разрешение.",
   passkeyErrorAlreadyRegistered: "Аутентификатор был ранее зарегистрирован.",
   linkCopied: "Ссылка скопирована в буфер обмена",
   copyFailed: "Не удалось скопировать ссылку",
-  passkeyRequiresHttps: "WebAuthn требует HTTPS или localhost. Пожалуйста, войдите в приложение через HTTPS или используйте localhost вместо IP-адреса.",
-  passkeyWebAuthnNotSupported: "WebAuthn не поддерживается в этом браузере. Пожалуйста, используйте современный браузер с поддержкой WebAuthn.",
+  passkeyRequiresHttps:
+    "WebAuthn требует HTTPS или localhost. Пожалуйста, войдите в приложение через HTTPS или используйте localhost вместо IP-адреса.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn не поддерживается в этом браузере. Пожалуйста, используйте современный браузер с поддержкой WebAuthn.",
 
   // Collection Page
   loadingCollection: "Загрузка коллекции...",

@@ -53,9 +53,11 @@ export const ar = {
   columnsCount: "{count} أعمدة",
   enableLogin: "تفعيل حماية تسجيل الدخول",
   allowPasswordLogin: "السماح بتسجيل الدخول بكلمة المرور",
-  allowPasswordLoginHelper: "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
+  allowPasswordLoginHelper:
+    "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
   allowResetPassword: "السماح بإعادة تعيين كلمة المرور",
-  allowResetPasswordHelper: "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
+  allowResetPasswordHelper:
+    "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
   password: "كلمة المرور",
   enterPassword: "أدخل كلمة المرور",
   togglePasswordVisibility: "تبديل رؤية كلمة المرور",
@@ -314,8 +316,10 @@ export const ar = {
   resetPasswordConfirm: "إعادة التعيين",
   resetPasswordSuccess:
     "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
-  resetPasswordDisabledInfo: "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
-  resetPasswordScriptGuide: "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
+  resetPasswordDisabledInfo:
+    "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
+  resetPasswordScriptGuide:
+    "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
   // Passkeys
@@ -332,12 +336,15 @@ export const ar = {
   loginWithPasskey: "تسجيل الدخول بمفتاح المرور",
   authenticating: "جاري المصادقة...",
   passkeyLoginFailed: "فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.",
-  passkeyErrorPermissionDenied: "لا يُسمح بالطلب من قبل وكيل المستخدم أو المنصة في السياق الحالي، ربما لأن المستخدم رفض الإذن.",
+  passkeyErrorPermissionDenied:
+    "لا يُسمح بالطلب من قبل وكيل المستخدم أو المنصة في السياق الحالي، ربما لأن المستخدم رفض الإذن.",
   passkeyErrorAlreadyRegistered: "تم تسجيل المصادق مسبقاً.",
   linkCopied: "تم نسخ الرابط إلى الحافظة",
   copyFailed: "فشل نسخ الرابط",
-  passkeyRequiresHttps: "يتطلب WebAuthn استخدام HTTPS أو localhost. يرجى الدخول إلى التطبيق عبر HTTPS أو استخدام localhost بدلاً من عنوان IP.",
-  passkeyWebAuthnNotSupported: "WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث يدعم WebAuthn.",
+  passkeyRequiresHttps:
+    "يتطلب WebAuthn استخدام HTTPS أو localhost. يرجى الدخول إلى التطبيق عبر HTTPS أو استخدام localhost بدلاً من عنوان IP.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث يدعم WebAuthn.",
 
   // Collection Page
   loadingCollection: "جاري تحميل المجموعة...",
