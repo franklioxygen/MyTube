@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.28 (2026-01-03)
+
+### Refactor
+
+- refactor: Improve m3u8 URL selection strategy (3717296)
+
 ## v1.7.27 (2026-01-03)
 
 ### Feat
