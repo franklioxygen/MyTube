@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.32 (2026-01-04)
+
+### Style
+
+- style: Update cookie security settings for better usability (46c8d77)
+
 ## v1.7.31 (2026-01-04)
 
 ### Feat
