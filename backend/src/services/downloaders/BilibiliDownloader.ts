@@ -1,3 +1,4 @@
+import { SUBTITLES_DIR } from "../../config/paths";
 import { extractBilibiliVideoId } from "../../utils/helpers";
 import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
@@ -22,7 +23,7 @@ export type {
   BilibiliVideoInfo,
   BilibiliVideosResult,
   CollectionDownloadResult,
-  DownloadResult,
+  DownloadResult
 };
 
 export class BilibiliDownloader extends BaseDownloader {
@@ -183,6 +184,11 @@ export class BilibiliDownloader extends BaseDownloader {
     videoUrl: string,
     baseFilename: string
   ): Promise<Array<{ language: string; filename: string; path: string }>> {
-    return bilibiliSubtitle.downloadSubtitles(videoUrl, baseFilename);
+    return bilibiliSubtitle.downloadSubtitles(
+      videoUrl,
+      baseFilename,
+      SUBTITLES_DIR,
+      "/subtitles"
+    );
   }
 }

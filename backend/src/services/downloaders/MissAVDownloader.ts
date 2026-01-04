@@ -162,48 +162,16 @@ export class MissAVDownloader extends BaseDownloader {
       const hasFormatSort = !!(userConfig.S || userConfig.formatSort);
 
       // 4. Select the best m3u8 URL from collected URLs
-      // If user specified format sort, prefer master playlists so yt-dlp can choose resolution
-      // Otherwise, prefer specific quality playlists
-      let m3u8Url: string | null = null;
-      if (m3u8Urls.length > 0) {
-        // Sort URLs based on whether user wants format sort
-        const sortedUrls = m3u8Urls.sort((a, b) => {
-          const aIsMaster =
-            a.includes("/playlist.m3u8") || a.includes("/master/");
-          const bIsMaster =
-            b.includes("/playlist.m3u8") || b.includes("/master/");
-
-          if (hasFormatSort) {
-            // When format sort is specified, prefer master playlists
-            // so yt-dlp can apply format sort to choose the right resolution
-            if (aIsMaster && !bIsMaster) return -1; // Master playlist first
-            if (!aIsMaster && bIsMaster) return 1;
-            // Among master playlists or non-master playlists, prefer higher quality
-            const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
-            const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
-            const aQualityNum = parseInt(aQuality) || 0;
-            const bQualityNum = parseInt(bQuality) || 0;
-            return bQualityNum - aQualityNum; // Higher quality first
-          } else {
-            // Default behavior: prefer specific quality playlists over master playlists
-            if (aIsMaster && !bIsMaster) return 1;
-            if (!aIsMaster && bIsMaster) return -1;
-            // Among non-master playlists, prefer higher quality (480p > 240p)
-            const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
-            const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
-            const aQualityNum = parseInt(aQuality) || 0;
-            const bQualityNum = parseInt(bQuality) || 0;
-            return bQualityNum - aQualityNum; // Higher quality first
-          }
-        });
-
-        m3u8Url = sortedUrls[0];
+      let m3u8Url = MissAVDownloader.selectBestM3u8Url(m3u8Urls, hasFormatSort);
+      
+      if (m3u8Url) {
         logger.info(
           `Selected m3u8 URL from ${m3u8Urls.length} candidates (format sort: ${hasFormatSort}):`,
           m3u8Url
         );
-        if (sortedUrls.length > 1) {
-          logger.info("Alternative URLs:", sortedUrls.slice(1));
+        const alternatives = m3u8Urls.filter(u => u !== m3u8Url);
+        if (alternatives.length > 0) {
+          logger.info("Alternative URLs:", alternatives);
         }
       }
 
@@ -538,5 +506,85 @@ export class MissAVDownloader extends BaseDownloader {
       }
       throw error;
     }
+  }
+
+  // Helper to select best m3u8 URL
+  static selectBestM3u8Url(urls: string[], hasFormatSort: boolean): string | null {
+    if (urls.length === 0) return null;
+
+    const sortedUrls = [...urls].sort((a, b) => {
+      // 1. Priority: surrit.com
+      const aIsSurrit = a.includes("surrit.com");
+      const bIsSurrit = b.includes("surrit.com");
+      if (aIsSurrit && !bIsSurrit) return -1;
+      if (!aIsSurrit && bIsSurrit) return 1;
+
+      // 2. Priority: Master playlist (playlist.m3u8 specifically for surrit, or general master)
+      // We generally prefer master playlists because they contain all variants, allowing yt-dlp to pick the best.
+      // The previous logic penalized master playlists without explicit resolution, which caused issues.
+      const aIsMaster = a.includes("/playlist.m3u8") || a.includes("/master/");
+      const bIsMaster = b.includes("/playlist.m3u8") || b.includes("/master/");
+
+      // If we are strictly comparing surrit URLs (both are surrit), we prefer the master playlist
+      // because it's the "cleanest" source.
+      if (aIsSurrit && bIsSurrit) {
+        const aIsPlaylistM3u8 = a.includes("playlist.m3u8");
+        const bIsPlaylistM3u8 = b.includes("playlist.m3u8");
+        if (aIsPlaylistM3u8 && !bIsPlaylistM3u8) return -1;
+        if (!aIsPlaylistM3u8 && bIsPlaylistM3u8) return 1;
+      }
+
+      // If format sort is enabled, we almost always want the master playlist
+      if (hasFormatSort) {
+        if (aIsMaster && !bIsMaster) return -1;
+        if (!aIsMaster && bIsMaster) return 1;
+      } else {
+        // If NO format sort, previously we preferred specific resolution.
+        // BUT, given the bug report where a 240p stream was picked over a master,
+        // we should probably trust the master playlist more particularly if the alternative is low quality.
+        // However, if we have a high quality specific stream (e.g. 720p/1080p explicit), that might be fine.
+        
+        // Let's refine: If one is surrit master, pick it. (Handled by step 1 & surrit sub-logic)
+        // If neither is surrit, and one is master...
+        
+        // If both are master or both are not master, compare resolution.
+      }
+
+      // 3. Priority: Resolution (detected from URL)
+      const aQuality = a.match(/(\d+p)/)?.[1] || "0p";
+      const bQuality = b.match(/(\d+p)/)?.[1] || "0p";
+      const aQualityNum = parseInt(aQuality) || 0;
+      const bQualityNum = parseInt(bQuality) || 0;
+
+      // If we have a significant resolution difference, we might prefer the higher one
+      // UNLESS one is a master playlist and the other is a low res specific one.
+      // If one is master (0p detected) and other is 240p, 0p (master) should win if it's likely to contain better streams.
+      
+      // Updated Strategy:
+      // If both have resolution, compare them.
+      if (aQualityNum > 0 && bQualityNum > 0) {
+        return bQualityNum - aQualityNum; // Higher quality first
+      }
+
+      // If one is master (assumed 0p from URL) and other is specific resolution:
+      // If we are prioritizing master playlists (e.g. because of surrit or format sort), master wins.
+      // If we are NOT specifically prioritizing master, we still might want to prefer it over very low res (e.g. < 480p).
+      if (aIsMaster && bQualityNum > 0 && bQualityNum < 480) return -1; // Master wins over < 480p
+      if (bIsMaster && aQualityNum > 0 && aQualityNum < 480) return 1;  // Master wins over < 480p
+
+      // Fallback: Default to higher number (so 720p wins over 0p/master if we didn't catch it above)
+      // This preserves 'best attempt' for specific high quality URLs if they exist not on surrit.
+      if (aQualityNum !== bQualityNum) {
+        return bQualityNum - aQualityNum;
+      }
+      
+      // Final tie-breaker: prefer master if all else equal
+      if (aIsMaster && !bIsMaster) return -1;
+      if (!aIsMaster && bIsMaster) return 1;
+
+      return 0;
+    });
+
+    return sortedUrls[0];
   }
 }
