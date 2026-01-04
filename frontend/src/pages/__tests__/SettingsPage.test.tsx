@@ -5,7 +5,10 @@ import SettingsPage from '../SettingsPage';
 // Mock all external hooks and components
 const mockSettingsData = { data: {} };
 vi.mock('@tanstack/react-query', () => ({
-    useQuery: vi.fn(() => mockSettingsData),
+    useQuery: vi.fn(() => ({
+        ...mockSettingsData,
+        refetch: vi.fn(),
+    })),
     useMutation: vi.fn(),
     useQueryClient: vi.fn(() => ({
         invalidateQueries: vi.fn(),
