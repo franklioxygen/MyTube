@@ -1,6 +1,16 @@
 # Change Log
 
 
+## v1.7.30 (2026-01-04)
+
+### Style
+
+- style: Improve comments for YtDlpSettings file (e7bdf18)
+
+### Test
+
+- test: Add file_location test and mock settings in ytdlpVideo (a5e82b9)
+
 ## v1.7.29 (2026-01-03)
 
 ### Feat
