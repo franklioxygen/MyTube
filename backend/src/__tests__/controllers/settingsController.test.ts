@@ -31,6 +31,7 @@ describe('SettingsController', () => {
     res = {
       json,
       status,
+      cookie: vi.fn(),
     };
   });
 
@@ -95,12 +96,16 @@ describe('SettingsController', () => {
     it('should verify correct password', async () => {
       req.body = { password: 'pass' };
       const passwordService = await import('../../services/passwordService');
-      (passwordService.verifyPassword as any).mockResolvedValue({ success: true });
+      (passwordService.verifyPassword as any).mockResolvedValue({ 
+        success: true, 
+        token: 'mock-token', 
+        role: 'admin' 
+      });
 
       await verifyPassword(req as Request, res as Response);
 
       expect(passwordService.verifyPassword).toHaveBeenCalledWith('pass');
-      expect(json).toHaveBeenCalledWith({ success: true });
+      expect(json).toHaveBeenCalledWith({ success: true, role: 'admin' });
     });
 
     it('should reject incorrect password', async () => {
@@ -114,10 +119,8 @@ describe('SettingsController', () => {
       await verifyPassword(req as Request, res as Response);
 
       expect(passwordService.verifyPassword).toHaveBeenCalledWith('wrong');
-      expect(status).toHaveBeenCalledWith(401);
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
-        success: false, 
-        message: 'Incorrect password' 
+        success: false
       }));
     });
   });

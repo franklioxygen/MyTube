@@ -13,6 +13,16 @@ vi.mock('../../contexts/LanguageContext');
 vi.mock('../../contexts/CollectionContext');
 vi.mock('../../contexts/SnackbarContext');
 vi.mock('../../contexts/VideoContext');
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        loginRequired: false,
+        checkingAuth: false,
+        userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
+    }),
+}));
 
 const mockVideo = {
     id: '123',

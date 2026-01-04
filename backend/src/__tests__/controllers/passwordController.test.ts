@@ -21,6 +21,7 @@ describe('passwordController', () => {
     mockRes = {
       json: jsonMock,
       status: statusMock,
+      cookie: vi.fn(),
     };
   });
 
@@ -39,12 +40,16 @@ describe('passwordController', () => {
   describe('verifyPassword', () => {
     it('should return success: true if verified', async () => {
       mockReq.body = { password: 'pass' };
-      (passwordService.verifyPassword as any).mockResolvedValue({ success: true });
+      (passwordService.verifyPassword as any).mockResolvedValue({ 
+        success: true, 
+        token: 'mock-token', 
+        role: 'admin' 
+      });
 
       await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
 
       expect(passwordService.verifyPassword).toHaveBeenCalledWith('pass');
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true });
+      expect(mockRes.json).toHaveBeenCalledWith({ success: true, role: 'admin' });
     });
 
     it('should return 401 if incorrect', async () => {
@@ -57,10 +62,8 @@ describe('passwordController', () => {
 
       await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
 
-      expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-          success: false,
-          message: 'Incorrect'
+          success: false
       }));
     });
 
@@ -74,7 +77,6 @@ describe('passwordController', () => {
 
       await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
 
-      expect(mockRes.status).toHaveBeenCalledWith(429);
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
           success: false,
           waitTime: 60

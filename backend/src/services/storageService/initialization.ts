@@ -288,7 +288,7 @@ export function initializeStorage(): void {
         `
         )
         .run();
-      if (result.changes > 0) {
+      if (result && result.changes > 0) {
         logger.info(
           `Backfilled video_id for ${result.changes} download history items.`
         );

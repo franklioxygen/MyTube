@@ -14,6 +14,17 @@ vi.mock('../../../contexts/SnackbarContext', () => ({
     useSnackbar: vi.fn(),
 }));
 
+vi.mock('../../../contexts/AuthContext', () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        loginRequired: false,
+        checkingAuth: false,
+        userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
+    }),
+}));
+
 vi.mock('../../../hooks/useCloudflareStatus', () => ({
     useCloudflareStatus: vi.fn(),
 }));

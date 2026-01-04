@@ -38,8 +38,14 @@ vi.mock('../../contexts/CollectionContext', () => ({
 
 vi.mock('../../contexts/AuthContext', () => ({
     useAuth: () => ({
+        isAuthenticated: true,
+        loginRequired: false,
+        checkingAuth: false,
         userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
     }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock child components to avoid context dependency issues

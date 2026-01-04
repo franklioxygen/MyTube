@@ -15,7 +15,7 @@ const TestComponent = () => {
         <div>
             <div data-testid="auth-status">{isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</div>
             <div data-testid="login-required">{loginRequired ? 'Required' : 'Optional'}</div>
-            <button onClick={() => login('mock-token')}>Login</button>
+            <button onClick={() => login('admin')}>Login</button>
             <button onClick={logout}>Logout</button>
         </div>
     );
@@ -42,8 +42,19 @@ const renderWithProviders = (ui: React.ReactNode) => {
 describe('AuthContext', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
+        // Clear localStorage
+        if (typeof localStorage !== 'undefined' && localStorage.clear) {
+            localStorage.clear();
+        } else {
+            // Fallback for test environments
+            Object.keys(localStorage).forEach(key => {
+                delete (localStorage as any)[key];
+            });
+        }
+        document.cookie = '';
         queryClient.clear();
+        // Mock axios.post for logout
+        (mockedAxios.post as any) = vi.fn().mockResolvedValue({});
     });
 
     it('should initialize with default authentication state', async () => {
@@ -89,7 +100,8 @@ describe('AuthContext', () => {
     });
 
     it('should check local storage for existing auth', async () => {
-        localStorage.setItem('mytube_authenticated', 'true');
+        // Set role cookie to simulate authenticated state
+        document.cookie = 'mytube_role=admin';
         mockedAxios.get.mockResolvedValueOnce({
             data: { loginEnabled: true, isPasswordSet: true }
         });
@@ -129,14 +141,15 @@ describe('AuthContext', () => {
         await user.click(screen.getByText('Login'));
 
         expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-        expect(localStorage.getItem('mytube_authenticated')).toBe('true');
     });
 
     it('should handle logout', async () => {
-        localStorage.setItem('mytube_authenticated', 'true');
+        // Set role cookie to simulate authenticated state
+        document.cookie = 'mytube_role=admin';
         mockedAxios.get.mockResolvedValueOnce({
             data: { loginEnabled: true, isPasswordSet: true }
         });
+        mockedAxios.post = vi.fn().mockResolvedValue({});
         const user = userEvent.setup();
 
         renderWithProviders(<TestComponent />);
@@ -147,7 +160,8 @@ describe('AuthContext', () => {
 
         await user.click(screen.getByText('Logout'));
 
-        expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
-        expect(localStorage.getItem('mytube_authenticated')).toBeNull();
+        await waitFor(() => {
+            expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
+        });
     });
 });

@@ -9,6 +9,19 @@ import { LanguageProvider } from '../LanguageContext';
 import { SnackbarProvider } from '../SnackbarContext';
 import { VideoProvider } from '../VideoContext';
 
+// Mock AuthContext
+vi.mock('../AuthContext', () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        loginRequired: false,
+        checkingAuth: false,
+        userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
+    }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
