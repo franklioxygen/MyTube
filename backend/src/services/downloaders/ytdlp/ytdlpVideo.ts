@@ -9,6 +9,7 @@ import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
+  executeYtDlpJson,
   executeYtDlpSpawn,
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
