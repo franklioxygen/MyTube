@@ -70,10 +70,11 @@ vi.mock('fs-extra', () => {
                 }
             }),
             readdirSync: (...args: any[]) => mocks.readdirSync(...args),
-            readFileSync: (...args: any[]) => mocks.readFileSync(...args),
-            writeFileSync: (...args: any[]) => mocks.writeFileSync(...args),
-            unlinkSync: (...args: any[]) => mocks.unlinkSync(...args),
-            remove: (...args: any[]) => mocks.remove(...args),
+        readFileSync: (...args: any[]) => mocks.readFileSync(...args),
+        writeFileSync: (...args: any[]) => mocks.writeFileSync(...args),
+        copyFileSync: vi.fn(),
+        unlinkSync: (...args: any[]) => mocks.unlinkSync(...args),
+        remove: (...args: any[]) => mocks.remove(...args),
             statSync: vi.fn().mockReturnValue({ size: 1000 }),
         }
     };
@@ -165,4 +166,3 @@ describe('File Location Logic', () => {
         });
     });
 });
-

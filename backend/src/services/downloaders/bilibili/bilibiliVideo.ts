@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
+import { SUBTITLES_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { formatBytes } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
@@ -8,6 +9,7 @@ import { ProgressTracker } from "../../../utils/progressTracker";
 import {
   executeYtDlpJson,
   executeYtDlpSpawn,
+  getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
@@ -55,9 +57,10 @@ class BilibiliDownloaderHelper extends BaseDownloader {
 
   public async downloadThumbnailPublic(
     thumbnailUrl: string,
-    savePath: string
+    savePath: string,
+    axiosConfig: any = {}
   ): Promise<boolean> {
-    return this.downloadThumbnail(thumbnailUrl, savePath);
+    return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
   }
 }
 
@@ -255,10 +258,14 @@ export async function downloadVideo(
     let thumbnailSaved = false;
     if (thumbnailUrl) {
       // Use base class method via temporary instance
+      const axiosConfig = userConfig.proxy
+        ? getAxiosProxyConfig(userConfig.proxy)
+        : {};
       const downloader = new BilibiliDownloaderHelper();
       thumbnailSaved = await downloader.downloadThumbnailPublic(
         thumbnailUrl,
-        thumbnailPath
+        thumbnailPath,
+        axiosConfig
       );
     }
 
@@ -308,6 +315,11 @@ export async function downloadSinglePart(
     // Get user's yt-dlp configuration for merge output format
     const userConfig = getUserYtDlpConfig(url);
     const mergeOutputFormat = userConfig.mergeOutputFormat || "mp4";
+    const settings = storageService.getSettings();
+    const moveThumbnailsToVideoFolder =
+      settings.moveThumbnailsToVideoFolder || false;
+    const moveSubtitlesToVideoFolder =
+      settings.moveSubtitlesToVideoFolder || false;
 
     // Create a safe base filename (without extension)
     const timestamp = Date.now();
@@ -315,7 +327,8 @@ export async function downloadSinglePart(
     // Prepare file paths using the file manager
     const { videoPath, thumbnailPath, videoDir, imageDir } = prepareFilePaths(
       mergeOutputFormat,
-      collectionName
+      collectionName,
+      moveThumbnailsToVideoFolder
     );
 
     let videoTitle,
@@ -420,10 +433,27 @@ export async function downloadSinglePart(
     }> = [];
     try {
       logger.info("Attempting to download subtitles...");
+      const subtitleDir = moveSubtitlesToVideoFolder
+        ? videoDir
+        : collectionName
+          ? path.join(SUBTITLES_DIR, collectionName)
+          : SUBTITLES_DIR;
+      const subtitlePathPrefix = moveSubtitlesToVideoFolder
+        ? collectionName
+          ? `/videos/${collectionName}`
+          : `/videos`
+        : collectionName
+          ? `/subtitles/${collectionName}`
+          : `/subtitles`;
+      const axiosConfig = userConfig.proxy
+        ? getAxiosProxyConfig(userConfig.proxy)
+        : {};
       subtitles = await downloadSubtitles(
         url,
         newSafeBaseFilename,
-        collectionName
+        subtitleDir,
+        subtitlePathPrefix,
+        axiosConfig
       );
       logger.info(`Downloaded ${subtitles.length} subtitles`);
     } catch (e) {
@@ -462,9 +492,13 @@ export async function downloadSinglePart(
         ? `/videos/${collectionName}/${finalVideoFilename}`
         : `/videos/${finalVideoFilename}`,
       thumbnailPath: thumbnailSaved
-        ? collectionName
-          ? `/images/${collectionName}/${finalThumbnailFilename}`
-          : `/images/${finalThumbnailFilename}`
+        ? moveThumbnailsToVideoFolder
+          ? collectionName
+            ? `/videos/${collectionName}/${finalThumbnailFilename}`
+            : `/videos/${finalThumbnailFilename}`
+          : collectionName
+            ? `/images/${collectionName}/${finalThumbnailFilename}`
+            : `/images/${finalThumbnailFilename}`
         : null,
       duration: duration,
       fileSize: fileSize,

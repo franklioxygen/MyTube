@@ -38,19 +38,45 @@ export async function processSubtitles(
   const subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
 
+  logger.info(
+    `Processing subtitles for ${baseFilename}, move to video folder: ${moveSubtitlesToVideoFolder}`
+  );
+
   const downloader = new YtDlpDownloaderHelper();
 
   try {
-    const subtitleFiles = fs
-      .readdirSync(VIDEOS_DIR)
-      .filter(
-        (file: string) =>
-          file.startsWith(baseFilename) && file.endsWith(".vtt")
-      );
+    const subtitleExtensions = new Set([
+      ".vtt",
+      ".srt",
+      ".ass",
+      ".ssa",
+      ".sub",
+      ".ttml",
+      ".dfxp",
+      ".sbv",
+    ]);
+    const searchDirs = [VIDEOS_DIR, SUBTITLES_DIR];
+    const subtitleFiles: Array<{ dir: string; file: string }> = [];
+    const seenFiles = new Set<string>();
+
+    for (const dir of searchDirs) {
+      const files = fs.readdirSync(dir).filter((file: string) => {
+        const ext = path.extname(file).toLowerCase();
+        return file.startsWith(baseFilename) && subtitleExtensions.has(ext);
+      });
+
+      for (const file of files) {
+        if (seenFiles.has(file)) {
+          continue;
+        }
+        seenFiles.add(file);
+        subtitleFiles.push({ dir, file });
+      }
+    }
 
     logger.info(`Found ${subtitleFiles.length} subtitle files`);
 
-    for (const subtitleFile of subtitleFiles) {
+    for (const { dir, file: subtitleFile } of subtitleFiles) {
       // Check if download was cancelled during subtitle processing
       try {
         downloader.throwIfCancelledPublic(downloadId);
@@ -61,13 +87,14 @@ export async function processSubtitles(
 
       // Parse language from filename (e.g., video_123.en.vtt -> en)
       const match = subtitleFile.match(
-        /\.([a-z]{2}(?:-[A-Z]{2})?)(?:\..*?)?\.vtt$/
+        /\.([a-z]{2}(?:-[A-Z]{2})?)(?:\..*?)?\.[^.]+$/
       );
       const language = match ? match[1] : "unknown";
+      const extension = path.extname(subtitleFile);
 
       // Move subtitle to subtitles directory or keep in video directory if requested
-      const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
-      const destSubFilename = `${baseFilename}.${language}.vtt`;
+      const sourceSubPath = path.join(dir, subtitleFile);
+      const destSubFilename = `${baseFilename}.${language}${extension}`;
       let destSubPath: string;
       let webPath: string;
 
@@ -78,16 +105,20 @@ export async function processSubtitles(
         destSubPath = path.join(SUBTITLES_DIR, destSubFilename);
         webPath = `/subtitles/${destSubFilename}`;
       }
-      
-      // Read VTT file and fix alignment for centering
-      let vttContent = fs.readFileSync(sourceSubPath, "utf-8");
-      // Replace align:start with align:middle for centered subtitles
-      // Also remove position:0% which forces left positioning
-      vttContent = vttContent.replace(/ align:start/g, " align:middle");
-      vttContent = vttContent.replace(/ position:0%/g, "");
 
-      // Write cleaned VTT to destination
-      fs.writeFileSync(destSubPath, vttContent, "utf-8");
+      if (extension.toLowerCase() === ".vtt") {
+        // Read VTT file and fix alignment for centering
+        let vttContent = fs.readFileSync(sourceSubPath, "utf-8");
+        // Replace align:start with align:middle for centered subtitles
+        // Also remove position:0% which forces left positioning
+        vttContent = vttContent.replace(/ align:start/g, " align:middle");
+        vttContent = vttContent.replace(/ position:0%/g, "");
+
+        // Write cleaned VTT to destination
+        fs.writeFileSync(destSubPath, vttContent, "utf-8");
+      } else if (sourceSubPath !== destSubPath) {
+        fs.copyFileSync(sourceSubPath, destSubPath);
+      }
 
       // Remove original file if we moved it (if dest is different from source)
       // If moveSubtitlesToVideoFolder is true, destSubPath might be same as sourceSubPath
@@ -116,4 +147,3 @@ export async function processSubtitles(
 
   return subtitles;
 }
-

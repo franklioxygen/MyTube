@@ -3,8 +3,8 @@ import fs from "fs-extra";
 import path from "path";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
-    isCancellationError,
-    isDownloadActive,
+  isCancellationError,
+  isDownloadActive,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -46,10 +46,14 @@ export abstract class BaseDownloader implements IDownloader {
    */
   protected async downloadThumbnail(
     thumbnailUrl: string,
-    savePath: string
+    savePath: string,
+    axiosConfig: any = {}
   ): Promise<boolean> {
     try {
       logger.info("Downloading thumbnail from:", thumbnailUrl);
+      if (axiosConfig.proxy) {
+        logger.debug("Using proxy for thumbnail download");
+      }
 
       // Ensure directory exists
       fs.ensureDirSync(path.dirname(savePath));
@@ -58,6 +62,7 @@ export abstract class BaseDownloader implements IDownloader {
         method: "GET",
         url: thumbnailUrl,
         responseType: "stream",
+        ...axiosConfig,
       });
 
       const writer = fs.createWriteStream(savePath);

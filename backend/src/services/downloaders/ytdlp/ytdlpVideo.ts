@@ -2,17 +2,17 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
-    cleanupSubtitleFiles,
-    cleanupVideoArtifacts,
+  cleanupSubtitleFiles,
+  cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
+  executeYtDlpSpawn,
+  getAxiosProxyConfig,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -45,9 +45,10 @@ class YtDlpDownloaderHelper extends BaseDownloader {
 
   public async downloadThumbnailPublic(
     thumbnailUrl: string,
-    savePath: string
+    savePath: string,
+    axiosConfig: any = {}
   ): Promise<boolean> {
-    return this.downloadThumbnail(thumbnailUrl, savePath);
+    return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
   }
 }
 
@@ -141,6 +142,13 @@ export async function downloadVideo(
       settings.moveThumbnailsToVideoFolder || false;
     const moveSubtitlesToVideoFolder =
       settings.moveSubtitlesToVideoFolder || false;
+
+    logger.info("File location settings:", {
+      moveThumbnailsToVideoFolder,
+      moveSubtitlesToVideoFolder,
+      videoDir: VIDEOS_DIR,
+      imageDir: IMAGES_DIR
+    });
 
     const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
     const newThumbnailPath = moveThumbnailsToVideoFolder
@@ -292,9 +300,17 @@ export async function downloadVideo(
     thumbnailSaved = false;
 
     if (thumbnailUrl) {
+      // Prepare axios config with proxy if available
+      let axiosConfig = {};
+      
+      if (downloadUserConfig.proxy) {
+        axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
+      }
+
       thumbnailSaved = await downloader.downloadThumbnailPublic(
         thumbnailUrl,
-        newThumbnailPath
+        newThumbnailPath,
+        axiosConfig
       );
     }
 

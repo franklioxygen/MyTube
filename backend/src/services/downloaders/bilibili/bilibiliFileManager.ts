@@ -47,7 +47,8 @@ export async function cleanupTempDir(tempDir: string): Promise<void> {
  */
 export function prepareFilePaths(
   mergeOutputFormat: string,
-  collectionName?: string
+  collectionName?: string,
+  moveThumbnailsToVideoFolder: boolean = false
 ): FilePaths {
   // Create a safe base filename (without extension)
   const timestamp = Date.now();
@@ -61,9 +62,13 @@ export function prepareFilePaths(
   const videoDir = collectionName
     ? path.join(VIDEOS_DIR, collectionName)
     : VIDEOS_DIR;
-  const imageDir = collectionName
-    ? path.join(IMAGES_DIR, collectionName)
-    : IMAGES_DIR;
+  const imageDir = moveThumbnailsToVideoFolder
+    ? collectionName
+      ? path.join(VIDEOS_DIR, collectionName)
+      : VIDEOS_DIR
+    : collectionName
+      ? path.join(IMAGES_DIR, collectionName)
+      : IMAGES_DIR;
 
   // Ensure directories exist
   fs.ensureDirSync(videoDir);

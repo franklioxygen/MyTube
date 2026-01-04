@@ -509,3 +509,38 @@ export function getNetworkConfigFromUserConfig(
 
   return networkOptions;
 }
+
+/**
+ * Helper to convert a proxy URL string into an Axios config object
+ * Supports http/https proxies with authentication
+ * Format: http://user:pass@host:port
+ */
+export function getAxiosProxyConfig(proxyUrl: string): any {
+  if (!proxyUrl) return {};
+
+  try {
+    const url = new URL(proxyUrl);
+
+    const isHttps = url.protocol === "https:";
+    const defaultPort = isHttps ? 443 : 80;
+
+    // Axios proxy config structure
+    const proxyConfig: any = {
+      protocol: url.protocol.replace(":", ""),
+      host: url.hostname,
+      port: parseInt(url.port, 10) || defaultPort,
+    };
+
+    if (url.username || url.password) {
+      proxyConfig.auth = {
+        username: url.username,
+        password: url.password,
+      };
+    }
+
+    return { proxy: proxyConfig };
+  } catch (error) {
+    console.error("Invalid proxy URL:", proxyUrl);
+    return {};
+  }
+}

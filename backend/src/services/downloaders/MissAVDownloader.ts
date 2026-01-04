@@ -10,6 +10,7 @@ import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
   flagsToArgs,
+  getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
@@ -268,7 +269,13 @@ export class MissAVDownloader extends BaseDownloader {
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
       const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
-      const newThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+      const settings = storageService.getSettings();
+      const moveThumbnailsToVideoFolder =
+        settings.moveThumbnailsToVideoFolder || false;
+      const thumbnailDir = moveThumbnailsToVideoFolder
+        ? VIDEOS_DIR
+        : IMAGES_DIR;
+      const newThumbnailPath = path.join(thumbnailDir, newThumbnailFilename);
 
       // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
@@ -418,10 +425,14 @@ export class MissAVDownloader extends BaseDownloader {
       // 8. Download and save the thumbnail
       if (thumbnailUrl) {
         // Use base class method via temporary instance
+        const axiosConfig = userConfig.proxy
+          ? getAxiosProxyConfig(userConfig.proxy)
+          : {};
         const downloader = new MissAVDownloader();
         thumbnailSaved = await downloader.downloadThumbnail(
           thumbnailUrl,
-          newThumbnailPath
+          newThumbnailPath,
+          axiosConfig
         );
       }
 
@@ -463,7 +474,9 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailUrl: thumbnailUrl || undefined,
         videoPath: `/videos/${newVideoFilename}`,
         thumbnailPath: thumbnailSaved
-          ? `/images/${newThumbnailFilename}`
+          ? moveThumbnailsToVideoFolder
+            ? `/videos/${newThumbnailFilename}`
+            : `/images/${newThumbnailFilename}`
           : null,
         duration: duration,
         fileSize: fileSize,

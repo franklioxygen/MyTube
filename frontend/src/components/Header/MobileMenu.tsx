@@ -44,7 +44,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     videos = [],
     availableTags = [],
     selectedTags = [],
-    onTagToggle
+    onTagToggle = () => { }
 }) => {
     const { t } = useLanguage();
     const { logout, userRole } = useAuth();

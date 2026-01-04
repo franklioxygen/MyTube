@@ -1,7 +1,6 @@
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
-import { SUBTITLES_DIR } from "../../../config/paths";
 import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
@@ -13,7 +12,9 @@ import { getCookieHeader } from "./bilibiliCookie";
 export async function downloadSubtitles(
   videoUrl: string,
   baseFilename: string,
-  collectionName?: string
+  subtitleDir: string,
+  subtitlePathPrefix: string,
+  axiosConfig: any = {}
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   try {
     const videoId = extractBilibiliVideoId(videoUrl);
@@ -37,7 +38,7 @@ export async function downloadSubtitles(
     const viewApiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
     let viewResponse;
     try {
-      viewResponse = await axios.get(viewApiUrl, { headers });
+      viewResponse = await axios.get(viewApiUrl, { headers, ...axiosConfig });
     } catch (viewError: any) {
       logger.error(`Failed to fetch view API: ${viewError.message}`);
       return [];
@@ -55,7 +56,7 @@ export async function downloadSubtitles(
     logger.info(`Fetching subtitles from: ${playerApiUrl}`);
     let playerResponse;
     try {
-      playerResponse = await axios.get(playerApiUrl, { headers });
+      playerResponse = await axios.get(playerApiUrl, { headers, ...axiosConfig });
     } catch (playerError: any) {
       logger.warn(`Player API failed: ${playerError.message}`);
       // Continue to check view API fallback
@@ -95,14 +96,6 @@ export async function downloadSubtitles(
 
     const savedSubtitles = [];
 
-    // Determine subtitle directory based on collection name
-    const subtitleDir = collectionName
-      ? path.join(SUBTITLES_DIR, collectionName)
-      : SUBTITLES_DIR;
-    const subtitlePathPrefix = collectionName
-      ? `/subtitles/${collectionName}`
-      : `/subtitles`;
-
     // Ensure subtitles directory exists
     fs.ensureDirSync(subtitleDir);
 
@@ -131,6 +124,7 @@ export async function downloadSubtitles(
       try {
         const subResponse = await axios.get(absoluteSubUrl, {
           headers: cdnHeaders,
+          ...axiosConfig,
         });
         const vttContent = bccToVtt(subResponse.data);
 
