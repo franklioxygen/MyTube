@@ -29,7 +29,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
-- **Login Protection**: Secure your application with a password login page.
+- **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Pagination**: Efficiently browse large libraries with pagination support.
 - **Subscriptions**: Manage subscriptions to channels or creators to automatically download new content.
@@ -39,9 +39,10 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **View Modes**: Toggle between Collection View and Video View on the home page.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
-- **Visitor Mode**: Enable read-only mode to allow viewing videos without modification capabilities. Perfect for sharing your library with others.
+- **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
+- **Task Hooks**: Execute custom shell scripts at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
 
 ## Directory Structure
 
@@ -89,23 +90,19 @@ The application uses environment variables for configuration.
 ### Frontend (`frontend/.env`)
 
 ```env
-VITE_API_URL=http://localhost:5551/api
-VITE_BACKEND_URL=http://localhost:5551
+VITE_API_URL=/api
+VITE_BACKEND_URL=
 ```
 
 ### Backend (`backend/.env`)
 
 ```env
 PORT=5551
-UPLOAD_DIR=uploads
-VIDEO_DIR=uploads/videos
-IMAGE_DIR=uploads/images
-SUBTITLES_DIR=uploads/subtitles
-DATA_DIR=data
-MAX_FILE_SIZE=500000000
 ```
 
-Copy the `.env.example` files in both frontend and backend directories to create your own `.env` files.
+Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).
+
+Copy `backend/.env.example` to `backend/.env` and adjust as needed. The frontend ships with `frontend/.env`; use `frontend/.env.local` to override defaults.
 
 ## Database
 

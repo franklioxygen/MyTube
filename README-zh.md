@@ -30,7 +30,7 @@
 - **搜索功能**：支持在本地库中搜索视频，或在线搜索 YouTube 视频。
 - **收藏夹**：创建自定义收藏夹以整理您的视频。
 - **订阅功能**：订阅您喜爱的频道，并在新视频发布时自动下载。
-- **登录保护**：通过密码登录页面保护您的应用。
+- **登录保护**：支持密码登录并可选使用通行密钥 (WebAuthn)。
 - **国际化**：支持多种语言，包括英语、中文、西班牙语、法语、德语、日语、韩语、阿拉伯语、葡萄牙语和俄语。
 - **分页功能**：支持分页浏览，高效管理大量视频。
 - **视频评分**：使用 5 星评级系统为您的视频评分。
@@ -39,9 +39,10 @@
 - **视图模式**：在主页上切换收藏夹视图和视频视图。
 - **Cookie 管理**：支持上传 `cookies.txt` 以启用年龄限制或会员内容的下载。
 - **yt-dlp 配置**: 通过用户界面自定义全局 `yt-dlp` 参数、网络代理及其他高级设置。
-- **访客模式**：启用只读模式，允许查看视频但无法进行修改。非常适合与他人分享您的视频库。
+- **访客用户**：启用只读角色，便于分享但不允许修改。
 - **云存储集成**：下载后自动将视频和缩略图上传到云存储（OpenList/Alist）。
 - **Cloudflare Tunnel 集成**: 内置 Cloudflare Tunnel 支持，无需端口转发即可轻松将本地 MyTube 实例暴露到互联网。
+- **任务钩子**: 在下载任务的各个阶段（开始、成功、失败、取消）执行自定义 Shell 脚本，以实现集成和自动化。详见 [任务钩子指南](documents/zh/hooks-guide.md)。
 
 ## 目录结构
 
@@ -89,23 +90,19 @@
 ### 前端 (`frontend/.env`)
 
 ```env
-VITE_API_URL=http://localhost:5551/api
-VITE_BACKEND_URL=http://localhost:5551
+VITE_API_URL=/api
+VITE_BACKEND_URL=
 ```
 
 ### 后端 (`backend/.env`)
 
 ```env
 PORT=5551
-UPLOAD_DIR=uploads
-VIDEO_DIR=uploads/videos
-IMAGE_DIR=uploads/images
-SUBTITLES_DIR=uploads/subtitles
-DATA_DIR=data
-MAX_FILE_SIZE=500000000
 ```
 
-复制前端和后端目录中的 `.env.example` 文件以创建您自己的 `.env` 文件。
+默认数据与上传路径位于 `backend/data` 和 `backend/uploads`（相对于后端工作目录）。
+
+将 `backend/.env.example` 复制为 `backend/.env` 并按需调整。前端已提供 `frontend/.env`，可使用 `frontend/.env.local` 覆盖默认值。
 
 ## 数据库
 

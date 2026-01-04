@@ -1,11 +1,14 @@
 # API 端点
 
+除特殊说明外，所有 API 路由均挂载在 `/api` 下。
+
 ## 视频下载与搜索
+
 - `GET /api/search` - 在线搜索视频 (YouTube)
   - 查询参数: `query` (必需), `limit` (可选, 默认: 8), `offset` (可选, 默认: 1)
 - `POST /api/download` - 从支持的平台下载视频
-  - 请求体: `{ url: string, ...options }`
-  - 支持: YouTube, Bilibili, MissAV 以及所有 yt-dlp 支持的网站
+  - 请求体: `{ youtubeUrl: string, ...options }`
+  - 支持: YouTube、Bilibili、MissAV 以及所有 yt-dlp 支持的网站
 - `GET /api/check-video-download` - 检查视频是否已下载
   - 查询参数: `url` (必需)
   - 返回: `{ found: boolean, status: 'exists' | 'deleted', videoId?: string, ... }`
@@ -15,10 +18,11 @@
   - 查询参数: `url` (必需)
 - `GET /api/check-playlist` - 检查 URL 是否为受支持的播放列表
   - 查询参数: `url` (必需)
-- `GET /api/download-status` - 获取活动下载的状态
-  - 返回: `{ active: [], queued: [] }`
+- `GET /api/download-status` - 获取下载状态
+  - 返回: `{ activeDownloads: DownloadInfo[], queuedDownloads: DownloadInfo[] }`
 
 ## 视频管理
+
 - `POST /api/upload` - 上传本地视频文件
   - 多部分表单数据: `video` (文件)
   - 自动生成缩略图
@@ -38,9 +42,9 @@
 - `GET /api/videos/author-channel-url` - 获取视频的作者频道 URL
   - 查询参数: `sourceUrl` (必需)
   - 返回: `{ success: boolean, channelUrl: string | null }`
-  - 首先检查数据库，如果未找到则从 YouTube/Bilibili API 获取
 
 ## 下载管理
+
 - `POST /api/downloads/cancel/:id` - 取消活动下载
 - `DELETE /api/downloads/queue/:id` - 从队列中移除下载
 - `DELETE /api/downloads/queue` - 清空整个下载队列
@@ -50,6 +54,7 @@
 - `DELETE /api/downloads/history` - 清空整个下载历史
 
 ## 收藏夹
+
 - `GET /api/collections` - 获取所有收藏夹
 - `POST /api/collections` - 创建新收藏夹
   - 请求体: `{ name: string, videoIds?: string[] }`
@@ -58,6 +63,7 @@
 - `DELETE /api/collections/:id` - 删除收藏夹
 
 ## 订阅
+
 - `GET /api/subscriptions` - 获取所有订阅
 - `POST /api/subscriptions` - 创建新订阅
   - 请求体: `{ authorUrl: string, interval: number, platform?: string }`
@@ -70,30 +76,60 @@
 - `GET /api/subscriptions/tasks` - 获取所有持续下载任务
   - 查询参数: `page` (可选), `limit` (可选)
 - `POST /api/subscriptions/tasks/playlist` - 创建新的播放列表下载任务
-  - Body: `{ url: string, ...options }`
+  - 请求体: `{ url: string, ...options }`
 - `DELETE /api/subscriptions/tasks/:id` - 取消持续下载任务
 - `DELETE /api/subscriptions/tasks/:id/delete` - 删除任务记录
 - `DELETE /api/subscriptions/tasks/clear-finished` - 清除所有已完成的任务
 
-## 设置与系统
+## 设置与密码
+
 - `GET /api/settings` - 获取应用设置
 - `POST /api/settings` - 更新应用设置
   - 请求体: `{ [key: string]: any }` - 设置对象
-  - 支持: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath` 及其他设置
 - `GET /api/settings/cloudflared/status` - 获取 Cloudflare Tunnel 状态
-- `GET /api/settings/password-enabled` - 检查是否启用了密码保护
-- `POST /api/settings/verify-password` - 验证登录密码
-  - 请求体: `{ password: string }`
-- `POST /api/settings/reset-password` - 重置登录密码
-  - 请求体: `{ oldPassword: string, newPassword: string }`
 - `POST /api/settings/migrate` - 从 JSON 迁移数据到 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧的 JSON 数据文件
 - `POST /api/settings/format-filenames` - 根据设置格式化视频文件名
+- `GET /api/settings/password-enabled` - 检查是否启用了密码保护
+- `GET /api/settings/reset-password-cooldown` - 获取密码重置冷却时间
+- `POST /api/settings/verify-admin-password` - 验证管理员密码
+  - 请求体: `{ password: string }`
+- `POST /api/settings/verify-visitor-password` - 验证访客密码
+  - 请求体: `{ password: string }`
+- `POST /api/settings/verify-password` - 验证登录密码 (已废弃)
+  - 请求体: `{ password: string }`
+- `POST /api/settings/reset-password` - 重置登录密码
+  - 请求体: `{ oldPassword: string, newPassword: string }`
+- `POST /api/settings/logout` - 退出当前会话
+
+## 通行密钥管理
+
+- `GET /api/settings/passkeys` - 获取所有注册的通行密钥
+- `GET /api/settings/passkeys/exists` - 检查是否已注册任何通行密钥
+- `POST /api/settings/passkeys/register` - 开始通行密钥注册
+- `POST /api/settings/passkeys/register/verify` - 验证通行密钥注册
+- `POST /api/settings/passkeys/authenticate` - 开始通行密钥认证
+- `POST /api/settings/passkeys/authenticate/verify` - 验证通行密钥认证
+- `DELETE /api/settings/passkeys` - 删除所有通行密钥
+
+## Cookies
+
 - `POST /api/settings/upload-cookies` - 上传 cookies.txt 以供 yt-dlp 使用
   - 多部分表单数据: `file` (cookies.txt)
 - `POST /api/settings/delete-cookies` - 删除 cookies.txt
 - `GET /api/settings/check-cookies` - 检查 cookies.txt 是否存在
-- `GET /api/settings/export-database` - 导出数据库作为备份文件
+
+## 任务钩子
+
+- `GET /api/settings/hooks/status` - 获取所有钩子的状态
+- `POST /api/settings/hooks/:name` - 上传钩子脚本
+  - 多部分表单数据: `file` (脚本文件)
+  - 参数: `name` (钩子名称, 例如 `task_success`)
+- `DELETE /api/settings/hooks/:name` - 删除钩子脚本
+
+## 数据库备份
+
+- `GET /api/settings/export-database` - 导出数据库备份文件
 - `POST /api/settings/import-database` - 从备份文件导入数据库
   - 多部分表单数据: `file` (数据库备份文件)
 - `GET /api/settings/last-backup-info` - 获取最后一个数据库备份的信息
@@ -101,10 +137,21 @@
 - `POST /api/settings/cleanup-backup-databases` - 清理旧的备份数据库文件
 
 ## 文件管理
+
 - `POST /api/scan-files` - 扫描上传目录中的现有视频文件
 - `POST /api/cleanup-temp-files` - 清理临时下载文件
 
 ## 云存储
-- `GET /cloud/videos/:filename` - 代理端点，用于从云存储（OpenList/Alist）流式传输视频
-- `GET /cloud/images/:filename` - 代理端点，用于从云存储（OpenList/Alist）提供图像
-  - 注意：这些端点需要在设置中配置云存储
+
+- `GET /api/cloud/signed-url` - 获取云存储签名 URL
+  - 查询参数: `filename` (必需), `type` (可选: `video` 或 `thumbnail`)
+- `POST /api/cloud/sync` - 同步本地视频到云存储 (以 JSON 行流式返回进度)
+- `DELETE /api/cloud/thumbnail-cache` - 清空缩略图缓存
+- `GET /api/cloud/thumbnail-cache/:filename` - 访问缓存的云端缩略图
+- `GET /cloud/videos/:filename` - 重定向到云端视频签名 URL
+- `GET /cloud/images/:filename` - 重定向到云端缩略图签名 URL（或本地缓存）
+
+## 系统
+
+- `GET /api/system/version` - 获取当前版本与最新版本信息
+  - 返回: `{ currentVersion, latestVersion, releaseUrl, hasUpdate }`

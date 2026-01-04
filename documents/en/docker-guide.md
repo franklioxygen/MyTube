@@ -1,6 +1,6 @@
 # Docker Deployment Guide for MyTube
 
-This guide provides step-by-step instructions to deploy [MyTube](https://github.com/franklioxygen/MyTube "null") using Docker and Docker Compose. This setup is designed for standard environments (Linux, macOS, Windows) and modifies the original QNAP-specific configurations for general use.
+This guide provides step-by-step instructions to deploy [MyTube](https://github.com/franklioxygen/MyTube "null") using Docker and Docker Compose. The repository includes QNAP-oriented compose files; update the volume paths to match your environment or use the sample below.
 
 > [!NOTE]
 > **Multi-Architecture Support:** The official images support both **amd64** (x86_64) and **arm64** (Apple Silicon, Raspberry Pi, etc.) architectures. Docker will automatically pull the correct image for your system.
@@ -22,7 +22,7 @@ cd mytube-deploy
 
 Create a file named `docker-compose.yml` inside your folder and paste the following content.
 
-**Note:** This version uses standard relative paths (`./data`, `./uploads`) instead of the QNAP-specific paths found in the original repository.
+**Note:** This version uses standard relative paths (`./data`, `./uploads`). If you copy the repo’s `docker-compose.yml`, update the volume paths to match your host.
 
 ```yaml
 version: '3.8'
@@ -39,8 +39,6 @@ services:
       - mytube-network
     environment:
       - PORT=5551
-      # Optional: Set a custom upload directory inside container if needed
-      # - VIDEO_DIR=/app/uploads/videos
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -218,3 +216,9 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
     3.  Remove (or comment out) the `ports` and `networks` sections for both services.
     4.  Set `NGINX_BACKEND_URL=http://localhost:5551` in the `frontend` environment variables.
     5.  Restart containers: `docker-compose up -d`
+
+Alternatively, the repo includes `docker-compose.host-network.yml` for host-network deployments:
+
+```
+docker-compose -f docker-compose.host-network.yml up -d
+```

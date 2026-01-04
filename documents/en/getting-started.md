@@ -52,22 +52,20 @@ Create a `.env` file in the `backend/` directory:
 
 ```env
 PORT=5551
-UPLOAD_DIR=uploads
-VIDEO_DIR=uploads/videos
-IMAGE_DIR=uploads/images
-SUBTITLES_DIR=uploads/subtitles
-DATA_DIR=data
-MAX_FILE_SIZE=500000000
 ```
+
+Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).
 
 #### Frontend Configuration
 
 Create a `.env` file in the `frontend/` directory:
 
 ```env
-VITE_API_URL=http://localhost:5551/api
-VITE_BACKEND_URL=http://localhost:5551
+VITE_API_URL=/api
+VITE_BACKEND_URL=
 ```
+
+`backend/.env.example` is provided. Copy it to `backend/.env` and adjust as needed. The frontend ships with `frontend/.env`; use `frontend/.env.local` to override defaults.
 
 ### 4. Database Setup
 
@@ -92,7 +90,7 @@ This will start:
 - **Frontend**: http://localhost:5556 (Vite dev server with hot reload)
 - **Backend API**: http://localhost:5551 (Express server with nodemon)
 
-### Production Mode
+### Production Mode (Local)
 
 Build and start in production mode:
 
@@ -100,9 +98,18 @@ Build and start in production mode:
 # Build frontend
 npm run build
 
-# Start both services
+# Start backend
+cd backend
 npm run start
+
+# In another terminal, preview the frontend build
+cd frontend
+npm run preview
 ```
+
+For Docker-based production, follow the [Docker Deployment Guide](docker-guide.md).
+
+`npm run start` at the repo root is a convenience command that runs the backend start script and the frontend dev server together.
 
 ### Individual Services
 
@@ -126,9 +133,12 @@ From the root directory:
 
 ```bash
 npm run dev          # Start both frontend and backend in development mode
-npm run start        # Start both frontend and backend in production mode
+npm run start        # Start backend + frontend dev server (convenience)
 npm run build        # Build the frontend for production
 npm run install:all  # Install dependencies for root, frontend, and backend
+npm run test         # Run frontend + backend tests
+npm run test:frontend # Run frontend tests
+npm run test:backend  # Run backend tests
 ```
 
 Backend-specific scripts (from `backend/` directory):
@@ -140,6 +150,7 @@ npm run build        # Compile TypeScript to JavaScript
 npm run test         # Run tests with Vitest
 npm run test:coverage # Run tests with coverage report
 npm run generate     # Generate database migrations with Drizzle Kit
+npm run reset-password # Reset admin password via script
 ```
 
 Frontend-specific scripts (from `frontend/` directory):
@@ -150,16 +161,18 @@ npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Run ESLint
 npm run test         # Run tests with Vitest
+npm run test:coverage # Run tests with coverage report
 ```
 
 ## First-Time Setup
 
 1. **Access the Application**: Open http://localhost:5556 in your browser
 
-2. **Set Up Password Protection** (Optional):
+2. **Set Up Login Protection** (Optional):
 
    - Go to Settings → Security
-   - Enable password protection and set a password
+   - Enable login and set an admin password
+   - Optionally register a passkey (WebAuthn)
 
 3. **Configure Download Settings**:
 
@@ -183,12 +196,11 @@ npm run test         # Run tests with Vitest
    - Test the connection to verify settings
    - Note: When enabled, videos will be automatically uploaded to cloud storage after download, and local files will be deleted
 
-6. **Configure Visitor Mode** (Optional):
+6. **Configure Visitor User** (Optional):
 
-   - Go to Settings → General Settings
-   - Enable "Visitor Mode (Read-only)" to allow viewing videos without modification capabilities
-   - When enabled, all write operations (downloads, deletions, edits) are blocked
-   - To disable visitor mode, you'll need to enter the website password
+   - Go to Settings → Security
+   - Enable "Visitor User" to allow read-only access
+   - Set a visitor password for the read-only role
 
 7. **Start Downloading**:
    - Enter a video URL in the download input

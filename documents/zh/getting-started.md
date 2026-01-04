@@ -52,22 +52,20 @@ pipx inject yt-dlp bgutil-ytdlp-pot-provider
 
 ```env
 PORT=5551
-UPLOAD_DIR=uploads
-VIDEO_DIR=uploads/videos
-IMAGE_DIR=uploads/images
-SUBTITLES_DIR=uploads/subtitles
-DATA_DIR=data
-MAX_FILE_SIZE=500000000
 ```
+
+默认数据与上传路径位于 `backend/data` 和 `backend/uploads`（相对于后端工作目录）。
 
 #### 前端配置
 
 在 `frontend/` 目录中创建 `.env` 文件：
 
 ```env
-VITE_API_URL=http://localhost:5551/api
-VITE_BACKEND_URL=http://localhost:5551
+VITE_API_URL=/api
+VITE_BACKEND_URL=
 ```
+
+项目提供 `backend/.env.example`，请复制为 `backend/.env` 并按需调整。前端已提供 `frontend/.env`，如需覆盖默认值请使用 `frontend/.env.local`。
 
 ### 4. 数据库设置
 
@@ -92,7 +90,7 @@ npm run dev
 - **前端**: http://localhost:5556 (带热重载的 Vite 开发服务器)
 - **后端 API**: http://localhost:5551 (带 nodemon 的 Express 服务器)
 
-### 生产模式
+### 生产模式 (本地)
 
 构建并以生产模式启动：
 
@@ -100,9 +98,18 @@ npm run dev
 # 构建前端
 npm run build
 
-# 启动两个服务
+# 启动后端
+cd backend
 npm run start
+
+# 在另一个终端预览前端构建
+cd frontend
+npm run preview
 ```
+
+生产环境建议参考 [Docker 部署指南](docker-guide.md)。
+
+根目录的 `npm run start` 为便捷命令，会同时运行后端启动脚本和前端开发服务器。
 
 ### 单独运行服务
 
@@ -126,9 +133,12 @@ npm run preview    # 预览生产构建
 
 ```bash
 npm run dev          # 以开发模式启动前端和后端
-npm run start        # 以生产模式启动前端和后端
+npm run start        # 启动后端 + 前端开发服务器 (便捷)
 npm run build        # 为生产环境构建前端
 npm run install:all  # 安装根目录、前端和后端的依赖
+npm run test         # 运行前后端测试
+npm run test:frontend # 运行前端测试
+npm run test:backend  # 运行后端测试
 ```
 
 后端特定脚本 (从 `backend/` 目录)：
@@ -140,6 +150,7 @@ npm run build        # 将 TypeScript 编译为 JavaScript
 npm run test         # 使用 Vitest 运行测试
 npm run test:coverage # 运行测试并生成覆盖率报告
 npm run generate     # 使用 Drizzle Kit 生成数据库迁移
+npm run reset-password # 使用脚本重置管理员密码
 ```
 
 前端特定脚本 (从 `frontend/` 目录)：
@@ -150,16 +161,18 @@ npm run build        # 为生产环境构建
 npm run preview      # 预览生产构建
 npm run lint         # 运行 ESLint
 npm run test         # 使用 Vitest 运行测试
+npm run test:coverage # 运行测试并生成覆盖率报告
 ```
 
 ## 首次设置
 
 1. **访问应用**: 在浏览器中打开 http://localhost:5556
 
-2. **设置密码保护** (可选):
+2. **设置登录保护** (可选):
 
    - 转到设置 → 安全
-   - 启用密码保护并设置密码
+   - 启用登录并设置管理员密码
+   - 可选：注册通行密钥 (WebAuthn)
 
 3. **配置下载设置**:
 
@@ -183,12 +196,11 @@ npm run test         # 使用 Vitest 运行测试
    - 测试连接以验证设置
    - 注意：启用后，视频将在下载后自动上传到云存储，本地文件将被删除
 
-6. **配置访客模式** (可选):
+6. **配置访客用户** (可选):
 
-   - 转到设置 → 常规设置
-   - 启用"访客模式（只读）"以允许查看视频但无法进行修改
-   - 启用后，所有写入操作（下载、删除、编辑）将被阻止
-   - 要禁用访客模式，您需要输入网站密码
+   - 转到设置 → 安全
+   - 启用“访客用户”以获得只读访问
+   - 为访客角色设置登录密码
 
 7. **开始下载**:
    - 在下载输入框中输入视频 URL

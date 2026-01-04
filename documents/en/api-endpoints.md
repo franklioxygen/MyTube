@@ -1,11 +1,13 @@
 # API Endpoints
 
+All API routes are mounted under `/api` unless noted otherwise.
+
 ## Video Download & Search
 
-- `GET /api/search` - Search for videos online (YouTube)
+- `GET /api/search` - Search videos online (YouTube)
   - Query params: `query` (required), `limit` (optional, default: 8), `offset` (optional, default: 1)
 - `POST /api/download` - Download a video from supported platforms
-  - Body: `{ url: string, ...options }`
+  - Body: `{ youtubeUrl: string, ...options }`
   - Supports: YouTube, Bilibili, MissAV, and all yt-dlp supported sites
 - `GET /api/check-video-download` - Check if a video has already been downloaded
   - Query params: `url` (required)
@@ -16,8 +18,8 @@
   - Query params: `url` (required)
 - `GET /api/check-playlist` - Check if a URL is a supported playlist
   - Query params: `url` (required)
-- `GET /api/download-status` - Get status of active downloads
-  - Returns: `{ active: [], queued: [] }`
+- `GET /api/download-status` - Get active/queued download status
+  - Returns: `{ activeDownloads: DownloadInfo[], queuedDownloads: DownloadInfo[] }`
 
 ## Video Management
 
@@ -40,7 +42,6 @@
 - `GET /api/videos/author-channel-url` - Get author channel URL for a video
   - Query params: `sourceUrl` (required)
   - Returns: `{ success: boolean, channelUrl: string | null }`
-  - Checks database first, then fetches from YouTube/Bilibili API if not found
 
 ## Download Management
 
@@ -80,25 +81,54 @@
 - `DELETE /api/subscriptions/tasks/:id/delete` - Delete a task record
 - `DELETE /api/subscriptions/tasks/clear-finished` - Clear all finished tasks
 
-## Settings & System
+## Settings & Passwords
 
 - `GET /api/settings` - Get application settings
 - `POST /api/settings` - Update application settings
   - Body: `{ [key: string]: any }` - Settings object
-  - Supports: `visitorMode`, `cloudDriveEnabled`, `openListApiUrl`, `openListToken`, `openListPublicUrl`, `cloudDrivePath`, and other settings
 - `GET /api/settings/cloudflared/status` - Get Cloudflare Tunnel status
-- `GET /api/settings/password-enabled` - Check if password protection is enabled
-- `POST /api/settings/verify-password` - Verify login password
-  - Body: `{ password: string }`
-- `POST /api/settings/reset-password` - Reset login password
-  - Body: `{ oldPassword: string, newPassword: string }`
 - `POST /api/settings/migrate` - Migrate data from JSON to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files
 - `POST /api/settings/format-filenames` - Format video filenames according to settings
+- `GET /api/settings/password-enabled` - Check if password protection is enabled
+- `GET /api/settings/reset-password-cooldown` - Get cooldown time for password reset
+- `POST /api/settings/verify-admin-password` - Verify admin password
+  - Body: `{ password: string }`
+- `POST /api/settings/verify-visitor-password` - Verify visitor password
+  - Body: `{ password: string }`
+- `POST /api/settings/verify-password` - Verify login password (deprecated)
+  - Body: `{ password: string }`
+- `POST /api/settings/reset-password` - Reset login password
+  - Body: `{ oldPassword: string, newPassword: string }`
+- `POST /api/settings/logout` - Logout current session
+
+## Passkey Management
+
+- `GET /api/settings/passkeys` - Get all registered passkeys
+- `GET /api/settings/passkeys/exists` - Check if any passkeys are registered
+- `POST /api/settings/passkeys/register` - Start passkey registration
+- `POST /api/settings/passkeys/register/verify` - Verify passkey registration
+- `POST /api/settings/passkeys/authenticate` - Start passkey authentication
+- `POST /api/settings/passkeys/authenticate/verify` - Verify passkey authentication
+- `DELETE /api/settings/passkeys` - Remove all passkeys
+
+## Cookies
+
 - `POST /api/settings/upload-cookies` - Upload cookies.txt for yt-dlp
   - Multipart form data: `file` (cookies.txt)
 - `POST /api/settings/delete-cookies` - Delete cookies.txt
 - `GET /api/settings/check-cookies` - Check if cookies.txt exists
+
+## Task Hooks
+
+- `GET /api/settings/hooks/status` - Get status of all hooks
+- `POST /api/settings/hooks/:name` - Upload a hook script
+  - Multipart form data: `file` (script file)
+  - Params: `name` (hook name, e.g., `task_success`)
+- `DELETE /api/settings/hooks/:name` - Delete a hook script
+
+## Database Backups
+
 - `GET /api/settings/export-database` - Export database as backup file
 - `POST /api/settings/import-database` - Import database from backup file
   - Multipart form data: `file` (database backup file)
@@ -113,6 +143,15 @@
 
 ## Cloud Storage
 
-- `GET /cloud/videos/:filename` - Proxy endpoint to stream videos from cloud storage (OpenList/Alist)
-- `GET /cloud/images/:filename` - Proxy endpoint to serve images from cloud storage (OpenList/Alist)
-  - Note: These endpoints require cloud storage to be configured in settings
+- `GET /api/cloud/signed-url` - Get a signed URL for cloud storage
+  - Query params: `filename` (required), `type` (optional: `video` or `thumbnail`)
+- `POST /api/cloud/sync` - Sync local videos to cloud storage (streams JSON lines)
+- `DELETE /api/cloud/thumbnail-cache` - Clear local thumbnail cache
+- `GET /api/cloud/thumbnail-cache/:filename` - Serve a cached cloud thumbnail
+- `GET /cloud/videos/:filename` - Redirect to signed URL for cloud videos
+- `GET /cloud/images/:filename` - Redirect to signed URL (or cached file) for cloud thumbnails
+
+## System
+
+- `GET /api/system/version` - Get current and latest version info
+  - Returns: `{ currentVersion, latestVersion, releaseUrl, hasUpdate }`
