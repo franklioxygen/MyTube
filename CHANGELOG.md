@@ -3,6 +3,10 @@
 
 ## v1.7.30 (2026-01-04)
 
+### Test
+
+- test: Update mock SettingsPage test to include refetch (eeac567)
+
 ### Style
 
 - style: Improve comments for YtDlpSettings file (e7bdf18)
