@@ -2,17 +2,17 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
-  cleanupSubtitleFiles,
-  cleanupVideoArtifacts,
+    cleanupSubtitleFiles,
+    cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -136,8 +136,16 @@ export async function downloadVideo(
     finalThumbnailFilename = newThumbnailFilename;
 
     // Update paths
+    const settings = storageService.getSettings();
+    const moveThumbnailsToVideoFolder =
+      settings.moveThumbnailsToVideoFolder || false;
+    const moveSubtitlesToVideoFolder =
+      settings.moveSubtitlesToVideoFolder || false;
+
     const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
-    const newThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
+    const newThumbnailPath = moveThumbnailsToVideoFolder
+      ? path.join(VIDEOS_DIR, finalThumbnailFilename)
+      : path.join(IMAGES_DIR, finalThumbnailFilename);
 
     logger.info("Preparing video download path:", newVideoPath);
 
@@ -203,7 +211,13 @@ export async function downloadVideo(
         // Clean up partial files
         logger.info("Cleaning up partial files...");
         await cleanupVideoArtifacts(newSafeBaseFilename);
-        await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
+        
+        // Use fresh cleanup based on settings
+        const currentSettings = storageService.getSettings();
+        if (!currentSettings.moveThumbnailsToVideoFolder) {
+            await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
+        }
+        
         if (fs.existsSync(newThumbnailPath)) {
           await fs.remove(newThumbnailPath);
         }
@@ -293,13 +307,21 @@ export async function downloadVideo(
     }
 
     // Process subtitle files
-    subtitles = await processSubtitles(newSafeBaseFilename, downloadId);
+    subtitles = await processSubtitles(
+      newSafeBaseFilename,
+      downloadId,
+      moveSubtitlesToVideoFolder
+    );
   } catch (error) {
     logger.error("Error in download process:", error);
     throw error;
   }
 
   // Create metadata for the video
+  const settings = storageService.getSettings();
+  const moveThumbnailsToVideoFolder =
+    settings.moveThumbnailsToVideoFolder || false;
+
   const videoData: Video = {
     id: timestamp.toString(),
     title: videoTitle || "Video",
@@ -312,7 +334,11 @@ export async function downloadVideo(
     thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
     thumbnailUrl: thumbnailUrl || undefined,
     videoPath: `/videos/${finalVideoFilename}`,
-    thumbnailPath: thumbnailSaved ? `/images/${finalThumbnailFilename}` : null,
+    thumbnailPath: thumbnailSaved
+      ? moveThumbnailsToVideoFolder
+        ? `/videos/${finalThumbnailFilename}`
+        : `/images/${finalThumbnailFilename}`
+      : null,
     subtitles: subtitles.length > 0 ? subtitles : undefined,
     duration: undefined, // Will be populated below
     channelUrl: channelUrl || undefined,
@@ -367,7 +393,9 @@ export async function downloadVideo(
         ? finalThumbnailFilename
         : existingVideo.thumbnailFilename,
       thumbnailPath: thumbnailSaved
-        ? `/images/${finalThumbnailFilename}`
+        ? moveThumbnailsToVideoFolder
+          ? `/videos/${finalThumbnailFilename}`
+          : `/images/${finalThumbnailFilename}`
         : existingVideo.thumbnailPath,
       duration: videoData.duration,
       fileSize: videoData.fileSize,

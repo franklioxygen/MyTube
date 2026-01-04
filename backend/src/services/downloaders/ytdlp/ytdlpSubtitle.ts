@@ -32,7 +32,8 @@ class YtDlpDownloaderHelper extends BaseDownloader {
  */
 export async function processSubtitles(
   baseFilename: string,
-  downloadId?: string
+  downloadId?: string,
+  moveSubtitlesToVideoFolder: boolean = false
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   const subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
@@ -64,11 +65,20 @@ export async function processSubtitles(
       );
       const language = match ? match[1] : "unknown";
 
-      // Move subtitle to subtitles directory
+      // Move subtitle to subtitles directory or keep in video directory if requested
       const sourceSubPath = path.join(VIDEOS_DIR, subtitleFile);
       const destSubFilename = `${baseFilename}.${language}.vtt`;
-      const destSubPath = path.join(SUBTITLES_DIR, destSubFilename);
+      let destSubPath: string;
+      let webPath: string;
 
+      if (moveSubtitlesToVideoFolder) {
+        destSubPath = path.join(VIDEOS_DIR, destSubFilename);
+        webPath = `/videos/${destSubFilename}`;
+      } else {
+        destSubPath = path.join(SUBTITLES_DIR, destSubFilename);
+        webPath = `/subtitles/${destSubFilename}`;
+      }
+      
       // Read VTT file and fix alignment for centering
       let vttContent = fs.readFileSync(sourceSubPath, "utf-8");
       // Replace align:start with align:middle for centered subtitles
@@ -79,8 +89,14 @@ export async function processSubtitles(
       // Write cleaned VTT to destination
       fs.writeFileSync(destSubPath, vttContent, "utf-8");
 
-      // Remove original file
-      fs.unlinkSync(sourceSubPath);
+      // Remove original file if we moved it (if dest is different from source)
+      // If moveSubtitlesToVideoFolder is true, destSubPath might be same as sourceSubPath
+      // but with different name (e.g. video_uuid.en.vtt vs video_uuid.vtt)
+      // Actually source is usually video_uuid.en.vtt (from yt-dlp) and dest is video_uuid.en.vtt
+      // So if names are same and dir is same, we're just overwriting in place, which is fine
+      if (sourceSubPath !== destSubPath) {
+        fs.unlinkSync(sourceSubPath);
+      }
 
       logger.info(
         `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`
@@ -89,7 +105,7 @@ export async function processSubtitles(
       subtitles.push({
         language,
         filename: destSubFilename,
-        path: `/subtitles/${destSubFilename}`,
+        path: webPath,
       });
     }
   } catch (subtitleError) {

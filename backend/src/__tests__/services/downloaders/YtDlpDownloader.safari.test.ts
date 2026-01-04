@@ -23,6 +23,7 @@ vi.mock('../../../services/storageService', () => ({
     saveVideo: vi.fn(),
     getVideoBySourceUrl: vi.fn(),
     updateVideo: vi.fn(),
+    getSettings: vi.fn().mockReturnValue({}),
 }));
 
 // Mock fs-extra - define mockWriter inside the factory

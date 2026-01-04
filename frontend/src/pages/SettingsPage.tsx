@@ -92,13 +92,17 @@ const SettingsPage: React.FC = () => {
     const isSticky = useStickyButton(observerTarget);
 
     // Fetch settings
-    const { data: settingsData } = useQuery({
+    const { data: settingsData, refetch } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
             const response = await axios.get(`${API_URL}/settings`);
             return response.data;
         }
     });
+
+    useEffect(() => {
+        refetch();
+    }, [refetch]);
 
     useEffect(() => {
         if (settingsData) {
