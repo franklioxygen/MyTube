@@ -1,6 +1,20 @@
 # Change Log
 
 
+## v1.7.29 (2026-01-03)
+
+### Feat
+
+- feat: Enable visitor user with password option (ccd2729)
+- feat: enhance visitor mode (e18f49d)
+- feat: enhance visitor mode (13de853)
+- feat: enhance visitor mode (76d4269)
+- feat: Add visitor mode in LoginPage component (44b2454)
+
+### Test
+
+- test: Add role to response in passwordController tests (a9f7864)
+
 ## v1.7.28 (2026-01-03)
 
 ### Refactor
