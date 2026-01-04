@@ -60,7 +60,12 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # Note: -f filters may not work reliably with all video sources
 # Use -S above for more consistent results
 
-# Download best quality (default behavior)
+# Download best quality (Recommended for 4K/8K)
+# Note: This will likely use VP9/AV1 codecs which are best for high resolution
+# -S res:2160
+
+# Download best quality using format selection (Legacy)
+# Note: This may be limited to 1080p due to MP4 compatibility requirements
 # -f bestvideo*+bestaudio/best
 
 # Limit to 1080p maximum using filter
