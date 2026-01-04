@@ -689,6 +689,7 @@ export const de = {
   admin: "Admin",
   visitorSignIn: "Besucher-Anmeldung",
   visitorUser: "Besucher-Benutzer",
+  enableVisitorUser: "Besucher-Benutzer aktivieren",
   visitorUserHelper:
     "Aktivieren Sie ein separates Besucherkonto mit schreibgeschütztem Zugriff. Besucher können Inhalte ansehen, aber keine Änderungen vornehmen.",
   visitorPassword: "Besucher-Passwort",

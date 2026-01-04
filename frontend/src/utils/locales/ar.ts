@@ -686,6 +686,7 @@ export const ar = {
   admin: "مشرف",
   visitorSignIn: "تسجيل دخول الزائر",
   visitorUser: "المستخدم الزائر",
+  enableVisitorUser: "تفعيل المستخدم الزائر",
   visitorUserHelper:
     "قم تمكين حساب زائر منفصل مع وصول للقراءة فقط. يمكن للزوار عرض المحتوى ولكن لا يمكنهم إجراء تغييرات.",
   visitorPassword: "كلمة مرور الزائر",

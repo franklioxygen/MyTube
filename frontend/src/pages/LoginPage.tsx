@@ -66,8 +66,9 @@ const LoginPage: React.FC = () => {
 
     const passwordLoginAllowed = settingsData?.passwordLoginAllowed !== false;
     const allowResetPassword = settingsData?.allowResetPassword !== false;
-    // Show visitor tab if visitorPassword is set (no longer depends on visitorMode setting)
-    const showVisitorTab = !!settingsData?.isVisitorPasswordSet;
+    // Show visitor tab if visitor user is enabled AND visitorPassword is set
+    const visitorUserEnabled = settingsData?.visitorUserEnabled !== false;
+    const showVisitorTab = visitorUserEnabled && !!settingsData?.isVisitorPasswordSet;
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -202,7 +203,7 @@ const LoginPage: React.FC = () => {
         onSuccess: (data) => {
             if (data.success) {
                 setWaitTime(0); // Reset wait time on success
-                login(data.token, data.role);
+                login(data.role);
             } else {
                 // Handle failures (incorrect password or too many attempts)
                 // These are returned as 200 OK with success: false to avoid console errors
@@ -543,7 +544,7 @@ const LoginPage: React.FC = () => {
                                                 </Box>
                                             )}
 
-                                            {passkeysExist && (
+                                            {passwordLoginAllowed && passkeysExist && (
                                                 <>
                                                     <Divider sx={{ my: 2 }}>OR</Divider>
                                                     <Button

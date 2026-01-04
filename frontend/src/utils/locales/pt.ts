@@ -707,6 +707,7 @@ export const pt = {
   admin: "Admin",
   visitorSignIn: "Login de Visitante",
   visitorUser: "Usuário Visitante",
+  enableVisitorUser: "Habilitar Usuário Visitante",
   visitorUserHelper:
     "Habilite uma conta de visitante separada com acesso somente leitura. Os visitantes podem visualizar o conteúdo, mas não podem fazer alterações.",
   visitorPassword: "Senha de Visitante",

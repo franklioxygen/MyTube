@@ -1,3 +1,5 @@
+import DeleteIcon from '@mui/icons-material/Delete';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -148,23 +150,23 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
     return (
         <Box>
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={settings.loginEnabled}
-                                onChange={(e) => onChange('loginEnabled', e.target.checked)}
-                            />
-                        }
-                        label={t('enableLogin')}
+            <FormControlLabel
+                control={
+                    <Switch
+                        checked={settings.loginEnabled}
+                        onChange={(e) => onChange('loginEnabled', e.target.checked)}
                     />
+                }
+                label={t('enableLogin')}
+            />
 
             {settings.loginEnabled && (
-                <Box sx={{ mt: 2, maxWidth: 400 }}>
+                <Box sx={{ mt: 2 }}>
 
                     {settings.passwordLoginAllowed !== false && (
                         <TextField
                             fullWidth
-                            sx={{ mb: 2 }}
+                            sx={{ mb: 2, maxWidth: 400 }}
                             label={t('password')}
                             type="password"
                             value={settings.password || ''}
@@ -177,43 +179,24 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         />
                     )}
 
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={!passkeysExist ? true : (settings.passwordLoginAllowed !== false)}
-                                onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
-                                disabled={!settings.loginEnabled || !passkeysExist}
-                            />
-                        }
-                        label={t('allowPasswordLogin') || 'Allow Password Login'}
-                    />
+                    <Box>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={!passkeysExist ? true : (settings.passwordLoginAllowed !== false)}
+                                    onChange={(e) => onChange('passwordLoginAllowed', e.target.checked)}
+                                    disabled={!settings.loginEnabled || !passkeysExist}
+                                />
+                            }
+                            label={t('allowPasswordLogin') || 'Allow Password Login'}
+                        />
+                    </Box>
                     <Box sx={{ mt: 1, mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                             {t('allowPasswordLoginHelper') || 'When disabled, password login is not available. You must have at least one passkey to disable password login.'}
                         </Typography>
                     </Box>
 
-                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                        {t('visitorUser') || 'Visitor User'}
-                    </Typography>
-                    <Box sx={{ mt: 1, mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                            {t('visitorUserHelper') || 'Set a password for the Visitor User role. Users logging in with this password will have read-only access and cannot change settings.'}
-                        </Typography>
-                    </Box>
-                    <TextField
-                        fullWidth
-                        sx={{ mb: 2 }}
-                        label={t('visitorPassword') || 'Visitor Password'}
-                        type="text"
-                        value={settings.visitorPassword || ''}
-                        onChange={(e) => onChange('visitorPassword', e.target.value)}
-                        helperText={
-                            settings.isVisitorPasswordSet
-                                ? (t('visitorPasswordSetHelper') || 'Password is set. Leave empty to keep it.')
-                                : (t('visitorPasswordHelper') || 'Password for the Visitor User to log in.')
-                        }
-                    />
 
                     <FormControlLabel
                         control={
@@ -231,10 +214,11 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         </Typography>
                     </Box>
 
-                    <Box sx={{ mt: 3 }}>
+                    <Box sx={{ mt: 3, maxWidth: 400 }}>
                         <Box sx={{ mb: 2 }}>
                             <Button
                                 variant="outlined"
+                                startIcon={<FingerprintIcon />}
                                 onClick={handleCreatePasskey}
                                 disabled={!settings.loginEnabled || createPasskeyMutation.isPending}
                                 fullWidth
@@ -247,6 +231,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         <Button
                             variant="outlined"
                             color="error"
+                            startIcon={<DeleteIcon />}
                             onClick={() => setShowRemoveModal(true)}
                             disabled={!settings.loginEnabled || !passkeysExist || removePasskeysMutation.isPending}
                             fullWidth
@@ -254,6 +239,49 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             {t('removePasskeys') || 'Remove All Passkeys'}
                         </Button>
                     </Box>
+
+                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
+                        {t('visitorUser') || 'Visitor User'}
+                    </Typography>
+
+                    <Box>
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={settings.visitorUserEnabled !== false}
+                                    onChange={(e) => onChange('visitorUserEnabled', e.target.checked)}
+                                    disabled={!settings.loginEnabled}
+                                />
+                            }
+                            label={t('enableVisitorUser') || 'Enable Visitor User'}
+                            sx={{ mt: 1 }}
+                        />
+                    </Box>
+
+
+                    {settings.visitorUserEnabled !== false && (
+                        <>
+                            <Box sx={{ mt: 1, mb: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {t('visitorUserHelper') || 'Set a password for the Visitor User role. Users logging in with this password will have read-only access and cannot change settings.'}
+                                </Typography>
+                            </Box>
+                            <TextField
+                                fullWidth
+                                sx={{ mb: 2, maxWidth: 400 }}
+                                label={t('visitorPassword') || 'Visitor Password'}
+                                type="text"
+                                value={settings.visitorPassword || ''}
+                                onChange={(e) => onChange('visitorPassword', e.target.value)}
+                                helperText={
+                                    settings.isVisitorPasswordSet
+                                        ? (t('visitorPasswordSetHelper') || 'Password is set. Leave empty to keep it.')
+                                        : (t('visitorPasswordHelper') || 'Password for the Visitor User to log in.')
+                                }
+                            />
+                        </>
+                    )}
+
                 </Box>
             )}
 

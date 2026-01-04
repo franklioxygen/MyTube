@@ -24,6 +24,7 @@ export interface Settings {
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
   visitorPassword?: string;
+  visitorUserEnabled?: boolean;
   infiniteScroll?: boolean;
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;

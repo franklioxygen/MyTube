@@ -156,6 +156,7 @@ export const en = {
   showYoutubeSearch: "Show YouTube Search Results",
   visitorModeReadOnly: "Visitor mode: Read-only",
   visitorUser: "Visitor User",
+  enableVisitorUser: "Enable Visitor User",
   visitorUserHelper:
     "Enable a separate visitor account with read-only access. Visitors can view content but cannot make changes.",
   visitorPassword: "Visitor Password",

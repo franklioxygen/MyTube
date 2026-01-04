@@ -687,6 +687,7 @@ export const ko = {
   admin: "관리자",
   visitorSignIn: "방문자 로그인",
   visitorUser: "방문자 사용자",
+  enableVisitorUser: "방문자 사용자 활성화",
   visitorUserHelper:
     "읽기 전용 액세스 권한이 있는 별도의 방문자 계정을 활성화합니다. 방문자는 콘텐츠를 볼 수 있지만 변경할 수는 없습니다.",
   visitorPassword: "방문자 비밀번호",

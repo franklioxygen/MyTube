@@ -706,6 +706,7 @@ export const ja = {
   admin: "管理者",
   visitorSignIn: "ビジターログイン",
   visitorUser: "ビジターユーザー",
+  enableVisitorUser: "ビジターユーザーを有効にする",
   visitorUserHelper:
     "読み取り専用アクセス権を持つ別のビジターアカウントを有効にします。ビジターはコンテンツを閲覧できますが、変更することはできません。",
   visitorPassword: "ビジターパスワード",

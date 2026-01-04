@@ -719,6 +719,7 @@ export const fr = {
   admin: "Administrateur",
   visitorSignIn: "Connexion Visiteur",
   visitorUser: "Utilisateur Visiteur",
+  enableVisitorUser: "Activer l'Utilisateur Visiteur",
   visitorUserHelper:
     "Activez un compte visiteur séparé avec un accès en lecture seule. Les visiteurs peuvent voir le contenu mais ne peuvent pas effectuer de modifications.",
   visitorPassword: "Mot de passe Visiteur",

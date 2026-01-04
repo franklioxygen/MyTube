@@ -669,6 +669,7 @@ export const zh = {
   admin: "管理员",
   visitorSignIn: "访客登录",
   visitorUser: "访客用户",
+  enableVisitorUser: "启用访客用户",
   visitorUserHelper: "启用具有只读权限的单独访客帐户。访客可以查看内容，但不能进行更改。",
   visitorPassword: "访客密码",
   visitorPasswordHelper: "设置访客帐户的密码。",

@@ -103,10 +103,11 @@ export async function verifyPassword(
     }
   }
 
-  // 2. Check Visitor Password (if visitorPassword is set)
+  // 2. Check Visitor Password (if visitorPassword is set and visitor user is enabled)
   // Permission control is now based on user role
   // If password matches visitorPassword, assign visitor role
-  if (mergedSettings.visitorPassword) {
+  const visitorUserEnabled = mergedSettings.visitorUserEnabled !== false;
+  if (visitorUserEnabled && mergedSettings.visitorPassword) {
       const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
       if (isVisitorMatch) {
           loginAttemptService.resetFailedAttempts();
@@ -209,6 +210,16 @@ export async function verifyVisitorPassword(
 }> {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if visitor user is enabled (defaults to true for backward compatibility)
+  const visitorUserEnabled = mergedSettings.visitorUserEnabled !== false;
+
+  if (!visitorUserEnabled) {
+    return {
+      success: false,
+      message: "Visitor user is not enabled.",
+    };
+  }
 
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
