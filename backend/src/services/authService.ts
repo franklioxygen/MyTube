@@ -43,13 +43,15 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
   // Set HTTP-only cookie (not accessible to JavaScript, preventing XSS attacks)
   // SameSite=Strict provides CSRF protection
   // Secure flag should be set in production (HTTPS only)
-  const isProduction = process.env.NODE_ENV === "production";
-  const isSecure = process.env.SECURE_COOKIES === "true" || isProduction;
+  // Set HTTP-only cookie (not accessible to JavaScript, preventing XSS attacks)
+  // SameSite=Lax allows for better usability while maintaining CSRF protection
+  // Secure flag is optional (env var) to allow potential HTTP usage in private networks
+  const isSecure = process.env.SECURE_COOKIES === "true";
   
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true, // Not accessible to JavaScript
-    secure: isSecure, // Only sent over HTTPS in production
-    sameSite: "strict", // CSRF protection
+    secure: isSecure, // Only sent over HTTPS if explicitly configured
+    sameSite: "lax", // Better persistence across navigations
     maxAge: maxAge, // 24 hours
     path: "/", // Available for all paths
   });
@@ -58,7 +60,7 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
   res.cookie("mytube_role", role, {
     httpOnly: false, // Frontend needs to read this
     secure: isSecure,
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: maxAge,
     path: "/",
   });
@@ -70,14 +72,14 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
 export const clearAuthCookie = (res: Response): void => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: process.env.SECURE_COOKIES === "true" || process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: process.env.SECURE_COOKIES === "true",
+    sameSite: "lax",
     path: "/",
   });
   res.clearCookie("mytube_role", {
     httpOnly: false,
-    secure: process.env.SECURE_COOKIES === "true" || process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: process.env.SECURE_COOKIES === "true",
+    sameSite: "lax",
     path: "/",
   });
 };
