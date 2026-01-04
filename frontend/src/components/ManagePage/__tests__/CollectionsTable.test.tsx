@@ -8,14 +8,10 @@ vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock('../../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: () => ({ visitorMode: false }),
-}));
-
-// We need to support mocking the return value of useVisitorMode for specific tests
-const mockUseVisitorMode = vi.fn(() => ({ visitorMode: false }));
-vi.mock('../../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: () => mockUseVisitorMode(),
+// We need to support mocking the return value of useAuth for specific tests
+const mockUseAuth = vi.fn(() => ({ userRole: 'admin' }));
+vi.mock('../../../contexts/AuthContext', () => ({
+    useAuth: () => mockUseAuth(),
 }));
 
 
@@ -59,11 +55,11 @@ describe('CollectionsTable', () => {
     });
 
     it('should not show actions column in visitor mode', () => {
-        mockUseVisitorMode.mockReturnValue({ visitorMode: true });
+        mockUseAuth.mockReturnValue({ userRole: 'visitor' });
         render(<CollectionsTable {...defaultProps} />);
         expect(screen.queryByText('actions')).not.toBeInTheDocument();
         // Reset mock
-        mockUseVisitorMode.mockReturnValue({ visitorMode: false });
+        mockUseAuth.mockReturnValue({ userRole: 'admin' });
     });
 
     it('should render pagination if totalPages > 1', () => {

@@ -135,12 +135,7 @@ export const ko = {
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
   showYoutubeSearch: "YouTube 검색 결과 표시",
-  visitorMode: "방문자 모드 (읽기 전용)",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
-  visitorModeDescription:
-    "읽기 전용 모드. 숨겨진 동영상은 방문자에게 표시되지 않습니다.",
-  visitorModePasswordPrompt:
-    "방문자 모드 설정을 변경하려면 웹사이트 비밀번호를 입력하세요.",
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
 

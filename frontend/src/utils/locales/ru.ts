@@ -147,12 +147,7 @@ export const ru = {
   itemsPerPage: "Элементов на странице",
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
   showYoutubeSearch: "Показать результаты поиска YouTube",
-  visitorMode: "Режим посетителя (Только чтение)",
   visitorModeReadOnly: "Режим посетителя: Только чтение",
-  visitorModeDescription:
-    "Режим только чтения. Скрытые видео не будут видны посетителям.",
-  visitorModePasswordPrompt:
-    "Пожалуйста, введите пароль веб-сайта для изменения настроек режима посетителя.",
   cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
   cleanupTempFilesFailed: "Не удалось очистить временные файлы",
 

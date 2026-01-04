@@ -17,7 +17,7 @@ import {
 } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Collection } from '../../types';
 
 interface CollectionsTableProps {
@@ -40,7 +40,8 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     getCollectionSize
 }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (
@@ -59,7 +60,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                 <TableCell>{t('videos')}</TableCell>
                                 <TableCell>{t('size')}</TableCell>
                                 <TableCell>{t('created')}</TableCell>
-                                {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
+                                {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -71,7 +72,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                     <TableCell>{collection.videos.length} videos</TableCell>
                                     <TableCell>{getCollectionSize(collection.videos)}</TableCell>
                                     <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
-                                    {!visitorMode && (
+                                    {!isVisitor && (
                                         <TableCell align="right">
                                             <Tooltip title={t('deleteCollection')} disableHoverListener={isTouch}>
                                                 <IconButton

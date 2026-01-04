@@ -16,7 +16,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
@@ -49,7 +49,8 @@ const Header: React.FC<HeaderProps> = ({
     const { mode: themeMode } = useThemeContext();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
     const isSettingsPage = location.pathname.startsWith('/settings');
@@ -61,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({
 
     // Check for active subscriptions and tasks
     useEffect(() => {
-        if (visitorMode) {
+        if (isVisitor) {
             setHasActiveSubscriptions(false);
             return;
         }
@@ -98,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({
         return () => {
             clearInterval(interval);
         };
-    }, [visitorMode]);
+    }, [isVisitor]);
 
     useEffect(() => {
         // Fetch settings to get website name and infinite scroll setting
@@ -316,7 +317,7 @@ const Header: React.FC<HeaderProps> = ({
                                 {/* Desktop Layout */}
                                 {!isMobile && (
                                     <>
-                                        {!visitorMode && (
+                                        {!isVisitor && (
                                             <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
                                                 <SearchInput
                                                     videoUrl={videoUrl}
@@ -330,7 +331,7 @@ const Header: React.FC<HeaderProps> = ({
                                                 />
                                             </Box>
                                         )}
-                                        <Box sx={{ display: 'flex', alignItems: 'center', ml: visitorMode ? 'auto' : 2 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', ml: isVisitor ? 'auto' : 2 }}>
                                             <ActionButtons
                                                 activeDownloads={activeDownloads}
                                                 queuedDownloads={queuedDownloads}

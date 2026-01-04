@@ -18,10 +18,12 @@
   "description": "Backend for MyTube video streaming website",
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
+    "@types/cookie-parser": "^1.4.10",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.6",
     "cheerio": "^1.1.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.44.7",

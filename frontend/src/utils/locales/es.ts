@@ -144,12 +144,7 @@ export const es = {
   itemsPerPageHelper:
     "Número de videos para mostrar por página (Predeterminado: 12)",
   showYoutubeSearch: "Mostrar resultados de búsqueda de YouTube",
-  visitorMode: "Modo Visitante (Solo lectura)",
   visitorModeReadOnly: "Modo visitante: Solo lectura",
-  visitorModeDescription:
-    "Modo de solo lectura. Los videos ocultos no serán visibles para los visitantes.",
-  visitorModePasswordPrompt:
-    "Por favor, introduzca la contraseña del sitio web para cambiar la configuración del modo visitante.",
   cleanupTempFilesSuccess:
     "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
   cleanupTempFilesFailed: "Error al limpiar archivos temporales",

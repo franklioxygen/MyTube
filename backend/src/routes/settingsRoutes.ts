@@ -21,6 +21,7 @@ import {
 import {
   getPasswordEnabled,
   getResetPasswordCooldown,
+  logout,
   resetPassword,
   verifyPassword,
   verifyAdminPassword,
@@ -62,6 +63,7 @@ router.post("/verify-password", asyncHandler(verifyPassword)); // Deprecated, us
 router.post("/verify-admin-password", asyncHandler(verifyAdminPassword));
 router.post("/verify-visitor-password", asyncHandler(verifyVisitorPassword));
 router.post("/reset-password", asyncHandler(resetPassword));
+router.post("/logout", asyncHandler(logout));
 
 // Passkey routes
 router.get("/passkeys", asyncHandler(getPasskeys));

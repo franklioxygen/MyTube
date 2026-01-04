@@ -11,7 +11,6 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
-import { VisitorModeProvider } from './contexts/VisitorModeContext';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
 import DownloadPage from './pages/DownloadPage';
@@ -148,15 +147,13 @@ function App() {
                 <LanguageProvider>
                     <SnackbarProvider>
                         <AuthProvider>
-                            <VisitorModeProvider>
-                                <VideoProvider>
-                                    <CollectionProvider>
-                                        <DownloadProvider>
-                                            <AppContent />
-                                        </DownloadProvider>
-                                    </CollectionProvider>
-                                </VideoProvider>
-                            </VisitorModeProvider>
+                            <VideoProvider>
+                                <CollectionProvider>
+                                    <DownloadProvider>
+                                        <AppContent />
+                                    </DownloadProvider>
+                                </CollectionProvider>
+                            </VideoProvider>
                         </AuthProvider>
                     </SnackbarProvider>
                 </LanguageProvider>

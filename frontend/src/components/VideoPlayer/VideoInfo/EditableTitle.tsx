@@ -2,7 +2,7 @@ import { Check, Close, Edit, ExpandLess, ExpandMore } from '@mui/icons-material'
 import { Box, Button, TextField, Tooltip, Typography, useMediaQuery } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import { useVisitorMode } from '../../../contexts/VisitorModeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface EditableTitleProps {
     title: string;
@@ -11,7 +11,8 @@ interface EditableTitleProps {
 
 const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [isEditingTitle, setIsEditingTitle] = useState<boolean>(false);
     const [editedTitle, setEditedTitle] = useState<string>('');
@@ -106,7 +107,7 @@ const EditableTitle: React.FC<EditableTitleProps> = ({ title, onSave }) => {
                 {title}
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {!visitorMode && (
+                {!isVisitor && (
                     <Tooltip title={t('editTitle')} disableHoverListener={isTouch}>
                         <Button
                             size="small"

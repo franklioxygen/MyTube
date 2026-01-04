@@ -2,7 +2,7 @@ import { Add, Cast, Delete, MoreVert, Share, Visibility, VisibilityOff } from '@
 import { Button, IconButton, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import { useVisitorMode } from '../../../contexts/VisitorModeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;
@@ -26,7 +26,8 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     sx
 }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
@@ -140,7 +141,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                             <Share />
                         </Button>
                     </Tooltip>
-                    {!visitorMode && (
+                    {!isVisitor && (
                         <>
                             {onToggleVisibility && (
                                 <Tooltip title={video?.visibility === 0 ? t('showVideo') : t('hideVideo')} disableHoverListener={isTouch}>

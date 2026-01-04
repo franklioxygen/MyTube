@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { clearAuthCookie, setAuthCookie } from "../services/authService";
 import * as passwordService from "../services/passwordService";
 
 /**
@@ -27,12 +28,14 @@ export const verifyPassword = async (
 
   const result = await passwordService.verifyPassword(password);
 
-  if (result.success) {
-    // Return format expected by frontend: { success: boolean, role?, token? }
+  if (result.success && result.token && result.role) {
+    // Set HTTP-only cookie with authentication token
+    setAuthCookie(res, result.token, result.role);
+    // Return format expected by frontend: { success: boolean, role? }
+    // Token is now in HTTP-only cookie, not in response body
     res.json({ 
       success: true,
-      role: result.role,
-      token: result.token
+      role: result.role
     });
   } else {
     // Return wait time information
@@ -61,11 +64,14 @@ export const verifyAdminPassword = async (
 
   const result = await passwordService.verifyAdminPassword(password);
 
-  if (result.success) {
+  if (result.success && result.token && result.role) {
+    // Set HTTP-only cookie with authentication token
+    setAuthCookie(res, result.token, result.role);
+    // Return format expected by frontend: { success: boolean, role? }
+    // Token is now in HTTP-only cookie, not in response body
     res.json({ 
       success: true,
-      role: result.role,
-      token: result.token
+      role: result.role
     });
   } else {
     const statusCode = result.waitTime ? 429 : 401;
@@ -92,11 +98,14 @@ export const verifyVisitorPassword = async (
 
   const result = await passwordService.verifyVisitorPassword(password);
 
-  if (result.success) {
+  if (result.success && result.token && result.role) {
+    // Set HTTP-only cookie with authentication token
+    setAuthCookie(res, result.token, result.role);
+    // Return format expected by frontend: { success: boolean, role? }
+    // Token is now in HTTP-only cookie, not in response body
     res.json({ 
       success: true,
-      role: result.role,
-      token: result.token
+      role: result.role
     });
   } else {
     const statusCode = result.waitTime ? 429 : 401;
@@ -140,4 +149,16 @@ export const resetPassword = async (
     message:
       "Password has been reset. Check backend logs for the new password.",
   });
+};
+
+/**
+ * Logout endpoint - clears authentication cookies
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const logout = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  clearAuthCookie(res);
+  res.json({ success: true, message: "Logged out successfully" });
 };

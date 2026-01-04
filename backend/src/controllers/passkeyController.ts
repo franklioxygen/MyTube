@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { setAuthCookie } from "../services/authService";
 import * as passkeyService from "../services/passkeyService";
 
 /**
@@ -163,8 +164,12 @@ export const verifyAuthentication = async (
     rpID
   );
 
-  if (result.verified) {
-    res.json({ success: true, token: result.token, role: result.role });
+  if (result.verified && result.token && result.role) {
+    // Set HTTP-only cookie with authentication token
+    setAuthCookie(res, result.token, result.role);
+    // Return format expected by frontend: { success: boolean, role? }
+    // Token is now in HTTP-only cookie, not in response body
+    res.json({ success: true, role: result.role });
   } else {
     res.status(401).json({ success: false, error: "Authentication failed" });
   }

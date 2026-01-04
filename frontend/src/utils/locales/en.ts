@@ -154,12 +154,7 @@ export const en = {
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
-  visitorMode: "Visitor Mode (Read-only)",
   visitorModeReadOnly: "Visitor mode: Read-only",
-  visitorModeDescription:
-    "Read-only mode. Hidden videos will not be visible to visitors.",
-  visitorModePasswordPrompt:
-    "Please enter the website password to change Visitor Mode settings.",
   visitorUser: "Visitor User",
   visitorUserHelper:
     "Enable a separate visitor account with read-only access. Visitors can view content but cannot make changes.",

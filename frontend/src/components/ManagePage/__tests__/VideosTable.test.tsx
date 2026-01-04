@@ -9,8 +9,8 @@ vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock('../../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: () => ({ visitorMode: false }),
+vi.mock('../../../contexts/AuthContext', () => ({
+    useAuth: () => ({ userRole: 'admin' }),
 }));
 
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({

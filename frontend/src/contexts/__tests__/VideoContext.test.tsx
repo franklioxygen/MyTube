@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../LanguageContext';
 import { SnackbarProvider } from '../SnackbarContext';
 import { VideoProvider, useVideo } from '../VideoContext';
-import { VisitorModeProvider } from '../VisitorModeContext';
+import { AuthProvider } from '../AuthContext';
 
 // Mock axios
 vi.mock('axios');
@@ -21,9 +21,9 @@ const createWrapper = () => {
         <QueryClientProvider client={queryClient}>
             <SnackbarProvider>
                 <LanguageProvider>
-                    <VisitorModeProvider>
+                    <AuthProvider>
                         <VideoProvider>{children}</VideoProvider>
-                    </VisitorModeProvider>
+                    </AuthProvider>
                 </LanguageProvider>
             </SnackbarProvider>
         </QueryClientProvider>

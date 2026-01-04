@@ -2,6 +2,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import path from "path";
@@ -39,7 +40,13 @@ const PORT = process.env.PORT || 5551;
 app.disable("x-powered-by");
 
 // Middleware
-app.use(cors());
+// Configure CORS to allow credentials for HTTP-only cookies
+app.use(cors({
+  origin: true, // Allow requests from any origin (can be restricted in production)
+  credentials: true, // Required for HTTP-only cookies
+}));
+// Parse cookies
+app.use(cookieParser());
 // Increase body size limits for large file uploads (10GB)
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));

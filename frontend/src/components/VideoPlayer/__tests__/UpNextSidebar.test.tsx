@@ -17,8 +17,8 @@ vi.mock('../../VideoCard', () => ({
     )
 }));
 
-vi.mock('../../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: () => ({ visitorMode: false })
+vi.mock('../../../contexts/AuthContext', () => ({
+    useAuth: () => ({ userRole: 'admin' })
 }));
 
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({

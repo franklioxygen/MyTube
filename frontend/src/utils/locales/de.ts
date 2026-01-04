@@ -129,12 +129,7 @@ export const de = {
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
-  visitorMode: "Besuchermodus (Nur-Lesen)",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
-  visitorModeDescription:
-    "Nur-Lese-Modus. Ausgeblendete Videos sind für Besucher nicht sichtbar.",
-  visitorModePasswordPrompt:
-    "Bitte geben Sie das Website-Passwort ein, um die Besuchermodus-Einstellungen zu ändern.",
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 

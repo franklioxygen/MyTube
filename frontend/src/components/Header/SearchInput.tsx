@@ -11,8 +11,8 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
 
 interface SearchInputProps {
     videoUrl: string;
@@ -36,7 +36,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
     onSubmit
 }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -58,10 +59,10 @@ const SearchInput: React.FC<SearchInputProps> = ({
             <TextField
                 fullWidth
                 variant="outlined"
-                placeholder={visitorMode ? t('visitorModeReadOnly') || 'Visitor mode: Read-only' : t('enterUrlOrSearchTerm')}
+                placeholder={isVisitor ? t('visitorModeReadOnly') || 'Visitor mode: Read-only' : t('enterUrlOrSearchTerm')}
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
-                disabled={isSubmitting || visitorMode}
+                disabled={isSubmitting || isVisitor}
                 error={!!error}
                 helperText={error}
                 size="small"
@@ -79,7 +80,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                     onClick={handlePaste}
                                     edge="start"
                                     size="small"
-                                    disabled={isSubmitting || visitorMode}
+                                    disabled={isSubmitting || isVisitor}
                                     sx={{ ml: 0 }}
                                 >
                                     <ContentPaste />
@@ -98,7 +99,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                         onClick={handleClear}
                                         edge="end"
                                         size="small"
-                                        disabled={isSubmitting || visitorMode}
+                                        disabled={isSubmitting || isVisitor}
                                         sx={{ mr: 0.5 }}
                                     >
                                         <Clear />
@@ -107,7 +108,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                                 <Button
                                     type="submit"
                                     variant="contained"
-                                    disabled={isSubmitting || visitorMode}
+                                    disabled={isSubmitting || isVisitor}
                                     sx={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, height: '100%', minWidth: 'auto', px: 3 }}
                                 >
                                     {isSubmitting ? <CircularProgress size={24} color="inherit" /> : <Search />}

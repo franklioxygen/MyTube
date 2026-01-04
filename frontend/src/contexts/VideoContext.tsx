@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { Video } from '../types';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-import { useVisitorMode } from './VisitorModeContext';
+import { useAuth } from './AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
@@ -51,7 +51,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
     const queryClient = useQueryClient();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
 
     // Videos Query
     const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
@@ -75,11 +76,11 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Filter invisible videos when in visitor mode
     const videos = useMemo(() => {
-        if (visitorMode) {
+        if (isVisitor) {
             return videosRaw.filter(video => (video.visibility ?? 1) === 1);
         }
         return videosRaw;
-    }, [videosRaw, visitorMode]);
+    }, [videosRaw, isVisitor]);
 
     // Settings Query (tags and showYoutubeSearch)
     const { data: settingsData } = useQuery({

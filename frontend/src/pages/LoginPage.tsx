@@ -54,7 +54,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['settings'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
+                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000, withCredentials: true });
                 return response.data;
             } catch (error) {
                 return null;
@@ -80,7 +80,7 @@ const LoginPage: React.FC = () => {
     const { data: statusData, isLoading: isCheckingConnection, isError: isConnectionError, refetch: retryConnection } = useQuery({
         queryKey: ['healthCheck'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/password-enabled`, { timeout: 5000 });
+            const response = await axios.get(`${API_URL}/settings/password-enabled`, { timeout: 5000, withCredentials: true });
             return response.data;
         },
         retry: 1,
@@ -92,7 +92,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['passkeys-exists'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/passkeys/exists`, { timeout: 5000 });
+                const response = await axios.get(`${API_URL}/settings/passkeys/exists`, { timeout: 5000, withCredentials: true });
                 return response.data;
             } catch (error) {
                 return { exists: false };
@@ -110,7 +110,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['resetPasswordCooldown'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/reset-password-cooldown`, { timeout: 5000 });
+                const response = await axios.get(`${API_URL}/settings/reset-password-cooldown`, { timeout: 5000, withCredentials: true });
                 return response.data;
             } catch (error) {
                 return { cooldown: 0 };
@@ -196,7 +196,7 @@ const LoginPage: React.FC = () => {
 
     const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-admin-password`, { password: passwordToVerify });
+            const response = await axios.post(`${API_URL}/settings/verify-admin-password`, { password: passwordToVerify }, { withCredentials: true });
             return response.data;
         },
         onSuccess: (data) => {
@@ -243,13 +243,14 @@ const LoginPage: React.FC = () => {
 
     const visitorLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-visitor-password`, { password: passwordToVerify });
+            const response = await axios.post(`${API_URL}/settings/verify-visitor-password`, { password: passwordToVerify }, { withCredentials: true });
             return response.data;
         },
         onSuccess: (data) => {
             if (data.success) {
                 setWaitTime(0); // Reset wait time on success
-                login(data.token, data.role);
+                // Token is now in HTTP-only cookie, role is in response
+                login(data.role);
             } else {
                 // Handle failures (incorrect password or too many attempts)
                 const statusCode = data.statusCode || 401;
@@ -294,7 +295,7 @@ const LoginPage: React.FC = () => {
 
     const resetPasswordMutation = useMutation({
         mutationFn: async () => {
-            const response = await axios.post(`${API_URL}/settings/reset-password`);
+            const response = await axios.post(`${API_URL}/settings/reset-password`, {}, { withCredentials: true });
             return response.data;
         },
         onSuccess: () => {
@@ -326,7 +327,7 @@ const LoginPage: React.FC = () => {
 
 
             // Step 1: Get authentication options
-            const optionsResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate`);
+            const optionsResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate`, {}, { withCredentials: true });
             const { options, challenge } = optionsResponse.data;
 
             // Step 2: Start authentication with browser
@@ -336,7 +337,7 @@ const LoginPage: React.FC = () => {
             const verifyResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate/verify`, {
                 body: assertionResponse,
                 challenge,
-            });
+            }, { withCredentials: true });
 
             if (!verifyResponse.data.success) {
                 throw new Error('Passkey authentication failed');
@@ -347,10 +348,11 @@ const LoginPage: React.FC = () => {
         onSuccess: (data) => {
             setError('');
             setWaitTime(0);
-            if (data.token && data.role) {
-                login(data.token, data.role);
+            // Token is now in HTTP-only cookie, role is in response
+            if (data.role) {
+                login(data.role);
             } else {
-                login(); // Fallback if no token returned (shouldn't happen with new backend)
+                login(); // Fallback if no role returned (shouldn't happen with new backend)
             }
         },
         onError: (err: any) => {

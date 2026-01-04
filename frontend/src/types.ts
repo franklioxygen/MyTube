@@ -82,7 +82,6 @@ export interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
-  visitorMode?: boolean;
   visitorPassword?: string;
   infiniteScroll?: boolean;
   videoColumns?: number;

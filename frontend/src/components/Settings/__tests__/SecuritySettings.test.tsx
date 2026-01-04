@@ -32,7 +32,6 @@ describe('SecuritySettings', () => {
         loginEnabled: false,
         password: '',
         isPasswordSet: false,
-        visitorMode: false,
         visitorPassword: '',
     };
 
@@ -44,20 +43,20 @@ describe('SecuritySettings', () => {
         render(<SecuritySettings settings={defaultSettings} onChange={mockOnChange} />);
 
         expect(screen.getByLabelText('enableLogin')).toBeInTheDocument();
-        expect(screen.queryByLabelText('visitorUser')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('password')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('visitorPassword')).not.toBeInTheDocument();
     });
 
     it('should show password field when enabled', () => {
         render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
 
         expect(screen.getByLabelText('password')).toBeInTheDocument();
-        expect(screen.getByLabelText('visitorUser')).toBeInTheDocument();
+        expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
         expect(screen.getByText('passwordSetHelper')).toBeInTheDocument();
     });
 
-    it('should show visitor password field when visitor mode is enabled', () => {
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true, visitorMode: true }} onChange={mockOnChange} />);
+    it('should show visitor password field when login is enabled', () => {
+        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
 
         expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
         expect(screen.getByText('visitorPasswordHelper')).toBeInTheDocument();
@@ -71,13 +70,7 @@ describe('SecuritySettings', () => {
         expect(mockOnChange).toHaveBeenCalledWith('loginEnabled', true);
     });
 
-    it('should handle visitor switch change', async () => {
-        const user = userEvent.setup();
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
-
-        await user.click(screen.getByLabelText('visitorUser'));
-        expect(mockOnChange).toHaveBeenCalledWith('visitorMode', true);
-    });
+    // Visitor mode switch has been removed - visitor password is always visible when login is enabled
 
     it('should handle password change', async () => {
         const user = userEvent.setup();
@@ -90,17 +83,12 @@ describe('SecuritySettings', () => {
 
     it('should handle visitor password change', async () => {
         const user = userEvent.setup();
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true, visitorMode: true }} onChange={mockOnChange} />);
+        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
 
         const input = screen.getByLabelText('visitorPassword');
         await user.type(input, 'guest');
         expect(mockOnChange).toHaveBeenCalledWith('visitorPassword', 'g');
     });
 
-    it('should disable login enabled switch when visitor mode is enabled', () => {
-        render(<SecuritySettings settings={{ ...defaultSettings, visitorMode: true, loginEnabled: true }} onChange={mockOnChange} />);
-
-        const loginSwitch = screen.getByLabelText('enableLogin');
-        expect(loginSwitch).toBeDisabled();
-    });
+    // Visitor mode switch has been removed - this test is no longer applicable
 });

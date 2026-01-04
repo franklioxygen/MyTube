@@ -31,7 +31,6 @@ import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useVisitorMode } from '../contexts/VisitorModeContext';
 import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
@@ -45,8 +44,8 @@ const API_URL = import.meta.env.VITE_API_URL;
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
-    const { visitorMode } = useVisitorMode();
     const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
 
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
@@ -184,7 +183,7 @@ const SettingsPage: React.FC = () => {
                         </Grid>
 
                         {/* 2. Interface & Display */}
-                        {!visitorMode && (
+                        {!isVisitor && (
                             <Grid size={12}>
                                 <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
                                     <InterfaceDisplaySettings
@@ -199,7 +198,7 @@ const SettingsPage: React.FC = () => {
                         )}
 
                         {/* 3. Security & Access */}
-                        {!visitorMode && userRole !== 'visitor' && (
+                        {!isVisitor && userRole !== 'visitor' && (
                             <Grid size={12}>
                                 <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -219,7 +218,6 @@ const SettingsPage: React.FC = () => {
                                             <CloudflareSettings
                                                 enabled={settings.cloudflaredTunnelEnabled}
                                                 token={settings.cloudflaredToken}
-                                                visitorMode={visitorMode}
                                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                                             />
                                         </Box>
@@ -228,7 +226,7 @@ const SettingsPage: React.FC = () => {
                             </Grid>
                         )}
 
-                        {!visitorMode && (
+                        {!isVisitor && (
                             <>
                                 {/* 4. Video Playback */}
                                 <Grid size={12}>

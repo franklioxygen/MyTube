@@ -9,8 +9,8 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 }));
 
 const mockVisitorMode = false;
-vi.mock('../../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: () => ({ visitorMode: mockVisitorMode }),
+vi.mock('../../../contexts/AuthContext', () => ({
+    useAuth: () => ({ userRole: mockVisitorMode ? 'visitor' : 'admin' }),
 }));
 
 // Mock useMediaQuery

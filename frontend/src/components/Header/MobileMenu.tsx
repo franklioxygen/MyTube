@@ -5,7 +5,6 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
 import { Collection, Video } from '../../types';
 import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
@@ -48,8 +47,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onTagToggle
 }) => {
     const { t } = useLanguage();
-    const { logout } = useAuth();
-    const { visitorMode } = useVisitorMode();
+    const { logout, userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const navigate = useNavigate();
     const API_URL = import.meta.env.VITE_API_URL;
 
@@ -81,7 +80,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
                 <Stack spacing={2} sx={{ py: 2 }}>
                     {/* Row 1: Search Input */}
-                    {!visitorMode && (
+                    {!isVisitor && (
                         <Box>
                             <SearchInput
                                 videoUrl={videoUrl}

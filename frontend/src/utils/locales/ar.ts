@@ -133,12 +133,7 @@ export const ar = {
   itemsPerPage: "عناصر لكل صفحة",
   itemsPerPageHelper: "عدد مقاطع الفيديو المعروضة في كل صفحة (الافتراضي: 12)",
   showYoutubeSearch: "عرض نتائج بحث YouTube",
-  visitorMode: "وضع الزائر (للقراءة فقط)",
   visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
-  visitorModeDescription:
-    "وضع القراءة فقط. لن تكون مقاطع الفيديو المخفية مرئية للزوار.",
-  visitorModePasswordPrompt:
-    "يرجى إدخال كلمة مرور الموقع لتغيير إعدادات وضع الزائر.",
   cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
   cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
 

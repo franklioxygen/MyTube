@@ -26,23 +26,6 @@ export function validateSettings(newSettings: Partial<Settings>): void {
 }
 
 /**
- * @deprecated This function is deprecated. Permission control is now handled by role-based middleware.
- * This function is kept for backward compatibility but should not be used.
- * Use roleBasedSettingsMiddleware instead.
- */
-export function checkVisitorModeRestrictions(
-  existingSettings: Settings,
-  newSettings: Partial<Settings>
-): {
-  allowed: boolean;
-  error?: string;
-} {
-  // Always allow - permission control is now handled by role-based middleware
-  // This function is kept for backward compatibility
-  return { allowed: true };
-}
-
-/**
  * Process tag deletions and update videos accordingly
  */
 export function processTagDeletions(

@@ -20,7 +20,7 @@ import React, { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { useVisitorMode } from '../contexts/VisitorModeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { TranslationKey } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -59,7 +59,8 @@ interface ContinuousDownloadTask {
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const [isUnsubscribeModalOpen, setIsUnsubscribeModalOpen] = useState(false);
     const [selectedSubscription, setSelectedSubscription] = useState<{ id: string; author: string } | null>(null);
     const [isCancelTaskModalOpen, setIsCancelTaskModalOpen] = useState(false);
@@ -201,13 +202,13 @@ const SubscriptionsPage: React.FC = () => {
                             <TableCell>{t('interval')}</TableCell>
                             <TableCell>{t('lastCheck')}</TableCell>
                             <TableCell>{t('downloads')}</TableCell>
-                            {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
+                            {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {subscriptions.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={visitorMode ? 5 : 6} align="center">
+                                <TableCell colSpan={isVisitor ? 5 : 6} align="center">
                                     <Typography color="text.secondary" sx={{ py: 4 }}>
                                         {t('noVideos')} {/* Reusing "No videos found" or similar if "No subscriptions" key missing */}
                                     </Typography>
@@ -230,7 +231,7 @@ const SubscriptionsPage: React.FC = () => {
                                     <TableCell>{sub.interval} {t('minutes')}</TableCell>
                                     <TableCell>{formatDate(sub.lastCheck)}</TableCell>
                                     <TableCell>{sub.downloadCount}</TableCell>
-                                    {!visitorMode && (
+                                    {!isVisitor && (
                                         <TableCell align="right">
                                             <IconButton
                                                 color="error"
@@ -254,7 +255,7 @@ const SubscriptionsPage: React.FC = () => {
                         <Typography variant="h5" component="h2" fontWeight="bold">
                             {t('continuousDownloadTasks')}
                         </Typography>
-                        {!visitorMode && (
+                        {!isVisitor && (
                             <Button
                                 variant="outlined"
                                 color="error"
@@ -277,7 +278,7 @@ const SubscriptionsPage: React.FC = () => {
                                     <TableCell>{t('downloaded')}</TableCell>
                                     <TableCell>{t('skipped')}</TableCell>
                                     <TableCell>{t('failed')}</TableCell>
-                                    {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
+                                    {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -314,7 +315,7 @@ const SubscriptionsPage: React.FC = () => {
                                         <TableCell>{task.downloadedCount}</TableCell>
                                         <TableCell>{task.skippedCount}</TableCell>
                                         <TableCell>{task.failedCount}</TableCell>
-                                        {!visitorMode && (
+                                        {!isVisitor && (
                                             <TableCell align="right">
                                                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                                                     {task.status !== 'completed' && task.status !== 'cancelled' && (

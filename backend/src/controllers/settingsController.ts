@@ -125,7 +125,6 @@ export const updateSettings = async (
   );
 
   // Permission control is now handled by roleBasedSettingsMiddleware
-  // No need to check visitorMode here - middleware enforces role-based access control
 
 
 

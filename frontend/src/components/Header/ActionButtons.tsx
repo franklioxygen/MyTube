@@ -2,7 +2,7 @@ import { Brightness4, Brightness7, Download, Settings } from '@mui/icons-materia
 import { Badge, Box, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import DownloadsMenu from './DownloadsMenu';
 import ManageMenu from './ManageMenu';
 import { DownloadInfo } from './types';
@@ -32,14 +32,15 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
     const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {!visitorMode && (
+            {!isVisitor && (
                 <>
                     <IconButton color="inherit" onClick={onDownloadsClick}>
                         <Badge badgeContent={activeDownloads.length + queuedDownloads.length} color="secondary">

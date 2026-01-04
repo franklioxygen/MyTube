@@ -18,7 +18,7 @@ import VideosTable from '../components/ManagePage/VideosTable';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { useVisitorMode } from '../contexts/VisitorModeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
@@ -29,7 +29,8 @@ const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const { videos, deleteVideo, refreshThumbnail, updateVideo } = useVideo();
     const { collections, deleteCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -178,7 +179,7 @@ const ManagePage: React.FC = () => {
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     {t('manageContent')}
                 </Typography>
-                {!visitorMode && (
+                {!isVisitor && (
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
                             variant="outlined"

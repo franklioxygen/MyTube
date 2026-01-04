@@ -9,7 +9,7 @@ interface AuthContextType {
     loginRequired: boolean;
     checkingAuth: boolean;
     userRole: 'admin' | 'visitor' | null;
-    login: (token?: string, role?: 'admin' | 'visitor') => void;
+    login: (role?: 'admin' | 'visitor') => void;
     logout: () => void;
 }
 
@@ -27,7 +27,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         queryFn: async () => {
             try {
                 // Check if login is enabled in settings
-                const response = await axios.get(`${API_URL}/settings`);
+                const response = await axios.get(`${API_URL}/settings`, {
+                    withCredentials: true
+                });
                 const { loginEnabled, isPasswordSet } = response.data;
 
                 // Login is required if loginEnabled is true (regardless of password or passkey)
@@ -36,21 +38,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsAuthenticated(true);
                 } else {
                     setLoginRequired(true);
-                    // Check if already authenticated in this session
-                    const sessionAuth = sessionStorage.getItem('mytube_authenticated');
-                    if (sessionAuth === 'true') {
-                        setIsAuthenticated(true);
-                        // Restore role from session storage
-                        const storedRole = sessionStorage.getItem('mytube_role');
-                        if (storedRole === 'admin' || storedRole === 'visitor') {
-                            setUserRole(storedRole);
-                        }
-                        // Restore token header
-                        const token = sessionStorage.getItem('mytube_token');
-                        if (token) {
-                            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    // Check if already authenticated via HTTP-only cookie
+                    // Read role from cookie (non-HTTP-only cookie set by backend)
+                    const roleCookie = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('mytube_role='));
+                    
+                    if (roleCookie) {
+                        const role = roleCookie.split('=')[1] as 'admin' | 'visitor';
+                        if (role === 'admin' || role === 'visitor') {
+                            setIsAuthenticated(true);
+                            setUserRole(role);
+                        } else {
+                            setIsAuthenticated(false);
+                            setUserRole(null);
                         }
                     } else {
+                        // No role cookie means not authenticated
                         setIsAuthenticated(false);
                         setUserRole(null);
                     }
@@ -63,29 +67,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     });
 
-    const login = (token?: string, role?: 'admin' | 'visitor') => {
+    const login = (role?: 'admin' | 'visitor') => {
         setIsAuthenticated(true);
-        sessionStorage.setItem('mytube_authenticated', 'true');
-
-        if (token) {
-            sessionStorage.setItem('mytube_token', token);
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        }
-
         if (role) {
             setUserRole(role);
-            sessionStorage.setItem('mytube_role', role);
         }
+        // Token is now stored in HTTP-only cookie by backend, no need to store it here
     };
 
-    const logout = () => {
+    const logout = async () => {
+        // Clear local state immediately
         setIsAuthenticated(false);
         setUserRole(null);
-        sessionStorage.removeItem('mytube_authenticated');
-        sessionStorage.removeItem('mytube_token');
-        sessionStorage.removeItem('mytube_role');
-        delete axios.defaults.headers.common['Authorization'];
+        
+        // Clear role cookie from frontend (it's not HTTP-only, so we can clear it)
+        // This prevents the auth check from seeing the cookie before backend clears it
+        document.cookie = 'mytube_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        
+        try {
+            // Call backend logout endpoint to clear HTTP-only cookies
+            await axios.post(`${API_URL}/settings/logout`, {}, {
+                withCredentials: true
+            });
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Continue with logout even if backend call fails
+        }
+        
+        // Invalidate and refetch auth settings to ensure fresh auth state
         queryClient.invalidateQueries({ queryKey: ['authSettings'] });
+        queryClient.refetchQueries({ queryKey: ['authSettings'] });
     };
 
     return (

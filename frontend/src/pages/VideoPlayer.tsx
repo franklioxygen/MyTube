@@ -17,7 +17,7 @@ import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
-import { useVisitorMode } from '../contexts/VisitorModeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useVideoCollections } from '../hooks/useVideoCollections';
 import { useVideoMutations } from '../hooks/useVideoMutations';
@@ -32,7 +32,8 @@ const VideoPlayer: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
     const { videos } = useVideo();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -71,13 +72,13 @@ const VideoPlayer: React.FC = () => {
             return () => clearTimeout(timer);
         }
         // In visitor mode, redirect if video is invisible
-        if (visitorMode && video && (video.visibility ?? 1) === 0) {
+        if (isVisitor && video && (video.visibility ?? 1) === 0) {
             const timer = setTimeout(() => {
                 navigate('/');
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [error, navigate, visitorMode, video]);
+    }, [error, navigate, isVisitor, video]);
 
     // Use video player settings hook
     const {

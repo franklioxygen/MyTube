@@ -33,7 +33,7 @@ describe('CloudflareSettings', () => {
     });
 
     it('should render switch and fields', () => {
-        render(<CloudflareSettings enabled={true} token="test-token" visitorMode={false} onChange={mockOnChange} />);
+        render(<CloudflareSettings enabled={true} token="test-token" onChange={mockOnChange} />);
 
         expect(screen.getByLabelText(/enableCloudflaredTunnel/i)).toBeChecked();
         expect(screen.getByLabelText(/cloudflaredToken/i)).toHaveValue('test-token');
@@ -41,7 +41,7 @@ describe('CloudflareSettings', () => {
 
     it('should update enable state on switch toggle', async () => {
         const user = userEvent.setup();
-        render(<CloudflareSettings enabled={false} token="" visitorMode={false} onChange={mockOnChange} />);
+        render(<CloudflareSettings enabled={false} token="" onChange={mockOnChange} />);
 
         const switchControl = screen.getByRole('switch', { name: /enableCloudflaredTunnel/i });
         await user.click(switchControl);
@@ -51,7 +51,7 @@ describe('CloudflareSettings', () => {
 
     it('should update token on change', async () => {
         const user = userEvent.setup();
-        render(<CloudflareSettings enabled={true} token="" visitorMode={false} onChange={mockOnChange} />);
+        render(<CloudflareSettings enabled={true} token="" onChange={mockOnChange} />);
 
         const tokenInput = screen.getByLabelText(/cloudflaredToken/i);
         await user.type(tokenInput, 'new-token');
@@ -65,7 +65,7 @@ describe('CloudflareSettings', () => {
             isLoading: false
         });
 
-        render(<CloudflareSettings enabled={true} token="test-token" visitorMode={false} onChange={mockOnChange} />);
+        render(<CloudflareSettings enabled={true} token="test-token" onChange={mockOnChange} />);
 
         expect(screen.getByText('running')).toBeInTheDocument();
         expect(screen.getByText('https://test.trycloudflare.com')).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('CloudflareSettings', () => {
             isLoading: false
         });
 
-        render(<CloudflareSettings enabled={true} token="test-token" visitorMode={false} onChange={mockOnChange} />);
+        render(<CloudflareSettings enabled={true} token="test-token" onChange={mockOnChange} />);
 
         const urlElement = screen.getByText('https://test.trycloudflare.com');
         await user.click(urlElement);

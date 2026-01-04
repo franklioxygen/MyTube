@@ -2,7 +2,7 @@ import { Notifications, NotificationsActive } from '@mui/icons-material';
 import { Avatar, Box, IconButton, Tooltip, Typography, useMediaQuery } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import { useVisitorMode } from '../../../contexts/VisitorModeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface VideoAuthorInfoProps {
     author: string;
@@ -37,9 +37,10 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     onUnsubscribe
 }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !visitorMode;
+    const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !isVisitor;
 
     const handleSubscribeClick = (e: React.MouseEvent) => {
         e.stopPropagation();

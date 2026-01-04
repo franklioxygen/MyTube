@@ -30,7 +30,7 @@ import {
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { useVisitorMode } from '../../contexts/VisitorModeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
@@ -96,7 +96,8 @@ const VideosTable: React.FC<VideosTableProps> = ({
     onUpdateVideo
 }) => {
     const { t } = useLanguage();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     // Local editing state
@@ -184,7 +185,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         {t('size')}
                                     </TableSortLabel>
                                 </TableCell>
-                                {!visitorMode && <TableCell align="right">{t('actions')}</TableCell>}
+                                {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -195,7 +196,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>
                                                 <ThumbnailImage video={video} />
                                             </Link>
-                                            {!visitorMode && (
+                                            {!isVisitor && (
                                                 <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"} disableHoverListener={isTouch}>
                                                     <IconButton
                                                         size="small"
@@ -255,7 +256,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                             </Box>
                                         ) : (
                                             <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                                                {!visitorMode && (
+                                                {!isVisitor && (
                                                     <IconButton
                                                         size="small"
                                                         onClick={() => handleEditClick(video)}
@@ -296,7 +297,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                         </Link>
                                     </TableCell>
                                     <TableCell>{formatSize(video.fileSize)}</TableCell>
-                                    {!visitorMode && (
+                                    {!isVisitor && (
                                         <TableCell align="right">
                                             <Tooltip title={t('deleteVideo')} disableHoverListener={isTouch}>
                                                 <IconButton

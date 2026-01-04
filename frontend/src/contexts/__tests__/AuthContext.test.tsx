@@ -42,7 +42,7 @@ const renderWithProviders = (ui: React.ReactNode) => {
 describe('AuthContext', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        sessionStorage.clear();
+        localStorage.clear();
         queryClient.clear();
     });
 
@@ -88,8 +88,8 @@ describe('AuthContext', () => {
         });
     });
 
-    it('should check session storage for existing auth', async () => {
-        sessionStorage.setItem('mytube_authenticated', 'true');
+    it('should check local storage for existing auth', async () => {
+        localStorage.setItem('mytube_authenticated', 'true');
         mockedAxios.get.mockResolvedValueOnce({
             data: { loginEnabled: true, isPasswordSet: true }
         });
@@ -101,7 +101,7 @@ describe('AuthContext', () => {
         });
     });
 
-    it('should require login if settings say so and no session', async () => {
+    it('should require login if settings say so and no stored auth', async () => {
         mockedAxios.get.mockResolvedValueOnce({
             data: { loginEnabled: true, isPasswordSet: true }
         });
@@ -129,11 +129,11 @@ describe('AuthContext', () => {
         await user.click(screen.getByText('Login'));
 
         expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
-        expect(sessionStorage.getItem('mytube_authenticated')).toBe('true');
+        expect(localStorage.getItem('mytube_authenticated')).toBe('true');
     });
 
     it('should handle logout', async () => {
-        sessionStorage.setItem('mytube_authenticated', 'true');
+        localStorage.setItem('mytube_authenticated', 'true');
         mockedAxios.get.mockResolvedValueOnce({
             data: { loginEnabled: true, isPasswordSet: true }
         });
@@ -148,6 +148,6 @@ describe('AuthContext', () => {
         await user.click(screen.getByText('Logout'));
 
         expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
-        expect(sessionStorage.getItem('mytube_authenticated')).toBeNull();
+        expect(localStorage.getItem('mytube_authenticated')).toBeNull();
     });
 });

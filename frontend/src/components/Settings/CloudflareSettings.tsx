@@ -1,5 +1,6 @@
 import { Alert, Box, CircularProgress, FormControlLabel, Switch, TextField, Tooltip, Typography } from '@mui/material';
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
@@ -7,13 +8,14 @@ import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
 interface CloudflareSettingsProps {
     enabled?: boolean;
     token?: string;
-    visitorMode?: boolean;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, visitorMode, onChange }) => {
+const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, onChange }) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const [showCopied, setShowCopied] = useState(false);
 
     const handleCopyUrl = async (url: string) => {
@@ -63,7 +65,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     <Switch
                         checked={enabled ?? false}
                         onChange={(e) => onChange('cloudflaredTunnelEnabled', e.target.checked)}
-                        disabled={visitorMode ?? false}
+                        disabled={isVisitor}
                     />
                 }
                 label={t('enableCloudflaredTunnel')}
@@ -77,7 +79,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     value={token || ''}
                     onChange={(e) => onChange('cloudflaredToken', e.target.value)}
                     margin="normal"
-                    disabled={visitorMode ?? false}
+                    disabled={isVisitor}
                     helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
                 />
             )}

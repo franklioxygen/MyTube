@@ -27,9 +27,9 @@ vi.mock('../../contexts/DownloadContext', () => ({
     })),
 }));
 
-vi.mock('../../contexts/VisitorModeContext', () => ({
-    useVisitorMode: vi.fn(() => ({
-        visitorMode: false,
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: vi.fn(() => ({
+        userRole: 'admin',
     })),
 }));
 
@@ -148,7 +148,7 @@ describe('SettingsPage', () => {
         expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
         expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
         expect(screen.getByTestId('cloudflare-settings')).toBeInTheDocument();
-        // Since visitorMode is mocked to false, these should be visible
+        // Since userRole is mocked to 'admin', these should be visible
         expect(screen.getByTestId('cookie-settings')).toBeInTheDocument();
         expect(screen.getByTestId('security-settings')).toBeInTheDocument();
         expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();

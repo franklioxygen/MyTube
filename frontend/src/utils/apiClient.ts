@@ -12,6 +12,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5551/api';
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000, // 30 seconds default timeout
+  withCredentials: true, // Required for HTTP-only cookies
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,14 +20,12 @@ const apiClient: AxiosInstance = axios.create({
 
 /**
  * Request interceptor - can be used for adding auth tokens, logging, etc.
+ * Note: Authentication is now handled via HTTP-only cookies, so no Authorization header is needed
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // Add any request modifications here (e.g., auth tokens)
-    const token = sessionStorage.getItem('mytube_token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Cookies are automatically sent with requests when withCredentials: true
+    // No need to manually add Authorization header
     return config;
   },
   (error) => {

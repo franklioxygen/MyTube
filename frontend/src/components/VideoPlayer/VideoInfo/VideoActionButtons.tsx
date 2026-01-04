@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useVideo } from '../../../contexts/VideoContext';
-import { useVisitorMode } from '../../../contexts/VisitorModeContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { useShareVideo } from '../../../hooks/useShareVideo';
 import { Video } from '../../../types'; // Add imports
@@ -29,7 +29,8 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
     const { t } = useLanguage();
     const { handleShare } = useShareVideo(video);
     const { showSnackbar } = useSnackbar();
-    const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const { incrementView } = useVideo();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -247,7 +248,7 @@ const VideoActionButtons: React.FC<VideoActionButtonsProps> = ({
                     <Share />
                 </Button>
             </Tooltip>
-            {!visitorMode && (
+            {!isVisitor && (
                 <>
                     {onToggleVisibility && (
                         <Tooltip title={video.visibility === 0 ? t('showVideo') : t('hideVideo')} disableHoverListener={isTouch}>

@@ -26,10 +26,14 @@ export const roleBasedSettingsMiddleware = (
 
     // For POST requests, check if it's authentication or CloudFlare settings
     if (req.method === "POST") {
-      // Allow verify-password requests
+      // Allow verify-password requests (including verify-admin-password and verify-visitor-password)
       if (
         req.path.includes("/verify-password") ||
-        req.url.includes("/verify-password")
+        req.url.includes("/verify-password") ||
+        req.path.includes("/verify-admin-password") ||
+        req.url.includes("/verify-admin-password") ||
+        req.path.includes("/verify-visitor-password") ||
+        req.url.includes("/verify-visitor-password")
       ) {
         next();
         return;
@@ -39,6 +43,15 @@ export const roleBasedSettingsMiddleware = (
       if (
         req.path.includes("/passkeys/authenticate") ||
         req.url.includes("/passkeys/authenticate")
+      ) {
+        next();
+        return;
+      }
+
+      // Allow logout endpoint
+      if (
+        req.path.includes("/logout") ||
+        req.url.includes("/logout")
       ) {
         next();
         return;

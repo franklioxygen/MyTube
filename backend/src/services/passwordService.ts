@@ -104,7 +104,7 @@ export async function verifyPassword(
   }
 
   // 2. Check Visitor Password (if visitorPassword is set)
-  // Permission control is now based on user role, not visitorMode setting
+  // Permission control is now based on user role
   // If password matches visitorPassword, assign visitor role
   if (mergedSettings.visitorPassword) {
       const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);

@@ -130,10 +130,7 @@ export const zh = {
   itemsPerPage: "每页显示数量",
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
   showYoutubeSearch: "显示 YouTube 搜索结果",
-  visitorMode: "访客模式（只读）",
   visitorModeReadOnly: "访客模式：只读",
-  visitorModeDescription: "只读模式。隐藏的视频对访客不可见。",
-  visitorModePasswordPrompt: "请输入网站密码以更改访客模式设置。",
   cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
   cleanupTempFilesFailed: "清理临时文件失败",
 
