@@ -1,12 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { createContext, ReactNode, useContext } from 'react';
 import { useAuth } from './AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-
-
+/**
+ * @deprecated This context is kept for backward compatibility.
+ * Permission control is now based on userRole from AuthContext.
+ * Use `useAuth().userRole === 'visitor'` instead of `useVisitorMode().visitorMode`.
+ */
 interface VisitorModeContextType {
     visitorMode: boolean;
     isLoading: boolean;
@@ -14,25 +13,19 @@ interface VisitorModeContextType {
 
 const VisitorModeContext = createContext<VisitorModeContextType>({
     visitorMode: false,
-    isLoading: true,
+    isLoading: false,
 });
 
-
+/**
+ * @deprecated Use useAuth().userRole === 'visitor' instead
+ */
 export const VisitorModeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { userRole } = useAuth();
-    const { data: settingsData, isLoading } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
-            return response.data;
-        },
-        refetchInterval: 30000, // Refetch every 30 seconds (reduced frequency)
-        staleTime: 10000, // Consider data fresh for 10 seconds
-        gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
-    });
+    const { userRole, checkingAuth } = useAuth();
 
-    // Visitor mode is active if enabled in settings AND user is not an admin
-    const visitorMode = settingsData?.visitorMode === true && userRole !== 'admin';
+    // Visitor mode is now based solely on userRole
+    // No longer depends on settings.visitorMode
+    const visitorMode = userRole === 'visitor';
+    const isLoading = checkingAuth;
 
     return (
         <VisitorModeContext.Provider value={{ visitorMode, isLoading }}>
@@ -41,6 +34,9 @@ export const VisitorModeProvider: React.FC<{ children: ReactNode }> = ({ childre
     );
 };
 
+/**
+ * @deprecated Use useAuth().userRole === 'visitor' instead
+ */
 export const useVisitorMode = () => {
     const context = useContext(VisitorModeContext);
     if (!context) {

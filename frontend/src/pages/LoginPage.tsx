@@ -26,7 +26,6 @@ import AlertModal from '../components/AlertModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useVisitorMode } from '../contexts/VisitorModeContext';
 import getTheme from '../theme';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
@@ -48,7 +47,6 @@ const LoginPage: React.FC = () => {
     const [resetPasswordCooldown, setResetPasswordCooldown] = useState(0); // in milliseconds
     const { t } = useLanguage();
     const { login } = useAuth();
-    const { visitorMode } = useVisitorMode();
     const queryClient = useQueryClient();
 
     // Fetch website name and settings from settings
@@ -68,6 +66,8 @@ const LoginPage: React.FC = () => {
 
     const passwordLoginAllowed = settingsData?.passwordLoginAllowed !== false;
     const allowResetPassword = settingsData?.allowResetPassword !== false;
+    // Show visitor tab if visitorPassword is set (no longer depends on visitorMode setting)
+    const showVisitorTab = !!settingsData?.isVisitorPasswordSet;
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -194,9 +194,9 @@ const LoginPage: React.FC = () => {
         setAlertOpen(true);
     };
 
-    const loginMutation = useMutation({
+    const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-password`, { password: passwordToVerify });
+            const response = await axios.post(`${API_URL}/settings/verify-admin-password`, { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
@@ -241,13 +241,55 @@ const LoginPage: React.FC = () => {
 
 
 
+    const visitorLoginMutation = useMutation({
+        mutationFn: async (passwordToVerify: string) => {
+            const response = await axios.post(`${API_URL}/settings/verify-visitor-password`, { password: passwordToVerify });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            if (data.success) {
+                setWaitTime(0); // Reset wait time on success
+                login(data.token, data.role);
+            } else {
+                // Handle failures (incorrect password or too many attempts)
+                const statusCode = data.statusCode || 401;
+                const responseData = data;
+
+                if (statusCode === 429) {
+                    // Too many attempts - wait time required
+                    const waitTimeMs = responseData.waitTime || 0;
+                    setWaitTime(waitTimeMs);
+                    const formattedTime = formatWaitTime(waitTimeMs);
+                    showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
+                } else if (statusCode === 401) {
+                    // Incorrect password - check if wait time is returned
+                    const waitTimeMs = responseData.waitTime || 0;
+                    if (waitTimeMs > 0) {
+                        setWaitTime(waitTimeMs);
+                        const formattedTime = formatWaitTime(waitTimeMs);
+                        showAlert(t('error'), `${t('incorrectPassword')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
+                    } else {
+                        showAlert(t('error'), t('incorrectPassword'));
+                    }
+                } else {
+                    showAlert(t('error'), t('loginFailed'));
+                }
+            }
+        },
+        onError: (err: any) => {
+            console.error('Login error:', err);
+            // Handle actual network errors or unexpected 500s
+            showAlert(t('error'), t('loginFailed'));
+        }
+    });
+
     const handleVisitorSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (waitTime > 0) {
             return;
         }
         setError('');
-        loginMutation.mutate(visitorPassword);
+        visitorLoginMutation.mutate(visitorPassword);
     }
 
     const resetPasswordMutation = useMutation({
@@ -341,7 +383,7 @@ const LoginPage: React.FC = () => {
             return; // Don't allow submission if wait time is active
         }
         setError('');
-        loginMutation.mutate(password);
+        adminLoginMutation.mutate(password);
     };
 
     const handleResetPassword = () => {
@@ -423,12 +465,7 @@ const LoginPage: React.FC = () => {
                                     <Typography variant="h4" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
                                         {websiteName}
                                     </Typography>
-                                    {visitorMode && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.2, mt: 0.5 }}>
-                                            {t('visitorMode')}
-                                        </Typography>
-                                    )}
-                                    {websiteName !== 'MyTube' && !visitorMode && (
+                                    {websiteName !== 'MyTube' && (
                                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', lineHeight: 1.2, mt: 0.25 }}>
                                             Powered by MyTube
                                         </Typography>
@@ -442,7 +479,7 @@ const LoginPage: React.FC = () => {
                                 </Typography>
                             </Box>
                             <Box sx={{ mt: 1, width: '100%' }}>
-                                {visitorMode && (
+                                {showVisitorTab && (
                                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
                                         <Tabs value={activeTab} onChange={(_: React.SyntheticEvent, newValue: number) => setActiveTab(newValue)} aria-label="login tabs" variant="fullWidth">
                                             <Tab label={t('admin') || 'Admin'} id="login-tab-0" aria-controls="login-tabpanel-0" />
@@ -451,14 +488,14 @@ const LoginPage: React.FC = () => {
                                     </Box>
                                 )}
 
-                                {/* Admin Tab Panel (and default view when visitor mode is off) */}
+                                {/* Admin Tab Panel (and default view when visitor tab is not shown) */}
                                 <div
                                     role="tabpanel"
-                                    hidden={visitorMode && activeTab !== 0}
+                                    hidden={showVisitorTab && activeTab !== 0}
                                     id="login-tabpanel-0"
                                     aria-labelledby="login-tab-0"
                                 >
-                                    {(visitorMode ? activeTab === 0 : true) && (
+                                    {(showVisitorTab ? activeTab === 0 : true) && (
                                         <>
                                             {passwordLoginAllowed && (
                                                 <Box component="form" onSubmit={handleSubmit} noValidate>
@@ -473,8 +510,8 @@ const LoginPage: React.FC = () => {
                                                         autoComplete="current-password"
                                                         value={password}
                                                         onChange={(e) => setPassword(e.target.value)}
-                                                        autoFocus={!visitorMode || activeTab === 0}
-                                                        disabled={waitTime > 0 || loginMutation.isPending}
+                                                        autoFocus={!showVisitorTab || activeTab === 0}
+                                                        disabled={waitTime > 0 || adminLoginMutation.isPending}
                                                         helperText={t('defaultPasswordHint') || "Default password: 123"}
                                                         slotProps={{
                                                             input: {
@@ -497,9 +534,9 @@ const LoginPage: React.FC = () => {
                                                         fullWidth
                                                         variant="contained"
                                                         sx={{ mt: 3, mb: 2 }}
-                                                        disabled={loginMutation.isPending || waitTime > 0}
+                                                        disabled={adminLoginMutation.isPending || waitTime > 0}
                                                     >
-                                                        {loginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                        {adminLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
                                                     </Button>
                                                 </Box>
                                             )}
@@ -577,7 +614,7 @@ const LoginPage: React.FC = () => {
                                 </div>
 
                                 {/* Visitor Tab Panel */}
-                                {visitorMode && (
+                                {showVisitorTab && (
                                     <div
                                         role="tabpanel"
                                         hidden={activeTab !== 1}
@@ -597,7 +634,7 @@ const LoginPage: React.FC = () => {
                                                     value={visitorPassword}
                                                     onChange={(e) => setVisitorPassword(e.target.value)}
                                                     autoFocus={activeTab === 1}
-                                                    disabled={waitTime > 0 || loginMutation.isPending}
+                                                    disabled={waitTime > 0 || visitorLoginMutation.isPending}
                                                     slotProps={{
                                                         input: {
                                                             endAdornment: (
@@ -619,9 +656,9 @@ const LoginPage: React.FC = () => {
                                                     fullWidth
                                                     variant="contained"
                                                     sx={{ mt: 3, mb: 2 }}
-                                                    disabled={loginMutation.isPending || waitTime > 0}
+                                                    disabled={visitorLoginMutation.isPending || waitTime > 0}
                                                 >
-                                                    {loginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
+                                                    {visitorLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
                                                 </Button>
                                             </Box>
                                         )}

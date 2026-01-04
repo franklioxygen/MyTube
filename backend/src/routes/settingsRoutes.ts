@@ -23,6 +23,8 @@ import {
   getResetPasswordCooldown,
   resetPassword,
   verifyPassword,
+  verifyAdminPassword,
+  verifyVisitorPassword,
 } from "../controllers/passwordController";
 import {
   checkPasskeysExist,
@@ -56,7 +58,9 @@ router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
 router.get("/reset-password-cooldown", asyncHandler(getResetPasswordCooldown));
-router.post("/verify-password", asyncHandler(verifyPassword));
+router.post("/verify-password", asyncHandler(verifyPassword)); // Deprecated, use verify-admin-password or verify-visitor-password
+router.post("/verify-admin-password", asyncHandler(verifyAdminPassword));
+router.post("/verify-visitor-password", asyncHandler(verifyVisitorPassword));
 router.post("/reset-password", asyncHandler(resetPassword));
 
 // Passkey routes

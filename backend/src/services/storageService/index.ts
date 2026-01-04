@@ -10,29 +10,29 @@ export { initializeStorage } from "./initialization";
 // Download Status
 export {
   addActiveDownload,
-  updateActiveDownload,
+  getDownloadStatus,
   removeActiveDownload,
   setQueuedDownloads,
-  getDownloadStatus,
+  updateActiveDownload,
 } from "./downloadStatus";
 
 // Download History
 export {
   addDownloadHistoryItem,
+  clearDownloadHistory,
   getDownloadHistory,
   removeDownloadHistoryItem,
-  clearDownloadHistory,
 } from "./downloadHistory";
 
 // Video Download Tracking
 export {
   checkVideoDownloadBySourceId,
   checkVideoDownloadByUrl,
-  recordVideoDownload,
+  handleVideoDownloadCheck,
   markVideoDownloadDeleted,
+  recordVideoDownload,
   updateVideoDownloadRecord,
   verifyVideoExists,
-  handleVideoDownloadCheck,
 } from "./videoDownloadTracking";
 
 // Settings
@@ -40,31 +40,30 @@ export { getSettings, saveSettings } from "./settings";
 
 // Videos
 export {
-  getVideos,
-  getVideoBySourceUrl,
-  getVideoById,
+  deleteVideo,
   formatLegacyFilenames,
+  getVideoById,
+  getVideoBySourceUrl,
+  getVideos,
   saveVideo,
   updateVideo,
-  deleteVideo,
 } from "./videos";
 
 // Collections
 export {
-  getCollections,
-  getCollectionById,
-  getCollectionByVideoId,
-  getCollectionByName,
-  generateUniqueCollectionName,
-  saveCollection,
+  addVideoToCollection,
   atomicUpdateCollection,
   deleteCollection,
-  addVideoToCollection,
-  removeVideoFromCollection,
-  deleteCollectionWithFiles,
   deleteCollectionAndVideos,
+  deleteCollectionWithFiles,
+  generateUniqueCollectionName,
+  getCollectionById,
+  getCollectionByName,
+  getCollectionByVideoId,
+  getCollections,
+  removeVideoFromCollection,
+  saveCollection,
 } from "./collections";
 
 // File Helpers
-export { findVideoFile, findImageFile, moveFile } from "./fileHelpers";
-
+export { findImageFile, findVideoFile, moveFile } from "./fileHelpers";

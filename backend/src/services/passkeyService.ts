@@ -1,14 +1,14 @@
 import type {
-    GenerateAuthenticationOptionsOpts,
-    GenerateRegistrationOptionsOpts,
-    VerifyAuthenticationResponseOpts,
-    VerifyRegistrationResponseOpts,
+  GenerateAuthenticationOptionsOpts,
+  GenerateRegistrationOptionsOpts,
+  VerifyAuthenticationResponseOpts,
+  VerifyRegistrationResponseOpts,
 } from "@simplewebauthn/server";
 import {
-    generateAuthenticationOptions,
-    generateRegistrationOptions,
-    verifyAuthenticationResponse,
-    verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import { logger } from "../utils/logger";
 import { generateToken } from "./authService";
@@ -309,10 +309,10 @@ export async function verifyPasskeyAuthentication(
       savePasskeys(updatedPasskeys);
 
       logger.info("Passkey authentication successful");
-      
+
       // Generate admin token (Passkeys are currently only for admins)
       const token = generateToken({ role: "admin" });
-      
+
       return { verified: true, token, role: "admin" };
     }
 

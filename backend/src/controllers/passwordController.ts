@@ -16,6 +16,7 @@ export const getPasswordEnabled = async (
 
 /**
  * Verify password for authentication
+ * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
  * Errors are automatically handled by asyncHandler middleware
  */
 export const verifyPassword = async (
@@ -36,6 +37,68 @@ export const verifyPassword = async (
   } else {
     // Return wait time information
     // Return 200 OK to suppress browser console errors, but include status code and success: false
+    const statusCode = result.waitTime ? 429 : 401;
+    res.json({
+      success: false,
+      waitTime: result.waitTime,
+      failedAttempts: result.failedAttempts,
+      message: result.message,
+      statusCode
+    });
+  }
+};
+
+/**
+ * Verify admin password for authentication
+ * Only checks admin password, not visitor password
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const verifyAdminPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { password } = req.body;
+
+  const result = await passwordService.verifyAdminPassword(password);
+
+  if (result.success) {
+    res.json({ 
+      success: true,
+      role: result.role,
+      token: result.token
+    });
+  } else {
+    const statusCode = result.waitTime ? 429 : 401;
+    res.json({
+      success: false,
+      waitTime: result.waitTime,
+      failedAttempts: result.failedAttempts,
+      message: result.message,
+      statusCode
+    });
+  }
+};
+
+/**
+ * Verify visitor password for authentication
+ * Only checks visitor password, not admin password
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const verifyVisitorPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { password } = req.body;
+
+  const result = await passwordService.verifyVisitorPassword(password);
+
+  if (result.success) {
+    res.json({ 
+      success: true,
+      role: result.role,
+      token: result.token
+    });
+  } else {
     const statusCode = result.waitTime ? 429 : 401;
     res.json({
       success: false,

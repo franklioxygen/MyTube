@@ -148,16 +148,15 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
     return (
         <Box>
-            <FormControlLabel
-                control={
-                    <Switch
-                        checked={settings.loginEnabled}
-                        onChange={(e) => onChange('loginEnabled', e.target.checked)}
-                        disabled={settings.visitorMode} // Locked enabled if visitor mode is on
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={settings.loginEnabled}
+                                onChange={(e) => onChange('loginEnabled', e.target.checked)}
+                            />
+                        }
+                        label={t('enableLogin')}
                     />
-                }
-                label={t('enableLogin')}
-            />
 
             {settings.loginEnabled && (
                 <Box sx={{ mt: 2, maxWidth: 400 }}>
@@ -194,53 +193,27 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                         </Typography>
                     </Box>
 
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={settings.visitorMode === true}
-                                onChange={(e) => {
-                                    const enabled = e.target.checked;
-                                    onChange('visitorMode', enabled);
-                                    // Lock loginEnabled to true if visitor mode is enabled
-                                    if (enabled) {
-                                        if (!settings.loginEnabled) {
-                                            onChange('loginEnabled', true);
-                                        }
-                                        if (!settings.visitorPassword) {
-                                            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-                                            const array = new Uint32Array(12);
-                                            window.crypto.getRandomValues(array);
-                                            const newPassword = Array.from(array, x => chars[x % chars.length]).join('');
-                                            onChange('visitorPassword', newPassword);
-                                        }
-                                    }
-                                }}
-                                disabled={!settings.loginEnabled && settings.visitorMode} // Unlock only if login is enabled? Actually user said "loginEnabled should be locked enabled". So if visitor mode is ON, loginEnabled switch (above) should be disabled or force checked.
-                            />
-                        }
-                        label={t('visitorUser') || 'Visitor User'}
-                    />
+                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
+                        {t('visitorUser') || 'Visitor User'}
+                    </Typography>
                     <Box sx={{ mt: 1, mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
-                            {t('visitorUserHelper') || 'Enable a restricted Visitor User role. Visitors have read-only access and cannot change settings.'}
+                            {t('visitorUserHelper') || 'Set a password for the Visitor User role. Users logging in with this password will have read-only access and cannot change settings.'}
                         </Typography>
                     </Box>
-
-                    {settings.visitorMode && (
-                        <TextField
-                            fullWidth
-                            sx={{ mb: 2 }}
-                            label={t('visitorPassword') || 'Visitor Password'}
-                            type="text" // User said "It should be visible" - wait, "show a input ... It should be visible". Does it mean the input is visible, or the password text is visible? "let admin setup visior password. It should be visible." Usually setup inputs are passwords but maybe they want it visible to see what it is? let's stick to type="text" or "password" with show toggle. "It should be visible" likely means the input field itself appears. I will use standard password field for security but maybe default show? Or just text if implied. "It should be visible" logically refers to the input field appearing. Safe bet is standard password field behavior.
-                            value={settings.visitorPassword || ''}
-                            onChange={(e) => onChange('visitorPassword', e.target.value)}
-                            helperText={
-                                settings.isVisitorPasswordSet
-                                    ? (t('visitorPasswordSetHelper') || 'Password is set. Leave empty to keep it.')
-                                    : (t('visitorPasswordHelper') || 'Password for the Visitor User to log in.')
-                            }
-                        />
-                    )}
+                    <TextField
+                        fullWidth
+                        sx={{ mb: 2 }}
+                        label={t('visitorPassword') || 'Visitor Password'}
+                        type="text"
+                        value={settings.visitorPassword || ''}
+                        onChange={(e) => onChange('visitorPassword', e.target.value)}
+                        helperText={
+                            settings.isVisitorPasswordSet
+                                ? (t('visitorPasswordSetHelper') || 'Password is set. Leave empty to keep it.')
+                                : (t('visitorPasswordHelper') || 'Password for the Visitor User to log in.')
+                        }
+                    />
 
                     <FormControlLabel
                         control={

@@ -43,9 +43,7 @@ export function isPasswordEnabled(): {
 
 /**
  * Verify password for authentication
- */
-/**
- * Verify password for authentication
+ * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
  */
 import { generateToken } from "./authService";
 
@@ -105,14 +103,10 @@ export async function verifyPassword(
     }
   }
 
-  // 2. Check Visitor Password (only if visitorMode is enabled AND visitorPassword is set)
-  // Actually, user said: "When visitor user enable... login from this password input user role is Visitor"
-  // So we check if visitorMode is enabled in settings.
-  if (mergedSettings.visitorMode && mergedSettings.visitorPassword) {
-      // NOTE: visitorPassword might not be hashed yet if we just added it?
-      // Step 6 in Plan said "Update Settings type", but we didn't discuss hashing.
-      // We should probably hash it when saving too.
-      // For now, assuming it WILL be hashed. I'll need to update `settingsValidationService` to hash it.
+  // 2. Check Visitor Password (if visitorPassword is set)
+  // Permission control is now based on user role, not visitorMode setting
+  // If password matches visitorPassword, assign visitor role
+  if (mergedSettings.visitorPassword) {
       const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
       if (isVisitorMatch) {
           loginAttemptService.resetFailedAttempts();
@@ -130,6 +124,137 @@ export async function verifyPassword(
     waitTime,
     failedAttempts,
     message: "Incorrect password",
+  };
+}
+
+/**
+ * Verify admin password for authentication
+ * Only checks admin password, not visitor password
+ */
+export async function verifyAdminPassword(
+  password: string
+): Promise<{
+  success: boolean;
+  role?: "admin";
+  token?: string;
+  waitTime?: number;
+  failedAttempts?: number;
+  message?: string;
+}> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  if (!passwordLoginAllowed) {
+    return {
+      success: false,
+      message: "Password login is not allowed. Please use passkey authentication.",
+    };
+  }
+
+  // Check if user can attempt login (wait time check)
+  const remainingWaitTime = loginAttemptService.canAttemptLogin();
+  if (remainingWaitTime > 0) {
+    return {
+      success: false,
+      waitTime: remainingWaitTime,
+      message: "Too many failed attempts. Please wait before trying again.",
+    };
+  }
+
+  // Check Admin Password only
+  if (mergedSettings.password) {
+    const isAdminMatch = await bcrypt.compare(password, mergedSettings.password);
+    if (isAdminMatch) {
+      loginAttemptService.resetFailedAttempts();
+      const token = generateToken({ role: "admin" });
+      return { success: true, role: "admin", token };
+    }
+  } else {
+    // If no admin password set, and login enabled, allow as admin
+    if (mergedSettings.loginEnabled) {
+       loginAttemptService.resetFailedAttempts();
+       const token = generateToken({ role: "admin" });
+       return { success: true, role: "admin", token };
+    }
+  }
+
+  // No match - record failed attempt
+  const waitTime = loginAttemptService.recordFailedAttempt();
+  const failedAttempts = loginAttemptService.getFailedAttempts();
+
+  return {
+    success: false,
+    waitTime,
+    failedAttempts,
+    message: "Incorrect admin password",
+  };
+}
+
+/**
+ * Verify visitor password for authentication
+ * Only checks visitor password, not admin password
+ */
+export async function verifyVisitorPassword(
+  password: string
+): Promise<{
+  success: boolean;
+  role?: "visitor";
+  token?: string;
+  waitTime?: number;
+  failedAttempts?: number;
+  message?: string;
+}> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  if (!passwordLoginAllowed) {
+    return {
+      success: false,
+      message: "Password login is not allowed. Please use passkey authentication.",
+    };
+  }
+
+  // Check if user can attempt login (wait time check)
+  const remainingWaitTime = loginAttemptService.canAttemptLogin();
+  if (remainingWaitTime > 0) {
+    return {
+      success: false,
+      waitTime: remainingWaitTime,
+      message: "Too many failed attempts. Please wait before trying again.",
+    };
+  }
+
+  // Check Visitor Password only
+  if (mergedSettings.visitorPassword) {
+    const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
+    if (isVisitorMatch) {
+      loginAttemptService.resetFailedAttempts();
+      const token = generateToken({ role: "visitor" });
+      return { success: true, role: "visitor", token };
+    }
+  } else {
+    // No visitor password set
+    return {
+      success: false,
+      message: "Visitor password is not configured.",
+    };
+  }
+
+  // No match - record failed attempt
+  const waitTime = loginAttemptService.recordFailedAttempt();
+  const failedAttempts = loginAttemptService.getFailedAttempts();
+
+  return {
+    success: false,
+    waitTime,
+    failedAttempts,
+    message: "Incorrect visitor password",
   };
 }
 

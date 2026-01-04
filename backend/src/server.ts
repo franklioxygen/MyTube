@@ -13,8 +13,8 @@ import {
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { authMiddleware } from "./middleware/authMiddleware";
-import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
-import { visitorModeSettingsMiddleware } from "./middleware/visitorModeSettingsMiddleware";
+import { roleBasedAuthMiddleware } from "./middleware/roleBasedAuthMiddleware";
+import { roleBasedSettingsMiddleware } from "./middleware/roleBasedSettingsMiddleware";
 import apiRoutes from "./routes/api";
 import settingsRoutes from "./routes/settingsRoutes";
 import { cloudflaredService } from "./services/cloudflaredService";
@@ -246,10 +246,10 @@ const startServer = async () => {
     // API Routes
     // Apply auth middleware to all API routes
     app.use("/api", authMiddleware);
-    // Apply visitor mode middleware to all API routes
-    app.use("/api", visitorModeMiddleware, apiRoutes);
-    // Use separate middleware for settings that allows disabling visitor mode
-    app.use("/api/settings", visitorModeSettingsMiddleware, settingsRoutes);
+    // Apply role-based access control middleware to all API routes
+    app.use("/api", roleBasedAuthMiddleware, apiRoutes);
+    // Use separate middleware for settings with role-based access control
+    app.use("/api/settings", roleBasedSettingsMiddleware, settingsRoutes);
 
     // SPA Fallback for Frontend
     app.get("*", (req, res) => {

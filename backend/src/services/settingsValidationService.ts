@@ -26,7 +26,9 @@ export function validateSettings(newSettings: Partial<Settings>): void {
 }
 
 /**
- * Check if visitor mode restrictions should apply
+ * @deprecated This function is deprecated. Permission control is now handled by role-based middleware.
+ * This function is kept for backward compatibility but should not be used.
+ * Use roleBasedSettingsMiddleware instead.
  */
 export function checkVisitorModeRestrictions(
   existingSettings: Settings,
@@ -35,42 +37,9 @@ export function checkVisitorModeRestrictions(
   allowed: boolean;
   error?: string;
 } {
-  // If visitor mode is not enabled, no restrictions
-  if (existingSettings.visitorMode !== true) {
-    return { allowed: true };
-  }
-
-  // If visitorMode is being explicitly set to false, allow the update
-  if (newSettings.visitorMode === false) {
-    return { allowed: true };
-  }
-
-  // If visitorMode is explicitly set to true (already enabled), allow but only update visitorMode
-  if (newSettings.visitorMode === true) {
-    return { allowed: true };
-  }
-
-  // Allow CloudFlare tunnel settings updates (read-only access mechanism, doesn't violate visitor mode)
-  const isOnlyCloudflareUpdate =
-    (newSettings.cloudflaredTunnelEnabled !== undefined ||
-      newSettings.cloudflaredToken !== undefined) &&
-    Object.keys(newSettings).every(
-      (key) =>
-        key === "cloudflaredTunnelEnabled" ||
-        key === "cloudflaredToken" ||
-        key === "visitorMode"
-    );
-
-  if (isOnlyCloudflareUpdate) {
-    return { allowed: true };
-  }
-
-  // Block all other changes
-  return {
-    allowed: false,
-    error:
-      "Visitor mode is enabled. Only disabling visitor mode or updating CloudFlare settings is allowed.",
-  };
+  // Always allow - permission control is now handled by role-based middleware
+  // This function is kept for backward compatibility
+  return { allowed: true };
 }
 
 /**

@@ -124,41 +124,8 @@ export const updateSettings = async (
     {}
   );
 
-  // Check visitor mode restrictions (if not admin)
-  // If user is admin (jwt authenticated), they bypass visitor mode restrictions
-  const isAdmin = req.user?.role === "admin";
-  
-  if (!isAdmin) {
-    const visitorModeCheck =
-      settingsValidationService.checkVisitorModeRestrictions(
-        mergedSettings,
-        newSettings
-      );
-
-    if (!visitorModeCheck.allowed) {
-      res.status(403).json({
-        success: false,
-        error: visitorModeCheck.error,
-      });
-      return;
-    }
-    
-    // Handle special case: visitorMode being set to true (already enabled)
-    // Only applies if NOT admin (admins can update settings while in visitor mode)
-    if (mergedSettings.visitorMode === true && newSettings.visitorMode === true) {
-      // Only update visitorMode, ignore other changes
-      const allowedSettings: Settings = {
-        ...mergedSettings,
-        visitorMode: true,
-      };
-      storageService.saveSettings(allowedSettings);
-      res.json({
-        success: true,
-        settings: { ...allowedSettings, password: undefined, visitorPassword: undefined },
-      });
-      return;
-    }
-  }
+  // Permission control is now handled by roleBasedSettingsMiddleware
+  // No need to check visitorMode here - middleware enforces role-based access control
 
 
 

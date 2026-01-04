@@ -23,6 +23,11 @@ export interface Settings {
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
+  /**
+   * @deprecated Visitor mode is deprecated. Permission control is now based on user role.
+   * This field is kept for backward compatibility but is no longer used.
+   * Use userRole ('admin' | 'visitor') from JWT token instead.
+   */
   visitorMode?: boolean;
   visitorPassword?: string;
   infiniteScroll?: boolean;
@@ -55,5 +60,3 @@ export const defaultSettings: Settings = {
   videoColumns: 4,
   pauseOnFocusLoss: false,
 };
-
-

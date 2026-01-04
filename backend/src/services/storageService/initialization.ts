@@ -8,9 +8,9 @@ import {
   UPLOADS_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
-import { MigrationError } from "../../errors/DownloadErrors";
 import { db, sqlite } from "../../db";
 import { downloads, videos } from "../../db/schema";
+import { MigrationError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
 import { findVideoFile } from "./fileHelpers";
 
@@ -36,7 +36,10 @@ export function initializeStorage(): void {
       fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
       logger.info("Cleared active downloads on startup");
     } catch (error) {
-      logger.error("Error resetting active downloads", error instanceof Error ? error : new Error(String(error)));
+      logger.error(
+        "Error resetting active downloads",
+        error instanceof Error ? error : new Error(String(error))
+      );
       fs.writeFileSync(
         STATUS_DATA_PATH,
         JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
@@ -49,7 +52,10 @@ export function initializeStorage(): void {
     db.delete(downloads).where(eq(downloads.status, "active")).run();
     logger.info("Cleared active downloads from database on startup");
   } catch (error) {
-    logger.error("Error clearing active downloads from database", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error clearing active downloads from database",
+      error instanceof Error ? error : new Error(String(error))
+    );
   }
 
   // Check and migrate tags column if needed
@@ -65,7 +71,10 @@ export function initializeStorage(): void {
       logger.info("Migration successful.");
     }
   } catch (error) {
-    logger.error("Error checking/migrating tags column", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error checking/migrating tags column",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new MigrationError(
       "Failed to migrate tags column",
       "tags_column",
@@ -198,7 +207,10 @@ export function initializeStorage(): void {
         .run();
     } catch (indexError) {
       // Indexes might already exist, ignore error
-      logger.debug("Index creation skipped (may already exist)", indexError instanceof Error ? indexError : new Error(String(indexError)));
+      logger.debug(
+        "Index creation skipped (may already exist)",
+        indexError instanceof Error ? indexError : new Error(String(indexError))
+      );
     }
 
     // Check download_history table for video_id, downloaded_at, deleted_at columns
@@ -282,7 +294,10 @@ export function initializeStorage(): void {
         );
       }
     } catch (error) {
-      logger.error("Error backfilling video_id in download history", error instanceof Error ? error : new Error(String(error)));
+      logger.error(
+        "Error backfilling video_id in download history",
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   } catch (error) {
     logger.error(
