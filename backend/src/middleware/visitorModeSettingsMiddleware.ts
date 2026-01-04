@@ -19,6 +19,12 @@ export const visitorModeSettingsMiddleware = (
     return;
   }
 
+  // If user is Admin, allow all requests
+  if (req.user?.role === "admin") {
+    next();
+    return;
+  }
+
   // Visitor mode is enabled
   // Allow GET requests (read-only)
   if (req.method === "GET") {
@@ -32,6 +38,15 @@ export const visitorModeSettingsMiddleware = (
     if (
       req.path.includes("/verify-password") ||
       req.url.includes("/verify-password")
+    ) {
+      next();
+      return;
+    }
+
+    // Allow passkey authentication
+    if (
+      req.path.includes("/passkeys/authenticate") ||
+      req.url.includes("/passkeys/authenticate")
     ) {
       next();
       return;

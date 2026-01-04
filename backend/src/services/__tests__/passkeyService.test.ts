@@ -35,6 +35,10 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
+vi.mock("../authService", () => ({
+  generateToken: vi.fn(() => "mock-token"),
+}));
+
 describe("passkeyService", () => {
   const mockPasskey = {
     credentialID: "mock-credential-id",
@@ -251,6 +255,18 @@ describe("passkeyService", () => {
             ])
         })
       );
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+            passkeys: expect.arrayContaining([
+                expect.objectContaining({
+                    credentialID: "mock-credential-id",
+                    counter: 1
+                })
+            ])
+        })
+      );
+      expect(result.token).toBe("mock-token");
+      expect(result.role).toBe("admin");
     });
 
     it("should fail if passkey not found", async () => {

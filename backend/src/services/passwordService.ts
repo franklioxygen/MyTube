@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { defaultSettings } from "../types/settings";
+import { logger } from "../utils/logger";
 import * as loginAttemptService from "./loginAttemptService";
 import * as storageService from "./storageService";
-import { logger } from "../utils/logger";
-import { Settings, defaultSettings } from "../types/settings";
 
 /**
  * Check if login is required (loginEnabled is true)
@@ -44,10 +44,17 @@ export function isPasswordEnabled(): {
 /**
  * Verify password for authentication
  */
+/**
+ * Verify password for authentication
+ */
+import { generateToken } from "./authService";
+
 export async function verifyPassword(
   password: string
 ): Promise<{
   success: boolean;
+  role?: "admin" | "visitor";
+  token?: string;
   waitTime?: number;
   failedAttempts?: number;
   message?: string;
@@ -58,16 +65,16 @@ export async function verifyPassword(
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
 
+  // If password login is explicitly disabled, ONLY allow Admin to login via password (if they have one set)?
+  // Or just block everyone? The frontend says "When disabled, password login is not available."
+  // But typically Admin should always be able to login?
+  // For now, let's respect the flag, but maybe we should allow it if we are matching the Admin password?
+  // Let's stick to current logic: if blocked, blocked.
   if (!passwordLoginAllowed) {
     return {
       success: false,
       message: "Password login is not allowed. Please use passkey authentication.",
     };
-  }
-
-  if (!mergedSettings.password) {
-    // If no password set but login enabled, allow access
-    return { success: true };
   }
 
   // Check if user can attempt login (wait time check)
@@ -81,24 +88,49 @@ export async function verifyPassword(
     };
   }
 
-  const isMatch = await bcrypt.compare(password, mergedSettings.password);
-
-  if (isMatch) {
-    // Reset failed attempts on successful login
-    loginAttemptService.resetFailedAttempts();
-    return { success: true };
+  // 1. Check Admin Password
+  if (mergedSettings.password) {
+    const isAdminMatch = await bcrypt.compare(password, mergedSettings.password);
+    if (isAdminMatch) {
+      loginAttemptService.resetFailedAttempts();
+      const token = generateToken({ role: "admin" });
+      return { success: true, role: "admin", token };
+    }
   } else {
-    // Record failed attempt and get wait time
-    const waitTime = loginAttemptService.recordFailedAttempt();
-    const failedAttempts = loginAttemptService.getFailedAttempts();
-
-    return {
-      success: false,
-      waitTime,
-      failedAttempts,
-      message: "Incorrect password",
-    };
+    // If no admin password set, and login enabled, allow as admin
+    if (mergedSettings.loginEnabled) {
+       loginAttemptService.resetFailedAttempts();
+       const token = generateToken({ role: "admin" });
+       return { success: true, role: "admin", token };
+    }
   }
+
+  // 2. Check Visitor Password (only if visitorMode is enabled AND visitorPassword is set)
+  // Actually, user said: "When visitor user enable... login from this password input user role is Visitor"
+  // So we check if visitorMode is enabled in settings.
+  if (mergedSettings.visitorMode && mergedSettings.visitorPassword) {
+      // NOTE: visitorPassword might not be hashed yet if we just added it?
+      // Step 6 in Plan said "Update Settings type", but we didn't discuss hashing.
+      // We should probably hash it when saving too.
+      // For now, assuming it WILL be hashed. I'll need to update `settingsValidationService` to hash it.
+      const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
+      if (isVisitorMatch) {
+          loginAttemptService.resetFailedAttempts();
+          const token = generateToken({ role: "visitor" });
+          return { success: true, role: "visitor", token };
+      }
+  }
+
+  // No match
+  const waitTime = loginAttemptService.recordFailedAttempt();
+  const failedAttempts = loginAttemptService.getFailedAttempts();
+
+  return {
+    success: false,
+    waitTime,
+    failedAttempts,
+    message: "Incorrect password",
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
-import * as storageService from "./storageService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
+import * as storageService from "./storageService";
 
 /**
  * Validate and normalize settings values
@@ -153,6 +153,13 @@ export async function prepareSettingsForSave(
   } else {
     // If password is empty/not provided, keep existing password
     prepared.password = existingSettings.password;
+  }
+
+  // Handle visitor password hashing
+  if (prepared.visitorPassword) {
+    prepared.visitorPassword = await hashPassword(prepared.visitorPassword);
+  } else {
+    prepared.visitorPassword = existingSettings.visitorPassword;
   }
 
   // Handle tags

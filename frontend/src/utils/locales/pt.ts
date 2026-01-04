@@ -708,4 +708,14 @@ export const pt = {
   disclaimerTitle: "Isenção de responsabilidade",
   disclaimerText:
     "1. Objetivo e Restrições\nEste software (incluindo código e documentação) destina-se exclusivamente a aprendizagem pessoal, pesquisa e intercâmbio técnico. É estritamente proibido usar este software para fins comerciais ou para quaisquer atividades ilegais que violem as leis e regulamentos locais.\n\n2. Responsabilidade\nO desenvolvedor desconhece e não tem controle sobre como os usuários utilizam este software. Quaisquer responsabilidades legais, disputas ou danos decorrentes do uso ilegal ou impróprio deste software (incluindo, mas não se limitando a violação de direitos autorais) serão de responsabilidade exclusiva do usuário. O desenvolvedor não assume nenhuma responsabilidade direta, indireta ou conjunta.\n\n3. Modificações e Distribuição\nEste projeto é de código aberto. Qualquer indivíduo ou organização que modifique ou faça fork deste código deve cumprir a licença de código aberto. Importante: Se um terceiro modificar o código para contornar ou remover os mecanismos originais de autenticação/segurança do usuário e distribuir tais versões, o modificador/distribuidor assume total responsabilidade por quaisquer consequências. Desaconselhamos fortemente contornar ou adulterar quaisquer mecanismos de verificação de segurança.\n\n4. Declaração Sem Fins Lucrativos\nEste é um projeto de código aberto totalmente gratuito. O desenvolvedor não aceita doações e nunca publicou páginas de doação. O software em si não permite cobranças e não oferece serviços pagos. Por favor, esteja vigilante e cuidado com quaisquer golpes ou informações enganosas que aleguem cobrar taxas em nome deste projeto.",
+  // Visitor Mode
+  admin: "Admin",
+  visitorSignIn: "Login de Visitante",
+  visitorUser: "Usuário Visitante",
+  visitorUserHelper:
+    "Habilite uma conta de visitante separada com acesso somente leitura. Os visitantes podem visualizar o conteúdo, mas não podem fazer alterações.",
+  visitorPassword: "Senha de Visitante",
+  visitorPasswordHelper: "Defina a senha para a conta de visitante.",
+  visitorPasswordSetHelper:
+    "A senha está definida. Deixe em branco para mantê-la.",
 };

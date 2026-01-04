@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Video } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -14,6 +15,7 @@ interface UseVideoProgressProps {
  * Custom hook to manage video progress tracking and view counting
  */
 export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
+    const { userRole } = useAuth();
     const queryClient = useQueryClient();
     const [hasViewed, setHasViewed] = useState<boolean>(false);
     const lastProgressSave = useRef<number>(0);
@@ -29,20 +31,20 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     // Save progress on unmount
     useEffect(() => {
         return () => {
-            if (videoId && currentTimeRef.current > 0 && !isDeletingRef.current) {
+            if (videoId && currentTimeRef.current > 0 && !isDeletingRef.current && userRole !== 'visitor') {
                 axios.put(`${API_URL}/videos/${videoId}/progress`, { 
                     progress: Math.floor(currentTimeRef.current) 
                 })
                     .catch(err => console.error('Error saving progress on unmount:', err));
             }
         };
-    }, [videoId]);
+    }, [videoId, userRole]);
 
     const handleTimeUpdate = (currentTime: number) => {
         currentTimeRef.current = currentTime;
 
         // Increment view count after 10 seconds
-        if (currentTime > 10 && !hasViewed && videoId) {
+        if (currentTime > 10 && !hasViewed && videoId && userRole !== 'visitor') {
             setHasViewed(true);
             axios.post(`${API_URL}/videos/${videoId}/view`)
                 .then(res => {
@@ -57,7 +59,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
 
         // Save progress every 5 seconds
         const now = Date.now();
-        if (now - lastProgressSave.current > 5000 && videoId) {
+        if (now - lastProgressSave.current > 5000 && videoId && userRole !== 'visitor') {
             lastProgressSave.current = now;
             axios.put(`${API_URL}/videos/${videoId}/progress`, { 
                 progress: Math.floor(currentTime) 

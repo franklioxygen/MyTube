@@ -12,6 +12,7 @@ import {
   VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
+import { authMiddleware } from "./middleware/authMiddleware";
 import { visitorModeMiddleware } from "./middleware/visitorModeMiddleware";
 import { visitorModeSettingsMiddleware } from "./middleware/visitorModeSettingsMiddleware";
 import apiRoutes from "./routes/api";
@@ -243,6 +244,8 @@ const startServer = async () => {
     );
 
     // API Routes
+    // Apply auth middleware to all API routes
+    app.use("/api", authMiddleware);
     // Apply visitor mode middleware to all API routes
     app.use("/api", visitorModeMiddleware, apiRoutes);
     // Use separate middleware for settings that allows disabling visitor mode

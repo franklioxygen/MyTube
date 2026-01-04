@@ -164,7 +164,7 @@ export const verifyAuthentication = async (
   );
 
   if (result.verified) {
-    res.json({ success: true });
+    res.json({ success: true, token: result.token, role: result.role });
   } else {
     res.status(401).json({ success: false, error: "Authentication failed" });
   }

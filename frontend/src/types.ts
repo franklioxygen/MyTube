@@ -61,6 +61,7 @@ export interface Settings {
   isPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
   allowResetPassword?: boolean;
+  isVisitorPasswordSet?: boolean;
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;
@@ -82,6 +83,7 @@ export interface Settings {
   moveSubtitlesToVideoFolder?: boolean;
   moveThumbnailsToVideoFolder?: boolean;
   visitorMode?: boolean;
+  visitorPassword?: string;
   infiniteScroll?: boolean;
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;

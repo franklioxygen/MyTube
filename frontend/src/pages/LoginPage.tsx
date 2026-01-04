@@ -10,6 +10,8 @@ import {
     Divider,
     IconButton,
     InputAdornment,
+    Tab,
+    Tabs,
     TextField,
     ThemeProvider,
     Tooltip,
@@ -31,10 +33,13 @@ import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const LoginPage: React.FC = () => {
+    const [visitorPassword, setVisitorPassword] = useState('');
+    const [showVisitorPassword, setShowVisitorPassword] = useState(false);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [waitTime, setWaitTime] = useState(0); // in milliseconds
+    const [activeTab, setActiveTab] = useState(0); // 0 = Admin, 1 = Visitor
     const [showResetModal, setShowResetModal] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
@@ -190,29 +195,27 @@ const LoginPage: React.FC = () => {
     };
 
     const loginMutation = useMutation({
-        mutationFn: async (password: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-password`, { password });
+        mutationFn: async (passwordToVerify: string) => {
+            const response = await axios.post(`${API_URL}/settings/verify-password`, { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
             if (data.success) {
                 setWaitTime(0); // Reset wait time on success
-                login();
+                login(data.token, data.role);
             } else {
-                showAlert(t('error'), t('incorrectPassword'));
-            }
-        },
-        onError: (err: any) => {
-            console.error('Login error:', err);
-            if (err.response) {
-                const responseData = err.response.data;
-                if (err.response.status === 429) {
+                // Handle failures (incorrect password or too many attempts)
+                // These are returned as 200 OK with success: false to avoid console errors
+                const statusCode = data.statusCode || 401;
+                const responseData = data;
+
+                if (statusCode === 429) {
                     // Too many attempts - wait time required
                     const waitTimeMs = responseData.waitTime || 0;
                     setWaitTime(waitTimeMs);
                     const formattedTime = formatWaitTime(waitTimeMs);
                     showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
-                } else if (err.response.status === 401) {
+                } else if (statusCode === 401) {
                     // Incorrect password - check if wait time is returned
                     const waitTimeMs = responseData.waitTime || 0;
                     if (waitTimeMs > 0) {
@@ -225,11 +228,27 @@ const LoginPage: React.FC = () => {
                 } else {
                     showAlert(t('error'), t('loginFailed'));
                 }
-            } else {
-                showAlert(t('error'), t('loginFailed'));
             }
+        },
+        onError: (err: any) => {
+            console.error('Login error:', err);
+            // Handle actual network errors or unexpected 500s
+            showAlert(t('error'), t('loginFailed'));
         }
     });
+
+    // ...
+
+
+
+    const handleVisitorSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (waitTime > 0) {
+            return;
+        }
+        setError('');
+        loginMutation.mutate(visitorPassword);
+    }
 
     const resetPasswordMutation = useMutation({
         mutationFn: async () => {
@@ -283,16 +302,20 @@ const LoginPage: React.FC = () => {
 
             return verifyResponse.data;
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             setError('');
             setWaitTime(0);
-            login();
+            if (data.token && data.role) {
+                login(data.token, data.role);
+            } else {
+                login(); // Fallback if no token returned (shouldn't happen with new backend)
+            }
         },
         onError: (err: any) => {
             console.error('Passkey login error:', err);
             // Extract error message from axios response or error object
             let errorMessage = t('passkeyLoginFailed') || 'Passkey authentication failed. Please try again.';
-            
+
             if (err?.response?.data?.error) {
                 // Backend error message (e.g., "No passkeys registered" or "No passkeys found for RP_ID")
                 errorMessage = err.response.data.error;
@@ -301,13 +324,13 @@ const LoginPage: React.FC = () => {
             } else if (err?.message) {
                 errorMessage = err.message;
             }
-            
+
             // Check if this is a WebAuthn error that can be translated
             const translationKey = getWebAuthnErrorTranslationKey(errorMessage);
             if (translationKey) {
                 errorMessage = t(translationKey) || errorMessage;
             }
-            
+
             showAlert(t('error'), errorMessage);
         }
     });
@@ -418,114 +441,191 @@ const LoginPage: React.FC = () => {
                                     {t('signIn')}
                                 </Typography>
                             </Box>
-                            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-                                {passwordLoginAllowed && (
-                                    <>
-                                        <TextField
-                                            margin="normal"
-                                            required
-                                            fullWidth
-                                            name="password"
-                                            label={t('password')}
-                                            type={showPassword ? 'text' : 'password'}
-                                            id="password"
-                                            autoComplete="current-password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            autoFocus
-                                            disabled={waitTime > 0 || loginMutation.isPending}
-                                            helperText={t('defaultPasswordHint') || "Default password: 123"}
-                                            slotProps={{
-                                                input: {
-                                                    endAdornment: (
-                                                        <InputAdornment position="end">
-                                                            <IconButton
-                                                                aria-label={t('togglePasswordVisibility')}
-                                                                onClick={() => setShowPassword(!showPassword)}
-                                                                edge="end"
-                                                            >
-                                                                {showPassword ? <VisibilityOff /> : <Visibility />}
-                                                            </IconButton>
-                                                        </InputAdornment>
-                                                    )
-                                                }
-                                            }}
-                                        />
-                                        <Button
-                                            type="submit"
-                                            fullWidth
-                                            variant="contained"
-                                            sx={{ mt: 3, mb: 2 }}
-                                            disabled={loginMutation.isPending || waitTime > 0}
-                                        >
-                                            {loginMutation.isPending ? (t('verifying') || 'Verifying...') : t('signIn')}
-                                        </Button>
-                                        {passkeysExist && !visitorMode && (
-                                            <>
-                                                <Divider sx={{ my: 2 }}>OR</Divider>
+                            <Box sx={{ mt: 1, width: '100%' }}>
+                                {visitorMode && (
+                                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                                        <Tabs value={activeTab} onChange={(_: React.SyntheticEvent, newValue: number) => setActiveTab(newValue)} aria-label="login tabs" variant="fullWidth">
+                                            <Tab label={t('admin') || 'Admin'} id="login-tab-0" aria-controls="login-tabpanel-0" />
+                                            <Tab label={t('visitorUser') || 'Visitor'} id="login-tab-1" aria-controls="login-tabpanel-1" />
+                                        </Tabs>
+                                    </Box>
+                                )}
+
+                                {/* Admin Tab Panel (and default view when visitor mode is off) */}
+                                <div
+                                    role="tabpanel"
+                                    hidden={visitorMode && activeTab !== 0}
+                                    id="login-tabpanel-0"
+                                    aria-labelledby="login-tab-0"
+                                >
+                                    {(visitorMode ? activeTab === 0 : true) && (
+                                        <>
+                                            {passwordLoginAllowed && (
+                                                <Box component="form" onSubmit={handleSubmit} noValidate>
+                                                    <TextField
+                                                        margin="normal"
+                                                        required
+                                                        fullWidth
+                                                        name="password"
+                                                        label={t('password') || 'Admin Password'}
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        id="password"
+                                                        autoComplete="current-password"
+                                                        value={password}
+                                                        onChange={(e) => setPassword(e.target.value)}
+                                                        autoFocus={!visitorMode || activeTab === 0}
+                                                        disabled={waitTime > 0 || loginMutation.isPending}
+                                                        helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                                        slotProps={{
+                                                            input: {
+                                                                endAdornment: (
+                                                                    <InputAdornment position="end">
+                                                                        <IconButton
+                                                                            aria-label={t('togglePasswordVisibility')}
+                                                                            onClick={() => setShowPassword(!showPassword)}
+                                                                            edge="end"
+                                                                        >
+                                                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                                        </IconButton>
+                                                                    </InputAdornment>
+                                                                )
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        type="submit"
+                                                        fullWidth
+                                                        variant="contained"
+                                                        sx={{ mt: 3, mb: 2 }}
+                                                        disabled={loginMutation.isPending || waitTime > 0}
+                                                    >
+                                                        {loginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                    </Button>
+                                                </Box>
+                                            )}
+
+                                            {passkeysExist && (
+                                                <>
+                                                    <Divider sx={{ my: 2 }}>OR</Divider>
+                                                    <Button
+                                                        fullWidth
+                                                        variant="outlined"
+                                                        startIcon={<Fingerprint />}
+                                                        onClick={handlePasskeyLogin}
+                                                        sx={{ mb: 2 }}
+                                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                    >
+                                                        {passkeyLoginMutation.isPending
+                                                            ? (t('authenticating') || 'Authenticating...')
+                                                            : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                    </Button>
+                                                </>
+                                            )}
+
+                                            {!passwordLoginAllowed && passkeysExist && (
                                                 <Button
                                                     fullWidth
-                                                    variant="outlined"
+                                                    variant="contained"
                                                     startIcon={<Fingerprint />}
                                                     onClick={handlePasskeyLogin}
-                                                    sx={{ mb: 2 }}
+                                                    sx={{ mt: 3, mb: 2 }}
                                                     disabled={passkeyLoginMutation.isPending || waitTime > 0}
                                                 >
                                                     {passkeyLoginMutation.isPending
                                                         ? (t('authenticating') || 'Authenticating...')
                                                         : (t('loginWithPasskey') || 'Login with Passkey')}
                                                 </Button>
-                                            </>
+                                            )}
+
+                                            {allowResetPassword && (
+                                                <Button
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    startIcon={<Refresh />}
+                                                    onClick={() => setShowResetModal(true)}
+                                                    sx={{ mb: 2 }}
+                                                    disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
+                                                >
+                                                    {resetPasswordCooldown > 0
+                                                        ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
+                                                        : t('resetPassword')}
+                                                </Button>
+                                            )}
+
+                                            {!allowResetPassword && passwordLoginAllowed && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                                                    <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
+                                                        <IconButton
+                                                            onClick={() => showAlert(
+                                                                t('resetPassword') || 'Reset Password',
+                                                                t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
+                                                            )}
+                                                            color="primary"
+                                                            sx={{
+                                                                '&:hover': {
+                                                                    backgroundColor: 'action.hover'
+                                                                }
+                                                            }}
+                                                        >
+                                                            <InfoOutlined />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Visitor Tab Panel */}
+                                {visitorMode && (
+                                    <div
+                                        role="tabpanel"
+                                        hidden={activeTab !== 1}
+                                        id="login-tabpanel-1"
+                                        aria-labelledby="login-tab-1"
+                                    >
+                                        {activeTab === 1 && (
+                                            <Box component="form" onSubmit={handleVisitorSubmit} noValidate>
+                                                <TextField
+                                                    margin="normal"
+                                                    required
+                                                    fullWidth
+                                                    name="visitorPassword"
+                                                    label={t('visitorPassword') || 'Visitor Password'}
+                                                    type={showVisitorPassword ? 'text' : 'password'}
+                                                    id="visitorPassword"
+                                                    value={visitorPassword}
+                                                    onChange={(e) => setVisitorPassword(e.target.value)}
+                                                    autoFocus={activeTab === 1}
+                                                    disabled={waitTime > 0 || loginMutation.isPending}
+                                                    slotProps={{
+                                                        input: {
+                                                            endAdornment: (
+                                                                <InputAdornment position="end">
+                                                                    <IconButton
+                                                                        aria-label={t('togglePasswordVisibility')}
+                                                                        onClick={() => setShowVisitorPassword(!showVisitorPassword)}
+                                                                        edge="end"
+                                                                    >
+                                                                        {showVisitorPassword ? <VisibilityOff /> : <Visibility />}
+                                                                    </IconButton>
+                                                                </InputAdornment>
+                                                            )
+                                                        }
+                                                    }}
+                                                />
+                                                <Button
+                                                    type="submit"
+                                                    fullWidth
+                                                    variant="contained"
+                                                    sx={{ mt: 3, mb: 2 }}
+                                                    disabled={loginMutation.isPending || waitTime > 0}
+                                                >
+                                                    {loginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
+                                                </Button>
+                                            </Box>
                                         )}
-                                    </>
-                                )}
-                                {!passwordLoginAllowed && passkeysExist && !visitorMode && (
-                                    <Button
-                                        fullWidth
-                                        variant="contained"
-                                        startIcon={<Fingerprint />}
-                                        onClick={handlePasskeyLogin}
-                                        sx={{ mt: 3, mb: 2 }}
-                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
-                                    >
-                                        {passkeyLoginMutation.isPending
-                                            ? (t('authenticating') || 'Authenticating...')
-                                            : (t('loginWithPasskey') || 'Login with Passkey')}
-                                    </Button>
-                                )}
-                                {allowResetPassword && !visitorMode && (
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        startIcon={<Refresh />}
-                                        onClick={() => setShowResetModal(true)}
-                                        sx={{ mb: 2 }}
-                                        disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
-                                    >
-                                        {resetPasswordCooldown > 0
-                                            ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
-                                            : t('resetPassword')}
-                                    </Button>
-                                )}
-                                {!allowResetPassword && passwordLoginAllowed && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
-                                        <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
-                                            <IconButton
-                                                onClick={() => showAlert(
-                                                    t('resetPassword') || 'Reset Password',
-                                                    t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
-                                                )}
-                                                color="primary"
-                                                sx={{ 
-                                                    '&:hover': {
-                                                        backgroundColor: 'action.hover'
-                                                    }
-                                                }}
-                                            >
-                                                <InfoOutlined />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
+                                    </div>
                                 )}
                                 <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
                                     {waitTime > 0 && (

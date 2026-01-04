@@ -147,8 +147,8 @@ function App() {
             <ThemeContextProvider>
                 <LanguageProvider>
                     <SnackbarProvider>
-                        <VisitorModeProvider>
-                            <AuthProvider>
+                        <AuthProvider>
+                            <VisitorModeProvider>
                                 <VideoProvider>
                                     <CollectionProvider>
                                         <DownloadProvider>
@@ -156,8 +156,8 @@ function App() {
                                         </DownloadProvider>
                                     </CollectionProvider>
                                 </VideoProvider>
-                            </AuthProvider>
-                        </VisitorModeProvider>
+                            </VisitorModeProvider>
+                        </AuthProvider>
                     </SnackbarProvider>
                 </LanguageProvider>
             </ThemeContextProvider>

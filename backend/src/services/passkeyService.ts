@@ -11,6 +11,7 @@ import {
     verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import { logger } from "../utils/logger";
+import { generateToken } from "./authService";
 import * as storageService from "./storageService";
 
 // RP (Relying Party) configuration
@@ -258,12 +259,16 @@ export async function generatePasskeyAuthenticationOptions(
 /**
  * Verify passkey authentication
  */
+
+/**
+ * Verify passkey authentication
+ */
 export async function verifyPasskeyAuthentication(
   body: any,
   challenge: string,
   originOverride?: string,
   rpIDOverride?: string
-): Promise<{ verified: boolean }> {
+): Promise<{ verified: boolean; token?: string; role?: "admin" | "visitor" }> {
   try {
     const passkeys = getPasskeys();
     // Find passkey by matching the credential ID
@@ -304,7 +309,11 @@ export async function verifyPasskeyAuthentication(
       savePasskeys(updatedPasskeys);
 
       logger.info("Passkey authentication successful");
-      return { verified: true };
+      
+      // Generate admin token (Passkeys are currently only for admins)
+      const token = generateToken({ role: "admin" });
+      
+      return { verified: true, token, role: "admin" };
     }
 
     return { verified: false };

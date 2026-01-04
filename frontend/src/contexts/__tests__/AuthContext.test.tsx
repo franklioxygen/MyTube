@@ -15,7 +15,7 @@ const TestComponent = () => {
         <div>
             <div data-testid="auth-status">{isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</div>
             <div data-testid="login-required">{loginRequired ? 'Required' : 'Optional'}</div>
-            <button onClick={login}>Login</button>
+            <button onClick={() => login('mock-token')}>Login</button>
             <button onClick={logout}>Logout</button>
         </div>
     );

@@ -688,4 +688,19 @@ export const es = {
   disclaimerTitle: "Descargo de responsabilidad",
   disclaimerText:
     "1. Propósito y Restricciones\nEste software (incluyendo código y documentación) está destinado únicamente para aprendizaje personal, investigación e intercambio técnico. Está estrictamente prohibido utilizar este software para fines comerciales o actividades ilegales que violen las leyes y regulaciones locales.\n\n2. Responsabilidad\nEl desarrollador desconoce y no tiene control sobre cómo los usuarios utilizan este software. Cualquier responsabilidad legal, disputa o daño derivado del uso ilegal o indebido de este software (incluyendo, entre otros, la infracción de derechos de autor) recaerá únicamente en el usuario. El desarrollador no asume ninguna responsabilidad directa, indirecta o conjunta.\n\n3. Modificaciones y Distribución\nEste proyecto es de código abierto. Cualquier individuo u organización que modifique o bifurque este código debe cumplir con la licencia de código abierto. Importante: Si un tercero modifica el código para eludir o eliminar los mecanismos originales de autenticación/seguridad del usuario y distribuye dichas versiones, el modificador/distribuidor asume toda la responsabilidad por cualquier consecuencia. Desaconsejamos encarecidamente eludir o manipular cualquier mecanismo de verificación de seguridad.\n\n4. Declaración Sin Fines de Lucro\nEste es un proyecto de código abierto completamente gratuito. El desarrollador no acepta donaciones y nunca ha publicado páginas de donación. El software en sí no permite cargos y no ofrece servicios pagos. Por favor, esté atento y tenga cuidado con cualquier estafa o información engañosa que reclame cobrar tarifas en nombre de este proyecto.",
+  enterPasswordToUploadHook:
+    "Por favor ingrese su contraseña para subir este script de gancho.",
+  riskCommandDetected:
+    "Comando de riesgo detectado: {command}. Carga rechazada.",
+
+  // Visitor Mode
+  admin: "Administrador",
+  visitorSignIn: "Inicio de Sesión de Visitante",
+  visitorUser: "Usuario Visitante",
+  visitorUserHelper:
+    "Habilite una cuenta de visitante separada con acceso de solo lectura. Los visitantes pueden ver el contenido pero no pueden realizar cambios.",
+  visitorPassword: "Contraseña de Visitante",
+  visitorPasswordHelper: "Establezca la contraseña para la cuenta de visitante.",
+  visitorPasswordSetHelper:
+    "La contraseña está establecida. Déjelo en blanco para mantenerla.",
 };

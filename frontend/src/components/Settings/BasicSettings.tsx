@@ -1,5 +1,6 @@
 import { Box, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
 import React from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface BasicSettingsProps {
@@ -10,6 +11,7 @@ interface BasicSettingsProps {
 
 const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, onChange }) => {
     const { t } = useLanguage();
+    const { userRole } = useAuth();
 
     return (
         <Box>
@@ -36,21 +38,23 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, on
                     </Select>
                 </FormControl>
 
-                <TextField
-                    fullWidth
-                    label={t('websiteName')}
-                    value={websiteName || ''}
-                    onChange={(e) => onChange('websiteName', e.target.value)}
-                    placeholder="MyTube"
-                    helperText={t('websiteNameHelper', {
-                        current: (websiteName || '').length,
-                        max: 15,
-                        default: 'MyTube'
-                    })}
-                    slotProps={{ htmlInput: { maxLength: 15 } }}
-                />
+                {userRole !== 'visitor' && (
+                    <TextField
+                        fullWidth
+                        label={t('websiteName')}
+                        value={websiteName || ''}
+                        onChange={(e) => onChange('websiteName', e.target.value)}
+                        placeholder="MyTube"
+                        helperText={t('websiteNameHelper', {
+                            current: (websiteName || '').length,
+                            max: 15,
+                            default: 'MyTube'
+                        })}
+                        slotProps={{ htmlInput: { maxLength: 15 } }}
+                    />
+                )}
             </Box>
-        </Box>
+        </Box >
     );
 };
 

@@ -60,4 +60,34 @@ describe('visitorModeMiddleware', () => {
         
         expect(next).toHaveBeenCalled();
     });
+
+    it('should allow passkey authenticate endpoint', () => {
+        (storageService.getSettings as any).mockReturnValue({ visitorMode: true });
+        
+        mockReq = {
+            method: 'POST',
+            body: {},
+            path: '/settings/passkeys/authenticate',
+            url: '/settings/passkeys/authenticate'
+        };
+        
+        visitorModeMiddleware(mockReq as Request, mockRes as Response, next);
+        
+        expect(next).toHaveBeenCalled();
+    });
+
+    it('should allow passkey verify endpoint', () => {
+        (storageService.getSettings as any).mockReturnValue({ visitorMode: true });
+        
+        mockReq = {
+            method: 'POST',
+            body: {},
+            path: '/settings/passkeys/authenticate/verify',
+            url: '/settings/passkeys/authenticate/verify'
+        };
+        
+        visitorModeMiddleware(mockReq as Request, mockRes as Response, next);
+        
+        expect(next).toHaveBeenCalled();
+    });
 });

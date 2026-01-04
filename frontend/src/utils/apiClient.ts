@@ -23,6 +23,10 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Add any request modifications here (e.g., auth tokens)
+    const token = sessionStorage.getItem('mytube_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -187,7 +191,7 @@ export { apiClient };
 /**
  * Export API_URL for cases where it's needed directly
  */
-export { API_URL };
+  export { API_URL };
 
 export default api;
 

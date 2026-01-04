@@ -27,15 +27,22 @@ export const verifyPassword = async (
   const result = await passwordService.verifyPassword(password);
 
   if (result.success) {
-    // Return format expected by frontend: { success: boolean }
-    res.json({ success: true });
+    // Return format expected by frontend: { success: boolean, role?, token? }
+    res.json({ 
+      success: true,
+      role: result.role,
+      token: result.token
+    });
   } else {
     // Return wait time information
-    res.status(result.waitTime ? 429 : 401).json({
+    // Return 200 OK to suppress browser console errors, but include status code and success: false
+    const statusCode = result.waitTime ? 429 : 401;
+    res.json({
       success: false,
       waitTime: result.waitTime,
       failedAttempts: result.failedAttempts,
       message: result.message,
+      statusCode
     });
   }
 };

@@ -27,8 +27,8 @@ import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySet
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import TagsSettings from '../components/Settings/TagsSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
-import VisitorModeSettings from '../components/Settings/VisitorModeSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
+import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVisitorMode } from '../contexts/VisitorModeContext';
@@ -46,6 +46,7 @@ const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
     const { activeDownloads } = useDownload();
     const { visitorMode } = useVisitorMode();
+    const { userRole } = useAuth();
 
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
@@ -198,43 +199,34 @@ const SettingsPage: React.FC = () => {
                         )}
 
                         {/* 3. Security & Access */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                    <Box>
-                                        <VisitorModeSettings
-                                            visitorMode={settings.visitorMode}
-                                            savedVisitorMode={settingsData?.visitorMode}
-                                            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                        />
+                        {!visitorMode && userRole !== 'visitor' && (
+                            <Grid size={12}>
+                                <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                        <Box>
+                                            <SecuritySettings
+                                                settings={settings}
+                                                onChange={handleChange}
+                                            />
+                                        </Box>
+                                        <Box>
+                                            <CookieSettings
+                                                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                                                onError={(msg) => setMessage({ text: msg, type: 'error' })}
+                                            />
+                                        </Box>
+                                        <Box>
+                                            <CloudflareSettings
+                                                enabled={settings.cloudflaredTunnelEnabled}
+                                                token={settings.cloudflaredToken}
+                                                visitorMode={visitorMode}
+                                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                                            />
+                                        </Box>
                                     </Box>
-                                    {!visitorMode && (
-                                        <>
-                                            <Box>
-                                                <SecuritySettings
-                                                    settings={settings}
-                                                    onChange={handleChange}
-                                                />
-                                            </Box>
-                                            <Box>
-                                                <CookieSettings
-                                                    onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                                                    onError={(msg) => setMessage({ text: msg, type: 'error' })}
-                                                />
-                                            </Box>
-                                        </>
-                                    )}
-                                    <Box>
-                                        <CloudflareSettings
-                                            enabled={settings.cloudflaredTunnelEnabled}
-                                            token={settings.cloudflaredToken}
-                                            visitorMode={visitorMode}
-                                            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                        />
-                                    </Box>
-                                </Box>
-                            </CollapsibleSection>
-                        </Grid>
+                                </CollapsibleSection>
+                            </Grid>
+                        )}
 
                         {!visitorMode && (
                             <>

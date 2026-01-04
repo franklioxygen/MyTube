@@ -690,4 +690,14 @@ export const de = {
   disclaimerTitle: "Haftungsausschluss",
   disclaimerText:
     "1. Zweck und Einschränkungen\nDiese Software (einschließlich Code und Dokumentation) ist ausschließlich für persönliches Lernen, Forschung und technischen Austausch bestimmt. Es ist strengstens untersagt, diese Software für kommerzielle Zwecke oder illegale Aktivitäten zu verwenden, die gegen lokale Gesetze und Vorschriften verstoßen.\n\n2. Haftung\nDer Entwickler hat keine Kontrolle darüber, wie Benutzer diese Software verwenden. Jegliche rechtliche Haftung, Streitigkeiten oder Schäden, die aus der illegalen oder unsachgemäßen Verwendung dieser Software entstehen (einschließlich, aber nicht beschränkt auf Urheberrechtsverletzungen), liegen allein beim Benutzer. Der Entwickler übernimmt keine direkte, indirekte oder gesamtschuldnerische Haftung.\n\n3. Änderungen und Verbreitung\nDieses Projekt ist Open Source. Jede Einzelperson oder Organisation, die diesen Code ändert oder forkt, muss die Open-Source-Lizenz einhalten. Wichtig: Wenn Dritte den Code ändern, um die ursprünglichen Benutzerauthentifizierungs-/Sicherheitsmechanismen zu umgehen oder zu entfernen, und solche Versionen verbreiten, trägt der Modifikator/Verteiler die volle Verantwortung für alle Konsequenzen. Wir raten dringend davon ab, Sicherheitsüberprüfungsmechanismen zu umgehen oder zu manipulieren.\n\n4. Gemeinnützige Erklärung\nDies ist ein komplett kostenloses Open-Source-Projekt. Der Entwickler akzeptiert keine Spenden und hat nie Spendenseiten veröffentlicht. Die Software selbst erlaubt keine Gebühren und bietet keine kostenpflichtigen Dienste an. Bitte seien Sie wachsam und hüten Sie sich vor Betrug oder irreführenden Informationen, die behaupten, Gebühren im Namen dieses Projekts zu erheben.",
+  // Visitor Mode
+  admin: "Admin",
+  visitorSignIn: "Besucher-Anmeldung",
+  visitorUser: "Besucher-Benutzer",
+  visitorUserHelper:
+    "Aktivieren Sie ein separates Besucherkonto mit schreibgeschütztem Zugriff. Besucher können Inhalte ansehen, aber keine Änderungen vornehmen.",
+  visitorPassword: "Besucher-Passwort",
+  visitorPasswordHelper: "Legen Sie das Passwort für das Besucherkonto fest.",
+  visitorPasswordSetHelper:
+    "Passwort ist gesetzt. Leer lassen, um es zu behalten.",
 };

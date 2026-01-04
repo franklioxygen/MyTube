@@ -160,6 +160,12 @@ export const en = {
     "Read-only mode. Hidden videos will not be visible to visitors.",
   visitorModePasswordPrompt:
     "Please enter the website password to change Visitor Mode settings.",
+  visitorUser: "Visitor User",
+  visitorUserHelper:
+    "Enable a separate visitor account with read-only access. Visitors can view content but cannot make changes.",
+  visitorPassword: "Visitor Password",
+  visitorPasswordHelper: "Set the password for the visitor account.",
+  visitorPasswordSetHelper: "Password is set. Leave empty to keep it.",
   cleanupTempFilesSuccess: "Successfully deleted {count} temporary file(s).",
   cleanupTempFilesFailed: "Failed to clean up temporary files",
 
@@ -320,6 +326,9 @@ export const en = {
 
   // Login
   signIn: "Sign in",
+  admin: "Admin",
+  visitorSignIn: "Visitor Sign In",
+  orVisitor: "OR VISITOR",
   verifying: "Verifying...",
   incorrectPassword: "Incorrect password",
   loginFailed: "Failed to verify password",

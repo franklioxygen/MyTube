@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
@@ -37,9 +37,9 @@ export const getSettings = async (
   const mergedSettings = { ...defaultSettings, ...settings };
 
   // Do not send the hashed password to the frontend
-  const { password, ...safeSettings } = mergedSettings;
+  const { password, visitorPassword, ...safeSettings } = mergedSettings;
   // Return data directly for backward compatibility
-  res.json({ ...safeSettings, isPasswordSet: !!password });
+  res.json({ ...safeSettings, isPasswordSet: !!password, isVisitorPasswordSet: !!visitorPassword });
 };
 
 /**
@@ -124,35 +124,43 @@ export const updateSettings = async (
     {}
   );
 
-  // Check visitor mode restrictions
-  const visitorModeCheck =
-    settingsValidationService.checkVisitorModeRestrictions(
-      mergedSettings,
-      newSettings
-    );
+  // Check visitor mode restrictions (if not admin)
+  // If user is admin (jwt authenticated), they bypass visitor mode restrictions
+  const isAdmin = req.user?.role === "admin";
+  
+  if (!isAdmin) {
+    const visitorModeCheck =
+      settingsValidationService.checkVisitorModeRestrictions(
+        mergedSettings,
+        newSettings
+      );
 
-  if (!visitorModeCheck.allowed) {
-    res.status(403).json({
-      success: false,
-      error: visitorModeCheck.error,
-    });
-    return;
+    if (!visitorModeCheck.allowed) {
+      res.status(403).json({
+        success: false,
+        error: visitorModeCheck.error,
+      });
+      return;
+    }
+    
+    // Handle special case: visitorMode being set to true (already enabled)
+    // Only applies if NOT admin (admins can update settings while in visitor mode)
+    if (mergedSettings.visitorMode === true && newSettings.visitorMode === true) {
+      // Only update visitorMode, ignore other changes
+      const allowedSettings: Settings = {
+        ...mergedSettings,
+        visitorMode: true,
+      };
+      storageService.saveSettings(allowedSettings);
+      res.json({
+        success: true,
+        settings: { ...allowedSettings, password: undefined, visitorPassword: undefined },
+      });
+      return;
+    }
   }
 
-  // Handle special case: visitorMode being set to true (already enabled)
-  if (mergedSettings.visitorMode === true && newSettings.visitorMode === true) {
-    // Only update visitorMode, ignore other changes
-    const allowedSettings: Settings = {
-      ...mergedSettings,
-      visitorMode: true,
-    };
-    storageService.saveSettings(allowedSettings);
-    res.json({
-      success: true,
-      settings: { ...allowedSettings, password: undefined },
-    });
-    return;
-  }
+
 
   // Validate settings
   settingsValidationService.validateSettings(newSettings);
@@ -253,7 +261,7 @@ export const updateSettings = async (
   // Return format expected by frontend: { success: true, settings: {...} }
   res.json({
     success: true,
-    settings: { ...finalSettings, password: undefined },
+    settings: { ...finalSettings, password: undefined, visitorPassword: undefined },
   });
 };
 

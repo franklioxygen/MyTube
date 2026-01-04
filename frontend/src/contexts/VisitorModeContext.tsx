@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import React, { createContext, ReactNode, useContext } from 'react';
+import { useAuth } from './AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+
 
 interface VisitorModeContextType {
     visitorMode: boolean;
@@ -14,7 +17,9 @@ const VisitorModeContext = createContext<VisitorModeContextType>({
     isLoading: true,
 });
 
+
 export const VisitorModeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { userRole } = useAuth();
     const { data: settingsData, isLoading } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
@@ -26,7 +31,8 @@ export const VisitorModeProvider: React.FC<{ children: ReactNode }> = ({ childre
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
-    const visitorMode = settingsData?.visitorMode === true;
+    // Visitor mode is active if enabled in settings AND user is not an admin
+    const visitorMode = settingsData?.visitorMode === true && userRole !== 'admin';
 
     return (
         <VisitorModeContext.Provider value={{ visitorMode, isLoading }}>
