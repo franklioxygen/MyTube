@@ -1,6 +1,17 @@
 # Change Log
 
 
+## v1.7.31 (2026-01-04)
+
+### Feat
+
+- feat: Implement helper for selecting best m3u8 URL (f76acfd)
+- feat: Add executeYtDlpJson function (98ec0b3)
+
+### Refactor
+
+- refactor: Update axios configuration for downloading subtitles (c995eb3)
+
 ## v1.7.30 (2026-01-04)
 
 ### Test
