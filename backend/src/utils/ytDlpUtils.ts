@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 
@@ -512,29 +513,42 @@ export function getNetworkConfigFromUserConfig(
 
 /**
  * Helper to convert a proxy URL string into an Axios config object
- * Supports http/https proxies with authentication
- * Format: http://user:pass@host:port
+ * Supports http/https/socks5 proxies with authentication
+ * Format: http://user:pass@host:port or socks5://user:pass@host:port
  */
 export function getAxiosProxyConfig(proxyUrl: string): any {
   if (!proxyUrl) return {};
 
   try {
     const url = new URL(proxyUrl);
+    const protocol = url.protocol.replace(":", "");
 
-    const isHttps = url.protocol === "https:";
+    // Check if this is a SOCKS proxy
+    if (protocol.startsWith("socks")) {
+      // Use SocksProxyAgent for SOCKS proxy support
+      const agent = new SocksProxyAgent(proxyUrl);
+      return {
+        httpAgent: agent,
+        httpsAgent: agent,
+        proxy: false, // Disable axios built-in proxy when using custom agents
+      };
+    }
+
+    // Handle HTTP/HTTPS proxies
+    const isHttps = protocol === "https";
     const defaultPort = isHttps ? 443 : 80;
 
     // Axios proxy config structure
     const proxyConfig: any = {
-      protocol: url.protocol.replace(":", ""),
+      protocol: protocol,
       host: url.hostname,
       port: parseInt(url.port, 10) || defaultPort,
     };
 
     if (url.username || url.password) {
       proxyConfig.auth = {
-        username: url.username,
-        password: url.password,
+        username: decodeURIComponent(url.username),
+        password: decodeURIComponent(url.password),
       };
     }
 
