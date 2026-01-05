@@ -12,6 +12,7 @@ import {
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -258,9 +259,21 @@ export async function downloadVideo(
     let thumbnailSaved = false;
     if (thumbnailUrl) {
       // Use base class method via temporary instance
-      const axiosConfig = userConfig.proxy
-        ? getAxiosProxyConfig(userConfig.proxy)
-        : {};
+      let axiosConfig = {};
+      if (userConfig.proxy) {
+        try {
+          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
+        } catch (error) {
+          if (error instanceof InvalidProxyError) {
+            logger.warn(
+              "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
+              error.message
+            );
+          } else {
+            throw error;
+          }
+        }
+      }
       const downloader = new BilibiliDownloaderHelper();
       thumbnailSaved = await downloader.downloadThumbnailPublic(
         thumbnailUrl,
@@ -445,9 +458,21 @@ export async function downloadSinglePart(
         : collectionName
           ? `/subtitles/${collectionName}`
           : `/subtitles`;
-      const axiosConfig = userConfig.proxy
-        ? getAxiosProxyConfig(userConfig.proxy)
-        : {};
+      let axiosConfig = {};
+      if (userConfig.proxy) {
+        try {
+          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
+        } catch (error) {
+          if (error instanceof InvalidProxyError) {
+            logger.warn(
+              "Invalid proxy configuration for subtitle download, proceeding without proxy:",
+              error.message
+            );
+          } else {
+            throw error;
+          }
+        }
+      }
       subtitles = await downloadSubtitles(
         url,
         newSafeBaseFilename,

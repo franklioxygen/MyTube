@@ -13,6 +13,7 @@ import {
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -163,13 +164,13 @@ export class MissAVDownloader extends BaseDownloader {
 
       // 4. Select the best m3u8 URL from collected URLs
       let m3u8Url = MissAVDownloader.selectBestM3u8Url(m3u8Urls, hasFormatSort);
-      
+
       if (m3u8Url) {
         logger.info(
           `Selected m3u8 URL from ${m3u8Urls.length} candidates (format sort: ${hasFormatSort}):`,
           m3u8Url
         );
-        const alternatives = m3u8Urls.filter(u => u !== m3u8Url);
+        const alternatives = m3u8Urls.filter((u) => u !== m3u8Url);
         if (alternatives.length > 0) {
           logger.info("Alternative URLs:", alternatives);
         }
@@ -328,11 +329,7 @@ export class MissAVDownloader extends BaseDownloader {
       const args = [m3u8Url, ...flagsToArgs(flags)];
 
       // Log the full command for debugging
-      logger.info(
-        "Executing yt-dlp command:",
-        YT_DLP_PATH,
-        args.join(" ")
-      );
+      logger.info("Executing yt-dlp command:", YT_DLP_PATH, args.join(" "));
 
       try {
         await new Promise<void>((resolve, reject) => {
@@ -393,9 +390,21 @@ export class MissAVDownloader extends BaseDownloader {
       // 8. Download and save the thumbnail
       if (thumbnailUrl) {
         // Use base class method via temporary instance
-        const axiosConfig = userConfig.proxy
-          ? getAxiosProxyConfig(userConfig.proxy)
-          : {};
+        let axiosConfig = {};
+        if (userConfig.proxy) {
+          try {
+            axiosConfig = getAxiosProxyConfig(userConfig.proxy);
+          } catch (error) {
+            if (error instanceof InvalidProxyError) {
+              logger.warn(
+                "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
+                error.message
+              );
+            } else {
+              throw error;
+            }
+          }
+        }
         const downloader = new MissAVDownloader();
         thumbnailSaved = await downloader.downloadThumbnail(
           thumbnailUrl,
@@ -509,7 +518,10 @@ export class MissAVDownloader extends BaseDownloader {
   }
 
   // Helper to select best m3u8 URL
-  static selectBestM3u8Url(urls: string[], hasFormatSort: boolean): string | null {
+  static selectBestM3u8Url(
+    urls: string[],
+    hasFormatSort: boolean
+  ): string | null {
     if (urls.length === 0) return null;
 
     const sortedUrls = [...urls].sort((a, b) => {
@@ -543,10 +555,8 @@ export class MissAVDownloader extends BaseDownloader {
         // BUT, given the bug report where a 240p stream was picked over a master,
         // we should probably trust the master playlist more particularly if the alternative is low quality.
         // However, if we have a high quality specific stream (e.g. 720p/1080p explicit), that might be fine.
-        
         // Let's refine: If one is surrit master, pick it. (Handled by step 1 & surrit sub-logic)
         // If neither is surrit, and one is master...
-        
         // If both are master or both are not master, compare resolution.
       }
 
@@ -559,7 +569,7 @@ export class MissAVDownloader extends BaseDownloader {
       // If we have a significant resolution difference, we might prefer the higher one
       // UNLESS one is a master playlist and the other is a low res specific one.
       // If one is master (0p detected) and other is 240p, 0p (master) should win if it's likely to contain better streams.
-      
+
       // Updated Strategy:
       // If both have resolution, compare them.
       if (aQualityNum > 0 && bQualityNum > 0) {
@@ -570,14 +580,14 @@ export class MissAVDownloader extends BaseDownloader {
       // If we are prioritizing master playlists (e.g. because of surrit or format sort), master wins.
       // If we are NOT specifically prioritizing master, we still might want to prefer it over very low res (e.g. < 480p).
       if (aIsMaster && bQualityNum > 0 && bQualityNum < 480) return -1; // Master wins over < 480p
-      if (bIsMaster && aQualityNum > 0 && aQualityNum < 480) return 1;  // Master wins over < 480p
+      if (bIsMaster && aQualityNum > 0 && aQualityNum < 480) return 1; // Master wins over < 480p
 
       // Fallback: Default to higher number (so 720p wins over 0p/master if we didn't catch it above)
       // This preserves 'best attempt' for specific high quality URLs if they exist not on surrit.
       if (aQualityNum !== bQualityNum) {
         return bQualityNum - aQualityNum;
       }
-      
+
       // Final tie-breaker: prefer master if all else equal
       if (aIsMaster && !bIsMaster) return -1;
       if (!aIsMaster && bIsMaster) return 1;

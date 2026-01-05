@@ -14,6 +14,7 @@ import {
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -305,7 +306,20 @@ export async function downloadVideo(
       let axiosConfig = {};
       
       if (downloadUserConfig.proxy) {
-        axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
+        try {
+          axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
+        } catch (error) {
+          if (error instanceof InvalidProxyError) {
+            // Log the error but continue without proxy for thumbnail
+            // Video download already succeeded, don't fail for thumbnail proxy issues
+            logger.warn(
+              "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
+              error.message
+            );
+          } else {
+            throw error;
+          }
+        }
       }
 
       thumbnailSaved = await downloader.downloadThumbnailPublic(

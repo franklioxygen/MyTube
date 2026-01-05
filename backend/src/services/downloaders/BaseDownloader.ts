@@ -41,6 +41,9 @@ export abstract class BaseDownloader implements IDownloader {
     options?: DownloadOptions
   ): Promise<Video>;
 
+  // Default timeout for thumbnail downloads (60 seconds)
+  protected static readonly THUMBNAIL_DOWNLOAD_TIMEOUT = 60000;
+
   /**
    * Common helper to download a thumbnail
    */
@@ -51,7 +54,7 @@ export abstract class BaseDownloader implements IDownloader {
   ): Promise<boolean> {
     try {
       logger.info("Downloading thumbnail from:", thumbnailUrl);
-      if (axiosConfig.proxy) {
+      if (axiosConfig.proxy || axiosConfig.httpAgent) {
         logger.debug("Using proxy for thumbnail download");
       }
 
@@ -62,6 +65,7 @@ export abstract class BaseDownloader implements IDownloader {
         method: "GET",
         url: thumbnailUrl,
         responseType: "stream",
+        timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
         ...axiosConfig,
       });
 
