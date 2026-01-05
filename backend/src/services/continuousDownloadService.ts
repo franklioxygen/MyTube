@@ -139,6 +139,59 @@ export class ContinuousDownloadService {
       return; // Already completed or cancelled
     }
 
+    // Mark as cancelled FIRST so status checks stop processing immediately
+    await this.taskRepository.cancelTask(id);
+
+    // Remove from processing set to stop any ongoing processing immediately
+    this.processingTasks.delete(id);
+
+    // Cancel all active downloads that might belong to this task
+    // This is a best-effort attempt to cancel downloads for videos from this task
+    try {
+      const { getDownloadStatus } = await import("../services/storageService");
+      const downloadManager = await import("../services/downloadManager");
+      const downloadStatus = getDownloadStatus();
+      const activeDownloads = downloadStatus.activeDownloads || [];
+
+      // Get video URLs for this task to match against active downloads
+      // Only do this if we have cached URLs or can quickly fetch a sample
+      const cacheKey = `${id}:${task.authorUrl}`;
+      let taskVideoUrls: string[] = [];
+
+      if (this.videoUrlCache.has(cacheKey)) {
+        taskVideoUrls = this.videoUrlCache.get(cacheKey) || [];
+      } else {
+        // Try to get a sample of URLs to match (first 100 should be enough)
+        try {
+          const sampleUrls = await this.videoUrlFetcher.getVideoUrlsIncremental(
+            task.authorUrl,
+            task.platform,
+            0,
+            100
+          );
+          taskVideoUrls = sampleUrls;
+        } catch (error) {
+          logger.debug(
+            `Could not fetch sample URLs for task ${id} cancellation:`,
+            error
+          );
+        }
+      }
+
+      // Cancel any active downloads whose sourceUrl matches this task's videos
+      for (const download of activeDownloads) {
+        if (download.sourceUrl && taskVideoUrls.includes(download.sourceUrl)) {
+          logger.info(
+            `Cancelling active download ${download.id} for cancelled task ${id}`
+          );
+          downloadManager.default.cancelDownload(download.id);
+        }
+      }
+    } catch (error) {
+      logger.error(`Error cancelling active downloads for task ${id}:`, error);
+      // Continue with cleanup even if download cancellation fails
+    }
+
     // Clean up temporary files for the current video being downloaded
     try {
       await this.taskCleanup.cleanupCurrentVideoTempFiles(task);
@@ -151,7 +204,44 @@ export class ContinuousDownloadService {
     const cacheKey = `${id}:${task.authorUrl}`;
     this.videoUrlCache.delete(cacheKey);
 
-    await this.taskRepository.cancelTask(id);
+    logger.info(`Task ${id} cancelled successfully`);
+  }
+
+  /**
+   * Pause a task
+   */
+  async pauseTask(id: string): Promise<void> {
+    const task = await this.getTaskById(id);
+    if (!task) {
+      throw new Error(`Task ${id} not found`);
+    }
+
+    if (task.status !== "active") {
+      throw new Error(`Task ${id} is not active (status: ${task.status})`);
+    }
+
+    await this.taskRepository.pauseTask(id);
+  }
+
+  /**
+   * Resume a task
+   */
+  async resumeTask(id: string): Promise<void> {
+    const task = await this.getTaskById(id);
+    if (!task) {
+      throw new Error(`Task ${id} not found`);
+    }
+
+    if (task.status !== "paused") {
+      throw new Error(`Task ${id} is not paused (status: ${task.status})`);
+    }
+
+    await this.taskRepository.resumeTask(id);
+
+    // Resume processing
+    this.processTask(id).catch((error) => {
+      logger.error(`Error resuming task ${id}:`, error);
+    });
   }
 
   /**

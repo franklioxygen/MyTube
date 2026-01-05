@@ -488,6 +488,18 @@ export const zh = {
   confirmClearFinishedTasks:
     "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
   clear: "清除",
+  
+  // Subscription Pause/Resume
+  pause: "暂停",
+  resume: "恢复",
+  pauseSubscription: "暂停订阅",
+  resumeSubscription: "恢复订阅",
+  pauseTask: "暂停任务",
+  resumeTask: "恢复任务",
+  subscriptionPaused: "订阅已暂停",
+  subscriptionResumed: "订阅已恢复",
+  taskPaused: "任务已暂停",
+  taskResumed: "任务已恢复",
 
   // Existing Video Detection
   existingVideoDetected: "检测到已下载视频",

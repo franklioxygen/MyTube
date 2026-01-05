@@ -521,6 +521,18 @@ export const ru = {
   confirmClearFinishedTasks:
     "Вы уверены, что хотите очистить все завершенные задачи (завершенные, отмененные)? Это удалит их из списка, но не удалит загруженные файлы.",
   clear: "Очистить",
+  
+  // Subscription Pause/Resume
+  pause: "Пауза",
+  resume: "Возобновить",
+  pauseSubscription: "Приостановить подписку",
+  resumeSubscription: "Возобновить подписку",
+  pauseTask: "Приостановить задачу",
+  resumeTask: "Возобновить задачу",
+  subscriptionPaused: "Подписка приостановлена",
+  subscriptionResumed: "Подписка возобновлена",
+  taskPaused: "Задача приостановлена",
+  taskResumed: "Задача возобновлена",
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
   instructionSection1Desc:

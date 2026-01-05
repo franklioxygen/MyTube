@@ -71,6 +71,13 @@
       "when": 1767494996743,
       "tag": "0009_brief_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1767633119196,
+      "tag": "0010_big_shotgun",
+      "breakpoints": true
     }
   ]
 }

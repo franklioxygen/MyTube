@@ -40,98 +40,168 @@ export class TaskProcessor {
 
     const totalVideos = task.totalVideos || 0;
     const fetchBatchSize = 50; // Fetch 50 URLs at a time
-    const processBatchSize = 10; // Process 10 videos at a time
 
-    // Process videos incrementally
-    for (
-      let i = task.currentVideoIndex;
-      i < totalVideos;
-      i += processBatchSize
-    ) {
-      // Check if task was cancelled
+    // For non-incremental tasks, ensure we have the video URLs
+    let allVideoUrls: string[] = [];
+    if (!useIncremental) {
+      if (cachedVideoUrls) {
+        allVideoUrls = cachedVideoUrls;
+      } else {
+        allVideoUrls = await this.videoUrlFetcher.getAllVideoUrls(
+          task.authorUrl,
+          task.platform
+        );
+      }
+    }
+
+    // Buffer for incremental fetching
+    let videoUrlBatch: string[] = [];
+    let batchStartIndex = -1;
+
+    // Process videos one by one
+    for (let i = task.currentVideoIndex; i < totalVideos; i++) {
+      // Check if task was cancelled or paused - check EVERY iteration
       const currentTask = await this.taskRepository.getTaskById(task.id);
       if (!currentTask || currentTask.status !== "active") {
         logger.info(`Task ${task.id} was cancelled or paused`);
         break;
       }
 
-      // Fetch batch of URLs if using incremental mode
-      let videoUrls: string[] = [];
+      let videoUrl: string;
+
       if (useIncremental) {
-        // Fetch only the batch we need
-        const batchStart = i;
-        const batchEnd = Math.min(i + fetchBatchSize, totalVideos);
-        videoUrls = await this.videoUrlFetcher.getVideoUrlsIncremental(
-          task.authorUrl,
-          task.platform,
-          batchStart,
-          batchEnd - batchStart
-        );
-      } else {
-        // For non-incremental, use cached URLs if provided
-        if (cachedVideoUrls) {
-          videoUrls = cachedVideoUrls;
-        } else {
-          // Fallback: fetch all URLs if cache not provided
-          videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
+        // Fetch batch if needed
+        // If i is outside the current batch range, fetch a new batch
+        if (
+          i < batchStartIndex ||
+          i >= batchStartIndex + videoUrlBatch.length
+        ) {
+          batchStartIndex = i;
+          // Don't fetch past totalVideos
+          const countToFetch = Math.min(fetchBatchSize, totalVideos - i);
+
+          logger.debug(
+            `Fetching batch of ${countToFetch} URLs starting at ${i} for task ${task.id}`
+          );
+          videoUrlBatch = await this.videoUrlFetcher.getVideoUrlsIncremental(
             task.authorUrl,
-            task.platform
-          );
-        }
-      }
-
-      // Process videos in this batch
-      for (let j = 0; j < videoUrls.length && i + j < totalVideos; j++) {
-        const videoIndex = i + j;
-        const videoUrl = videoUrls[j];
-        logger.info(
-          `Processing video ${
-            videoIndex + 1
-          }/${totalVideos} for task ${task.id}: ${videoUrl}`
-        );
-
-        try {
-          await this.processVideo(task, videoUrl, videoIndex, currentTask);
-        } catch (downloadError: any) {
-          logger.error(
-            `Error downloading video ${videoUrl} for task ${task.id}:`,
-            downloadError
+            task.platform,
+            i,
+            countToFetch
           );
 
-          // Add to download history as failed
-          storageService.addDownloadHistoryItem({
-            id: uuidv4(),
-            title: `Video from ${task.author}`,
-            author: task.author,
-            sourceUrl: videoUrl,
-            finishedAt: Date.now(),
-            status: "failed",
-            error: downloadError.message || "Download failed",
-          });
-
-          // Update task progress
-          const currentTaskAfterError = await this.taskRepository.getTaskById(
-            task.id
-          );
-          if (currentTaskAfterError) {
-            await this.taskRepository.updateProgress(task.id, {
-              failedCount: (currentTaskAfterError.failedCount || 0) + 1,
-              currentVideoIndex: videoIndex + 1,
-            });
+          if (videoUrlBatch.length === 0) {
+            logger.warn(
+              `No videos found in batch starting at ${i}, stopping task`
+            );
+            break;
           }
         }
 
-        // Small delay to avoid overwhelming the system
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const indexInBatch = i - batchStartIndex;
+        if (indexInBatch >= videoUrlBatch.length) {
+          logger.warn(
+            `Index ${i} out of bounds for batch starting at ${batchStartIndex} (length ${videoUrlBatch.length})`
+          );
+          break;
+        }
+        videoUrl = videoUrlBatch[indexInBatch];
+      } else {
+        // Non-incremental: access from full list
+        if (i >= allVideoUrls.length) {
+          break;
+        }
+        videoUrl = allVideoUrls[i];
       }
 
-      // Clear videoUrls reference after processing batch to help GC
-      videoUrls = [];
+      // Double-check status right before starting video download
+      // This prevents starting a new download if task was paused between iterations
+      const taskBeforeDownload = await this.taskRepository.getTaskById(task.id);
+      if (!taskBeforeDownload || taskBeforeDownload.status !== "active") {
+        logger.info(
+          `Task ${task.id} was cancelled or paused before starting video download`
+        );
+        break;
+      }
+
+      logger.info(
+        `Processing video ${i + 1}/${totalVideos} for task ${
+          task.id
+        }: ${videoUrl}`
+      );
+
+      try {
+        await this.processVideo(task, videoUrl, i, taskBeforeDownload);
+      } catch (downloadError: any) {
+        // Check if error is due to task being paused/cancelled
+        const isPauseOrCancel =
+          downloadError.message?.includes("not active") ||
+          downloadError.message?.includes("paused") ||
+          downloadError.message?.includes("cancelled");
+
+        if (isPauseOrCancel) {
+          // Task was paused/cancelled, don't treat as download error
+          logger.info(
+            `Task ${task.id} was paused or cancelled during video processing`
+          );
+          break;
+        }
+
+        // Actual download error
+        logger.error(
+          `Error downloading video ${videoUrl} for task ${task.id}:`,
+          downloadError
+        );
+
+        // Add to download history as failed
+        storageService.addDownloadHistoryItem({
+          id: uuidv4(),
+          title: `Video from ${task.author}`,
+          author: task.author,
+          sourceUrl: videoUrl,
+          finishedAt: Date.now(),
+          status: "failed",
+          error: downloadError.message || "Download failed",
+        });
+
+        // Update task progress
+        const currentTaskAfterError = await this.taskRepository.getTaskById(
+          task.id
+        );
+        if (
+          currentTaskAfterError &&
+          currentTaskAfterError.status === "active"
+        ) {
+          await this.taskRepository.updateProgress(task.id, {
+            failedCount: (currentTaskAfterError.failedCount || 0) + 1,
+            currentVideoIndex: i + 1,
+          });
+        }
+      }
+
+      // Check status again after video processing completes
+      // This ensures we stop immediately if task was paused during the download
+      const taskAfterDownload = await this.taskRepository.getTaskById(task.id);
+      if (!taskAfterDownload || taskAfterDownload.status !== "active") {
+        logger.info(
+          `Task ${task.id} was cancelled or paused after video download`
+        );
+        break;
+      }
+
+      // Small delay to avoid overwhelming the system
+      if (i < totalVideos - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
-    // Mark task as completed
+    // Mark task as completed if we reached the end and it's still active
     const finalTask = await this.taskRepository.getTaskById(task.id);
-    if (finalTask && finalTask.status === "active") {
+    if (
+      finalTask &&
+      finalTask.status === "active" &&
+      finalTask.currentVideoIndex >= finalTask.totalVideos
+    ) {
       await this.taskRepository.completeTask(task.id);
       logger.info(
         `Completed continuous download task ${task.id}: ${finalTask.downloadedCount} downloaded, ${finalTask.skippedCount} skipped, ${finalTask.failedCount} failed`
@@ -199,26 +269,39 @@ export class TaskProcessor {
     videoIndex: number,
     currentTask: ContinuousDownloadTask
   ): Promise<void> {
+    // Check status one more time right before starting the download
+    // This is the last chance to abort before a potentially long download operation
+    const taskStatusCheck = await this.taskRepository.getTaskById(task.id);
+    if (!taskStatusCheck || taskStatusCheck.status !== "active") {
+      logger.info(
+        `Task ${task.id} was cancelled or paused, aborting video download`
+      );
+      throw new Error(
+        `Task ${task.id} is not active (status: ${
+          taskStatusCheck?.status || "not found"
+        })`
+      );
+    }
+
     // Check if video already exists
     const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
     if (existingVideo) {
       logger.debug(`Video ${videoUrl} already exists, skipping`);
-      await this.taskRepository.updateProgress(task.id, {
-        skippedCount: (currentTask.skippedCount || 0) + 1,
-        currentVideoIndex: videoIndex + 1,
-      });
+      // Fetch latest task state to avoid race conditions
+      const latestTask = await this.taskRepository.getTaskById(task.id);
+      if (latestTask) {
+        await this.taskRepository.updateProgress(task.id, {
+          skippedCount: (latestTask.skippedCount || 0) + 1,
+          currentVideoIndex: videoIndex + 1,
+        });
+      }
       return;
     }
 
     // Download the video
     let downloadResult: any;
     if (task.platform === "Bilibili") {
-      downloadResult = await downloadSingleBilibiliPart(
-        videoUrl,
-        1,
-        1,
-        ""
-      );
+      downloadResult = await downloadSingleBilibiliPart(videoUrl, 1, 1, "");
     } else {
       downloadResult = await downloadYouTubeVideo(videoUrl);
     }
@@ -240,10 +323,7 @@ export class TaskProcessor {
     // If task has a collectionId, add video to collection
     if (task.collectionId && videoData.id) {
       try {
-        storageService.addVideoToCollection(
-          task.collectionId,
-          videoData.id
-        );
+        storageService.addVideoToCollection(task.collectionId, videoData.id);
         logger.info(
           `Added video ${videoData.id} to collection ${task.collectionId}`
         );
@@ -256,11 +336,13 @@ export class TaskProcessor {
       }
     }
 
-    // Update task progress
-    await this.taskRepository.updateProgress(task.id, {
-      downloadedCount: (currentTask.downloadedCount || 0) + 1,
-      currentVideoIndex: videoIndex + 1,
-    });
+    // Update task progress - fetch latest state to avoid race conditions
+    const latestTaskForUpdate = await this.taskRepository.getTaskById(task.id);
+    if (latestTaskForUpdate) {
+      await this.taskRepository.updateProgress(task.id, {
+        downloadedCount: (latestTaskForUpdate.downloadedCount || 0) + 1,
+        currentVideoIndex: videoIndex + 1,
+      });
+    }
   }
 }
-

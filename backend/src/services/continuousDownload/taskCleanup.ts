@@ -69,16 +69,28 @@ export class TaskCleanup {
           const downloadStatus = storageService.getDownloadStatus();
           const activeDownloads = downloadStatus.activeDownloads || [];
 
+          // Import download manager to properly cancel downloads
+          const downloadManager = await import("../downloadManager");
+
           for (const download of activeDownloads) {
             if (
               download.sourceUrl === currentVideoUrl ||
               (download.filename && download.filename.includes(baseFilename))
             ) {
-              // Cancel this download
+              // Cancel this download using download manager (properly stops the process)
               logger.info(
                 `Cancelling active download ${download.id} for video ${currentVideoUrl}`
               );
-              storageService.removeActiveDownload(download.id);
+              try {
+                downloadManager.default.cancelDownload(download.id);
+              } catch (error) {
+                logger.error(
+                  `Error cancelling download ${download.id}:`,
+                  error
+                );
+                // Fallback: just remove from database if download manager fails
+                storageService.removeActiveDownload(download.id);
+              }
 
               // Clean up temp files for this download
               if (download.filename) {
@@ -87,11 +99,11 @@ export class TaskCleanup {
                 const path = await import("path");
                 const { VIDEOS_DIR } = await import("../../config/paths");
                 // Extract base filename without extension
-                const baseFilename = path.basename(
+                const baseFilenameForCleanup = path.basename(
                   download.filename,
                   path.extname(download.filename)
                 );
-                await cleanupArtifacts(baseFilename, VIDEOS_DIR);
+                await cleanupArtifacts(baseFilenameForCleanup, VIDEOS_DIR);
               }
             }
           }

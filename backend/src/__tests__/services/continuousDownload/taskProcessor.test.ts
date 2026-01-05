@@ -153,7 +153,7 @@ describe('TaskProcessor', () => {
     await promise;
 
     expect(mockVideoUrlFetcher.getVideoCount).toHaveBeenCalled();
-    expect(mockVideoUrlFetcher.getVideoUrlsIncremental).toHaveBeenCalledTimes(6); // Called for each batch of 10 processing loop
+    expect(mockVideoUrlFetcher.getVideoUrlsIncremental).toHaveBeenCalledTimes(2); // Called for batch 0-50, then 50-55
     
     vi.useRealTimers();
   });

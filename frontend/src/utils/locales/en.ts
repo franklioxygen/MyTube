@@ -535,6 +535,18 @@ export const en = {
   confirmClearFinishedTasks:
     "Are you sure you want to clear all finished tasks (completed, cancelled)? This will remove them from the list but will not delete any downloaded files.",
   clear: "Clear",
+  
+  // Subscription Pause/Resume
+  pause: "Pause",
+  resume: "Resume",
+  pauseSubscription: "Pause Subscription",
+  resumeSubscription: "Resume Subscription",
+  pauseTask: "Pause Task",
+  resumeTask: "Resume Task",
+  subscriptionPaused: "Subscription paused",
+  subscriptionResumed: "Subscription resumed",
+  taskPaused: "Task paused",
+  taskResumed: "Task resumed",
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",
   instructionSection1Desc:

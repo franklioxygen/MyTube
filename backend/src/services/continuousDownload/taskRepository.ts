@@ -109,6 +109,34 @@ export class TaskRepository {
   }
 
   /**
+   * Pause a task
+   */
+  async pauseTask(id: string): Promise<void> {
+    await db
+      .update(continuousDownloadTasks)
+      .set({
+        status: "paused",
+        updatedAt: Date.now(),
+      })
+      .where(eq(continuousDownloadTasks.id, id));
+    logger.info(`Paused continuous download task ${id}`);
+  }
+
+  /**
+   * Resume a task
+   */
+  async resumeTask(id: string): Promise<void> {
+    await db
+      .update(continuousDownloadTasks)
+      .set({
+        status: "active",
+        updatedAt: Date.now(),
+      })
+      .where(eq(continuousDownloadTasks.id, id));
+    logger.info(`Resumed continuous download task ${id}`);
+  }
+
+  /**
    * Delete a task from the database
    */
   async deleteTask(id: string): Promise<void> {

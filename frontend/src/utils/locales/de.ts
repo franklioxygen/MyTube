@@ -493,6 +493,18 @@ export const de = {
   confirmClearFinishedTasks:
     "Sind Sie sicher, dass Sie alle beendeten Aufgaben (abgeschlossen, abgebrochen) löschen möchten? Dies entfernt sie aus der Liste, löscht aber keine heruntergeladenen Dateien.",
   clear: "Löschen",
+  
+  // Subscription Pause/Resume
+  pause: "Pause",
+  resume: "Fortsetzen",
+  pauseSubscription: "Abonnement pausieren",
+  resumeSubscription: "Abonnement fortsetzen",
+  pauseTask: "Aufgabe pausieren",
+  resumeTask: "Aufgabe fortsetzen",
+  subscriptionPaused: "Abonnement pausiert",
+  subscriptionResumed: "Abonnement fortgesetzt",
+  taskPaused: "Aufgabe pausiert",
+  taskResumed: "Aufgabe fortgesetzt",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc:

@@ -7,8 +7,8 @@ import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import { extractBilibiliMid, isBilibiliSpaceUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
-  downloadSingleBilibiliPart,
-  downloadYouTubeVideo,
+    downloadSingleBilibiliPart,
+    downloadYouTubeVideo,
 } from "./downloadService";
 import { BilibiliDownloader } from "./downloaders/BilibiliDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
@@ -23,7 +23,9 @@ export interface Subscription {
   lastCheck?: number;
   downloadCount: number;
   createdAt: number;
+
   platform: string;
+  paused?: number;
 }
 
 export class SubscriptionService {
@@ -211,6 +213,7 @@ export class SubscriptionService {
       downloadCount: 0,
       createdAt: Date.now(),
       platform,
+      paused: 0,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -259,6 +262,44 @@ export class SubscriptionService {
     );
   }
 
+  async pauseSubscription(id: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      throw new Error(`Subscription ${id} not found`);
+    }
+
+    await db
+      .update(subscriptions)
+      .set({ paused: 1 })
+      .where(eq(subscriptions.id, id));
+    
+    logger.info(`Paused subscription ${id} (${existing[0].author})`);
+  }
+
+  async resumeSubscription(id: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, id))
+      .limit(1);
+
+    if (existing.length === 0) {
+      throw new Error(`Subscription ${id} not found`);
+    }
+
+    await db
+      .update(subscriptions)
+      .set({ paused: 0 })
+      .where(eq(subscriptions.id, id));
+      
+    logger.info(`Resumed subscription ${id} (${existing[0].author})`);
+  }
+
   async listSubscriptions(): Promise<Subscription[]> {
     // @ts-ignore - Drizzle type inference might be tricky with raw select sometimes, but this should be fine.
     // Actually, db.select().from(subscriptions) returns the inferred type.
@@ -282,6 +323,13 @@ export class SubscriptionService {
           `Skipping deleted subscription: ${sub.id} (${sub.author})`
         );
         continue; // Subscription was deleted, skip it
+      }
+
+      // Skip if paused
+      if (sub.paused) {
+        // We can log this at debug level to avoid spamming logs
+        logger.debug(`Skipping paused subscription: ${sub.id} (${sub.author})`);
+        continue;
       }
 
       const now = Date.now();

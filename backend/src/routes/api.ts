@@ -128,6 +128,14 @@ router.delete(
   "/subscriptions/:id",
   asyncHandler(subscriptionController.deleteSubscription)
 );
+router.put(
+  "/subscriptions/:id/pause",
+  asyncHandler(subscriptionController.pauseSubscription)
+);
+router.put(
+  "/subscriptions/:id/resume",
+  asyncHandler(subscriptionController.resumeSubscription)
+);
 
 // Continuous download task routes
 router.get(
@@ -138,6 +146,14 @@ router.get(
 router.delete(
   "/subscriptions/tasks/clear-finished",
   asyncHandler(subscriptionController.clearFinishedTasks)
+);
+router.put(
+  "/subscriptions/tasks/:id/pause",
+  asyncHandler(subscriptionController.pauseContinuousDownloadTask)
+);
+router.put(
+  "/subscriptions/tasks/:id/resume",
+  asyncHandler(subscriptionController.resumeContinuousDownloadTask)
 );
 router.delete(
   "/subscriptions/tasks/:id",

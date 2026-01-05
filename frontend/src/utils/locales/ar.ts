@@ -506,6 +506,18 @@ export const ar = {
   confirmClearFinishedTasks:
     "هل أنت متأكد أنك تريد مسح جميع المهام المنتهية (المكتملة، الملغاة)؟ سيؤدي هذا إلى إزالتها من القائمة ولكن لن يحذف أي ملفات تم تنزيلها.",
   clear: "مسح",
+  
+  // Subscription Pause/Resume
+  pause: "إيقاف مؤقت",
+  resume: "استئناف",
+  pauseSubscription: "إيقاف الاشتراك مؤقتاً",
+  resumeSubscription: "استئناف الاشتراك",
+  pauseTask: "إيقاف المهمة مؤقتاً",
+  resumeTask: "استئناف المهمة",
+  subscriptionPaused: "تم إيقاف الاشتراك مؤقتاً",
+  subscriptionResumed: "تم استئناف الاشتراك",
+  taskPaused: "تم إيقاف المهمة مؤقتاً",
+  taskResumed: "تم استئناف المهمة",
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc:

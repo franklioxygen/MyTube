@@ -1,10 +1,10 @@
 import { relations } from "drizzle-orm";
 import {
-  foreignKey,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
+    foreignKey,
+    integer,
+    primaryKey,
+    sqliteTable,
+    text,
 } from "drizzle-orm/sqlite-core";
 
 export const videos = sqliteTable("videos", {
@@ -135,6 +135,7 @@ export const subscriptions = sqliteTable("subscriptions", {
   downloadCount: integer("download_count").default(0),
   createdAt: integer("created_at").notNull(),
   platform: text("platform").default("YouTube"),
+  paused: integer("paused").default(0), // 0 = active, 1 = paused
 });
 
 // Track downloaded video IDs to prevent re-downloading

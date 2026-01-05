@@ -19,6 +19,11 @@ vi.mock("../../../services/storageService");
 vi.mock("../../../services/downloadService", () => ({
   getVideoInfo: vi.fn(),
 }));
+vi.mock("../../../services/downloadManager", () => ({
+  default: {
+    cancelDownload: vi.fn(),
+  },
+}));
 vi.mock("../../../utils/downloadUtils", () => ({
   cleanupVideoArtifacts: vi.fn().mockResolvedValue([]),
 }));
@@ -28,6 +33,7 @@ vi.mock("../../../utils/helpers", () => ({
 vi.mock("../../../config/paths", () => ({
   VIDEOS_DIR: "/tmp/videos",
   DATA_DIR: "/tmp/data",
+  CLOUD_THUMBNAIL_CACHE_DIR: "/tmp/thumbnails",
 }));
 vi.mock("../../../utils/logger", () => ({
   logger: {
@@ -139,7 +145,11 @@ describe("TaskCleanup", () => {
 
       await taskCleanup.cleanupCurrentVideoTempFiles(mockTask);
 
-      expect(storageService.removeActiveDownload).toHaveBeenCalledWith("dl-1");
+      // Verify download manager was called to cancel
+      const downloadManager = await import("../../../services/downloadManager");
+      expect(downloadManager.default.cancelDownload).toHaveBeenCalledWith(
+        "dl-1"
+      );
       // Check if cleanup was called for the active download file
       expect(cleanupVideoArtifacts).toHaveBeenCalledWith("file", "/tmp/videos");
       expect(logger.error).not.toHaveBeenCalled();

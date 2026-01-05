@@ -506,6 +506,18 @@ export const es = {
   confirmClearFinishedTasks:
     "¿Está seguro de que desea borrar todas las tareas finalizadas (completadas, canceladas)? Esto las eliminará de la lista pero no borrará ningún archivo descargado.",
   clear: "Borrar",
+  
+  // Subscription Pause/Resume
+  pause: "Pausar",
+  resume: "Reanudar",
+  pauseSubscription: "Pausar suscripción",
+  resumeSubscription: "Reanudar suscripción",
+  pauseTask: "Pausar tarea",
+  resumeTask: "Reanudar tarea",
+  subscriptionPaused: "Suscripción pausada",
+  subscriptionResumed: "Suscripción reanudada",
+  taskPaused: "Tarea pausada",
+  taskResumed: "Tarea reanudada",
   // Instruction Page
   instructionSection1Title: "1. Descarga y Gestión de Tareas",
   instructionSection1Desc:

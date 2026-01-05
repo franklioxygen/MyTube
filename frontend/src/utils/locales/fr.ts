@@ -525,6 +525,18 @@ export const fr = {
   confirmClearFinishedTasks:
     "Êtes-vous sûr de vouloir effacer toutes les tâches terminées (complétées, annulées) ? Cela les supprimera de la liste mais ne supprimera aucun fichier téléchargé.",
   clear: "Effacer",
+  
+  // Subscription Pause/Resume
+  pause: "Pause",
+  resume: "Reprendre",
+  pauseSubscription: "Mettre en pause l'abonnement",
+  resumeSubscription: "Reprendre l'abonnement",
+  pauseTask: "Mettre en pause la tâche",
+  resumeTask: "Reprendre la tâche",
+  subscriptionPaused: "Abonnement mis en pause",
+  subscriptionResumed: "Abonnement repris",
+  taskPaused: "Tâche mise en pause",
+  taskResumed: "Tâche reprise",
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
   instructionSection1Desc:

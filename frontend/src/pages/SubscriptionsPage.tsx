@@ -1,4 +1,4 @@
-import { Cancel, Delete, DeleteOutline } from '@mui/icons-material';
+import { Cancel, Delete, DeleteOutline, Pause, PlayArrow } from '@mui/icons-material';
 import {
     Box,
     Button,
@@ -18,9 +18,9 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { useAuth } from '../contexts/AuthContext';
 import { TranslationKey } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -35,6 +35,7 @@ interface Subscription {
     downloadCount: number;
     createdAt: number;
     platform: string;
+    paused?: number;
 }
 
 interface ContinuousDownloadTask {
@@ -182,6 +183,50 @@ const SubscriptionsPage: React.FC = () => {
         }
     };
 
+    const handlePauseSubscription = async (id: string) => {
+        try {
+            await axios.put(`${API_URL}/subscriptions/${id}/pause`);
+            showSnackbar(t('subscriptionPaused'));
+            refetchSubscriptions();
+        } catch (error) {
+            console.error('Error pausing subscription:', error);
+            showSnackbar(t('error'));
+        }
+    };
+
+    const handleResumeSubscription = async (id: string) => {
+        try {
+            await axios.put(`${API_URL}/subscriptions/${id}/resume`);
+            showSnackbar(t('subscriptionResumed'));
+            refetchSubscriptions();
+        } catch (error) {
+            console.error('Error resuming subscription:', error);
+            showSnackbar(t('error'));
+        }
+    };
+
+    const handlePauseTask = async (task: ContinuousDownloadTask) => {
+        try {
+            await axios.put(`${API_URL}/subscriptions/tasks/${task.id}/pause`);
+            showSnackbar(t('taskPaused'));
+            refetchTasks();
+        } catch (error) {
+            console.error('Error pausing task:', error);
+            showSnackbar(t('error'));
+        }
+    };
+
+    const handleResumeTask = async (task: ContinuousDownloadTask) => {
+        try {
+            await axios.put(`${API_URL}/subscriptions/tasks/${task.id}/resume`);
+            showSnackbar(t('taskResumed'));
+            refetchTasks();
+        } catch (error) {
+            console.error('Error resuming task:', error);
+            showSnackbar(t('error'));
+        }
+    };
+
     const getTaskProgress = (task: ContinuousDownloadTask) => {
         if (task.totalVideos === 0) return 0;
         return Math.round((task.currentVideoIndex / task.totalVideos) * 100);
@@ -240,6 +285,23 @@ const SubscriptionsPage: React.FC = () => {
                                             >
                                                 <Delete />
                                             </IconButton>
+                                            {sub.paused ? (
+                                                <IconButton
+                                                    color="success"
+                                                    onClick={() => handleResumeSubscription(sub.id)}
+                                                    title={t('resumeSubscription')}
+                                                >
+                                                    <PlayArrow />
+                                                </IconButton>
+                                            ) : (
+                                                <IconButton
+                                                    color="warning"
+                                                    onClick={() => handlePauseSubscription(sub.id)}
+                                                    title={t('pauseSubscription')}
+                                                >
+                                                    <Pause />
+                                                </IconButton>
+                                            )}
                                         </TableCell>
                                     )}
                                 </TableRow>
@@ -326,6 +388,26 @@ const SubscriptionsPage: React.FC = () => {
                                                             size="small"
                                                         >
                                                             <Cancel />
+                                                        </IconButton>
+                                                    )}
+                                                    {(task.status === 'active') && (
+                                                        <IconButton
+                                                            color="warning"
+                                                            onClick={() => handlePauseTask(task)}
+                                                            title={t('pauseTask')}
+                                                            size="small"
+                                                        >
+                                                            <Pause />
+                                                        </IconButton>
+                                                    )}
+                                                    {(task.status === 'paused') && (
+                                                        <IconButton
+                                                            color="success"
+                                                            onClick={() => handleResumeTask(task)}
+                                                            title={t('resumeTask')}
+                                                            size="small"
+                                                        >
+                                                            <PlayArrow />
                                                         </IconButton>
                                                     )}
                                                     {(task.status === 'completed' || task.status === 'cancelled') && (

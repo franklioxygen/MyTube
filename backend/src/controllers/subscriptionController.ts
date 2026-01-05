@@ -84,6 +84,32 @@ export const deleteSubscription = async (
 };
 
 /**
+ * Pause a subscription
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const pauseSubscription = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  await subscriptionService.pauseSubscription(id);
+  res.status(200).json(successMessage("Subscription paused"));
+};
+
+/**
+ * Resume a subscription
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const resumeSubscription = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  await subscriptionService.resumeSubscription(id);
+  res.status(200).json(successMessage("Subscription resumed"));
+};
+
+/**
  * Get all continuous download tasks
  * Errors are automatically handled by asyncHandler middleware
  */
@@ -119,6 +145,32 @@ export const deleteContinuousDownloadTask = async (
   const { id } = req.params;
   await continuousDownloadService.deleteTask(id);
   res.status(200).json(successMessage("Task deleted"));
+};
+
+/**
+ * Pause a continuous download task
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const pauseContinuousDownloadTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  await continuousDownloadService.pauseTask(id);
+  res.status(200).json(successMessage("Task paused"));
+};
+
+/**
+ * Resume a continuous download task
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const resumeContinuousDownloadTask = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  await continuousDownloadService.resumeTask(id);
+  res.status(200).json(successMessage("Task resumed"));
 };
 
 /**

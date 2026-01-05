@@ -505,6 +505,18 @@ export const ja = {
   confirmClearFinishedTasks:
     "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
   clear: "クリア",
+  
+  // Subscription Pause/Resume
+  pause: "一時停止",
+  resume: "再開",
+  pauseSubscription: "購読を一時停止",
+  resumeSubscription: "購読を再開",
+  pauseTask: "タスクを一時停止",
+  resumeTask: "タスクを再開",
+  subscriptionPaused: "購読が一時停止されました",
+  subscriptionResumed: "購読が再開されました",
+  taskPaused: "タスクが一時停止されました",
+  taskResumed: "タスクが再開されました",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc:

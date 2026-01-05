@@ -496,6 +496,18 @@ export const ko = {
   confirmClearFinishedTasks:
     "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
   clear: "지우기",
+  
+  // Subscription Pause/Resume
+  pause: "일시 중지",
+  resume: "재개",
+  pauseSubscription: "구독 일시 중지",
+  resumeSubscription: "구독 재개",
+  pauseTask: "작업 일시 중지",
+  resumeTask: "작업 재개",
+  subscriptionPaused: "구독이 일시 중지되었습니다",
+  subscriptionResumed: "구독이 재개되었습니다",
+  taskPaused: "작업이 일시 중지되었습니다",
+  taskResumed: "작업이 재개되었습니다",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc:

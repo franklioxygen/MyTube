@@ -519,6 +519,18 @@ export const pt = {
   confirmClearFinishedTasks:
     "Tem certeza de que deseja limpar todas as tarefas concluídas (concluídas, canceladas)? Isso as removerá da lista, mas não excluirá nenhum arquivo baixado.",
   clear: "Limpar",
+  
+  // Subscription Pause/Resume
+  pause: "Pausar",
+  resume: "Retomar",
+  pauseSubscription: "Pausar assinatura",
+  resumeSubscription: "Retomar assinatura",
+  pauseTask: "Pausar tarefa",
+  resumeTask: "Retomar tarefa",
+  subscriptionPaused: "Assinatura pausada",
+  subscriptionResumed: "Assinatura retomada",
+  taskPaused: "Tarefa pausada",
+  taskResumed: "Tarefa retomada",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
   instructionSection1Desc:
