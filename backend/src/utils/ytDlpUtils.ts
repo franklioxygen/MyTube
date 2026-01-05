@@ -548,8 +548,27 @@ export function getAxiosProxyConfig(proxyUrl: string): any {
 
     // Check if this is a SOCKS proxy
     if (protocol.startsWith("socks")) {
+      // Force remote DNS resolution by using socks5h for all socks5 variants
+      // socks-proxy-agent uses socks5h to indicate remote DNS resolution
+      // Remote DNS resolution helps avoid:
+      // - DNS pollution/poisoning on the client side
+      // - DNS blocking by local network
+      // - DNS resolution delays
+      let agentUrl = proxyUrl;
+
+      // Convert socks5 to socks5h (remote DNS resolution)
+      // If user already specified socks5h, keep it as-is
+      if (protocol === "socks5") {
+        agentUrl = proxyUrl.replace("socks5://", "socks5h://");
+        console.log("Converted socks5 to socks5h for remote DNS resolution");
+      } else if (protocol === "socks5h") {
+        // Already using remote DNS, no conversion needed
+        console.log("Using socks5h (remote DNS resolution)");
+      }
+      // Note: socks4/socks4a don't support remote DNS, so we leave them as-is
+
       // Use SocksProxyAgent for SOCKS proxy support
-      const agent = new SocksProxyAgent(proxyUrl);
+      const agent = new SocksProxyAgent(agentUrl);
       return {
         httpAgent: agent,
         httpsAgent: agent,
