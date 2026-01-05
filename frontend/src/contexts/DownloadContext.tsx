@@ -91,6 +91,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             return hasActive || hasQueued ? 2000 : false;
         },
         initialData: initialStatus || { activeDownloads: [], queuedDownloads: [] },
+        // Always fetch fresh data on mount to ensure we have the latest server state
+        refetchOnMount: 'always',
         staleTime: 1000, // Consider data stale after 1 second
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
     });
