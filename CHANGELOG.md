@@ -1,6 +1,20 @@
 # Change Log
 
 
+## v1.7.36 (2026-01-05)
+
+### Feat
+
+- feat: add pause subscription/continous task feature (ff78ddf)
+
+### Style
+
+- style: Update resolution limits in YtDlpSettings (de3a65f)
+
+### Chore
+
+- chore: remove unnecssary files (e6b612b)
+
 ## v1.7.35 (2026-01-05)
 
 ### Fix
