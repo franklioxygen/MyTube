@@ -12,6 +12,7 @@ interface BasicSettingsProps {
 const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, onChange }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
 
     return (
         <Box>
@@ -38,7 +39,7 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, on
                     </Select>
                 </FormControl>
 
-                {userRole !== 'visitor' && (
+                {!isVisitor && (
                     <TextField
                         fullWidth
                         label={t('websiteName')}

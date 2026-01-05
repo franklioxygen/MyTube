@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.34 (2026-01-04)
+
+### Feat
+
+- feat: Add refetchOnMount option to DownloadProvider (91d53f0)
+
 ## v1.7.33 (2026-01-04)
 
 ### Feat

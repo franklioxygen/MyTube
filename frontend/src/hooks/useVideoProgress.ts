@@ -16,6 +16,7 @@ interface UseVideoProgressProps {
  */
 export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
     const queryClient = useQueryClient();
     const [hasViewed, setHasViewed] = useState<boolean>(false);
     const lastProgressSave = useRef<number>(0);
@@ -31,7 +32,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     // Save progress on unmount
     useEffect(() => {
         return () => {
-            if (videoId && currentTimeRef.current > 0 && !isDeletingRef.current && userRole !== 'visitor') {
+            if (videoId && currentTimeRef.current > 0 && !isDeletingRef.current && !isVisitor) {
                 axios.put(`${API_URL}/videos/${videoId}/progress`, { 
                     progress: Math.floor(currentTimeRef.current) 
                 })
@@ -44,7 +45,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         currentTimeRef.current = currentTime;
 
         // Increment view count after 10 seconds
-        if (currentTime > 10 && !hasViewed && videoId && userRole !== 'visitor') {
+        if (currentTime > 10 && !hasViewed && videoId && !isVisitor) {
             setHasViewed(true);
             axios.post(`${API_URL}/videos/${videoId}/view`)
                 .then(res => {
@@ -59,7 +60,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
 
         // Save progress every 5 seconds
         const now = Date.now();
-        if (now - lastProgressSave.current > 5000 && videoId && userRole !== 'visitor') {
+        if (now - lastProgressSave.current > 5000 && videoId && !isVisitor) {
             lastProgressSave.current = now;
             axios.put(`${API_URL}/videos/${videoId}/progress`, { 
                 progress: Math.floor(currentTime) 
