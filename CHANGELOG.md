@@ -1,6 +1,20 @@
 # Change Log
 
 
+## v1.7.33 (2026-01-04)
+
+### Feat
+
+- feat: Add support for SOCKS5 proxies in axios config (695489d)
+
+### Refactor
+
+- refactor: Add default timeout for thumbnail downloads (494b85d)
+
+### Chore
+
+- chore: update doc (a4eaaa3)
+
 ## v1.7.32 (2026-01-04)
 
 ### Style
