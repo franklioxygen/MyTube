@@ -5,6 +5,10 @@
 
 ### Feat
 
+- feat: Add isVisitor check to BasicSettings and useVideoProgress (3e44960)
+
+### Feat
+
 - feat: Add refetchOnMount option to DownloadProvider (91d53f0)
 
 ## v1.7.33 (2026-01-04)
