@@ -32,7 +32,10 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # RECOMMENDED: Use -S (format sort) for reliable resolution limits
 # -S sorts formats by preference and is more reliable than -f filters
 
-# Limit to 2160p maximum
+# Limit to 4320p (8K) maximum
+# -S res:4320
+
+# Limit to 2160p (4K) maximum
 # -S res:2160
 
 # Limit to 1080p maximum (RECOMMENDED)
@@ -62,7 +65,8 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 
 # Download best quality (Recommended for 4K/8K)
 # Note: This will likely use VP9/AV1 codecs which are best for high resolution
-# -S res:2160
+# For 8K: -S res:4320
+# For 4K: -S res:2160
 
 # Download best quality using format selection (Legacy)
 # Note: This may be limited to 1080p due to MP4 compatibility requirements
