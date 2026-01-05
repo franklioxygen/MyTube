@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.7.35 (2026-01-05)
+
+### Fix
+
+- fix: Update SOCKS proxy URL for remote DNS resolution (afb4e20)
+
 ## v1.7.34 (2026-01-04)
 
 ### Feat
