@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '../SettingsPage';
 
 // Mock all external hooks and components
+// Mock all external hooks and components
 const mockSettingsData = { data: {} };
 vi.mock('@tanstack/react-query', () => ({
     useQuery: vi.fn(() => ({
@@ -12,6 +13,13 @@ vi.mock('@tanstack/react-query', () => ({
     useMutation: vi.fn(),
     useQueryClient: vi.fn(() => ({
         invalidateQueries: vi.fn(),
+    })),
+}));
+
+vi.mock('../../hooks/useSettings', () => ({
+    useSettings: vi.fn(() => ({
+        ...mockSettingsData,
+        refetch: vi.fn(),
     })),
 }));
 

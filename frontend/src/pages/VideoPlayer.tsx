@@ -15,10 +15,11 @@ import CommentsSection from '../components/VideoPlayer/CommentsSection';
 import UpNextSidebar from '../components/VideoPlayer/UpNextSidebar';
 import VideoControls from '../components/VideoPlayer/VideoControls';
 import VideoInfo from '../components/VideoPlayer/VideoInfo';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
+import { useSettings } from '../hooks/useSettings';
 import { useVideoCollections } from '../hooks/useVideoCollections';
 import { useVideoMutations } from '../hooks/useVideoMutations';
 import { useVideoPlayerSettings } from '../hooks/useVideoPlayerSettings';
@@ -33,6 +34,7 @@ const VideoPlayer: React.FC = () => {
     const { t } = useLanguage();
     const { videos } = useVideo();
     const { userRole } = useAuth();
+    const { data: settings } = useSettings();
     const isVisitor = userRole === 'visitor';
 
     const [showComments, setShowComments] = useState<boolean>(false);
@@ -79,6 +81,23 @@ const VideoPlayer: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [error, navigate, isVisitor, video]);
+
+    // Update document title
+    useEffect(() => {
+        if (video?.title) {
+            const siteName = settings?.websiteName || 'MyTube';
+            document.title = `${video.title} - ${siteName}`;
+        }
+
+        return () => {
+            // Revert title on cleanup
+            if (settings?.websiteName) {
+                document.title = settings.websiteName;
+            } else {
+                document.title = "MyTube - My Videos, My Rules.";
+            }
+        };
+    }, [video?.title, settings?.websiteName]);
 
     // Use video player settings hook
     const {

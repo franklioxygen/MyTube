@@ -8,8 +8,6 @@ import {
     Snackbar,
     Typography
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -29,6 +27,7 @@ import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSettings } from '../hooks/useSettings';
 import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
@@ -37,7 +36,6 @@ import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
 
-const API_URL = import.meta.env.VITE_API_URL;
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -91,13 +89,7 @@ const SettingsPage: React.FC = () => {
     const isSticky = useStickyButton(observerTarget);
 
     // Fetch settings
-    const { data: settingsData, refetch } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
-            return response.data;
-        }
-    });
+    const { data: settingsData, refetch } = useSettings();
 
     useEffect(() => {
         refetch();

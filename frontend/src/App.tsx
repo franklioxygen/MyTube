@@ -1,4 +1,5 @@
 import { Box, CircularProgress } from '@mui/material';
+import { useEffect } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import BilibiliPartsModal from './components/BilibiliPartsModal';
@@ -11,6 +12,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
+import { useSettings } from './hooks/useSettings';
 import AuthorVideos from './pages/AuthorVideos';
 import CollectionPage from './pages/CollectionPage';
 import DownloadPage from './pages/DownloadPage';
@@ -48,6 +50,15 @@ function AppContent() {
     } = useDownload();
 
     const { isAuthenticated, loginRequired, checkingAuth } = useAuth();
+    const { data: settings } = useSettings();
+
+    useEffect(() => {
+        if (settings?.websiteName) {
+            document.title = settings.websiteName;
+        } else {
+            document.title = "MyTube - My Videos, My Rules.";
+        }
+    }, [settings?.websiteName]);
 
 
 
