@@ -1,6 +1,18 @@
 # Change Log
 
 
+
+## v1.7.37 (2026-01-06)
+
+### Feat
+
+- feat: Add functionality to save author files to collection (023f27c)
+- feat: move author videos to collection (8defbc3)
+
+### Refactor
+
+- refactor: Improve error logging in storage service functions (4ec4926)
+
 ## v1.7.36 (2026-01-05)
 
 ### Feat

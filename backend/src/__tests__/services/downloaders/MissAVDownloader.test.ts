@@ -11,6 +11,7 @@ vi.mock('../../services/storageService', () => ({
 vi.mock('fs-extra', () => ({
   default: {
     ensureDirSync: vi.fn(),
+    ensureFileSync: vi.fn(),
     writeFileSync: vi.fn(),
     removeSync: vi.fn(),
     existsSync: vi.fn(),

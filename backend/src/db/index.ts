@@ -26,22 +26,70 @@ export function configureDatabase(db: Database.Database): void {
   db.pragma("synchronous = NORMAL");
 
   // Set busy timeout to handle concurrent access better
-  db.pragma("busy_timeout = 5000");
+  // Increased to 30 seconds for network filesystems (NFS/SMB) which may have higher latency
+  db.pragma("busy_timeout = 30000");
 
   // Enable foreign keys
   db.pragma("foreign_keys = ON");
 }
 
+/**
+ * Create database connection with retry logic for network filesystems
+ * This helps handle cases where the database file is on NFS/SMB mounts
+ */
+function createDatabaseConnection(
+  retries = 3,
+  delay = 1000
+): Database.Database {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Ensure the database file exists (better-sqlite3 will create it if it doesn't exist)
+      // But we need to ensure the directory is accessible first
+      if (!fs.existsSync(dbPath)) {
+        // Touch the file to ensure it exists before opening
+        fs.ensureFileSync(dbPath);
+        // Small delay to ensure file system has synced (important for network filesystems)
+        if (attempt < retries) {
+          // Use synchronous sleep for initial connection
+          const start = Date.now();
+          while (Date.now() - start < delay) {
+            // Busy wait
+          }
+        }
+      }
+
+      const db = new Database(dbPath);
+      configureDatabase(db);
+      return db;
+    } catch (error: any) {
+      if (error.code === "SQLITE_BUSY" || error.code === "SQLITE_LOCKED") {
+        if (attempt < retries) {
+          console.warn(
+            `Database connection attempt ${attempt} failed (${error.code}), retrying in ${delay}ms...`
+          );
+          const start = Date.now();
+          while (Date.now() - start < delay) {
+            // Busy wait
+          }
+          delay *= 2; // Exponential backoff
+          continue;
+        }
+      }
+      // If it's not a busy/locked error, or we've exhausted retries, throw
+      throw error;
+    }
+  }
+  throw new Error("Failed to create database connection after retries");
+}
+
 // Create database connection with getters that auto-reopen if closed
-let sqliteInstance: Database.Database = new Database(dbPath);
-configureDatabase(sqliteInstance);
+let sqliteInstance: Database.Database = createDatabaseConnection();
 let dbInstance = drizzle(sqliteInstance, { schema });
 
 // Helper to ensure connection is open
 function ensureConnection(): void {
   if (!sqliteInstance.open) {
-    sqliteInstance = new Database(dbPath);
-    configureDatabase(sqliteInstance);
+    sqliteInstance = createDatabaseConnection();
     dbInstance = drizzle(sqliteInstance, { schema });
   }
 }
@@ -74,7 +122,6 @@ export function reinitializeDatabase(): void {
   if (sqliteInstance.open) {
     sqliteInstance.close();
   }
-  sqliteInstance = new Database(dbPath);
-  configureDatabase(sqliteInstance);
+  sqliteInstance = createDatabaseConnection();
   dbInstance = drizzle(sqliteInstance, { schema });
 }
