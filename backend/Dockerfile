@@ -66,7 +66,7 @@ RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https:
     chmod +x /usr/local/bin/cloudflared
 
 # Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
-RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs --break-system-packages
+RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs curl-cffi --break-system-packages
 
 # Environment variables
 ENV NODE_ENV=production

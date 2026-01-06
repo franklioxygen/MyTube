@@ -715,8 +715,27 @@ describe('StorageService', () => {
       const mockVideo = { id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' };
 
       const selectMock = db.select as any;
+
+      (db.update as any).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockReturnValue({
+              get: vi.fn().mockReturnValue({ ...mockVideo }),
+            }),
+          }),
+        }),
+      });
       
-      // 1. atomicUpdateCollection -> getCollectionById
+      // 1. getCollections (called first to check if video is in another collection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([{ c: mockCollection, cv: null }]),
+          }),
+        }),
+      } as any);
+
+      // 2. atomicUpdateCollection -> getCollectionById (for adding to new collection)
       selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
@@ -727,7 +746,18 @@ describe('StorageService', () => {
         }),
       } as any);
 
-      // 2. getVideoById (to check if video exists)
+
+
+      // 2.5 saveCollection -> check if video exists
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({ id: 'v1' }),
+          }),
+        }),
+      } as any);
+
+      // 3. getVideoById (to check if video exists)
       selectMock.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
@@ -736,7 +766,16 @@ describe('StorageService', () => {
         }),
       } as any);
 
-      // 3. saveCollection -> db.insert (called by atomicUpdateCollection)
+      // 4. getCollections (called by moveAllFilesToCollection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([{ c: mockCollection, cv: null }]),
+          }),
+        }),
+      } as any);
+
+      // 5. saveCollection -> db.insert (called by atomicUpdateCollection for new collection)
       const mockRun = vi.fn();
       (db.insert as any).mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
@@ -746,14 +785,14 @@ describe('StorageService', () => {
         }),
       });
 
-      // 4. saveCollection -> db.delete (to remove old collection_videos)
+      // 6. saveCollection -> db.delete (to remove old collection_videos)
       (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
           run: vi.fn(),
         }),
       });
 
-      // 5. saveCollection -> db.insert (to add new collection_videos)
+      // 7. saveCollection -> db.insert (to add new collection_videos)
       (db.insert as any).mockReturnValue({
         values: vi.fn().mockReturnValue({
           run: vi.fn(),
@@ -767,6 +806,133 @@ describe('StorageService', () => {
       
       expect(result).toBeDefined();
       expect(mockRun).toHaveBeenCalled();
+    });
+
+    it('should remove video from current collection before adding to new collection', () => {
+      const currentCollection = { id: '2', title: 'Col 2', videos: ['v1'] };
+      const newCollection = { id: '1', title: 'Col 1', videos: [] };
+      const mockVideo = { id: 'v1', videoFilename: 'vid.mp4', thumbnailFilename: 'thumb.jpg' };
+
+      const selectMock = db.select as any;
+
+      (db.update as any).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockReturnValue({
+              get: vi.fn().mockReturnValue({ ...mockVideo }),
+            }),
+          }),
+        }),
+      });
+      
+      // 1. getCollections (called first to check if video is in another collection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([
+              { c: currentCollection, cv: { videoId: 'v1' } },
+              { c: newCollection, cv: null },
+            ]),
+          }),
+        }),
+      } as any);
+
+      // 2. atomicUpdateCollection -> getCollectionById (for removing from current collection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              all: vi.fn().mockReturnValue([{ c: currentCollection, cv: { videoId: 'v1' } }]),
+            }),
+          }),
+        }),
+      } as any);
+
+      // 3. atomicUpdateCollection -> getCollectionById (for adding to new collection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              all: vi.fn().mockReturnValue([{ c: newCollection, cv: null }]),
+            }),
+          }),
+        }),
+      } as any);
+
+
+
+      // 3.5 saveCollection -> check if video exists (for adding to new collection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({ id: 'v1' }),
+          }),
+        }),
+      } as any);
+
+      // 4. getVideoById (to check if video exists)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue(mockVideo),
+          }),
+        }),
+      } as any);
+
+      // 5. getCollections (called by moveAllFilesToCollection)
+      selectMock.mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([
+              { c: currentCollection, cv: null },
+              { c: newCollection, cv: { videoId: 'v1' } },
+            ]),
+          }),
+        }),
+      } as any);
+
+      // 6. saveCollection -> db.insert (called by atomicUpdateCollection for removing from current)
+      const mockRun1 = vi.fn();
+      (db.insert as any).mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            run: mockRun1,
+          }),
+        }),
+      });
+
+      // 7. saveCollection -> db.insert (called by atomicUpdateCollection for adding to new)
+      const mockRun2 = vi.fn();
+      (db.insert as any).mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            run: mockRun2,
+          }),
+        }),
+      });
+
+      // 8. saveCollection -> db.delete (to remove old collection_videos)
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: vi.fn(),
+        }),
+      });
+
+      // 9. saveCollection -> db.insert (to add new collection_videos)
+      (db.insert as any).mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          run: vi.fn(),
+        }),
+      });
+
+      (fs.existsSync as any).mockReturnValue(true);
+      (fs.moveSync as any).mockImplementation(() => {});
+
+      const result = storageService.addVideoToCollection('1', 'v1');
+      
+      expect(result).toBeDefined();
+      expect(mockRun1).toHaveBeenCalled(); // Should remove from current collection
+      expect(mockRun2).toHaveBeenCalled(); // Should add to new collection
     });
   });
 

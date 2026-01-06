@@ -219,6 +219,10 @@ export function moveSubtitlesToCollection(
     const newSubtitles = [...video.subtitles];
     let subtitlesUpdated = false;
 
+    // Get settings to respect moveSubtitlesToVideoFolder
+    const settings = getSettings();
+    const moveWithVideo = settings.moveSubtitlesToVideoFolder;
+
     newSubtitles.forEach((sub, index) => {
       let currentSubPath = sub.path;
       // Determine existing absolute path
@@ -229,20 +233,19 @@ export function moveSubtitlesToCollection(
           sub.path.replace("/videos/", "")
         );
       } else if (sub.path.startsWith("/subtitles/")) {
-        absoluteSourcePath = path.join(path.dirname(SUBTITLES_DIR), sub.path); // SUBTITLES_DIR is uploads/subtitles
+        absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
       }
 
       let targetSubDir = "";
       let newWebPath = "";
 
-      // Logic:
-      // If it's currently in VIDEOS_DIR (starts with /videos/), it should stay with video -> move to new video folder
-      // If it's currently in SUBTITLES_DIR (starts with /subtitles/), it should move to new mirror folder in SUBTITLES_DIR
-
-      if (sub.path.startsWith("/videos/")) {
+      // Determine target based on moveSubtitlesToVideoFolder setting
+      if (moveWithVideo) {
+        // Always move to video folder
         targetSubDir = path.join(VIDEOS_DIR, collectionName);
         newWebPath = `/videos/${collectionName}/${path.basename(sub.path)}`;
-      } else if (sub.path.startsWith("/subtitles/")) {
+      } else {
+        // Move to central subtitles folder (mirror collection structure)
         targetSubDir = path.join(SUBTITLES_DIR, collectionName);
         newWebPath = `/subtitles/${collectionName}/${path.basename(sub.path)}`;
       }

@@ -87,7 +87,22 @@ export function addVideoToCollection(
   collectionId: string,
   videoId: string
 ): Collection | null {
-  // Use atomicUpdateCollection to handle DB update
+  const allCollections = getCollections();
+
+  // First, check if video is already in another collection and remove it
+  const currentCollection = allCollections.find(
+    (c) => c.videos.includes(videoId) && c.id !== collectionId
+  );
+
+  if (currentCollection) {
+    // Remove video from current collection (but don't move files yet)
+    atomicUpdateCollection(currentCollection.id, (c) => {
+      c.videos = c.videos.filter((v) => v !== videoId);
+      return c;
+    });
+  }
+
+  // Now add video to the new collection
   const collection = atomicUpdateCollection(collectionId, (c) => {
     if (!c.videos.includes(videoId)) {
       c.videos.push(videoId);
@@ -98,10 +113,10 @@ export function addVideoToCollection(
   if (collection) {
     const video = getVideoById(videoId);
     const collectionName = collection.name || collection.title;
-    const allCollections = getCollections();
 
     if (video && collectionName) {
-      // Use file manager to move all files
+      // Use file manager to move all files to the new collection
+      // This will handle moving from the old collection directory (if any) to the new one
       const updates = moveAllFilesToCollection(
         video,
         collectionName,

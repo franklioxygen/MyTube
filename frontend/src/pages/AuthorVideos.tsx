@@ -1,4 +1,4 @@
-import { Delete } from '@mui/icons-material';
+import { CreateNewFolder, Delete } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
@@ -25,23 +25,23 @@ const AuthorVideos: React.FC = () => {
     const { authorName } = useParams<{ authorName: string }>();
     const author = authorName;
     const { videos, loading, deleteVideo } = useVideo();
-    const { collections } = useCollection();
+    const { collections, createCollection, addToCollection } = useCollection();
     const { showSnackbar } = useSnackbar();
     const navigate = useNavigate();
 
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
+    const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
     useEffect(() => {
         if (!author) return;
 
-        if (videos) {
-            const filteredVideos = videos.filter(
-                video => video.author === author
-            );
-            setAuthorVideos(filteredVideos);
-        }
+        const filteredVideos = videos.filter(
+            video => video.author === author
+        );
+        setAuthorVideos(filteredVideos);
     }, [author, videos]);
 
     const handleDeleteAuthor = async () => {
@@ -69,6 +69,67 @@ const AuthorVideos: React.FC = () => {
         }
     };
 
+    const handleOpenCreateCollectionModal = () => {
+        if (!author || !authorVideos.length) return;
+        setIsCreateCollectionModalOpen(true);
+    };
+
+    const handleCreateCollectionFromAuthor = async () => {
+        if (!author || !authorVideos.length) return;
+
+        setIsCreatingCollection(true);
+        try {
+            // Check if collection with this name already exists
+            const existingCollection = collections.find(
+                col => (col.name || col.title) === author
+            );
+
+            let targetCollection;
+
+            if (existingCollection) {
+                // Use existing collection
+                targetCollection = existingCollection;
+            } else {
+                // Create new collection with first video (this will create the collection and add the first video)
+                const firstVideo = authorVideos[0];
+                const newCollection = await createCollection(author, firstVideo.id);
+
+                if (!newCollection) {
+                    throw new Error('Failed to create collection');
+                }
+
+                targetCollection = newCollection;
+            }
+
+            // Get videos that are not already in the target collection
+            const videosToAdd = authorVideos.filter(
+                video => !targetCollection.videos.includes(video.id)
+            );
+
+            // Add videos to the collection
+            if (videosToAdd.length > 0) {
+                await Promise.all(
+                    videosToAdd.map(video =>
+                        addToCollection(targetCollection.id, video.id)
+                    )
+                );
+            }
+
+            // Show appropriate success message
+            if (existingCollection) {
+                showSnackbar(t('videosAddedToCollection'));
+            } else {
+                showSnackbar(t('collectionCreatedFromAuthor'));
+            }
+            setIsCreateCollectionModalOpen(false);
+        } catch (error) {
+            console.error('Error creating collection from author:', error);
+            showSnackbar(t('failedToCreateCollectionFromAuthor'), 'error');
+        } finally {
+            setIsCreatingCollection(false);
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -80,6 +141,51 @@ const AuthorVideos: React.FC = () => {
 
     // Show all videos for the author (no collection filtering)
     const filteredVideos = authorVideos;
+
+    // Build confirmation message
+    const getCreateCollectionMessage = (): string => {
+        // Check if collection with this name already exists
+        const existingCollection = collections.find(
+            col => (col.name || col.title) === author
+        );
+
+        // Check which videos are already in other collections (not the target collection)
+        const videosInOtherCollections = authorVideos.filter(video => {
+            if (existingCollection && existingCollection.videos.includes(video.id)) {
+                return false; // Already in target collection, skip
+            }
+            return collections.some(collection => collection.videos.includes(video.id));
+        });
+
+        // Check which videos are not in the target collection
+        const videosNotInTarget = existingCollection
+            ? authorVideos.filter(video => !existingCollection.videos.includes(video.id))
+            : authorVideos;
+
+        if (existingCollection) {
+            // Using existing collection
+            if (videosInOtherCollections.length > 0) {
+                return t('addVideosToExistingCollectionConfirmationWithMove' as any, {
+                    author: author || '',
+                    count: videosNotInTarget.length,
+                    moveCount: videosInOtherCollections.length
+                });
+            }
+            return t('addVideosToExistingCollectionConfirmation' as any, {
+                author: author || '',
+                count: videosNotInTarget.length
+            });
+        } else {
+            // Creating new collection
+            if (videosInOtherCollections.length > 0) {
+                return t('createCollectionFromAuthorConfirmationWithMove' as any, {
+                    author: author || '',
+                    count: videosInOtherCollections.length
+                });
+            }
+            return t('createCollectionFromAuthorConfirmation' as any, { author: author || '' });
+        }
+    };
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -94,15 +200,30 @@ const AuthorVideos: React.FC = () => {
                                 {author || t('unknownAuthor')}
                             </Typography>
                             {authorVideos.length > 0 && (
-                                <Tooltip title={t('deleteAuthor')}>
-                                    <IconButton
-                                        color="error"
-                                        onClick={() => setIsDeleteModalOpen(true)}
-                                        aria-label="delete author"
-                                    >
-                                        <Delete />
-                                    </IconButton>
-                                </Tooltip>
+                                <>
+                                    <Tooltip title={t('createCollectionFromAuthorTooltip')}>
+                                        <IconButton
+                                            color="primary"
+                                            onClick={handleOpenCreateCollectionModal}
+                                            disabled={isCreatingCollection || isDeleting}
+                                            aria-label="create collection from author"
+                                        >
+                                            <CreateNewFolder />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={t('deleteAuthor')}>
+                                        <IconButton
+                                            color="error"
+                                            onClick={() => {
+                                                setIsDeleteModalOpen(true);
+                                            }}
+                                            disabled={isCreatingCollection || isDeleting}
+                                            aria-label="delete author"
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Tooltip>
+                                </>
                             )}
                         </Box>
                         <Typography variant="subtitle1" color="text.secondary">
@@ -131,13 +252,35 @@ const AuthorVideos: React.FC = () => {
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}
-                onClose={() => setIsDeleteModalOpen(false)}
+                onClose={() => {
+                    setIsDeleteModalOpen(false);
+                }}
                 onConfirm={handleDeleteAuthor}
                 title={t('deleteAuthor')}
                 message={t('deleteAuthorConfirmation', { author: author || '' })}
                 confirmText={isDeleting ? t('deleting') : t('delete')}
                 cancelText={t('cancel')}
                 isDanger={true}
+            />
+
+            <ConfirmationModal
+                isOpen={isCreateCollectionModalOpen}
+                onClose={() => {
+                    setIsCreateCollectionModalOpen(false);
+                }}
+                onConfirm={handleCreateCollectionFromAuthor}
+                title={(() => {
+                    const existingCollection = collections.find(
+                        col => (col.name || col.title) === author
+                    );
+                    return existingCollection
+                        ? t('addVideosToCollection' as any)
+                        : t('createCollectionFromAuthor');
+                })()}
+                message={getCreateCollectionMessage()}
+                confirmText={isCreatingCollection ? t('creatingCollection') : t('create')}
+                cancelText={t('cancel')}
+                isDanger={false}
             />
         </Container>
     );

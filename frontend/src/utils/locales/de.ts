@@ -1,16 +1,17 @@
 export const de = {
+  // Header
   myTube: "MyTube",
   manage: "Verwalten",
   settings: "Einstellungen",
   logout: "Abmelden",
-  pleaseEnterUrlOrSearchTerm:
-    "Bitte geben Sie eine Video-URL oder einen Suchbegriff ein",
-  unexpectedErrorOccurred:
-    "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+  pleaseEnterUrlOrSearchTerm: "Bitte geben Sie eine Video-URL oder einen Suchbegriff ein",
+  unexpectedErrorOccurred: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
   uploadVideo: "Video Hochladen",
   enterUrlOrSearchTerm: "Video-URL oder Suchbegriff eingeben",
   manageVideos: "Videos Verwalten",
   instruction: "Anleitung",
+
+  // Home
   pasteUrl: "Video- oder Sammlungs-URL einfügen",
   download: "Herunterladen",
   search: "Suchen",
@@ -25,9 +26,10 @@ export const de = {
   fromYouTube: "Von YouTube",
   loadingYouTubeResults: "YouTube-Ergebnisse werden geladen...",
   noYouTubeResults: "Keine YouTube-Ergebnisse gefunden",
-  noVideosYet:
-    "Noch keine Videos. Reichen Sie eine Video-URL ein, um Ihr erstes herunterzuladen!",
+  noVideosYet: "Noch keine Videos. Reichen Sie eine Video-URL ein, um Ihr erstes herunterzuladen!",
   views: "Aufrufe",
+
+  // Settings
   general: "Allgemein",
   security: "Sicherheit",
   videoDefaults: "Player-Standardeinstellungen",
@@ -45,25 +47,20 @@ export const de = {
   websiteName: "Website-Name",
   websiteNameHelper: "{current}/{max} Zeichen (Standard: {default})",
   infiniteScroll: "Unendliches Scrollen",
-  infiniteScrollDisabled:
-    "Deaktiviert, wenn unendliches Scrollen aktiviert ist",
+  infiniteScrollDisabled: "Deaktiviert, wenn unendliches Scrollen aktiviert ist",
   maxVideoColumns: "Maximale Videospalten (Startseite)",
   videoColumns: "Videospalten (Startseite)",
   columnsCount: "{count} Spalten",
   enableLogin: "Anmeldeschutz aktivieren",
   allowPasswordLogin: "Passwort-Anmeldung zulassen",
-  allowPasswordLoginHelper:
-    "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
+  allowPasswordLoginHelper: "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
   allowResetPassword: "Passwort zurücksetzen zulassen",
-  allowResetPasswordHelper:
-    "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
+  allowResetPasswordHelper: "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
   password: "Passwort",
   enterPassword: "Passwort eingeben",
   togglePasswordVisibility: "Passwort sichtbar machen",
-  passwordHelper:
-    "Leer lassen, um das aktuelle Passwort beizubehalten, oder eingeben, um es zu ändern",
-  passwordSetHelper:
-    "Legen Sie ein Passwort für den Zugriff auf die Anwendung fest",
+  passwordHelper: "Leer lassen, um das aktuelle Passwort beizubehalten, oder eingeben, um es zu ändern",
+  passwordSetHelper: "Legen Sie ein Passwort für den Zugriff auf die Anwendung fest",
   autoPlay: "Automatische Wiedergabe",
   autoLoop: "Automatische Schleife",
   maxConcurrent: "Max. gleichzeitige Downloads",
@@ -73,27 +70,22 @@ export const de = {
   settingsSaved: "Einstellungen erfolgreich gespeichert",
   settingsFailed: "Fehler beim Speichern der Einstellungen",
   debugMode: "Debug-Modus",
-  debugModeDescription:
-    "Konsolenmeldungen anzeigen oder ausblenden (erfordert Aktualisierung)",
+  debugModeDescription: "Konsolenmeldungen anzeigen oder ausblenden (erfordert Aktualisierung)",
   pauseOnFocusLoss: "Pause bei Fokusverlust",
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
   tags: "Tags",
-  tagsManagementNote:
-    'Bitte denken Sie daran, nach dem Hinzufügen oder Entfernen von Tags auf "Einstellungen speichern" zu klicken, um die Änderungen zu übernehmen.',
+  // Database
   database: "Datenbank",
-  migrateDataDescription:
-    "Daten von Legacy-JSON-Dateien zur neuen SQLite-Datenbank migrieren. Diese Aktion kann sicher mehrmals ausgeführt werden (Duplikate werden übersprungen).",
+  migrateDataDescription: "Daten von Legacy-JSON-Dateien zur neuen SQLite-Datenbank migrieren. Diese Aktion kann sicher mehrmals ausgeführt werden (Duplikate werden übersprungen).",
   migrateDataButton: "Daten aus JSON migrieren",
   scanFiles: "Dateien Scannen",
   scanFilesSuccess: "Scan abgeschlossen. {count} neue Videos hinzugefügt.",
   scanFilesDeleted: " {count} fehlende Dateien entfernt.",
   scanFilesFailed: "Scan fehlgeschlagen",
-  scanFilesConfirmMessage:
-    "Das System scannt den Stammordner des Videopfads. Neue Dateien werden hinzugefügt und fehlende Videodateien werden aus dem System entfernt.",
+  scanFilesConfirmMessage: "Das System scannt den Stammordner des Videopfads. Neue Dateien werden hinzugefügt und fehlende Videodateien werden aus dem System entfernt.",
   scanning: "Scannen...",
-  migrateConfirmation:
-    "Sind Sie sicher, dass Sie Daten migrieren möchten? Dies kann einige Momente dauern.",
+  migrateConfirmation: "Sind Sie sicher, dass Sie Daten migrieren möchten? Dies kann einige Momente dauern.",
   migrationResults: "Migrationsergebnisse",
   migrationReport: "Migrationsbericht",
   migrationSuccess: "Migration abgeschlossen. Details in der Warnung anzeigen.",
@@ -103,40 +95,61 @@ export const de = {
   migrationErrors: "FEHLER",
   itemsMigrated: "Elemente migriert",
   fileNotFound: "Datei nicht gefunden unter",
-  noDataFilesFound:
-    "Keine Datendateien zum Migrieren gefunden. Bitte überprüfen Sie Ihre Volume-Zuordnungen.",
+  noDataFilesFound: "Keine Datendateien zum Migrieren gefunden. Bitte überprüfen Sie Ihre Volume-Zuordnungen.",
   removeLegacyData: "Legacy-Daten Entfernen",
-  removeLegacyDataDescription:
-    "Löschen Sie die alten JSON-Dateien, um Speicherplatz freizugeben. Tun Sie dies nur, nachdem Sie überprüft haben, dass Ihre Daten erfolgreich migriert wurden.",
+  removeLegacyDataDescription: "Löschen Sie die alten JSON-Dateien, um Speicherplatz freizugeben. Tun Sie dies nur, nachdem Sie überprüft haben, dass Ihre Daten erfolgreich migriert wurden.",
   removeLegacyDataConfirmTitle: "Legacy-Daten löschen?",
-  removeLegacyDataConfirmMessage:
-    "Sind Sie sicher, dass Sie die Legacy-JSON-Datendateien löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+  removeLegacyDataConfirmMessage: "Sind Sie sicher, dass Sie die Legacy-JSON-Datendateien löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   legacyDataDeleted: "Legacy-Daten erfolgreich gelöscht.",
   formatLegacyFilenames: "Veraltete Dateinamen formatieren",
-  formatLegacyFilenamesDescription:
-    "Benennen Sie alle Videodateien, Thumbnails und Untertitel im Stapel in das neue Standardformat um: Titel-Autor-JJJJ. Dieser Vorgang ändert Dateinamen auf dem Datenträger und aktualisiert die Datenbanklogik.",
+  formatLegacyFilenamesDescription: "Benennen Sie alle Videodateien, Thumbnails und Untertitel im Stapel in das neue Standardformat um: Titel-Autor-JJJJ. Dieser Vorgang ändert Dateinamen auf dem Datenträger und aktualisiert die Datenbanklogik.",
   formatLegacyFilenamesButton: "Dateinamen formatieren",
-  formatFilenamesSuccess:
-    "Bearbeitet: {processed}\nUmbenannt: {renamed}\nFehler: {errors}",
+  deleteLegacyDataButton: "Veraltete Daten löschen",
+  cleanupTempFiles: "Temporäre Dateien bereinigen",
+  cleanupTempFilesDescription: "Alle temporären Download-Dateien (.ytdl, .part) aus dem Upload-Verzeichnis entfernen. Dies hilft, Speicherplatz von unvollständigen oder abgebrochenen Downloads freizugeben.",
+  cleanupTempFilesConfirmTitle: "Temporäre Dateien bereinigen?",
+  cleanupTempFilesConfirmMessage: "Dadurch werden alle .ytdl- und .part-Dateien im Upload-Verzeichnis dauerhaft gelöscht. Stellen Sie sicher, dass keine Downloads aktiv sind, bevor Sie fortfahren.",
+
+  // Task Hooks
+  taskHooks: "Aufgaben-Hoks",
+  taskHooksDescription: "Führen Sie benutzerdefinierte Shell-Befehle an bestimmten Punkten im Aufgabenlebenszyklus aus. Verfügbare Umgebungsvariablen: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning: "Warnung: Befehle werden mit den Berechtigungen des Servers ausgeführt. Mit Vorsicht verwenden.",
+  hookTaskBeforeStart: "Vor Aufgabenstart",
+  hookTaskBeforeStartHelper: "Wird ausgeführt, bevor der Download beginnt.",
+  hookTaskSuccess: "Aufgabe Erfolgreich",
+  hookTaskSuccessHelper: "Wird nach erfolgreichem Download ausgeführt, vor Cloud-Upload/Löschung (wartet auf Abschluss).",
+  hookTaskFail: "Aufgabe Fehlgeschlagen",
+  hookTaskFailHelper: "Wird ausgeführt, wenn eine Aufgabe fehlschlägt.",
+  hookTaskCancel: "Aufgabe Abgebrochen",
+  hookTaskCancelHelper: "Wird ausgeführt, wenn eine Aufgabe manuell abgebrochen wird.",
+  found: "Gefunden",
+  notFound: "Nicht Gesetzt",
+  deleteHook: "Hook-Skript Löschen",
+  confirmDeleteHook: "Sind Sie sicher, dass Sie dieses Hook-Skript löschen möchten?",
+  uploadHook: "Hochladen .sh",
+  enterPasswordToUploadHook: "Bitte geben Sie Ihr Passwort ein, um dieses Hook-Skript hochzuladen.",
+  riskCommandDetected: "Risikobefehl erkannt: {command}. Upload abgelehnt.",
+  cleanupTempFilesActiveDownloads: "Temporäre Dateien können nicht bereinigt werden, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie zuerst ab.",
+  formatFilenamesSuccess: "Bearbeitet: {processed}\nUmbenannt: {renamed}\nFehler: {errors}",
   formatFilenamesDetails: "Details:",
   formatFilenamesMore: "...und {count} weitere",
   formatFilenamesError: "Fehler beim Formatieren der Dateinamen: {error}",
-  deleteLegacyDataButton: "Veraltete Daten löschen",
-  cleanupTempFiles: "Temporäre Dateien bereinigen",
-  cleanupTempFilesDescription:
-    "Alle temporären Download-Dateien (.ytdl, .part) aus dem Upload-Verzeichnis entfernen. Dies hilft, Speicherplatz von unvollständigen oder abgebrochenen Downloads freizugeben.",
-  cleanupTempFilesConfirmTitle: "Temporäre Dateien bereinigen?",
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
+  visitorUser: "Besucher-Benutzer",
+  enableVisitorUser: "Besucher-Benutzer aktivieren",
+  visitorUserHelper: "Aktivieren Sie ein separates Besucherkonto mit schreibgeschütztem Zugriff. Besucher können Inhalte ansehen, aber keine Änderungen vornehmen.",
+  visitorPassword: "Besucher-Passwort",
+  visitorPasswordHelper: "Legen Sie das Passwort für das Besucherkonto fest.",
+  visitorPasswordSetHelper: "Passwort ist gesetzt. Leer lassen, um es zu behalten.",
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 
   // Cookie Settings
   cookieSettings: "Cookie-Einstellungen",
-  cookieUploadDescription:
-    'Laden Sie cookies.txt hoch, um YouTube-Bot-Prüfungen zu bestehen und Bilibili-Untertitel-Downloads zu aktivieren. Die Datei wird automatisch in cookies.txt umbenannt. (Beispiel: Verwenden Sie die Erweiterung "Get cookies.txt LOCALLY" zum Exportieren von Cookies)',
+  cookieUploadDescription: "Laden Sie cookies.txt hoch, um YouTube-Bot-Prüfungen zu bestehen und Bilibili-Untertitel-Downloads zu aktivieren. Die Datei wird automatisch in cookies.txt umbenannt. (Beispiel: Verwenden Sie die Erweiterung \"Get cookies.txt LOCALLY\" zum Exportieren von Cookies)",
   uploadCookies: "Cookies hochladen",
   onlyTxtFilesAllowed: "Nur .txt-Dateien erlaubt",
   cookiesUploadedSuccess: "Cookies erfolgreich hochgeladen",
@@ -144,66 +157,51 @@ export const de = {
   cookiesFound: "cookies.txt gefunden",
   cookiesNotFound: "cookies.txt nicht gefunden",
   deleteCookies: "Cookies löschen",
-  confirmDeleteCookies:
-    "Sind Sie sicher, dass Sie die Cookie-Datei löschen möchten? Dies beeinträchtigt Ihre Fähigkeit, altersbeschränkte oder nur für Mitglieder zugängliche Videos herunterzuladen.",
+  confirmDeleteCookies: "Sind Sie sicher, dass Sie die Cookie-Datei löschen möchten? Dies beeinträchtigt Ihre Fähigkeit, altersbeschränkte oder nur für Mitglieder zugängliche Videos herunterzuladen.",
   cookiesDeletedSuccess: "Cookies erfolgreich gelöscht",
   cookiesDeleteFailed: "Fehler beim Löschen der Cookies",
 
   // Cloud Drive
   cloudDriveSettings: "Cloud-Speicher (OpenList)",
-  cloudDriveDescription:
-    "Videos automatisch in den Cloud-Speicher (Alist) hochladen und nach neuen Dateien in der Cloud suchen. Lokale Dateien werden nach erfolgreichem Upload gelöscht.",
+  cloudDriveDescription: "Videos automatisch in den Cloud-Speicher (Alist) hochladen und nach neuen Dateien in der Cloud suchen. Lokale Dateien werden nach erfolgreichem Upload gelöscht.",
   enableAutoSave: "Cloud-Synchronisierung aktivieren",
   apiUrl: "API-URL",
   apiUrlHelper: "z.B. https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "Öffentliche URL",
-  publicUrlHelper:
-    "Öffentliche Domain für den Dateizugriff (z.B. https://your-cloudflare-tunnel-domain.com). Wenn gesetzt, wird diese anstelle der API-URL für den Dateizugriff verwendet.",
+  publicUrlHelper: "Öffentliche Domain für den Dateizugriff (z.B. https://your-cloudflare-tunnel-domain.com). Wenn gesetzt, wird diese anstelle der API-URL für den Dateizugriff verwendet.",
   uploadPath: "Upload-Pfad",
-  cloudDrivePathHelper:
-    "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
+  cloudDrivePathHelper: "Verzeichnispfad im Cloud-Speicher, z.B. /mytube-uploads",
   scanPaths: "Scan-Pfade",
-  scanPathsHelper:
-    "Ein Pfad pro Zeile. Videos werden von diesen Pfaden gescannt. Wenn leer, wird der Upload-Pfad verwendet. Beispiel:\n/a/Filme\n/b/Dokumentationen",
-  cloudDriveNote:
-    "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
+  scanPathsHelper: "Ein Pfad pro Zeile. Videos werden von diesen Pfaden gescannt. Wenn leer, wird der Upload-Pfad verwendet. Beispiel:\n/a/Filme\n/b/Dokumentationen",
+  cloudDriveNote: "Nach Aktivierung dieser Funktion werden neu heruntergeladene Videos automatisch in den Cloud-Speicher hochgeladen und lokale Dateien werden gelöscht. Videos werden über einen Proxy aus dem Cloud-Speicher abgespielt.",
   cloudScanAdded: "Aus Cloud hinzugefügt",
   testing: "Teste...",
   testConnection: "Verbindung testen",
   sync: "Synchronisieren",
   syncToCloud: "Zwei-Wege-Synchronisierung",
-  syncWarning:
-    "Dieser Vorgang lädt lokale Videos in die Cloud hoch und sucht im Cloud-Speicher nach neuen Dateien. Lokale Dateien werden nach dem Upload gelöscht.",
+  syncWarning: "Dieser Vorgang lädt lokale Videos in die Cloud hoch und sucht im Cloud-Speicher nach neuen Dateien. Lokale Dateien werden nach dem Upload gelöscht.",
   syncing: "Synchronisiere...",
   syncCompleted: "Synchronisation abgeschlossen",
   syncFailed: "Synchronisation fehlgeschlagen",
-  syncReport:
-    "Gesamt: {total} | Hochgeladen: {uploaded} | Fehlgeschlagen: {failed}",
+  syncReport: "Gesamt: {total} | Hochgeladen: {uploaded} | Fehlgeschlagen: {failed}",
   syncErrors: "Fehler:",
   fillApiUrlToken: "Bitte füllen Sie zuerst API-URL und Token aus",
-  connectionTestSuccess:
-    "Verbindungstest erfolgreich! Einstellungen sind gültig.",
-  connectionFailedStatus:
-    "Verbindung fehlgeschlagen: Server gab Status {status} zurück",
-  connectionFailedUrl:
-    "Kann nicht mit Server verbinden. Bitte überprüfen Sie die API-URL.",
-  authFailed:
-    "Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihr Token.",
+  connectionTestSuccess: "Verbindungstest erfolgreich! Einstellungen sind gültig.",
+  connectionFailedStatus: "Verbindung fehlgeschlagen: Server gab Status {status} zurück",
+  connectionFailedUrl: "Kann nicht mit Server verbinden. Bitte überprüfen Sie die API-URL.",
+  authFailed: "Authentifizierung fehlgeschlagen. Bitte überprüfen Sie Ihr Token.",
   connectionTestFailed: "Verbindungstest fehlgeschlagen: {error}",
-  syncFailedMessage:
-    "Synchronisierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
-  foundVideosToSync:
-    "{count} Videos mit lokalen Dateien zum Synchronisieren gefunden",
+  syncFailedMessage: "Synchronisierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  foundVideosToSync: "{count} Videos mit lokalen Dateien zum Synchronisieren gefunden",
   uploadingVideo: "Lade hoch: {title}",
   clearThumbnailCache: "Lokalen Thumbnail-Cache leeren",
   clearing: "Leeren...",
-  clearThumbnailCacheSuccess:
-    "Thumbnail-Cache erfolgreich geleert. Thumbnails werden beim nächsten Zugriff neu generiert.",
+  clearThumbnailCacheSuccess: "Thumbnail-Cache erfolgreich geleert. Thumbnails werden beim nächsten Zugriff neu generiert.",
   clearThumbnailCacheError: "Fehler beim Leeren des Thumbnail-Caches",
-  clearThumbnailCacheConfirmMessage:
-    "Dies löscht alle lokal zwischengespeicherten Thumbnails für Cloud-Videos. Thumbnails werden beim nächsten Zugriff aus dem Cloud-Speicher neu generiert. Fortfahren?",
+  clearThumbnailCacheConfirmMessage: "Dies löscht alle lokal zwischengespeicherten Thumbnails für Cloud-Videos. Thumbnails werden beim nächsten Zugriff aus dem Cloud-Speicher neu generiert. Fortfahren?",
 
+  // Manage
   manageContent: "Inhalte Verwalten",
   videos: "Videos",
   collections: "Sammlungen",
@@ -228,6 +226,9 @@ export const de = {
   deleteCollection: "Sammlung Löschen",
   deleteVideo: "Video Löschen",
   noVideosFoundMatching: "Keine Videos gefunden, die Ihrer Suche entsprechen.",
+  refreshThumbnail: "Vorschaubild aktualisieren",
+
+  // Video Player
   playing: "Abspielen",
   paused: "Pause",
   next: "Weiter",
@@ -237,22 +238,20 @@ export const de = {
   autoPlayOff: "Automatische Wiedergabe Aus",
   autoPlayNext: "Nächstes automatisch abspielen",
   videoNotFound: "Video nicht gefunden",
-  videoNotFoundOrLoaded:
-    "Video nicht gefunden oder konnte nicht geladen werden.",
+  videoNotFoundOrLoaded: "Video nicht gefunden oder konnte nicht geladen werden.",
   deleting: "Löschen...",
   addToCollection: "Zu Sammlung Hinzufügen",
   originalLink: "Originallink",
   source: "Quelle:",
   addedDate: "Hinzugefügt am:",
-  latestComments: "Neueste Kommentare",
   hideComments: "Kommentare ausblenden",
   showComments: "Kommentare anzeigen",
+  latestComments: "Neueste Kommentare",
   noComments: "Keine Kommentare verfügbar.",
   upNext: "Als Nächstes",
   noOtherVideos: "Keine anderen Videos verfügbar",
   currentlyIn: "Derzeit in:",
-  collectionWarning:
-    "Das Hinzufügen zu einer anderen Sammlung entfernt es aus der aktuellen.",
+  collectionWarning: "Das Hinzufügen zu einer anderen Sammlung entfernt es aus der aktuellen.",
   addToExistingCollection: "Zu bestehender Sammlung hinzufügen:",
   selectCollection: "Sammlung auswählen",
   add: "Hinzufügen",
@@ -260,8 +259,7 @@ export const de = {
   collectionName: "Sammlungsname",
   create: "Erstellen",
   removeFromCollection: "Aus Sammlung Entfernen",
-  confirmRemoveFromCollection:
-    "Sind Sie sicher, dass Sie dieses Video aus der Sammlung entfernen möchten?",
+  confirmRemoveFromCollection: "Sind Sie sicher, dass Sie dieses Video aus der Sammlung entfernen möchten?",
   remove: "Entfernen",
   loadingVideo: "Video wird geladen...",
   current: "(Aktuell)",
@@ -275,13 +273,11 @@ export const de = {
   toggleVisibility: "Sichtbarkeit Umschalten",
   titleUpdated: "Titel erfolgreich aktualisiert",
   titleUpdateFailed: "Fehler beim Aktualisieren des Titels",
-  refreshThumbnail: "Vorschaubild aktualisieren",
   thumbnailRefreshed: "Vorschaubild erfolgreich aktualisiert",
   thumbnailRefreshFailed: "Aktualisierung des Vorschaubilds fehlgeschlagen",
   videoUpdated: "Video erfolgreich aktualisiert",
   videoUpdateFailed: "Videoaktualisierung fehlgeschlagen",
-  failedToLoadVideos:
-    "Videos konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+  failedToLoadVideos: "Videos konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
   videoRemovedSuccessfully: "Video erfolgreich entfernt",
   failedToDeleteVideo: "Löschen des Videos fehlgeschlagen",
   pleaseEnterSearchTerm: "Bitte geben Sie einen Suchbegriff ein",
@@ -290,79 +286,87 @@ export const de = {
   openInExternalPlayer: "In externem Player öffnen",
   playWith: "Abspielen mit...",
   deleteAllFilteredVideos: "Alle gefilterten Videos löschen",
-  confirmDeleteFilteredVideos:
-    "Sind Sie sicher, dass Sie {count} Videos löschen möchten, die nach den ausgewählten Tags gefiltert wurden?",
+  confirmDeleteFilteredVideos: "Sind Sie sicher, dass Sie {count} Videos löschen möchten, die nach den ausgewählten Tags gefiltert wurden?",
   deleteFilteredVideosSuccess: "Erfolgreich {count} Videos gelöscht.",
   deletingVideos: "Videos werden gelöscht...",
+
+  // Login
   signIn: "Anmelden",
+  admin: "Admin",
+  visitorSignIn: "Besucher-Anmeldung",
+  orVisitor: "ODER BESUCHER",
   verifying: "Überprüfen...",
   incorrectPassword: "Falsches Passwort",
   loginFailed: "Fehler beim Überprüfen des Passworts",
   defaultPasswordHint: "Standardpasswort: 123",
   checkingConnection: "Verbindung wird überprüft...",
   connectionError: "Verbindungsfehler",
-  backendConnectionFailed:
-    "Verbindung zum Server nicht möglich. Bitte überprüfen Sie, ob das Backend läuft und der Port geöffnet ist, und versuchen Sie es erneut.",
+  backendConnectionFailed: "Verbindung zum Server nicht möglich. Bitte überprüfen Sie, ob das Backend läuft und der Port geöffnet ist, und versuchen Sie es erneut.",
   retry: "Wiederholen",
   resetPassword: "Passwort zurücksetzen",
   resetPasswordTitle: "Passwort zurücksetzen",
-  resetPasswordMessage:
-    "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
+  resetPasswordMessage: "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
   resetPasswordConfirm: "Zurücksetzen",
-  resetPasswordSuccess:
-    "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
-  resetPasswordDisabledInfo:
-    "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
-  resetPasswordScriptGuide:
-    "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
+  resetPasswordSuccess: "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
+  resetPasswordDisabledInfo: "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
+  resetPasswordScriptGuide: "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
   // Passkeys
   createPasskey: "Passkey erstellen",
   creatingPasskey: "Wird erstellt...",
   passkeyCreated: "Passkey erfolgreich erstellt",
-  passkeyCreationFailed:
-    "Passkey konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+  passkeyCreationFailed: "Passkey konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+  passkeyWebAuthnNotSupported: "WebAuthn wird in diesem Browser nicht unterstützt. Bitte verwenden Sie einen modernen Browser, der WebAuthn unterstützt.",
+  passkeyRequiresHttps: "WebAuthn erfordert HTTPS oder localhost. Bitte greifen Sie über HTTPS auf die Anwendung zu oder verwenden Sie localhost anstelle einer IP-Adresse.",
   removePasskeys: "Alle Passkeys entfernen",
   removePasskeysTitle: "Alle Passkeys entfernen",
-  removePasskeysMessage:
-    "Sind Sie sicher, dass Sie alle Passkeys entfernen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+  removePasskeysMessage: "Sind Sie sicher, dass Sie alle Passkeys entfernen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   passkeysRemoved: "Alle Passkeys wurden entfernt",
-  passkeysRemoveFailed:
-    "Passkeys konnten nicht entfernt werden. Bitte versuchen Sie es erneut.",
+  passkeysRemoveFailed: "Passkeys konnten nicht entfernt werden. Bitte versuchen Sie es erneut.",
   loginWithPasskey: "Mit Passkey anmelden",
   authenticating: "Wird authentifiziert...",
-  passkeyLoginFailed:
-    "Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
-  passkeyErrorPermissionDenied:
-    "Die Anfrage wird vom Benutzer-Agenten oder der Plattform im aktuellen Kontext nicht zugelassen, möglicherweise weil der Benutzer die Berechtigung verweigert hat.",
-  passkeyErrorAlreadyRegistered:
-    "Der Authentifikator wurde bereits zuvor registriert.",
+  passkeyLoginFailed: "Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+  passkeyErrorPermissionDenied: "Die Anfrage wird vom Benutzer-Agenten oder der Plattform im aktuellen Kontext nicht zugelassen, möglicherweise weil der Benutzer die Berechtigung verweigert hat.",
+  passkeyErrorAlreadyRegistered: "Der Authentifikator wurde bereits zuvor registriert.",
   linkCopied: "Link in die Zwischenablage kopiert",
   copyFailed: "Link konnte nicht kopiert werden",
-  passkeyRequiresHttps:
-    "WebAuthn erfordert HTTPS oder localhost. Bitte greifen Sie über HTTPS auf die Anwendung zu oder verwenden Sie localhost anstelle einer IP-Adresse.",
-  passkeyWebAuthnNotSupported:
-    "WebAuthn wird in diesem Browser nicht unterstützt. Bitte verwenden Sie einen modernen Browser, der WebAuthn unterstützt.",
+  copyUrl: "URL kopieren",
+
+  // Collection Page
   loadingCollection: "Sammlung wird geladen...",
   collectionNotFound: "Sammlung nicht gefunden",
   noVideosInCollection: "Keine Videos in dieser Sammlung.",
   back: "Zurück",
-  loadVideosError:
-    "Fehler beim Laden der Videos. Bitte versuchen Sie es später erneut.",
+
+  // Author Videos
+  loadVideosError: "Fehler beim Laden der Videos. Bitte versuchen Sie es später erneut.",
   unknownAuthor: "Unbekannt",
   noVideosForAuthor: "Keine Videos für diesen Autor gefunden.",
   deleteAuthor: "Autor löschen",
-  deleteAuthorConfirmation:
-    "Sind Sie sicher, dass Sie den Autor {author} löschen möchten? Dies löscht alle Videos dieses Autors.",
+  deleteAuthorConfirmation: "Sind Sie sicher, dass Sie den Autor {author} löschen möchten? Dies löscht alle Videos dieses Autors.",
   authorDeletedSuccessfully: "Autor erfolgreich gelöscht",
   failedToDeleteAuthor: "Fehler beim Löschen des Autors",
+  createCollectionFromAuthor: "Sammlung vom Autor erstellen",
+  createCollectionFromAuthorTooltip: "Alle Videos dieses Autors in eine Sammlung verschieben",
+  creatingCollection: "Sammlung wird erstellt...",
+  collectionCreatedFromAuthor: "Sammlung erstellt und alle Videos erfolgreich verschoben",
+  failedToCreateCollectionFromAuthor: "Fehler beim Erstellen der Sammlung",
+  collectionAlreadyExists: "Eine Sammlung mit diesem Namen existiert bereits",
+  createCollectionFromAuthorConfirmation: "Eine Sammlung namens \"{author}\" wird erstellt und alle Videos dieses Autors werden dorthin verschoben. Fortfahren?",
+  createCollectionFromAuthorConfirmationWithMove: "Eine Sammlung namens \"{author}\" wird erstellt und alle Videos dieses Autors werden dorthin verschoben. {count} Video(s), die sich derzeit in anderen Sammlungen befinden, werden in diese neue Sammlung verschoben. Fortfahren?",
+  addVideosToCollection: "Videos zur Sammlung hinzufügen",
+  addVideosToExistingCollectionConfirmation: "{count} Video(s) von Autor \"{author}\" zur bestehenden Sammlung \"{author}\" hinzufügen. Fortfahren?",
+  addVideosToExistingCollectionConfirmationWithMove: "{count} Video(s) von Autor \"{author}\" zur bestehenden Sammlung \"{author}\" hinzufügen. {moveCount} Video(s), die sich derzeit in anderen Sammlungen befinden, werden in diese Sammlung verschoben. Fortfahren?",
+
+  // Delete Collection Modal
   deleteCollectionTitle: "Sammlung Löschen",
-  deleteCollectionConfirmation:
-    "Sind Sie sicher, dass Sie die Sammlung löschen möchten",
+  deleteCollectionConfirmation: "Sind Sie sicher, dass Sie die Sammlung löschen möchten",
   collectionContains: "Diese Sammlung enthält",
   deleteCollectionOnly: "Nur Sammlung Löschen",
   deleteCollectionAndVideos: "Sammlung und Alle Videos Löschen",
+
+  // Common
   loading: "Laden...",
   error: "Fehler",
   success: "Erfolg",
@@ -377,28 +381,35 @@ export const de = {
   continue: "Weiter",
   expand: "Erweitern",
   collapse: "Einklappen",
+
+  // Video Card
   unknownDate: "Unbekanntes Datum",
   part: "Teil",
   collection: "Sammlung",
+  new: "NEU",
   justNow: "Gerade eben",
   hoursAgo: "vor {hours} Stunden",
   today: "Heute",
   thisWeek: "Diese Woche",
   weeksAgo: "vor {weeks} Wochen",
+
+  // Upload Modal
   selectVideoFile: "Videodatei Auswählen",
   pleaseSelectVideo: "Bitte wählen Sie eine Videodatei aus",
   uploadFailed: "Upload fehlgeschlagen",
   failedToUpload: "Fehler beim Hochladen des Videos",
   uploading: "Hochladen...",
   upload: "Hochladen",
+
+  // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili-Sammlung Erkannt",
   bilibiliSeriesDetected: "Bilibili-Serie Erkannt",
   multiPartVideoDetected: "Mehrteiliges Video Erkannt",
   authorOrPlaylist: "Autor / Wiedergabeliste",
   playlistDetected: "Wiedergabeliste erkannt",
   playlistHasVideos: "Diese Wiedergabeliste hat {count} Videos.",
-  downloadPlaylistAndCreateCollection:
-    "Videos der Wiedergabeliste herunterladen und eine Sammlung dafür erstellen?",
+  downloadPlaylistAndCreateCollection: "Videos der Wiedergabeliste herunterladen und eine Sammlung dafür erstellen?",
+  playlistDownloadStarted: "Playlist-Download gestartet",
   collectionHasVideos: "Diese Bilibili-Sammlung hat {count} Videos.",
   seriesHasVideos: "Diese Bilibili-Serie hat {count} Videos.",
   videoHasParts: "Dieses Bilibili-Video hat {count} Teile.",
@@ -413,6 +424,7 @@ export const de = {
   allVideosAddedToCollection: "Alle Videos werden dieser Sammlung hinzugefügt",
   queued: "In Warteschlange",
   waitingInQueue: "Warten in Warteschlange",
+
   // Downloads
   downloads: "Downloads",
   activeDownloads: "Aktive Downloads",
@@ -429,19 +441,21 @@ export const de = {
   historyCleared: "Verlauf gelöscht",
   removedFromQueue: "Aus der Warteschlange entfernt",
   removedFromHistory: "Aus dem Verlauf entfernt",
-  previouslyDeletedVideo: "Zuvor gelöschtes Video",
-  previouslyDeleted: "Zuvor gelöscht",
-  videoWasDeleted: "Dieses Video wurde bereits heruntergeladen, aber gelöscht.",
-  downloadStartedSuccessfully: "Download erfolgreich gestartet",
-  collectionCreatedSuccessfully: "Sammlung erfolgreich erstellt",
-  videoAddedToCollection: "Video zur Sammlung hinzugefügt",
-  videoRemovedFromCollection: "Video aus der Sammlung entfernt",
-  collectionDeletedSuccessfully: "Sammlung erfolgreich gelöscht",
-  failedToDeleteCollection: "Fehler beim Löschen der Sammlung",
+  status: "Status",
   progress: "Fortschritt",
   speed: "Geschwindigkeit",
   finishedAt: "Beendet am",
   failed: "Fehlgeschlagen",
+
+  // Snackbar Messages
+  videoDownloading: "Video wird heruntergeladen",
+  downloadStartedSuccessfully: "Download erfolgreich gestartet",
+  collectionCreatedSuccessfully: "Sammlung erfolgreich erstellt",
+  videoAddedToCollection: "Video zur Sammlung hinzugefügt",
+  videosAddedToCollection: "Videos zur Sammlung hinzugefügt",
+  videoRemovedFromCollection: "Video aus der Sammlung entfernt",
+  collectionDeletedSuccessfully: "Sammlung erfolgreich gelöscht",
+  failedToDeleteCollection: "Fehler beim Löschen der Sammlung",
 
   // Batch Download
   batchDownload: "Stapel-Download",
@@ -454,8 +468,7 @@ export const de = {
   // Subscriptions
   subscribeToAuthor: "Autor abonnieren",
   subscribeConfirmationMessage: "Möchten Sie {author} abonnieren?",
-  subscribeDescription:
-    "Das System prüft automatisch auf neue Videos dieses Autors und lädt sie herunter.",
+  subscribeDescription: "Das System prüft automatisch auf neue Videos dieses Autors und lädt sie herunter.",
   checkIntervalMinutes: "Prüfintervall (Minuten)",
   subscribe: "Abonnieren",
   subscriptions: "Abonnements",
@@ -463,17 +476,14 @@ export const de = {
   lastCheck: "Letzte Prüfung",
   platform: "Plattform",
   unsubscribe: "Deabonnieren",
-  confirmUnsubscribe:
-    "Sind Sie sicher, dass Sie {author} deabonnieren möchten?",
+  confirmUnsubscribe: "Sind Sie sicher, dass Sie {author} deabonnieren möchten?",
   subscribedSuccessfully: "Erfolgreich abonniert",
   unsubscribedSuccessfully: "Erfolgreich deabonniert",
   subscriptionAlreadyExists: "Sie haben diesen Autor bereits abonniert.",
   minutes: "Minuten",
   never: "Nie",
-  downloadAllPreviousVideos:
-    "Alle vorherigen Videos dieses Autors herunterladen",
-  downloadAllPreviousWarning:
-    "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
+  downloadAllPreviousVideos: "Alle vorherigen Videos dieses Autors herunterladen",
+  downloadAllPreviousWarning: "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
   continuousDownloadTasks: "Kontinuierliche Download-Aufgaben",
   taskStatusActive: "Aktiv",
   taskStatusPaused: "Pausiert",
@@ -481,19 +491,16 @@ export const de = {
   taskStatusCancelled: "Abgebrochen",
   downloaded: "Heruntergeladen",
   cancelTask: "Aufgabe abbrechen",
-  confirmCancelTask:
-    "Sind Sie sicher, dass Sie die Download-Aufgabe für {author} abbrechen möchten?",
+  confirmCancelTask: "Sind Sie sicher, dass Sie die Download-Aufgabe für {author} abbrechen möchten?",
   taskCancelled: "Aufgabe erfolgreich abgebrochen",
   deleteTask: "Aufgabe löschen",
-  confirmDeleteTask:
-    "Sind Sie sicher, dass Sie den Aufgaben-Datensatz für {author} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+  confirmDeleteTask: "Sind Sie sicher, dass Sie den Aufgaben-Datensatz für {author} löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
   taskDeleted: "Aufgabe erfolgreich gelöscht",
   clearFinishedTasks: "Beendete Aufgaben löschen",
   tasksCleared: "Beendete Aufgaben erfolgreich gelöscht",
-  confirmClearFinishedTasks:
-    "Sind Sie sicher, dass Sie alle beendeten Aufgaben (abgeschlossen, abgebrochen) löschen möchten? Dies entfernt sie aus der Liste, löscht aber keine heruntergeladenen Dateien.",
+  confirmClearFinishedTasks: "Sind Sie sicher, dass Sie alle beendeten Aufgaben (abgeschlossen, abgebrochen) löschen möchten? Dies entfernt sie aus der Liste, löscht aber keine heruntergeladenen Dateien.",
   clear: "Löschen",
-  
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Fortsetzen",
@@ -507,69 +514,59 @@ export const de = {
   taskResumed: "Aufgabe fortgesetzt",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
-  instructionSection1Desc:
-    "Dieses Modul umfasst Videoerfassung, Batch-Aufgaben und Dateiimportfunktionen.",
+  instructionSection1Desc: "Dieses Modul umfasst Videoerfassung, Batch-Aufgaben und Dateiimportfunktionen.",
   instructionSection1Sub1: "Link-Download:",
   instructionSection1Item1Label: "Basis-Download:",
-  instructionSection1Item1Text:
-    "Fügen Sie Links von verschiedenen Videoseiten in das Eingabefeld ein, um direkt herunterzuladen.",
+  instructionSection1Item1Text: "Fügen Sie Links von verschiedenen Videoseiten in das Eingabefeld ein, um direkt herunterzuladen.",
   instructionSection1Item2Label: "Berechtigungen:",
-  instructionSection1Item2Text:
-    "Für Seiten, die eine Mitgliedschaft oder Anmeldung erfordern, melden Sie sich bitte zuerst in einem neuen Browser-Tab im entsprechenden Konto an, um Download-Berechtigungen zu erhalten.",
+  instructionSection1Item2Text: "Für Seiten, die eine Mitgliedschaft oder Anmeldung erfordern, melden Sie sich bitte zuerst in einem neuen Browser-Tab im entsprechenden Konto an, um Download-Berechtigungen zu erhalten.",
   instructionSection1Sub2: "Intelligente Erkennung:",
   instructionSection1Item3Label: "YouTube-Autoren-Abonnement:",
-  instructionSection1Item3Text:
-    "Wenn der eingefügte Link der Kanal eines Autors ist, fragt das System, ob Sie abonnieren möchten. Nach dem Abonnieren kann das System automatisch nach Updates des Autors in festgelegten Intervallen suchen und diese herunterladen.",
+  instructionSection1Item3Text: "Wenn der eingefügte Link der Kanal eines Autors ist, fragt das System, ob Sie abonnieren möchten. Nach dem Abonnieren kann das System automatisch nach Updates des Autors in festgelegten Intervallen suchen und diese herunterladen.",
   instructionSection1Item4Label: "Bilibili-Sammlungs-Download:",
-  instructionSection1Item4Text:
-    "Wenn der eingefügte Link ein Bilibili-Favorit/Sammlung ist, fragt das System, ob Sie den gesamten Inhalt der Sammlung herunterladen möchten.",
+  instructionSection1Item4Text: "Wenn der eingefügte Link ein Bilibili-Favorit/Sammlung ist, fragt das System, ob Sie den gesamten Inhalt der Sammlung herunterladen möchten.",
   instructionSection1Sub3: "Erweiterte Tools (Download-Verwaltungsseite):",
   instructionSection1Item5Label: "Batch-Aufgaben hinzufügen:",
-  instructionSection1Item5Text:
-    "Unterstützt das Einfügen mehrerer Download-Links auf einmal (einer pro Zeile) für das Batch-Hinzufügen.",
+  instructionSection1Item5Text: "Unterstützt das Einfügen mehrerer Download-Links auf einmal (einer pro Zeile) für das Batch-Hinzufügen.",
   instructionSection1Item6Label: "Dateien scannen:",
-  instructionSection1Item6Text:
-    "Sucht automatisch nach allen Dateien im Videospeicher-Stammverzeichnis und Ordnern der ersten Ebene. Diese Funktion eignet sich zum Synchronisieren von Dateien mit dem System, nachdem Administratoren sie manuell im Server-Backend abgelegt haben.",
+  instructionSection1Item6Text: "Sucht automatisch nach allen Dateien im Videospeicher-Stammverzeichnis und Ordnern der ersten Ebene. Diese Funktion eignet sich zum Synchronisieren von Dateien mit dem System, nachdem Administratoren sie manuell im Server-Backend abgelegt haben.",
   instructionSection1Item7Label: "Video hochladen:",
-  instructionSection1Item7Text:
-    "Unterstützt das Hochladen lokaler Videodateien direkt vom Client auf den Server.",
+  instructionSection1Item7Text: "Unterstützt das Hochladen lokaler Videodateien direkt vom Client auf den Server.",
 
   instructionSection2Title: "2. Videobibliotheksverwaltung",
-  instructionSection2Desc:
-    "Verwalten und bearbeiten Sie heruntergeladene oder importierte Videoressourcen.",
+  instructionSection2Desc: "Verwalten und bearbeiten Sie heruntergeladene oder importierte Videoressourcen.",
   instructionSection2Sub1: "Sammlungs-/Video-Löschung:",
-  instructionSection2Text1:
-    "Beim Löschen einer Sammlung auf der Verwaltungsseite bietet das System zwei Optionen: nur das Sammlungslistenelement löschen (Dateien behalten) oder die physischen Dateien innerhalb der Sammlung vollständig löschen.",
+  instructionSection2Text1: "Beim Löschen einer Sammlung auf der Verwaltungsseite bietet das System zwei Optionen: nur das Sammlungslistenelement löschen (Dateien behalten) oder die physischen Dateien innerhalb der Sammlung vollständig löschen.",
   instructionSection2Sub2: "Thumbnail-Reparatur:",
-  instructionSection2Text2:
-    "Wenn ein Video nach dem Herunterladen kein Cover hat, klicken Sie auf die Aktualisieren-Schaltfläche auf dem Video-Thumbnail, und das System erfasst den ersten Frame des Videos erneut als neues Thumbnail.",
+  instructionSection2Text2: "Wenn ein Video nach dem Herunterladen kein Cover hat, klicken Sie auf die Aktualisieren-Schaltfläche auf dem Video-Thumbnail, und das System erfasst den ersten Frame des Videos erneut als neues Thumbnail.",
 
   instructionSection3Title: "3. Systemeinstellungen",
-  instructionSection3Desc:
-    "Systemparameter konfigurieren, Daten verwalten und Funktionen erweitern.",
+  instructionSection3Desc: "Systemparameter konfigurieren, Daten verwalten und Funktionen erweitern.",
   instructionSection3Sub1: "Sicherheitseinstellungen:",
-  instructionSection3Text1:
-    "Legen Sie das System-Login-Passwort fest (das Standard-Initialpasswort ist 123, es wird empfohlen, es nach dem ersten Login zu ändern).",
+  instructionSection3Text1: "Legen Sie das System-Login-Passwort fest (das Standard-Initialpasswort ist 123, es wird empfohlen, es nach dem ersten Login zu ändern).",
   instructionSection3Sub2: "Tag-Verwaltung:",
-  instructionSection3Text2:
-    'Unterstützt das Hinzufügen oder Löschen von Videoklassifizierungs-Tags. Hinweis: Sie müssen auf die Schaltfläche "Speichern" unten auf der Seite klicken, damit Änderungen wirksam werden.',
+  instructionSection3Text2: "Unterstützt das Hinzufügen oder Löschen von Videoklassifizierungs-Tags. Hinweis: Sie müssen auf die Schaltfläche \"Speichern\" unten auf der Seite klicken, damit Änderungen wirksam werden.",
   instructionSection3Sub3: "Systemwartung:",
   instructionSection3Item1Label: "Temporäre Dateien bereinigen:",
-  instructionSection3Item1Text:
-    "Wird verwendet, um restliche temporäre Download-Dateien zu löschen, die durch gelegentliche Backend-Fehler verursacht wurden, um Speicherplatz freizugeben.",
+  instructionSection3Item1Text: "Wird verwendet, um restliche temporäre Download-Dateien zu löschen, die durch gelegentliche Backend-Fehler verursacht wurden, um Speicherplatz freizugeben.",
   instructionSection3Item2Label: "Datenbankmigration:",
-  instructionSection3Item2Text:
-    "Entwickelt für Benutzer früherer Versionen. Verwenden Sie diese Funktion, um Daten von JSON in die neue SQLite-Datenbank zu migrieren. Klicken Sie nach erfolgreicher Migration auf die Löschen-Schaltfläche, um alte Verlaufsdaten zu bereinigen.",
+  instructionSection3Item2Text: "Entwickelt für Benutzer früherer Versionen. Verwenden Sie diese Funktion, um Daten von JSON in die neue SQLite-Datenbank zu migrieren. Klicken Sie nach erfolgreicher Migration auf die Löschen-Schaltfläche, um alte Verlaufsdaten zu bereinigen.",
   instructionSection3Sub4: "Erweiterte Dienste:",
   instructionSection3Item3Label: "OpenList Cloud Drive:",
-  instructionSection3Item3Text:
-    "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
+  instructionSection3Item3Text: "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
+
+  // Disclaimer
+  disclaimerTitle: "Haftungsausschluss",
+  disclaimerText: "1. Zweck und Einschränkungen\nDiese Software (einschließlich Code und Dokumentation) ist ausschließlich für persönliches Lernen, Forschung und technischen Austausch bestimmt. Es ist strengstens untersagt, diese Software für kommerzielle Zwecke oder illegale Aktivitäten zu verwenden, die gegen lokale Gesetze und Vorschriften verstoßen.\n\n2. Haftung\nDer Entwickler hat keine Kontrolle darüber, wie Benutzer diese Software verwenden. Jegliche rechtliche Haftung, Streitigkeiten oder Schäden, die aus der illegalen oder unsachgemäßen Verwendung dieser Software entstehen (einschließlich, aber nicht beschränkt auf Urheberrechtsverletzungen), liegen allein beim Benutzer. Der Entwickler übernimmt keine direkte, indirekte oder gesamtschuldnerische Haftung.\n\n3. Änderungen und Verbreitung\nDieses Projekt ist Open Source. Jede Einzelperson oder Organisation, die diesen Code ändert oder forkt, muss die Open-Source-Lizenz einhalten. Wichtig: Wenn Dritte den Code ändern, um die ursprünglichen Benutzerauthentifizierungs-/Sicherheitsmechanismen zu umgehen oder zu entfernen, und solche Versionen verbreiten, trägt der Modifikator/Verteiler die volle Verantwortung für alle Konsequenzen. Wir raten dringend davon ab, Sicherheitsüberprüfungsmechanismen zu umgehen oder zu manipulieren.\n\n4. Gemeinnützige Erklärung\nDies ist ein komplett kostenloses Open-Source-Projekt. Der Entwickler akzeptiert keine Spenden und hat nie Spendenseiten veröffentlicht. Die Software selbst erlaubt keine Gebühren und bietet keine kostenpflichtigen Dienste an. Bitte seien Sie wachsam und hüten Sie sich vor Betrug oder irreführenden Informationen, die behaupten, Gebühren im Namen dieses Projekts zu erheben.",
   history: "Verlauf",
-  downloading: "Herunterladen...",
-  poweredBy: "Bereitgestellt von MyTube",
+
+  // Existing Video Detection
   existingVideoDetected: "Vorhandenes Video erkannt",
   videoAlreadyDownloaded: "Dieses Video wurde bereits heruntergeladen.",
   viewVideo: "Video ansehen",
+  previouslyDeletedVideo: "Zuvor gelöschtes Video",
+  previouslyDeleted: "Zuvor gelöscht",
+  videoWasDeleted: "Dieses Video wurde bereits heruntergeladen, aber gelöscht.",
   downloadAgain: "Erneut herunterladen",
   downloadedOn: "Heruntergeladen am",
   deletedOn: "Gelöscht am",
@@ -577,6 +574,8 @@ export const de = {
   skipped: "Übersprungen",
   videoSkippedExists: "Video existiert bereits, Download übersprungen",
   videoSkippedDeleted: "Video wurde zuvor gelöscht, Download übersprungen",
+  downloading: "Herunterladen...",
+  poweredBy: "Bereitgestellt von MyTube",
 
   // Sorting
   sort: "Sortieren",
@@ -590,8 +589,7 @@ export const de = {
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp Konfiguration",
-  ytDlpConfigurationDescription:
-    "Konfigurieren Sie yt-dlp Download-Optionen. Siehe",
+  ytDlpConfigurationDescription: "Konfigurieren Sie yt-dlp Download-Optionen. Siehe",
   ytDlpConfigurationDocs: "Dokumentation",
   ytDlpConfigurationDescriptionEnd: "für weitere Informationen.",
   customize: "Anpassen",
@@ -602,49 +600,17 @@ export const de = {
   moveSubtitlesToVideoFolder: "Untertitel-Speicherort",
   moveSubtitlesToVideoFolderOn: "Zusammen mit Video",
   moveSubtitlesToVideoFolderOff: "Im isolierten Untertitel-Ordner",
-  moveSubtitlesToVideoFolderDescription:
-    "Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.",
+  moveSubtitlesToVideoFolderDescription: "Wenn aktiviert, werden Untertiteldateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Untertitelordner verschoben.",
   moveThumbnailsToVideoFolder: "Thumbnail-Speicherort",
   moveThumbnailsToVideoFolderOn: "Zusammen mit Video",
   moveThumbnailsToVideoFolderOff: "In isoliertem Bilderordner",
-  moveThumbnailsToVideoFolderDescription:
-    "Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.",
-
-  // Database Export/Import
-  exportImportDatabase: "Datenbank Exportieren/Importieren",
-  exportImportDatabaseDescription:
-    "Exportieren Sie Ihre Datenbank als Backup-Datei oder importieren Sie ein zuvor exportiertes Backup. Der Import überschreibt vorhandene Daten mit den Backup-Daten.",
-  exportDatabase: "Datenbank Exportieren",
-  importDatabase: "Datenbank Importieren",
-  onlyDbFilesAllowed: "Nur .db-Dateien erlaubt",
-  importDatabaseWarning:
-    "Warnung: Das Importieren einer Datenbank überschreibt alle vorhandenen Daten. Stellen Sie sicher, dass Sie zuerst Ihre aktuelle Datenbank als Backup exportieren.",
-  selectDatabaseFile: "Datenbankdatei Auswählen",
-  databaseExportedSuccess: "Datenbank erfolgreich exportiert",
-  databaseExportFailed: "Fehler beim Exportieren der Datenbank",
-  databaseImportedSuccess:
-    "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
-  databaseImportFailed: "Fehler beim Importieren der Datenbank",
-  cleanupBackupDatabases: "Backup-Datenbanken Bereinigen",
-  cleanupBackupDatabasesWarning:
-    "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
-  backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
-  backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",
-  restoreFromLastBackup: "Von Letztem Backup Wiederherstellen",
-  restoreFromLastBackupWarning:
-    "Warnung: Dies stellt die Datenbank aus der letzten automatischen Backup-Datei wieder her. Alle aktuellen Daten werden durch die Backup-Daten überschrieben. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
-  restoreFromLastBackupSuccess:
-    "Datenbank erfolgreich aus Backup wiederhergestellt",
-  restoreFromLastBackupFailed: "Fehler beim Wiederherstellen aus Backup",
-  lastBackupDate: "Datum des letzten Backups",
-  noBackupAvailable: "Kein Backup verfügbar",
+  moveThumbnailsToVideoFolderDescription: "Wenn aktiviert, werden Thumbnail-Dateien in denselben Ordner wie die Videodatei verschoben. Wenn deaktiviert, werden sie in den isolierten Bilderordner verschoben.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare Tunnel",
   enableCloudflaredTunnel: "Cloudflare Tunnel aktivieren",
   cloudflaredToken: "Tunnel-Token (Optional)",
-  cloudflaredTokenHelper:
-    "Fügen Sie hier Ihr Tunnel-Token ein oder lassen Sie es leer, um einen zufälligen Quick Tunnel zu verwenden.",
+  cloudflaredTokenHelper: "Fügen Sie hier Ihr Tunnel-Token ein oder lassen Sie es leer, um einen zufälligen Quick Tunnel zu verwenden.",
   waitingForUrl: "Warte auf Quick Tunnel URL...",
   running: "Läuft",
   stopped: "Gestoppt",
@@ -652,60 +618,31 @@ export const de = {
   accountTag: "Konto-Tag",
   copied: "Kopiert!",
   clickToCopy: "Zum Kopieren klicken",
-  quickTunnelWarning:
-    "Quick Tunnel URLs ändern sich bei jedem Neustart des Tunnels.",
-  managedInDashboard:
-    "Öffentlicher Hostname wird in Ihrem Cloudflare Zero Trust Dashboard verwaltet.",
-  failedToDownloadVideo:
-    "Fehler beim Herunterladen des Videos. Bitte versuchen Sie es erneut.",
-  failedToDownload: "Fehler beim Herunterladen. Bitte versuchen Sie es erneut.",
-  playlistDownloadStarted: "Playlist-Download gestartet",
-  cleanupTempFilesConfirmMessage:
-    "Dadurch werden alle .ytdl- und .part-Dateien im Upload-Verzeichnis dauerhaft gelöscht. Stellen Sie sicher, dass keine Downloads aktiv sind, bevor Sie fortfahren.",
-  cleanupTempFilesActiveDownloads:
-    "Temporäre Dateien können nicht bereinigt werden, während Downloads aktiv sind. Bitte warten Sie, bis alle Downloads abgeschlossen sind, oder brechen Sie sie zuerst ab.",
-  status: "Status",
-  videoDownloading: "Video wird heruntergeladen",
-  copyUrl: "URL kopieren",
-  new: "NEU",
-  // Task Hooks
-  taskHooks: "Aufgaben-Hoks",
-  taskHooksDescription:
-    "Führen Sie benutzerdefinierte Shell-Befehle an bestimmten Punkten im Aufgabenlebenszyklus aus. Verfügbare Umgebungsvariablen: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
-  taskHooksWarning:
-    "Warnung: Befehle werden mit den Berechtigungen des Servers ausgeführt. Mit Vorsicht verwenden.",
-  enterPasswordToUploadHook:
-    "Bitte geben Sie Ihr Passwort ein, um dieses Hook-Skript hochzuladen.",
-  riskCommandDetected: "Risikobefehl erkannt: {command}. Upload abgelehnt.",
-  hookTaskBeforeStart: "Vor Aufgabenstart",
-  hookTaskBeforeStartHelper: "Wird ausgeführt, bevor der Download beginnt.",
-  hookTaskSuccess: "Aufgabe Erfolgreich",
-  hookTaskSuccessHelper:
-    "Wird nach erfolgreichem Download ausgeführt, vor Cloud-Upload/Löschung (wartet auf Abschluss).",
-  hookTaskFail: "Aufgabe Fehlgeschlagen",
-  hookTaskFailHelper: "Wird ausgeführt, wenn eine Aufgabe fehlschlägt.",
-  hookTaskCancel: "Aufgabe Abgebrochen",
-  hookTaskCancelHelper:
-    "Wird ausgeführt, wenn eine Aufgabe manuell abgebrochen wird.",
-  found: "Gefunden",
-  notFound: "Nicht Gesetzt",
-  deleteHook: "Hook-Skript Löschen",
-  confirmDeleteHook:
-    "Sind Sie sicher, dass Sie dieses Hook-Skript löschen möchten?",
-  uploadHook: "Hochladen .sh",
+  quickTunnelWarning: "Quick Tunnel URLs ändern sich bei jedem Neustart des Tunnels.",
+  managedInDashboard: "Öffentlicher Hostname wird in Ihrem Cloudflare Zero Trust Dashboard verwaltet.",
 
-  disclaimerTitle: "Haftungsausschluss",
-  disclaimerText:
-    "1. Zweck und Einschränkungen\nDiese Software (einschließlich Code und Dokumentation) ist ausschließlich für persönliches Lernen, Forschung und technischen Austausch bestimmt. Es ist strengstens untersagt, diese Software für kommerzielle Zwecke oder illegale Aktivitäten zu verwenden, die gegen lokale Gesetze und Vorschriften verstoßen.\n\n2. Haftung\nDer Entwickler hat keine Kontrolle darüber, wie Benutzer diese Software verwenden. Jegliche rechtliche Haftung, Streitigkeiten oder Schäden, die aus der illegalen oder unsachgemäßen Verwendung dieser Software entstehen (einschließlich, aber nicht beschränkt auf Urheberrechtsverletzungen), liegen allein beim Benutzer. Der Entwickler übernimmt keine direkte, indirekte oder gesamtschuldnerische Haftung.\n\n3. Änderungen und Verbreitung\nDieses Projekt ist Open Source. Jede Einzelperson oder Organisation, die diesen Code ändert oder forkt, muss die Open-Source-Lizenz einhalten. Wichtig: Wenn Dritte den Code ändern, um die ursprünglichen Benutzerauthentifizierungs-/Sicherheitsmechanismen zu umgehen oder zu entfernen, und solche Versionen verbreiten, trägt der Modifikator/Verteiler die volle Verantwortung für alle Konsequenzen. Wir raten dringend davon ab, Sicherheitsüberprüfungsmechanismen zu umgehen oder zu manipulieren.\n\n4. Gemeinnützige Erklärung\nDies ist ein komplett kostenloses Open-Source-Projekt. Der Entwickler akzeptiert keine Spenden und hat nie Spendenseiten veröffentlicht. Die Software selbst erlaubt keine Gebühren und bietet keine kostenpflichtigen Dienste an. Bitte seien Sie wachsam und hüten Sie sich vor Betrug oder irreführenden Informationen, die behaupten, Gebühren im Namen dieses Projekts zu erheben.",
-  // Visitor Mode
-  admin: "Admin",
-  visitorSignIn: "Besucher-Anmeldung",
-  visitorUser: "Besucher-Benutzer",
-  enableVisitorUser: "Besucher-Benutzer aktivieren",
-  visitorUserHelper:
-    "Aktivieren Sie ein separates Besucherkonto mit schreibgeschütztem Zugriff. Besucher können Inhalte ansehen, aber keine Änderungen vornehmen.",
-  visitorPassword: "Besucher-Passwort",
-  visitorPasswordHelper: "Legen Sie das Passwort für das Besucherkonto fest.",
-  visitorPasswordSetHelper:
-    "Passwort ist gesetzt. Leer lassen, um es zu behalten.",
+  // Database Export/Import
+  exportImportDatabase: "Datenbank Exportieren/Importieren",
+  exportImportDatabaseDescription: "Exportieren Sie Ihre Datenbank als Backup-Datei oder importieren Sie ein zuvor exportiertes Backup. Der Import überschreibt vorhandene Daten mit den Backup-Daten.",
+  exportDatabase: "Datenbank Exportieren",
+  importDatabase: "Datenbank Importieren",
+  onlyDbFilesAllowed: "Nur .db-Dateien erlaubt",
+  importDatabaseWarning: "Warnung: Das Importieren einer Datenbank überschreibt alle vorhandenen Daten. Stellen Sie sicher, dass Sie zuerst Ihre aktuelle Datenbank als Backup exportieren.",
+  selectDatabaseFile: "Datenbankdatei Auswählen",
+  databaseExportedSuccess: "Datenbank erfolgreich exportiert",
+  databaseExportFailed: "Fehler beim Exportieren der Datenbank",
+  databaseImportedSuccess: "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
+  databaseImportFailed: "Fehler beim Importieren der Datenbank",
+  cleanupBackupDatabases: "Backup-Datenbanken Bereinigen",
+  cleanupBackupDatabasesWarning: "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
+  backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
+  backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",
+  restoreFromLastBackup: "Von Letztem Backup Wiederherstellen",
+  restoreFromLastBackupWarning: "Warnung: Dies stellt die Datenbank aus der letzten automatischen Backup-Datei wieder her. Alle aktuellen Daten werden durch die Backup-Daten überschrieben. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
+  restoreFromLastBackupSuccess: "Datenbank erfolgreich aus Backup wiederhergestellt",
+  restoreFromLastBackupFailed: "Fehler beim Wiederherstellen aus Backup",
+  lastBackupDate: "Datum des letzten Backups",
+  noBackupAvailable: "Kein Backup verfügbar",
+  failedToDownloadVideo: "Fehler beim Herunterladen des Videos. Bitte versuchen Sie es erneut.",
+  failedToDownload: "Fehler beim Herunterladen. Bitte versuchen Sie es erneut.",
 };

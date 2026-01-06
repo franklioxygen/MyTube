@@ -5,8 +5,7 @@ export const ko = {
   settings: "설정",
   logout: "로그아웃",
   pleaseEnterUrlOrSearchTerm: "동영상 URL 또는 검색어를 입력하세요",
-  unexpectedErrorOccurred:
-    "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.",
+  unexpectedErrorOccurred: "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.",
   uploadVideo: "동영상 업로드",
   enterUrlOrSearchTerm: "동영상 URL 또는 검색어 입력",
   manageVideos: "동영상 관리",
@@ -27,8 +26,7 @@ export const ko = {
   fromYouTube: "YouTube에서",
   loadingYouTubeResults: "YouTube 결과 로드 중...",
   noYouTubeResults: "YouTube 결과 없음",
-  noVideosYet:
-    "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
+  noVideosYet: "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
   views: "조회수",
 
   // Settings
@@ -55,11 +53,9 @@ export const ko = {
   columnsCount: "{count} 열",
   enableLogin: "로그인 보호 활성화",
   allowPasswordLogin: "비밀번호 로그인 허용",
-  allowPasswordLoginHelper:
-    "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
+  allowPasswordLoginHelper: "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
   allowResetPassword: "비밀번호 재설정 허용",
-  allowResetPasswordHelper:
-    "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
+  allowResetPasswordHelper: "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
   password: "비밀번호",
   enterPassword: "비밀번호 입력",
   togglePasswordVisibility: "비밀번호 표시 전환",
@@ -79,23 +75,17 @@ export const ko = {
   tagsManagement: "태그 관리",
   newTag: "새 태그",
   tags: "태그",
-  tagsManagementNote:
-    '태그를 추가하거나 제거한 후 변경 사항을 적용하려면 "설정 저장"을 클릭하는 것을 잊지 마세요.',
-
   // Database
   database: "데이터베이스",
-  migrateDataDescription:
-    "레거시 JSON 파일에서 새 SQLite 데이터베이스로 데이터를 마이그레이션합니다. 이 작업은 여러 번 실행해도 안전합니다(중복은 건너뜀).",
+  migrateDataDescription: "레거시 JSON 파일에서 새 SQLite 데이터베이스로 데이터를 마이그레이션합니다. 이 작업은 여러 번 실행해도 안전합니다(중복은 건너뜀).",
   migrateDataButton: "JSON에서 데이터 마이그레이션",
   scanFiles: "파일 스캔",
   scanFilesSuccess: "스캔 완료. {count}개의 새 동영상이 추가되었습니다.",
   scanFilesDeleted: " {count}개의 누락된 파일이 제거되었습니다.",
   scanFilesFailed: "스캔 실패",
-  scanFilesConfirmMessage:
-    "시스템이 비디오 경로의 루트 폴더를 스캔합니다. 새 파일은 추가되고 누락된 비디오 파일은 시스템에서 제거됩니다.",
+  scanFilesConfirmMessage: "시스템이 비디오 경로의 루트 폴더를 스캔합니다. 새 파일은 추가되고 누락된 비디오 파일은 시스템에서 제거됩니다.",
   scanning: "스캔 중...",
-  migrateConfirmation:
-    "데이터를 마이그레이션하시겠습니까? 잠시 시간이 걸릴 수 있습니다.",
+  migrateConfirmation: "데이터를 마이그레이션하시겠습니까? 잠시 시간이 걸릴 수 있습니다.",
   migrationResults: "마이그레이션 결과",
   migrationReport: "마이그레이션 보고서",
   migrationSuccess: "마이그레이션 완료. 알림에서 세부 정보를 확인하세요.",
@@ -105,44 +95,61 @@ export const ko = {
   migrationErrors: "오류",
   itemsMigrated: "항목 마이그레이션됨",
   fileNotFound: "파일을 찾을 수 없음:",
-  noDataFilesFound:
-    "마이그레이션할 데이터 파일을 찾을 수 없습니다. 볼륨 매핑을 확인하세요.",
+  noDataFilesFound: "마이그레이션할 데이터 파일을 찾을 수 없습니다. 볼륨 매핑을 확인하세요.",
   removeLegacyData: "레거시 데이터 제거",
-  removeLegacyDataDescription:
-    "오래된 JSON 파일(videos.json, collections.json 등)을 삭제하여 디스크 공간을 확보합니다. 데이터가 성공적으로 마이그레이션되었는지 확인한 후에만 이 작업을 수행하세요.",
+  removeLegacyDataDescription: "오래된 JSON 파일(videos.json, collections.json 등)을 삭제하여 디스크 공간을 확보합니다. 데이터가 성공적으로 마이그레이션되었는지 확인한 후에만 이 작업을 수행하세요.",
   removeLegacyDataConfirmTitle: "레거시 데이터를 삭제하시겠습니까?",
-  removeLegacyDataConfirmMessage:
-    "레거시 JSON 데이터 파일을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  removeLegacyDataConfirmMessage: "레거시 JSON 데이터 파일을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   legacyDataDeleted: "레거시 데이터가 성공적으로 삭제되었습니다.",
   formatLegacyFilenames: "레거시 파일 이름 형식 지정",
-  formatLegacyFilenamesDescription:
-    "모든 동영상 파일, 썸네일, 자막을 새로운 표준 형식인 제목-작성자-YYYY로 일괄 이름을 변경합니다. 이 작업은 디스크의 파일 이름을 수정하고 데이터베이스 로직을 업데이트합니다.",
+  formatLegacyFilenamesDescription: "모든 동영상 파일, 썸네일, 자막을 새로운 표준 형식인 제목-작성자-YYYY로 일괄 이름을 변경합니다. 이 작업은 디스크의 파일 이름을 수정하고 데이터베이스 로직을 업데이트합니다.",
   formatLegacyFilenamesButton: "파일 이름 형식 지정",
-  formatFilenamesSuccess:
-    "처리됨: {processed}\n이름 변경됨: {renamed}\n오류: {errors}",
+  deleteLegacyDataButton: "레거시 데이터 삭제",
+  cleanupTempFiles: "임시 파일 정리",
+  cleanupTempFilesDescription: "업로드 디렉토리에서 모든 임시 다운로드 파일(.ytdl, .part)을 제거합니다. 불완전하거나 취소된 다운로드의 디스크 공간을 확보하는 데 도움이 됩니다.",
+  cleanupTempFilesConfirmTitle: "임시 파일을 정리하시겠습니까?",
+  cleanupTempFilesConfirmMessage: "업로드 디렉토리의 모든 .ytdl 및 .part 파일이 영구적으로 삭제됩니다. 계속하기 전에 활성 다운로드가 없는지 확인하세요.",
+
+  // Task Hooks
+  taskHooks: "태스크 훅",
+  taskHooksDescription: "태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksWarning: "경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.",
+  hookTaskBeforeStart: "태스크 시작 전",
+  hookTaskBeforeStartHelper: "다운로드가 시작되기 전에 실행됩니다.",
+  hookTaskSuccess: "태스크 성공",
+  hookTaskSuccessHelper: "다운로드 성공 후, 클라우드 업로드/삭제 전에 실행됩니다 (완료 대기).",
+  hookTaskFail: "태스크 실패",
+  hookTaskFailHelper: "태스크가 실패할 때 실행됩니다.",
+  hookTaskCancel: "태스크 취소됨",
+  hookTaskCancelHelper: "태스크가 수동으로 취소될 때 실행됩니다.",
+  found: "찾음",
+  notFound: "설정되지 않음",
+  deleteHook: "훅 스크립트 삭제",
+  confirmDeleteHook: "이 훅 스크립트를 삭제하시겠습니까?",
+  uploadHook: "업로드 .sh",
+  enterPasswordToUploadHook: "이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.",
+  riskCommandDetected: "위험한 명령 감지됨: {command}. 업로드 거부됨.",
+  cleanupTempFilesActiveDownloads: "다운로드가 진행되는 동안 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하십시오.",
+  formatFilenamesSuccess: "처리됨: {processed}\n이름 변경됨: {renamed}\n오류: {errors}",
   formatFilenamesDetails: "세부 정보:",
   formatFilenamesMore: "...외 {count}개",
   formatFilenamesError: "파일 이름 형식을 지정하지 못했습니다: {error}",
-  deleteLegacyDataButton: "레거시 데이터 삭제",
-  cleanupTempFiles: "임시 파일 정리",
-  cleanupTempFilesDescription:
-    "업로드 디렉토리에서 모든 임시 다운로드 파일(.ytdl, .part)을 제거합니다. 불완전하거나 취소된 다운로드의 디스크 공간을 확보하는 데 도움이 됩니다.",
-  cleanupTempFilesConfirmTitle: "임시 파일을 정리하시겠습니까?",
-  cleanupTempFilesConfirmMessage:
-    "업로드 디렉토리의 모든 .ytdl 및 .part 파일이 영구적으로 삭제됩니다. 계속하기 전에 활성 다운로드가 없는지 확인하세요.",
-  cleanupTempFilesActiveDownloads:
-    "다운로드가 진행되는 동안 정리할 수 없습니다. 모든 다운로드가 완료될 때까지 기다리거나 먼저 취소하십시오.",
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
   showYoutubeSearch: "YouTube 검색 결과 표시",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
+  visitorUser: "방문자 사용자",
+  enableVisitorUser: "방문자 사용자 활성화",
+  visitorUserHelper: "읽기 전용 액세스 권한이 있는 별도의 방문자 계정을 활성화합니다. 방문자는 콘텐츠를 볼 수 있지만 변경할 수는 없습니다.",
+  visitorPassword: "방문자 비밀번호",
+  visitorPasswordHelper: "방문자 계정의 비밀번호를 설정합니다.",
+  visitorPasswordSetHelper: "비밀번호가 설정되었습니다. 유지하려면 비워 두세요.",
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
 
   // Cookie Settings
   cookieSettings: "쿠키 설정",
-  cookieUploadDescription:
-    'YouTube 봇 확인을 통과하고 Bilibili 자막 다운로드를 활성화하려면 cookies.txt를 업로드하세요. 파일 이름은 자동으로 cookies.txt로 변경됩니다. (예: "Get cookies.txt LOCALLY" 확장 프로그램을 사용하여 쿠키 내보내기)',
+  cookieUploadDescription: "YouTube 봇 확인을 통과하고 Bilibili 자막 다운로드를 활성화하려면 cookies.txt를 업로드하세요. 파일 이름은 자동으로 cookies.txt로 변경됩니다. (예: \"Get cookies.txt LOCALLY\" 확장 프로그램을 사용하여 쿠키 내보내기)",
   uploadCookies: "쿠키 업로드",
   onlyTxtFilesAllowed: ".txt 파일만 허용됩니다",
   cookiesUploadedSuccess: "쿠키가 성공적으로 업로드되었습니다",
@@ -150,37 +157,30 @@ export const ko = {
   cookiesFound: "cookies.txt를 찾았습니다",
   cookiesNotFound: "cookies.txt를 찾을 수 없습니다",
   deleteCookies: "쿠키 삭제",
-  confirmDeleteCookies:
-    "쿠키 파일을 삭제하시겠습니까? 연령 제한 또는 회원 전용 비디오를 다운로드하는 데 영향을 줄 수 있습니다.",
+  confirmDeleteCookies: "쿠키 파일을 삭제하시겠습니까? 연령 제한 또는 회원 전용 비디오를 다운로드하는 데 영향을 줄 수 있습니다.",
   cookiesDeletedSuccess: "쿠키가 성공적으로 삭제되었습니다",
   cookiesDeleteFailed: "쿠키 삭제 실패",
 
   // Cloud Drive
   cloudDriveSettings: "클라우드 드라이브 (OpenList)",
-  cloudDriveDescription:
-    "동영상을 클라우드 저장소(Alist)에 자동으로 업로드하고 클라우드의 새 파일을 검색합니다. 업로드 성공 후 로컬 파일은 삭제됩니다。",
+  cloudDriveDescription: "동영상을 클라우드 저장소(Alist)에 자동으로 업로드하고 클라우드의 새 파일을 검색합니다. 업로드 성공 후 로컬 파일은 삭제됩니다。",
   enableAutoSave: "클라우드 동기화 사용",
   apiUrl: "API URL",
   apiUrlHelper: "예: https://your-alist-instance.com/api/fs/put",
   token: "토큰",
   publicUrl: "공개 URL",
-  publicUrlHelper:
-    "파일 액세스를 위한 공개 도메인 (예: https://your-cloudflare-tunnel-domain.com). 설정된 경우 파일 액세스에 API URL 대신 이것이 사용됩니다.",
+  publicUrlHelper: "파일 액세스를 위한 공개 도메인 (예: https://your-cloudflare-tunnel-domain.com). 설정된 경우 파일 액세스에 API URL 대신 이것이 사용됩니다.",
   uploadPath: "업로드 경로",
-  cloudDrivePathHelper:
-    "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
+  cloudDrivePathHelper: "클라우드 드라이브 내 디렉토리 경로, 예: /mytube-uploads",
   scanPaths: "스캔 경로",
-  scanPathsHelper:
-    "줄당 하나의 경로. 이 경로에서 동영상을 스캔합니다. 비어 있으면 업로드 경로를 사용합니다. 예:\n/a/영화\n/b/다큐멘터리",
-  cloudDriveNote:
-    "이 기능을 활성화한 후 새로 다운로드된 비디오는 자동으로 클라우드 스토리지에 업로드되고 로컬 파일은 삭제됩니다. 비디오는 프록시를 통해 클라우드 스토리지에서 재생됩니다.",
+  scanPathsHelper: "줄당 하나의 경로. 이 경로에서 동영상을 스캔합니다. 비어 있으면 업로드 경로를 사용합니다. 예:\n/a/영화\n/b/다큐멘터리",
+  cloudDriveNote: "이 기능을 활성화한 후 새로 다운로드된 비디오는 자동으로 클라우드 스토리지에 업로드되고 로컬 파일은 삭제됩니다. 비디오는 프록시를 통해 클라우드 스토리지에서 재생됩니다.",
   cloudScanAdded: "클라우드에서 추가됨",
   testing: "테스트 중...",
   testConnection: "연결 테스트",
   sync: "동기화",
   syncToCloud: "양방향 동기화",
-  syncWarning:
-    "이 작업은 로컬 동영상을 클라우드로 업로드하고 클라우드 저장소에서 새 파일을 검색합니다. 업로드 후 로컬 파일은 삭제됩니다。",
+  syncWarning: "이 작업은 로컬 동영상을 클라우드로 업로드하고 클라우드 저장소에서 새 파일을 검색합니다. 업로드 후 로컬 파일은 삭제됩니다。",
   syncing: "동기화 중...",
   syncCompleted: "동기화 완료",
   syncFailed: "동기화 실패",
@@ -197,11 +197,9 @@ export const ko = {
   uploadingVideo: "업로드 중: {title}",
   clearThumbnailCache: "썸네일 로컬 캐시 지우기",
   clearing: "지우는 중...",
-  clearThumbnailCacheSuccess:
-    "썸네일 캐시가 성공적으로 지워졌습니다. 썸네일은 다음에 액세스할 때 재생성됩니다.",
+  clearThumbnailCacheSuccess: "썸네일 캐시가 성공적으로 지워졌습니다. 썸네일은 다음에 액세스할 때 재생성됩니다.",
   clearThumbnailCacheError: "썸네일 캐시 지우기 실패",
-  clearThumbnailCacheConfirmMessage:
-    "이 작업은 클라우드 비디오에 대해 로컬로 캐시된 모든 썸네일을 지웁니다. 썸네일은 다음에 액세스할 때 클라우드 저장소에서 재생성됩니다. 계속하시겠습니까?",
+  clearThumbnailCacheConfirmMessage: "이 작업은 클라우드 비디오에 대해 로컬로 캐시된 모든 썸네일을 지웁니다. 썸네일은 다음에 액세스할 때 클라우드 저장소에서 재생성됩니다. 계속하시겠습니까?",
 
   // Manage
   manageContent: "콘텐츠 관리",
@@ -228,6 +226,7 @@ export const ko = {
   deleteCollection: "컬렉션 삭제",
   deleteVideo: "동영상 삭제",
   noVideosFoundMatching: "검색과 일치하는 동영상이 없습니다.",
+  refreshThumbnail: "썸네일 새로고침",
 
   // Video Player
   playing: "재생",
@@ -274,11 +273,8 @@ export const ko = {
   toggleVisibility: "표시 여부 전환",
   titleUpdated: "제목이 성공적으로 업데이트됨",
   titleUpdateFailed: "제목 업데이트 실패",
-  refreshThumbnail: "썸네일 새로고침",
   thumbnailRefreshed: "썸네일이 새로고침되었습니다",
-  previouslyDeletedVideo: "이전에 삭제된 비디오",
-  previouslyDeleted: "이전에 삭제됨",
-  videoWasDeleted: "이 비디오는 이전에 다운로드되었지만 삭제되었습니다.",
+  thumbnailRefreshFailed: "썸네일 새로고침 실패",
   videoUpdated: "비디오가 업데이트되었습니다",
   videoUpdateFailed: "비디오 업데이트 실패",
   failedToLoadVideos: "비디오를 불러오지 못했습니다. 나중에 다시 시도해주세요.",
@@ -290,33 +286,30 @@ export const ko = {
   openInExternalPlayer: "외부 플레이어에서 열기",
   playWith: "다음으로 재생...",
   deleteAllFilteredVideos: "필터링된 모든 동영상 삭제",
-  confirmDeleteFilteredVideos:
-    "선택한 태그로 필터링된 {count}개의 동영상을 삭제하시겠습니까?",
+  confirmDeleteFilteredVideos: "선택한 태그로 필터링된 {count}개의 동영상을 삭제하시겠습니까?",
   deleteFilteredVideosSuccess: "{count}개의 동영상을 성공적으로 삭제했습니다.",
   deletingVideos: "동영상 삭제 중...",
 
   // Login
   signIn: "로그인",
+  admin: "관리자",
+  visitorSignIn: "방문자 로그인",
+  orVisitor: "또는 방문자",
   verifying: "확인 중...",
   incorrectPassword: "비밀번호가 올바르지 않습니다",
   loginFailed: "비밀번호 확인 실패",
   defaultPasswordHint: "기본 비밀번호: 123",
   checkingConnection: "연결 확인 중...",
   connectionError: "연결 오류",
-  backendConnectionFailed:
-    "서버에 연결할 수 없습니다. 백엔드가 실행 중이고 포트가 열려 있는지 확인한 후 다시 시도하세요.",
+  backendConnectionFailed: "서버에 연결할 수 없습니다. 백엔드가 실행 중이고 포트가 열려 있는지 확인한 후 다시 시도하세요.",
   retry: "다시 시도",
   resetPassword: "비밀번호 재설정",
   resetPasswordTitle: "비밀번호 재설정",
-  resetPasswordMessage:
-    "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
+  resetPasswordMessage: "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
   resetPasswordConfirm: "재설정",
-  resetPasswordSuccess:
-    "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
-  resetPasswordDisabledInfo:
-    "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
-  resetPasswordScriptGuide:
-    "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
+  resetPasswordSuccess: "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
+  resetPasswordDisabledInfo: "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
+  resetPasswordScriptGuide: "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
   // Passkeys
@@ -324,24 +317,21 @@ export const ko = {
   creatingPasskey: "만드는 중...",
   passkeyCreated: "패스키가 성공적으로 생성되었습니다",
   passkeyCreationFailed: "패스키 생성에 실패했습니다. 다시 시도해 주세요.",
+  passkeyWebAuthnNotSupported: "이 브라우저는 WebAuthn을 지원하지 않습니다. WebAuthn을 지원하는 최신 브라우저를 사용하십시오.",
+  passkeyRequiresHttps: "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",
   removePasskeys: "모든 패스키 제거",
   removePasskeysTitle: "모든 패스키 제거",
-  removePasskeysMessage:
-    "모든 패스키를 제거하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  removePasskeysMessage: "모든 패스키를 제거하시겠습니까? 이 작업은 취소할 수 없습니다.",
   passkeysRemoved: "모든 패스키가 제거되었습니다",
   passkeysRemoveFailed: "패스키 제거에 실패했습니다. 다시 시도해 주세요.",
   loginWithPasskey: "패스키로 로그인",
   authenticating: "인증 중...",
   passkeyLoginFailed: "패스키 인증에 실패했습니다. 다시 시도해 주세요.",
-  passkeyErrorPermissionDenied:
-    "사용자 에이전트 또는 플랫폼이 현재 컨텍스트에서 요청을 허용하지 않습니다. 사용자가 권한을 거부했을 수 있습니다.",
+  passkeyErrorPermissionDenied: "사용자 에이전트 또는 플랫폼이 현재 컨텍스트에서 요청을 허용하지 않습니다. 사용자가 권한을 거부했을 수 있습니다.",
   passkeyErrorAlreadyRegistered: "인증기가 이전에 등록되었습니다.",
   linkCopied: "링크가 클립보드에 복사되었습니다",
   copyFailed: "링크 복사 실패",
-  passkeyRequiresHttps:
-    "WebAuthn은 HTTPS 또는 localhost가 필요합니다. HTTPS를 통해 애플리케이션에 액세스하거나 IP 주소 대신 localhost를 사용하십시오.",
-  passkeyWebAuthnNotSupported:
-    "이 브라우저는 WebAuthn을 지원하지 않습니다. WebAuthn을 지원하는 최신 브라우저를 사용하십시오.",
+  copyUrl: "URL 복사",
 
   // Collection Page
   loadingCollection: "컬렉션 로드 중...",
@@ -353,6 +343,21 @@ export const ko = {
   loadVideosError: "동영상을 로드하지 못했습니다. 나중에 다시 시도해 주세요.",
   unknownAuthor: "알 수 없음",
   noVideosForAuthor: "이 작성자의 동영상이 없습니다.",
+  deleteAuthor: "작성자 삭제",
+  deleteAuthorConfirmation: "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
+  authorDeletedSuccessfully: "작성자가 성공적으로 삭제되었습니다",
+  failedToDeleteAuthor: "작성자 삭제 실패",
+  createCollectionFromAuthor: "작성자로 컬렉션 만들기",
+  createCollectionFromAuthorTooltip: "이 작성자의 모든 동영상을 컬렉션으로 이동",
+  creatingCollection: "컬렉션 생성 중...",
+  collectionCreatedFromAuthor: "컬렉션이 생성되고 모든 동영상이 성공적으로 이동되었습니다",
+  failedToCreateCollectionFromAuthor: "작성자로부터 컬렉션을 만들지 못했습니다",
+  collectionAlreadyExists: "이 이름의 컬렉션이 이미 존재합니다",
+  createCollectionFromAuthorConfirmation: "\"{author}\"(이)라는 이름의 컬렉션이 생성되고 이 작성자의 모든 동영상이 해당 컬렉션으로 이동됩니다. 계속하시겠습니까?",
+  createCollectionFromAuthorConfirmationWithMove: "\"{author}\"(이)라는 이름의 컬렉션이 생성되고 이 작성자의 모든 동영상이 해당 컬렉션으로 이동됩니다. 현재 다른 컬렉션에 있는 {count}개의 동영상도 이 새 컬렉션으로 이동됩니다. 계속하시겠습니까?",
+  addVideosToCollection: "컬렉션에 동영상 추가",
+  addVideosToExistingCollectionConfirmation: "작성자 \"{author}\"의 동영상 {count}개를 기존 컬렉션 \"{author}\"에 추가합니다. 계속하시겠습니까?",
+  addVideosToExistingCollectionConfirmationWithMove: "작성자 \"{author}\"의 동영상 {count}개를 기존 컬렉션 \"{author}\"에 추가합니다. 현재 다른 컬렉션에 있는 {moveCount}개의 동영상도 이 컬렉션으로 이동됩니다. 계속하시겠습니까?",
 
   // Delete Collection Modal
   deleteCollectionTitle: "컬렉션 삭제",
@@ -360,15 +365,6 @@ export const ko = {
   collectionContains: "이 컬렉션 포함 내용",
   deleteCollectionOnly: "컬렉션만 삭제",
   deleteCollectionAndVideos: "컬렉션 및 모든 동영상 삭제",
-
-  // Snackbar Messages
-  videoDownloading: "비디오 다운로드 중",
-  downloadStartedSuccessfully: "다운로드가 성공적으로 시작되었습니다",
-  collectionCreatedSuccessfully: "컬렉션이 성공적으로 생성되었습니다",
-  videoAddedToCollection: "비디오가 컬렉션에 추가되었습니다",
-  videoRemovedFromCollection: "비디오가 컬렉션에서 제거되었습니다",
-  collectionDeletedSuccessfully: "컬렉션이 성공적으로 삭제되었습니다",
-  failedToDeleteCollection: "컬렉션 삭제 실패",
 
   // Common
   loading: "로드 중...",
@@ -390,6 +386,7 @@ export const ko = {
   unknownDate: "알 수 없는 날짜",
   part: "파트",
   collection: "컬렉션",
+  new: "신규",
   justNow: "방금",
   hoursAgo: "{hours}시간 전",
   today: "오늘",
@@ -411,8 +408,8 @@ export const ko = {
   authorOrPlaylist: "작성자 / 재생 목록",
   playlistDetected: "재생 목록 감지됨",
   playlistHasVideos: "이 재생 목록에는 {count}개의 동영상이 있습니다.",
-  downloadPlaylistAndCreateCollection:
-    "재생 목록 동영상을 다운로드하고 컬렉션을 만드시겠습니까?",
+  downloadPlaylistAndCreateCollection: "재생 목록 동영상을 다운로드하고 컬렉션을 만드시겠습니까?",
+  playlistDownloadStarted: "재생 목록 다운로드가 시작되었습니다",
   collectionHasVideos: "이 Bilibili 컬렉션에는 {count}개의 동영상이 있습니다.",
   seriesHasVideos: "이 Bilibili 시리즈에는 {count}개의 동영상이 있습니다.",
   videoHasParts: "이 Bilibili 동영상에는 {count}개의 파트가 있습니다.",
@@ -427,6 +424,7 @@ export const ko = {
   allVideosAddedToCollection: "모든 동영상이 이 컬렉션에 추가됩니다",
   queued: "대기열에 추가됨",
   waitingInQueue: "대기 중",
+
   // Downloads
   downloads: "다운로드",
   activeDownloads: "진행 중인 다운로드",
@@ -449,6 +447,16 @@ export const ko = {
   finishedAt: "완료 시간",
   failed: "실패",
 
+  // Snackbar Messages
+  videoDownloading: "비디오 다운로드 중",
+  downloadStartedSuccessfully: "다운로드가 성공적으로 시작되었습니다",
+  collectionCreatedSuccessfully: "컬렉션이 성공적으로 생성되었습니다",
+  videoAddedToCollection: "비디오가 컬렉션에 추가되었습니다",
+  videosAddedToCollection: "동영상이 컬렉션에 추가되었습니다",
+  videoRemovedFromCollection: "비디오가 컬렉션에서 제거되었습니다",
+  collectionDeletedSuccessfully: "컬렉션이 성공적으로 삭제되었습니다",
+  failedToDeleteCollection: "컬렉션 삭제 실패",
+
   // Batch Download
   batchDownload: "일괄 다운로드",
   batchDownloadDescription: "아래에 여러 URL을 한 줄에 하나씩 붙여넣으세요.",
@@ -460,8 +468,7 @@ export const ko = {
   // Subscriptions
   subscribeToAuthor: "작가 구독",
   subscribeConfirmationMessage: "{author}님을 구독하시겠습니까?",
-  subscribeDescription:
-    "시스템이 자동으로 이 작가의 새 동영상을 확인하고 다운로드합니다.",
+  subscribeDescription: "시스템이 자동으로 이 작가의 새 동영상을 확인하고 다운로드합니다.",
   checkIntervalMinutes: "확인 간격 (분)",
   subscribe: "구독",
   subscriptions: "구독",
@@ -476,8 +483,7 @@ export const ko = {
   minutes: "분",
   never: "없음",
   downloadAllPreviousVideos: "이 작가의 모든 이전 동영상 다운로드",
-  downloadAllPreviousWarning:
-    "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
+  downloadAllPreviousWarning: "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
   continuousDownloadTasks: "연속 다운로드 작업",
   taskStatusActive: "활성",
   taskStatusPaused: "일시 중지됨",
@@ -488,15 +494,13 @@ export const ko = {
   confirmCancelTask: "{author}님의 다운로드 작업을 취소하시겠습니까?",
   taskCancelled: "작업이 성공적으로 취소되었습니다",
   deleteTask: "작업 삭제",
-  confirmDeleteTask:
-    "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  confirmDeleteTask: "{author}님의 작업 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   taskDeleted: "작업이 성공적으로 삭제되었습니다",
   clearFinishedTasks: "완료된 작업 지우기",
   tasksCleared: "완료된 작업이 성공적으로 지워졌습니다",
-  confirmClearFinishedTasks:
-    "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
+  confirmClearFinishedTasks: "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
   clear: "지우기",
-  
+
   // Subscription Pause/Resume
   pause: "일시 중지",
   resume: "재개",
@@ -510,69 +514,59 @@ export const ko = {
   taskResumed: "작업이 재개되었습니다",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
-  instructionSection1Desc:
-    "이 모듈에는 비디오 획득, 일괄 작업 및 파일 가져오기 기능이 포함되어 있습니다.",
+  instructionSection1Desc: "이 모듈에는 비디오 획득, 일괄 작업 및 파일 가져오기 기능이 포함되어 있습니다.",
   instructionSection1Sub1: "링크 다운로드:",
   instructionSection1Item1Label: "기본 다운로드:",
-  instructionSection1Item1Text:
-    "다양한 비디오 사이트의 링크를 입력 상자에 붙여넣어 직접 다운로드하십시오.",
+  instructionSection1Item1Text: "다양한 비디오 사이트의 링크를 입력 상자에 붙여넣어 직접 다운로드하십시오.",
   instructionSection1Item2Label: "권한:",
-  instructionSection1Item2Text:
-    "멤버십 또는 로그인이 필요한 사이트의 경우, 다운로드 권한을 얻으려면 먼저 새 브라우저 탭에서 해당 계정에 로그인하십시오.",
+  instructionSection1Item2Text: "멤버십 또는 로그인이 필요한 사이트의 경우, 다운로드 권한을 얻으려면 먼저 새 브라우저 탭에서 해당 계정에 로그인하십시오.",
   instructionSection1Sub2: "스마트 인식:",
   instructionSection1Item3Label: "YouTube 작성자 구독:",
-  instructionSection1Item3Text:
-    "붙여넣은 링크가 작성자의 채널인 경우 시스템에서 구독 여부를 묻습니다. 구독 후 시스템은 설정된 간격으로 작성자의 업데이트를 자동으로 스캔하고 다운로드할 수 있습니다.",
+  instructionSection1Item3Text: "붙여넣은 링크가 작성자의 채널인 경우 시스템에서 구독 여부를 묻습니다. 구독 후 시스템은 설정된 간격으로 작성자의 업데이트를 자동으로 스캔하고 다운로드할 수 있습니다.",
   instructionSection1Item4Label: "Bilibili 컬렉션 다운로드:",
-  instructionSection1Item4Text:
-    "붙여넣은 링크가 Bilibili 즐겨찾기/컬렉션인 경우 시스템에서 전체 컬렉션 콘텐츠를 다운로드할지 묻습니다.",
+  instructionSection1Item4Text: "붙여넣은 링크가 Bilibili 즐겨찾기/컬렉션인 경우 시스템에서 전체 컬렉션 콘텐츠를 다운로드할지 묻습니다.",
   instructionSection1Sub3: "고급 도구 (다운로드 관리 페이지):",
   instructionSection1Item5Label: "일괄 작업 추가:",
-  instructionSection1Item5Text:
-    "일괄 추가를 위해 한 번에 여러 다운로드 링크(한 줄에 하나씩)를 붙여넣는 것을 지원합니다.",
+  instructionSection1Item5Text: "일괄 추가를 위해 한 번에 여러 다운로드 링크(한 줄에 하나씩)를 붙여넣는 것을 지원합니다.",
   instructionSection1Item6Label: "파일 스캔:",
-  instructionSection1Item6Text:
-    "비디오 저장소 루트 디렉터리 및 1단계 폴더의 모든 파일을 자동으로 검색합니다. 이 기능은 관리자가 서버 백엔드에 수동으로 파일을 입금한 후 시스템에 파일을 동기화하는 데 적합합니다.",
+  instructionSection1Item6Text: "비디오 저장소 루트 디렉터리 및 1단계 폴더의 모든 파일을 자동으로 검색합니다. 이 기능은 관리자가 서버 백엔드에 수동으로 파일을 입금한 후 시스템에 파일을 동기화하는 데 적합합니다.",
   instructionSection1Item7Label: "비디오 업로드:",
-  instructionSection1Item7Text:
-    "클라이언트에서 서버로 로컬 비디오 파일을 직접 업로드하는 것을 지원합니다.",
+  instructionSection1Item7Text: "클라이언트에서 서버로 로컬 비디오 파일을 직접 업로드하는 것을 지원합니다.",
 
   instructionSection2Title: "2. 비디오 라이브러리 관리",
-  instructionSection2Desc:
-    "다운로드하거나 가져온 비디오 리소스를 유지 관리하고 편집합니다.",
+  instructionSection2Desc: "다운로드하거나 가져온 비디오 리소스를 유지 관리하고 편집합니다.",
   instructionSection2Sub1: "컬렉션/비디오 삭제:",
-  instructionSection2Text1:
-    "관리 페이지에서 컬렉션을 삭제할 때 시스템은 두 가지 옵션을 제공합니다. 컬렉션 목록 항목만 삭제(파일 유지)하거나 컬렉션 내의 물리적 파일을 완전히 삭제하는 것입니다.",
+  instructionSection2Text1: "관리 페이지에서 컬렉션을 삭제할 때 시스템은 두 가지 옵션을 제공합니다. 컬렉션 목록 항목만 삭제(파일 유지)하거나 컬렉션 내의 물리적 파일을 완전히 삭제하는 것입니다.",
   instructionSection2Sub2: "썸네일 복구:",
-  instructionSection2Text2:
-    "다운로드 후 비디오에 표지가 없는 경우 비디오 썸네일의 새로 고침 버튼을 클릭하면 시스템이 비디오의 첫 번째 프레임을 새 썸네일로 다시 캡처합니다.",
+  instructionSection2Text2: "다운로드 후 비디오에 표지가 없는 경우 비디오 썸네일의 새로 고침 버튼을 클릭하면 시스템이 비디오의 첫 번째 프레임을 새 썸네일로 다시 캡처합니다.",
 
   instructionSection3Title: "3. 시스템 설정",
-  instructionSection3Desc:
-    "시스템 매개변수 구성, 데이터 유지 관리 및 기능 확장.",
+  instructionSection3Desc: "시스템 매개변수 구성, 데이터 유지 관리 및 기능 확장.",
   instructionSection3Sub1: "보안 설정:",
-  instructionSection3Text1:
-    "시스템 로그인 비밀번호를 설정하십시오(기본 초기 비밀번호는 123이며, 첫 로그인 후 변경하는 것이 좋습니다).",
+  instructionSection3Text1: "시스템 로그인 비밀번호를 설정하십시오(기본 초기 비밀번호는 123이며, 첫 로그인 후 변경하는 것이 좋습니다).",
   instructionSection3Sub2: "태그 관리:",
-  instructionSection3Text2:
-    '비디오 분류 태그 추가 또는 삭제를 지원합니다. 참고: 변경 사항을 적용하려면 페이지 하단의 "저장" 버튼을 클릭해야 합니다.',
+  instructionSection3Text2: "비디오 분류 태그 추가 또는 삭제를 지원합니다. 참고: 변경 사항을 적용하려면 페이지 하단의 \"저장\" 버튼을 클릭해야 합니다.",
   instructionSection3Sub3: "시스템 유지 관리:",
   instructionSection3Item1Label: "임시 파일 정리:",
-  instructionSection3Item1Text:
-    "공간을 확보하기 위해 가끔 발생하는 백엔드 오류로 인한 잔여 임시 다운로드 파일을 지우는 데 사용됩니다.",
+  instructionSection3Item1Text: "공간을 확보하기 위해 가끔 발생하는 백엔드 오류로 인한 잔여 임시 다운로드 파일을 지우는 데 사용됩니다.",
   instructionSection3Item2Label: "데이터베이스 마이그레이션:",
-  instructionSection3Item2Text:
-    "초기 버전 사용자를 위해 설계되었습니다. 이 기능을 사용하여 JSON에서 새 SQLite 데이터베이스로 데이터를 마이그레이션하십시오. 마이그레이션이 성공하면 삭제 버튼을 클릭하여 오래된 기록 데이터를 정리하십시오.",
+  instructionSection3Item2Text: "초기 버전 사용자를 위해 설계되었습니다. 이 기능을 사용하여 JSON에서 새 SQLite 데이터베이스로 데이터를 마이그레이션하십시오. 마이그레이션이 성공하면 삭제 버튼을 클릭하여 오래된 기록 데이터를 정리하십시오.",
   instructionSection3Sub4: "확장 서비스:",
   instructionSection3Item3Label: "OpenList 클라우드 드라이브:",
-  instructionSection3Item3Text:
-    "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
+  instructionSection3Item3Text: "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
+
+  // Disclaimer
+  disclaimerTitle: "면책 조항",
+  disclaimerText: "1. 목적 및 제한\n이 소프트웨어(코드 및 문서 포함)는 개인적인 학습, 연구 및 기술 교류만을 목적으로 합니다. 이 소프트웨어를 상업적 목적으로 사용하거나 현지 법률 및 규정을 위반하는 불법 활동에 사용하는 것은 엄격히 금지됩니다.\n\n2. 책임\n개발자는 사용자가 이 소프트웨어를 어떻게 사용하는지 알지 못하며 통제할 수 없습니다. 이 소프트웨어의 불법적 또는 부적절한 사용(저작권 침해를 포함하되 이에 국한되지 않음)으로 인해 발생하는 모든 법적 책임, 분쟁 또는 손해는 전적으로 사용자가 부담해야 합니다. 개발자는 어떠한 직접적, 간접적 또는 공동 책임도 지지 않습니다.\n\n3. 수정 및 배포\n이 프로젝트는 오픈 소스입니다. 이 코드를 수정하거나 포크하는 개인이나 조직은 오픈 소스 라이선스를 준수해야 합니다. 중요: 제3자가 원래의 사용자 인증/보안 메커니즘을 우회하거나 제거하기 위해 코드를 수정하고 이러한 버전을 배포하는 경우, 수정자/배포자는 모든 결과에 대해 전적인 책임을 집니다. 보안 검증 메커니즘을 우회하거나 변조하는 것을 강력히 권장하지 않습니다.\n\n4. 비영리 성명\n이것은 완전히 무료인 오픈 소스 프로젝트입니다. 개발자는 기부를 받지 않으며 기부 페이지를 게시한 적이 없습니다. 소프트웨어 자체는 요금을 부과하지 않으며 유료 서비스를 제공하지 않습니다. 이 프로젝트를 대신하여 수수료를 징수한다고 주장하는 사기나 오해의 소지가 있는 정보에 주의하시기 바랍니다.",
   history: "기록",
-  downloading: "다운로드 중...",
-  poweredBy: "MyTube 제공",
+
+  // Existing Video Detection
   existingVideoDetected: "기존 동영상 감지됨",
   videoAlreadyDownloaded: "이 동영상은 이미 다운로드되었습니다.",
   viewVideo: "동영상 보기",
+  previouslyDeletedVideo: "이전에 삭제된 비디오",
+  previouslyDeleted: "이전에 삭제됨",
+  videoWasDeleted: "이 비디오는 이전에 다운로드되었지만 삭제되었습니다.",
   downloadAgain: "다시 다운로드",
   downloadedOn: "다운로드 날짜",
   deletedOn: "삭제 날짜",
@@ -580,6 +574,8 @@ export const ko = {
   skipped: "건너뜀",
   videoSkippedExists: "동영상이 이미 존재하여 다운로드를 건너뛰었습니다",
   videoSkippedDeleted: "동영상이 이전에 삭제되어 다운로드를 건너뛰었습니다",
+  downloading: "다운로드 중...",
+  poweredBy: "MyTube 제공",
 
   // Sorting
   sort: "정렬",
@@ -604,53 +600,17 @@ export const ko = {
   moveSubtitlesToVideoFolder: "자막 위치",
   moveSubtitlesToVideoFolderOn: "동영상과 함께",
   moveSubtitlesToVideoFolderOff: "격리된 자막 폴더",
-  moveSubtitlesToVideoFolderDescription:
-    "활성화하면 자막 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 자막 폴더로 이동합니다.",
+  moveSubtitlesToVideoFolderDescription: "활성화하면 자막 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 자막 폴더로 이동합니다.",
   moveThumbnailsToVideoFolder: "썸네일 위치",
   moveThumbnailsToVideoFolderOn: "동영상과 함께",
   moveThumbnailsToVideoFolderOff: "분리된 이미지 폴더",
-  moveThumbnailsToVideoFolderDescription:
-    "활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.",
-
-  // Database Export/Import
-  exportImportDatabase: "데이터베이스 내보내기/가져오기",
-  exportImportDatabaseDescription:
-    "데이터베이스를 백업 파일로 내보내거나 이전에 내보낸 백업을 가져옵니다. 가져오기는 기존 데이터를 백업 데이터로 덮어씁니다.",
-  exportDatabase: "데이터베이스 내보내기",
-  importDatabase: "데이터베이스 가져오기",
-  onlyDbFilesAllowed: ".db 파일만 허용됩니다",
-  importDatabaseWarning:
-    "경고: 데이터베이스를 가져오면 모든 기존 데이터가 덮어씌워집니다. 먼저 현재 데이터베이스를 백업으로 내보내야 합니다.",
-  selectDatabaseFile: "데이터베이스 파일 선택",
-  databaseExportedSuccess: "데이터베이스 내보내기 성공",
-  databaseExportFailed: "데이터베이스 내보내기 실패",
-  databaseImportedSuccess:
-    "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
-  databaseImportFailed: "데이터베이스 가져오기 실패",
-  cleanupBackupDatabases: "백업 데이터베이스 정리",
-  cleanupBackupDatabasesWarning:
-    "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
-  backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
-  backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
-  restoreFromLastBackup: "마지막 백업에서 복원",
-  restoreFromLastBackupWarning:
-    "경고: 이 작업은 마지막 자동 백업 파일에서 데이터베이스를 복원합니다. 모든 현재 데이터가 백업 데이터로 덮어씌워집니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
-  restoreFromLastBackupSuccess: "백업에서 데이터베이스 복원 성공",
-  restoreFromLastBackupFailed: "백업에서 복원 실패",
-  lastBackupDate: "마지막 백업 날짜",
-  noBackupAvailable: "사용 가능한 백업 없음",
-  deleteAuthor: "작성자 삭제",
-  deleteAuthorConfirmation:
-    "작성자 {author}님을 삭제하시겠습니까? 이 작성자와 관련된 모든 동영상이 삭제됩니다.",
-  authorDeletedSuccessfully: "작성자가 성공적으로 삭제되었습니다",
-  failedToDeleteAuthor: "작성자 삭제 실패",
+  moveThumbnailsToVideoFolderDescription: "활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 터널",
   enableCloudflaredTunnel: "Cloudflare 터널 활성화",
   cloudflaredToken: "터널 토큰 (선택 사항)",
-  cloudflaredTokenHelper:
-    "여기에 터널 토큰을 붙여넣거나, 임의의 Quick Tunnel을 사용하려면 비워 두세요.",
+  cloudflaredTokenHelper: "여기에 터널 토큰을 붙여넣거나, 임의의 Quick Tunnel을 사용하려면 비워 두세요.",
   waitingForUrl: "Quick Tunnel URL 대기 중...",
   running: "실행 중",
   stopped: "중지됨",
@@ -658,51 +618,31 @@ export const ko = {
   accountTag: "계정 태그",
   copied: "복사됨!",
   clickToCopy: "클릭하여 복사",
-  quickTunnelWarning:
-    "Quick Tunnel URL은 터널이 다시 시작될 때마다 변경됩니다.",
-  managedInDashboard:
-    "공개 호스트 이름은 Cloudflare Zero Trust 대시보드에서 관리됩니다.",
+  quickTunnelWarning: "Quick Tunnel URL은 터널이 다시 시작될 때마다 변경됩니다.",
+  managedInDashboard: "공개 호스트 이름은 Cloudflare Zero Trust 대시보드에서 관리됩니다.",
+
+  // Database Export/Import
+  exportImportDatabase: "데이터베이스 내보내기/가져오기",
+  exportImportDatabaseDescription: "데이터베이스를 백업 파일로 내보내거나 이전에 내보낸 백업을 가져옵니다. 가져오기는 기존 데이터를 백업 데이터로 덮어씁니다.",
+  exportDatabase: "데이터베이스 내보내기",
+  importDatabase: "데이터베이스 가져오기",
+  onlyDbFilesAllowed: ".db 파일만 허용됩니다",
+  importDatabaseWarning: "경고: 데이터베이스를 가져오면 모든 기존 데이터가 덮어씌워집니다. 먼저 현재 데이터베이스를 백업으로 내보내야 합니다.",
+  selectDatabaseFile: "데이터베이스 파일 선택",
+  databaseExportedSuccess: "데이터베이스 내보내기 성공",
+  databaseExportFailed: "데이터베이스 내보내기 실패",
+  databaseImportedSuccess: "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
+  databaseImportFailed: "데이터베이스 가져오기 실패",
+  cleanupBackupDatabases: "백업 데이터베이스 정리",
+  cleanupBackupDatabasesWarning: "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+  backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
+  backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
+  restoreFromLastBackup: "마지막 백업에서 복원",
+  restoreFromLastBackupWarning: "경고: 이 작업은 마지막 자동 백업 파일에서 데이터베이스를 복원합니다. 모든 현재 데이터가 백업 데이터로 덮어씌워집니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
+  restoreFromLastBackupSuccess: "백업에서 데이터베이스 복원 성공",
+  restoreFromLastBackupFailed: "백업에서 복원 실패",
+  lastBackupDate: "마지막 백업 날짜",
+  noBackupAvailable: "사용 가능한 백업 없음",
   failedToDownloadVideo: "동영상 다운로드에 실패했습니다. 다시 시도해 주세요.",
   failedToDownload: "다운로드에 실패했습니다. 다시 시도해 주세요.",
-  playlistDownloadStarted: "재생 목록 다운로드가 시작되었습니다",
-  thumbnailRefreshFailed: "썸네일 새로고침 실패",
-  copyUrl: "URL 복사",
-  new: "신규",
-  // Task Hooks
-  taskHooks: "태스크 훅",
-  taskHooksDescription:
-    "태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
-  taskHooksWarning:
-    "경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.",
-  enterPasswordToUploadHook:
-    "이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.",
-  riskCommandDetected: "위험한 명령 감지됨: {command}. 업로드 거부됨.",
-  hookTaskBeforeStart: "태스크 시작 전",
-  hookTaskBeforeStartHelper: "다운로드가 시작되기 전에 실행됩니다.",
-  hookTaskSuccess: "태스크 성공",
-  hookTaskSuccessHelper:
-    "다운로드 성공 후, 클라우드 업로드/삭제 전에 실행됩니다 (완료 대기).",
-  hookTaskFail: "태스크 실패",
-  hookTaskFailHelper: "태스크가 실패할 때 실행됩니다.",
-  hookTaskCancel: "태스크 취소됨",
-  hookTaskCancelHelper: "태스크가 수동으로 취소될 때 실행됩니다.",
-  found: "찾음",
-  notFound: "설정되지 않음",
-  deleteHook: "훅 스크립트 삭제",
-  confirmDeleteHook: "이 훅 스크립트를 삭제하시겠습니까?",
-  uploadHook: "업로드 .sh",
-
-  disclaimerTitle: "면책 조항",
-  disclaimerText:
-    "1. 목적 및 제한\n이 소프트웨어(코드 및 문서 포함)는 개인적인 학습, 연구 및 기술 교류만을 목적으로 합니다. 이 소프트웨어를 상업적 목적으로 사용하거나 현지 법률 및 규정을 위반하는 불법 활동에 사용하는 것은 엄격히 금지됩니다.\n\n2. 책임\n개발자는 사용자가 이 소프트웨어를 어떻게 사용하는지 알지 못하며 통제할 수 없습니다. 이 소프트웨어의 불법적 또는 부적절한 사용(저작권 침해를 포함하되 이에 국한되지 않음)으로 인해 발생하는 모든 법적 책임, 분쟁 또는 손해는 전적으로 사용자가 부담해야 합니다. 개발자는 어떠한 직접적, 간접적 또는 공동 책임도 지지 않습니다.\n\n3. 수정 및 배포\n이 프로젝트는 오픈 소스입니다. 이 코드를 수정하거나 포크하는 개인이나 조직은 오픈 소스 라이선스를 준수해야 합니다. 중요: 제3자가 원래의 사용자 인증/보안 메커니즘을 우회하거나 제거하기 위해 코드를 수정하고 이러한 버전을 배포하는 경우, 수정자/배포자는 모든 결과에 대해 전적인 책임을 집니다. 보안 검증 메커니즘을 우회하거나 변조하는 것을 강력히 권장하지 않습니다.\n\n4. 비영리 성명\n이것은 완전히 무료인 오픈 소스 프로젝트입니다. 개발자는 기부를 받지 않으며 기부 페이지를 게시한 적이 없습니다. 소프트웨어 자체는 요금을 부과하지 않으며 유료 서비스를 제공하지 않습니다. 이 프로젝트를 대신하여 수수료를 징수한다고 주장하는 사기나 오해의 소지가 있는 정보에 주의하시기 바랍니다.",
-  // Visitor Mode
-  admin: "관리자",
-  visitorSignIn: "방문자 로그인",
-  visitorUser: "방문자 사용자",
-  enableVisitorUser: "방문자 사용자 활성화",
-  visitorUserHelper:
-    "읽기 전용 액세스 권한이 있는 별도의 방문자 계정을 활성화합니다. 방문자는 콘텐츠를 볼 수 있지만 변경할 수는 없습니다.",
-  visitorPassword: "방문자 비밀번호",
-  visitorPasswordHelper: "방문자 계정의 비밀번호를 설정합니다.",
-  visitorPasswordSetHelper: "비밀번호가 설정되었습니다. 유지하려면 비워 두세요.",
 };

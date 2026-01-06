@@ -387,6 +387,23 @@ export const en = {
     "Are you sure you want to delete author {author}? This will delete all videos associated with this author.",
   authorDeletedSuccessfully: "Author deleted successfully",
   failedToDeleteAuthor: "Failed to delete author",
+  createCollectionFromAuthor: "Create Collection from Author",
+  createCollectionFromAuthorTooltip:
+    "Move all videos from this author to a collection",
+  creatingCollection: "Creating collection...",
+  collectionCreatedFromAuthor:
+    "Collection created and all videos moved successfully",
+  failedToCreateCollectionFromAuthor: "Failed to create collection from author",
+  collectionAlreadyExists: "A collection with this name already exists",
+  createCollectionFromAuthorConfirmation:
+    'A collection named "{author}" will be created and all videos from this author will be moved to it. Continue?',
+  createCollectionFromAuthorConfirmationWithMove:
+    'A collection named "{author}" will be created and all videos from this author will be moved to it. {count} video(s) that are currently in other collections will be moved to this new collection. Continue?',
+  addVideosToCollection: "Add Videos to Collection",
+  addVideosToExistingCollectionConfirmation:
+    'Add {count} video(s) from author "{author}" to the existing collection "{author}". Continue?',
+  addVideosToExistingCollectionConfirmationWithMove:
+    'Add {count} video(s) from author "{author}" to the existing collection "{author}". {moveCount} video(s) that are currently in other collections will be moved to this collection. Continue?',
 
   // Delete Collection Modal
   deleteCollectionTitle: "Delete Collection",
@@ -483,6 +500,7 @@ export const en = {
   downloadStartedSuccessfully: "Download started successfully",
   collectionCreatedSuccessfully: "Collection created successfully",
   videoAddedToCollection: "Video added to collection",
+  videosAddedToCollection: "Videos added to collection",
   videoRemovedFromCollection: "Video removed from collection",
   collectionDeletedSuccessfully: "Collection deleted successfully",
   failedToDeleteCollection: "Failed to delete collection",
@@ -535,7 +553,7 @@ export const en = {
   confirmClearFinishedTasks:
     "Are you sure you want to clear all finished tasks (completed, cancelled)? This will remove them from the list but will not delete any downloaded files.",
   clear: "Clear",
-  
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Resume",

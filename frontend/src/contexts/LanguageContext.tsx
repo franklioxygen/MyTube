@@ -83,7 +83,18 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         let text = (translations[language] as any)[key] || key;
         if (replacements) {
             Object.entries(replacements).forEach(([placeholder, value]) => {
-                text = text.replace(`{${placeholder}}`, String(value));
+                // Replace all occurrences of the placeholder
+                const placeholderPattern = `{${placeholder}}`;
+                const valueStr = String(value);
+                // Use replaceAll if available (ES2021+), otherwise use while loop
+                if (typeof text.replaceAll === 'function') {
+                    text = text.replaceAll(placeholderPattern, valueStr);
+                } else {
+                    // Fallback for older browsers
+                    while (text.includes(placeholderPattern)) {
+                        text = text.replace(placeholderPattern, valueStr);
+                    }
+                }
             });
         }
         return text;
