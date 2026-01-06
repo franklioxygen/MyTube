@@ -26,15 +26,80 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
     const { showSnackbar } = useSnackbar();
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
+    const fallbackCopy = (text: string) => {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // Ensure strictly hidden but selectable
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            textArea.style.opacity = "0";
+            textArea.setAttribute('readonly', '');
+
+            document.body.appendChild(textArea);
+
+            // iOS-specific selection
+            if (navigator.userAgent.match(/ipad|iphone/i)) {
+                const range = document.createRange();
+                range.selectNodeContents(textArea);
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                textArea.setSelectionRange(0, 999999);
+            } else {
+                textArea.select();
+            }
+
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            if (successful) {
+                showSnackbar(t('linkCopied'), 'success');
+            } else {
+                throw new Error('execCommand returned false');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            // Final fallback: show URL in snackbar/alert for manual copy
+            showSnackbar(`${t('copyFailed')}: ${text}`, 'error');
+        }
+    };
+
     const handleCopyLink = async (e: React.MouseEvent, url: string) => {
         e.preventDefault();
+        
+        // 1. Try modern Clipboard API (if secure context)
+        // Wrap everything in try-catch since accessing navigator.clipboard might throw
         try {
-            await navigator.clipboard.writeText(url);
-            showSnackbar(t('linkCopied'), 'success');
+            // Check if clipboard API is available
+            const hasClipboardAPI = typeof navigator !== 'undefined' && 
+                                    navigator.clipboard && 
+                                    typeof window !== 'undefined' && 
+                                    window.isSecureContext;
+            
+            if (hasClipboardAPI && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(url);
+                    showSnackbar(t('linkCopied'), 'success');
+                    return;
+                } catch (error) {
+                    console.warn('Clipboard writeText failed:', error);
+                    // If writeText fails, try fallback
+                    fallbackCopy(url);
+                    return;
+                }
+            }
         } catch (error) {
-            console.error('Failed to copy link:', error);
-            showSnackbar(t('copyFailed'), 'error');
+            // If accessing navigator.clipboard throws, use fallback
+            console.warn('Clipboard API not available:', error);
         }
+
+        // 2. Fallback for non-secure context or older browsers
+        fallbackCopy(url);
     };
 
     return (
