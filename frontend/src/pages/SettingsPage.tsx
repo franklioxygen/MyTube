@@ -64,6 +64,7 @@ const SettingsPage: React.FC = () => {
         proxyOnlyYoutube: false,
         moveSubtitlesToVideoFolder: false,
         moveThumbnailsToVideoFolder: false,
+        saveAuthorFilesToCollection: false,
         hooks: {}
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
@@ -300,6 +301,8 @@ const SettingsPage: React.FC = () => {
                                     onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
                                     moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
                                     onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+                                    saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
+                                    onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
                                 />
                             </CollapsibleSection>
                         </Grid>

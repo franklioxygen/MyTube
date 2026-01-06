@@ -233,7 +233,10 @@ export function moveSubtitlesToCollection(
           sub.path.replace("/videos/", "")
         );
       } else if (sub.path.startsWith("/subtitles/")) {
-        absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+        absoluteSourcePath = path.join(
+          UPLOADS_DIR,
+          sub.path.replace(/^\//, "")
+        );
       }
 
       let targetSubDir = "";
@@ -453,6 +456,7 @@ export function moveAllFilesFromCollection(
 export function cleanupCollectionDirectories(collectionName: string): void {
   const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
   const collectionImageDir = path.join(IMAGES_DIR, collectionName);
+  const collectionSubtitleDir = path.join(SUBTITLES_DIR, collectionName);
 
   try {
     if (
@@ -466,6 +470,12 @@ export function cleanupCollectionDirectories(collectionName: string): void {
       fs.readdirSync(collectionImageDir).length === 0
     ) {
       fs.rmdirSync(collectionImageDir);
+    }
+    if (
+      fs.existsSync(collectionSubtitleDir) &&
+      fs.readdirSync(collectionSubtitleDir).length === 0
+    ) {
+      fs.rmdirSync(collectionSubtitleDir);
     }
   } catch (e) {
     logger.error(

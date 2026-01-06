@@ -605,6 +605,10 @@ export const zh = {
   moveThumbnailsToVideoFolderOn: "与视频在一起",
   moveThumbnailsToVideoFolderOff: "在独立的图片文件夹中",
   moveThumbnailsToVideoFolderDescription: "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
+  saveAuthorFilesToCollection: "将作者文件保存到合集",
+  saveAuthorFilesToCollectionOn: "按作者整理",
+  saveAuthorFilesToCollectionOff: "保存到根文件夹",
+  saveAuthorFilesToCollectionDescription: "启用后，新下载的视频、缩略图和字幕将自动整理到以视频作者命名的合集中。如果合集不存在，将自动创建。",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 穿透",
@@ -645,4 +649,11 @@ export const zh = {
   noBackupAvailable: "没有可用的备份",
   failedToDownloadVideo: "下载视频失败。请重试。",
   failedToDownload: "下载失败。请重试。",
+  openFolder: "打开文件夹",
+  openInNewTab: "在新标签页中打开",
+  copyLink: "复制链接",
+  refresh: "刷新",
+  showSensitiveContent: "显示敏感内容",
+  hideSensitiveContent: "隐藏敏感内容",
+  sensitiveContentWarning: "此视频可能包含敏感内容。点击查看。",
 };

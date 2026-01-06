@@ -449,15 +449,15 @@ export async function downloadSinglePart(
       const subtitleDir = moveSubtitlesToVideoFolder
         ? videoDir
         : collectionName
-          ? path.join(SUBTITLES_DIR, collectionName)
-          : SUBTITLES_DIR;
+        ? path.join(SUBTITLES_DIR, collectionName)
+        : SUBTITLES_DIR;
       const subtitlePathPrefix = moveSubtitlesToVideoFolder
         ? collectionName
           ? `/videos/${collectionName}`
           : `/videos`
         : collectionName
-          ? `/subtitles/${collectionName}`
-          : `/subtitles`;
+        ? `/subtitles/${collectionName}`
+        : `/subtitles`;
       let axiosConfig = {};
       if (userConfig.proxy) {
         try {
@@ -522,8 +522,8 @@ export async function downloadSinglePart(
             ? `/videos/${collectionName}/${finalThumbnailFilename}`
             : `/videos/${finalThumbnailFilename}`
           : collectionName
-            ? `/images/${collectionName}/${finalThumbnailFilename}`
-            : `/images/${finalThumbnailFilename}`
+          ? `/images/${collectionName}/${finalThumbnailFilename}`
+          : `/images/${finalThumbnailFilename}`
         : null,
       duration: duration,
       fileSize: fileSize,
@@ -573,6 +573,14 @@ export async function downloadSinglePart(
 
         if (updatedVideo) {
           logger.info(`Video updated in database with new subtitles`);
+
+          // Add video to author collection if enabled (for existing videos too)
+          storageService.addVideoToAuthorCollection(
+            updatedVideo.id,
+            videoAuthor,
+            settings.saveAuthorFilesToCollection || false
+          );
+
           return { success: true, videoData: updatedVideo };
         }
       }
@@ -582,6 +590,13 @@ export async function downloadSinglePart(
     storageService.saveVideo(videoData);
 
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
+
+    // Add video to author collection if enabled
+    storageService.addVideoToAuthorCollection(
+      videoData.id,
+      videoAuthor,
+      settings.saveAuthorFilesToCollection || false
+    );
 
     return { success: true, videoData };
   } catch (error: any) {

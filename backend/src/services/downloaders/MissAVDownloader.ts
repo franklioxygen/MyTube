@@ -464,6 +464,13 @@ export class MissAVDownloader extends BaseDownloader {
       storageService.saveVideo(videoData);
       logger.info("MissAV video saved to database");
 
+      // Add video to author collection if enabled
+      storageService.addVideoToAuthorCollection(
+        videoData.id,
+        videoAuthor,
+        settings.saveAuthorFilesToCollection || false
+      );
+
       return videoData;
     } catch (error: any) {
       logger.error("Error in downloadMissAVVideo:", error);

@@ -678,6 +678,11 @@ export const en = {
   moveThumbnailsToVideoFolderOff: "In isolated images folder",
   moveThumbnailsToVideoFolderDescription:
     "When enabled, thumbnail files will be moved to the same folder as the video file. When disabled, they will be moved to the isolated images folder.",
+  saveAuthorFilesToCollection: "Save Author's Files in Collection",
+  saveAuthorFilesToCollectionOn: "Organize by author",
+  saveAuthorFilesToCollectionOff: "Save to root folders",
+  saveAuthorFilesToCollectionDescription:
+    "When enabled, new downloaded videos, thumbnails, and subtitles will be automatically organized into collections named after the video author. If a collection doesn't exist, it will be created automatically.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare Tunnel",
@@ -726,4 +731,12 @@ export const en = {
   noBackupAvailable: "No backup available",
   failedToDownloadVideo: "Failed to download video. Please try again.",
   failedToDownload: "Failed to download. Please try again.",
+  openFolder: "Open Folder",
+  openInNewTab: "Open in New Tab",
+  copyLink: "Copy Link",
+  refresh: "Refresh",
+  showSensitiveContent: "Show Sensitive Content",
+  hideSensitiveContent: "Hide Sensitive Content",
+  sensitiveContentWarning:
+    "This video may contain sensitive content. Click to view.",
 };

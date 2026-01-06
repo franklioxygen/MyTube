@@ -29,6 +29,8 @@ interface DatabaseSettingsProps {
     onMoveSubtitlesToVideoFolderChange: (checked: boolean) => void;
     moveThumbnailsToVideoFolder: boolean;
     onMoveThumbnailsToVideoFolderChange: (checked: boolean) => void;
+    saveAuthorFilesToCollection: boolean;
+    onSaveAuthorFilesToCollectionChange: (checked: boolean) => void;
 }
 
 const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
@@ -44,7 +46,9 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     moveSubtitlesToVideoFolder,
     onMoveSubtitlesToVideoFolderChange,
     moveThumbnailsToVideoFolder,
-    onMoveThumbnailsToVideoFolderChange
+    onMoveThumbnailsToVideoFolderChange,
+    saveAuthorFilesToCollection,
+    onSaveAuthorFilesToCollectionChange
 }) => {
     const { t } = useLanguage();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -203,6 +207,23 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 />
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                     {t('moveThumbnailsToVideoFolderDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" gutterBottom>{t('saveAuthorFilesToCollection')}</Typography>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={saveAuthorFilesToCollection}
+                            onChange={(e) => onSaveAuthorFilesToCollectionChange(e.target.checked)}
+                            disabled={isSaving}
+                        />
+                    }
+                    label={saveAuthorFilesToCollection ? t('saveAuthorFilesToCollectionOn') : t('saveAuthorFilesToCollectionOff')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {t('saveAuthorFilesToCollectionDescription')}
                 </Typography>
             </Box>
 

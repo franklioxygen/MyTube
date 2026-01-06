@@ -65,5 +65,12 @@ export {
   saveCollection,
 } from "./collections";
 
+// Author Collection Utils
+export {
+  addVideoToAuthorCollection,
+  findOrCreateAuthorCollection,
+  validateCollectionName,
+} from "./authorCollectionUtils";
+
 // File Helpers
 export { findImageFile, findVideoFile, moveFile } from "./fileHelpers";

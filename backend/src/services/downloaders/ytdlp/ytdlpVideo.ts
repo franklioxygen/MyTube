@@ -149,7 +149,7 @@ export async function downloadVideo(
       moveThumbnailsToVideoFolder,
       moveSubtitlesToVideoFolder,
       videoDir: VIDEOS_DIR,
-      imageDir: IMAGES_DIR
+      imageDir: IMAGES_DIR,
     });
 
     const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
@@ -221,13 +221,13 @@ export async function downloadVideo(
         // Clean up partial files
         logger.info("Cleaning up partial files...");
         await cleanupVideoArtifacts(newSafeBaseFilename);
-        
+
         // Use fresh cleanup based on settings
         const currentSettings = storageService.getSettings();
         if (!currentSettings.moveThumbnailsToVideoFolder) {
-            await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
+          await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
         }
-        
+
         if (fs.existsSync(newThumbnailPath)) {
           await fs.remove(newThumbnailPath);
         }
@@ -304,7 +304,7 @@ export async function downloadVideo(
     if (thumbnailUrl) {
       // Prepare axios config with proxy if available
       let axiosConfig = {};
-      
+
       if (downloadUserConfig.proxy) {
         try {
           axiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
@@ -436,6 +436,14 @@ export async function downloadVideo(
 
     if (updatedVideo) {
       logger.info("Video updated in database with new subtitles");
+
+      // Add video to author collection if enabled (for existing videos too)
+      storageService.addVideoToAuthorCollection(
+        updatedVideo.id,
+        videoAuthor,
+        settings.saveAuthorFilesToCollection || false
+      );
+
       return updatedVideo;
     }
   }
@@ -444,6 +452,13 @@ export async function downloadVideo(
   storageService.saveVideo(videoData);
 
   logger.info("Video added to database");
+
+  // Add video to author collection if enabled
+  storageService.addVideoToAuthorCollection(
+    videoData.id,
+    videoAuthor,
+    settings.saveAuthorFilesToCollection || false
+  );
 
   return videoData;
 }

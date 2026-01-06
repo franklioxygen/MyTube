@@ -605,6 +605,10 @@ export const ar = {
   moveThumbnailsToVideoFolderOn: "مع الفيديو",
   moveThumbnailsToVideoFolderOff: "في مجلد صور معزول",
   moveThumbnailsToVideoFolderDescription: "عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.",
+  saveAuthorFilesToCollection: "حفظ ملفات المؤلف في مجموعة",
+  saveAuthorFilesToCollectionOn: "تنتظيم حسب المؤلف",
+  saveAuthorFilesToCollectionOff: "حفظ في المجلدات الجذرية",
+  saveAuthorFilesToCollectionDescription: "عند التفعيل، سيتم تنظيم مقاطع الفيديو والصور المصغرة والترجمات التي تم تنزيلها حديثًا تلقائيًا في مجموعات مسماة باسم مؤلف الفيديو. إذا لم تكن المجموعة موجودة، فسيتم إنشاؤها تلقائيًا.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "نفق Cloudflare",
@@ -645,4 +649,11 @@ export const ar = {
   noBackupAvailable: "لا توجد نسخة احتياطية متاحة",
   failedToDownloadVideo: "فشل تنزيل الفيديو. يرجى المحاولة مرة أخرى.",
   failedToDownload: "فشل التنزيل. يرجى المحاولة مرة أخرى.",
+  openFolder: "فتح المجلد",
+  openInNewTab: "فتح في علامة تبويب جديدة",
+  copyLink: "نسخ الرابط",
+  refresh: "تحديث",
+  showSensitiveContent: "إظهار المحتوى الحساس",
+  hideSensitiveContent: "إخفاء المحتوى الحساس",
+  sensitiveContentWarning: "قد يحتوي هذا الفيديو على محتوى حساس. انقر للعرض.",
 };
