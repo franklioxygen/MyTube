@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import ControlsOverlay from './ControlsOverlay';
 import { useFocusPause } from './hooks/useFocusPause';
 import { useFullscreen } from './hooks/useFullscreen';
@@ -71,10 +71,19 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         onSubtitlesToggle
     });
 
+    // Memoize seek callbacks to prevent unnecessary re-registration of keyboard listeners
+    const handleSeekLeft = useCallback(() => {
+        videoPlayer.handleSeek(-10);
+    }, [videoPlayer.handleSeek]);
+
+    const handleSeekRight = useCallback(() => {
+        videoPlayer.handleSeek(10);
+    }, [videoPlayer.handleSeek]);
+
     // Keyboard shortcuts
     useKeyboardShortcuts({
-        onSeekLeft: () => videoPlayer.handleSeek(-10),
-        onSeekRight: () => videoPlayer.handleSeek(10)
+        onSeekLeft: handleSeekLeft,
+        onSeekRight: handleSeekRight
     });
 
     // Handle video source changes - trigger loading

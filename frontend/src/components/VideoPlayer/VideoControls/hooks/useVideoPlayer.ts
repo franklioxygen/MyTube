@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseVideoPlayerProps {
   src: string;
@@ -102,11 +102,11 @@ export const useVideoPlayer = ({
     }
   };
 
-  const handleSeek = (seconds: number) => {
+  const handleSeek = useCallback((seconds: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime += seconds;
     }
-  };
+  }, []); // videoRef is stable, no dependencies needed
 
   const handleProgressChange = (newValue: number) => {
     if (!videoRef.current || duration <= 0 || !isFinite(duration)) return;
