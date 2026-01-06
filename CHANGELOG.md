@@ -2,6 +2,12 @@
 
 
 
+## v1.7.38 (2026-01-06)
+
+### Feat
+
+- feat: Add functionality to save author files and improve error logging (e6019dd)
+
 ## v1.7.37 (2026-01-06)
 
 ### Feat
