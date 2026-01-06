@@ -2,6 +2,12 @@
 
 
 
+## v1.7.40 (2026-01-06)
+
+### Feat
+
+- feat: Add fallback copy function for copying link (35ec579)
+
 ## v1.7.39 (2026-01-06)
 
 ### Feat
