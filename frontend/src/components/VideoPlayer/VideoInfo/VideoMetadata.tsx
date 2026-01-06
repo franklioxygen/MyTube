@@ -2,6 +2,7 @@ import { CalendarToday, Download, Folder, HighQuality, Link as LinkIcon, VideoLi
 import { Box, Typography, useTheme } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../../types';
 
@@ -22,31 +23,47 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
+
+    const handleCopyLink = async (e: React.MouseEvent, url: string) => {
+        e.preventDefault();
+        try {
+            await navigator.clipboard.writeText(url);
+            showSnackbar(t('linkCopied'), 'success');
+        } catch (error) {
+            console.error('Failed to copy link:', error);
+            showSnackbar(t('copyFailed'), 'error');
+        }
+    };
 
     return (
         <Box sx={{ bgcolor: 'background.paper', p: 2, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 3, rowGap: 1 }}>
                 {video.sourceUrl && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            display: 'flex', 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            display: 'flex',
                             alignItems: 'center',
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
                     >
-                        <a href={video.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+                        <a
+                            href={video.sourceUrl}
+                            onClick={(e) => handleCopyLink(e, video.sourceUrl!)}
+                            style={{ color: theme.palette.primary.main, textDecoration: 'none', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                        >
                             <LinkIcon sx={{ mr: 0.5, fontSize: { xs: '0.875rem', sm: '1rem' } }} />
                             <strong>{t('originalLink')}</strong>
                         </a>
                     </Typography>
                 )}
                 {(videoUrl || (video.videoPath && !video.videoPath.startsWith("cloud:"))) && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            display: 'flex', 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            display: 'flex',
                             alignItems: 'center',
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
@@ -83,10 +100,10 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                         ))}
                     </Box>
                 )}
-                <Typography 
-                    variant="body2" 
-                    sx={{ 
-                        display: 'flex', 
+                <Typography
+                    variant="body2"
+                    sx={{
+                        display: 'flex',
                         alignItems: 'center',
                         fontSize: { xs: '0.75rem', sm: '0.875rem' }
                     }}
@@ -95,10 +112,10 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                     {video.source ? video.source.charAt(0).toUpperCase() + video.source.slice(1) : 'Unknown'}
                 </Typography>
                 {video.addedAt && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            display: 'flex', 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            display: 'flex',
                             alignItems: 'center',
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
@@ -108,10 +125,10 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
                     </Typography>
                 )}
                 {videoResolution && (
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
-                            display: 'flex', 
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            display: 'flex',
                             alignItems: 'center',
                             fontSize: { xs: '0.75rem', sm: '0.875rem' }
                         }}
