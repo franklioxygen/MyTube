@@ -2,6 +2,18 @@
 
 
 
+## v1.7.39 (2026-01-06)
+
+### Feat
+
+- feat: Add keyboard shortcuts for seeking left and right (cd50f0c)
+- feat: Add useSettings hook for dynamic website title (c82b9f0)
+- feat: Add functionality to copy video link with snackbar feedback (b13dd0e)
+
+### Refactor
+
+- refactor: Remove unused 'collections' prop from VideoCard (1e41d0c)
+
 ## v1.7.38 (2026-01-06)
 
 ### Feat
