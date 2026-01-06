@@ -118,6 +118,31 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         videoPlayer.handleLoadedMetadata(e);
     };
 
+    // Handle progress event - hide loading once we have buffered data
+    // This is especially important for large files where metadata loading takes time
+    const handleProgress = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        const videoElement = e.currentTarget;
+        // Check if we have any buffered data
+        if (videoElement.buffered.length > 0) {
+            // If we have buffered data, we can hide the loading indicator
+            // even if metadata isn't fully loaded yet
+            loading.stopLoading();
+        }
+    };
+
+    // Handle waiting event - show loading when video is buffering during playback
+    const handleWaiting = () => {
+        // Only show loading if video is playing (not during initial load)
+        if (videoPlayer.isPlaying) {
+            loading.startLoading();
+        }
+    };
+
+    // Handle canplaythrough - video has buffered enough to play through
+    const handleCanPlayThrough = () => {
+        loading.stopLoading();
+    };
+
     // Note: onVolumeChange from video element is handled by the useVolume hook
     // through the useEffect that syncs volume state with the video element
 
@@ -150,6 +175,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 onLoadStart={handleLoadStart}
                 onCanPlay={handleCanPlay}
                 onLoadedData={handleLoadedData}
+                onProgress={handleProgress}
+                onWaiting={handleWaiting}
+                onCanPlayThrough={handleCanPlayThrough}
                 onSubtitleInit={subtitlesHook.initializeSubtitles}
             />
 

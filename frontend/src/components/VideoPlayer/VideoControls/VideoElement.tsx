@@ -19,6 +19,9 @@ interface VideoElementProps {
     onLoadStart: () => void;
     onCanPlay: () => void;
     onLoadedData: () => void;
+    onProgress?: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
+    onWaiting?: () => void;
+    onCanPlayThrough?: () => void;
     onSubtitleInit: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
 }
 
@@ -39,6 +42,9 @@ const VideoElement: React.FC<VideoElementProps> = ({
     onLoadStart,
     onCanPlay,
     onLoadedData,
+    onProgress,
+    onWaiting,
+    onCanPlayThrough,
     onSubtitleInit
 }) => {
     const { t } = useLanguage();
@@ -138,6 +144,9 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 onLoadStart={onLoadStart}
                 onCanPlay={onCanPlay}
                 onLoadedData={onLoadedData}
+                onProgress={onProgress}
+                onWaiting={onWaiting}
+                onCanPlayThrough={onCanPlayThrough}
                 playsInline
                 crossOrigin="anonymous"
                 poster={poster}
