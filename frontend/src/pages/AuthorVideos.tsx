@@ -241,7 +241,6 @@ const AuthorVideos: React.FC = () => {
                         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
                             <VideoCard
                                 video={video}
-                                collections={collections}
                                 onDeleteVideo={deleteVideo}
                                 showDeleteButton={true}
                             />
