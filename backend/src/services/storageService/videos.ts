@@ -2,10 +2,10 @@ import { desc, eq } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-    IMAGES_DIR,
-    SUBTITLES_DIR,
-    UPLOADS_DIR,
-    VIDEOS_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  UPLOADS_DIR,
+  VIDEOS_DIR,
 } from "../../config/paths";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
@@ -29,7 +29,10 @@ export function getVideos(): import("./types").Video[] {
       subtitles: v.subtitles ? JSON.parse(v.subtitles) : undefined,
     })) as import("./types").Video[];
   } catch (error) {
-    logger.error("Error getting videos", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error getting videos",
+      error instanceof Error ? error : new Error(String(error))
+    );
     // Return empty array for backward compatibility with frontend
     return [];
   }
@@ -54,7 +57,10 @@ export function getVideoBySourceUrl(
     }
     return undefined;
   } catch (error) {
-    logger.error("Error getting video by sourceUrl", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error getting video by sourceUrl",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       `Failed to get video by source URL: ${sourceUrl}`,
       error instanceof Error ? error : new Error(String(error)),
@@ -75,7 +81,10 @@ export function getVideoById(id: string): import("./types").Video | undefined {
     }
     return undefined;
   } catch (error) {
-    logger.error("Error getting video by id", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error getting video by id",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       `Failed to get video by id: ${id}`,
       error instanceof Error ? error : new Error(String(error)),
@@ -359,7 +368,10 @@ export function formatLegacyFilenames(): {
           // results.errors++; // Not necessarily an error, maybe just missing file
         }
       } catch (err: any) {
-        logger.error(`Error renaming video ${video.id}`, err instanceof Error ? err : new Error(String(err)));
+        logger.error(
+          `Error renaming video ${video.id}`,
+          err instanceof Error ? err : new Error(String(err))
+        );
         results.errors++;
         results.details.push(`Error: ${video.title} - ${err.message}`);
       }
@@ -367,7 +379,10 @@ export function formatLegacyFilenames(): {
 
     return results;
   } catch (error: any) {
-    logger.error("Error in formatLegacyFilenames", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error in formatLegacyFilenames",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       "Failed to format legacy filenames",
       error instanceof Error ? error : new Error(String(error)),
@@ -396,7 +411,10 @@ export function saveVideo(
       .run();
     return videoData;
   } catch (error) {
-    logger.error("Error saving video", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error saving video",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       `Failed to save video: ${videoData.id}`,
       error instanceof Error ? error : new Error(String(error)),
@@ -443,7 +461,10 @@ export function updateVideo(
     }
     return null;
   } catch (error) {
-    logger.error("Error updating video", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error updating video",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       `Failed to update video: ${id}`,
       error instanceof Error ? error : new Error(String(error)),
@@ -472,12 +493,65 @@ export function deleteVideo(id: string): boolean {
 
     // Remove thumbnail file
     if (videoToDelete.thumbnailFilename) {
-      const actualPath = findImageFile(
-        videoToDelete.thumbnailFilename,
-        allCollections
-      );
-      if (actualPath && fs.existsSync(actualPath)) {
-        fs.unlinkSync(actualPath);
+      let thumbnailPath: string | null = null;
+
+      // Determine the actual file path based on thumbnailPath
+      if (videoToDelete.thumbnailPath) {
+        if (videoToDelete.thumbnailPath.startsWith("/videos/")) {
+          // Thumbnail is stored alongside video file
+          thumbnailPath = path.join(
+            VIDEOS_DIR,
+            videoToDelete.thumbnailPath.replace(/^\/videos\//, "")
+          );
+        } else if (videoToDelete.thumbnailPath.startsWith("/images/")) {
+          // Thumbnail is in images directory (may be in collection subdirectory)
+          thumbnailPath = path.join(
+            UPLOADS_DIR,
+            videoToDelete.thumbnailPath.replace(/^\//, "")
+          );
+        }
+      }
+
+      // Fallback: try to find by filename if path-based lookup fails
+      if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+        // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
+        if (videoToDelete.videoFilename) {
+          const videoPath = findVideoFile(
+            videoToDelete.videoFilename,
+            allCollections
+          );
+          if (videoPath) {
+            const videoDir = path.dirname(videoPath);
+            thumbnailPath = path.join(
+              videoDir,
+              videoToDelete.thumbnailFilename
+            );
+            if (!fs.existsSync(thumbnailPath)) {
+              thumbnailPath = null;
+            }
+          }
+        }
+      }
+
+      // Final fallback: try standard image locations
+      if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+        thumbnailPath = findImageFile(
+          videoToDelete.thumbnailFilename,
+          allCollections
+        );
+      }
+
+      // Delete the thumbnail file if it exists
+      if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+        try {
+          fs.unlinkSync(thumbnailPath);
+          logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
+        } catch (error) {
+          logger.error(
+            `Error deleting thumbnail file ${thumbnailPath}`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
       }
     }
 
@@ -544,7 +618,10 @@ export function deleteVideo(id: string): boolean {
     db.delete(videos).where(eq(videos.id, id)).run();
     return true;
   } catch (error) {
-    logger.error("Error deleting video", error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Error deleting video",
+      error instanceof Error ? error : new Error(String(error))
+    );
     throw new DatabaseError(
       `Failed to delete video: ${id}`,
       error instanceof Error ? error : new Error(String(error)),
