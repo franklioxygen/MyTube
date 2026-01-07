@@ -1,4 +1,4 @@
-import { Alert, Box, CircularProgress, Container, Pagination, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -17,6 +17,8 @@ import { useViewMode } from '../hooks/useViewMode';
 
 const Home: React.FC = () => {
     const { t } = useLanguage();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const {
         videos,
         loading,
@@ -196,7 +198,8 @@ const Home: React.FC = () => {
                                     page={page}
                                     onChange={handlePageChange}
                                     color="primary"
-                                    size="large"
+                                    size={isMobile ? 'medium' : 'large'}
+                                    siblingCount={isMobile ? 0 : 1}
                                     showFirstButton
                                     showLastButton
                                 />
