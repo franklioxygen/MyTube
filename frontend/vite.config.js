@@ -1,9 +1,10 @@
 import react from "@vitejs/plugin-react";
+import { env } from "node:process";
 import { defineConfig } from "vite";
 import packageJson from "./package.json";
 
 // Get API URL from environment variable or use default
-const API_URL = process.env.VITE_API_URL || "http://localhost:5551/api";
+const API_URL = env.VITE_API_URL || "http://localhost:5551/api";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -56,18 +57,18 @@ export default defineConfig({
       VITE_API_URL: "http://localhost:5551/api",
     },
     coverage: {
-      provider: 'v8',
+      provider: "v8",
       exclude: [
-        'node_modules/**',
-        'dist/**',
-        '**/*.config.js',
-        '**/*.config.ts',
-        '**/__tests__/**',
-        'src/vite-env.d.ts', // Types
-        'src/types.ts', // Types
-        'src/theme.ts', // Theme config
-        'src/setupTests.ts', // Test setup
-        'src/version.ts', // Version constant
+        "node_modules/**",
+        "dist/**",
+        "**/*.config.js",
+        "**/*.config.ts",
+        "**/__tests__/**",
+        "src/vite-env.d.ts", // Types
+        "src/types.ts", // Types
+        "src/theme.ts", // Theme config
+        "src/setupTests.ts", // Test setup
+        "src/version.ts", // Version constant
       ],
     },
   },
