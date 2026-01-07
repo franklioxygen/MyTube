@@ -13,6 +13,11 @@ vi.mock('../../contexts/LanguageContext');
 vi.mock('../../contexts/CollectionContext');
 vi.mock('../../contexts/SnackbarContext');
 vi.mock('../../contexts/VideoContext');
+vi.mock('../../hooks/useVideoPrefetch', () => ({
+    useVideoPrefetch: () => ({
+        prefetchVideo: vi.fn(),
+    }),
+}));
 vi.mock('../../contexts/AuthContext', () => ({
     useAuth: () => ({
         isAuthenticated: true,

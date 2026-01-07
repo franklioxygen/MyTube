@@ -56,6 +56,31 @@ const VideoElement: React.FC<VideoElementProps> = ({
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
 
+    const [preloadStrategy, setPreloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>('metadata');
+
+    React.useEffect(() => {
+        // Dynamic preload strategy based on connection
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+
+        if (connection) {
+            // If we have connection info
+            const type = connection.effectiveType; // 'slow-2g', '2g', '3g', '4g'
+            const saveData = connection.saveData; // boolean
+
+            if (saveData) {
+                setPreloadStrategy('none'); // Save data mode -> minimal loading
+            } else if (type === '4g' && !saveData) {
+                setPreloadStrategy('auto'); // Good connection -> auto preload
+            } else {
+                setPreloadStrategy('metadata'); // Slower connection -> metadata only
+            }
+        } else {
+            // Fallback for browsers without Network Information API
+            setPreloadStrategy('metadata');
+        }
+    }, []);
+
     return (
         <>
             {/* Scoped style for centering subtitles */}
@@ -130,7 +155,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 style={{ width: '100%', aspectRatio: '16/9', display: 'block', cursor: 'pointer' }}
                 controls={false}
                 src={src}
-                preload="metadata"
+                preload={preloadStrategy}
                 onClick={onClick}
                 onPlay={onPlay}
                 onPause={onPause}

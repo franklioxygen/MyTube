@@ -19,19 +19,34 @@ export const extractCloudFilename = (path: string): string => {
   return path.substring(6); // Remove "cloud:" prefix
 };
 
+// Cache for signed URLs (persists across re-renders for the session)
+const urlCache = new Map<string, { url: string; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
 // Cache for inflight requests to prevent duplicate calls
 const signedUrlPromiseCache = new Map<string, Promise<string | null>>();
 
 /**
  * Get signed URL for a cloud storage file
  * This fetches the dynamic sign from the backend
- * Implements request deduplication
+ * Implements request deduplication and caching
  */
 export const getCloudStorageSignedUrl = async (
   filename: string,
   type: 'video' | 'thumbnail' = 'video'
 ): Promise<string | null> => {
   const cacheKey = `${filename}:${type}`;
+  const now = Date.now();
+
+  // Check persistent cache first
+  if (urlCache.has(cacheKey)) {
+    const cached = urlCache.get(cacheKey)!;
+    if (now - cached.timestamp < CACHE_DURATION) {
+      return cached.url;
+    }
+    // Cache expired, remove it
+    urlCache.delete(cacheKey);
+  }
   
   // Return existing promise if request is already inflight
   if (signedUrlPromiseCache.has(cacheKey)) {
@@ -40,14 +55,19 @@ export const getCloudStorageSignedUrl = async (
 
   const promise = (async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
-        params: {
-          filename,
-          type,
-        },
-      });
+        const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
+            params: {
+              filename,
+              type,
+            },
+        });
 
       if (response.data?.success && response.data?.url) {
+        // Cache the successful result
+        urlCache.set(cacheKey, {
+          url: response.data.url,
+          timestamp: Date.now()
+        });
         return response.data.url;
       }
       return null;
@@ -55,9 +75,7 @@ export const getCloudStorageSignedUrl = async (
       console.error('Failed to get cloud storage signed URL:', error);
       return null;
     } finally {
-      // Remove from cache when done (success or failure)
-      // We only cache the PROMISE (inflight request), not the result indefinitely here
-      // The result could be cached separately if needed, but for now we solve the "9 requests" issue
+      // Remove from inflight cache when done
       signedUrlPromiseCache.delete(cacheKey);
     }
   })();

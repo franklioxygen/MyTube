@@ -70,6 +70,7 @@ echo ""
 for platform in "${PLATFORMS[@]}"; do
   if [ "$platform" = "linux/amd64" ]; then
     build_backend "$platform" "$BACKEND_TEST_AMD64"
+  fi
 done
 
 echo ""
@@ -78,6 +79,7 @@ echo ""
 for platform in "${PLATFORMS[@]}"; do
   if [ "$platform" = "linux/amd64" ]; then
     build_frontend "$platform" "$FRONTEND_TEST_AMD64"
+  fi
 done
 
 echo ""

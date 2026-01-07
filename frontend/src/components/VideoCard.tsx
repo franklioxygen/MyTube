@@ -10,6 +10,7 @@ import { useVideoCardActions } from '../hooks/useVideoCardActions';
 import { useVideoCardMetadata } from '../hooks/useVideoCardMetadata';
 import { useVideoCardNavigation } from '../hooks/useVideoCardNavigation';
 import { useVideoHoverPreview } from '../hooks/useVideoHoverPreview';
+import { useVideoPrefetch } from '../hooks/useVideoPrefetch';
 import { Collection, Video } from '../types';
 import { getVideoCardCollectionInfo } from '../utils/videoCardUtils';
 import { VideoCardActions } from './VideoCard/VideoCardActions';
@@ -58,10 +59,16 @@ const VideoCard: React.FC<VideoCardProps> = ({
         video,
         collectionInfo
     });
+    const { prefetchVideo } = useVideoPrefetch(video.id);
+
+    const handleMouseEnter = () => {
+        hoverPreview.handleMouseEnter();
+        prefetchVideo();
+    };
 
     return (
         <Card
-            onMouseEnter={hoverPreview.handleMouseEnter}
+            onMouseEnter={handleMouseEnter}
             onMouseLeave={hoverPreview.handleMouseLeave}
             sx={{
                 height: '100%',
