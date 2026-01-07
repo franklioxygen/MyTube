@@ -2,6 +2,24 @@
 
 
 
+## v1.7.44 (2026-01-07)
+
+### Feat
+
+- feat: Enhance video duration handling (82f6c16)
+
+## v1.7.43 (2026-01-07)
+
+### Feat
+
+- feat: add pre-signed URLs for cloud video and thumbnail (19f57cb)
+- feat: Add video prefetch optimization on hover (1e49db2)
+- feat: Add video prefetch functionality (5c6afda)
+
+### Refactor
+
+- refactor: Improve code formatting for server.ts (59ac4dd)
+
 ## v1.7.42 (2026-01-06)
 
 ### Refactor

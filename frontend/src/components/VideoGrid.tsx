@@ -1,10 +1,10 @@
 import { Grid } from '@mui/material';
 import React, { useMemo } from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { ViewMode } from '../hooks/useViewMode';
+import { Collection, Video } from '../types';
 import CollectionCard from './CollectionCard';
 import VideoCard from './VideoCard';
-import { Collection, Video } from '../types';
-import { ViewMode } from '../hooks/useViewMode';
 
 interface GridProps {
     xs: number;

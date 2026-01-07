@@ -2,6 +2,8 @@
 
 支持 YouTube、Bilibili、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##) 的自托管视频下载器与播放器。具备频道订阅、自动下载及本地化存储功能。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
 
+🚀 100% 提示工程构建，零人工介入代码。
+
 [![GitHub License](https://img.shields.io/github/license/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
 [![Discord](https://img.shields.io/badge/Discord-Join_Us-7289DA?logo=discord&logoColor=white)](https://discord.gg/dXn4u9kQGN)
