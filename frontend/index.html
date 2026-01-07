@@ -8,12 +8,19 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
     <meta name="apple-mobile-web-app-title" content="MyTube" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <meta name="theme-color" content="#ff3e3e" />
     <title>MyTube - My Videos, My Rules.</title>
+    <!-- Preconnect to improve resource loading performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="__BACKEND_URL__" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Defer script loading to prevent render blocking -->
+    <script type="module" src="/src/main.tsx" defer></script>
   </body>
 </html>

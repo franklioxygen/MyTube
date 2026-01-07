@@ -134,7 +134,6 @@ const AuthorVideos: React.FC = () => {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>{t('loadingVideos')}</Typography>
             </Box>
         );
     }

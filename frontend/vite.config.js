@@ -10,12 +10,16 @@ const API_URL = env.VITE_API_URL || "http://localhost:5551/api";
 export default defineConfig({
   plugins: [react()],
   build: {
+    // Enable CSS code splitting for better performance
+    cssCodeSplit: true,
+    // Use esbuild for faster CSS minification
+    cssMinify: "esbuild",
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@mui/material', '@emotion/react', '@emotion/styled'],
-        },
+        // Use Vite's automatic code splitting strategy to avoid circular dependency issues
+        // Vite automatically handles chunk splitting intelligently based on imports
+        // This prevents "Cannot access before initialization" errors from circular dependencies
+        manualChunks: undefined,
       },
     },
   },
