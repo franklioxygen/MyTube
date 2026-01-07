@@ -59,15 +59,20 @@ const VideoCard: React.FC<VideoCardProps> = ({
         video,
         collectionInfo
     });
-    const { prefetchVideo } = useVideoPrefetch(video.id);
+    const { prefetchVideo, cardRef } = useVideoPrefetch({ 
+        videoId: video.id,
+        video 
+    });
 
     const handleMouseEnter = () => {
         hoverPreview.handleMouseEnter();
+        // Also prefetch on hover as an additional optimization
         prefetchVideo();
     };
 
     return (
         <Card
+            ref={cardRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={hoverPreview.handleMouseLeave}
             sx={{
