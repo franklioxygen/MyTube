@@ -2,11 +2,32 @@
 
 
 
+## v1.7.46 (2026-01-07)
+
+### Chore
+
+- chore: Update video MIME types and Safari error handling (e9db8e6)
+
+## v1.7.45 (2026-01-07)
+
+### Style
+
+- style: Enable CSS code splitting and use esbuild for minification (20bd425)
+
 ## v1.7.44 (2026-01-07)
 
 ### Feat
 
-- feat: Enhance video duration handling (82f6c16)
+- feat: Enhance video duration handling (033399d)
+- feat: Add responsive pagination size and sibling count (b4a7282)
+
+### Build
+
+- build: Optimize vendor bundle splitting (8ff1962)
+
+### Test
+
+- test: update translations tests for async functions (114ee3d)
 
 ## v1.7.43 (2026-01-07)
 
