@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { Language, TranslationKey, translations } from "../translations";
+import { Language, loadLocale, TranslationKey, translations } from "../translations";
 
 describe("translations", () => {
-  it("should export all expected languages", () => {
+  it("should export all expected languages", async () => {
     const expectedLanguages: Language[] = [
       "en",
       "zh",
@@ -16,24 +16,43 @@ describe("translations", () => {
       "ru",
     ];
 
-    expectedLanguages.forEach((lang) => {
-      expect(translations[lang]).toBeDefined();
-      expect(typeof translations[lang]).toBe("object");
-    });
+    for (const lang of expectedLanguages) {
+      if (lang === "en") {
+        expect(translations.en).toBeDefined();
+        expect(typeof translations.en).toBe("object");
+      } else {
+        const loadedTranslations = await loadLocale(lang);
+        expect(loadedTranslations).toBeDefined();
+        expect(typeof loadedTranslations).toBe("object");
+      }
+    }
   });
 
-  it("should have consistent keys across all languages", () => {
+  it("should have consistent keys across all languages", async () => {
     const englishKeys = Object.keys(translations.en) as TranslationKey[];
+    const expectedLanguages: Language[] = [
+      "en",
+      "zh",
+      "es",
+      "de",
+      "ja",
+      "fr",
+      "ko",
+      "ar",
+      "pt",
+      "ru",
+    ];
 
-    Object.keys(translations).forEach((lang) => {
-      const langKeys = Object.keys(translations[lang as Language]);
+    for (const lang of expectedLanguages) {
+      const loadedTranslations = await loadLocale(lang);
+      const langKeys = Object.keys(loadedTranslations);
       expect(langKeys.length).toBeGreaterThan(0);
 
       // Check that all languages have at least some common keys
       // (We don't require exact match as some languages might have additional keys)
       const commonKeys = englishKeys.filter((key) => langKeys.includes(key));
       expect(commonKeys.length).toBeGreaterThan(0);
-    });
+    }
   });
 
   it("should have non-empty string values for all keys in English", () => {
@@ -47,12 +66,25 @@ describe("translations", () => {
     });
   });
 
-  it("should have valid translation structure", () => {
-    Object.keys(translations).forEach((lang) => {
-      const translation = translations[lang as Language];
+  it("should have valid translation structure", async () => {
+    const expectedLanguages: Language[] = [
+      "en",
+      "zh",
+      "es",
+      "de",
+      "ja",
+      "fr",
+      "ko",
+      "ar",
+      "pt",
+      "ru",
+    ];
+
+    for (const lang of expectedLanguages) {
+      const translation = await loadLocale(lang);
       expect(translation).toBeDefined();
       expect(typeof translation).toBe("object");
       expect(translation).not.toBeNull();
-    });
+    }
   });
 });
