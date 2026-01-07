@@ -1,9 +1,9 @@
 import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
 import { Box, Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
 import React from 'react';
-import SortControl from './SortControl';
-import { ViewMode } from '../hooks/useViewMode';
 import { useLanguage } from '../contexts/LanguageContext';
+import { ViewMode } from '../hooks/useViewMode';
+import SortControl from './SortControl';
 
 interface HomeHeaderProps {
     viewMode: ViewMode;
@@ -47,7 +47,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                 </Button>
                 <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                    {t('videos')}
+                    {t('allVideos')}
                 </Box>
                 {selectedTagsCount > 0 && (
                     <Tooltip title={t('deleteAllFilteredVideos')}>
