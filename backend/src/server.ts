@@ -41,10 +41,12 @@ app.disable("x-powered-by");
 
 // Middleware
 // Configure CORS to allow credentials for HTTP-only cookies
-app.use(cors({
-  origin: true, // Allow requests from any origin (can be restricted in production)
-  credentials: true, // Required for HTTP-only cookies
-}));
+app.use(
+  cors({
+    origin: true, // Allow requests from any origin (can be restricted in production)
+    credentials: true, // Required for HTTP-only cookies
+  })
+);
 // Parse cookies
 app.use(cookieParser());
 // Increase body size limits for large file uploads (10GB)
@@ -67,11 +69,17 @@ const startServer = async () => {
     downloadManager.initialize();
 
     // Serve static files with proper MIME types
+    // Safari requires Access-Control-Expose-Headers to read Range response headers
     app.use(
       "/videos",
       express.static(VIDEOS_DIR, {
         setHeaders: (res, path) => {
           res.setHeader("Access-Control-Allow-Origin", "*");
+          // Critical for Safari: expose headers needed for video Range requests
+          res.setHeader(
+            "Access-Control-Expose-Headers",
+            "Accept-Ranges, Content-Range, Content-Length"
+          );
           if (path.endsWith(".mp4")) {
             res.setHeader("Content-Type", "video/mp4");
           } else if (path.endsWith(".webm")) {

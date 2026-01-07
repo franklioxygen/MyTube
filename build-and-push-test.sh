@@ -9,14 +9,11 @@ VITE_API_URL=${VITE_API_URL:-"http://localhost:5551/api"}
 VITE_BACKEND_URL=${VITE_BACKEND_URL:-"http://localhost:5551"}
 
 # Define platforms to build
-# Commented out arm64 as requested
-PLATFORMS=("linux/amd64") # "linux/arm64")
+PLATFORMS=("linux/amd64") 
 
 # Tag definitions for TEST
 BACKEND_TEST_AMD64="$USERNAME/mytube:backend-test-amd64"
-# BACKEND_TEST_ARM64="$USERNAME/mytube:backend-test-arm64"
 FRONTEND_TEST_AMD64="$USERNAME/mytube:frontend-test-amd64"
-# FRONTEND_TEST_ARM64="$USERNAME/mytube:frontend-test-arm64"
 
 # Ensure Docker is running
 echo "🔍 Checking if Docker is running..."
@@ -63,36 +60,6 @@ build_frontend() {
   cd ..
 }
 
-# Function to create and push manifest list
-# create_and_push_manifest() {
-#   local manifest_tag=$1
-#   local image_amd64=$2
-#   local image_arm64=$3
-#
-#   echo "📜 Creating manifest list: $manifest_tag"
-#   # Try to remove existing manifest first to avoid errors
-#   $DOCKER_PATH manifest rm $manifest_tag 2>/dev/null || true
-#   
-#   if ! $DOCKER_PATH manifest create $manifest_tag \
-#     --amend $image_amd64 \
-#     --amend $image_arm64 2>/dev/null; then
-#     echo "⚠️  Failed to create manifest list: $manifest_tag"
-#     echo "   This might happen if the images are not yet available in the registry."
-#     echo "   The platform-specific images are still available individually."
-#     return 1
-#   fi
-#
-#   echo "🚀 Pushing manifest list: $manifest_tag"
-#   if ! $DOCKER_PATH manifest push $manifest_tag; then
-#     echo "⚠️  Failed to push manifest list: $manifest_tag"
-#     $DOCKER_PATH manifest rm $manifest_tag 2>/dev/null || true
-#     return 1
-#   fi
-#   
-#   echo "🧹 Cleaning up local manifest: $manifest_tag"
-#   $DOCKER_PATH manifest rm $manifest_tag 2>/dev/null || true
-#   return 0
-# }
 
 # Build for each platform
 echo "🏗️ Building TEST images for multiple platforms with separate tags..."
@@ -103,10 +70,6 @@ echo ""
 for platform in "${PLATFORMS[@]}"; do
   if [ "$platform" = "linux/amd64" ]; then
     build_backend "$platform" "$BACKEND_TEST_AMD64"
-  elif [ "$platform" = "linux/arm64" ]; then
-    # build_backend "$platform" "$BACKEND_TEST_ARM64"
-    echo "Skipping arm64"
-  fi
 done
 
 echo ""
@@ -115,10 +78,6 @@ echo ""
 for platform in "${PLATFORMS[@]}"; do
   if [ "$platform" = "linux/amd64" ]; then
     build_frontend "$platform" "$FRONTEND_TEST_AMD64"
-  elif [ "$platform" = "linux/arm64" ]; then
-    # build_frontend "$platform" "$FRONTEND_TEST_ARM64"
-    echo "Skipping arm64"
-  fi
 done
 
 echo ""
