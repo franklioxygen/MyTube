@@ -2,6 +2,20 @@
 
 
 
+## v1.7.41 (2026-01-06)
+
+### Feat
+
+- feat: Add video streaming optimizations (ff3b0e3)
+
+### Fix
+
+- fix: Update API_URL environment variable retrieval (e09550a)
+
+### Chore
+
+- chore: Update build date in Vite config and Footer component (654285b)
+
 ## v1.7.40 (2026-01-06)
 
 ### Feat
