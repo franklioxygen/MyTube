@@ -8,7 +8,7 @@ const isNewerVersion = (latest: string, current: string): boolean => {
     try {
         const v1 = latest.split('.').map(Number);
         const v2 = current.split('.').map(Number);
-        
+
         for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
             const num1 = v1[i] || 0;
             const num2 = v2[i] || 0;
@@ -39,7 +39,7 @@ const Footer = () => {
                     const latestVersion = response.data.latestVersion;
                     // Compare frontend version with latest version
                     const hasUpdate = isNewerVersion(latestVersion, currentVersion);
-                    
+
                     if (hasUpdate) {
                         setUpdateInfo({
                             hasUpdate: true,
@@ -88,9 +88,14 @@ const Footer = () => {
                             <GitHub sx={{ fontSize: 'inherit', mr: 0.5 }} />
                             MyTube
                         </Link>
-                        <Typography variant="caption" color="text.secondary">
-                            v{import.meta.env.VITE_APP_VERSION}
-                        </Typography>
+                        <Tooltip
+                            title={`Built on ${new Date(import.meta.env.VITE_BUILD_DATE).toLocaleString()}`}
+                            arrow
+                        >
+                            <Typography variant="caption" color="text.secondary" sx={{ cursor: 'help' }}>
+                                v{import.meta.env.VITE_APP_VERSION}
+                            </Typography>
+                        </Tooltip>
                         {updateInfo?.hasUpdate && (
                             <Tooltip title={`New version available: v${updateInfo.latestVersion}`}>
                                 <Link

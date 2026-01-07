@@ -46,6 +46,7 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(packageJson.version),
     "import.meta.env.VITE_API_URL": JSON.stringify(API_URL),
+    "import.meta.env.VITE_BUILD_DATE": JSON.stringify(new Date().toISOString()),
   },
   test: {
     globals: true,
