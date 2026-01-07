@@ -2,6 +2,12 @@
 
 
 
+## v1.7.42 (2026-01-06)
+
+### Refactor
+
+- refactor: Improve formatting for server.ts and useVideoLoading.ts (c89285e)
+
 ## v1.7.41 (2026-01-06)
 
 ### Feat
