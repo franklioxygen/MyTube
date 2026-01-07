@@ -74,12 +74,6 @@ export const useVideoResolution = (video: Video) => {
       return;
     }
 
-    // Set the video source
-    if (videoElement.src !== videoSrc) {
-      videoElement.src = videoSrc;
-      videoElement.load(); // Force reload
-    }
-
     const handleLoadedMetadata = () => {
       const height = videoElement.videoHeight;
       if (height && height > 0) {
@@ -101,23 +95,63 @@ export const useVideoResolution = (video: Video) => {
       setDetectedResolution(null);
     };
 
-    videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
-    videoElement.addEventListener("error", handleError);
+    // Delay resolution detection to avoid blocking video playback
+    // Use requestIdleCallback if available, otherwise use setTimeout with a delay
+    const delayDetection = () => {
+      // Set the video source with low priority
+      if (videoElement.src !== videoSrc) {
+        videoElement.src = videoSrc;
+        // Use 'none' preload to avoid interfering with main video playback
+        videoElement.preload = "none";
+        videoElement.load(); // Force reload
+      }
 
-    // If metadata is already loaded
-    if (videoElement.readyState >= 1 && videoElement.videoHeight > 0) {
-      handleLoadedMetadata();
+      // Add event listeners
+      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+      videoElement.addEventListener("error", handleError);
+
+      // If metadata is already loaded
+      if (videoElement.readyState >= 1 && videoElement.videoHeight > 0) {
+        handleLoadedMetadata();
+      }
+    };
+
+    let cleanup: (() => void) | undefined;
+
+    // Use requestIdleCallback for better performance, fallback to setTimeout
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleCallbackId = (window as any).requestIdleCallback(
+        delayDetection,
+        { timeout: 2000 } // Start after 2 seconds even if browser is busy
+      );
+      cleanup = () => {
+        (window as any).cancelIdleCallback(idleCallbackId);
+        videoElement.removeEventListener(
+          "loadedmetadata",
+          handleLoadedMetadata
+        );
+        videoElement.removeEventListener("error", handleError);
+        videoElement.pause();
+        videoElement.src = "";
+        videoElement.load();
+      };
+    } else {
+      // Fallback: delay by 1 second to let main video start playing first
+      const timeoutId = setTimeout(delayDetection, 1000);
+      cleanup = () => {
+        clearTimeout(timeoutId);
+        videoElement.removeEventListener(
+          "loadedmetadata",
+          handleLoadedMetadata
+        );
+        videoElement.removeEventListener("error", handleError);
+        videoElement.pause();
+        videoElement.src = "";
+        videoElement.load();
+      };
     }
 
-    return () => {
-      // Cleanup: remove event listeners
-      videoElement.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      videoElement.removeEventListener("error", handleError);
-      // Cleanup: pause and clear video source to free memory
-      videoElement.pause();
-      videoElement.src = "";
-      videoElement.load();
-    };
+    return cleanup;
   }, [needsDetection, videoUrl, video.sourceUrl, video.id]);
 
   // Use resolution from object if available, otherwise use detected resolution

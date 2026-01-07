@@ -107,6 +107,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
     const handleCanPlay = () => {
         loading.stopLoading();
+        // Call videoPlayer's canPlay handler to update duration if available
+        videoPlayer.handleCanPlay();
     };
 
     const handleLoadedData = () => {

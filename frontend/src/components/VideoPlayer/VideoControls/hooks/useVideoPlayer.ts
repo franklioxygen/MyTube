@@ -149,7 +149,10 @@ export const useVideoPlayer = ({
 
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const videoDuration = e.currentTarget.duration;
-    setDuration(videoDuration);
+    // Only set duration if it's valid and finite
+    if (videoDuration && isFinite(videoDuration) && videoDuration > 0) {
+      setDuration(videoDuration);
+    }
     if (startTime > 0) {
       e.currentTarget.currentTime = startTime;
       setCurrentTime(startTime);
@@ -158,6 +161,26 @@ export const useVideoPlayer = ({
       onLoadedMetadata(videoDuration);
     }
   };
+
+  // Handle canPlay event - video can start playing even if metadata isn't fully loaded
+  const handleCanPlay = useCallback(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    // Try to get duration from video element (may be available even if metadata isn't fully loaded)
+    if (videoElement.duration && isFinite(videoElement.duration) && videoElement.duration > 0) {
+      // Only update if we don't have duration yet or if the new duration is more accurate
+      if (duration === 0 || (videoElement.duration > duration && videoElement.duration < duration * 1.1)) {
+        setDuration(videoElement.duration);
+      }
+    }
+
+    // Set start time if needed
+    if (startTime > 0 && videoElement.currentTime === 0) {
+      videoElement.currentTime = startTime;
+      setCurrentTime(startTime);
+    }
+  }, [duration, startTime]);
 
   const handlePlay = () => {
     setIsPlaying(true);
@@ -182,6 +205,7 @@ export const useVideoPlayer = ({
     handleToggleLoop,
     handleTimeUpdate,
     handleLoadedMetadata,
+    handleCanPlay,
     handlePlay,
     handlePause,
   };
