@@ -80,10 +80,29 @@ const startServer = async () => {
             "Access-Control-Expose-Headers",
             "Accept-Ranges, Content-Range, Content-Length"
           );
-          if (path.endsWith(".mp4")) {
+
+          // Determine MIME type based on file extension (case-insensitive)
+          const lowerPath = path.toLowerCase();
+          if (lowerPath.endsWith(".mp4")) {
             res.setHeader("Content-Type", "video/mp4");
-          } else if (path.endsWith(".webm")) {
+          } else if (lowerPath.endsWith(".webm")) {
             res.setHeader("Content-Type", "video/webm");
+          } else if (lowerPath.endsWith(".mkv")) {
+            res.setHeader("Content-Type", "video/x-matroska");
+          } else if (lowerPath.endsWith(".avi")) {
+            res.setHeader("Content-Type", "video/x-msvideo");
+          } else if (lowerPath.endsWith(".mov")) {
+            res.setHeader("Content-Type", "video/quicktime");
+          } else if (lowerPath.endsWith(".m4v")) {
+            res.setHeader("Content-Type", "video/x-m4v");
+          } else if (lowerPath.endsWith(".flv")) {
+            res.setHeader("Content-Type", "video/x-flv");
+          } else if (lowerPath.endsWith(".3gp")) {
+            res.setHeader("Content-Type", "video/3gpp");
+          } else {
+            // Default to mp4 for unknown extensions (Safari prefers this)
+            // This helps with files that might not have proper extensions
+            res.setHeader("Content-Type", "video/mp4");
           }
         },
       })

@@ -54,6 +54,10 @@ export const useVideoLoading = () => {
     if (videoElement.error) {
       console.error("Video error code:", videoElement.error.code);
       console.error("Video error message:", videoElement.error.message);
+      
+      // Detect Safari browser
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
       let errorMessage = "Failed to load video.";
       switch (videoElement.error?.code) {
         case 1: // MEDIA_ERR_ABORTED
@@ -64,10 +68,25 @@ export const useVideoLoading = () => {
             "Network error while loading video. Please check your connection.";
           break;
         case 3: // MEDIA_ERR_DECODE
-          errorMessage = "Video decoding error. The file may be corrupted.";
+          // Safari-specific message for decode errors (often codec-related)
+          if (isSafari) {
+            const src = videoElement.src || '';
+            const isWebM = src.toLowerCase().includes('.webm');
+            if (isWebM) {
+              errorMessage = "Safari has limited support for WebM/VP9 codec, especially for 4K videos. Please re-download the video with H.264/MP4 format for better Safari compatibility.";
+            } else {
+              errorMessage = "Video decoding error. Safari may not support this video codec. Try re-downloading with H.264/MP4 format.";
+            }
+          } else {
+            errorMessage = "Video decoding error. The file may be corrupted or use an unsupported codec.";
+          }
           break;
         case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-          errorMessage = "Video format not supported.";
+          if (isSafari) {
+            errorMessage = "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec.";
+          } else {
+            errorMessage = "Video format not supported.";
+          }
           break;
       }
       setLoadError(errorMessage);
