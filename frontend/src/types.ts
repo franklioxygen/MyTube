@@ -24,6 +24,8 @@ export interface Video {
   subtitles?: Array<{ language: string; filename: string; path: string }>;
   description?: string;
   visibility?: number; // 1 = visible, 0 = hidden
+  signedUrl?: string; // Pre-signed URL for cloud video
+  signedThumbnailUrl?: string; // Pre-signed URL for cloud thumbnail
   [key: string]: any;
 }
 

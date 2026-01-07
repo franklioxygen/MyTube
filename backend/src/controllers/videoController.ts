@@ -64,6 +64,32 @@ export const getVideoById = async (
     throw new NotFoundError("Video", id);
   }
 
+  // Check if video is in cloud storage and inject signed URLs
+  if (video.videoPath?.startsWith("cloud:")) {
+    const { CloudStorageService } = await import("../services/CloudStorageService");
+    
+    // Helper to extract cloud filename
+    const extractCloudFilename = (path: string) => {
+        return path.startsWith("cloud:") ? path.substring(6) : path;
+    };
+
+    const videoFilename = extractCloudFilename(video.videoPath);
+    const signedUrl = await CloudStorageService.getSignedUrl(videoFilename, "video");
+    
+    if (signedUrl) {
+      (video as any).signedUrl = signedUrl;
+    }
+
+    if (video.thumbnailPath?.startsWith("cloud:")) {
+      const thumbnailFilename = extractCloudFilename(video.thumbnailPath);
+      const signedThumbnailUrl = await CloudStorageService.getSignedUrl(thumbnailFilename, "thumbnail");
+      
+      if (signedThumbnailUrl) {
+        (video as any).signedThumbnailUrl = signedThumbnailUrl;
+      }
+    }
+  }
+
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
   sendData(res, video);
 };

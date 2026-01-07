@@ -7,13 +7,20 @@ import { getFileUrl, isCloudStoragePath } from '../utils/cloudStorage';
  */
 export const useCloudStorageUrl = (
   path: string | null | undefined,
-  type: 'video' | 'thumbnail' = 'video'
+  type: 'video' | 'thumbnail' = 'video',
+  initialUrl?: string
 ): string | undefined => {
   const [url, setUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!path) {
       setUrl(undefined);
+      return;
+    }
+
+    // If we have an initial pre-signed URL and it corresponds to the current path, use it
+    if (initialUrl && isCloudStoragePath(path)) {
+      setUrl(initialUrl);
       return;
     }
 
@@ -33,7 +40,7 @@ export const useCloudStorageUrl = (
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
       setUrl(`${BACKEND_URL}${path}`);
     }
-  }, [path, type]);
+  }, [path, type, initialUrl]);
 
   return url;
 };

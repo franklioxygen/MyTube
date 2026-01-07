@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Video } from "../types";
 import { getFileUrl, isCloudStoragePath } from "../utils/cloudStorage";
 
@@ -20,7 +20,7 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const hasPrefetchedRef = useRef(false);
 
-  const prefetchVideo = () => {
+  const prefetchVideo = useCallback(() => {
     // Prevent duplicate prefetching
     if (hasPrefetchedRef.current) {
       return;
@@ -56,7 +56,7 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     }
 
     hasPrefetchedRef.current = true;
-  };
+  }, [videoId, video, queryClient]);
 
   // Set up IntersectionObserver for viewport-based prefetching
   useEffect(() => {
@@ -67,6 +67,9 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     if (!("IntersectionObserver" in window)) {
       return;
     }
+
+    // Reset prefetch flag when video changes
+    hasPrefetchedRef.current = false;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -89,7 +92,7 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     return () => {
       observer.disconnect();
     };
-  }, [videoId, video]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prefetchVideo]);
 
   return {
     prefetchVideo,

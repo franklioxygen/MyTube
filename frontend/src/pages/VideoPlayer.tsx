@@ -113,13 +113,13 @@ const VideoPlayer: React.FC = () => {
     const autoPlay = autoPlayNext || settingsAutoPlay;
 
     // Get cloud storage URLs
-    const videoUrl = useCloudStorageUrl(video?.videoPath, 'video');
+    const videoUrl = useCloudStorageUrl(video?.videoPath, 'video', video?.signedUrl);
 
     // Get thumbnail URL for poster
     // Only load thumbnail from cloud if the video itself is in cloud storage
     const isVideoInCloud = video?.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
-    const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
+    const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail', video?.signedThumbnailUrl);
     const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
         ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
