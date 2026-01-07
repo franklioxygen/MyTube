@@ -1,8 +1,7 @@
 import { Box, CircularProgress } from '@mui/material';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
-import BilibiliPartsModal from './components/BilibiliPartsModal';
 import Footer from './components/Footer';
 import Header from './components/Header';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -13,17 +12,18 @@ import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
 import { useSettings } from './hooks/useSettings';
-import AuthorVideos from './pages/AuthorVideos';
-import CollectionPage from './pages/CollectionPage';
-import DownloadPage from './pages/DownloadPage';
-import Home from './pages/Home';
-import InstructionPage from './pages/InstructionPage';
-import LoginPage from './pages/LoginPage';
-import ManagePage from './pages/ManagePage';
-import SearchPage from './pages/SearchPage';
-import SettingsPage from './pages/SettingsPage';
-import SubscriptionsPage from './pages/SubscriptionsPage';
-import VideoPlayer from './pages/VideoPlayer';
+const BilibiliPartsModal = lazy(() => import('./components/BilibiliPartsModal'));
+const AuthorVideos = lazy(() => import('./pages/AuthorVideos'));
+const CollectionPage = lazy(() => import('./pages/CollectionPage'));
+const DownloadPage = lazy(() => import('./pages/DownloadPage'));
+const Home = lazy(() => import('./pages/Home'));
+const InstructionPage = lazy(() => import('./pages/InstructionPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ManagePage = lazy(() => import('./pages/ManagePage'));
+const SearchPage = lazy(() => import('./pages/SearchPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'));
+const VideoPlayer = lazy(() => import('./pages/VideoPlayer'));
 
 function AppContent() {
     const {
@@ -78,7 +78,21 @@ function AppContent() {
                         <CircularProgress size={48} />
                     </Box>
                 ) : (
-                    <LoginPage />
+                    <Suspense fallback={
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                minHeight: '100vh',
+                                bgcolor: 'background.default'
+                            }}
+                        >
+                            <CircularProgress size={48} />
+                        </Box>
+                    }>
+                        <LoginPage />
+                    </Suspense>
                 )
             ) : (
                 <Router>
@@ -97,30 +111,38 @@ function AppContent() {
                         />
 
                         {/* Bilibili Parts Modal */}
-                        <BilibiliPartsModal
-                            isOpen={showBilibiliPartsModal}
-                            onClose={() => setShowBilibiliPartsModal(false)}
-                            videosNumber={bilibiliPartsInfo.videosNumber}
-                            videoTitle={bilibiliPartsInfo.title}
-                            onDownloadAll={handleDownloadAllBilibiliParts}
-                            onDownloadCurrent={handleDownloadCurrentBilibiliPart}
-                            isLoading={loading || isCheckingParts}
-                            type={bilibiliPartsInfo.type}
-                        />
+                        <Suspense fallback={null}>
+                            <BilibiliPartsModal
+                                isOpen={showBilibiliPartsModal}
+                                onClose={() => setShowBilibiliPartsModal(false)}
+                                videosNumber={bilibiliPartsInfo.videosNumber}
+                                videoTitle={bilibiliPartsInfo.title}
+                                onDownloadAll={handleDownloadAllBilibiliParts}
+                                onDownloadCurrent={handleDownloadCurrentBilibiliPart}
+                                isLoading={loading || isCheckingParts}
+                                type={bilibiliPartsInfo.type}
+                            />
+                        </Suspense>
 
                         <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'hidden' }}>
-                            <Routes>
-                                <Route path="/" element={<Home />} />
-                                <Route path="/search" element={<SearchPage />} />
-                                <Route path="/manage" element={<ManagePage />} />
-                                <Route path="/settings" element={<SettingsPage />} />
-                                <Route path="/downloads" element={<DownloadPage />} />
-                                <Route path="/collection/:id" element={<CollectionPage />} />
-                                <Route path="/author/:authorName" element={<AuthorVideos />} />
-                                <Route path="/video/:id" element={<VideoPlayer />} />
-                                <Route path="/subscriptions" element={<SubscriptionsPage />} />
-                                <Route path="/instruction" element={<InstructionPage />} />
-                            </Routes>
+                            <Suspense fallback={
+                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                                    <CircularProgress />
+                                </Box>
+                            }>
+                                <Routes>
+                                    <Route path="/" element={<Home />} />
+                                    <Route path="/search" element={<SearchPage />} />
+                                    <Route path="/manage" element={<ManagePage />} />
+                                    <Route path="/settings" element={<SettingsPage />} />
+                                    <Route path="/downloads" element={<DownloadPage />} />
+                                    <Route path="/collection/:id" element={<CollectionPage />} />
+                                    <Route path="/author/:authorName" element={<AuthorVideos />} />
+                                    <Route path="/video/:id" element={<VideoPlayer />} />
+                                    <Route path="/subscriptions" element={<SubscriptionsPage />} />
+                                    <Route path="/instruction" element={<InstructionPage />} />
+                                </Routes>
+                            </Suspense>
                         </Box>
 
                         <Footer />

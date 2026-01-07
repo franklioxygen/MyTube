@@ -1,6 +1,6 @@
 import axios from 'axios';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { Language, TranslationKey, translations } from '../utils/translations';
+import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -30,6 +30,15 @@ const getStoredLanguage = (): Language => {
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Initialize from localStorage first for immediate language display
     const [language, setLanguageState] = useState<Language>(getStoredLanguage());
+    const [translations, setTranslations] = useState<any>(defaultTranslations);
+
+    useEffect(() => {
+        const load = async () => {
+            const loadedTranslations = await loadLocale(language);
+            setTranslations(loadedTranslations);
+        };
+        load();
+    }, [language]);
 
     useEffect(() => {
         fetchSettings();
@@ -62,7 +71,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (error) {
             console.error('Error saving language to localStorage:', error);
         }
-        
+
         try {
             // We need to fetch current settings first to not overwrite other settings
             // Or ideally the backend supports partial updates, but our controller expects full object usually
@@ -80,7 +89,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     const t = (key: TranslationKey, replacements?: Record<string, string | number>): string => {
-        let text = (translations[language] as any)[key] || key;
+        let text = translations[key] || key;
         if (replacements) {
             Object.entries(replacements).forEach(([placeholder, value]) => {
                 // Replace all occurrences of the placeholder

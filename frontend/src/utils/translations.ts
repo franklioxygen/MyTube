@@ -1,25 +1,78 @@
-import { ar } from "./locales/ar";
-import { de } from "./locales/de";
 import { en } from "./locales/en";
-import { es } from "./locales/es";
-import { fr } from "./locales/fr";
-import { ja } from "./locales/ja";
-import { ko } from "./locales/ko";
-import { pt } from "./locales/pt";
-import { ru } from "./locales/ru";
-import { zh } from "./locales/zh";
+
+export const defaultTranslations = en;
+
+// Type-safe locale loader function
+type LocaleLoader = () => Promise<{ [key: string]: any }>;
+
+const getLocaleLoader = (lang: Language): LocaleLoader | null => {
+  switch (lang) {
+    case "en":
+      return () => Promise.resolve({ en });
+    case "zh":
+      return () => import("./locales/zh");
+    case "es":
+      return () => import("./locales/es");
+    case "de":
+      return () => import("./locales/de");
+    case "ja":
+      return () => import("./locales/ja");
+    case "fr":
+      return () => import("./locales/fr");
+    case "ko":
+      return () => import("./locales/ko");
+    case "ar":
+      return () => import("./locales/ar");
+    case "pt":
+      return () => import("./locales/pt");
+    case "ru":
+      return () => import("./locales/ru");
+    default:
+      return null;
+  }
+};
+
+const getLocaleFromModule = (
+  module: { [key: string]: any },
+  lang: Language
+): any => {
+  switch (lang) {
+    case "en":
+      return module.en || defaultTranslations;
+    case "zh":
+      return module.zh || defaultTranslations;
+    case "es":
+      return module.es || defaultTranslations;
+    case "de":
+      return module.de || defaultTranslations;
+    case "ja":
+      return module.ja || defaultTranslations;
+    case "fr":
+      return module.fr || defaultTranslations;
+    case "ko":
+      return module.ko || defaultTranslations;
+    case "ar":
+      return module.ar || defaultTranslations;
+    case "pt":
+      return module.pt || defaultTranslations;
+    case "ru":
+      return module.ru || defaultTranslations;
+    default:
+      return defaultTranslations;
+  }
+};
+
+export const loadLocale = async (lang: Language) => {
+  const loader = getLocaleLoader(lang);
+  if (loader) {
+    const module = await loader();
+    return getLocaleFromModule(module, lang);
+  }
+  return defaultTranslations;
+};
 
 export const translations = {
   en,
-  zh,
-  es,
-  de,
-  ja,
-  fr,
-  ko,
-  ar,
-  pt,
-  ru,
 };
 
 export type Language =

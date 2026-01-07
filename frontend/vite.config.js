@@ -9,6 +9,16 @@ const API_URL = env.VITE_API_URL || "http://localhost:5551/api";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@mui/material', '@emotion/react', '@emotion/styled'],
+        },
+      },
+    },
+  },
   server: {
     port: 5556,
     watch: {
