@@ -9,11 +9,11 @@ import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
-  flagsToArgs,
-  getAxiosProxyConfig,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
-  InvalidProxyError,
+    flagsToArgs,
+    getAxiosProxyConfig,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+    InvalidProxyError,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -464,12 +464,22 @@ export class MissAVDownloader extends BaseDownloader {
       storageService.saveVideo(videoData);
       logger.info("MissAV video saved to database");
 
+
       // Add video to author collection if enabled
-      storageService.addVideoToAuthorCollection(
+      const authorCollection = storageService.addVideoToAuthorCollection(
         videoData.id,
         videoAuthor,
         settings.saveAuthorFilesToCollection || false
       );
+
+      if (authorCollection) {
+        // If video was added to a collection, the file paths might have changed
+        // Fetch the updated video from storage (using videoData.id which is timestamp string)
+        const updatedVideo = storageService.getVideoById(videoData.id);
+        if (updatedVideo) {
+          return updatedVideo;
+        }
+      }
 
       return videoData;
     } catch (error: any) {

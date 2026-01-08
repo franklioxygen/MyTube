@@ -38,8 +38,28 @@ html {
 }
 
 /* Smooth theme transition */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   transition-property: background-color, border-color, fill, stroke, box-shadow;
   transition-duration: 0.3s;
   transition-timing-function: ease-out;
+}
+
+@keyframes button-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(25, 118, 210, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(25, 118, 210, 0);
+  }
+}
+
+.button-glow-animation {
+  animation: button-glow 0.6s ease-out;
 }

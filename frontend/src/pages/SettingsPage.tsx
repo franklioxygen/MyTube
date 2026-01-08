@@ -66,6 +66,12 @@ const SettingsPage: React.FC = () => {
         hooks: {}
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+    const [isGlowing, setIsGlowing] = useState(false);
+
+    const triggerGlow = () => {
+        setIsGlowing(false);
+        setTimeout(() => setIsGlowing(true), 10);
+    };
 
     // Modal states
     const modals = useSettingsModals();
@@ -126,6 +132,7 @@ const SettingsPage: React.FC = () => {
         if (field === 'language') {
             setLanguage(value as Language);
         }
+        triggerGlow();
     };
 
     const handleSave = () => {
@@ -136,6 +143,7 @@ const SettingsPage: React.FC = () => {
 
     const handleTagsChange = (newTags: string[]) => {
         setSettings(prev => ({ ...prev, tags: newTags }));
+        triggerGlow();
     };
 
     const handleExportDatabase = () => {
@@ -339,6 +347,8 @@ const SettingsPage: React.FC = () => {
                     onClick={handleSave}
                     disabled={saveMutation.isPending}
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
+                    className={isGlowing ? 'button-glow-animation' : ''}
+                    onAnimationEnd={() => setIsGlowing(false)}
                 >
                     {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
                 </Button>
@@ -369,6 +379,8 @@ const SettingsPage: React.FC = () => {
                                 size="large"
                                 onClick={handleSave}
                                 disabled={saveMutation.isPending}
+                                className={isGlowing ? 'button-glow-animation' : ''}
+                                onAnimationEnd={() => setIsGlowing(false)}
                             >
                                 {saveMutation.isPending ? t('saving') || 'Saving...' : t('save') || 'Save'}
                             </Button>

@@ -7,30 +7,30 @@ import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getAxiosProxyConfig,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
-  InvalidProxyError,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getAxiosProxyConfig,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+    InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { BaseDownloader } from "../BaseDownloader";
 import { prepareBilibiliDownloadFlags } from "./bilibiliConfig";
 import {
-  cleanupFilesOnCancellation,
-  cleanupTempDir,
-  createTempDir,
-  findVideoFileInTemp,
-  moveVideoFile,
-  prepareFilePaths,
-  renameFilesWithMetadata,
+    cleanupFilesOnCancellation,
+    cleanupTempDir,
+    createTempDir,
+    findVideoFileInTemp,
+    moveVideoFile,
+    prepareFilePaths,
+    renameFilesWithMetadata,
 } from "./bilibiliFileManager";
 import {
-  extractPartMetadata,
-  getFileSize,
-  getVideoDuration,
+    extractPartMetadata,
+    getFileSize,
+    getVideoDuration,
 } from "./bilibiliMetadata";
 import { downloadSubtitles } from "./bilibiliSubtitle";
 import { BilibiliVideoInfo, DownloadResult } from "./types";
@@ -592,11 +592,20 @@ export async function downloadSinglePart(
     logger.info(`Part ${partNumber}/${totalParts} added to database`);
 
     // Add video to author collection if enabled
-    storageService.addVideoToAuthorCollection(
+    const authorCollection = storageService.addVideoToAuthorCollection(
       videoData.id,
       videoAuthor,
       settings.saveAuthorFilesToCollection || false
     );
+
+    if (authorCollection) {
+      // If video was added to a collection, the file paths might have changed
+      // Fetch the updated video from storage
+      const updatedVideo = storageService.getVideoById(videoData.id);
+      if (updatedVideo) {
+        return { success: true, videoData: updatedVideo };
+      }
+    }
 
     return { success: true, videoData };
   } catch (error: any) {

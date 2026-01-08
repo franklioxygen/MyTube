@@ -46,9 +46,6 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                 >
                     <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
                 </Button>
-                <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
-                    {t('allVideos')}
-                </Box>
                 {selectedTagsCount > 0 && (
                     <Tooltip title={t('deleteAllFilteredVideos')}>
                         <IconButton

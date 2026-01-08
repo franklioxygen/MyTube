@@ -2,19 +2,19 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
-  cleanupSubtitleFiles,
-  cleanupVideoArtifacts,
+    cleanupSubtitleFiles,
+    cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-  executeYtDlpJson,
-  executeYtDlpSpawn,
-  getAxiosProxyConfig,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
-  InvalidProxyError,
+    executeYtDlpJson,
+    executeYtDlpSpawn,
+    getAxiosProxyConfig,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+    InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -454,11 +454,20 @@ export async function downloadVideo(
   logger.info("Video added to database");
 
   // Add video to author collection if enabled
-  storageService.addVideoToAuthorCollection(
+  const authorCollection = storageService.addVideoToAuthorCollection(
     videoData.id,
     videoAuthor,
     settings.saveAuthorFilesToCollection || false
   );
+
+  if (authorCollection) {
+    // If video was added to a collection, the file paths might have changed
+    // Fetch the updated video from storage
+    const updatedVideo = storageService.getVideoById(videoData.id);
+    if (updatedVideo) {
+      return updatedVideo;
+    }
+  }
 
   return videoData;
 }
