@@ -2,6 +2,12 @@
 
 
 
+## v1.7.48 (2026-01-08)
+
+### Feat
+
+- feat(frontend): add sorting functionality for collections table (4c26ccc)
+
 ## v1.7.47 (2026-01-08)
 
 ### Feat
