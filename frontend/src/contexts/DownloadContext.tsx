@@ -197,7 +197,27 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }
             }
 
-            // Check for YouTube channel URL
+            // Check for YouTube channel playlists URL
+            // Matches: https://www.youtube.com/@Channel/playlists
+            const channelPlaylistsRegex = /youtube\.com\/(@[^/]+|channel\/[^/]+|user\/[^/]+|c\/[^/]+)\/playlists/;
+            if (channelPlaylistsRegex.test(videoUrl)) {
+                if (confirm(t('confirmDownloadAllPlaylists') || "Download all playlists from this channel? This will create a collection for each playlist.")) {
+                    try {
+                        const response = await axios.post(`${API_URL}/downloads/channel-playlists`, {
+                            url: videoUrl
+                        });
+                        showSnackbar(response.data.message || t('downloadStartedSuccessfully'));
+                        return { success: true };
+                    } catch (err: any) {
+                        console.error('Error downloading channel playlists:', err);
+                        showSnackbar(err.response?.data?.error || t('failedToDownload'), 'error');
+                        return { success: false, error: err.response?.data?.error };
+                    }
+                }
+                return { success: false };
+            }
+
+            // Check for YouTube channel URL (but not playlists tab, or if user declined playlists download)
             // Regex for: @username, channel/ID, user/username, c/customURL
             const channelRegex = /youtube\.com\/(?:@|channel\/|user\/|c\/)/;
             if (channelRegex.test(videoUrl)) {

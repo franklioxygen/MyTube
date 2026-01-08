@@ -77,6 +77,11 @@ router.get(
   asyncHandler(videoDownloadController.checkPlaylist)
 );
 
+router.post(
+  "/downloads/channel-playlists",
+  asyncHandler(downloadController.processChannelPlaylists)
+);
+
 // Download management
 router.post(
   "/downloads/cancel/:id",

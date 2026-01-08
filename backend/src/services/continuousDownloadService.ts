@@ -127,6 +127,13 @@ export class ContinuousDownloadService {
   }
 
   /**
+   * Get a task by authorUrl (playlist URL)
+   */
+  async getTaskByAuthorUrl(authorUrl: string): Promise<ContinuousDownloadTask | null> {
+    return this.taskRepository.getTaskByAuthorUrl(authorUrl);
+  }
+
+  /**
    * Cancel a task
    */
   async cancelTask(id: string): Promise<void> {

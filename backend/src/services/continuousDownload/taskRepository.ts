@@ -207,5 +207,45 @@ export class TaskRepository {
       })
       .where(eq(continuousDownloadTasks.id, id));
   }
+
+  /**
+   * Get a task by authorUrl (playlist URL) with optional playlist name from collections
+   */
+  async getTaskByAuthorUrl(authorUrl: string): Promise<ContinuousDownloadTask | null> {
+    const { collections } = await import("../../db/schema");
+    const result = await db
+      .select({
+        task: continuousDownloadTasks,
+        playlistName: collections.name,
+      })
+      .from(continuousDownloadTasks)
+      .leftJoin(
+        collections,
+        eq(continuousDownloadTasks.collectionId, collections.id)
+      )
+      .where(eq(continuousDownloadTasks.authorUrl, authorUrl))
+      .limit(1);
+
+    if (result.length === 0) return null;
+
+    const { task, playlistName } = result[0];
+
+    // Convert null to undefined for TypeScript compatibility and ensure status type
+    return {
+      ...task,
+      subscriptionId: task.subscriptionId ?? undefined,
+      collectionId: task.collectionId ?? undefined,
+      playlistName: playlistName ?? undefined,
+      updatedAt: task.updatedAt ?? undefined,
+      completedAt: task.completedAt ?? undefined,
+      error: task.error ?? undefined,
+      status: task.status as "active" | "paused" | "completed" | "cancelled",
+      totalVideos: task.totalVideos ?? 0,
+      downloadedCount: task.downloadedCount ?? 0,
+      skippedCount: task.skippedCount ?? 0,
+      failedCount: task.failedCount ?? 0,
+      currentVideoIndex: task.currentVideoIndex ?? 0,
+    };
+  }
 }
 

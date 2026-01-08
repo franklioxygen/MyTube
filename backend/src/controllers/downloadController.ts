@@ -79,3 +79,31 @@ export const clearDownloadHistory = async (
   storageService.clearDownloadHistory();
   sendSuccessMessage(res, "History cleared");
 };
+
+/**
+ * Process channel playlists download
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const processChannelPlaylists = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { url } = req.body;
+  
+  if (!url) {
+    res.status(400);
+    throw new Error("Channel URL is required");
+  }
+
+  // Import dynamically to avoid circular dependencies if any, or just consistent with service usage
+  const downloadService = await import("../services/downloadService");
+  
+  const result = await downloadService.downloadChannelPlaylists(url);
+  
+  if (result.success) {
+    sendSuccessMessage(res, result.message);
+  } else {
+    res.status(400);
+    throw new Error(result.message);
+  }
+};
