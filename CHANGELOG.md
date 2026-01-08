@@ -2,6 +2,21 @@
 
 
 
+## v1.7.47 (2026-01-08)
+
+### Feat
+
+- feat: Add confirmation modal for downloading playlists (c9de2fa)
+- feat: Add function to download all channel playlists (e77c7bf)
+
+### Refactor
+
+- refactor: Update import order in HomeHeader component (778f798)
+
+### Style
+
+- style: Remove unnecessary comments and whitespace (6463436)
+
 ## v1.7.46 (2026-01-07)
 
 ### Chore
