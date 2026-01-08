@@ -98,4 +98,5 @@ export interface Settings {
     task_fail?: string;
     task_cancel?: string;
   };
+  playSoundOnTaskComplete?: string;
 }

@@ -2,6 +2,12 @@
 
 
 
+## v1.7.49 (2026-01-08)
+
+### Feat
+
+- feat: Add new tools and dependencies (f2edd01)
+
 ## v1.7.48 (2026-01-08)
 
 ### Feat

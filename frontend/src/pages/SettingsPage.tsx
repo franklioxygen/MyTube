@@ -63,7 +63,8 @@ const SettingsPage: React.FC = () => {
         moveSubtitlesToVideoFolder: false,
         moveThumbnailsToVideoFolder: false,
         saveAuthorFilesToCollection: false,
-        hooks: {}
+        hooks: {},
+        playSoundOnTaskComplete: ''
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
@@ -193,6 +194,7 @@ const SettingsPage: React.FC = () => {
                                 showYoutubeSearch={settings.showYoutubeSearch}
                                 infiniteScroll={settings.infiniteScroll}
                                 videoColumns={settings.videoColumns}
+                                playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
                                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
                             />
                         </CollapsibleSection>

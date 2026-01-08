@@ -140,6 +140,7 @@ export const es = {
   itemsPerPage: "Elementos por página",
   itemsPerPageHelper: "Número de videos para mostrar por página (Predeterminado: 12)",
   showYoutubeSearch: "Mostrar resultados de búsqueda de YouTube",
+  playSoundOnTaskComplete: "Reproducir sonido al completar tarea",
   visitorModeReadOnly: "Modo visitante: Solo lectura",
   visitorUser: "Usuario Visitante",
   enableVisitorUser: "Habilitar Usuario Visitante",
@@ -607,7 +608,13 @@ export const es = {
   moveThumbnailsToVideoFolder: "Ubicación de miniaturas",
   moveThumbnailsToVideoFolderOn: "Junto con el video",
   moveThumbnailsToVideoFolderOff: "En carpeta de imágenes aislada",
+
   moveThumbnailsToVideoFolderDescription: "Cuando está habilitado, los archivos de miniaturas se moverán a la misma carpeta que el archivo de video. Cuando está deshabilitado, se moverán a la carpeta de imágenes aislada.",
+  saveAuthorFilesToCollection: "Guardar archivos del autor en colección",
+  saveAuthorFilesToCollectionOn: "Activado",
+  saveAuthorFilesToCollectionOff: "Desactivado",
+  saveAuthorFilesToCollectionDescription:
+    "Guardar automáticamente los archivos del autor en una colección separada.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Túnel Cloudflare",
@@ -655,8 +662,11 @@ export const es = {
   showSensitiveContent: "Mostrar contenido sensible",
   hideSensitiveContent: "Ocultar contenido sensible",
   sensitiveContentWarning: "Este video puede contener contenido sensible. Haz clic para ver.",
-  saveAuthorFilesToCollection: "Guardar archivos del autor en colección",
-  saveAuthorFilesToCollectionOn: "Activado",
-  saveAuthorFilesToCollectionOff: "Desactivado",
-  saveAuthorFilesToCollectionDescription: "Guardar automáticamente los archivos del autor en una colección separada.",
+  soundNone: "Ninguno",
+  soundBell: "Timbre",
+  soundMessage: "Mensaje entrante",
+  soundMicrowave: "Timbre de microondas",
+  soundNotification: "Nueva notificación",
+  soundDrop: "Objeto cayendo al agua",
+  soundWater: "Gota de agua en metal",
 };

@@ -31,6 +31,7 @@ export interface Settings {
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
   pauseOnFocusLoss?: boolean;
+  playSoundOnTaskComplete?: string;
 }
 
 export const defaultSettings: Settings = {
@@ -54,4 +55,5 @@ export const defaultSettings: Settings = {
   infiniteScroll: false,
   videoColumns: 4,
   pauseOnFocusLoss: false,
+  playSoundOnTaskComplete: '',
 };

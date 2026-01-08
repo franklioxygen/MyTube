@@ -140,6 +140,7 @@ export const fr = {
   itemsPerPage: "Éléments par page",
   itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",
+  playSoundOnTaskComplete: "Jouer un son à la fin de la tâche",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
   visitorUser: "Utilisateur Visiteur",
   enableVisitorUser: "Activer l'Utilisateur Visiteur",
@@ -607,7 +608,13 @@ export const fr = {
   moveThumbnailsToVideoFolder: "Emplacement des miniatures",
   moveThumbnailsToVideoFolderOn: "Avec la vidéo",
   moveThumbnailsToVideoFolderOff: "Dans un dossier d'images isolé",
+
   moveThumbnailsToVideoFolderDescription: "Si activé, les fichiers de miniatures seront déplacés dans le même dossier que le fichier vidéo. Si désactivé, ils seront déplacés dans le dossier d'images isolé.",
+  saveAuthorFilesToCollection: "Enregistrer les fichiers de l'auteur dans la collection",
+  saveAuthorFilesToCollectionOn: "Activé",
+  saveAuthorFilesToCollectionOff: "Désactivé",
+  saveAuthorFilesToCollectionDescription:
+    "Enregistrer automatiquement les fichiers de l'auteur dans une collection séparée.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Tunnel Cloudflare",
@@ -655,8 +662,11 @@ export const fr = {
   showSensitiveContent: "Afficher le contenu sensible",
   hideSensitiveContent: "Masquer le contenu sensible",
   sensitiveContentWarning: "Cette vidéo peut contenir du contenu sensible. Cliquez pour voir.",
-  saveAuthorFilesToCollection: "Enregistrer les fichiers de l'auteur dans la collection",
-  saveAuthorFilesToCollectionOn: "Activé",
-  saveAuthorFilesToCollectionOff: "Désactivé",
-  saveAuthorFilesToCollectionDescription: "Enregistrer automatiquement les fichiers de l'auteur dans une collection séparée.",
+  soundNone: "Aucun",
+  soundBell: "Sonnerie de cloche",
+  soundMessage: "Message entrant",
+  soundMicrowave: "Son de micro-ondes",
+  soundNotification: "Nouvelle notification",
+  soundDrop: "Objet tombant dans l'eau",
+  soundWater: "Goutte d'eau sur métal",
 };

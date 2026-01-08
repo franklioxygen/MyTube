@@ -4,7 +4,9 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import AlertModal from '../components/AlertModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
+import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
+import { INFO_SOUNDS } from '../utils/sounds';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -72,6 +74,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { t } = useLanguage();
     const { fetchVideos, handleSearch, setVideos } = useVideo();
     const { fetchCollections } = useCollection();
+    const { data: settings } = useSettings();
     const queryClient = useQueryClient();
 
     // Get initial download status from localStorage
@@ -148,6 +151,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (hasCompleted) {
             console.log('Download completed, refreshing videos');
             fetchVideos();
+
+            // Play task complete sound if enabled
+            if (settings?.playSoundOnTaskComplete && INFO_SOUNDS[settings.playSoundOnTaskComplete]) {
+                const soundFile = INFO_SOUNDS[settings.playSoundOnTaskComplete];
+                const audio = new Audio(soundFile);
+                audio.play().catch(e => console.error('Error playing completion sound:', e));
+            }
         }
 
         if (activeDownloads.length > 0 || queuedDownloads.length > 0) {

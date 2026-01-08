@@ -1,17 +1,19 @@
-import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField } from '@mui/material';
+import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { INFO_SOUNDS, SOUND_OPTIONS } from '../../utils/sounds';
 
 interface InterfaceDisplaySettingsProps {
     itemsPerPage?: number;
     showYoutubeSearch?: boolean;
     infiniteScroll?: boolean;
     videoColumns?: number;
+    playSoundOnTaskComplete?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
 const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props) => {
-    const { itemsPerPage, showYoutubeSearch, infiniteScroll, videoColumns, onChange } = props;
+    const { itemsPerPage, showYoutubeSearch, infiniteScroll, videoColumns, playSoundOnTaskComplete, onChange } = props;
     const { t } = useLanguage();
 
     return (
@@ -73,6 +75,38 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                     }
                     label={t('showYoutubeSearch') || "Show YouTube Search Results"}
                 />
+
+                <Box>
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
+                        {t('playSoundOnTaskComplete') || "Play Sound on Task Complete"}
+                    </Typography>
+                    <FormControl fullWidth>
+                        <Select
+                            id="sound-select"
+                            value={playSoundOnTaskComplete || ''}
+                            onChange={(e) => {
+                                const newValue = e.target.value;
+                                onChange('playSoundOnTaskComplete', newValue);
+
+                                // Play the selected sound for preview
+                                if (newValue && SOUND_OPTIONS.find(opt => opt.value === newValue)) {
+                                    const soundFile = SOUND_OPTIONS.find(opt => opt.value === newValue)?.value;
+                                    if (soundFile && INFO_SOUNDS[soundFile]) {
+                                        const audio = new Audio(INFO_SOUNDS[soundFile]);
+                                        audio.play().catch(console.error);
+                                    }
+                                }
+                            }}
+                            displayEmpty
+                        >
+                            {SOUND_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                    {t(option.labelKey) || option.labelKey}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
             </Box>
         </Box>
     );

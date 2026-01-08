@@ -157,6 +157,7 @@ export const en = {
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
+  playSoundOnTaskComplete: "Play Sound on Task Complete",
   visitorModeReadOnly: "Visitor mode: Read-only",
   visitorUser: "Visitor User",
   enableVisitorUser: "Enable Visitor User",
@@ -742,4 +743,11 @@ export const en = {
   hideSensitiveContent: "Hide Sensitive Content",
   sensitiveContentWarning:
     "This video may contain sensitive content. Click to view.",
+  soundNone: "None",
+  soundBell: "Bell Ding",
+  soundMessage: "Message Incoming",
+  soundMicrowave: "Microwave Ding",
+  soundNotification: "New Notification",
+  soundDrop: "Object Drops in Water",
+  soundWater: "Waterdrop on Metal",
 };

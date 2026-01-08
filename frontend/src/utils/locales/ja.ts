@@ -140,6 +140,7 @@ export const ja = {
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
   showYoutubeSearch: "YouTube検索結果を表示",
+  playSoundOnTaskComplete: "タスク完了時に音を再生",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
   visitorUser: "ビジターユーザー",
   enableVisitorUser: "ビジターユーザーを有効にする",
@@ -607,7 +608,13 @@ export const ja = {
   moveThumbnailsToVideoFolder: "サムネイルの場所",
   moveThumbnailsToVideoFolderOn: "動画と一緒",
   moveThumbnailsToVideoFolderOff: "独立した画像フォルダ",
+
   moveThumbnailsToVideoFolderDescription: "有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。",
+  saveAuthorFilesToCollection: "著者のファイルをコレクションに保存",
+  saveAuthorFilesToCollectionOn: "オン",
+  saveAuthorFilesToCollectionOff: "オフ",
+  saveAuthorFilesToCollectionDescription:
+    "著者のファイルを別のコレクションに自動的に保存します。",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare トンネル",
@@ -655,8 +662,11 @@ export const ja = {
   showSensitiveContent: "センシティブな内容を表示",
   hideSensitiveContent: "センシティブな内容を隠す",
   sensitiveContentWarning: "この動画にはセンシティブな内容が含まれている可能性があります。クリックして表示します。",
-  saveAuthorFilesToCollection: "著者のファイルをコレクションに保存",
-  saveAuthorFilesToCollectionOn: "オン",
-  saveAuthorFilesToCollectionOff: "オフ",
-  saveAuthorFilesToCollectionDescription: "著者のファイルを別のコレクションに自動的に保存します。",
+  soundNone: "なし",
+  soundBell: "ベル音",
+  soundMessage: "メッセージ受信",
+  soundMicrowave: "電子レンジ音",
+  soundNotification: "新着通知",
+  soundDrop: "水に物が落ちる音",
+  soundWater: "金属に水滴が落ちる音",
 };
