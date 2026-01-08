@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AlertModal from '../components/AlertModal';
+import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
 import { DownloadInfo } from '../types';
 import { useCollection } from './CollectionContext';
@@ -201,20 +202,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Matches: https://www.youtube.com/@Channel/playlists
             const channelPlaylistsRegex = /youtube\.com\/(@[^/]+|channel\/[^/]+|user\/[^/]+|c\/[^/]+)\/playlists/;
             if (channelPlaylistsRegex.test(videoUrl)) {
-                if (confirm(t('confirmDownloadAllPlaylists') || "Download all playlists from this channel? This will create a collection for each playlist.")) {
-                    try {
-                        const response = await axios.post(`${API_URL}/downloads/channel-playlists`, {
-                            url: videoUrl
-                        });
-                        showSnackbar(response.data.message || t('downloadStartedSuccessfully'));
-                        return { success: true };
-                    } catch (err: any) {
-                        console.error('Error downloading channel playlists:', err);
-                        showSnackbar(err.response?.data?.error || t('failedToDownload'), 'error');
-                        return { success: false, error: err.response?.data?.error };
-                    }
-                }
-                return { success: false };
+                setChannelPlaylistsUrl(videoUrl);
+                setShowChannelPlaylistsModal(true);
+                return { success: true };
             }
 
             // Check for YouTube channel URL (but not playlists tab, or if user declined playlists download)
@@ -404,6 +394,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [subscribeUrl, setSubscribeUrl] = useState('');
 
+    // Channel playlists confirmation modal
+    const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
+    const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
+
     const handleSubscribe = async (interval: number, downloadAllPrevious: boolean) => {
         try {
             await axios.post(`${API_URL}/subscriptions`, {
@@ -422,6 +416,22 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             } else {
                 showSnackbar(t('error'));
             }
+        }
+    };
+
+    const handleConfirmChannelPlaylists = async () => {
+        try {
+            const response = await axios.post(`${API_URL}/downloads/channel-playlists`, {
+                url: channelPlaylistsUrl
+            });
+            showSnackbar(response.data.message || t('downloadStartedSuccessfully'));
+            setShowChannelPlaylistsModal(false);
+            setChannelPlaylistsUrl('');
+        } catch (err: any) {
+            console.error('Error downloading channel playlists:', err);
+            showSnackbar(err.response?.data?.error || t('failedToDownload'), 'error');
+            setShowChannelPlaylistsModal(false);
+            setChannelPlaylistsUrl('');
         }
     };
 
@@ -449,6 +459,18 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 onClose={() => setShowDuplicateModal(false)}
                 title={t('error')}
                 message={t('subscriptionAlreadyExists')}
+            />
+            <ConfirmationModal
+                isOpen={showChannelPlaylistsModal}
+                onClose={() => {
+                    setShowChannelPlaylistsModal(false);
+                    setChannelPlaylistsUrl('');
+                }}
+                onConfirm={handleConfirmChannelPlaylists}
+                title={t('downloadAll') || 'Download All Playlists'}
+                message={t('confirmDownloadAllPlaylists') || "Download all playlists from this channel? This will create a collection for each playlist."}
+                confirmText={t('downloadAll') || 'Download All'}
+                cancelText={t('cancel') || 'Cancel'}
             />
         </DownloadContext.Provider>
     );
