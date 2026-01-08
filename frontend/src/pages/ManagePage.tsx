@@ -15,10 +15,10 @@ import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import CollectionsTable from '../components/ManagePage/CollectionsTable';
 import VideosTable from '../components/ManagePage/VideosTable';
 
+import { useAuth } from '../contexts/AuthContext';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
@@ -46,7 +46,7 @@ const ManagePage: React.FC = () => {
     const [videoPage, setVideoPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
-    // Sorting state
+    // Sorting state for videos
     const [orderBy, setOrderBy] = useState<keyof Video | 'fileSize'>('addedAt');
     const [order, setOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -54,6 +54,17 @@ const ManagePage: React.FC = () => {
         const isAsc = orderBy === property && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(property);
+    };
+
+    // Sorting state for collections
+    type CollectionSortBy = 'name' | 'videoCount' | 'size' | 'createdAt';
+    const [collectionOrderBy, setCollectionOrderBy] = useState<CollectionSortBy>('createdAt');
+    const [collectionOrder, setCollectionOrder] = useState<'asc' | 'desc'>('desc');
+
+    const handleCollectionRequestSort = (property: CollectionSortBy) => {
+        const isAsc = collectionOrderBy === property && collectionOrder === 'asc';
+        setCollectionOrder(isAsc ? 'desc' : 'asc');
+        setCollectionOrderBy(property);
     };
 
     // Scan files mutation
@@ -110,9 +121,51 @@ const ManagePage: React.FC = () => {
         return formatSize(totalBytes);
     };
 
+    // Helper to get collection size as bytes (number) for sorting
+    const getCollectionSizeBytes = (collectionVideoIds: string[]) => {
+        return collectionVideoIds.reduce((acc, videoId) => {
+            const video = videos.find(v => v.id === videoId);
+            if (video && video.fileSize) {
+                const size = parseInt(video.fileSize, 10);
+                return acc + (isNaN(size) ? 0 : size);
+            }
+            return acc;
+        }, 0);
+    };
+
+    // Sort collections
+    const sortedCollections = [...collections].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (collectionOrderBy === 'name') {
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+        } else if (collectionOrderBy === 'videoCount') {
+            aValue = a.videos.length;
+            bValue = b.videos.length;
+        } else if (collectionOrderBy === 'size') {
+            aValue = getCollectionSizeBytes(a.videos);
+            bValue = getCollectionSizeBytes(b.videos);
+        } else if (collectionOrderBy === 'createdAt') {
+            aValue = new Date(a.createdAt).getTime();
+            bValue = new Date(b.createdAt).getTime();
+        } else {
+            return 0;
+        }
+
+        if (bValue < aValue) {
+            return collectionOrder === 'asc' ? 1 : -1;
+        }
+        if (bValue > aValue) {
+            return collectionOrder === 'asc' ? -1 : 1;
+        }
+        return 0;
+    });
+
     // Pagination logic
-    const totalCollectionPages = Math.ceil(collections.length / ITEMS_PER_PAGE);
-    const displayedCollections = collections.slice(
+    const totalCollectionPages = Math.ceil(sortedCollections.length / ITEMS_PER_PAGE);
+    const displayedCollections = sortedCollections.slice(
         (collectionPage - 1) * ITEMS_PER_PAGE,
         collectionPage * ITEMS_PER_PAGE
     );
@@ -237,6 +290,9 @@ const ManagePage: React.FC = () => {
                 totalPages={totalCollectionPages}
                 onPageChange={handleCollectionPageChange}
                 getCollectionSize={getCollectionSize}
+                orderBy={collectionOrderBy}
+                order={collectionOrder}
+                onSort={handleCollectionRequestSort}
             />
 
             <VideosTable

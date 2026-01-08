@@ -16,7 +16,7 @@
 
 🌐 **访问在线演示(只读): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
 
-[![Watch the video](https://img.youtube.com/vi/O5rMqYffXpg/maxresdefault.jpg)](https://youtu.be/O5rMqYffXpg)
+[![Watch the video](https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg)](https://www.youtube.com/watch?v=0_5ZpgsWTp0)
 
 ## 功能特点
 

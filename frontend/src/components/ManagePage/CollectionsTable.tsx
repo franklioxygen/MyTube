@@ -11,14 +11,17 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TableSortLabel,
     Tooltip,
     Typography,
     useMediaQuery
 } from '@mui/material';
 import React from 'react';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Collection } from '../../types';
+
+type CollectionSortBy = 'name' | 'videoCount' | 'size' | 'createdAt';
 
 interface CollectionsTableProps {
     displayedCollections: Collection[];
@@ -28,6 +31,9 @@ interface CollectionsTableProps {
     totalPages: number;
     onPageChange: (event: React.ChangeEvent<unknown>, value: number) => void;
     getCollectionSize: (videoIds: string[]) => string;
+    orderBy: CollectionSortBy;
+    order: 'asc' | 'desc';
+    onSort: (property: CollectionSortBy) => void;
 }
 
 const CollectionsTable: React.FC<CollectionsTableProps> = ({
@@ -37,7 +43,10 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     page,
     totalPages,
     onPageChange,
-    getCollectionSize
+    getCollectionSize,
+    orderBy,
+    order,
+    onSort
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
@@ -56,10 +65,42 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>{t('name')}</TableCell>
-                                <TableCell>{t('videos')}</TableCell>
-                                <TableCell>{t('size')}</TableCell>
-                                <TableCell>{t('created')}</TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'name'}
+                                        direction={orderBy === 'name' ? order : 'asc'}
+                                        onClick={() => onSort('name')}
+                                    >
+                                        {t('name')}
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'videoCount'}
+                                        direction={orderBy === 'videoCount' ? order : 'asc'}
+                                        onClick={() => onSort('videoCount')}
+                                    >
+                                        {t('videos')}
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'size'}
+                                        direction={orderBy === 'size' ? order : 'asc'}
+                                        onClick={() => onSort('size')}
+                                    >
+                                        {t('size')}
+                                    </TableSortLabel>
+                                </TableCell>
+                                <TableCell>
+                                    <TableSortLabel
+                                        active={orderBy === 'createdAt'}
+                                        direction={orderBy === 'createdAt' ? order : 'asc'}
+                                        onClick={() => onSort('createdAt')}
+                                    >
+                                        {t('created')}
+                                    </TableSortLabel>
+                                </TableCell>
                                 {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>
                         </TableHead>

@@ -16,7 +16,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 
 🌐 **Try the live demo (read only): [https://mytube-demo.vercel.app](https://mytube-demo.vercel.app)**
 
-[![Watch the video](https://img.youtube.com/vi/O5rMqYffXpg/maxresdefault.jpg)](https://youtu.be/O5rMqYffXpg)
+[![Watch the video](https://img.youtube.com/vi/0_5ZpgsWTp0/maxresdefault.jpg)](https://www.youtube.com/watch?v=0_5ZpgsWTp0)
 
 ## Features
 
