@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { Link } from 'react-router-dom';
 import logo from '../../assets/logo.svg';
 import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
+import { useSettings } from '../../hooks/useSettings';
 
 interface LogoProps {
     websiteName: string;
@@ -9,12 +10,10 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ websiteName, onResetSearch }) => {
-    // Only check status if we think it might be enabled, or just check always (it handles enabled=false internally somewhat, but better to query only if needed)
-    // Since we don't have easy access to settings here without adding another context, we'll check status always for now or ideally use a context.
-    // However, the hook defaults to enabled=true. Let's rely on the hook handling null if not running.
-    // Actually, checking status constantly might be overkill if disabled. But without global settings context readily available in Logo without refactor, we'll assume we want to check.
-    // Better strategy: The user explicitly asked for "When cloudflare Status is Running".
-    const { data: cloudflaredStatus } = useCloudflareStatus(true);
+    // Only check Cloudflare status if it's enabled in settings
+    const { data: settings } = useSettings();
+    const cloudflaredEnabled = settings?.cloudflaredTunnelEnabled ?? false;
+    const { data: cloudflaredStatus } = useCloudflareStatus(cloudflaredEnabled);
 
     return (
         <Link to="/" onClick={onResetSearch} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', color: 'inherit' }}>

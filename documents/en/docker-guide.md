@@ -25,8 +25,6 @@ Create a file named `docker-compose.yml` inside your folder and paste the foll
 **Note:** This version uses standard relative paths (`./data`, `./uploads`). If you copy the repo’s `docker-compose.yml`, update the volume paths to match your host.
 
 ```yaml
-version: '3.8'
-
 services:
   backend:
     image: franklioxygen/mytube:backend-latest

@@ -1,8 +1,6 @@
-version: '3.8'
-
 # Example configuration for systems where bridge network cannot access internet
 # (e.g., OpenWrt/iStoreOS on arm64)
-# 
+#
 # Usage: docker compose -f docker-compose.host-network.yml up -d
 #
 # This configuration uses host network mode for the backend to allow internet access,
@@ -51,4 +49,3 @@ volumes:
 networks:
   mytube-network:
     driver: bridge
-
