@@ -517,6 +517,8 @@ export const fr = {
   subscriptionResumed: "Abonnement repris",
   taskPaused: "Tâche mise en pause",
   taskResumed: "Tâche reprise",
+  viaSubscription: "via Abonnement",
+  viaContinuousDownload: "via Téléchargement continu",
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
   instructionSection1Desc: "Ce module comprend l'acquisition de vidéos, les tâches par lots et les fonctions d'importation de fichiers.",

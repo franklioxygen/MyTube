@@ -517,6 +517,8 @@ export const de = {
   subscriptionResumed: "Abonnement fortgesetzt",
   taskPaused: "Aufgabe pausiert",
   taskResumed: "Aufgabe fortgesetzt",
+  viaSubscription: "via Abonnement",
+  viaContinuousDownload: "via kontinuierlichen Download",
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc: "Dieses Modul umfasst Videoerfassung, Batch-Aufgaben und Dateiimportfunktionen.",

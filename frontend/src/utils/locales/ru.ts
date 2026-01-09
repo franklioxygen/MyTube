@@ -517,6 +517,8 @@ export const ru = {
   subscriptionResumed: "Подписка возобновлена",
   taskPaused: "Задача приостановлена",
   taskResumed: "Задача возобновлена",
+  viaSubscription: "через подписку",
+  viaContinuousDownload: "через непрерывную загрузку",
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
   instructionSection1Desc: "Этот модуль включает функции получения видео, пакетных задач и импорта файлов.",

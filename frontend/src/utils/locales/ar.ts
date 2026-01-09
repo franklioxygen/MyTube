@@ -517,6 +517,8 @@ export const ar = {
   subscriptionResumed: "تم استئناف الاشتراك",
   taskPaused: "تم إيقاف المهمة مؤقتاً",
   taskResumed: "تم استئناف المهمة",
+  viaSubscription: "عبر الاشتراك",
+  viaContinuousDownload: "عبر التنزيل المستمر",
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc: "تتضمن هذه الوحدة وظائف الحصول على الفيديو والمهام المجمعة واستيراد الملفات.",

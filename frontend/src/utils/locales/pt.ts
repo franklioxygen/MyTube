@@ -517,6 +517,8 @@ export const pt = {
   subscriptionResumed: "Assinatura retomada",
   taskPaused: "Tarefa pausada",
   taskResumed: "Tarefa retomada",
+  viaSubscription: "via Assinatura",
+  viaContinuousDownload: "via Download Contínuo",
   // Instruction Page
   instructionSection1Title: "1. Download e Gerenciamento de Tarefas",
   instructionSection1Desc: "Este módulo inclui aquisição de vídeo, tarefas em lote e funções de importação de arquivos.",

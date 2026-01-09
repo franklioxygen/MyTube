@@ -517,6 +517,8 @@ export const ko = {
   subscriptionResumed: "구독이 재개되었습니다",
   taskPaused: "작업이 일시 중지되었습니다",
   taskResumed: "작업이 재개되었습니다",
+  viaSubscription: "구독을 통해",
+  viaContinuousDownload: "연속 다운로드를 통해",
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc: "이 모듈에는 비디오 획득, 일괄 작업 및 파일 가져오기 기능이 포함되어 있습니다.",

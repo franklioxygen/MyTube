@@ -517,6 +517,8 @@ export const ja = {
   subscriptionResumed: "購読が再開されました",
   taskPaused: "タスクが一時停止されました",
   taskResumed: "タスクが再開されました",
+  viaSubscription: "購読経由",
+  viaContinuousDownload: "連続ダウンロード経由",
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc: "このモジュールには、ビデオ取得、バッチタスク、およびファイルインポート機能が含まれています。",

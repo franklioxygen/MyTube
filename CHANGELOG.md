@@ -2,6 +2,22 @@
 
 
 
+## v1.7.50 (2026-01-09)
+
+### Feat
+
+- feat: show continous task in download history (063f21b)
+- feat: Add maxConcurrentDescription to DownloadSettings (406f1d0)
+
+### Style
+
+- style: Fix code indentation and formatting issues (efd5fca)
+- style: Improve container usage in DownloadPage (6f9da06)
+
+### Chore
+
+- chore: Clean up local images after building and pushing (b229fb6)
+
 ## v1.7.49 (2026-01-08)
 
 ### Feat
