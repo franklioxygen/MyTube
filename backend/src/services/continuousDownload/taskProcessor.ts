@@ -202,6 +202,8 @@ export class TaskProcessor {
           finishedAt: Date.now(),
           status: "failed",
           error: downloadError.message || "Download failed",
+          taskId: task.id,
+          subscriptionId: task.subscriptionId,
         });
 
         // Update task progress
@@ -400,6 +402,8 @@ export class TaskProcessor {
         videoPath: videoData.videoPath,
         thumbnailPath: videoData.thumbnailPath,
         videoId: videoData.id,
+        taskId: task.id,
+        subscriptionId: task.subscriptionId,
       });
 
       // If task has a collectionId, add video to collection

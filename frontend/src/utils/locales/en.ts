@@ -570,6 +570,8 @@ export const en = {
   subscriptionResumed: "Subscription resumed",
   taskPaused: "Task paused",
   taskResumed: "Task resumed",
+  viaSubscription: "via Subscription",
+  viaContinuousDownload: "via Continuous Download",
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",
   instructionSection1Desc:

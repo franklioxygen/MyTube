@@ -401,6 +401,7 @@ export class SubscriptionService {
                 videoPath: videoData.videoPath,
                 thumbnailPath: videoData.thumbnailPath,
                 videoId: videoData.id,
+                subscriptionId: sub.id,
               });
 
               // 4. Update subscription record with new video link and stats on success
@@ -451,6 +452,7 @@ export class SubscriptionService {
                 finishedAt: Date.now(),
                 status: "failed",
                 error: downloadError.message || "Download failed",
+                subscriptionId: sub.id,
               });
 
               // Note: We already updated lastCheck, so we won't retry until next interval.

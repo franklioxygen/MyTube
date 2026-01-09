@@ -50,6 +50,8 @@ export interface DownloadHistoryItem {
   videoId?: string; // Reference to the video for skipped items
   downloadedAt?: number; // Original download timestamp for deleted items
   deletedAt?: number; // Deletion timestamp for deleted items
+  subscriptionId?: string; // Reference to subscription if downloaded via subscription
+  taskId?: string; // Reference to continuous download task if downloaded via task
 }
 
 export interface VideoDownloadRecord {

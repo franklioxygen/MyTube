@@ -517,6 +517,8 @@ export const zh = {
   subscriptionResumed: "订阅已恢复",
   taskPaused: "任务已暂停",
   taskResumed: "任务已恢复",
+  viaSubscription: "通过订阅",
+  viaContinuousDownload: "通过连续下载",
   // Instruction Page
   instructionSection1Title: "1. 下载与任务管理",
   instructionSection1Desc: "本模块包含视频获取、批量任务及文件导入等功能。",

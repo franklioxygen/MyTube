@@ -1,10 +1,10 @@
 import { relations } from "drizzle-orm";
 import {
-    foreignKey,
-    integer,
-    primaryKey,
-    sqliteTable,
-    text,
+  foreignKey,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
 } from "drizzle-orm/sqlite-core";
 
 export const videos = sqliteTable("videos", {
@@ -123,6 +123,8 @@ export const downloadHistory = sqliteTable("download_history", {
   videoId: text("video_id"), // Reference to video for skipped items
   downloadedAt: integer("downloaded_at"), // Original download timestamp for deleted items
   deletedAt: integer("deleted_at"), // Deletion timestamp for deleted items
+  subscriptionId: text("subscription_id"), // Reference to subscription if downloaded via subscription
+  taskId: text("task_id"), // Reference to continuous download task if downloaded via task
 });
 
 export const subscriptions = sqliteTable("subscriptions", {

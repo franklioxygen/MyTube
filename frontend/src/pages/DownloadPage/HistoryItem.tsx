@@ -33,6 +33,8 @@ export interface DownloadHistoryItem {
     videoId?: string;
     downloadedAt?: number;
     deletedAt?: number;
+    subscriptionId?: string;
+    taskId?: string;
 }
 
 interface HistoryItemProps {
@@ -118,6 +120,12 @@ export function HistoryItem({
                             ) : (
                                 <Typography variant="caption" component="span">
                                     {formatDate(item.finishedAt)}
+                                </Typography>
+                            )}
+                            {(item.subscriptionId || item.taskId) && (
+                                <Typography variant="caption" color="text.secondary" component="span" sx={{ fontStyle: 'italic' }}>
+                                    {item.subscriptionId && ` • ${t('viaSubscription') || 'via Subscription'}`}
+                                    {item.taskId && ` • ${t('viaContinuousDownload') || 'via Continuous Download'}`}
                                 </Typography>
                             )}
                             {item.error && (
