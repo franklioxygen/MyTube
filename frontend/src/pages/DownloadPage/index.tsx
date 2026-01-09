@@ -2,6 +2,7 @@ import { CloudUpload, PlaylistAdd as PlaylistAddIcon } from '@mui/icons-material
 import {
     Box,
     Button,
+    Container,
     Tab,
     Tabs,
     Typography
@@ -16,9 +17,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { ActiveDownloadsTab } from './ActiveDownloadsTab';
 import { CustomTabPanel } from './CustomTabPanel';
+import { DownloadHistoryItem } from './HistoryItem';
 import { HistoryTab } from './HistoryTab';
 import { QueueTab } from './QueueTab';
-import { DownloadHistoryItem } from './HistoryItem';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -159,15 +160,15 @@ const DownloadPage: React.FC = () => {
     // Helper function to check if a sourceUrl is already in active or queued downloads
     const isDownloadInProgress = (sourceUrl: string): boolean => {
         if (!sourceUrl) return false;
-        
+
         const inActive = activeDownloads.some((d: any) => d.sourceUrl === sourceUrl);
         if (inActive) return true;
-        
+
         const inQueue = queuedDownloads.some((d: any) => d.sourceUrl === sourceUrl);
         if (inQueue) return true;
-        
+
         if (downloadingItems.has(sourceUrl)) return true;
-        
+
         return false;
     };
 
@@ -237,7 +238,7 @@ const DownloadPage: React.FC = () => {
     };
 
     return (
-        <Box sx={{ width: '100%', p: 2 }}>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             <Box sx={{
                 display: 'flex',
                 flexDirection: { xs: 'column', sm: 'row' },
@@ -246,7 +247,7 @@ const DownloadPage: React.FC = () => {
                 mb: 2,
                 gap: { xs: 2, sm: 0 }
             }}>
-                <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+                <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" sx={{ mb: 0 }}>
                     {t('downloads') || 'Downloads'}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
@@ -321,7 +322,7 @@ const DownloadPage: React.FC = () => {
                 onClose={() => setUploadModalOpen(false)}
                 onUploadSuccess={handleUploadSuccess}
             />
-        </Box>
+        </Container>
     );
 };
 
