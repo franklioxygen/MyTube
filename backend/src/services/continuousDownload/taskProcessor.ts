@@ -4,10 +4,50 @@ import {
   downloadSingleBilibiliPart,
   downloadYouTubeVideo,
 } from "../downloadService";
+import { DownloadResult } from "../downloaders/bilibili/types";
 import * as storageService from "../storageService";
+import { Video } from "../storageService";
 import { TaskRepository } from "./taskRepository";
 import { ContinuousDownloadTask } from "./types";
 import { VideoUrlFetcher } from "./videoUrlFetcher";
+
+/**
+ * Union type for download results from different platforms
+ * - Bilibili returns DownloadResult (wrapped with success/error)
+ * - YouTube returns Video (direct video object)
+ */
+type DownloadResultUnion = DownloadResult | Video;
+
+/**
+ * Extract Video data from download result, handling both result formats
+ */
+function extractVideoData(
+  result: DownloadResultUnion | null | undefined
+): Video | null {
+  if (!result) {
+    return null;
+  }
+
+  // Check if it's a DownloadResult (has videoData property)
+  if ("videoData" in result && result.videoData) {
+    return result.videoData;
+  }
+
+  // Check if it's already a Video object
+  if ("id" in result && "title" in result) {
+    return result as Video;
+  }
+
+  return null;
+}
+
+/**
+ * Timing constants for download task processing
+ * These conservative values prevent overwhelming the system while maintaining
+ * reasonable throughput. Can be made configurable in the future if needed.
+ */
+const PROCESSING_DELAY_MS = 1000; // Delay between video processing iterations
+const SLOT_POLL_INTERVAL_MS = 1000; // Polling interval for download slot availability
 
 /**
  * Service for processing continuous download tasks
@@ -190,8 +230,13 @@ export class TaskProcessor {
       }
 
       // Small delay to avoid overwhelming the system
+      // This conservative delay helps prevent resource contention and ensures
+      // stable performance under load. Can be made configurable for higher
+      // throughput scenarios if needed (e.g., small files, fast networks).
       if (i < totalVideos - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, PROCESSING_DELAY_MS)
+        );
       }
     }
 
@@ -298,51 +343,140 @@ export class TaskProcessor {
       return;
     }
 
-    // Download the video
-    let downloadResult: any;
-    if (task.platform === "Bilibili") {
-      downloadResult = await downloadSingleBilibiliPart(videoUrl, 1, 1, "");
-    } else {
-      downloadResult = await downloadYouTubeVideo(videoUrl);
-    }
+    // Wait for an available download slot before starting
+    await this.waitForDownloadSlot(task.id);
 
-    // Add to download history
-    const videoData = downloadResult?.videoData || downloadResult || {};
-    storageService.addDownloadHistoryItem({
-      id: uuidv4(),
-      title: videoData.title || `Video from ${task.author}`,
-      author: videoData.author || task.author,
+    // Generate download ID and register active download
+    const downloadId = uuidv4();
+    storageService.addActiveDownload(
+      downloadId,
+      `Downloading from ${task.author} (${videoIndex + 1}/${task.totalVideos})`
+    );
+    // Update with metadata for better tracking
+    storageService.updateActiveDownload(downloadId, {
       sourceUrl: videoUrl,
-      finishedAt: Date.now(),
-      status: "success",
-      videoPath: videoData.videoPath,
-      thumbnailPath: videoData.thumbnailPath,
-      videoId: videoData.id,
+      type: task.platform.toLowerCase(),
     });
 
-    // If task has a collectionId, add video to collection
-    if (task.collectionId && videoData.id) {
-      try {
-        storageService.addVideoToCollection(task.collectionId, videoData.id);
-        logger.info(
-          `Added video ${videoData.id} to collection ${task.collectionId}`
+    try {
+      // Download the video
+      let downloadResult: DownloadResultUnion;
+      if (task.platform === "Bilibili") {
+        downloadResult = await downloadSingleBilibiliPart(
+          videoUrl,
+          1,
+          1,
+          "",
+          downloadId
         );
-      } catch (error) {
-        logger.error(
-          `Error adding video to collection ${task.collectionId}:`,
-          error
-        );
-        // Don't fail the task if collection add fails
-      }
-    }
 
-    // Update task progress - fetch latest state to avoid race conditions
-    const latestTaskForUpdate = await this.taskRepository.getTaskById(task.id);
-    if (latestTaskForUpdate) {
-      await this.taskRepository.updateProgress(task.id, {
-        downloadedCount: (latestTaskForUpdate.downloadedCount || 0) + 1,
-        currentVideoIndex: videoIndex + 1,
+        // Check for Bilibili download errors
+        if ("success" in downloadResult && !downloadResult.success) {
+          throw new Error(
+            downloadResult.error ||
+              `Failed to download Bilibili video: ${videoUrl}`
+          );
+        }
+      } else {
+        downloadResult = await downloadYouTubeVideo(videoUrl, downloadId);
+      }
+
+      // Extract video data from result (handles both DownloadResult and Video formats)
+      const videoData = extractVideoData(downloadResult);
+      if (!videoData) {
+        throw new Error(
+          `Failed to extract video data from download result for ${videoUrl}`
+        );
+      }
+
+      // Add to download history
+      storageService.addDownloadHistoryItem({
+        id: uuidv4(),
+        title: videoData.title || `Video from ${task.author}`,
+        author: videoData.author || task.author,
+        sourceUrl: videoUrl,
+        finishedAt: Date.now(),
+        status: "success",
+        videoPath: videoData.videoPath,
+        thumbnailPath: videoData.thumbnailPath,
+        videoId: videoData.id,
       });
+
+      // If task has a collectionId, add video to collection
+      if (task.collectionId && videoData.id) {
+        try {
+          storageService.addVideoToCollection(task.collectionId, videoData.id);
+          logger.info(
+            `Added video ${videoData.id} to collection ${task.collectionId}`
+          );
+        } catch (error) {
+          logger.error(
+            `Error adding video to collection ${task.collectionId}:`,
+            error
+          );
+          // Don't fail the task if collection add fails
+        }
+      }
+
+      // Update task progress - fetch latest state to avoid race conditions
+      const latestTaskForUpdate = await this.taskRepository.getTaskById(
+        task.id
+      );
+      if (latestTaskForUpdate) {
+        await this.taskRepository.updateProgress(task.id, {
+          downloadedCount: (latestTaskForUpdate.downloadedCount || 0) + 1,
+          currentVideoIndex: videoIndex + 1,
+        });
+      }
+    } finally {
+      // Always remove from active downloads when done (success or failure)
+      storageService.removeActiveDownload(downloadId);
+    }
+  }
+
+  /**
+   * Wait for an available download slot based on maxConcurrentDownloads setting
+   */
+  private async waitForDownloadSlot(taskId: string): Promise<void> {
+    const settings = storageService.getSettings();
+    const maxConcurrent = settings.maxConcurrentDownloads || 3;
+
+    // Poll until a slot is available
+    while (true) {
+      // Check if task was cancelled or paused while waiting
+      const currentTask = await this.taskRepository.getTaskById(taskId);
+      if (!currentTask || currentTask.status !== "active") {
+        logger.info(
+          `Task ${taskId} was cancelled or paused while waiting for download slot`
+        );
+        throw new Error(
+          `Task ${taskId} is not active (status: ${
+            currentTask?.status || "not found"
+          })`
+        );
+      }
+
+      const downloadStatus = storageService.getDownloadStatus();
+      const activeCount = downloadStatus.activeDownloads.length;
+
+      if (activeCount < maxConcurrent) {
+        // Slot available, proceed
+        logger.debug(
+          `Download slot available (${activeCount}/${maxConcurrent} active)`
+        );
+        return;
+      }
+
+      // Wait a bit before checking again
+      // Conservative polling interval prevents excessive CPU usage while
+      // maintaining reasonable responsiveness. Could be optimized with
+      // adaptive intervals or event-based notifications in the future.
+      logger.debug(
+        `Waiting for download slot (${activeCount}/${maxConcurrent} active)`
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, SLOT_POLL_INTERVAL_MS)
+      );
     }
   }
 }

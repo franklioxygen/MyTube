@@ -67,6 +67,7 @@ export const ko = {
   autoPlay: "동영상 자동 재생",
   autoLoop: "동영상 자동 반복",
   maxConcurrent: "최대 동시 다운로드 수",
+  maxConcurrentDescription: "일반 다운로드 및 지속적인 구독 작업을 포함하여 동시 다운로드 수를 제한합니다.",
   saveSettings: "설정 저장",
   saving: "저장 중...",
   backToManage: "관리로 돌아가기",

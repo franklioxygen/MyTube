@@ -25,6 +25,9 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
             <Typography gutterBottom>
                 {t('maxConcurrent')}: {settings.maxConcurrentDownloads}
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {t('maxConcurrentDescription')}
+            </Typography>
             <Box sx={{ maxWidth: 400, px: 2 }}>
                 <Slider
                     value={settings.maxConcurrentDownloads}

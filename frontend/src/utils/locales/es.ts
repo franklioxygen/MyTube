@@ -67,6 +67,7 @@ export const es = {
   autoPlay: "Reproducción Automática",
   autoLoop: "Repetición Automática",
   maxConcurrent: "Descargas Simultáneas Máximas",
+  maxConcurrentDescription: "Limita el número de descargas simultáneas, incluidas las descargas regulares y las tareas de suscripción continua.",
   saveSettings: "Guardar Configuración",
   saving: "Guardando...",
   backToManage: "Volver a Gestionar",

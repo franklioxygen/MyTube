@@ -67,6 +67,7 @@ export const zh = {
   autoPlay: "自动播放视频",
   autoLoop: "自动循环播放",
   maxConcurrent: "最大同时下载数",
+  maxConcurrentDescription: "限制同时进行的下载数量，包括常规下载和连续订阅任务。",
   saveSettings: "保存设置",
   saving: "保存中...",
   backToManage: "返回管理",

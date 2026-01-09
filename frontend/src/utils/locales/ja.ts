@@ -67,6 +67,7 @@ export const ja = {
   autoPlay: "動画の自動再生",
   autoLoop: "動画の自動ループ",
   maxConcurrent: "最大同時ダウンロード数",
+  maxConcurrentDescription: "通常のダウンロードや継続的なサブスクリプションタスクを含む、同時ダウンロード数を制限します。",
   saveSettings: "設定を保存",
   saving: "保存中...",
   backToManage: "管理に戻る",

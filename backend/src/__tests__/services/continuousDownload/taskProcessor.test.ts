@@ -58,6 +58,10 @@ describe('TaskProcessor', () => {
       mockTaskRepository as unknown as TaskRepository,
       mockVideoUrlFetcher as unknown as VideoUrlFetcher
     );
+
+    // Mock storageService methods needed for waitForDownloadSlot
+    (storageService.getSettings as any).mockReturnValue({ maxConcurrentDownloads: 3 });
+    (storageService.getDownloadStatus as any).mockReturnValue({ activeDownloads: [] });
   });
 
   it('should initialize total videos and process all urls for non-incremental task', async () => {

@@ -67,6 +67,7 @@ export const de = {
   autoPlay: "Automatische Wiedergabe",
   autoLoop: "Automatische Schleife",
   maxConcurrent: "Max. gleichzeitige Downloads",
+  maxConcurrentDescription: "Begrenzt die Anzahl gleichzeitiger Downloads, einschließlich regulärer Downloads und kontinuierlicher Abonnementaufgaben.",
   saveSettings: "Einstellungen Speichern",
   saving: "Speichern...",
   backToManage: "Zurück zu Verwalten",

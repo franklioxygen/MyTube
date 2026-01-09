@@ -67,6 +67,7 @@ export const pt = {
   autoPlay: "Reprodução Automática de Vídeos",
   autoLoop: "Repetição Automática de Vídeos",
   maxConcurrent: "Máximo de Downloads Simultâneos",
+  maxConcurrentDescription: "Limita o número de downloads simultâneos, incluindo downloads regulares e tarefas de assinatura contínua.",
   saveSettings: "Salvar Configurações",
   saving: "Salvando...",
   backToManage: "Voltar para Gerenciar",

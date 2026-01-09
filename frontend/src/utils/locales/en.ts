@@ -69,6 +69,7 @@ export const en = {
   autoPlay: "Auto-play Videos",
   autoLoop: "Auto-loop Videos",
   maxConcurrent: "Max Concurrent Downloads",
+  maxConcurrentDescription: "Limits the number of simultaneous downloads, including regular downloads and continuous subscription tasks.",
   saveSettings: "Save Settings",
   saving: "Saving...",
   backToManage: "Back to Manage",

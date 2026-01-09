@@ -67,6 +67,7 @@ export const fr = {
   autoPlay: "Lecture automatique des vidéos",
   autoLoop: "Boucle automatique des vidéos",
   maxConcurrent: "Téléchargements simultanés max",
+  maxConcurrentDescription: "Limite le nombre de téléchargements simultanés, y compris les téléchargements réguliers et les tâches d'abonnement continu.",
   saveSettings: "Enregistrer les paramètres",
   saving: "Enregistrement...",
   backToManage: "Retour à la gestion",
