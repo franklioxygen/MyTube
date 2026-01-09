@@ -29,8 +29,8 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
@@ -43,11 +43,11 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath 
-        ? `${BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}` 
+    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
+        ? `${BACKEND_URL || 'http://localhost:5551'}${video.thumbnailPath}`
         : undefined;
     const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
-    
+
     return (
         <Box
             component="img"

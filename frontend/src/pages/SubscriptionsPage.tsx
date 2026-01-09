@@ -243,10 +243,10 @@ const SubscriptionsPage: React.FC = () => {
                     <TableHead>
                         <TableRow>
                             <TableCell>{t('author')}</TableCell>
-                            <TableCell>{t('platform')}</TableCell>
-                            <TableCell>{t('interval')}</TableCell>
-                            <TableCell>{t('lastCheck')}</TableCell>
-                            <TableCell>{t('downloads')}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('platform')}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('interval')}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('lastCheck')}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('downloads')}</TableCell>
                             {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                         </TableRow>
                     </TableHead>
@@ -272,10 +272,10 @@ const SubscriptionsPage: React.FC = () => {
                                             {sub.author}
                                         </Button>
                                     </TableCell>
-                                    <TableCell>{sub.platform}</TableCell>
-                                    <TableCell>{sub.interval} {t('minutes')}</TableCell>
-                                    <TableCell>{formatDate(sub.lastCheck)}</TableCell>
-                                    <TableCell>{sub.downloadCount}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.interval} {t('minutes')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{formatDate(sub.lastCheck)}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.downloadCount}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">
                                             <IconButton
@@ -334,12 +334,12 @@ const SubscriptionsPage: React.FC = () => {
                             <TableHead>
                                 <TableRow>
                                     <TableCell>{t('authorOrPlaylist')}</TableCell>
-                                    <TableCell>{t('platform')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('platform')}</TableCell>
                                     <TableCell>{t('status')}</TableCell>
                                     <TableCell>{t('progress')}</TableCell>
-                                    <TableCell>{t('downloaded')}</TableCell>
-                                    <TableCell>{t('skipped')}</TableCell>
-                                    <TableCell>{t('failed')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('downloaded')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('skipped')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('failed')}</TableCell>
                                     {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                                 </TableRow>
                             </TableHead>
@@ -347,7 +347,7 @@ const SubscriptionsPage: React.FC = () => {
                                 {tasks.slice().reverse().map((task) => (
                                     <TableRow key={task.id}>
                                         <TableCell>{task.playlistName || task.author}</TableCell>
-                                        <TableCell>{task.platform}</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.platform}</TableCell>
                                         <TableCell>
                                             <Typography
                                                 variant="body2"
@@ -374,9 +374,9 @@ const SubscriptionsPage: React.FC = () => {
                                                 </Typography>
                                             </Box>
                                         </TableCell>
-                                        <TableCell>{task.downloadedCount}</TableCell>
-                                        <TableCell>{task.skippedCount}</TableCell>
-                                        <TableCell>{task.failedCount}</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.downloadedCount}</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.skippedCount}</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{task.failedCount}</TableCell>
                                         {!isVisitor && (
                                             <TableCell align="right">
                                                 <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
