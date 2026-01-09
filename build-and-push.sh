@@ -57,9 +57,10 @@ build_backend() {
   fi
   
   echo "🧹 Cleaning up local backend image: $tag"
-  $DOCKER_PATH rmi $tag
+  $DOCKER_PATH rmi $tag 2>/dev/null || true
   if [ -n "$VERSION" ] && [ -n "$version_tag" ]; then
-    $DOCKER_PATH rmi $version_tag
+    echo "🧹 Cleaning up local backend version image: $version_tag"
+    $DOCKER_PATH rmi $version_tag 2>/dev/null || true
   fi
 }
 
@@ -89,9 +90,10 @@ build_frontend() {
   fi
   
   echo "🧹 Cleaning up local frontend image: $tag"
-  $DOCKER_PATH rmi $tag
+  $DOCKER_PATH rmi $tag 2>/dev/null || true
   if [ -n "$VERSION" ] && [ -n "$version_tag" ]; then
-    $DOCKER_PATH rmi $version_tag
+    echo "🧹 Cleaning up local frontend version image: $version_tag"
+    $DOCKER_PATH rmi $version_tag 2>/dev/null || true
   fi
   
   cd ..
@@ -240,4 +242,6 @@ echo "  # Build both platforms with latest tags:"
 echo "  ./build-and-push.sh"
 echo ""
 echo "  # Build both platforms with version tags:"
-echo "  ./build-and-push.sh 1.6.43" 
+echo "  ./build-and-push.sh 1.6.43"
+echo ""
+echo "🕐 Build completed at: $(date '+%Y-%m-%d %H:%M:%S %Z')" 
