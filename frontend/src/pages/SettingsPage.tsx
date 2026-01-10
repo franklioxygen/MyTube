@@ -6,7 +6,11 @@ import {
     Container,
     Grid,
     Snackbar,
-    Typography
+    Tab,
+    Tabs,
+    Typography,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import TextField from '@mui/material/TextField';
 import React, { useEffect, useRef, useState } from 'react';
@@ -43,6 +47,8 @@ const SettingsPage: React.FC = () => {
     const { activeDownloads } = useDownload();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
+    const theme = useTheme();
+    const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
@@ -69,6 +75,7 @@ const SettingsPage: React.FC = () => {
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
+    const [currentTab, setCurrentTab] = useState(0);
 
     const triggerGlow = () => {
         setIsGlowing(false);
@@ -164,6 +171,207 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation.mutate();
     };
 
+    // Helper function to render tab panel content
+    const TabPanel: React.FC<{ children?: React.ReactNode; index: number; value: number }> = ({ children, value, index }) => {
+        return (
+            <div
+                role="tabpanel"
+                hidden={value !== index}
+                id={`settings-tabpanel-${index}`}
+                aria-labelledby={`settings-tab-${index}`}
+            >
+                {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+            </div>
+        );
+    };
+
+    // Helper function to render settings sections (used in both views)
+    const renderSettingsSections = () => (
+        <>
+            {/* 1. Basic Settings */}
+            <Grid size={12}>
+                <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
+                    <BasicSettings
+                        language={settings.language}
+                        websiteName={settings.websiteName}
+                        onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                    />
+                </CollapsibleSection>
+            </Grid>
+
+            {/* 2. Interface & Display */}
+            {!isVisitor && (
+                <Grid size={12}>
+                    <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
+                        <InterfaceDisplaySettings
+                            itemsPerPage={settings.itemsPerPage}
+                            showYoutubeSearch={settings.showYoutubeSearch}
+                            infiniteScroll={settings.infiniteScroll}
+                            videoColumns={settings.videoColumns}
+                            playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
+                            onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                        />
+                    </CollapsibleSection>
+                </Grid>
+            )}
+
+            {/* 3. Security & Access */}
+            {!isVisitor && (
+                <Grid size={12}>
+                    <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <Box>
+                                <SecuritySettings
+                                    settings={settings}
+                                    onChange={handleChange}
+                                />
+                            </Box>
+                            <Box>
+                                <CookieSettings
+                                    onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                                    onError={(msg) => setMessage({ text: msg, type: 'error' })}
+                                />
+                            </Box>
+                            <Box>
+                                <CloudflareSettings
+                                    enabled={settings.cloudflaredTunnelEnabled}
+                                    token={settings.cloudflaredToken}
+                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                                />
+                            </Box>
+                        </Box>
+                    </CollapsibleSection>
+                </Grid>
+            )}
+
+            {!isVisitor && (
+                <>
+                    {/* 4. Video Playback */}
+                    <Grid size={12}>
+                        <CollapsibleSection title={t('videoPlayback')} defaultExpanded={false}>
+                            <VideoDefaultSettings
+                                settings={settings}
+                                onChange={handleChange}
+                            />
+                        </CollapsibleSection>
+                    </Grid>
+
+                    {/* 5. Download & Storage */}
+                    <Grid size={12}>
+                        <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <Box>
+                                    <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
+                                    <DownloadSettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                        activeDownloadsCount={activeDownloads.length}
+                                        onCleanup={() => setShowCleanupTempFilesModal(true)}
+                                        isSaving={isSaving}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
+                                    <CloudDriveSettings
+                                        settings={settings}
+                                        onChange={handleChange}
+                                    />
+                                </Box>
+                                <Box>
+                                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
+                                    <YtDlpSettings
+                                        config={settings.ytDlpConfig || ''}
+                                        proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
+                                        onChange={(config) => handleChange('ytDlpConfig', config)}
+                                        onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                                    />
+                                </Box>
+                            </Box>
+                        </CollapsibleSection>
+                    </Grid>
+
+                    {/* 6. Content Management */}
+                    <Grid size={12}>
+                        <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <TagsSettings
+                                    tags={Array.isArray(settings.tags) ? settings.tags : []}
+                                    onTagsChange={handleTagsChange}
+                                />
+                                <Box sx={{ maxWidth: 400 }}>
+                                    <Typography variant="h6" sx={{ mb: 2 }}>
+                                        {t('tmdbApiKey')}
+                                    </Typography>
+                                    <TextField
+                                        fullWidth
+                                        value={settings.tmdbApiKey || ''}
+                                        onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
+                                        type="password"
+                                        helperText={t('tmdbApiKeyHelper')}
+                                        placeholder="Enter your TMDB API key"
+                                    />
+                                </Box>
+                            </Box>
+                        </CollapsibleSection>
+                    </Grid>
+
+                    {/* 7. Data Management */}
+                    <Grid size={12}>
+                        <CollapsibleSection title={t('dataManagement')} defaultExpanded={false}>
+                            <DatabaseSettings
+                                onMigrate={() => setShowMigrateConfirmModal(true)}
+                                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+                                onFormatFilenames={() => setShowFormatConfirmModal(true)}
+                                onExportDatabase={handleExportDatabase}
+                                onImportDatabase={handleImportDatabase}
+                                onCleanupBackupDatabases={handleCleanupBackupDatabases}
+                                onRestoreFromLastBackup={handleRestoreFromLastBackup}
+                                isSaving={isSaving}
+                                lastBackupInfo={lastBackupInfo}
+                                moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
+                                onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
+                                moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
+                                onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+                                saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
+                                onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
+                            />
+                        </CollapsibleSection>
+                    </Grid>
+
+                    {/* 8. Advanced */}
+                    <Grid size={12}>
+                        <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <AdvancedSettings
+                                    debugMode={debugMode}
+                                    onDebugModeChange={setDebugMode}
+                                />
+                                <HookSettings
+                                    settings={settings}
+                                    onChange={handleChange}
+                                />
+                            </Box>
+                        </CollapsibleSection>
+                    </Grid>
+                </>
+            )}
+        </>
+    );
+
+    // Build tabs array (only non-visitor tabs after first)
+    const tabs = [
+        { label: t('basicSettings'), index: 0 },
+        ...(!isVisitor ? [
+            { label: t('interfaceDisplay'), index: 1 },
+            { label: t('securityAccess'), index: 2 },
+            { label: t('videoPlayback'), index: 3 },
+            { label: t('downloadStorage'), index: 4 },
+            { label: t('contentManagement'), index: 5 },
+            { label: t('dataManagement'), index: 6 },
+            { label: t('advanced'), index: 7 }
+        ] : [])
+    ];
+
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -172,80 +380,70 @@ const SettingsPage: React.FC = () => {
                 </Typography>
             </Box>
 
-            {/* Settings Card */}
+            {/* Desktop: Tabs View */}
+            {isDesktop ? (
+                <Box sx={{ width: '100%' }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                        <Tabs
+                            value={currentTab}
+                            onChange={(_, newValue) => setCurrentTab(newValue)}
+                            variant="scrollable"
+                            scrollButtons="auto"
+                            aria-label="settings tabs"
+                        >
+                            {tabs.map((tabItem) => (
+                                <Tab key={tabItem.index} label={tabItem.label} value={tabItem.index} />
+                            ))}
+                        </Tabs>
+                    </Box>
 
-            <Grid container spacing={2}>
-                {/* 1. Basic Settings */}
-                <Grid size={12}>
-                    <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
+                    <TabPanel value={currentTab} index={0}>
                         <BasicSettings
                             language={settings.language}
                             websiteName={settings.websiteName}
                             onChange={(field, value) => handleChange(field as keyof Settings, value)}
                         />
-                    </CollapsibleSection>
-                </Grid>
+                    </TabPanel>
 
-                {/* 2. Interface & Display */}
-                {!isVisitor && (
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
-                            <InterfaceDisplaySettings
-                                itemsPerPage={settings.itemsPerPage}
-                                showYoutubeSearch={settings.showYoutubeSearch}
-                                infiniteScroll={settings.infiniteScroll}
-                                videoColumns={settings.videoColumns}
-                                playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
-                                onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                            />
-                        </CollapsibleSection>
-                    </Grid>
-                )}
+                    {!isVisitor && (
+                        <>
+                            <TabPanel value={currentTab} index={1}>
+                                <InterfaceDisplaySettings
+                                    itemsPerPage={settings.itemsPerPage}
+                                    showYoutubeSearch={settings.showYoutubeSearch}
+                                    infiniteScroll={settings.infiniteScroll}
+                                    videoColumns={settings.videoColumns}
+                                    playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
+                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
+                                />
+                            </TabPanel>
 
-                {/* 3. Security & Access */}
-                {!isVisitor && (
-                    <Grid size={12}>
-                        <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <Box>
+                            <TabPanel value={currentTab} index={2}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                     <SecuritySettings
                                         settings={settings}
                                         onChange={handleChange}
                                     />
-                                </Box>
-                                <Box>
                                     <CookieSettings
                                         onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
                                         onError={(msg) => setMessage({ text: msg, type: 'error' })}
                                     />
-                                </Box>
-                                <Box>
                                     <CloudflareSettings
                                         enabled={settings.cloudflaredTunnelEnabled}
                                         token={settings.cloudflaredToken}
                                         onChange={(field, value) => handleChange(field as keyof Settings, value)}
                                     />
                                 </Box>
-                            </Box>
-                        </CollapsibleSection>
-                    </Grid>
-                )}
+                            </TabPanel>
 
-                {!isVisitor && (
-                    <>
-                        {/* 4. Video Playback */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('videoPlayback')} defaultExpanded={false}>
+                            <TabPanel value={currentTab} index={3}>
                                 <VideoDefaultSettings
                                     settings={settings}
                                     onChange={handleChange}
                                 />
-                            </CollapsibleSection>
-                        </Grid>
+                            </TabPanel>
 
-                        {/* 5. Download & Storage */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
+                            <TabPanel value={currentTab} index={4}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                     <Box>
                                         <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
@@ -274,12 +472,9 @@ const SettingsPage: React.FC = () => {
                                         />
                                     </Box>
                                 </Box>
-                            </CollapsibleSection>
-                        </Grid>
+                            </TabPanel>
 
-                        {/* 6. Content Management */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
+                            <TabPanel value={currentTab} index={5}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                     <TagsSettings
                                         tags={Array.isArray(settings.tags) ? settings.tags : []}
@@ -299,12 +494,9 @@ const SettingsPage: React.FC = () => {
                                         />
                                     </Box>
                                 </Box>
-                            </CollapsibleSection>
-                        </Grid>
+                            </TabPanel>
 
-                        {/* 7. Data Management */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('dataManagement')} defaultExpanded={false}>
+                            <TabPanel value={currentTab} index={6}>
                                 <DatabaseSettings
                                     onMigrate={() => setShowMigrateConfirmModal(true)}
                                     onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
@@ -322,12 +514,9 @@ const SettingsPage: React.FC = () => {
                                     saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
                                     onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
                                 />
-                            </CollapsibleSection>
-                        </Grid>
+                            </TabPanel>
 
-                        {/* 8. Advanced */}
-                        <Grid size={12}>
-                            <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
+                            <TabPanel value={currentTab} index={7}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                                     <AdvancedSettings
                                         debugMode={debugMode}
@@ -338,11 +527,16 @@ const SettingsPage: React.FC = () => {
                                         onChange={handleChange}
                                     />
                                 </Box>
-                            </CollapsibleSection>
-                        </Grid>
-                    </>
-                )}
-            </Grid>
+                            </TabPanel>
+                        </>
+                    )}
+                </Box>
+            ) : (
+                /* Mobile: Collapsible Sections View */
+                <Grid container spacing={2}>
+                    {renderSettingsSections()}
+                </Grid>
+            )}
 
 
             {/* Save Button */}
