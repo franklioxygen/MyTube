@@ -2,6 +2,20 @@
 
 
 
+## v1.7.51 (2026-01-09)
+
+### Feat
+
+- feat: add TMDB scrape (1722502)
+
+### Fix
+
+- fix: frontend/package.json & frontend/package-lock.json to reduce vulnerabilities (cc2130a)
+
+### Chore
+
+- chore: Update language translations (edd0466)
+
 ## v1.7.50 (2026-01-09)
 
 ### Feat

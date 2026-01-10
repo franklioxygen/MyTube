@@ -22,6 +22,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 
 - **Video Downloading**: Download YouTube, Bilibili and MissAV videos with a simple URL input.
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
+- **TMDB Metadata Scraping**: Automatically scrape movie and TV show metadata (title, description, poster, director, year, rating) from TMDB based on filename. Supports localized content matching your site language.
 - **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Batch Download**: Add multiple video URLs at once to the download queue.
@@ -41,6 +42,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **View Modes**: Toggle between Collection View and Video View on the home page.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
+- **TMDB Integration**: Configure your TMDB API key in settings to enable automatic metadata scraping for local video files. The scraper intelligently parses filenames to extract titles and matches them with TMDB database.
 - **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
