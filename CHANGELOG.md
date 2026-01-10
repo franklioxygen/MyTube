@@ -2,6 +2,18 @@
 
 
 
+## v1.7.52 (2026-01-10)
+
+### Feat
+
+- feat: Add functionality to scan mount directories (0d3dd04)
+- feat: Add tabbed navigation to SettingsPage (aa86b72)
+- feat: Add TMDB integration for metadata scraping (4edfdfe)
+
+### Refactor
+
+- refactor: Improve date handling in scanFiles function (144b1cf)
+
 ## v1.7.51 (2026-01-09)
 
 ### Feat
