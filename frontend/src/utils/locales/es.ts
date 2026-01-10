@@ -49,6 +49,8 @@ export const es = {
   language: "Idioma",
   websiteName: "Nombre del sitio web",
   websiteNameHelper: "{current}/{max} caracteres (Predeterminado: {default})",
+  tmdbApiKey: "Clave API de TMDB",
+  tmdbApiKeyHelper: "Clave API de TheMovieDB para obtener metadatos y pósters de películas/series. Obtenga su clave en https://www.themoviedb.org/settings/api",
   infiniteScroll: "Desplazamiento infinito",
   infiniteScrollDisabled: "Desactivado cuando el desplazamiento infinito está habilitado",
   maxVideoColumns: "Columnas de video máximas (Página de inicio)",

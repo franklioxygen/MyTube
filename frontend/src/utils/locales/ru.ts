@@ -49,6 +49,8 @@ export const ru = {
   language: "Язык",
   websiteName: "Название веб-сайта",
   websiteNameHelper: "{current}/{max} символов (По умолчанию: {default})",
+  tmdbApiKey: "Ключ API TMDB",
+  tmdbApiKeyHelper: "Ключ API TheMovieDB для получения метаданных и постеров фильмов/сериалов. Получите свой ключ на https://www.themoviedb.org/settings/api",
   infiniteScroll: "Бесконечная прокрутка",
   infiniteScrollDisabled: "Отключено, когда включена бесконечная прокрутка",
   maxVideoColumns: "Максимальное количество колонок видео (Главная страница)",

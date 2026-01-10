@@ -49,6 +49,8 @@ export const de = {
   language: "Sprache",
   websiteName: "Website-Name",
   websiteNameHelper: "{current}/{max} Zeichen (Standard: {default})",
+  tmdbApiKey: "TMDB API-Schlüssel",
+  tmdbApiKeyHelper: "TheMovieDB API-Schlüssel zum Abrufen von Film-/Serien-Metadaten und Postern. Holen Sie sich Ihren Schlüssel unter https://www.themoviedb.org/settings/api",
   infiniteScroll: "Unendliches Scrollen",
   infiniteScrollDisabled: "Deaktiviert, wenn unendliches Scrollen aktiviert ist",
   maxVideoColumns: "Maximale Videospalten (Startseite)",

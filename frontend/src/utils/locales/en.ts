@@ -20,7 +20,8 @@ export const en = {
   downloadStarted: "Download started",
   downloadFailed: "Download failed",
   downloadSuccess: "Download started successfully",
-  confirmDownloadAllPlaylists: "Download all playlists from this channel? This will create a collection for each playlist.",
+  confirmDownloadAllPlaylists:
+    "Download all playlists from this channel? This will create a collection for each playlist.",
   downloadAll: "Download All",
   loadingVideos: "Loading videos...",
   searchResultsFor: "Search Results for",
@@ -49,6 +50,9 @@ export const en = {
   language: "Language",
   websiteName: "Website Name",
   websiteNameHelper: "{current}/{max} characters (Default: {default})",
+  tmdbApiKey: "TMDB API Key",
+  tmdbApiKeyHelper:
+    "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",
   infiniteScroll: "Infinite Scroll",
   infiniteScrollDisabled: "Disabled when Infinite Scroll is enabled",
   maxVideoColumns: "Maximum Video Columns (Homepage)",
@@ -69,7 +73,8 @@ export const en = {
   autoPlay: "Auto-play Videos",
   autoLoop: "Auto-loop Videos",
   maxConcurrent: "Max Concurrent Downloads",
-  maxConcurrentDescription: "Limits the number of simultaneous downloads, including regular downloads and continuous subscription tasks.",
+  maxConcurrentDescription:
+    "Limits the number of simultaneous downloads, including regular downloads and continuous subscription tasks.",
   saveSettings: "Save Settings",
   saving: "Saving...",
   backToManage: "Back to Manage",

@@ -40,19 +40,21 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, on
                 </FormControl>
 
                 {!isVisitor && (
-                    <TextField
-                        fullWidth
-                        label={t('websiteName')}
-                        value={websiteName || ''}
-                        onChange={(e) => onChange('websiteName', e.target.value)}
-                        placeholder="MyTube"
-                        helperText={t('websiteNameHelper', {
-                            current: (websiteName || '').length,
-                            max: 15,
-                            default: 'MyTube'
-                        })}
-                        slotProps={{ htmlInput: { maxLength: 15 } }}
-                    />
+                    <>
+                        <TextField
+                            fullWidth
+                            label={t('websiteName')}
+                            value={websiteName || ''}
+                            onChange={(e) => onChange('websiteName', e.target.value)}
+                            placeholder="MyTube"
+                            helperText={t('websiteNameHelper', {
+                                current: (websiteName || '').length,
+                                max: 15,
+                                default: 'MyTube'
+                            })}
+                            slotProps={{ htmlInput: { maxLength: 15 } }}
+                        />
+                    </>
                 )}
             </Box>
         </Box >

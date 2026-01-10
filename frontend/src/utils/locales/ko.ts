@@ -49,6 +49,8 @@ export const ko = {
   language: "언어",
   websiteName: "웹사이트 이름",
   websiteNameHelper: "{current}/{max} 자 (기본값: {default})",
+  tmdbApiKey: "TMDB API 키",
+  tmdbApiKeyHelper: "영화/TV 프로그램 메타데이터 및 포스터를 가져오기 위한 TheMovieDB API 키. https://www.themoviedb.org/settings/api 에서 키를 받으세요",
   infiniteScroll: "무한 스크롤",
   infiniteScrollDisabled: "무한 스크롤이 활성화된 경우 비활성화됨",
   maxVideoColumns: "최대 비디오 열 (홈페이지)",

@@ -1,4 +1,4 @@
-import { Box, Button, Chip, TextField } from '@mui/material';
+import { Box, Button, Chip, TextField, Typography } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
@@ -27,6 +27,7 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange }) => {
 
     return (
         <Box>
+            <Typography variant="h6" sx={{ mb: 2 }}>{t('tagsManagement') || 'Tags Management'}</Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                 {tagsArray.length > 0 && tagsArray.map((tag) => (
                     <Chip

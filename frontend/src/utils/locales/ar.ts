@@ -49,6 +49,8 @@ export const ar = {
   language: "اللغة",
   websiteName: "اسم الموقع",
   websiteNameHelper: "{current}/{max} أحرف (الافتراضي: {default})",
+  tmdbApiKey: "مفتاح API الخاص بـ TMDB",
+  tmdbApiKeyHelper: "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
   infiniteScroll: "التمرير اللانهائي",
   infiniteScrollDisabled: "معطل عند تمكين التمرير اللانهائي",
   maxVideoColumns: "أقصى عدد لأعمدة الفيديو (الصفحة الرئيسية)",

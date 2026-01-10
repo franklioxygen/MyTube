@@ -49,6 +49,8 @@ export const ja = {
   language: "言語",
   websiteName: "ウェブサイト名",
   websiteNameHelper: "{current}/{max} 文字 (デフォルト: {default})",
+  tmdbApiKey: "TMDB APIキー",
+  tmdbApiKeyHelper: "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
   infiniteScroll: "無限スクロール",
   infiniteScrollDisabled: "無限スクロールが有効な場合は無効",
   maxVideoColumns: "最大ビデオ列数 (ホームページ)",

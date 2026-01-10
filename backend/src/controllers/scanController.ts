@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
+import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
@@ -124,53 +125,68 @@ export const scanFiles = async (
 
     // Extract title from filename
     const originalTitle = path.parse(filename).name;
-    const author = "Admin";
     const dateString = createdDate
       .toISOString()
       .split("T")[0]
       .replace(/-/g, "");
 
-    // Format filename using the same format as downloaded videos: Title-Author-Year.ext
-    // formatVideoFilename already handles sanitization (removes symbols, replaces spaces with dots)
-    const baseFilename = formatVideoFilename(originalTitle, author, dateString);
+    // Try to scrape metadata and poster from TMDB first to get director/author
+    let tmdbMetadata = null;
+    let tempThumbnailFilename = `${formatVideoFilename(originalTitle, "Admin", dateString)}.jpg`;
+    try {
+      tmdbMetadata = await scrapeMetadataFromTMDB(filename, tempThumbnailFilename);
+    } catch (error) {
+      logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
+    }
+
+    // Use director from TMDB metadata as author, fallback to "Admin"
+    const author = tmdbMetadata?.director || "Admin";
 
     // Use original title for database (for display purposes)
     // The title should be readable, not sanitized like filenames
     const displayTitle = originalTitle || "Untitled Video";
-    const videoExtension = path.extname(filename);
-    const newVideoFilename = `${baseFilename}${videoExtension}`;
 
-    // Check if the new formatted filename already exists in DB (to avoid duplicates)
-    if (existingFilenames.has(newVideoFilename)) {
+    // Check if the original filename already exists in DB (to avoid duplicates)
+    if (existingFilenames.has(filename)) {
       logger.info(
-        `Skipping file "${filename}" - formatted filename "${newVideoFilename}" already exists in database`
+        `Skipping file "${filename}" - already exists in database`
       );
       continue;
     }
 
     logger.info(`Found new video file: ${relativePath}`);
     const videoId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
-    const newThumbnailFilename = `${baseFilename}.jpg`;
+    
+    // Generate thumbnail filename based on original filename (without extension)
+    const thumbnailBaseName = path.parse(filename).name;
+    const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
 
-    // Generate thumbnail with temporary name first
+    // Use scraped title if available, otherwise use original title
+    const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
+    const finalDescription = tmdbMetadata?.description;
+
+    // Generate thumbnail with temporary name first (only if TMDB didn't provide one)
     const tempThumbnailPath = path.join(
       IMAGES_DIR,
       `${path.parse(filename).name}.jpg`
     );
 
-    await new Promise<void>((resolve) => {
-      exec(
-        `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
-        (error) => {
-          if (error) {
-            logger.error("Error generating thumbnail:", error);
-            resolve();
-          } else {
-            resolve();
+    // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
+    if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
+      await new Promise<void>((resolve) => {
+        exec(
+          `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
+          (error) => {
+            if (error) {
+              logger.error("Error generating thumbnail:", error);
+              resolve();
+            } else {
+              resolve();
+            }
           }
-        }
-      );
-    });
+        );
+      });
+    }
 
     // Get duration
     let duration = undefined;
@@ -197,97 +213,98 @@ export const scanFiles = async (
       logger.error("Error getting duration:", err);
     }
 
-    // Rename video file to the new format (preserve subfolder structure)
-    const fileDir = path.dirname(filePath);
-    const newVideoPath = path.join(fileDir, newVideoFilename);
-    let finalVideoFilename = filename;
-    let finalVideoPath = filePath;
-    let finalWebPath = webPath;
+    // Keep original video filename - don't rename
+    const finalVideoFilename = filename;
+    const finalVideoPath = filePath;
+    const finalWebPath = webPath;
 
-    try {
-      // Check if the new filename already exists
-      if (fs.existsSync(newVideoPath) && newVideoPath !== filePath) {
-        logger.warn(
-          `Target filename already exists: ${newVideoFilename}, keeping original filename`
-        );
-      } else if (newVideoFilename !== filename) {
-        // Rename the video file (in the same directory)
-        fs.moveSync(filePath, newVideoPath);
-        finalVideoFilename = newVideoFilename;
-        finalVideoPath = newVideoPath;
-        // Update web path to reflect the new filename while preserving subfolder structure
-        const dirName = path.dirname(relativePath);
-        if (dirName !== ".") {
-          finalWebPath = `/videos/${dirName
-            .split(path.sep)
-            .join("/")}/${newVideoFilename}`;
-        } else {
-          finalWebPath = `/videos/${newVideoFilename}`;
-        }
-        logger.info(
-          `Renamed video file from "${filename}" to "${newVideoFilename}"`
-        );
-      }
-    } catch (renameError) {
-      logger.error(`Error renaming video file: ${renameError}`);
-      // Continue with original filename if rename fails
-    }
-
-    // Rename thumbnail file to match the new video filename
-    const finalThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+    // Handle thumbnail file - prioritize TMDB poster if available
+    // Use TMDB-generated filename if available, otherwise use pre-generated one
+    const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename;
     let finalThumbnailFilename = newThumbnailFilename;
+    let finalThumbnailPathValue: string | undefined;
+    let finalThumbnailUrl: string | undefined;
 
-    try {
-      if (fs.existsSync(tempThumbnailPath)) {
-        if (
-          fs.existsSync(finalThumbnailPath) &&
-          tempThumbnailPath !== finalThumbnailPath
-        ) {
-          // If target exists, remove the temp one
-          fs.removeSync(tempThumbnailPath);
-          logger.warn(
-            `Thumbnail filename already exists: ${newThumbnailFilename}, using existing`
-          );
-        } else if (tempThumbnailPath !== finalThumbnailPath) {
-          // Rename the thumbnail file
-          fs.moveSync(tempThumbnailPath, finalThumbnailPath);
-          logger.info(`Renamed thumbnail file to "${newThumbnailFilename}"`);
+    // If TMDB provided a poster, use it
+    if (tmdbMetadata?.thumbnailPath && tmdbMetadata.thumbnailPath.startsWith("/images/")) {
+      // Use the filename/path from TMDB metadata (it already includes the correct path)
+      if (tmdbThumbnailFilename) {
+        // tmdbThumbnailFilename is the relative path from IMAGES_DIR (may include subdirectory)
+        const tmdbFilePath = path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep));
+        if (fs.existsSync(tmdbFilePath)) {
+          finalThumbnailFilename = path.basename(tmdbThumbnailFilename);
+          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+          finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+          logger.info(`Using TMDB poster for "${filename}" (saved as: ${tmdbThumbnailFilename})`);
+        } else {
+          // File doesn't exist at expected location, but use metadata path anyway
+          finalThumbnailFilename = path.basename(tmdbMetadata.thumbnailPath);
+          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+          finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+          logger.warn(`TMDB poster path doesn't exist, using metadata path: ${tmdbMetadata.thumbnailPath}`);
+        }
+      } else {
+        // No filename in metadata, extract from thumbnailPath
+        const pathFromMetadata = tmdbMetadata.thumbnailPath.replace("/images/", "");
+        finalThumbnailFilename = path.basename(pathFromMetadata);
+        finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+        finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+        logger.info(`Using TMDB poster path from metadata: ${tmdbMetadata.thumbnailPath}`);
+      }
+    } else {
+      // Otherwise, handle the ffmpeg-generated thumbnail
+      const targetThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
+      try {
+        if (fs.existsSync(tempThumbnailPath)) {
+          if (
+            fs.existsSync(targetThumbnailPath) &&
+            tempThumbnailPath !== targetThumbnailPath
+          ) {
+            // If target exists, remove the temp one
+            fs.removeSync(tempThumbnailPath);
+            logger.warn(
+              `Thumbnail filename already exists: ${finalThumbnailFilename}, using existing`
+            );
+          } else if (tempThumbnailPath !== targetThumbnailPath) {
+            // Rename the thumbnail file
+            fs.moveSync(tempThumbnailPath, targetThumbnailPath);
+            logger.info(`Renamed thumbnail file to "${finalThumbnailFilename}"`);
+          }
+          finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
+          finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
+        }
+      } catch (renameError) {
+        logger.error(`Error renaming thumbnail file: ${renameError}`);
+        // Use temp filename if rename fails
+        if (fs.existsSync(tempThumbnailPath)) {
+          finalThumbnailFilename = path.basename(tempThumbnailPath);
+          finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
+          finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
         }
       }
-    } catch (renameError) {
-      logger.error(`Error renaming thumbnail file: ${renameError}`);
-      // Use temp filename if rename fails
-      if (fs.existsSync(tempThumbnailPath)) {
-        finalThumbnailFilename = path.basename(tempThumbnailPath);
-      }
     }
+
+    // Use year from TMDB metadata if available, otherwise use created date
+    const finalDateString = tmdbMetadata?.year || dateString;
 
     const newVideo = {
       id: videoId,
-      title: displayTitle,
+      title: finalDisplayTitle,
       author: author,
+      description: finalDescription,
       source: "local",
       sourceUrl: "",
       videoFilename: finalVideoFilename,
       videoPath: finalWebPath,
-      thumbnailFilename: fs.existsSync(finalThumbnailPath)
+      thumbnailFilename: finalThumbnailPathValue
         ? finalThumbnailFilename
-        : fs.existsSync(tempThumbnailPath)
-        ? path.basename(tempThumbnailPath)
         : undefined,
-      thumbnailPath: fs.existsSync(finalThumbnailPath)
-        ? `/images/${finalThumbnailFilename}`
-        : fs.existsSync(tempThumbnailPath)
-        ? `/images/${path.basename(tempThumbnailPath)}`
-        : undefined,
-      thumbnailUrl: fs.existsSync(finalThumbnailPath)
-        ? `/images/${finalThumbnailFilename}`
-        : fs.existsSync(tempThumbnailPath)
-        ? `/images/${path.basename(tempThumbnailPath)}`
-        : undefined,
+      thumbnailPath: finalThumbnailPathValue,
+      thumbnailUrl: finalThumbnailUrl,
+      rating: tmdbMetadata?.rating,
       createdAt: createdDate.toISOString(),
       addedAt: new Date().toISOString(),
-      date: dateString,
+      date: finalDateString,
       duration: duration,
     };
 

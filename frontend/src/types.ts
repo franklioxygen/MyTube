@@ -99,4 +99,5 @@ export interface Settings {
     task_cancel?: string;
   };
   playSoundOnTaskComplete?: string;
+  tmdbApiKey?: string;
 }

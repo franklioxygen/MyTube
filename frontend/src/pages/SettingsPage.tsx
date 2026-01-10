@@ -8,6 +8,7 @@ import {
     Snackbar,
     Typography
 } from '@mui/material';
+import TextField from '@mui/material/TextField';
 import React, { useEffect, useRef, useState } from 'react';
 import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -279,10 +280,25 @@ const SettingsPage: React.FC = () => {
                         {/* 6. Content Management */}
                         <Grid size={12}>
                             <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
-                                <TagsSettings
-                                    tags={Array.isArray(settings.tags) ? settings.tags : []}
-                                    onTagsChange={handleTagsChange}
-                                />
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <TagsSettings
+                                        tags={Array.isArray(settings.tags) ? settings.tags : []}
+                                        onTagsChange={handleTagsChange}
+                                    />
+                                    <Box sx={{ maxWidth: 400 }}>
+                                        <Typography variant="h6" sx={{ mb: 2 }}>
+                                            {t('tmdbApiKey')}
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            value={settings.tmdbApiKey || ''}
+                                            onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
+                                            type="password"
+                                            helperText={t('tmdbApiKeyHelper')}
+                                            placeholder="Enter your TMDB API key"
+                                        />
+                                    </Box>
+                                </Box>
                             </CollapsibleSection>
                         </Grid>
 

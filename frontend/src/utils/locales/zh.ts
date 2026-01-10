@@ -49,6 +49,8 @@ export const zh = {
   language: "语言",
   websiteName: "网站名称",
   websiteNameHelper: "{current}/{max} 字符 (默认: {default})",
+  tmdbApiKey: "TMDB API 密钥",
+  tmdbApiKeyHelper: "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",
   infiniteScroll: "无限滚动",
   infiniteScrollDisabled: "启用无限滚动时禁用",
   maxVideoColumns: "最大视频列数 (主页)",
