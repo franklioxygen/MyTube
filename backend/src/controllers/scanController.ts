@@ -284,8 +284,30 @@ export const scanFiles = async (
       }
     }
 
-    // Use year from TMDB metadata if available, otherwise use created date
-    const finalDateString = tmdbMetadata?.year || dateString;
+    // Use production year January 1st for scraped videos, otherwise use created date
+    let finalDateString: string;
+    if (tmdbMetadata?.year) {
+      // Use production year January 1st (YYYY0101 format)
+      finalDateString = `${tmdbMetadata.year}0101`;
+    } else {
+      // Use created date year January 1st if no TMDB year, or fallback to actual created date
+      const createdYear = createdDate.getFullYear();
+      finalDateString = `${createdYear}0101`;
+    }
+
+    // For createdAt, use production year January 1st if TMDB year is available, otherwise use file created date
+    let finalCreatedAt: Date;
+    if (tmdbMetadata?.year) {
+      // Create date object for production year January 1st
+      const productionYear = parseInt(tmdbMetadata.year, 10);
+      if (!isNaN(productionYear)) {
+        finalCreatedAt = new Date(productionYear, 0, 1); // January 1st (month 0)
+      } else {
+        finalCreatedAt = createdDate;
+      }
+    } else {
+      finalCreatedAt = createdDate;
+    }
 
     const newVideo = {
       id: videoId,
@@ -302,7 +324,7 @@ export const scanFiles = async (
       thumbnailPath: finalThumbnailPathValue,
       thumbnailUrl: finalThumbnailUrl,
       rating: tmdbMetadata?.rating,
-      createdAt: createdDate.toISOString(),
+      createdAt: finalCreatedAt.toISOString(),
       addedAt: new Date().toISOString(),
       date: finalDateString,
       duration: duration,
