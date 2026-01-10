@@ -377,3 +377,396 @@ export const scanFiles = async (
   // Return format expected by frontend: { addedCount, deletedCount }
   res.status(200).json({ addedCount, deletedCount });
 };
+
+/**
+ * Helper function to process video files from a directory
+ * Reusable logic for scanning directories
+ */
+const processDirectoryFiles = async (
+  directory: string,
+  existingFilenames: Set<string>,
+  videoExtensions: string[]
+): Promise<{ addedCount: number; allFiles: string[] }> => {
+  let addedCount = 0;
+  const allFiles: string[] = [];
+
+  // Normalize directory path
+  const normalizedDirectory = path.resolve(path.normalize(directory));
+
+  if (!fs.existsSync(normalizedDirectory)) {
+    logger.warn(`Directory does not exist: ${normalizedDirectory}`);
+    return { addedCount: 0, allFiles: [] };
+  }
+
+  try {
+    const files = getFilesRecursively(normalizedDirectory);
+    allFiles.push(...files);
+
+    for (const filePath of files) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (!videoExtensions.includes(ext)) continue;
+
+      const filename = path.basename(filePath);
+      const relativePath = path.relative(normalizedDirectory, filePath);
+
+      // Check if exists in DB by original filename
+      if (existingFilenames.has(filename)) {
+        continue;
+      }
+
+      const stats = fs.statSync(filePath);
+      const createdDate = stats.birthtime;
+
+      // Extract title from filename
+      const originalTitle = path.parse(filename).name;
+      const dateString = createdDate
+        .toISOString()
+        .split("T")[0]
+        .replace(/-/g, "");
+
+      // Try to scrape metadata and poster from TMDB first to get director/author
+      let tmdbMetadata = null;
+      let tempThumbnailFilename = `${formatVideoFilename(originalTitle, "Admin", dateString)}.jpg`;
+      try {
+        tmdbMetadata = await scrapeMetadataFromTMDB(filename, tempThumbnailFilename);
+      } catch (error) {
+        logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
+      }
+
+      // Use director from TMDB metadata as author, fallback to "Admin"
+      const author = tmdbMetadata?.director || "Admin";
+
+      // Use original title for database (for display purposes)
+      const displayTitle = originalTitle || "Untitled Video";
+
+      logger.info(`Found new video file: ${relativePath}`);
+      const videoId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
+      
+      // Generate thumbnail filename based on original filename (without extension)
+      const thumbnailBaseName = path.parse(filename).name;
+      const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
+
+      // Use scraped title if available, otherwise use original title
+      const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
+      const finalDescription = tmdbMetadata?.description;
+
+      // Generate thumbnail with temporary name first (only if TMDB didn't provide one)
+      const tempThumbnailPath = path.join(
+        IMAGES_DIR,
+        `${path.parse(filename).name}.jpg`
+      );
+
+      // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
+      if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
+        await new Promise<void>((resolve) => {
+          exec(
+            `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
+            (error) => {
+              if (error) {
+                logger.error("Error generating thumbnail:", error);
+                resolve();
+              } else {
+                resolve();
+              }
+            }
+          );
+        });
+      }
+
+      // Get duration
+      let duration = undefined;
+      try {
+        const durationOutput = await new Promise<string>((resolve, reject) => {
+          exec(
+            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,
+            (error, stdout, _stderr) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(stdout.trim());
+              }
+            }
+          );
+        });
+        if (durationOutput) {
+          const durationSec = parseFloat(durationOutput);
+          if (!isNaN(durationSec)) {
+            duration = Math.round(durationSec).toString();
+          }
+        }
+      } catch (err) {
+        logger.error("Error getting duration:", err);
+      }
+
+      // Construct web path - use mount: prefix to identify mount directory videos
+      const webPath = `mount:${filePath}`; // For mount directories, use mount: prefix
+
+      // Handle thumbnail file - prioritize TMDB poster if available
+      const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename;
+      let finalThumbnailFilename = newThumbnailFilename;
+      let finalThumbnailPathValue: string | undefined;
+      let finalThumbnailUrl: string | undefined;
+
+      // If TMDB provided a poster, use it
+      if (tmdbMetadata?.thumbnailPath && tmdbMetadata.thumbnailPath.startsWith("/images/")) {
+        if (tmdbThumbnailFilename) {
+          const tmdbFilePath = path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep));
+          if (fs.existsSync(tmdbFilePath)) {
+            finalThumbnailFilename = path.basename(tmdbThumbnailFilename);
+            finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+            finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+          } else {
+            finalThumbnailFilename = path.basename(tmdbMetadata.thumbnailPath);
+            finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+            finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+          }
+        } else {
+          const pathFromMetadata = tmdbMetadata.thumbnailPath.replace("/images/", "");
+          finalThumbnailFilename = path.basename(pathFromMetadata);
+          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
+          finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
+        }
+      } else {
+        // Handle ffmpeg-generated thumbnail
+        const targetThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
+        try {
+          if (fs.existsSync(tempThumbnailPath)) {
+            if (
+              fs.existsSync(targetThumbnailPath) &&
+              tempThumbnailPath !== targetThumbnailPath
+            ) {
+              fs.removeSync(tempThumbnailPath);
+            } else if (tempThumbnailPath !== targetThumbnailPath) {
+              fs.moveSync(tempThumbnailPath, targetThumbnailPath);
+            }
+            finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
+            finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
+          }
+        } catch (renameError) {
+          logger.error(`Error renaming thumbnail file: ${renameError}`);
+          if (fs.existsSync(tempThumbnailPath)) {
+            finalThumbnailFilename = path.basename(tempThumbnailPath);
+            finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
+            finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
+          }
+        }
+      }
+
+      // Use production year January 1st for scraped videos, otherwise use created date
+      let finalDateString: string;
+      if (tmdbMetadata?.year) {
+        finalDateString = `${tmdbMetadata.year}0101`;
+      } else {
+        const createdYear = createdDate.getFullYear();
+        finalDateString = `${createdYear}0101`;
+      }
+
+      // For createdAt, use production year January 1st if TMDB year is available
+      let finalCreatedAt: Date;
+      if (tmdbMetadata?.year) {
+        const productionYear = parseInt(tmdbMetadata.year, 10);
+        if (!isNaN(productionYear)) {
+          finalCreatedAt = new Date(productionYear, 0, 1);
+        } else {
+          finalCreatedAt = createdDate;
+        }
+      } else {
+        finalCreatedAt = createdDate;
+      }
+
+      const newVideo = {
+        id: videoId,
+        title: finalDisplayTitle,
+        author: author,
+        description: finalDescription,
+        source: "local",
+        sourceUrl: "",
+        videoFilename: filename,
+        videoPath: webPath,
+        thumbnailFilename: finalThumbnailPathValue
+          ? finalThumbnailFilename
+          : undefined,
+        thumbnailPath: finalThumbnailPathValue,
+        thumbnailUrl: finalThumbnailUrl,
+        rating: tmdbMetadata?.rating,
+        createdAt: finalCreatedAt.toISOString(),
+        addedAt: new Date().toISOString(),
+        date: finalDateString,
+        duration: duration,
+      };
+
+      storageService.saveVideo(newVideo);
+      existingFilenames.add(filename); // Mark as added to avoid duplicates
+      addedCount++;
+
+      // Check if video is in a subfolder
+      const dirName = path.dirname(relativePath);
+      if (dirName !== ".") {
+        const collectionName = dirName.split(path.sep)[0];
+
+        let collectionId: string | undefined;
+        const allCollections = storageService.getCollections();
+        const existingCollection = allCollections.find(
+          (c) => c.title === collectionName || c.name === collectionName
+        );
+
+        if (existingCollection) {
+          collectionId = existingCollection.id;
+        } else {
+          collectionId = (
+            Date.now() + Math.floor(Math.random() * 10000)
+          ).toString();
+          const newCollection = {
+            id: collectionId,
+            title: collectionName,
+            name: collectionName,
+            videos: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          storageService.saveCollection(newCollection);
+          logger.info(`Created new collection from folder: ${collectionName}`);
+        }
+
+        if (collectionId) {
+          storageService.addVideoToCollection(collectionId, newVideo.id);
+          logger.info(
+            `Added video ${newVideo.title} to collection ${collectionName}`
+          );
+        }
+      }
+    }
+  } catch (error) {
+    logger.error(`Error scanning directory ${directory}:`, error);
+  }
+
+  return { addedCount, allFiles };
+};
+
+/**
+ * Scan mount directories for video files
+ * Accepts array of directory paths in request body: { directories: string[] }
+ */
+export const scanMountDirectories = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  logger.info("Starting mount directories scan...");
+
+  const { directories } = req.body;
+
+  if (!directories || !Array.isArray(directories) || directories.length === 0) {
+    res.status(400).json({ error: "Directories array is required and must not be empty" });
+    return;
+  }
+
+  // Filter out empty strings and trim
+  const validDirectories = directories
+    .map((dir: string) => dir.trim())
+    .filter((dir: string) => dir.length > 0);
+
+  if (validDirectories.length === 0) {
+    res.status(400).json({ error: "No valid directories provided" });
+    return;
+  }
+
+  logger.info(`Scanning ${validDirectories.length} mount directory/directories: ${validDirectories.join(", ")}`);
+
+  // 1. Get all existing videos from DB
+  const existingVideos = storageService.getVideos();
+  const existingFilenames = new Set<string>();
+
+  // Track existing filenames
+  for (const v of existingVideos) {
+    if (v.videoFilename) {
+      existingFilenames.add(v.videoFilename);
+    }
+  }
+
+  const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+  let totalAddedCount = 0;
+  const actualFilesOnDisk = new Set<string>();
+
+  // 2. Scan each directory
+  for (const directory of validDirectories) {
+    const { addedCount, allFiles } = await processDirectoryFiles(
+      directory,
+      existingFilenames,
+      videoExtensions
+    );
+
+    totalAddedCount += addedCount;
+
+    // Track all found files
+    for (const filePath of allFiles) {
+      const ext = path.extname(filePath).toLowerCase();
+      if (videoExtensions.includes(ext)) {
+        actualFilesOnDisk.add(path.basename(filePath));
+      }
+    }
+  }
+
+  // 3. Check for missing videos (only those that were in the scanned directories)
+  // Note: We're not deleting videos from the default VIDEOS_DIR, only checking mount directories
+  let deletedCount = 0;
+  const videosToDelete: string[] = [];
+
+  // Only check videos that might have come from mount directories
+  // We'll check if the videoPath exists in any of the scanned directories
+  // Normalize all directory paths for comparison
+  const normalizedDirectories = validDirectories.map((dir: string) => {
+    try {
+      return path.resolve(path.normalize(dir));
+    } catch {
+      return dir;
+    }
+  });
+
+  for (const v of existingVideos) {
+    if (v.videoFilename && v.videoPath) {
+      // Extract actual path from mount: prefix if present
+      let actualVideoPath = v.videoPath;
+      if (actualVideoPath.startsWith("mount:")) {
+        actualVideoPath = actualVideoPath.substring(6); // Remove "mount:" prefix
+      }
+
+      // Normalize video path and check if it's within any scanned directory
+      let normalizedVideoPath: string;
+      try {
+        normalizedVideoPath = path.resolve(path.normalize(actualVideoPath));
+      } catch {
+        continue; // Skip if path can't be normalized
+      }
+
+      // Check if this video path is within any of the scanned directories
+      const isInScannedDirectory = normalizedDirectories.some((normalizedDir: string) => {
+        try {
+          // Check if video path starts with the directory path
+          // This works because we've normalized both paths
+          return normalizedVideoPath.startsWith(normalizedDir + path.sep) || normalizedVideoPath === normalizedDir;
+        } catch {
+          return false;
+        }
+      });
+
+      if (isInScannedDirectory && !actualFilesOnDisk.has(v.videoFilename)) {
+        logger.info(`Video missing from mount directory: ${v.title} (${v.videoFilename})`);
+        videosToDelete.push(v.id);
+      }
+    }
+  }
+
+  // Delete missing videos
+  for (const id of videosToDelete) {
+    if (storageService.deleteVideo(id)) {
+      deletedCount++;
+    }
+  }
+  logger.info(`Deleted ${deletedCount} missing videos from mount directories.`);
+
+  const message = `Mount directories scan complete. Added ${totalAddedCount} new videos. Deleted ${deletedCount} missing videos.`;
+  logger.info(message);
+
+  // Return format expected by frontend: { addedCount, deletedCount }
+  res.status(200).json({ addedCount: totalAddedCount, deletedCount });
+};

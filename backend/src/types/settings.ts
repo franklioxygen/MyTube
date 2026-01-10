@@ -32,6 +32,7 @@ export interface Settings {
   cloudflaredToken?: string;
   pauseOnFocusLoss?: boolean;
   playSoundOnTaskComplete?: string;
+  mountDirectories?: string;
 }
 
 export const defaultSettings: Settings = {

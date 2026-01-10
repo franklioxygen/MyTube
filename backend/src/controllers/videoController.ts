@@ -90,6 +90,12 @@ export const getVideoById = async (
     }
   }
 
+  // Check if video is in mount directory and inject mount video URL
+  if (video.videoPath?.startsWith("mount:")) {
+    // For mount directory videos, provide a special URL that will be served by the mount video endpoint
+    (video as any).signedUrl = `/api/mount-video/${id}`;
+  }
+
   // Return video object directly for backward compatibility (frontend expects response.data to be Video)
   sendData(res, video);
 };
@@ -361,4 +367,72 @@ export const getAuthorChannelUrl = async (
     logger.error("Error getting author channel URL:", error);
     sendData(res, { success: true, channelUrl: null });
   }
+};
+
+/**
+ * Serve mount directory video file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const serveMountVideo = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  const video = storageService.getVideoById(id);
+
+  if (!video) {
+    throw new NotFoundError("Video", id);
+  }
+
+  // Check if video is a mount directory video
+  if (!video.videoPath?.startsWith("mount:")) {
+    throw new NotFoundError("Video", id);
+  }
+
+  // Extract the actual file path (remove "mount:" prefix)
+  const filePath = video.videoPath.substring(6); // Remove "mount:" prefix
+
+  // Validate path exists and is safe
+  if (!fs.existsSync(filePath)) {
+    throw new NotFoundError("Video file", filePath);
+  }
+
+  // Validate it's a file, not a directory
+  const stats = fs.statSync(filePath);
+  if (!stats.isFile()) {
+    throw new ValidationError("Path is not a file", "videoPath");
+  }
+
+  // Set headers for video streaming (important for Range requests)
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Expose-Headers",
+    "Accept-Ranges, Content-Range, Content-Length"
+  );
+
+  // Determine MIME type based on file extension (case-insensitive)
+  const lowerPath = filePath.toLowerCase();
+  if (lowerPath.endsWith(".mp4")) {
+    res.setHeader("Content-Type", "video/mp4");
+  } else if (lowerPath.endsWith(".webm")) {
+    res.setHeader("Content-Type", "video/webm");
+  } else if (lowerPath.endsWith(".mkv")) {
+    res.setHeader("Content-Type", "video/x-matroska");
+  } else if (lowerPath.endsWith(".avi")) {
+    res.setHeader("Content-Type", "video/x-msvideo");
+  } else if (lowerPath.endsWith(".mov")) {
+    res.setHeader("Content-Type", "video/quicktime");
+  } else if (lowerPath.endsWith(".m4v")) {
+    res.setHeader("Content-Type", "video/x-m4v");
+  } else if (lowerPath.endsWith(".flv")) {
+    res.setHeader("Content-Type", "video/x-flv");
+  } else if (lowerPath.endsWith(".3gp")) {
+    res.setHeader("Content-Type", "video/3gpp");
+  } else {
+    // Default to mp4 for unknown extensions (Safari prefers this)
+    res.setHeader("Content-Type", "video/mp4");
+  }
+
+  // Send the file - Express will handle Range requests automatically
+  res.sendFile(filePath);
 };

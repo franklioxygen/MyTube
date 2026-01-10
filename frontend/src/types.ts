@@ -100,4 +100,5 @@ export interface Settings {
   };
   playSoundOnTaskComplete?: string;
   tmdbApiKey?: string;
+  mountDirectories?: string;
 }

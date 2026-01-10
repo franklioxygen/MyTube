@@ -1,19 +1,30 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5551";
 
 /**
  * Check if a path is a cloud storage path (starts with "cloud:")
  */
-export const isCloudStoragePath = (path: string | null | undefined): boolean => {
-  return path?.startsWith('cloud:') ?? false;
+export const isCloudStoragePath = (
+  path: string | null | undefined
+): boolean => {
+  return path?.startsWith("cloud:") ?? false;
+};
+
+/**
+ * Check if a path is a mount directory path (starts with "mount:")
+ */
+export const isMountDirectoryPath = (
+  path: string | null | undefined
+): boolean => {
+  return path?.startsWith("mount:") ?? false;
 };
 
 /**
  * Extract filename from cloud storage path (removes "cloud:" prefix)
  */
 export const extractCloudFilename = (path: string): string => {
-  if (!path.startsWith('cloud:')) {
+  if (!path.startsWith("cloud:")) {
     return path;
   }
   return path.substring(6); // Remove "cloud:" prefix
@@ -33,7 +44,7 @@ const signedUrlPromiseCache = new Map<string, Promise<string | null>>();
  */
 export const getCloudStorageSignedUrl = async (
   filename: string,
-  type: 'video' | 'thumbnail' = 'video'
+  type: "video" | "thumbnail" = "video"
 ): Promise<string | null> => {
   const cacheKey = `${filename}:${type}`;
   const now = Date.now();
@@ -47,7 +58,7 @@ export const getCloudStorageSignedUrl = async (
     // Cache expired, remove it
     urlCache.delete(cacheKey);
   }
-  
+
   // Return existing promise if request is already inflight
   if (signedUrlPromiseCache.has(cacheKey)) {
     return signedUrlPromiseCache.get(cacheKey)!;
@@ -55,24 +66,24 @@ export const getCloudStorageSignedUrl = async (
 
   const promise = (async () => {
     try {
-        const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
-            params: {
-              filename,
-              type,
-            },
-        });
+      const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
+        params: {
+          filename,
+          type,
+        },
+      });
 
       if (response.data?.success && response.data?.url) {
         // Cache the successful result
         urlCache.set(cacheKey, {
           url: response.data.url,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
         return response.data.url;
       }
       return null;
     } catch (error) {
-      console.error('Failed to get cloud storage signed URL:', error);
+      console.error("Failed to get cloud storage signed URL:", error);
       return null;
     } finally {
       // Remove from inflight cache when done
@@ -92,12 +103,12 @@ export const getCloudStorageSignedUrl = async (
  */
 export const getFileUrl = async (
   path: string | null | undefined,
-  type: 'video' | 'thumbnail' = 'video'
+  type: "video" | "thumbnail" = "video"
 ): Promise<string | undefined> => {
   if (!path) return undefined;
 
   // If already a full URL, return as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
 
@@ -106,6 +117,15 @@ export const getFileUrl = async (
     const filename = extractCloudFilename(path);
     const signedUrl = await getCloudStorageSignedUrl(filename, type);
     return signedUrl || undefined;
+  }
+
+  // If mount directory path, it should be handled via signedUrl from the video object
+  // This function should not be called directly for mount paths, but handle it gracefully
+  if (isMountDirectoryPath(path)) {
+    // For mount paths, we need the video ID to construct the URL
+    // This should be handled via signedUrl from the video object
+    // If we get here, it's an error case, return undefined
+    return undefined;
   }
 
   // Otherwise, prepend backend URL
@@ -122,7 +142,7 @@ export const getFileUrlSync = (
   if (!path) return undefined;
 
   // If already a full URL, return as is
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
 
@@ -135,4 +155,3 @@ export const getFileUrlSync = (
   // Otherwise, prepend backend URL
   return `${BACKEND_URL}${path}`;
 };
-

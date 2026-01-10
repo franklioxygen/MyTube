@@ -18,9 +18,14 @@ export const useCloudStorageUrl = (
       return;
     }
 
-    // If we have an initial pre-signed URL and it corresponds to the current path, use it
-    if (initialUrl && isCloudStoragePath(path)) {
-      setUrl(initialUrl);
+    // If we have an initial pre-signed URL (for cloud storage or mount directory), use it
+    if (initialUrl && (path.startsWith('cloud:') || path.startsWith('mount:'))) {
+      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
+      // Construct full URL if it's a relative path
+      const fullUrl = initialUrl.startsWith('http://') || initialUrl.startsWith('https://')
+        ? initialUrl
+        : `${BACKEND_URL}${initialUrl}`;
+      setUrl(fullUrl);
       return;
     }
 
@@ -35,6 +40,10 @@ export const useCloudStorageUrl = (
       getFileUrl(path, type).then((signedUrl) => {
         setUrl(signedUrl);
       });
+    } else if (path.startsWith('mount:')) {
+      // Mount directory paths should have signedUrl from the video object
+      // If we get here without signedUrl, it's an error
+      setUrl(undefined);
     } else {
       // Regular path, construct URL synchronously
       const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';

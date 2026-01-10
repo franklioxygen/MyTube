@@ -1,5 +1,8 @@
 
 import {
+    FindInPage
+} from '@mui/icons-material';
+import {
     Alert,
     Box,
     Button,
@@ -13,6 +16,8 @@ import {
     useTheme
 } from '@mui/material';
 import TextField from '@mui/material/TextField';
+import { useMutation } from '@tanstack/react-query';
+import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -40,6 +45,8 @@ import { Settings } from '../types';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 
 const SettingsPage: React.FC = () => {
@@ -114,7 +121,8 @@ const SettingsPage: React.FC = () => {
         if (settingsData) {
             const newSettings = {
                 ...settingsData,
-                tags: settingsData.tags || []
+                tags: settingsData.tags || [],
+                mountDirectories: settingsData.mountDirectories || ''
             };
             setSettings(newSettings);
         }
@@ -135,6 +143,50 @@ const SettingsPage: React.FC = () => {
         lastBackupInfo,
         isSaving
     } = mutations;
+
+    // Scan mount directories mutation
+    const scanMountDirectoriesMutation = useMutation({
+        mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
+            // Send directories to the API
+            const res = await axios.post(`${API_URL}/scan-mount-directories`, { directories });
+            // Return scan results along with mountDirectoriesText for saving
+            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
+        },
+        onSuccess: (data) => {
+            // Save settings after successful scan to persist mountDirectories
+            // Use the mountDirectoriesText passed to the mutation to ensure we save the latest value
+            const settingsToSave = {
+                ...settings,
+                mountDirectories: data.mountDirectoriesText
+            };
+            
+            if (!saveMutation.isPending) {
+                saveMutation.mutate(settingsToSave, {
+                    onSuccess: () => {
+                        const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
+                        const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+                        const saveMsg = t('settingsSaved') || 'Settings saved.';
+                        setMessage({ text: `${addedMsg}${deletedMsg} ${saveMsg}`, type: 'success' });
+                        // Update local settings state to reflect saved mountDirectories
+                        setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
+                    },
+                    onError: (saveError: any) => {
+                        const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
+                        const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+                        const saveErrorMsg = saveError.response?.data?.message || t('settingsFailed') || 'Failed to save settings.';
+                        setMessage({ text: `${addedMsg}${deletedMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
+                    }
+                });
+            } else {
+                const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
+                const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+                setMessage({ text: addedMsg + deletedMsg, type: 'success' });
+            }
+        },
+        onError: (error: any) => {
+            setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.error || error.response?.data?.details || error.message}`, type: 'error' });
+        }
+    });
 
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
@@ -171,6 +223,182 @@ const SettingsPage: React.FC = () => {
         restoreFromLastBackupMutation.mutate();
     };
 
+    const handleScanMountDirectories = () => {
+        const mountDirectoriesText = settings.mountDirectories || '';
+        const directories = mountDirectoriesText
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+        if (directories.length === 0) {
+            setMessage({ text: t('mountDirectoriesEmptyError'), type: 'error' });
+            return;
+        }
+        scanMountDirectoriesMutation.mutate({ directories, mountDirectoriesText });
+    };
+
+    // Content renderers for each section (used by both desktop and mobile views)
+    const renderBasicSettingsContent = () => (
+        <BasicSettings
+            language={settings.language}
+            websiteName={settings.websiteName}
+            onChange={(field, value) => handleChange(field as keyof Settings, value)}
+        />
+    );
+
+    const renderInterfaceDisplayContent = () => (
+        <InterfaceDisplaySettings
+            itemsPerPage={settings.itemsPerPage}
+            showYoutubeSearch={settings.showYoutubeSearch}
+            infiniteScroll={settings.infiniteScroll}
+            videoColumns={settings.videoColumns}
+            playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
+            onChange={(field, value) => handleChange(field as keyof Settings, value)}
+        />
+    );
+
+    const renderSecurityAccessContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <SecuritySettings
+                settings={settings}
+                onChange={handleChange}
+            />
+            <CookieSettings
+                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
+                onError={(msg) => setMessage({ text: msg, type: 'error' })}
+            />
+            <CloudflareSettings
+                enabled={settings.cloudflaredTunnelEnabled}
+                token={settings.cloudflaredToken}
+                onChange={(field, value) => handleChange(field as keyof Settings, value)}
+            />
+        </Box>
+    );
+
+    const renderVideoPlaybackContent = () => (
+        <VideoDefaultSettings
+            settings={settings}
+            onChange={handleChange}
+        />
+    );
+
+    const renderDownloadStorageContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box>
+                <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
+                <DownloadSettings
+                    settings={settings}
+                    onChange={handleChange}
+                    activeDownloadsCount={activeDownloads.length}
+                    onCleanup={() => setShowCleanupTempFilesModal(true)}
+                    isSaving={isSaving}
+                />
+            </Box>
+            <Box>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
+                <CloudDriveSettings
+                    settings={settings}
+                    onChange={handleChange}
+                />
+            </Box>
+            <Box>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
+                <YtDlpSettings
+                    config={settings.ytDlpConfig || ''}
+                    proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
+                    onChange={(config) => handleChange('ytDlpConfig', config)}
+                    onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                />
+            </Box>
+        </Box>
+    );
+
+    const renderMountDirectories = () => (
+        <Box sx={{ maxWidth: 400 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+                {t('mountDirectories')}
+            </Typography>
+            <TextField
+                fullWidth
+                multiline
+                rows={4}
+                value={settings.mountDirectories || ''}
+                onChange={(e) => handleChange('mountDirectories' as keyof Settings, e.target.value)}
+                placeholder={t('mountDirectoriesPlaceholder')}
+                helperText={t('mountDirectoriesHelper')}
+            />
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Button
+                    variant="outlined"
+                    startIcon={<FindInPage />}
+                    onClick={handleScanMountDirectories}
+                    disabled={scanMountDirectoriesMutation.isPending}
+                >
+                    {scanMountDirectoriesMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
+                </Button>
+            </Box>
+        </Box>
+    );
+
+    const renderTmdbApiKey = () => (
+        <Box sx={{ maxWidth: 400 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+                {t('tmdbApiKey')}
+            </Typography>
+            <TextField
+                fullWidth
+                value={settings.tmdbApiKey || ''}
+                onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
+                type="password"
+                helperText={t('tmdbApiKeyHelper')}
+                placeholder="Enter your TMDB API key"
+            />
+        </Box>
+    );
+
+    const renderContentManagementContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <TagsSettings
+                tags={Array.isArray(settings.tags) ? settings.tags : []}
+                onTagsChange={handleTagsChange}
+            />
+            {renderMountDirectories()}
+            {renderTmdbApiKey()}
+        </Box>
+    );
+
+    const renderDataManagementContent = () => (
+        <DatabaseSettings
+            onMigrate={() => setShowMigrateConfirmModal(true)}
+            onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
+            onFormatFilenames={() => setShowFormatConfirmModal(true)}
+            onExportDatabase={handleExportDatabase}
+            onImportDatabase={handleImportDatabase}
+            onCleanupBackupDatabases={handleCleanupBackupDatabases}
+            onRestoreFromLastBackup={handleRestoreFromLastBackup}
+            isSaving={isSaving}
+            lastBackupInfo={lastBackupInfo}
+            moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
+            onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
+            moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
+            onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
+            saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
+            onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
+        />
+    );
+
+    const renderAdvancedContent = () => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <AdvancedSettings
+                debugMode={debugMode}
+                onDebugModeChange={setDebugMode}
+            />
+            <HookSettings
+                settings={settings}
+                onChange={handleChange}
+            />
+        </Box>
+    );
+
     // Helper function to render tab panel content
     const TabPanel: React.FC<{ children?: React.ReactNode; index: number; value: number }> = ({ children, value, index }) => {
         return (
@@ -185,17 +413,13 @@ const SettingsPage: React.FC = () => {
         );
     };
 
-    // Helper function to render settings sections (used in both views)
+    // Helper function to render settings sections for mobile view
     const renderSettingsSections = () => (
         <>
             {/* 1. Basic Settings */}
             <Grid size={12}>
                 <CollapsibleSection title={t('basicSettings')} defaultExpanded={true}>
-                    <BasicSettings
-                        language={settings.language}
-                        websiteName={settings.websiteName}
-                        onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                    />
+                    {renderBasicSettingsContent()}
                 </CollapsibleSection>
             </Grid>
 
@@ -203,14 +427,7 @@ const SettingsPage: React.FC = () => {
             {!isVisitor && (
                 <Grid size={12}>
                     <CollapsibleSection title={t('interfaceDisplay')} defaultExpanded={false}>
-                        <InterfaceDisplaySettings
-                            itemsPerPage={settings.itemsPerPage}
-                            showYoutubeSearch={settings.showYoutubeSearch}
-                            infiniteScroll={settings.infiniteScroll}
-                            videoColumns={settings.videoColumns}
-                            playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
-                            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                        />
+                        {renderInterfaceDisplayContent()}
                     </CollapsibleSection>
                 </Grid>
             )}
@@ -219,27 +436,7 @@ const SettingsPage: React.FC = () => {
             {!isVisitor && (
                 <Grid size={12}>
                     <CollapsibleSection title={t('securityAccess')} defaultExpanded={false}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            <Box>
-                                <SecuritySettings
-                                    settings={settings}
-                                    onChange={handleChange}
-                                />
-                            </Box>
-                            <Box>
-                                <CookieSettings
-                                    onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                                    onError={(msg) => setMessage({ text: msg, type: 'error' })}
-                                />
-                            </Box>
-                            <Box>
-                                <CloudflareSettings
-                                    enabled={settings.cloudflaredTunnelEnabled}
-                                    token={settings.cloudflaredToken}
-                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                />
-                            </Box>
-                        </Box>
+                        {renderSecurityAccessContent()}
                     </CollapsibleSection>
                 </Grid>
             )}
@@ -249,108 +446,35 @@ const SettingsPage: React.FC = () => {
                     {/* 4. Video Playback */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('videoPlayback')} defaultExpanded={false}>
-                            <VideoDefaultSettings
-                                settings={settings}
-                                onChange={handleChange}
-                            />
+                            {renderVideoPlaybackContent()}
                         </CollapsibleSection>
                     </Grid>
 
                     {/* 5. Download & Storage */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('downloadStorage')} defaultExpanded={false}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <Box>
-                                    <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
-                                    <DownloadSettings
-                                        settings={settings}
-                                        onChange={handleChange}
-                                        activeDownloadsCount={activeDownloads.length}
-                                        onCleanup={() => setShowCleanupTempFilesModal(true)}
-                                        isSaving={isSaving}
-                                    />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
-                                    <CloudDriveSettings
-                                        settings={settings}
-                                        onChange={handleChange}
-                                    />
-                                </Box>
-                                <Box>
-                                    <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
-                                    <YtDlpSettings
-                                        config={settings.ytDlpConfig || ''}
-                                        proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                                        onChange={(config) => handleChange('ytDlpConfig', config)}
-                                        onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
-                                    />
-                                </Box>
-                            </Box>
+                            {renderDownloadStorageContent()}
                         </CollapsibleSection>
                     </Grid>
 
                     {/* 6. Content Management */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('contentManagement')} defaultExpanded={false}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <TagsSettings
-                                    tags={Array.isArray(settings.tags) ? settings.tags : []}
-                                    onTagsChange={handleTagsChange}
-                                />
-                                <Box sx={{ maxWidth: 400 }}>
-                                    <Typography variant="h6" sx={{ mb: 2 }}>
-                                        {t('tmdbApiKey')}
-                                    </Typography>
-                                    <TextField
-                                        fullWidth
-                                        value={settings.tmdbApiKey || ''}
-                                        onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
-                                        type="password"
-                                        helperText={t('tmdbApiKeyHelper')}
-                                        placeholder="Enter your TMDB API key"
-                                    />
-                                </Box>
-                            </Box>
+                            {renderContentManagementContent()}
                         </CollapsibleSection>
                     </Grid>
 
                     {/* 7. Data Management */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('dataManagement')} defaultExpanded={false}>
-                            <DatabaseSettings
-                                onMigrate={() => setShowMigrateConfirmModal(true)}
-                                onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
-                                onFormatFilenames={() => setShowFormatConfirmModal(true)}
-                                onExportDatabase={handleExportDatabase}
-                                onImportDatabase={handleImportDatabase}
-                                onCleanupBackupDatabases={handleCleanupBackupDatabases}
-                                onRestoreFromLastBackup={handleRestoreFromLastBackup}
-                                isSaving={isSaving}
-                                lastBackupInfo={lastBackupInfo}
-                                moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-                                onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
-                                moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-                                onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-                                saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
-                                onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
-                            />
+                            {renderDataManagementContent()}
                         </CollapsibleSection>
                     </Grid>
 
                     {/* 8. Advanced */}
                     <Grid size={12}>
                         <CollapsibleSection title={t('advanced')} defaultExpanded={false}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <AdvancedSettings
-                                    debugMode={debugMode}
-                                    onDebugModeChange={setDebugMode}
-                                />
-                                <HookSettings
-                                    settings={settings}
-                                    onChange={handleChange}
-                                />
-                            </Box>
+                            {renderAdvancedContent()}
                         </CollapsibleSection>
                     </Grid>
                 </>
@@ -398,135 +522,37 @@ const SettingsPage: React.FC = () => {
                     </Box>
 
                     <TabPanel value={currentTab} index={0}>
-                        <BasicSettings
-                            language={settings.language}
-                            websiteName={settings.websiteName}
-                            onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                        />
+                        {renderBasicSettingsContent()}
                     </TabPanel>
 
                     {!isVisitor && (
                         <>
                             <TabPanel value={currentTab} index={1}>
-                                <InterfaceDisplaySettings
-                                    itemsPerPage={settings.itemsPerPage}
-                                    showYoutubeSearch={settings.showYoutubeSearch}
-                                    infiniteScroll={settings.infiniteScroll}
-                                    videoColumns={settings.videoColumns}
-                                    playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
-                                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                />
+                                {renderInterfaceDisplayContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={2}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                    <SecuritySettings
-                                        settings={settings}
-                                        onChange={handleChange}
-                                    />
-                                    <CookieSettings
-                                        onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                                        onError={(msg) => setMessage({ text: msg, type: 'error' })}
-                                    />
-                                    <CloudflareSettings
-                                        enabled={settings.cloudflaredTunnelEnabled}
-                                        token={settings.cloudflaredToken}
-                                        onChange={(field, value) => handleChange(field as keyof Settings, value)}
-                                    />
-                                </Box>
+                                {renderSecurityAccessContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={3}>
-                                <VideoDefaultSettings
-                                    settings={settings}
-                                    onChange={handleChange}
-                                />
+                                {renderVideoPlaybackContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={4}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                    <Box>
-                                        <Typography variant="h6" gutterBottom>{t('downloadSettings')}</Typography>
-                                        <DownloadSettings
-                                            settings={settings}
-                                            onChange={handleChange}
-                                            activeDownloadsCount={activeDownloads.length}
-                                            onCleanup={() => setShowCleanupTempFilesModal(true)}
-                                            isSaving={isSaving}
-                                        />
-                                    </Box>
-                                    <Box>
-                                        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('cloudDriveSettings')}</Typography>
-                                        <CloudDriveSettings
-                                            settings={settings}
-                                            onChange={handleChange}
-                                        />
-                                    </Box>
-                                    <Box>
-                                        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
-                                        <YtDlpSettings
-                                            config={settings.ytDlpConfig || ''}
-                                            proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                                            onChange={(config) => handleChange('ytDlpConfig', config)}
-                                            onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
-                                        />
-                                    </Box>
-                                </Box>
+                                {renderDownloadStorageContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={5}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                    <TagsSettings
-                                        tags={Array.isArray(settings.tags) ? settings.tags : []}
-                                        onTagsChange={handleTagsChange}
-                                    />
-                                    <Box sx={{ maxWidth: 400 }}>
-                                        <Typography variant="h6" sx={{ mb: 2 }}>
-                                            {t('tmdbApiKey')}
-                                        </Typography>
-                                        <TextField
-                                            fullWidth
-                                            value={settings.tmdbApiKey || ''}
-                                            onChange={(e) => handleChange('tmdbApiKey' as keyof Settings, e.target.value)}
-                                            type="password"
-                                            helperText={t('tmdbApiKeyHelper')}
-                                            placeholder="Enter your TMDB API key"
-                                        />
-                                    </Box>
-                                </Box>
+                                {renderContentManagementContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={6}>
-                                <DatabaseSettings
-                                    onMigrate={() => setShowMigrateConfirmModal(true)}
-                                    onDeleteLegacy={() => setShowDeleteLegacyModal(true)}
-                                    onFormatFilenames={() => setShowFormatConfirmModal(true)}
-                                    onExportDatabase={handleExportDatabase}
-                                    onImportDatabase={handleImportDatabase}
-                                    onCleanupBackupDatabases={handleCleanupBackupDatabases}
-                                    onRestoreFromLastBackup={handleRestoreFromLastBackup}
-                                    isSaving={isSaving}
-                                    lastBackupInfo={lastBackupInfo}
-                                    moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-                                    onMoveSubtitlesToVideoFolderChange={(checked) => handleChange('moveSubtitlesToVideoFolder', checked)}
-                                    moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-                                    onMoveThumbnailsToVideoFolderChange={(checked) => handleChange('moveThumbnailsToVideoFolder', checked)}
-                                    saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
-                                    onSaveAuthorFilesToCollectionChange={(checked) => handleChange('saveAuthorFilesToCollection', checked)}
-                                />
+                                {renderDataManagementContent()}
                             </TabPanel>
 
                             <TabPanel value={currentTab} index={7}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                    <AdvancedSettings
-                                        debugMode={debugMode}
-                                        onDebugModeChange={setDebugMode}
-                                    />
-                                    <HookSettings
-                                        settings={settings}
-                                        onChange={handleChange}
-                                    />
-                                </Box>
+                                {renderAdvancedContent()}
                             </TabPanel>
                         </>
                     )}

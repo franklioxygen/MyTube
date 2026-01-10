@@ -27,6 +27,7 @@ router.get(
   asyncHandler(videoController.getAuthorChannelUrl)
 );
 router.get("/videos/:id", asyncHandler(videoController.getVideoById));
+router.get("/mount-video/:id", asyncHandler(videoController.serveMountVideo));
 router.put("/videos/:id", asyncHandler(videoController.updateVideoDetails));
 router.delete("/videos/:id", asyncHandler(videoController.deleteVideo));
 router.get(
@@ -51,6 +52,7 @@ router.put(
 );
 
 router.post("/scan-files", asyncHandler(scanController.scanFiles));
+router.post("/scan-mount-directories", asyncHandler(scanController.scanMountDirectories));
 router.post(
   "/cleanup-temp-files",
   asyncHandler(cleanupController.cleanupTempFiles)

@@ -53,6 +53,12 @@ export const en = {
   tmdbApiKey: "TMDB API Key",
   tmdbApiKeyHelper:
     "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",
+  mountDirectories: "Mount Directories",
+  mountDirectoriesPlaceholder:
+    "Enter mount directories (one per line)\nExample:\n/mnt/media1\n/mnt/media2",
+  mountDirectoriesHelper:
+    "Enter mount directories where video files are stored, one directory per line",
+  mountDirectoriesEmptyError: "Please enter at least one mount directory",
   infiniteScroll: "Infinite Scroll",
   infiniteScrollDisabled: "Disabled when Infinite Scroll is enabled",
   maxVideoColumns: "Maximum Video Columns (Homepage)",
