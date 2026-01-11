@@ -48,6 +48,25 @@ import { Language } from '../utils/translations';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+// TabPanel component - defined outside SettingsPage to prevent re-mounting on every render
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`settings-tabpanel-${index}`}
+            aria-labelledby={`settings-tab-${index}`}
+        >
+            {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+        </div>
+    );
+};
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -399,20 +418,6 @@ const SettingsPage: React.FC = () => {
         </Box>
     );
 
-    // Helper function to render tab panel content
-    const TabPanel: React.FC<{ children?: React.ReactNode; index: number; value: number }> = ({ children, value, index }) => {
-        return (
-            <div
-                role="tabpanel"
-                hidden={value !== index}
-                id={`settings-tabpanel-${index}`}
-                aria-labelledby={`settings-tab-${index}`}
-            >
-                {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
-            </div>
-        );
-    };
-
     // Helper function to render settings sections for mobile view
     const renderSettingsSections = () => (
         <>
@@ -497,7 +502,7 @@ const SettingsPage: React.FC = () => {
     ];
 
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     {t('settings')}
@@ -506,7 +511,7 @@ const SettingsPage: React.FC = () => {
 
             {/* Desktop: Tabs View */}
             {isDesktop ? (
-                <Box sx={{ width: '100%' }}>
+                <Box sx={{ width: '100%', maxWidth: 900 }}>
                     <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                         <Tabs
                             value={currentTab}
@@ -605,7 +610,7 @@ const SettingsPage: React.FC = () => {
                     borderColor: 'divider',
                     boxShadow: 4
                 }}>
-                    <Container maxWidth="xl">
+                    <Container maxWidth="lg">
                         <Box sx={{
                             display: 'flex',
                             justifyContent: 'flex-start',

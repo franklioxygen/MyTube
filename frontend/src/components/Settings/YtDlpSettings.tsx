@@ -1,7 +1,6 @@
 import {
     Box,
     Button,
-    Collapse,
     FormControlLabel,
     Link,
     Switch,
@@ -272,7 +271,7 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                 </Button>
             </Box>
 
-            <Collapse in={isExpanded}>
+            {isExpanded && (
                 <Box sx={{ mt: 2 }}>
 
                     {/* Proxy Toggle */}
@@ -292,7 +291,8 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                     <TextField
                         fullWidth
                         multiline
-                        rows={12}
+                        minRows={12}
+                        maxRows={12}
                         value={localConfig}
                         onChange={(e) => handleConfigChange(e.target.value)}
                         placeholder={DEFAULT_CONFIG}
@@ -313,7 +313,7 @@ const YtDlpSettings: React.FC<YtDlpSettingsProps> = ({ config, proxyOnlyYoutube 
                         </Button>
                     </Box>
                 </Box>
-            </Collapse>
+            )}
         </Box>
     );
 };
