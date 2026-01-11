@@ -1,0 +1,19 @@
+# Chrome extension ignores
+# (Add any temporary files or build artifacts here)
+
+# TypeScript compiled files (these are generated from src/*.ts)
+# Users should run 'npm run build' to generate these files
+*.js
+*.js.map
+!locales/*.js  # Locale files are source files, not compiled
+
+# Optional: Uncomment if you want to ignore icons during development
+# icons/*.png
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Package files
+*.zip
+.package-temp/

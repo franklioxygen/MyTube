@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyTube Downloader - Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="logo-container">
+          <img src="icons/mytube-logo.png" alt="MyTube" class="logo" />
+        </div>
+        <h1>MyTube Downloader</h1>
+        <p class="subtitle">Configure your MyTube server connection</p>
+      </header>
+
+      <main>
+        <div class="section">
+          <label for="serverUrl">
+            <strong>MyTube Server URL</strong>
+            <span class="hint"
+              >Enter the URL of your MyTube server (e.g.,
+              http://localhost:3000)</span
+            >
+          </label>
+          <input
+            type="text"
+            id="serverUrl"
+            placeholder="http://localhost:3000"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="section">
+          <button id="testConnection" class="btn btn-secondary">
+            <span id="testConnectionText">Test Connection</span>
+            <span id="testConnectionSpinner" class="spinner hidden"></span>
+          </button>
+          <div id="testResult" class="test-result hidden"></div>
+        </div>
+
+        <div class="section">
+          <button id="saveSettings" class="btn btn-primary">
+            Save Settings
+          </button>
+        </div>
+
+        <div id="statusMessage" class="status-message hidden"></div>
+      </main>
+
+      <footer>
+        <p>
+          After configuring, visit video websites to download videos with one
+          click!
+        </p>
+      </footer>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyTube Downloader</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="logo-container">
+          <img src="icons/mytube-logo.png" alt="MyTube" class="logo" />
+        </div>
+        <h1>MyTube</h1>
+      </header>
+
+      <main>
+        <div id="quickDownload" class="section">
+          <button id="downloadCurrentPage" class="btn btn-primary">
+            Download Current Page
+          </button>
+          <p class="hint">Works on all yt-dlp supported sites</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="section">
+          <div id="serverStatus" class="server-status">
+            <span id="serverStatusText">Checking server...</span>
+          </div>
+          <button id="openOptions" class="btn btn-secondary">
+            ⚙️ Settings
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

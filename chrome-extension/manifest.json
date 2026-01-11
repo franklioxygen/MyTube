@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "MyTube Downloader",
+  "version": "1.0.0",
+  "description": "One-click download videos from yt-dlp supported sites to MyTube",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*",
+        "*://*.bilibili.com/*",
+        "*://bilibili.com/*",
+        "*://*.missav.com/*",
+        "*://missav.com/*",
+        "*://*.missav.ai/*",
+        "*://missav.ai/*",
+        "*://*.missav.ws/*",
+        "*://missav.ws/*",
+        "*://*.123av.com/*",
+        "*://123av.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
