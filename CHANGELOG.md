@@ -2,6 +2,19 @@
 
 
 
+## v1.7.54 (2026-01-11)
+
+### Feat
+
+- feat: create chrome extension (6df4496)
+
+## v1.7.53 (2026-01-11)
+
+### Style
+
+- style: Update formatting in YtDlpSettings file (9d1fadb)
+- style: Remove unnecessary Collapse component and update TextField properties (009ca0d)
+
 ## v1.7.52 (2026-01-10)
 
 ### Feat
