@@ -87,6 +87,26 @@ const DEFAULT_CONFIG = `# yt-dlp Configuration File
 # --audio-quality 0
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# OUTPUT CONTAINER FORMAT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Force MP4 container for all downloads (including 4K+)
+# Note: YouTube only offers VP9/AV1 codecs for 4K+, not H.264
+# This wraps VP9/AV1 in MP4 container instead of WebM
+# WARNING: VP9/AV1 in MP4 does NOT work in Safari/QuickTime!
+# Works in: Chrome, Firefox, Edge, VLC
+# Broken in: Safari, iOS, QuickTime, macOS Preview
+# --merge-output-format mp4
+
+# Force WebM container (default for 4K+ in MyTube)
+# Best compatibility for VP9/AV1 codecs, works in all modern browsers
+# --merge-output-format webm
+
+# Force MKV container (best for local playback with VLC/Plex)
+# Does NOT work in browsers - download required for playback
+# --merge-output-format mkv
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # DOWNLOAD OPTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
