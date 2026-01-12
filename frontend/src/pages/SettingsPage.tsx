@@ -63,7 +63,7 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
             id={`settings-tabpanel-${index}`}
             aria-labelledby={`settings-tab-${index}`}
         >
-            {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+            {value === index && <Box sx={{ py: 3, px: 3 }}>{children}</Box>}
         </div>
     );
 };
@@ -511,14 +511,15 @@ const SettingsPage: React.FC = () => {
 
             {/* Desktop: Tabs View */}
             {isDesktop ? (
-                <Box sx={{ width: '100%', maxWidth: 900 }}>
-                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Box sx={{ mx: -3 }}>
+                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, px: 3 }}>
                         <Tabs
                             value={currentTab}
                             onChange={(_, newValue) => setCurrentTab(newValue)}
                             variant="scrollable"
                             scrollButtons="auto"
                             aria-label="settings tabs"
+                            sx={{ minHeight: 48 }}
                         >
                             {tabs.map((tabItem) => (
                                 <Tab key={tabItem.index} label={tabItem.label} value={tabItem.index} />
