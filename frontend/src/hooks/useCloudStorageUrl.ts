@@ -1,16 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
-import { getFileUrl, isCloudStoragePath, isMountDirectoryPath } from '../utils/cloudStorage';
+import { useEffect, useMemo, useState } from "react";
+import {
+  getFileUrl,
+  isCloudStoragePath,
+  isMountDirectoryPath,
+} from "../utils/cloudStorage";
+
+/**
+ * Helper function to construct full URL from initialUrl
+ */
+const constructFullUrl = (initialUrl: string): string => {
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5551";
+  // Construct full URL if it's a relative path
+  return initialUrl.startsWith("http://") || initialUrl.startsWith("https://")
+    ? initialUrl
+    : `${BACKEND_URL}${initialUrl}`;
+};
 
 /**
  * Hook to get file URL, handling cloud storage paths dynamically
  * Returns the URL string, or undefined if not available
- * 
- * Performance optimization: For regular paths (non-cloud, non-mount), 
+ *
+ * Performance optimization: For regular paths (non-cloud, non-mount),
  * uses useMemo to avoid unnecessary state updates and effects.
  */
 export const useCloudStorageUrl = (
   path: string | null | undefined,
-  type: 'video' | 'thumbnail' = 'video',
+  type: "video" | "thumbnail" = "video",
   initialUrl?: string
 ): string | undefined => {
   // For regular paths (non-cloud, non-mount), compute URL synchronously with useMemo
@@ -19,16 +35,15 @@ export const useCloudStorageUrl = (
     if (!path) return undefined;
 
     // If we have an initial pre-signed URL (for cloud storage or mount directory), use it
-    if (initialUrl && (path.startsWith('cloud:') || path.startsWith('mount:'))) {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
-      // Construct full URL if it's a relative path
-      return initialUrl.startsWith('http://') || initialUrl.startsWith('https://')
-        ? initialUrl
-        : `${BACKEND_URL}${initialUrl}`;
+    if (
+      initialUrl &&
+      (path.startsWith("cloud:") || path.startsWith("mount:"))
+    ) {
+      return constructFullUrl(initialUrl);
     }
 
     // If already a full URL, use it directly
-    if (path.startsWith('http://') || path.startsWith('https://')) {
+    if (path.startsWith("http://") || path.startsWith("https://")) {
       return path;
     }
 
@@ -45,37 +60,53 @@ export const useCloudStorageUrl = (
 
   // Only use async state for cloud storage and mount paths
   const [asyncUrl, setAsyncUrl] = useState<string | undefined>(undefined);
-  const needsAsync = path && (isCloudStoragePath(path) || isMountDirectoryPath(path));
 
   useEffect(() => {
+    // Check if async handling is needed
+    const needsAsync =
+      path && (isCloudStoragePath(path) || isMountDirectoryPath(path));
+
     if (!needsAsync) {
       setAsyncUrl(undefined);
       return;
     }
 
-    // If we have an initial pre-signed URL, use it (handled in syncUrl above)
-    if (initialUrl && (path?.startsWith('cloud:') || path?.startsWith('mount:'))) {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
-      const fullUrl = initialUrl.startsWith('http://') || initialUrl.startsWith('https://')
-        ? initialUrl
-        : `${BACKEND_URL}${initialUrl}`;
-      setAsyncUrl(fullUrl);
-      return;
-    }
+    // Note: initialUrl is already handled in syncUrl useMemo above
+    // Only fetch if we don't have an initialUrl (which would be in syncUrl)
 
-    // If cloud storage path, fetch signed URL
+    // If cloud storage path, fetch signed URL with error handling
     if (path && isCloudStoragePath(path)) {
-      getFileUrl(path, type).then((signedUrl) => {
-        setAsyncUrl(signedUrl);
-      });
+      let cancelled = false;
+
+      getFileUrl(path, type)
+        .then((signedUrl) => {
+          if (!cancelled) {
+            setAsyncUrl(signedUrl);
+          }
+        })
+        .catch((error) => {
+          // Error is already handled in getFileUrl/getCloudStorageSignedUrl
+          // Just log it here for debugging
+          if (!cancelled) {
+            console.warn(
+              `Failed to load cloud storage URL for ${path}:`,
+              error
+            );
+            setAsyncUrl(undefined);
+          }
+        });
+
+      // Cleanup function to prevent state updates if component unmounts
+      return () => {
+        cancelled = true;
+      };
     } else if (path && isMountDirectoryPath(path)) {
       // Mount directory paths should have signedUrl from the video object
       // If we get here without signedUrl, it's an error
       setAsyncUrl(undefined);
     }
-  }, [path, type, initialUrl, needsAsync]);
+  }, [path, type, initialUrl]);
 
   // Return sync URL if available (for regular paths), otherwise return async URL
   return syncUrl !== undefined ? syncUrl : asyncUrl;
 };
-

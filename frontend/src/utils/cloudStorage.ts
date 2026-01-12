@@ -1,6 +1,11 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5551";
+
+// Configuration constants
+const REQUEST_TIMEOUT = 10000; // 10 seconds timeout for signed URL requests
+const MAX_RETRIES = 2; // Maximum number of retries for failed requests
+const RETRY_DELAY = 1000; // Initial delay between retries in milliseconds
 
 /**
  * Check if a path is a cloud storage path (starts with "cloud:")
@@ -30,17 +35,48 @@ export const extractCloudFilename = (path: string): string => {
   return path.substring(6); // Remove "cloud:" prefix
 };
 
+/**
+ * Check if an error is retryable (network errors, timeouts, 5xx errors)
+ */
+function isRetryableError(error: unknown): boolean {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError;
+    // Retry on network errors (no response) or timeouts
+    if (!axiosError.response) {
+      return true;
+    }
+    // Retry on 5xx server errors (but not 4xx client errors)
+    const status = axiosError.response.status;
+    return status >= 500 || status === 408; // 408 is Request Timeout
+  }
+  return false;
+}
+
+/**
+ * Sleep for specified milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Cache for signed URLs (persists across re-renders for the session)
 const urlCache = new Map<string, { url: string; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Cache for failed requests to avoid repeated failures
+const failedRequestCache = new Map<
+  string,
+  { timestamp: number; retries: number }
+>();
+const FAILED_CACHE_DURATION = 30 * 1000; // Don't retry failed requests for 30 seconds
 
 // Cache for inflight requests to prevent duplicate calls
 const signedUrlPromiseCache = new Map<string, Promise<string | null>>();
 
 /**
- * Get signed URL for a cloud storage file
+ * Get signed URL for a cloud storage file with retry logic and timeout handling
  * This fetches the dynamic sign from the backend
- * Implements request deduplication and caching
+ * Implements request deduplication, caching, retry mechanism, and error handling
  */
 export const getCloudStorageSignedUrl = async (
   filename: string,
@@ -50,8 +86,8 @@ export const getCloudStorageSignedUrl = async (
   const now = Date.now();
 
   // Check persistent cache first
-  if (urlCache.has(cacheKey)) {
-    const cached = urlCache.get(cacheKey)!;
+  const cached = urlCache.get(cacheKey);
+  if (cached) {
     if (now - cached.timestamp < CACHE_DURATION) {
       return cached.url;
     }
@@ -59,34 +95,109 @@ export const getCloudStorageSignedUrl = async (
     urlCache.delete(cacheKey);
   }
 
+  // Check if this request recently failed and shouldn't be retried yet
+  const failed = failedRequestCache.get(cacheKey);
+  if (failed) {
+    const timeSinceFailure = now - failed.timestamp;
+    if (
+      timeSinceFailure < FAILED_CACHE_DURATION &&
+      failed.retries >= MAX_RETRIES
+    ) {
+      // Too many failures recently, don't retry
+      return null;
+    }
+    // If cache expired, remove it to allow retry
+    if (timeSinceFailure >= FAILED_CACHE_DURATION) {
+      failedRequestCache.delete(cacheKey);
+    }
+  }
+
   // Return existing promise if request is already inflight
-  if (signedUrlPromiseCache.has(cacheKey)) {
-    return signedUrlPromiseCache.get(cacheKey)!;
+  const existingPromise = signedUrlPromiseCache.get(cacheKey);
+  if (existingPromise) {
+    return existingPromise;
   }
 
   const promise = (async () => {
     try {
-      const response = await axios.get(`${BACKEND_URL}/api/cloud/signed-url`, {
-        params: {
-          filename,
-          type,
-        },
+      let lastError: unknown = null;
+
+      // Retry loop
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const response = await axios.get(
+            `${BACKEND_URL}/api/cloud/signed-url`,
+            {
+              params: {
+                filename,
+                type,
+              },
+              timeout: REQUEST_TIMEOUT,
+            }
+          );
+
+          if (response.data?.success && response.data?.url) {
+            // Cache the successful result
+            urlCache.set(cacheKey, {
+              url: response.data.url,
+              timestamp: Date.now(),
+            });
+            // Clear failed cache on success
+            failedRequestCache.delete(cacheKey);
+            return response.data.url;
+          }
+
+          // If response is unsuccessful but not an error, don't retry
+          return null;
+        } catch (error) {
+          lastError = error;
+
+          // Only retry on retryable errors
+          if (!isRetryableError(error)) {
+            // Non-retryable error (4xx client errors), don't retry
+            console.warn(
+              `Failed to get cloud storage signed URL (non-retryable): ${filename}`,
+              axios.isAxiosError(error) ? error.response?.status : error
+            );
+            return null;
+          }
+
+          // If this was the last attempt, don't wait
+          if (attempt < MAX_RETRIES) {
+            // Wait before retrying with exponential backoff
+            const delay = RETRY_DELAY * Math.pow(2, attempt);
+            await sleep(delay);
+          }
+        }
+      }
+
+      // All retries exhausted
+      const errorMessage = axios.isAxiosError(lastError)
+        ? lastError.code === "ECONNABORTED" ||
+          lastError.message.includes("timeout")
+          ? "Request timeout"
+          : lastError.response
+          ? `Server error (${lastError.response.status})`
+          : "Network error"
+        : "Unknown error";
+
+      console.error(
+        `Failed to get cloud storage signed URL after ${
+          MAX_RETRIES + 1
+        } attempts: ${filename}`,
+        errorMessage
+      );
+
+      // Cache the failure to avoid immediate retries
+      failedRequestCache.set(cacheKey, {
+        timestamp: Date.now(),
+        retries: MAX_RETRIES + 1,
       });
 
-      if (response.data?.success && response.data?.url) {
-        // Cache the successful result
-        urlCache.set(cacheKey, {
-          url: response.data.url,
-          timestamp: Date.now(),
-        });
-        return response.data.url;
-      }
-      return null;
-    } catch (error) {
-      console.error("Failed to get cloud storage signed URL:", error);
       return null;
     } finally {
-      // Remove from inflight cache when done
+      // Always remove the promise from cache when it completes (success or failure)
+      // This allows fresh requests after cache expiration and prevents returning stale null values
       signedUrlPromiseCache.delete(cacheKey);
     }
   })();
