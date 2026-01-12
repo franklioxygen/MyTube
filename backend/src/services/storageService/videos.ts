@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
+  AVATARS_DIR,
   IMAGES_DIR,
   SUBTITLES_DIR,
   UPLOADS_DIR,
@@ -552,6 +553,65 @@ export function deleteVideo(id: string): boolean {
             error instanceof Error ? error : new Error(String(error))
           );
         }
+      }
+    }
+
+    // Remove author avatar file only if this is the last video from this author
+    if (videoToDelete.authorAvatarFilename && videoToDelete.author) {
+      // Check if there are other videos from the same author
+      const allVideos = getVideos();
+      const otherVideosFromAuthor = allVideos.filter(
+        (v) => v.id !== id && v.author === videoToDelete.author
+      );
+
+      // Only delete avatar if this is the last video from this author
+      if (otherVideosFromAuthor.length === 0) {
+        let avatarPath: string | null = null;
+
+        // Determine the actual file path based on authorAvatarPath
+        if (videoToDelete.authorAvatarPath) {
+          if (videoToDelete.authorAvatarPath.startsWith("/avatars/")) {
+            // Avatar is in avatars directory
+            avatarPath = path.join(
+              UPLOADS_DIR,
+              videoToDelete.authorAvatarPath.replace(/^\//, "")
+            );
+          } else if (videoToDelete.authorAvatarPath.startsWith("/images/")) {
+            // Legacy: Avatar might be in images directory (for backward compatibility)
+            avatarPath = path.join(
+              UPLOADS_DIR,
+              videoToDelete.authorAvatarPath.replace(/^\//, "")
+            );
+          }
+        }
+
+        // Fallback: try to find by filename in avatars directory
+        if (!avatarPath || !fs.existsSync(avatarPath)) {
+          const fallbackPath = path.join(
+            AVATARS_DIR,
+            videoToDelete.authorAvatarFilename
+          );
+          if (fs.existsSync(fallbackPath)) {
+            avatarPath = fallbackPath;
+          }
+        }
+
+        // Delete the avatar file if it exists
+        if (avatarPath && fs.existsSync(avatarPath)) {
+          try {
+            fs.unlinkSync(avatarPath);
+            logger.info(`Deleted author avatar file: ${avatarPath}`);
+          } catch (error) {
+            logger.error(
+              `Error deleting author avatar file ${avatarPath}`,
+              error instanceof Error ? error : new Error(String(error))
+            );
+          }
+        }
+      } else {
+        logger.info(
+          `Skipping avatar deletion - ${otherVideosFromAuthor.length} other video(s) from author "${videoToDelete.author}" still exist`
+        );
       }
     }
 

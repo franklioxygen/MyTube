@@ -45,9 +45,9 @@ export const useCloudStorageUrl = (
       // If we get here without signedUrl, it's an error
       setUrl(undefined);
     } else {
-      // Regular path, construct URL synchronously
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551';
-      setUrl(`${BACKEND_URL}${path}`);
+      // Regular path, use relative path (works with both direct backend and nginx proxy)
+      // Paths like /avatars/..., /images/..., /videos/... will be handled by nginx proxy
+      setUrl(path);
     }
   }, [path, type, initialUrl]);
 

@@ -7,6 +7,10 @@ export interface BilibiliVideoInfo {
   thumbnailUrl: string | null;
   thumbnailSaved: boolean;
   description?: string;
+  authorAvatarUrl?: string | null;
+  authorAvatarSaved?: boolean;
+  authorAvatarFilename?: string;
+  authorAvatarPath?: string;
   error?: string;
 }
 

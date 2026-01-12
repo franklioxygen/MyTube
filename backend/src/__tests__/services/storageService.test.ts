@@ -133,7 +133,7 @@ describe('StorageService', () => {
         }),
       });
       storageService.initializeStorage();
-      expect(fs.ensureDirSync).toHaveBeenCalledTimes(5);
+      expect(fs.ensureDirSync).toHaveBeenCalledTimes(6);
     });
 
     it('should create status.json if not exists', () => {

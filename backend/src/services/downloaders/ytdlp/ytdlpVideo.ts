@@ -1,20 +1,23 @@
 import fs from "fs-extra";
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import {
-    cleanupSubtitleFiles,
-    cleanupVideoArtifacts,
+  cleanupSubtitleFiles,
+  cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getAxiosProxyConfig,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
-    InvalidProxyError,
+  downloadChannelAvatar,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getAxiosProxyConfig,
+  getChannelUrlFromVideo,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
@@ -79,9 +82,12 @@ export async function downloadVideo(
     thumbnailUrl: string | null,
     thumbnailSaved: boolean,
     source: string,
-    channelUrl: string | null = null;
+    channelUrl: string | null = null,
+    authorAvatarUrl: string | null = null,
+    authorAvatarSaved: boolean = false;
   let finalVideoFilename = videoFilename;
   let finalThumbnailFilename = thumbnailFilename;
+  let finalAuthorAvatarFilename: string | undefined = undefined;
   let subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
 
@@ -124,6 +130,16 @@ export async function downloadVideo(
 
     // Extract channel URL from info if available
     channelUrl = info.channel_url || info.uploader_url || null;
+
+    // Try to get channel URL using yt-dlp if not available in info
+    if (
+      !channelUrl &&
+      (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be"))
+    ) {
+      logger.info("Channel URL not in info, fetching using yt-dlp...");
+      channelUrl = await getChannelUrlFromVideo(videoUrl, networkConfig);
+      logger.info("Channel URL fetched:", channelUrl);
+    }
 
     // Update the safe base filename with the actual title
     const newSafeBaseFilename = formatVideoFilename(
@@ -329,6 +345,121 @@ export async function downloadVideo(
       );
     }
 
+    // Download and process author avatar
+    let authorAvatarPath: string | null = null;
+    const platform = source === "youtube" ? "youtube" : "generic";
+
+    if (
+      channelUrl &&
+      (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be"))
+    ) {
+      logger.info("Downloading author avatar from channel:", {
+        channelUrl: channelUrl,
+        author: videoAuthor,
+        platform: platform,
+      });
+
+      // Download channel avatar using yt-dlp to a temp file first
+      const tempAvatarPath = path.join(AVATARS_DIR, `temp_${Date.now()}.jpg`);
+      fs.ensureDirSync(AVATARS_DIR);
+
+      const downloaded = await downloadChannelAvatar(
+        channelUrl,
+        tempAvatarPath,
+        networkConfig
+      );
+
+      if (downloaded && fs.existsSync(tempAvatarPath)) {
+        // Process the downloaded avatar (check if exists, resize)
+        authorAvatarPath = await downloadAndProcessAvatar(
+          tempAvatarPath, // Use temp file path as "URL" for processing
+          platform,
+          videoAuthor,
+          async (url: string, savePath: string) => {
+            // This function just moves the temp file
+            if (fs.existsSync(url)) {
+              fs.moveSync(url, savePath, { overwrite: true });
+              return true;
+            }
+            return false;
+          }
+        );
+        authorAvatarSaved = authorAvatarPath !== null;
+
+        // Clean up temp file if it still exists (in case processing failed or file wasn't moved)
+        if (fs.existsSync(tempAvatarPath)) {
+          try {
+            fs.unlinkSync(tempAvatarPath);
+            logger.info(`Cleaned up temp avatar file: ${tempAvatarPath}`);
+          } catch (cleanupError) {
+            logger.warn(
+              `Failed to clean up temp avatar file: ${tempAvatarPath}`,
+              cleanupError
+            );
+          }
+        }
+      } else if (fs.existsSync(tempAvatarPath)) {
+        // Clean up temp file if download failed
+        try {
+          fs.unlinkSync(tempAvatarPath);
+          logger.info(
+            `Cleaned up temp avatar file after failed download: ${tempAvatarPath}`
+          );
+        } catch (cleanupError) {
+          logger.warn(
+            `Failed to clean up temp avatar file: ${tempAvatarPath}`,
+            cleanupError
+          );
+        }
+      }
+    } else {
+      // Fallback: try to get avatar URL from info if available
+      authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
+      if (authorAvatarUrl) {
+        logger.info("Downloading author avatar from URL:", {
+          url: authorAvatarUrl,
+          author: videoAuthor,
+          platform: platform,
+        });
+
+        // Prepare axios config with proxy if available
+        let avatarAxiosConfig = {};
+        if (downloadUserConfig.proxy) {
+          try {
+            avatarAxiosConfig = getAxiosProxyConfig(downloadUserConfig.proxy);
+          } catch (error) {
+            if (error instanceof InvalidProxyError) {
+              logger.warn(
+                "Invalid proxy configuration for avatar download, proceeding without proxy:",
+                error.message
+              );
+            } else {
+              throw error;
+            }
+          }
+        }
+
+        // Use the utility function to download and process avatar
+        authorAvatarPath = await downloadAndProcessAvatar(
+          authorAvatarUrl,
+          platform,
+          videoAuthor,
+          downloader.downloadThumbnailPublic.bind(downloader),
+          avatarAxiosConfig
+        );
+        authorAvatarSaved = authorAvatarPath !== null;
+      } else {
+        logger.info(
+          "No channel URL or avatar URL available, skipping avatar download"
+        );
+      }
+    }
+
+    // Get the final avatar filename from the path if avatar was saved
+    if (authorAvatarPath) {
+      finalAuthorAvatarFilename = path.basename(authorAvatarPath);
+    }
+
     // Check again if download was cancelled before processing subtitles
     try {
       downloader.throwIfCancelledPublic(downloadId);
@@ -373,6 +504,14 @@ export async function downloadVideo(
     subtitles: subtitles.length > 0 ? subtitles : undefined,
     duration: undefined, // Will be populated below
     channelUrl: channelUrl || undefined,
+    authorAvatarFilename:
+      authorAvatarSaved && finalAuthorAvatarFilename
+        ? finalAuthorAvatarFilename
+        : undefined,
+    authorAvatarPath:
+      authorAvatarSaved && finalAuthorAvatarFilename
+        ? `/avatars/${finalAuthorAvatarFilename}`
+        : undefined,
     addedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   };
@@ -432,6 +571,12 @@ export async function downloadVideo(
       fileSize: videoData.fileSize,
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
+      authorAvatarFilename: authorAvatarSaved
+        ? finalAuthorAvatarFilename
+        : existingVideo.authorAvatarFilename,
+      authorAvatarPath: authorAvatarSaved
+        ? `/avatars/${finalAuthorAvatarFilename}`
+        : existingVideo.authorAvatarPath,
     });
 
     if (updatedVideo) {

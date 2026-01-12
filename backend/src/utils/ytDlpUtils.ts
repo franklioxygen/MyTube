@@ -252,6 +252,174 @@ export async function executeYtDlpJson(
 }
 
 /**
+ * Get channel URL from a video URL
+ * Uses: yt-dlp <video_url> --print channel_url --skip-download
+ */
+export async function getChannelUrlFromVideo(
+  videoUrl: string,
+  networkConfig: Record<string, any> = {}
+): Promise<string | null> {
+  const args = [
+    "--print",
+    "channel_url",
+    "--skip-download",
+    "--no-warnings",
+    ...flagsToArgs(networkConfig),
+  ];
+
+  // Add cookies if file exists
+  const cookiesPath = getCookiesPath();
+  if (cookiesPath) {
+    args.push("--cookies", cookiesPath);
+  }
+
+  // Add Node.js runtime for YouTube
+  if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+    args.push("--js-runtime", "node");
+  }
+
+  args.push(videoUrl);
+
+  return new Promise<string | null>((resolve, reject) => {
+    const subprocess = spawn(YT_DLP_PATH, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    subprocess.stdout?.on("data", (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    subprocess.stderr?.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    subprocess.on("close", (code) => {
+      if (code !== 0) {
+        console.warn(`Failed to get channel URL: ${stderr}`);
+        resolve(null);
+        return;
+      }
+
+      const channelUrl = stdout.trim();
+      resolve(channelUrl || null);
+    });
+
+    subprocess.on("error", (error) => {
+      console.warn(`Error getting channel URL:`, error);
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Download channel avatar/thumbnail from channel URL
+ * Uses: yt-dlp <channel_url> --write-thumbnail --playlist-items 0 -o <output_path>
+ */
+export async function downloadChannelAvatar(
+  channelUrl: string,
+  outputPath: string,
+  networkConfig: Record<string, any> = {}
+): Promise<boolean> {
+  const outputDir = path.dirname(outputPath);
+  const outputFilename = path.basename(outputPath, path.extname(outputPath));
+  const outputTemplate = path.join(outputDir, `${outputFilename}.%(ext)s`);
+
+  const args = [
+    "--write-thumbnail",
+    "--playlist-items",
+    "0",
+    "--skip-download",
+    "--no-warnings",
+    "--output",
+    outputTemplate,
+    ...flagsToArgs(networkConfig),
+  ];
+
+  // Add cookies if file exists
+  const cookiesPath = getCookiesPath();
+  if (cookiesPath) {
+    args.push("--cookies", cookiesPath);
+  }
+
+  // Add Node.js runtime for YouTube
+  if (channelUrl.includes("youtube.com") || channelUrl.includes("youtu.be")) {
+    args.push("--js-runtime", "node");
+  }
+
+  args.push(channelUrl);
+
+  return new Promise<boolean>((resolve, reject) => {
+    const subprocess = spawn(YT_DLP_PATH, args, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stderr = "";
+
+    subprocess.stderr?.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    subprocess.on("close", (code) => {
+      if (code !== 0) {
+        console.warn(`Failed to download channel avatar: ${stderr}`);
+        // For Bilibili, this might be expected - log but don't fail completely
+        if (channelUrl.includes("bilibili.com")) {
+          console.warn(`Bilibili channel avatar download may not be supported by yt-dlp`);
+        }
+        resolve(false);
+        return;
+      }
+
+      // Check if the file was created (yt-dlp might save with different extension)
+      const possibleExtensions = ["jpg", "jpeg", "png", "webp"];
+      let foundFile = false;
+      for (const ext of possibleExtensions) {
+        const possiblePath = path.join(outputDir, `${outputFilename}.${ext}`);
+        if (fs.existsSync(possiblePath)) {
+          // If it's not a jpg, rename it to jpg
+          if (ext !== "jpg" && outputPath.endsWith(".jpg")) {
+            try {
+              fs.moveSync(possiblePath, outputPath, { overwrite: true });
+            } catch (error) {
+              console.warn(`Failed to rename avatar to .jpg:`, error);
+              // If rename fails, just use the original file
+              resolve(true);
+              return;
+            }
+          } else if (ext !== "jpg") {
+            // File exists but with different extension - that's okay, we'll handle it
+            resolve(true);
+            return;
+          }
+          foundFile = true;
+          break;
+        }
+      }
+
+      // If no file found, check if outputPath exists (might have been created directly)
+      if (fs.existsSync(outputPath)) {
+        resolve(true);
+        return;
+      }
+
+      if (!foundFile) {
+        console.warn(`Channel avatar file not found after download. Checked extensions: ${possibleExtensions.join(", ")}`);
+        console.warn(`Output directory: ${outputDir}, Output filename: ${outputFilename}`);
+      }
+      resolve(foundFile);
+    });
+
+    subprocess.on("error", (error) => {
+      console.warn(`Error downloading channel avatar:`, error);
+      resolve(false);
+    });
+  });
+}
+
+/**
  * Execute yt-dlp with spawn for progress tracking
  * Returns a subprocess-like object with kill() method
  */

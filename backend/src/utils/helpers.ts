@@ -337,6 +337,35 @@ export function formatVideoFilename(
 }
 
 /**
+ * Generate avatar filename in format: platform-author.name.jpg
+ * Example: youtube-eric.cartman.jpg
+ */
+export function formatAvatarFilename(platform: string, author: string): string {
+  // Clean author name: remove symbols, replace spaces with dots, lowercase
+  const cleanAuthor = author
+    .replace(/[^\p{L}\p{N}\s]/gu, "") // Remove non-letters/numbers/spaces
+    .trim()
+    .replace(/\s+/g, ".") // Replace spaces with dots
+    .toLowerCase(); // Convert to lowercase
+
+  // Clean platform name: lowercase, remove special chars
+  const cleanPlatform = platform
+    .replace(/[^\p{L}\p{N}]/gu, "") // Remove non-letters/numbers
+    .toLowerCase();
+
+  // Use "unknown" if author is empty
+  const authorName = cleanAuthor || "unknown";
+
+  // Truncate author if too long (max 100 chars to leave room for platform prefix)
+  const maxAuthorLength = 100;
+  const finalAuthor = authorName.length > maxAuthorLength
+    ? authorName.substring(0, maxAuthorLength)
+    : authorName;
+
+  return `${cleanPlatform}-${finalAuthor}.jpg`;
+}
+
+/**
  * Generate a timestamp string for backup filenames
  * Format: YYYY-MM-DD-HH-MM-SS
  */

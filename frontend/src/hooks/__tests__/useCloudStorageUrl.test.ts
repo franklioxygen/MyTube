@@ -38,7 +38,7 @@ describe('useCloudStorageUrl', () => {
         vi.mocked(cloudStorageUtils.isCloudStoragePath).mockReturnValue(false);
         // Assuming default BACKEND_URL
         const { result } = renderHook(() => useCloudStorageUrl('/local/path.mp4'));
-        expect(result.current).toMatch(/http:\/\/localhost:5551\/local\/path.mp4/);
+        expect(result.current).toBe('/local/path.mp4');
     });
 
     it('should resolve cloud paths asynchronously', async () => {

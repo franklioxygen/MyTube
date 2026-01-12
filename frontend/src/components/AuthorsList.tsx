@@ -1,5 +1,6 @@
-import { ExpandLess, ExpandMore, Person } from '@mui/icons-material';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import {
+    Avatar,
     Collapse,
     List,
     ListItemButton,
@@ -9,9 +10,10 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Video } from '../types';
 
 interface AuthorsListProps {
@@ -39,6 +41,19 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
         }
     }, [videos]);
 
+    // Create a map of author to their avatar path (from first video with avatar)
+    const authorAvatarMap = useMemo(() => {
+        const map = new Map<string, string | null | undefined>();
+        if (videos && videos.length > 0) {
+            videos.forEach(video => {
+                if (video.author && !map.has(video.author) && video.authorAvatarPath) {
+                    map.set(video.author, video.authorAvatarPath);
+                }
+            });
+        }
+        return map;
+    }, [videos]);
+
     // Auto-collapse on mobile by default
     useEffect(() => {
         if (isMobile) {
@@ -47,6 +62,44 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
             setIsOpen(true);
         }
     }, [isMobile]);
+
+    // Component for individual author item with avatar
+    const AuthorListItem: React.FC<{
+        author: string;
+        avatarPath?: string | null;
+        onItemClick?: () => void;
+    }> = ({ author, avatarPath, onItemClick }) => {
+        const avatarUrl = useCloudStorageUrl(avatarPath, 'thumbnail');
+
+        return (
+            <ListItemButton
+                component={Link}
+                to={`/author/${encodeURIComponent(author)}`}
+                onClick={onItemClick}
+                sx={{ pl: 2, borderRadius: 1 }}
+            >
+                <Avatar
+                    src={avatarUrl || undefined}
+                    sx={{
+                        width: 24,
+                        height: 24,
+                        bgcolor: 'primary.main',
+                        mr: 1,
+                        fontSize: '0.75rem'
+                    }}
+                >
+                    {author ? author.charAt(0).toUpperCase() : 'A'}
+                </Avatar>
+                <ListItemText
+                    primary={author}
+                    primaryTypographyProps={{
+                        variant: 'body2',
+                        noWrap: true
+                    }}
+                />
+            </ListItemButton>
+        );
+    };
 
     if (!authors.length) {
         return null;
@@ -63,22 +116,12 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
             <Collapse in={isOpen} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                     {authors.map(author => (
-                        <ListItemButton
+                        <AuthorListItem
                             key={author}
-                            component={Link}
-                            to={`/author/${encodeURIComponent(author)}`}
-                            onClick={onItemClick}
-                            sx={{ pl: 2, borderRadius: 1 }}
-                        >
-                            <Person fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                            <ListItemText
-                                primary={author}
-                                primaryTypographyProps={{
-                                    variant: 'body2',
-                                    noWrap: true
-                                }}
-                            />
-                        </ListItemButton>
+                            author={author}
+                            avatarPath={authorAvatarMap.get(author)}
+                            onItemClick={onItemClick}
+                        />
                     ))}
                 </List>
             </Collapse>

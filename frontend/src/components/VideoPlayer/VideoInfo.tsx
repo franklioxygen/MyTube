@@ -114,6 +114,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     isSubscribed={isSubscribed}
                     onSubscribe={onSubscribe}
                     onUnsubscribe={onUnsubscribe}
+                    authorAvatarPath={video.authorAvatarPath}
                 />
 
                 <VideoActionButtons

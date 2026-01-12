@@ -15,7 +15,9 @@ vi.mock('../../../utils/ytDlpUtils', () => ({
     executeYtDlpSpawn: (...args: any[]) => mockExecuteYtDlpSpawn(...args),
     executeYtDlpJson: (...args: any[]) => mockExecuteYtDlpJson(...args),
     getUserYtDlpConfig: (...args: any[]) => mockGetUserYtDlpConfig(...args),
-    getNetworkConfigFromUserConfig: () => ({})
+    getNetworkConfigFromUserConfig: () => ({}),
+    getChannelUrlFromVideo: vi.fn().mockResolvedValue('https://youtube.com/channel/test'),
+    downloadChannelAvatar: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('../../../services/storageService', () => ({

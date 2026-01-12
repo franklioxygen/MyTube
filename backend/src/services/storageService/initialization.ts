@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import fs from "fs-extra";
 import {
+  AVATARS_DIR,
   DATA_DIR,
   IMAGES_DIR,
   STATUS_DATA_PATH,
@@ -19,6 +20,7 @@ export function initializeStorage(): void {
   fs.ensureDirSync(UPLOADS_DIR);
   fs.ensureDirSync(VIDEOS_DIR);
   fs.ensureDirSync(IMAGES_DIR);
+  fs.ensureDirSync(AVATARS_DIR);
   fs.ensureDirSync(SUBTITLES_DIR);
   fs.ensureDirSync(DATA_DIR);
 
@@ -147,6 +149,26 @@ export function initializeStorage(): void {
       );
       sqlite.prepare("ALTER TABLE videos ADD COLUMN description TEXT").run();
       logger.info("Migration successful: description added.");
+    }
+
+    if (!columns.includes("author_avatar_filename")) {
+      logger.info(
+        "Migrating database: Adding author_avatar_filename column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN author_avatar_filename TEXT")
+        .run();
+      logger.info("Migration successful: author_avatar_filename added.");
+    }
+
+    if (!columns.includes("author_avatar_path")) {
+      logger.info(
+        "Migrating database: Adding author_avatar_path column to videos table..."
+      );
+      sqlite
+        .prepare("ALTER TABLE videos ADD COLUMN author_avatar_path TEXT")
+        .run();
+      logger.info("Migration successful: author_avatar_path added.");
     }
 
     // Check downloads table columns

@@ -19,6 +19,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Video } from '../types';
+import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
@@ -43,6 +44,10 @@ const AuthorVideos: React.FC = () => {
         );
         setAuthorVideos(filteredVideos);
     }, [author, videos]);
+
+    // Get avatar path from first video that has an avatar
+    const authorAvatarPath = authorVideos.find(video => video.authorAvatarPath)?.authorAvatarPath;
+    const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail');
 
     const handleDeleteAuthor = async () => {
         if (!authorVideos.length) return;
@@ -190,7 +195,10 @@ const AuthorVideos: React.FC = () => {
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}>
+                    <Avatar 
+                        src={avatarUrl || undefined}
+                        sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
+                    >
                         {author ? author.charAt(0).toUpperCase() : 'A'}
                     </Avatar>
                     <Box>

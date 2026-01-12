@@ -7,6 +7,7 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import {
+  AVATARS_DIR,
   CLOUD_THUMBNAIL_CACHE_DIR,
   IMAGES_DIR,
   SUBTITLES_DIR,
@@ -110,6 +111,14 @@ const startServer = async () => {
     app.use(
       "/images",
       express.static(IMAGES_DIR, {
+        setHeaders: (res) => {
+          res.setHeader("Access-Control-Allow-Origin", "*");
+        },
+      })
+    );
+    app.use(
+      "/avatars",
+      express.static(AVATARS_DIR, {
         setHeaders: (res) => {
           res.setHeader("Access-Control-Allow-Origin", "*");
         },

@@ -37,6 +37,8 @@ export const videos = sqliteTable("videos", {
   subtitles: text("subtitles"), // JSON stringified array of subtitle objects
   channelUrl: text("channel_url"), // Author channel URL for subscriptions
   visibility: integer("visibility").default(1), // 1 = visible, 0 = hidden
+  authorAvatarFilename: text("author_avatar_filename"), // Author avatar filename
+  authorAvatarPath: text("author_avatar_path"), // Author avatar path
 });
 
 export const collections = sqliteTable("collections", {

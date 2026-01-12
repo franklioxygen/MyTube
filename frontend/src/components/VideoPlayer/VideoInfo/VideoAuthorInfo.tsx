@@ -3,6 +3,7 @@ import { Avatar, Box, IconButton, Tooltip, Typography, useMediaQuery } from '@mu
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 
 interface VideoAuthorInfoProps {
     author: string;
@@ -12,6 +13,7 @@ interface VideoAuthorInfoProps {
     isSubscribed?: boolean;
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
+    authorAvatarPath?: string;
 }
 
 // Format the date (assuming format YYYYMMDD from youtube-dl)
@@ -34,13 +36,15 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     source,
     isSubscribed,
     onSubscribe,
-    onUnsubscribe
+    onUnsubscribe,
+    authorAvatarPath
 }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !isVisitor;
+    const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail');
 
     const handleSubscribeClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -54,6 +58,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Avatar 
+                src={avatarUrl || undefined}
                 sx={{ 
                     bgcolor: 'primary.main', 
                     mr: { xs: 1, sm: 2 },

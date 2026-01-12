@@ -2,35 +2,36 @@ import fs from "fs-extra";
 import path from "path";
 import { SUBTITLES_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
+import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import { formatBytes } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
-    executeYtDlpJson,
-    executeYtDlpSpawn,
-    getAxiosProxyConfig,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
-    InvalidProxyError,
+  executeYtDlpJson,
+  executeYtDlpSpawn,
+  getAxiosProxyConfig,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { BaseDownloader } from "../BaseDownloader";
 import { prepareBilibiliDownloadFlags } from "./bilibiliConfig";
 import {
-    cleanupFilesOnCancellation,
-    cleanupTempDir,
-    createTempDir,
-    findVideoFileInTemp,
-    moveVideoFile,
-    prepareFilePaths,
-    renameFilesWithMetadata,
+  cleanupFilesOnCancellation,
+  cleanupTempDir,
+  createTempDir,
+  findVideoFileInTemp,
+  moveVideoFile,
+  prepareFilePaths,
+  renameFilesWithMetadata,
 } from "./bilibiliFileManager";
 import {
-    extractPartMetadata,
-    getFileSize,
-    getVideoDuration,
+  extractPartMetadata,
+  getFileSize,
+  getVideoDuration,
 } from "./bilibiliMetadata";
 import { downloadSubtitles } from "./bilibiliSubtitle";
 import { BilibiliVideoInfo, DownloadResult } from "./types";
@@ -97,6 +98,51 @@ export async function downloadVideo(
       new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const thumbnailUrl = info.thumbnail || null;
     const description = info.description || "";
+
+    // Try to get avatar URL from yt-dlp info first
+    let authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
+
+    // If not in yt-dlp info, get it from Bilibili API
+    if (!authorAvatarUrl) {
+      try {
+        const { extractBilibiliVideoId } = await import(
+          "../../../utils/helpers"
+        );
+        const videoId = extractBilibiliVideoId(url);
+        if (videoId) {
+          logger.info("Fetching Bilibili avatar from API for video:", videoId);
+          const axios = (await import("axios")).default;
+          const isBvId = videoId.startsWith("BV");
+          const apiUrl = isBvId
+            ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
+            : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
+                "av",
+                ""
+              )}`;
+
+          const response = await axios.get(apiUrl, {
+            headers: {
+              Referer: "https://www.bilibili.com",
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            },
+          });
+
+          if (response.data?.data?.owner?.face) {
+            authorAvatarUrl = response.data.data.owner.face;
+            logger.info("Bilibili avatar URL from API:", authorAvatarUrl);
+          }
+        }
+      } catch (apiError) {
+        logger.warn("Failed to fetch Bilibili avatar from API:", apiError);
+      }
+    }
+
+    logger.info("Bilibili avatar info:", {
+      channel_avatar: info.channel_avatar,
+      uploader_avatar: info.uploader_avatar,
+      authorAvatarUrl: authorAvatarUrl,
+    });
 
     // Prepare output path with a safe filename to avoid issues with special characters
     // Use a simple template that yt-dlp will fill in
@@ -282,6 +328,56 @@ export async function downloadVideo(
       );
     }
 
+    // Download and process author avatar
+    let authorAvatarSaved = false;
+    let authorAvatarFilename: string | undefined = undefined;
+    let authorAvatarPath: string | undefined = undefined;
+    const platform = "bilibili";
+    let authorAvatarPathResult: string | null = null;
+
+    if (authorAvatarUrl) {
+      logger.info("Downloading Bilibili author avatar from URL:", {
+        url: authorAvatarUrl,
+        author: videoAuthor,
+        platform: platform,
+      });
+
+      let axiosConfig = {};
+      if (userConfig.proxy) {
+        try {
+          axiosConfig = getAxiosProxyConfig(userConfig.proxy);
+        } catch (error) {
+          if (error instanceof InvalidProxyError) {
+            logger.warn(
+              "Invalid proxy configuration for avatar download, proceeding without proxy:",
+              error.message
+            );
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      const downloader = new BilibiliDownloaderHelper();
+      authorAvatarPathResult = await downloadAndProcessAvatar(
+        authorAvatarUrl,
+        platform,
+        videoAuthor,
+        downloader.downloadThumbnailPublic.bind(downloader),
+        axiosConfig
+      );
+      authorAvatarSaved = authorAvatarPathResult !== null;
+    } else {
+      logger.info(
+        "No Bilibili author avatar URL available, skipping avatar download"
+      );
+    }
+
+    if (authorAvatarPathResult) {
+      authorAvatarFilename = path.basename(authorAvatarPathResult);
+      authorAvatarPath = `/avatars/${authorAvatarFilename}`;
+    }
+
     return {
       title: videoTitle,
       author: videoAuthor,
@@ -289,6 +385,10 @@ export async function downloadVideo(
       thumbnailUrl: thumbnailUrl,
       thumbnailSaved,
       description,
+      authorAvatarUrl: authorAvatarUrl || null,
+      authorAvatarSaved,
+      authorAvatarFilename: authorAvatarFilename,
+      authorAvatarPath: authorAvatarPath,
     };
   } catch (error: any) {
     logger.error("Error in downloadBilibiliVideo:", error);
@@ -349,7 +449,11 @@ export async function downloadSinglePart(
       videoDate,
       videoDescription,
       thumbnailUrl,
-      thumbnailSaved;
+      thumbnailSaved,
+      authorAvatarUrl,
+      authorAvatarSaved,
+      authorAvatarFilename,
+      authorAvatarPath;
 
     // Download Bilibili video
     let bilibiliInfo: BilibiliVideoInfo;
@@ -393,6 +497,10 @@ export async function downloadSinglePart(
     videoDescription = bilibiliInfo.description || "";
     thumbnailUrl = bilibiliInfo.thumbnailUrl;
     thumbnailSaved = bilibiliInfo.thumbnailSaved;
+    authorAvatarUrl = bilibiliInfo.authorAvatarUrl || null;
+    authorAvatarSaved = bilibiliInfo.authorAvatarSaved || false;
+    authorAvatarFilename = bilibiliInfo.authorAvatarFilename;
+    authorAvatarPath = bilibiliInfo.authorAvatarPath;
 
     // Check if download was cancelled before processing files
     const downloader = new BilibiliDownloaderHelper();
@@ -528,6 +636,10 @@ export async function downloadSinglePart(
       duration: duration,
       fileSize: fileSize,
       channelUrl: channelUrl || undefined,
+      authorAvatarFilename: authorAvatarSaved
+        ? authorAvatarFilename
+        : undefined,
+      authorAvatarPath: authorAvatarSaved ? authorAvatarPath : undefined,
       addedAt: new Date().toISOString(),
       partNumber: partNumber,
       totalParts: totalParts,
@@ -569,6 +681,12 @@ export async function downloadSinglePart(
           fileSize: fileSize,
           title: videoData.title, // Update title in case it changed
           description: videoData.description, // Update description in case it changed
+          authorAvatarFilename: authorAvatarSaved
+            ? authorAvatarFilename
+            : existingVideo.authorAvatarFilename,
+          authorAvatarPath: authorAvatarSaved
+            ? authorAvatarPath
+            : existingVideo.authorAvatarPath,
         });
 
         if (updatedVideo) {
