@@ -47,6 +47,30 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
 - **Task Hooks**: Execute custom shell scripts at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
+- **Browser Extension**: A Chrome extension to download videos directly from your browser. Supports all yt-dlp supported sites.
+
+## Browser Extension
+
+The project includes a Chrome Extension for easier downloading.
+
+### Features
+- One-click download button on video websites.
+- "Download Current Page" button for all other supported sites.
+- Connection testing to verify server accessibility.
+
+### Installation
+1. Navigate to the `chrome-extension` directory.
+2. Install dependencies and build:
+   ```bash
+   cd chrome-extension
+   npm install
+   npm run build
+   ```
+3. Open Chrome and navigate to `chrome://extensions/`.
+4. Enable "Developer mode".
+5. Click "Load unpacked" and select the `chrome-extension` directory.
+
+For more details, see [Chrome Extension Documentation](chrome-extension/README.md).
 
 ## Directory Structure
 

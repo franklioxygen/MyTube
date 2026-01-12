@@ -47,6 +47,30 @@
 - **云存储集成**：下载后自动将视频和缩略图上传到云存储（OpenList/Alist）。
 - **Cloudflare Tunnel 集成**: 内置 Cloudflare Tunnel 支持，无需端口转发即可轻松将本地 MyTube 实例暴露到互联网。
 - **任务钩子**: 在下载任务的各个阶段（开始、成功、失败、取消）执行自定义 Shell 脚本，以实现集成和自动化。详见 [任务钩子指南](documents/zh/hooks-guide.md)。
+- **浏览器扩展**: 提供 Chrome 扩展，支持直接从浏览器下载视频。支持所有 yt-dlp 支持的站点。
+
+## 浏览器扩展
+
+本项目包含一个 Chrome 扩展，让下载更加便捷。
+
+### 功能
+- 在视频网站上提供一键下载按钮。
+- 在其他支持的站点上提供“下载当前页面”按钮。
+- 连接测试功能，验证服务器是否可访问。
+
+### 安装
+1. 进入 `chrome-extension` 目录。
+2. 安装依赖并构建：
+   ```bash
+   cd chrome-extension
+   npm install
+   npm run build
+   ```
+3. 打开 Chrome 浏览器并访问 `chrome://extensions/`。
+4. 启用“开发者模式” (Developer mode)。
+5. 点击“加载已解压的扩展程序” (Load unpacked)，选择 `chrome-extension` 目录。
+
+更多详情，请参阅 [Chrome 扩展文档](chrome-extension/README.md)。
 
 ## 目录结构
 
