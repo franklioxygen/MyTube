@@ -2,6 +2,15 @@
 
 
 
+## v1.7.55 (2026-01-12)
+
+### Feat
+
+- feat: Add retry logic and timeout handling to getCloudStorageSignedUrl (7bd6718)
+- feat: Add AuthorListItem memoization for performance (72bac4f)
+- feat: download authors avatar (3ce517a)
+- feat: Add Chrome extension for easier video downloading (2656648)
+
 ## v1.7.54 (2026-01-11)
 
 ### Feat
