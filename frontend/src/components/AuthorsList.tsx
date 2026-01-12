@@ -10,7 +10,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
@@ -20,6 +20,54 @@ interface AuthorsListProps {
     videos: Video[];
     onItemClick?: () => void;
 }
+
+interface AuthorListItemProps {
+    author: string;
+    avatarPath?: string | null;
+    onItemClick?: () => void;
+}
+
+// Memoized component to prevent unnecessary re-renders
+const AuthorListItem: React.FC<AuthorListItemProps> = React.memo(({ author, avatarPath, onItemClick }) => {
+    const avatarUrl = useCloudStorageUrl(avatarPath, 'thumbnail');
+
+    return (
+        <ListItemButton
+            component={Link}
+            to={`/author/${encodeURIComponent(author)}`}
+            onClick={onItemClick}
+            sx={{ pl: 2, borderRadius: 1 }}
+        >
+            <Avatar
+                src={avatarUrl || undefined}
+                sx={{
+                    width: 24,
+                    height: 24,
+                    bgcolor: 'primary.main',
+                    mr: 1,
+                    fontSize: '0.75rem'
+                }}
+            >
+                {author ? author.charAt(0).toUpperCase() : 'A'}
+            </Avatar>
+            <ListItemText
+                primary={author}
+                primaryTypographyProps={{
+                    variant: 'body2',
+                    noWrap: true
+                }}
+            />
+        </ListItemButton>
+    );
+}, (prevProps, nextProps) => {
+    // Custom comparison function for React.memo
+    // Only re-render if author or avatarPath changes
+    return prevProps.author === nextProps.author &&
+           prevProps.avatarPath === nextProps.avatarPath &&
+           prevProps.onItemClick === nextProps.onItemClick;
+});
+
+AuthorListItem.displayName = 'AuthorListItem';
 
 const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
     const { t } = useLanguage();
@@ -62,44 +110,6 @@ const AuthorsList: React.FC<AuthorsListProps> = ({ videos, onItemClick }) => {
             setIsOpen(true);
         }
     }, [isMobile]);
-
-    // Component for individual author item with avatar
-    const AuthorListItem: React.FC<{
-        author: string;
-        avatarPath?: string | null;
-        onItemClick?: () => void;
-    }> = ({ author, avatarPath, onItemClick }) => {
-        const avatarUrl = useCloudStorageUrl(avatarPath, 'thumbnail');
-
-        return (
-            <ListItemButton
-                component={Link}
-                to={`/author/${encodeURIComponent(author)}`}
-                onClick={onItemClick}
-                sx={{ pl: 2, borderRadius: 1 }}
-            >
-                <Avatar
-                    src={avatarUrl || undefined}
-                    sx={{
-                        width: 24,
-                        height: 24,
-                        bgcolor: 'primary.main',
-                        mr: 1,
-                        fontSize: '0.75rem'
-                    }}
-                >
-                    {author ? author.charAt(0).toUpperCase() : 'A'}
-                </Avatar>
-                <ListItemText
-                    primary={author}
-                    primaryTypographyProps={{
-                        variant: 'body2',
-                        noWrap: true
-                    }}
-                />
-            </ListItemButton>
-        );
-    };
 
     if (!authors.length) {
         return null;
