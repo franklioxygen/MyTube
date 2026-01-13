@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "MyTube Downloader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "One-click download videos from yt-dlp supported sites to MyTube",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

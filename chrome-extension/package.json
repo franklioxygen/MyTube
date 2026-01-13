@@ -1,6 +1,6 @@
 {
   "name": "mytube-chrome-extension",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MyTube Chrome Extension",
   "scripts": {
     "build": "tsc && node -e \"const fs = require('fs'); ['popup.js', 'options.js', 'types.js'].forEach(f => { if (fs.existsSync(f)) { const content = fs.readFileSync(f, 'utf8'); fs.writeFileSync(f, content.replace(/^export \\{\\};?\\s*$/gm, '')); } });\" && node -e \"const fs = require('fs'); if (fs.existsSync('types.js') && fs.readFileSync('types.js', 'utf8').trim() === '') fs.unlinkSync('types.js');\"",
