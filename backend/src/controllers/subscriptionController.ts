@@ -1,9 +1,17 @@
 import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
+import { checkPlaylist } from "../services/downloadService";
+import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
+import { isBilibiliUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
+import {
+  executeYtDlpJson,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+} from "../utils/ytDlpUtils";
 
 /**
  * Create a new subscription
@@ -193,12 +201,14 @@ export const createPlaylistSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { playlistUrl, interval, collectionName, downloadAll } = req.body;
+  const { playlistUrl, interval, collectionName, downloadAll, collectionInfo } =
+    req.body;
   logger.info("Creating playlist subscription:", {
     playlistUrl,
     interval,
     collectionName,
     downloadAll,
+    collectionInfo,
   });
 
   if (!playlistUrl || !interval || !collectionName) {
@@ -208,37 +218,116 @@ export const createPlaylistSubscription = async (
     );
   }
 
-  // Check if it's a valid playlist URL
-  const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-  const playlistMatch = playlistUrl.match(playlistRegex);
-  if (!playlistMatch) {
-    throw new ValidationError(
-      "URL does not contain a playlist parameter",
-      "playlistUrl"
+  // Detect platform
+  const isBilibili = isBilibiliUrl(playlistUrl);
+  const platform = isBilibili ? "Bilibili" : "YouTube";
+
+  // Validate playlist URL format based on platform
+  let playlistId: string | null = null;
+  let playlistTitle: string = collectionName;
+  let videoCount: number = 0;
+
+  // For Bilibili collection/series, use collectionInfo if provided
+  if (
+    isBilibili &&
+    collectionInfo &&
+    (collectionInfo.type === "collection" || collectionInfo.type === "series")
+  ) {
+    // Skip checkPlaylist validation for Bilibili collections/series
+    // Use the collectionInfo directly
+    playlistId = collectionInfo.id?.toString() || null;
+    playlistTitle = collectionInfo.title || collectionName;
+    videoCount = collectionInfo.count || 0;
+    logger.info(
+      `Using Bilibili ${collectionInfo.type} info: ${playlistTitle} (${videoCount} videos)`
     );
+  } else if (isBilibili) {
+    // For Bilibili playlists (not collections), try to validate with checkPlaylist
+    // For Bilibili, yt-dlp handles playlist URLs differently
+    playlistId = null; // Will be extracted from playlist info if available
+  } else {
+    // For YouTube, check for list parameter
+    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+    const playlistMatch = playlistUrl.match(playlistRegex);
+    if (!playlistMatch) {
+      throw new ValidationError(
+        "YouTube URL must contain a playlist parameter (list=)",
+        "playlistUrl"
+      );
+    }
+    playlistId = playlistMatch[1];
   }
-  const playlistId = playlistMatch[1];
 
-  // Get playlist info
-  const { checkPlaylist } = await import("../services/downloadService");
-  const playlistInfo = await checkPlaylist(playlistUrl);
+  // Get playlist info (skip if we already have collectionInfo for Bilibili)
+  let playlistInfo: {
+    success: boolean;
+    title?: string;
+    videoCount?: number;
+    error?: string;
+  };
 
-  if (!playlistInfo.success) {
-    throw new ValidationError(
-      playlistInfo.error || "Failed to get playlist information",
-      "playlistUrl"
-    );
+  if (
+    isBilibili &&
+    collectionInfo &&
+    (collectionInfo.type === "collection" || collectionInfo.type === "series")
+  ) {
+    // Use collectionInfo instead of calling checkPlaylist
+    playlistInfo = {
+      success: true,
+      title: playlistTitle,
+      videoCount: videoCount,
+    };
+  } else {
+    // Get playlist info (this validates the playlist for both platforms)
+    playlistInfo = await checkPlaylist(playlistUrl);
+
+    if (!playlistInfo.success) {
+      throw new ValidationError(
+        playlistInfo.error || "Failed to get playlist information",
+        "playlistUrl"
+      );
+    }
+
+    playlistTitle = playlistInfo.title || collectionName;
+    videoCount = playlistInfo.videoCount || 0;
+  }
+
+  // Extract playlist ID from yt-dlp info if not already extracted (for Bilibili)
+  if (!playlistId && isBilibili) {
+    try {
+      const userConfig = getUserYtDlpConfig(playlistUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      const info = await executeYtDlpJson(playlistUrl, {
+        ...networkConfig,
+        noWarnings: true,
+        flatPlaylist: true,
+        playlistEnd: 1,
+      });
+
+      // Try to extract playlist ID from Bilibili playlist info
+      if (info.id) {
+        playlistId = info.id;
+      } else if (info.extractor_key === "bilibili:playlist") {
+        // For Bilibili playlists, the ID might be in the URL or extractor info
+        playlistId = info.playlist_id || info.id || null;
+      }
+    } catch (error) {
+      logger.warn(
+        "Could not extract playlist ID, continuing without it:",
+        error
+      );
+    }
   }
 
   // Create or find collection
-  const storageService = await import("../services/storageService");
-  
   // First, try to find existing collection by name
   let collection = storageService.getCollectionByName(collectionName);
-  
+
   if (!collection) {
     // Create new collection
-    const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
+    const uniqueCollectionName =
+      storageService.generateUniqueCollectionName(collectionName);
     collection = {
       id: Date.now().toString(),
       name: uniqueCollectionName,
@@ -247,26 +336,19 @@ export const createPlaylistSubscription = async (
       title: uniqueCollectionName,
     };
     storageService.saveCollection(collection);
-    logger.info(`Created collection "${uniqueCollectionName}" with ID ${collection.id}`);
+    logger.info(
+      `Created collection "${uniqueCollectionName}" with ID ${collection.id}`
+    );
   } else {
-    logger.info(`Using existing collection "${collection.name}" with ID ${collection.id}`);
+    logger.info(
+      `Using existing collection "${collection.name}" with ID ${collection.id}`
+    );
   }
 
   // Extract author from playlist
   let author = "Playlist Author";
-  let platform = "YouTube";
-
-  if (playlistUrl.includes("bilibili.com")) {
-    platform = "Bilibili";
-  }
 
   try {
-    const {
-      executeYtDlpJson,
-      getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
-    } = await import("../utils/ytDlpUtils");
-
     const userConfig = getUserYtDlpConfig(playlistUrl);
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
@@ -290,15 +372,18 @@ export const createPlaylistSubscription = async (
       author = info.channel;
     }
   } catch (error) {
-    logger.warn("Could not extract author from playlist, using default:", error);
+    logger.warn(
+      "Could not extract author from playlist, using default:",
+      error
+    );
   }
 
   // Create subscription
   const subscription = await subscriptionService.subscribePlaylist(
     playlistUrl,
     parseInt(interval),
-    playlistInfo.title || collectionName,
-    playlistId,
+    playlistTitle,
+    playlistId || "",
     author,
     platform,
     collection.id
@@ -348,17 +433,30 @@ export const createPlaylistTask = async (
   });
 
   if (!playlistUrl || !collectionName) {
-    throw new ValidationError("Playlist URL and collection name are required", "body");
+    throw new ValidationError(
+      "Playlist URL and collection name are required",
+      "body"
+    );
   }
 
-  // Check if it's a valid playlist URL
-  const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-  if (!playlistRegex.test(playlistUrl)) {
-    throw new ValidationError("URL does not contain a playlist parameter", "playlistUrl");
+  // Detect platform
+  const isBilibili = isBilibiliUrl(playlistUrl);
+  const platform = isBilibili ? "Bilibili" : "YouTube";
+
+  // Validate playlist URL format based on platform
+  if (!isBilibili) {
+    // For YouTube, check for list parameter
+    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+    if (!playlistRegex.test(playlistUrl)) {
+      throw new ValidationError(
+        "YouTube URL must contain a playlist parameter (list=)",
+        "playlistUrl"
+      );
+    }
   }
+  // For Bilibili, we'll rely on checkPlaylist to validate
 
   // Get playlist info to determine author and platform
-  const { checkPlaylist } = await import("../services/downloadService");
   const playlistInfo = await checkPlaylist(playlistUrl);
 
   if (!playlistInfo.success) {
@@ -369,8 +467,8 @@ export const createPlaylistTask = async (
   }
 
   // Create collection first - ensure unique name
-  const storageService = await import("../services/storageService");
-  const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
+  const uniqueCollectionName =
+    storageService.generateUniqueCollectionName(collectionName);
   const newCollection = {
     id: Date.now().toString(),
     name: uniqueCollectionName,
@@ -379,20 +477,18 @@ export const createPlaylistTask = async (
     title: uniqueCollectionName,
   };
   storageService.saveCollection(newCollection);
-  logger.info(`Created collection "${uniqueCollectionName}" with ID ${newCollection.id}`);
+  logger.info(
+    `Created collection "${uniqueCollectionName}" with ID ${newCollection.id}`
+  );
 
   // Extract author from playlist (try to get from first video or use default)
   let author = "Playlist Author";
-  let platform = "YouTube";
 
   try {
-    const {
-      executeYtDlpJson,
-      getNetworkConfigFromUserConfig,
-      getUserYtDlpConfig,
-    } = await import("../utils/ytDlpUtils");
-    const { getProviderScript } = await import("../services/downloaders/ytdlp/ytdlpHelpers");
-    
+    const { getProviderScript } = await import(
+      "../services/downloaders/ytdlp/ytdlpHelpers"
+    );
+
     const userConfig = getUserYtDlpConfig(playlistUrl);
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
     const PROVIDER_SCRIPT = getProviderScript();
@@ -419,7 +515,10 @@ export const createPlaylistTask = async (
       author = info.uploader;
     }
   } catch (error) {
-    logger.warn("Could not extract author from playlist, using default:", error);
+    logger.warn(
+      "Could not extract author from playlist, using default:",
+      error
+    );
   }
 
   // Create continuous download task with collection ID

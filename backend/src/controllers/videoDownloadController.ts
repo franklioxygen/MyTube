@@ -592,7 +592,7 @@ export const checkBilibiliCollection = async (
 };
 
 /**
- * Check if URL is a YouTube playlist
+ * Check if URL is a playlist (supports YouTube and Bilibili)
  * Errors are automatically handled by asyncHandler middleware
  */
 export const checkPlaylist = async (
@@ -607,15 +607,15 @@ export const checkPlaylist = async (
 
   const playlistUrl = url as string;
 
-  // Check if it's a YouTube URL with playlist parameter
-  if (!playlistUrl.includes("youtube.com") && !playlistUrl.includes("youtu.be")) {
-    throw new ValidationError("Not a valid YouTube URL", "url");
+  // For YouTube, validate that it has a playlist parameter
+  if (playlistUrl.includes("youtube.com") || playlistUrl.includes("youtu.be")) {
+    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+    if (!playlistRegex.test(playlistUrl)) {
+      throw new ValidationError("YouTube URL must contain a playlist parameter (list=)", "url");
+    }
   }
-
-  const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-  if (!playlistRegex.test(playlistUrl)) {
-    throw new ValidationError("URL does not contain a playlist parameter", "url");
-  }
+  // For Bilibili and other platforms, let checkPlaylist service function validate
+  // (it uses yt-dlp which can handle various playlist formats)
 
   try {
     const result = await downloadService.checkPlaylist(playlistUrl);

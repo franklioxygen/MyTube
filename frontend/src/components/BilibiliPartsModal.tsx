@@ -161,8 +161,8 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                     />
                 </Box>
 
-                {/* Playlist subscription option - only show for playlist type */}
-                {type === 'playlist' && (
+                {/* Subscription option - show for playlist, collection, and series types */}
+                {(type === 'playlist' || type === 'collection' || type === 'series') && (
                     <Box sx={{ mt: 3 }}>
                         <FormControlLabel
                             control={
@@ -209,7 +209,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                     variant="contained"
                     color="primary"
                 >
-                    {subscribeToPlaylist && type === 'playlist' 
+                    {subscribeToPlaylist && (type === 'playlist' || type === 'collection' || type === 'series')
                         ? t('downloadAndSubscribe') 
                         : getDownloadAllButtonText()}
                 </Button>

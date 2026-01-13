@@ -110,6 +110,7 @@ export class VideoUrlFetcher {
 
   /**
    * Get Bilibili video URLs (all or incremental)
+   * Supports both space URLs and collection/series URLs
    */
   private async getBilibiliVideoUrls(
     authorUrl: string,
@@ -117,11 +118,53 @@ export class VideoUrlFetcher {
     batchSize?: number
   ): Promise<string[]> {
     const videoUrls: string[] = [];
-    const { extractBilibiliMid } = await import("../../utils/helpers");
-    const mid = extractBilibiliMid(authorUrl);
+    const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
+    const { checkBilibiliCollectionOrSeries } = await import("../../services/downloadService");
+    const { getCollectionVideos, getSeriesVideos } = await import("../../services/downloaders/bilibili/bilibiliCollection");
+    
+    // First, try to extract mid from space URL
+    let mid = extractBilibiliMid(authorUrl);
 
+    // If not a space URL, check if it's a video URL that belongs to a collection
     if (!mid) {
-      throw new Error("Invalid Bilibili space URL");
+      const videoId = extractBilibiliVideoId(authorUrl);
+      if (videoId) {
+        // Check if this video belongs to a collection or series
+        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId);
+        if (collectionInfo.success && collectionInfo.type !== "none" && collectionInfo.mid && collectionInfo.id) {
+          // It's a collection or series, use the collection API
+          logger.info(`Detected Bilibili ${collectionInfo.type} from video URL, using collection API`);
+          let videosResult;
+          if (collectionInfo.type === "collection") {
+            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
+          } else if (collectionInfo.type === "series") {
+            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+          } else {
+            throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
+          }
+
+          if (videosResult.success && videosResult.videos.length > 0) {
+            // Convert Bilibili video items to URLs
+            for (const video of videosResult.videos) {
+              if (video.bvid) {
+                videoUrls.push(`https://www.bilibili.com/video/${video.bvid}`);
+              }
+            }
+            
+            // Apply startIndex and batchSize if specified
+            if (startIndex > 0 || batchSize) {
+              const endIndex = batchSize ? startIndex + batchSize : videoUrls.length;
+              return videoUrls.slice(startIndex, endIndex);
+            }
+            return videoUrls;
+          } else {
+            throw new Error(`Failed to get videos from ${collectionInfo.type}`);
+          }
+        }
+      }
+      
+      // If we still don't have a mid, it's an invalid URL
+      throw new Error("Invalid Bilibili space URL or collection URL");
     }
 
     const {

@@ -350,31 +350,34 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
             const isPlaylist = bilibiliPartsInfo.type === 'playlist';
+            const isSubscribable = isPlaylist || isCollection; // Both playlists and collections/series can be subscribed
 
-            // Handle playlist differently - create subscription and/or continuous download task
-            if (isPlaylist) {
-                // If subscribing to playlist, use the subscription endpoint
-                if (subscribeInfo) {
-                    const response = await axios.post(`${API_URL}/subscriptions/playlist`, {
-                        playlistUrl: bilibiliPartsInfo.url,
-                        interval: subscribeInfo.interval,
-                        collectionName: collectionName || bilibiliPartsInfo.title,
-                        downloadAll: true
-                    });
+            // Handle playlist/collection/subscription - create subscription and/or download task
+            if (isSubscribable && subscribeInfo) {
+                // If subscribing, use the subscription endpoint (works for both playlists and collections)
+                const response = await axios.post(`${API_URL}/subscriptions/playlist`, {
+                    playlistUrl: bilibiliPartsInfo.url,
+                    interval: subscribeInfo.interval,
+                    collectionName: collectionName || bilibiliPartsInfo.title,
+                    downloadAll: true,
+                    // Include collectionInfo for Bilibili collections/series
+                    collectionInfo: isCollection ? bilibiliPartsInfo.collectionInfo : undefined
+                });
 
-                    // Trigger immediate status check
-                    checkBackendDownloadStatus();
+                // Trigger immediate status check
+                checkBackendDownloadStatus();
 
-                    // If a collection was created, refresh collections
-                    if (response.data.collectionId) {
-                        await fetchCollections();
-                    }
-
-                    showSnackbar(t('playlistSubscribedSuccessfully'));
-                    return { success: true };
+                // If a collection was created, refresh collections
+                if (response.data.collectionId) {
+                    await fetchCollections();
                 }
 
-                // Otherwise, just create a continuous download task without subscription
+                showSnackbar(t('playlistSubscribedSuccessfully'));
+                return { success: true };
+            }
+
+            // Handle playlist without subscription - create continuous download task
+            if (isPlaylist) {
                 const response = await axios.post(`${API_URL}/subscriptions/tasks/playlist`, {
                     playlistUrl: bilibiliPartsInfo.url,
                     collectionName: collectionName || bilibiliPartsInfo.title
@@ -392,6 +395,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 return { success: true };
             }
 
+            // Handle collection/series without subscription - regular download
             const response = await axios.post(`${API_URL}/download`, {
                 youtubeUrl: bilibiliPartsInfo.url,
                 downloadAllParts: !isCollection, // Only set this for multi-part videos
