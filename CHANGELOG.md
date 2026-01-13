@@ -2,6 +2,17 @@
 
 
 
+## v1.7.56 (2026-01-13)
+
+### Feat
+
+- feat: Add support for Bilibili collections/series URLs (a3f6d9e)
+- feat: Subscribe to playlist with download option (53d12ab)
+
+### Style
+
+- style: Improve padding and margins for tab view on SettingsPage (9ccbf2d)
+
 ## v1.7.55 (2026-01-12)
 
 ### Feat
