@@ -583,6 +583,14 @@ export const en = {
   taskResumed: "Task resumed",
   viaSubscription: "via Subscription",
   viaContinuousDownload: "via Continuous Download",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "Subscribe to this playlist",
+  subscribePlaylistDescription: "Automatically check for new videos added to this playlist",
+  playlistSubscribedSuccessfully: "Subscribed to playlist successfully",
+  downloadAndSubscribe: "Download All & Subscribe",
+  playlistSubscription: "Playlist",
+
   // Instruction Page
   instructionSection1Title: "1. Download & Task Management",
   instructionSection1Desc:

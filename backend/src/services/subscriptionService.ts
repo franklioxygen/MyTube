@@ -26,6 +26,12 @@ export interface Subscription {
 
   platform: string;
   paused?: number;
+  
+  // Playlist subscription fields
+  playlistId?: string;
+  playlistTitle?: string;
+  subscriptionType?: string; // 'author' or 'playlist'
+  collectionId?: string;
 }
 
 export class SubscriptionService {
@@ -220,6 +226,52 @@ export class SubscriptionService {
     return newSubscription;
   }
 
+  /**
+   * Subscribe to a playlist to automatically download new videos
+   */
+  async subscribePlaylist(
+    playlistUrl: string,
+    interval: number,
+    playlistTitle: string,
+    playlistId: string,
+    author: string,
+    platform: string,
+    collectionId: string
+  ): Promise<Subscription> {
+    // Check if already subscribed to this playlist
+    const existing = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.authorUrl, playlistUrl));
+    if (existing.length > 0) {
+      throw DuplicateError.subscription();
+    }
+
+    // Create display name as "playlistTitle - author"
+    const displayName = `${playlistTitle} - ${author}`;
+
+    const newSubscription: Subscription = {
+      id: uuidv4(),
+      author: displayName,
+      authorUrl: playlistUrl,
+      interval,
+      lastVideoLink: "",
+      lastCheck: Date.now(),
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform,
+      paused: 0,
+      playlistId,
+      playlistTitle,
+      subscriptionType: "playlist",
+      collectionId,
+    };
+
+    await db.insert(subscriptions).values(newSubscription);
+    logger.info(`Created playlist subscription: ${displayName} (${platform})`);
+    return newSubscription;
+  }
+
   async unsubscribe(id: string): Promise<void> {
     // Verify subscription exists before deletion
     const existing = await db
@@ -342,11 +394,11 @@ export class SubscriptionService {
             `Checking subscription for ${sub.author} (${sub.platform})...`
           );
 
-          // 1. Fetch latest video link based on platform
-          const latestVideoUrl = await this.getLatestVideoUrl(
-            sub.authorUrl,
-            sub.platform
-          );
+          // 1. Fetch latest video link based on platform and subscription type
+          const isPlaylistSubscription = sub.subscriptionType === "playlist";
+          const latestVideoUrl = isPlaylistSubscription
+            ? await this.getLatestPlaylistVideoUrl(sub.authorUrl, sub.platform)
+            : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
 
           if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
             console.log(`New video found for ${sub.author}: ${latestVideoUrl}`);
@@ -403,6 +455,22 @@ export class SubscriptionService {
                 videoId: videoData.id,
                 subscriptionId: sub.id,
               });
+
+              // For playlist subscriptions, add video to the associated collection
+              if (isPlaylistSubscription && sub.collectionId && videoData.id) {
+                try {
+                  storageService.addVideoToCollection(sub.collectionId, videoData.id);
+                  logger.info(
+                    `Added video ${videoData.id} to collection ${sub.collectionId} from playlist subscription`
+                  );
+                } catch (collectionError) {
+                  logger.error(
+                    `Error adding video to collection ${sub.collectionId}:`,
+                    collectionError
+                  );
+                  // Don't fail the subscription check if collection add fails
+                }
+              }
 
               // 4. Update subscription record with new video link and stats on success
               // Re-verify subscription exists before final update (race condition protection)
@@ -518,6 +586,54 @@ export class SubscriptionService {
 
     // Default to YouTube/yt-dlp
     return await YtDlpDownloader.getLatestVideoUrl(channelUrl);
+  }
+
+  /**
+   * Get the latest video URL from a playlist
+   * For playlists, we check the first video (newest) in the playlist
+   */
+  private async getLatestPlaylistVideoUrl(
+    playlistUrl: string,
+    platform?: string
+  ): Promise<string | null> {
+    try {
+      const {
+        executeYtDlpJson,
+        getNetworkConfigFromUserConfig,
+        getUserYtDlpConfig,
+      } = await import("../utils/ytDlpUtils");
+      const userConfig = getUserYtDlpConfig(playlistUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+      // Get the first video from the playlist
+      const info = await executeYtDlpJson(playlistUrl, {
+        ...networkConfig,
+        noWarnings: true,
+        flatPlaylist: true,
+        playlistEnd: 1,
+      });
+
+      if (info.entries && info.entries.length > 0) {
+        const firstVideo = info.entries[0];
+        if (firstVideo.url) {
+          return firstVideo.url;
+        }
+        if (firstVideo.id) {
+          // Construct URL from ID
+          if (platform === "YouTube") {
+            return `https://www.youtube.com/watch?v=${firstVideo.id}`;
+          }
+          if (platform === "Bilibili") {
+            return `https://www.bilibili.com/video/${firstVideo.id}`;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error("Error getting latest playlist video:", error);
+      return null;
+    }
   }
 }
 

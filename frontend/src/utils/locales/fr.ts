@@ -525,6 +525,14 @@ export const fr = {
   taskResumed: "Tâche reprise",
   viaSubscription: "via Abonnement",
   viaContinuousDownload: "via Téléchargement continu",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "S'abonner à cette playlist",
+  subscribePlaylistDescription: "Vérifier automatiquement les nouvelles vidéos ajoutées à cette playlist",
+  playlistSubscribedSuccessfully: "Abonnement à la playlist réussi",
+  downloadAndSubscribe: "Tout télécharger et s'abonner",
+  playlistSubscription: "Playlist",
+
   // Instruction Page
   instructionSection1Title: "1. Téléchargement et Gestion des Tâches",
   instructionSection1Desc: "Ce module comprend l'acquisition de vidéos, les tâches par lots et les fonctions d'importation de fichiers.",

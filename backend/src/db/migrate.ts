@@ -1,30 +1,50 @@
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import path from "path";
 import fs from "fs-extra";
+import path from "path";
 import { ROOT_DIR } from "../config/paths";
 import { configureDatabase, db, sqlite } from "./index";
 
 export async function runMigrations() {
   try {
     console.log("Running database migrations...");
-    
+
     // For network filesystems (NFS/SMB), add a small delay to ensure
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
     const dbPath = path.join(ROOT_DIR, "data", "mytube.db");
     if (!fs.existsSync(dbPath)) {
-      console.log("Database file does not exist yet, waiting for file system sync...");
+      console.log(
+        "Database file does not exist yet, waiting for file system sync..."
+      );
       await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
     }
-    
+
     // In production/docker, the drizzle folder is copied to the root or src/drizzle
     // We need to find where it is.
     // Based on Dockerfile: COPY . . -> it should be at /app/drizzle
 
     const migrationsFolder = path.join(ROOT_DIR, "drizzle");
 
-    migrate(db, { migrationsFolder });
-    console.log("Database migrations completed successfully.");
+    try {
+      migrate(db, { migrationsFolder });
+      console.log("Database migrations completed successfully.");
+    } catch (migrationError: any) {
+      // Handle duplicate column errors gracefully
+      // This can happen if migrations were manually applied or if columns already exist
+      if (
+        migrationError?.cause?.code === "SQLITE_ERROR" &&
+        migrationError?.cause?.message?.includes("duplicate column name")
+      ) {
+        console.warn(
+          "Migration encountered duplicate column (may have been applied manually).",
+          "Columns will be verified by initialization.ts"
+        );
+        // Don't throw - let initialization.ts handle missing columns
+      } else {
+        // Re-throw other migration errors
+        throw migrationError;
+      }
+    }
 
     // Re-apply database configuration after migration
     // This ensures journal_mode is set to DELETE even if migration changed it

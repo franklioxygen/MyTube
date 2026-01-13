@@ -2,11 +2,13 @@ import { Close } from '@mui/icons-material';
 import {
     Box,
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControlLabel,
     IconButton,
     TextField,
     Typography
@@ -19,7 +21,7 @@ interface BilibiliPartsModalProps {
     onClose: () => void;
     videosNumber: number;
     videoTitle: string;
-    onDownloadAll: (collectionName: string) => void;
+    onDownloadAll: (collectionName: string, subscribeInfo?: { interval: number }) => void;
     onDownloadCurrent: () => void;
     isLoading: boolean;
     type?: 'parts' | 'collection' | 'series' | 'playlist';
@@ -37,9 +39,19 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
 }) => {
     const { t } = useLanguage();
     const [collectionName, setCollectionName] = useState<string>('');
+    const [subscribeToPlaylist, setSubscribeToPlaylist] = useState<boolean>(false);
+    const [subscriptionInterval, setSubscriptionInterval] = useState<number>(60);
 
     const handleDownloadAll = () => {
-        onDownloadAll(collectionName || videoTitle);
+        const subscribeInfo = subscribeToPlaylist ? { interval: subscriptionInterval } : undefined;
+        onDownloadAll(collectionName || videoTitle, subscribeInfo);
+    };
+
+    // Reset state when modal closes
+    const handleClose = () => {
+        setSubscribeToPlaylist(false);
+        setSubscriptionInterval(60);
+        onClose();
     };
 
     // Dynamic text based on type
@@ -102,7 +114,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
     return (
         <Dialog
             open={isOpen}
-            onClose={onClose}
+            onClose={handleClose}
             maxWidth="sm"
             fullWidth
             slotProps={{
@@ -117,7 +129,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                 </Typography>
                 <IconButton
                     aria-label="close"
-                    onClick={onClose}
+                    onClick={handleClose}
                     sx={{
                         color: (theme) => theme.palette.grey[500],
                     }}
@@ -148,10 +160,44 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                         helperText={type === 'parts' ? t('allPartsAddedToCollection') : type === 'playlist' ? t('allVideosAddedToCollection') : t('allVideosAddedToCollection')}
                     />
                 </Box>
+
+                {/* Playlist subscription option - only show for playlist type */}
+                {type === 'playlist' && (
+                    <Box sx={{ mt: 3 }}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={subscribeToPlaylist}
+                                    onChange={(e) => setSubscribeToPlaylist(e.target.checked)}
+                                    disabled={isLoading}
+                                />
+                            }
+                            label={t('subscribeToPlaylist')}
+                        />
+                        {subscribeToPlaylist && (
+                            <Box sx={{ mt: 2, ml: 4 }}>
+                                <TextField
+                                    type="number"
+                                    label={t('checkIntervalMinutes')}
+                                    value={subscriptionInterval}
+                                    onChange={(e) => setSubscriptionInterval(Math.max(1, parseInt(e.target.value) || 60))}
+                                    disabled={isLoading}
+                                    size="small"
+                                    inputProps={{ min: 1 }}
+                                    helperText={t('subscribePlaylistDescription')}
+                                    sx={{ width: 200 }}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                )}
             </DialogContent>
             <DialogActions sx={{ p: 2 }}>
                 <Button
-                    onClick={onDownloadCurrent}
+                    onClick={() => {
+                        handleClose();
+                        onDownloadCurrent();
+                    }}
                     disabled={isLoading}
                     color="inherit"
                 >
@@ -163,7 +209,9 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                     variant="contained"
                     color="primary"
                 >
-                    {getDownloadAllButtonText()}
+                    {subscribeToPlaylist && type === 'playlist' 
+                        ? t('downloadAndSubscribe') 
+                        : getDownloadAllButtonText()}
                 </Button>
             </DialogActions>
         </Dialog>

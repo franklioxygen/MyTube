@@ -525,6 +525,14 @@ export const de = {
   taskResumed: "Aufgabe fortgesetzt",
   viaSubscription: "via Abonnement",
   viaContinuousDownload: "via kontinuierlichen Download",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "Diese Playlist abonnieren",
+  subscribePlaylistDescription: "Automatisch nach neuen Videos in dieser Playlist suchen",
+  playlistSubscribedSuccessfully: "Playlist erfolgreich abonniert",
+  downloadAndSubscribe: "Alle herunterladen & abonnieren",
+  playlistSubscription: "Playlist",
+
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
   instructionSection1Desc: "Dieses Modul umfasst Videoerfassung, Batch-Aufgaben und Dateiimportfunktionen.",

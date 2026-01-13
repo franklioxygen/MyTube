@@ -140,6 +140,11 @@ export const subscriptions = sqliteTable("subscriptions", {
   createdAt: integer("created_at").notNull(),
   platform: text("platform").default("YouTube"),
   paused: integer("paused").default(0), // 0 = active, 1 = paused
+  // Playlist subscription fields
+  playlistId: text("playlist_id"), // Platform-specific playlist ID (YouTube list=, Bilibili season_id, etc.)
+  playlistTitle: text("playlist_title"), // Original playlist title
+  subscriptionType: text("subscription_type").default("author"), // 'author' or 'playlist'
+  collectionId: text("collection_id"), // Reference to collection for auto-adding videos
 });
 
 // Track downloaded video IDs to prevent re-downloading

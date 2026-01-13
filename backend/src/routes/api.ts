@@ -143,6 +143,10 @@ router.put(
   "/subscriptions/:id/resume",
   asyncHandler(subscriptionController.resumeSubscription)
 );
+router.post(
+  "/subscriptions/playlist",
+  asyncHandler(subscriptionController.createPlaylistSubscription)
+);
 
 // Continuous download task routes
 router.get(

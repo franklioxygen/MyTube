@@ -525,6 +525,14 @@ export const ar = {
   taskResumed: "تم استئناف المهمة",
   viaSubscription: "عبر الاشتراك",
   viaContinuousDownload: "عبر التنزيل المستمر",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "الاشتراك في قائمة التشغيل هذه",
+  subscribePlaylistDescription: "التحقق تلقائياً من مقاطع الفيديو الجديدة المضافة إلى قائمة التشغيل هذه",
+  playlistSubscribedSuccessfully: "تم الاشتراك في قائمة التشغيل بنجاح",
+  downloadAndSubscribe: "تنزيل الكل والاشتراك",
+  playlistSubscription: "قائمة التشغيل",
+
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
   instructionSection1Desc: "تتضمن هذه الوحدة وظائف الحصول على الفيديو والمهام المجمعة واستيراد الملفات.",

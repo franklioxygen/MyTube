@@ -525,6 +525,14 @@ export const ja = {
   taskResumed: "タスクが再開されました",
   viaSubscription: "購読経由",
   viaContinuousDownload: "連続ダウンロード経由",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "このプレイリストを購読する",
+  subscribePlaylistDescription: "このプレイリストに追加された新しい動画を自動的にチェック",
+  playlistSubscribedSuccessfully: "プレイリストの購読に成功しました",
+  downloadAndSubscribe: "すべてダウンロードして購読",
+  playlistSubscription: "プレイリスト",
+
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
   instructionSection1Desc: "このモジュールには、ビデオ取得、バッチタスク、およびファイルインポート機能が含まれています。",

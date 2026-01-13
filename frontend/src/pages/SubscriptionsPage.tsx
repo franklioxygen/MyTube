@@ -36,6 +36,11 @@ interface Subscription {
     createdAt: number;
     platform: string;
     paused?: number;
+    // Playlist subscription fields
+    playlistId?: string;
+    playlistTitle?: string;
+    subscriptionType?: string; // 'author' or 'playlist'
+    collectionId?: string;
 }
 
 interface ContinuousDownloadTask {

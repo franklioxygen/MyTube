@@ -195,6 +195,66 @@ export function initializeStorage(): void {
       logger.info("Migration successful: type added.");
     }
 
+    // Check subscriptions table columns for playlist subscription fields
+    try {
+      const subscriptionsTableInfo = sqlite
+        .prepare("PRAGMA table_info(subscriptions)")
+        .all();
+      const subscriptionsColumns = (subscriptionsTableInfo as any[]).map(
+        (col: any) => col.name
+      );
+
+      if (!subscriptionsColumns.includes("playlist_id")) {
+        logger.info(
+          "Migrating database: Adding playlist_id column to subscriptions table..."
+        );
+        sqlite
+          .prepare("ALTER TABLE subscriptions ADD COLUMN playlist_id TEXT")
+          .run();
+        logger.info("Migration successful: playlist_id added.");
+      }
+
+      if (!subscriptionsColumns.includes("playlist_title")) {
+        logger.info(
+          "Migrating database: Adding playlist_title column to subscriptions table..."
+        );
+        sqlite
+          .prepare("ALTER TABLE subscriptions ADD COLUMN playlist_title TEXT")
+          .run();
+        logger.info("Migration successful: playlist_title added.");
+      }
+
+      if (!subscriptionsColumns.includes("subscription_type")) {
+        logger.info(
+          "Migrating database: Adding subscription_type column to subscriptions table..."
+        );
+        sqlite
+          .prepare(
+            "ALTER TABLE subscriptions ADD COLUMN subscription_type TEXT DEFAULT 'author'"
+          )
+          .run();
+        logger.info("Migration successful: subscription_type added.");
+      }
+
+      if (!subscriptionsColumns.includes("collection_id")) {
+        logger.info(
+          "Migrating database: Adding collection_id column to subscriptions table..."
+        );
+        sqlite
+          .prepare("ALTER TABLE subscriptions ADD COLUMN collection_id TEXT")
+          .run();
+        logger.info("Migration successful: collection_id added.");
+      }
+    } catch (subscriptionsError) {
+      // Subscriptions table might not exist yet, ignore error
+      logger.debug(
+        "Subscriptions table migration skipped (table may not exist yet)",
+        subscriptionsError instanceof Error
+          ? subscriptionsError
+          : new Error(String(subscriptionsError))
+      );
+    }
+
     // Create video_downloads table if it doesn't exist
     sqlite
       .prepare(

@@ -525,6 +525,14 @@ export const ru = {
   taskResumed: "Задача возобновлена",
   viaSubscription: "через подписку",
   viaContinuousDownload: "через непрерывную загрузку",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "Подписаться на этот плейлист",
+  subscribePlaylistDescription: "Автоматически проверять новые видео, добавленные в этот плейлист",
+  playlistSubscribedSuccessfully: "Успешная подписка на плейлист",
+  downloadAndSubscribe: "Скачать все и подписаться",
+  playlistSubscription: "Плейлист",
+
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
   instructionSection1Desc: "Этот модуль включает функции получения видео, пакетных задач и импорта файлов.",

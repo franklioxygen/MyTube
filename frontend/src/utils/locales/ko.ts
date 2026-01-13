@@ -525,6 +525,14 @@ export const ko = {
   taskResumed: "작업이 재개되었습니다",
   viaSubscription: "구독을 통해",
   viaContinuousDownload: "연속 다운로드를 통해",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "이 재생목록 구독하기",
+  subscribePlaylistDescription: "이 재생목록에 새로 추가된 동영상을 자동으로 확인",
+  playlistSubscribedSuccessfully: "재생목록 구독 성공",
+  downloadAndSubscribe: "모두 다운로드 및 구독",
+  playlistSubscription: "재생목록",
+
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
   instructionSection1Desc: "이 모듈에는 비디오 획득, 일괄 작업 및 파일 가져오기 기능이 포함되어 있습니다.",

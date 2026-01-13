@@ -525,6 +525,14 @@ export const zh = {
   taskResumed: "任务已恢复",
   viaSubscription: "通过订阅",
   viaContinuousDownload: "通过连续下载",
+
+  // Playlist Subscription
+  subscribeToPlaylist: "订阅此播放列表",
+  subscribePlaylistDescription: "自动检查播放列表中新增的视频",
+  playlistSubscribedSuccessfully: "成功订阅播放列表",
+  downloadAndSubscribe: "下载全部并订阅",
+  playlistSubscription: "播放列表",
+
   // Instruction Page
   instructionSection1Title: "1. 下载与任务管理",
   instructionSection1Desc: "本模块包含视频获取、批量任务及文件导入等功能。",

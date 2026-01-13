@@ -186,6 +186,154 @@ export const clearFinishedTasks = async (
 };
 
 /**
+ * Create a playlist subscription (and optionally download all videos)
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const createPlaylistSubscription = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { playlistUrl, interval, collectionName, downloadAll } = req.body;
+  logger.info("Creating playlist subscription:", {
+    playlistUrl,
+    interval,
+    collectionName,
+    downloadAll,
+  });
+
+  if (!playlistUrl || !interval || !collectionName) {
+    throw new ValidationError(
+      "Playlist URL, interval, and collection name are required",
+      "body"
+    );
+  }
+
+  // Check if it's a valid playlist URL
+  const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+  const playlistMatch = playlistUrl.match(playlistRegex);
+  if (!playlistMatch) {
+    throw new ValidationError(
+      "URL does not contain a playlist parameter",
+      "playlistUrl"
+    );
+  }
+  const playlistId = playlistMatch[1];
+
+  // Get playlist info
+  const { checkPlaylist } = await import("../services/downloadService");
+  const playlistInfo = await checkPlaylist(playlistUrl);
+
+  if (!playlistInfo.success) {
+    throw new ValidationError(
+      playlistInfo.error || "Failed to get playlist information",
+      "playlistUrl"
+    );
+  }
+
+  // Create or find collection
+  const storageService = await import("../services/storageService");
+  
+  // First, try to find existing collection by name
+  let collection = storageService.getCollectionByName(collectionName);
+  
+  if (!collection) {
+    // Create new collection
+    const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
+    collection = {
+      id: Date.now().toString(),
+      name: uniqueCollectionName,
+      videos: [],
+      createdAt: new Date().toISOString(),
+      title: uniqueCollectionName,
+    };
+    storageService.saveCollection(collection);
+    logger.info(`Created collection "${uniqueCollectionName}" with ID ${collection.id}`);
+  } else {
+    logger.info(`Using existing collection "${collection.name}" with ID ${collection.id}`);
+  }
+
+  // Extract author from playlist
+  let author = "Playlist Author";
+  let platform = "YouTube";
+
+  if (playlistUrl.includes("bilibili.com")) {
+    platform = "Bilibili";
+  }
+
+  try {
+    const {
+      executeYtDlpJson,
+      getNetworkConfigFromUserConfig,
+      getUserYtDlpConfig,
+    } = await import("../utils/ytDlpUtils");
+
+    const userConfig = getUserYtDlpConfig(playlistUrl);
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+
+    const info = await executeYtDlpJson(playlistUrl, {
+      ...networkConfig,
+      noWarnings: true,
+      flatPlaylist: true,
+      playlistEnd: 1,
+    });
+
+    if (info.entries && info.entries.length > 0) {
+      const firstEntry = info.entries[0];
+      if (firstEntry.uploader) {
+        author = firstEntry.uploader;
+      } else if (firstEntry.channel) {
+        author = firstEntry.channel;
+      }
+    } else if (info.uploader) {
+      author = info.uploader;
+    } else if (info.channel) {
+      author = info.channel;
+    }
+  } catch (error) {
+    logger.warn("Could not extract author from playlist, using default:", error);
+  }
+
+  // Create subscription
+  const subscription = await subscriptionService.subscribePlaylist(
+    playlistUrl,
+    parseInt(interval),
+    playlistInfo.title || collectionName,
+    playlistId,
+    author,
+    platform,
+    collection.id
+  );
+
+  // If user wants to download all videos, create a continuous download task
+  let task = null;
+  if (downloadAll) {
+    try {
+      task = await continuousDownloadService.createPlaylistTask(
+        playlistUrl,
+        author,
+        platform,
+        collection.id
+      );
+      logger.info(
+        `Created continuous download task ${task.id} for playlist subscription ${subscription.id}`
+      );
+    } catch (error) {
+      logger.error(
+        "Error creating continuous download task for playlist:",
+        error instanceof Error ? error : new Error(String(error))
+      );
+      // Don't fail the subscription creation if task creation fails
+    }
+  }
+
+  res.status(201).json({
+    subscription,
+    collectionId: collection.id,
+    taskId: task?.id,
+  });
+};
+
+/**
  * Create a continuous download task for a playlist
  * Errors are automatically handled by asyncHandler middleware
  */

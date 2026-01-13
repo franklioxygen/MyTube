@@ -25,6 +25,10 @@ interface BilibiliPartsInfo {
 }
 
 
+interface SubscribeInfo {
+    interval: number;
+}
+
 interface DownloadContextType {
     activeDownloads: DownloadInfo[];
     queuedDownloads: DownloadInfo[];
@@ -33,7 +37,7 @@ interface DownloadContextType {
     setShowBilibiliPartsModal: (show: boolean) => void;
     bilibiliPartsInfo: BilibiliPartsInfo;
     isCheckingParts: boolean;
-    handleDownloadAllBilibiliParts: (collectionName: string) => Promise<{ success: boolean; error?: string }>;
+    handleDownloadAllBilibiliParts: (collectionName: string, subscribeInfo?: SubscribeInfo) => Promise<{ success: boolean; error?: string }>;
     handleDownloadCurrentBilibiliPart: () => Promise<any>;
 }
 
@@ -180,6 +184,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
             // Check for YouTube playlist URL (must check before channel check)
             const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+            
             if (playlistRegex.test(videoUrl) && !skipCollectionCheck) {
                 setIsCheckingParts(true);
                 try {
@@ -339,15 +344,37 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
 
-    const handleDownloadAllBilibiliParts = async (collectionName: string) => {
+    const handleDownloadAllBilibiliParts = async (collectionName: string, subscribeInfo?: SubscribeInfo) => {
         try {
             setShowBilibiliPartsModal(false);
 
             const isCollection = bilibiliPartsInfo.type === 'collection' || bilibiliPartsInfo.type === 'series';
             const isPlaylist = bilibiliPartsInfo.type === 'playlist';
 
-            // Handle playlist differently - create continuous download task
+            // Handle playlist differently - create subscription and/or continuous download task
             if (isPlaylist) {
+                // If subscribing to playlist, use the subscription endpoint
+                if (subscribeInfo) {
+                    const response = await axios.post(`${API_URL}/subscriptions/playlist`, {
+                        playlistUrl: bilibiliPartsInfo.url,
+                        interval: subscribeInfo.interval,
+                        collectionName: collectionName || bilibiliPartsInfo.title,
+                        downloadAll: true
+                    });
+
+                    // Trigger immediate status check
+                    checkBackendDownloadStatus();
+
+                    // If a collection was created, refresh collections
+                    if (response.data.collectionId) {
+                        await fetchCollections();
+                    }
+
+                    showSnackbar(t('playlistSubscribedSuccessfully'));
+                    return { success: true };
+                }
+
+                // Otherwise, just create a continuous download task without subscription
                 const response = await axios.post(`${API_URL}/subscriptions/tasks/playlist`, {
                     playlistUrl: bilibiliPartsInfo.url,
                     collectionName: collectionName || bilibiliPartsInfo.title
