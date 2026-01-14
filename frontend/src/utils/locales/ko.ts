@@ -74,6 +74,8 @@ export const ko = {
   autoLoop: "동영상 자동 반복",
   maxConcurrent: "최대 동시 다운로드 수",
   maxConcurrentDescription: "일반 다운로드 및 지속적인 구독 작업을 포함하여 동시 다운로드 수를 제한합니다.",
+  dontSkipDeletedVideo: "삭제된 비디오 건너뛰지 않기",
+  dontSkipDeletedVideoDescription: "활성화하면 삭제된 상태의 비디오는 건너뛰지 않고 자동으로 다시 다운로드됩니다.",
   saveSettings: "설정 저장",
   saving: "저장 중...",
   backToManage: "관리로 돌아가기",

@@ -74,6 +74,8 @@ export const zh = {
   autoLoop: "自动循环播放",
   maxConcurrent: "最大同时下载数",
   maxConcurrentDescription: "限制同时进行的下载数量，包括常规下载和连续订阅任务。",
+  dontSkipDeletedVideo: "不跳过已删除的视频",
+  dontSkipDeletedVideoDescription: "启用后，状态为已删除的视频将自动重新下载，而不是被跳过。",
   saveSettings: "保存设置",
   saving: "保存中...",
   backToManage: "返回管理",

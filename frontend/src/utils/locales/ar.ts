@@ -74,6 +74,8 @@ export const ar = {
   autoLoop: "تكرار تلقائي للفيديوهات",
   maxConcurrent: "الحد الأقصى للتحميلات المتزامنة",
   maxConcurrentDescription: "يحد من عدد التنزيلات المتزامنة، بما في ذلك التنزيلات العادية ومهام الاشتراك المستمر.",
+  dontSkipDeletedVideo: "عدم تخطي الفيديو المحذوف",
+  dontSkipDeletedVideoDescription: "عند التمكين، سيتم إعادة تنزيل مقاطع الفيديو ذات الحالة المحذوفة تلقائيًا بدلاً من تخطيها.",
   saveSettings: "حفظ الإعدادات",
   saving: "جاري الحفظ...",
   backToManage: "العودة للإدارة",

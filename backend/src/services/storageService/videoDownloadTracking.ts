@@ -240,6 +240,7 @@ export function verifyVideoExists(
  * @param getVideoById - Function to get video by ID from storage service
  * @param addDownloadHistoryItem - Function to add item to download history
  * @param forceDownload - Whether to force download even if video was deleted
+ * @param dontSkipDeletedVideo - Whether to automatically re-download deleted videos (from settings)
  * @returns Object indicating whether to skip download and response data if applicable
  */
 export function handleVideoDownloadCheck(
@@ -247,7 +248,8 @@ export function handleVideoDownloadCheck(
   sourceUrl: string,
   getVideoById: (videoId: string) => Video | undefined,
   addDownloadHistoryItem: (item: DownloadHistoryItem) => void,
-  forceDownload: boolean = false
+  forceDownload: boolean = false,
+  dontSkipDeletedVideo: boolean = false
 ): {
   shouldSkip: boolean;
   shouldForce: boolean;
@@ -310,8 +312,10 @@ export function handleVideoDownloadCheck(
     }
   }
 
-  // If status is "deleted" and not forcing download, skip
-  if (downloadCheck.status === "deleted" && !forceDownload) {
+  // If status is "deleted" and not forcing download (and setting is off), skip
+  // If dontSkipDeletedVideo is true, treat it as forceDownload for deleted videos
+  const shouldForceDownload = forceDownload || (dontSkipDeletedVideo && downloadCheck.status === "deleted");
+  if (downloadCheck.status === "deleted" && !shouldForceDownload) {
     // Video was previously downloaded but deleted - add to history and skip
     addDownloadHistoryItem({
       id: Date.now().toString(),
@@ -342,8 +346,8 @@ export function handleVideoDownloadCheck(
     };
   }
 
-  // If forcing download or status is "deleted" with forceDownload=true, proceed
-  if (downloadCheck.status === "deleted" && forceDownload) {
+  // If forcing download or status is "deleted" with forceDownload=true or dontSkipDeletedVideo=true, proceed
+  if (downloadCheck.status === "deleted" && shouldForceDownload) {
     return { shouldSkip: false, shouldForce: true };
   }
 

@@ -74,6 +74,8 @@ export const fr = {
   autoLoop: "Boucle automatique des vidéos",
   maxConcurrent: "Téléchargements simultanés max",
   maxConcurrentDescription: "Limite le nombre de téléchargements simultanés, y compris les téléchargements réguliers et les tâches d'abonnement continu.",
+  dontSkipDeletedVideo: "Ne pas ignorer les vidéos supprimées",
+  dontSkipDeletedVideoDescription: "Lorsqu'elle est activée, les vidéos avec un statut supprimé seront automatiquement re-téléchargées au lieu d'être ignorées.",
   saveSettings: "Enregistrer les paramètres",
   saving: "Enregistrement...",
   backToManage: "Retour à la gestion",

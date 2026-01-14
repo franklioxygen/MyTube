@@ -5,12 +5,12 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    isBilibiliUrl,
-    isValidUrl,
-    processVideoUrl,
-    resolveShortUrl,
-    trimBilibiliUrl
+  extractBilibiliVideoId,
+  isBilibiliUrl,
+  isValidUrl,
+  processVideoUrl,
+  resolveShortUrl,
+  trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
@@ -145,7 +145,11 @@ export const downloadVideo = async (
     logger.info("Processing download request for input:", videoUrl);
 
     // Process URL: extract from text, resolve shortened URLs, extract source video ID
-    const { videoUrl: processedUrl, sourceVideoId, platform } = await processVideoUrl(videoUrl);
+    const {
+      videoUrl: processedUrl,
+      sourceVideoId,
+      platform,
+    } = await processVideoUrl(videoUrl);
     logger.info("Processed URL:", processedUrl);
 
     // Check if the input is a valid URL
@@ -163,44 +167,23 @@ export const downloadVideo = async (
       const downloadCheck =
         storageService.checkVideoDownloadBySourceId(sourceVideoId);
 
+      // Get settings to check dontSkipDeletedVideo
+      const settings = storageService.getSettings();
+      const dontSkipDeletedVideo = settings.dontSkipDeletedVideo || false;
+
       // Use the consolidated handler to check download status
       const checkResult = storageService.handleVideoDownloadCheck(
         downloadCheck,
         resolvedUrl,
         storageService.getVideoById,
         (item) => storageService.addDownloadHistoryItem(item),
-        forceDownload
+        forceDownload,
+        dontSkipDeletedVideo
       );
 
       if (checkResult.shouldSkip && checkResult.response) {
         // Video should be skipped, return response
         return sendData(res, checkResult.response);
-      }
-
-      // If status is "deleted" and not forcing download, handle separately
-      if (downloadCheck.found && downloadCheck.status === "deleted" && !forceDownload) {
-        // Video was previously downloaded but deleted - add to history and skip
-        storageService.addDownloadHistoryItem({
-          id: Date.now().toString(),
-          title: downloadCheck.title || "Unknown Title",
-          author: downloadCheck.author,
-          sourceUrl: resolvedUrl,
-          finishedAt: Date.now(),
-          status: "deleted",
-          downloadedAt: downloadCheck.downloadedAt,
-          deletedAt: downloadCheck.deletedAt,
-        });
-
-        return sendData(res, {
-          success: true,
-          skipped: true,
-          previouslyDeleted: true,
-          title: downloadCheck.title,
-          author: downloadCheck.author,
-          downloadedAt: downloadCheck.downloadedAt,
-          deletedAt: downloadCheck.deletedAt,
-          message: "Video was previously downloaded but deleted, skipped download",
-        });
       }
     }
 
@@ -216,7 +199,10 @@ export const downloadVideo = async (
       }
     } catch (err) {
       logger.warn("Failed to fetch video info for title, using default:", err);
-      if (resolvedUrl.includes("youtube.com") || resolvedUrl.includes("youtu.be")) {
+      if (
+        resolvedUrl.includes("youtube.com") ||
+        resolvedUrl.includes("youtu.be")
+      ) {
         initialTitle = "YouTube Video";
       } else if (isBilibiliUrl(resolvedUrl)) {
         initialTitle = "Bilibili Video";
@@ -232,7 +218,7 @@ export const downloadVideo = async (
     ) => {
       // Use resolved URL for download (already processed)
       let downloadUrl = resolvedUrl;
-      
+
       // Trim Bilibili URL if needed
       if (isBilibiliUrl(downloadUrl)) {
         downloadUrl = trimBilibiliUrl(downloadUrl);
@@ -291,7 +277,8 @@ export const downloadVideo = async (
           const firstPartUrl = `${baseUrl}?p=1`;
 
           // Check if part 1 already exists
-          const existingPart1 = storageService.getVideoBySourceUrl(firstPartUrl);
+          const existingPart1 =
+            storageService.getVideoBySourceUrl(firstPartUrl);
           let firstPartResult: DownloadResult;
           let collectionId: string | null = null;
 
@@ -299,18 +286,23 @@ export const downloadVideo = async (
           if (collectionName) {
             // First, try to find if an existing part belongs to a collection
             if (existingPart1?.id) {
-              const existingCollection = storageService.getCollectionByVideoId(existingPart1.id);
+              const existingCollection = storageService.getCollectionByVideoId(
+                existingPart1.id
+              );
               if (existingCollection) {
                 collectionId = existingCollection.id;
                 logger.info(
-                  `Found existing collection "${existingCollection.name || existingCollection.title}" for this series`
+                  `Found existing collection "${
+                    existingCollection.name || existingCollection.title
+                  }" for this series`
                 );
               }
             }
 
             // If no collection found from existing part, try to find by name
             if (!collectionId) {
-              const collectionByName = storageService.getCollectionByName(collectionName);
+              const collectionByName =
+                storageService.getCollectionByName(collectionName);
               if (collectionByName) {
                 collectionId = collectionByName.id;
                 logger.info(
@@ -369,16 +361,15 @@ export const downloadVideo = async (
             }
 
             // Download the first part
-            firstPartResult =
-              await downloadService.downloadSingleBilibiliPart(
-                firstPartUrl,
-                1,
-                videosNumber,
-                title || "Bilibili Video",
-                downloadId,
-                registerCancel,
-                collectionName
-              );
+            firstPartResult = await downloadService.downloadSingleBilibiliPart(
+              firstPartUrl,
+              1,
+              videosNumber,
+              title || "Bilibili Video",
+              downloadId,
+              registerCancel,
+              collectionName
+            );
 
             // Add to collection if needed
             if (collectionId && firstPartResult.videoData) {
@@ -395,16 +386,21 @@ export const downloadVideo = async (
           // Set up background download for remaining parts
           // Note: We don't await this, it runs in background
           if (videosNumber > 1) {
-            downloadService.downloadRemainingBilibiliParts(
-              baseUrl,
-              2,
-              videosNumber,
-              title || "Bilibili Video",
-              collectionId,
-              downloadId // Pass downloadId to track progress
-            ).catch((error) => {
-              logger.error("Error in background download of remaining parts:", error);
-            });
+            downloadService
+              .downloadRemainingBilibiliParts(
+                baseUrl,
+                2,
+                videosNumber,
+                title || "Bilibili Video",
+                collectionId,
+                downloadId // Pass downloadId to track progress
+              )
+              .catch((error) => {
+                logger.error(
+                  "Error in background download of remaining parts:",
+                  error
+                );
+              });
           }
 
           return {
@@ -435,7 +431,10 @@ export const downloadVideo = async (
             );
           }
         }
-      } else if (downloadUrl.includes("missav") || downloadUrl.includes("123av")) {
+      } else if (
+        downloadUrl.includes("missav") ||
+        downloadUrl.includes("123av")
+      ) {
         // MissAV/123av download
         const videoData = await downloadService.downloadMissAVVideo(
           downloadUrl,
@@ -611,7 +610,10 @@ export const checkPlaylist = async (
   if (playlistUrl.includes("youtube.com") || playlistUrl.includes("youtu.be")) {
     const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
     if (!playlistRegex.test(playlistUrl)) {
-      throw new ValidationError("YouTube URL must contain a playlist parameter (list=)", "url");
+      throw new ValidationError(
+        "YouTube URL must contain a playlist parameter (list=)",
+        "url"
+      );
     }
   }
   // For Bilibili and other platforms, let checkPlaylist service function validate
@@ -624,7 +626,8 @@ export const checkPlaylist = async (
     logger.error("Error checking playlist:", error);
     sendData(res, {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to check playlist"
+      error:
+        error instanceof Error ? error.message : "Failed to check playlist",
     });
   }
 };

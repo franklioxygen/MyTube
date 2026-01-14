@@ -74,6 +74,8 @@ export const de = {
   autoLoop: "Automatische Schleife",
   maxConcurrent: "Max. gleichzeitige Downloads",
   maxConcurrentDescription: "Begrenzt die Anzahl gleichzeitiger Downloads, einschließlich regulärer Downloads und kontinuierlicher Abonnementaufgaben.",
+  dontSkipDeletedVideo: "Gelöschte Videos nicht überspringen",
+  dontSkipDeletedVideoDescription: "Wenn aktiviert, werden Videos mit gelöschtem Status automatisch erneut heruntergeladen, anstatt übersprungen zu werden.",
   saveSettings: "Einstellungen Speichern",
   saving: "Speichern...",
   backToManage: "Zurück zu Verwalten",

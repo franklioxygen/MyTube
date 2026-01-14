@@ -74,6 +74,8 @@ export const es = {
   autoLoop: "Repetición Automática",
   maxConcurrent: "Descargas Simultáneas Máximas",
   maxConcurrentDescription: "Limita el número de descargas simultáneas, incluidas las descargas regulares y las tareas de suscripción continua.",
+  dontSkipDeletedVideo: "No omitir videos eliminados",
+  dontSkipDeletedVideoDescription: "Cuando está habilitado, los videos con estado eliminado se volverán a descargar automáticamente en lugar de omitirse.",
   saveSettings: "Guardar Configuración",
   saving: "Guardando...",
   backToManage: "Volver a Gestionar",

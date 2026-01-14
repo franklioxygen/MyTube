@@ -69,6 +69,7 @@ export interface Settings {
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;
+  dontSkipDeletedVideo?: boolean;
   language: string;
   tags: string[];
   cloudDriveEnabled: boolean;

@@ -74,6 +74,8 @@ export const pt = {
   autoLoop: "Repetição Automática de Vídeos",
   maxConcurrent: "Máximo de Downloads Simultâneos",
   maxConcurrentDescription: "Limita o número de downloads simultâneos, incluindo downloads regulares e tarefas de assinatura contínua.",
+  dontSkipDeletedVideo: "Não pular vídeos excluídos",
+  dontSkipDeletedVideoDescription: "Quando habilitado, vídeos com status excluído serão baixados novamente automaticamente em vez de serem pulados.",
   saveSettings: "Salvar Configurações",
   saving: "Salvando...",
   backToManage: "Voltar para Gerenciar",

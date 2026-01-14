@@ -81,6 +81,9 @@ export const en = {
   maxConcurrent: "Max Concurrent Downloads",
   maxConcurrentDescription:
     "Limits the number of simultaneous downloads, including regular downloads and continuous subscription tasks.",
+  dontSkipDeletedVideo: "Don't skip deleted video",
+  dontSkipDeletedVideoDescription:
+    "When enabled, videos with deleted status will be re-downloaded automatically instead of being skipped.",
   saveSettings: "Save Settings",
   saving: "Saving...",
   backToManage: "Back to Manage",

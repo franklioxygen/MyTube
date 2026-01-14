@@ -74,6 +74,8 @@ export const ja = {
   autoLoop: "動画の自動ループ",
   maxConcurrent: "最大同時ダウンロード数",
   maxConcurrentDescription: "通常のダウンロードや継続的なサブスクリプションタスクを含む、同時ダウンロード数を制限します。",
+  dontSkipDeletedVideo: "削除された動画をスキップしない",
+  dontSkipDeletedVideoDescription: "有効にすると、削除されたステータスの動画はスキップされず、自動的に再ダウンロードされます。",
   saveSettings: "設定を保存",
   saving: "保存中...",
   backToManage: "管理に戻る",

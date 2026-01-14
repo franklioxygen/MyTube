@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Slider, Typography } from '@mui/material';
+import { Alert, Box, Button, FormControlLabel, Slider, Switch, Typography } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
@@ -38,6 +38,21 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                     marks
                     valueLabelDisplay="auto"
                 />
+            </Box>
+
+            <Box sx={{ mt: 3 }}>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.dontSkipDeletedVideo || false}
+                            onChange={(e) => onChange('dontSkipDeletedVideo', e.target.checked)}
+                        />
+                    }
+                    label={t('dontSkipDeletedVideo')}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('dontSkipDeletedVideoDescription')}
+                </Typography>
             </Box>
 
             <Box sx={{ mt: 3 }}>
