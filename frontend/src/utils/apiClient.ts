@@ -1,12 +1,20 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+} from "axios";
+import { getApiUrl } from "./apiUrl";
 
 /**
  * Centralized API client for all backend API calls
  * Provides consistent error handling, request/response interceptors, and type safety
  */
 
-// Get API URL from environment variable
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5551/api';
+// Get API URL using centralized helper function
+// In dev mode, uses relative path to leverage Vite proxy
+// In production or when VITE_API_URL is explicitly set, uses that value
+const API_URL = getApiUrl();
 
 // Create axios instance with default configuration
 const apiClient: AxiosInstance = axios.create({
@@ -14,7 +22,7 @@ const apiClient: AxiosInstance = axios.create({
   timeout: 30000, // 30 seconds default timeout
   withCredentials: true, // Required for HTTP-only cookies
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -50,26 +58,26 @@ apiClient.interceptors.response.use(
       // Handle specific error cases
       if (status === 401) {
         // Unauthorized - could trigger logout or redirect
-        console.error('Unauthorized request:', error.config?.url);
+        console.error("Unauthorized request:", error.config?.url);
       } else if (status === 403) {
         // Forbidden
-        console.error('Forbidden request:', error.config?.url);
+        console.error("Forbidden request:", error.config?.url);
       } else if (status === 404) {
         // Not found
-        console.error('Resource not found:', error.config?.url);
+        console.error("Resource not found:", error.config?.url);
       } else if (status === 429) {
         // Too many requests
-        console.error('Rate limited:', error.config?.url);
+        console.error("Rate limited:", error.config?.url);
       } else if (status >= 500) {
         // Server error
-        console.error('Server error:', error.config?.url, data);
+        console.error("Server error:", error.config?.url, data);
       }
     } else if (error.request) {
       // Request was made but no response received
-      console.error('Network error - no response received:', error.config?.url);
+      console.error("Network error - no response received:", error.config?.url);
     } else {
       // Something else happened
-      console.error('Request setup error:', error.message);
+      console.error("Request setup error:", error.message);
     }
 
     return Promise.reject(error);
@@ -106,7 +114,7 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return 'An unknown error occurred';
+  return "An unknown error occurred";
 }
 
 /**
@@ -149,35 +157,53 @@ export const api = {
   /**
    * GET request
    */
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  get: <T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.get<T>(url, config);
   },
 
   /**
    * POST request
    */
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  post: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.post<T>(url, data, config);
   },
 
   /**
    * PUT request
    */
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  put: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.put<T>(url, data, config);
   },
 
   /**
    * PATCH request
    */
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  patch: <T = any>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.patch<T>(url, data, config);
   },
 
   /**
    * DELETE request
    */
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  delete: <T = any>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> => {
     return apiClient.delete<T>(url, config);
   },
 };
@@ -190,7 +216,6 @@ export { apiClient };
 /**
  * Export API_URL for cases where it's needed directly
  */
-  export { API_URL };
+export { API_URL };
 
 export default api;
-

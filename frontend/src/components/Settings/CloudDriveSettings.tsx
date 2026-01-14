@@ -3,6 +3,7 @@ import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import { getApiUrl } from '../../utils/apiUrl';
 import ConfirmationModal from '../ConfirmationModal';
 
 interface CloudDriveSettingsProps {
@@ -189,7 +190,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         setTestResult(null);
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || '';
+            const API_URL = getApiUrl();
             const response = await fetch(`${API_URL}/cloud/sync`, {
                 method: 'POST',
                 headers: {
@@ -265,7 +266,7 @@ const CloudDriveSettings: React.FC<CloudDriveSettingsProps> = ({ settings, onCha
         setTestResult(null);
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || '';
+            const API_URL = getApiUrl();
             const response = await axios.delete(`${API_URL}/cloud/thumbnail-cache`);
 
             if (response.data?.success) {

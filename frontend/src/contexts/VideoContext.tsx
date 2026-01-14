@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useAuth } from './AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
 interface VideoContextType {

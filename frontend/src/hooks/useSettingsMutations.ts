@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import { Settings } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -6,7 +7,7 @@ import { generateTimestamp } from '../utils/formatUtils';
 import { Language } from '../utils/translations';
 import { InfoModalState } from './useSettingsModals';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface UseSettingsMutationsProps {
     setMessage: (message: { text: string; type: 'success' | 'error' | 'warning' | 'info' } | null) => void;

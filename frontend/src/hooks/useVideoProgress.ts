@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Video } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface UseVideoProgressProps {
     videoId: string | undefined;

@@ -27,6 +27,7 @@ import { useVideoProgress } from '../hooks/useVideoProgress';
 import { useVideoQueries } from '../hooks/useVideoQueries';
 import { useVideoRecommendations } from '../hooks/useVideoRecommendations';
 import { useVideoSubscriptions } from '../hooks/useVideoSubscriptions';
+import { getBackendUrl } from '../utils/apiUrl';
 
 const VideoPlayer: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -121,7 +122,7 @@ const VideoPlayer: React.FC = () => {
     const thumbnailPathForCloud = isVideoInCloud ? video?.thumbnailPath : null;
     const posterUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail', video?.signedThumbnailUrl);
     const localPosterUrl = !isVideoInCloud && video?.thumbnailPath
-        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
+        ? `${getBackendUrl()}${video.thumbnailPath}`
         : undefined;
 
     // Use custom hooks

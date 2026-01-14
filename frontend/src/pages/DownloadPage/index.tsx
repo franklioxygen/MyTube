@@ -17,11 +17,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { ActiveDownloadsTab } from './ActiveDownloadsTab';
 import { CustomTabPanel } from './CustomTabPanel';
+import { getApiUrl } from '../../utils/apiUrl';
 import { DownloadHistoryItem } from './HistoryItem';
 import { HistoryTab } from './HistoryTab';
 import { QueueTab } from './QueueTab';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();

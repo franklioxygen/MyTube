@@ -17,6 +17,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiUrl } from '../../utils/apiUrl';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
@@ -69,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({
 
         const checkActiveSubscriptions = async () => {
             try {
-                const API_URL = import.meta.env.VITE_API_URL;
+                const API_URL = getApiUrl();
                 const axios = await import('axios');
 
                 // Fetch subscriptions and tasks
@@ -105,7 +106,7 @@ const Header: React.FC<HeaderProps> = ({
         // Fetch settings to get website name and infinite scroll setting
         const fetchSettings = async () => {
             try {
-                const API_URL = import.meta.env.VITE_API_URL;
+                const API_URL = getApiUrl();
                 const response = await import('axios').then(axios => axios.default.get(`${API_URL}/settings`));
                 if (response.data) {
                     if (response.data.websiteName) {

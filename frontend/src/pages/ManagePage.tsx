@@ -1,6 +1,7 @@
 import {
     FindInPage
 } from '@mui/icons-material';
+import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -23,7 +24,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');

@@ -1,4 +1,5 @@
 import { Cancel, Delete, DeleteOutline, Pause, PlayArrow } from '@mui/icons-material';
+import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -23,7 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { TranslationKey } from '../utils/translations';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface Subscription {
     id: string;

@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Collection, Video } from '../../types';
+import { getApiUrl } from '../../utils/apiUrl';
 import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
 import TagsList from '../TagsList';
@@ -50,7 +51,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     const { logout, userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const navigate = useNavigate();
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = getApiUrl();
 
     // Check if login is enabled
     const { data: settingsData } = useQuery({

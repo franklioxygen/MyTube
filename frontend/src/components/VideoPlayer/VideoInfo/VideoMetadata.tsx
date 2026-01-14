@@ -6,7 +6,9 @@ import { useSnackbar } from '../../../contexts/SnackbarContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../../../types';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+import { getBackendUrl } from '../../../utils/apiUrl';
+
+const BACKEND_URL = getBackendUrl();
 
 interface VideoMetadataProps {
     video: Video;

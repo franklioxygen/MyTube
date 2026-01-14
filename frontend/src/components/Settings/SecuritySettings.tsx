@@ -1,5 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import { getApiUrl } from '../../utils/apiUrl';
 import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -11,7 +12,7 @@ import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface SecuritySettingsProps {
     settings: Settings;

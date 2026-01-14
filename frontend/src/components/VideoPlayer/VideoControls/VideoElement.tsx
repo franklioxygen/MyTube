@@ -1,6 +1,7 @@
 import { Box, Typography } from '@mui/material';
 import React, { useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { getBackendUrl } from '../../../utils/apiUrl';
 
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -196,7 +197,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                     <track
                         key={subtitle.language}
                         kind="subtitles"
-                        src={`${import.meta.env.VITE_BACKEND_URL}${subtitle.path}`}
+                        src={`${getBackendUrl()}${subtitle.path}`}
                         srcLang={subtitle.language}
                         label={subtitle.language.toUpperCase()}
                     />

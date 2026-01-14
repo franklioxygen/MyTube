@@ -1,4 +1,5 @@
 
+import { getApiUrl } from '../utils/apiUrl';
 import {
     FindInPage
 } from '@mui/icons-material';
@@ -46,7 +47,7 @@ import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 // TabPanel component - defined outside SettingsPage to prevent re-mounting on every render
 interface TabPanelProps {

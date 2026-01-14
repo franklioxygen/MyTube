@@ -1,6 +1,8 @@
 import axios, { AxiosError } from "axios";
+import { getBackendUrl } from "./apiUrl";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5551";
+// Use centralized backend URL helper
+const BACKEND_URL = getBackendUrl();
 
 // Configuration constants
 const REQUEST_TIMEOUT = 10000; // 10 seconds timeout for signed URL requests

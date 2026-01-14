@@ -23,6 +23,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
+import { getBackendUrl } from '../../utils/apiUrl';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
 
 interface UpNextSidebarProps {
@@ -40,7 +41,7 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
     const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
-        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
+        ? `${getBackendUrl()}${video.thumbnailPath}`
         : undefined;
 
     return (

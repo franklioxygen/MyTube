@@ -1,4 +1,5 @@
 import { CloudUpload } from '@mui/icons-material';
+import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -17,7 +18,7 @@ import axios from 'axios';
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface UploadModalProps {
     open: boolean;

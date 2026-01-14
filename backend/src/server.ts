@@ -35,7 +35,7 @@ import { VERSION } from "./version";
 VERSION.displayVersion();
 
 const app = express();
-const PORT = process.env.PORT || 5551;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5551;
 
 // Security: Disable X-Powered-By header to prevent information disclosure
 app.disable("x-powered-by");
@@ -304,8 +304,9 @@ const startServer = async () => {
       res.sendFile(path.join(frontendDist, "index.html"));
     });
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    const HOST = process.env.HOST || "0.0.0.0";
+    app.listen(PORT, HOST, () => {
+      console.log(`Server running on ${HOST}:${PORT}`);
 
       // Start subscription scheduler
       import("./services/subscriptionService")

@@ -5,6 +5,7 @@ import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import { getApiUrl } from '../../utils/apiUrl';
 import ConfirmationModal from '../ConfirmationModal';
 import PasswordModal from '../PasswordModal';
 
@@ -13,7 +14,7 @@ interface HookSettingsProps {
     onChange: (field: keyof Settings, value: any) => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 const HookSettings: React.FC<HookSettingsProps> = () => {
     const { t } = useLanguage();

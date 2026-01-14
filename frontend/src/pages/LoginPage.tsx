@@ -27,9 +27,13 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
+import { getApiUrl } from '../utils/apiUrl';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Get API URL using centralized helper function
+// In dev mode, uses relative path to leverage Vite proxy
+// In production or when VITE_API_URL is explicitly set, uses that value
+const API_URL = getApiUrl();
 
 const LoginPage: React.FC = () => {
     const [visitorPassword, setVisitorPassword] = useState('');

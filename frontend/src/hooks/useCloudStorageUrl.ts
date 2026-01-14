@@ -5,12 +5,13 @@ import {
   isMountDirectoryPath,
 } from "../utils/cloudStorage";
 
+import { getBackendUrl } from "../utils/apiUrl";
+
 /**
  * Helper function to construct full URL from initialUrl
  */
 const constructFullUrl = (initialUrl: string): string => {
-  const BACKEND_URL =
-    import.meta.env.VITE_BACKEND_URL ?? "http://localhost:5551";
+  const BACKEND_URL = getBackendUrl();
   // Construct full URL if it's a relative path
   return initialUrl.startsWith("http://") || initialUrl.startsWith("https://")
     ? initialUrl

@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface CollectionContextType {
     collections: Collection[];

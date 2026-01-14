@@ -13,6 +13,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { getApiUrl } from '../../utils/apiUrl';
 
 interface ManageMenuProps {
     anchorEl: HTMLElement | null;
@@ -28,7 +29,7 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
     const { logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = getApiUrl();
 
     // Check if login is enabled
     const { data: settingsData } = useQuery({

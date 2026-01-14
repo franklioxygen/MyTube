@@ -1,12 +1,13 @@
 import { CheckCircle, CloudUpload, Delete, ErrorOutline } from '@mui/icons-material';
 import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
+import { getApiUrl } from '../../utils/apiUrl';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import ConfirmationModal from '../ConfirmationModal';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface CookieSettingsProps {
     onSuccess: (message: string) => void;

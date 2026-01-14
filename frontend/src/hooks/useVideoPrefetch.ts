@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { getApiUrl } from '../utils/apiUrl';
 import axios from "axios";
 import { useCallback, useEffect, useRef } from "react";
 import { Video } from "../types";
 import { getFileUrl, isCloudStoragePath } from "../utils/cloudStorage";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface UseVideoPrefetchProps {
   videoId: string;

@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { getApiUrl } from '../utils/apiUrl';
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface CloudflareStatus {
   isRunning: boolean;

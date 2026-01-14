@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useState } from 'react';
+import { getApiUrl } from '../utils/apiUrl';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 
 interface AuthContextType {
     isAuthenticated: boolean;

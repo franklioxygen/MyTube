@@ -2,7 +2,9 @@ import axios from 'axios';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
 
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from '../utils/apiUrl';
+
+const API_URL = getApiUrl();
 
 interface LanguageContextType {
     language: Language;

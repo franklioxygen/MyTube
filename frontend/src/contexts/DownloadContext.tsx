@@ -6,13 +6,14 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
 import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 import { INFO_SOUNDS } from '../utils/sounds';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = getApiUrl();
 const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 

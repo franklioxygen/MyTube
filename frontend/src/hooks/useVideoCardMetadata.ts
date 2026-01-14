@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
 import { Video } from '../types';
+import { getBackendUrl } from '../utils/apiUrl';
 import { isNewVideo } from '../utils/videoCardUtils';
 
 interface UseVideoCardMetadataProps {
@@ -17,7 +18,7 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
     const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
-        ? `${import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:5551'}${video.thumbnailPath}`
+        ? `${getBackendUrl()}${video.thumbnailPath}`
         : undefined;
     const thumbnailSrc = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl;
 
