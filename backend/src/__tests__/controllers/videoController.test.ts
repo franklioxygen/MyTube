@@ -70,6 +70,9 @@ describe("VideoController", () => {
     (storageService.checkVideoDownloadBySourceId as any) = vi.fn().mockReturnValue({
       found: false,
     });
+    (storageService.getSettings as any) = vi.fn().mockReturnValue({
+      dontSkipDeletedVideo: false,
+    });
   });
 
   describe("searchVideos", () => {
@@ -195,6 +198,7 @@ describe("VideoController", () => {
       (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({
         found: false,
       });
+      (downloadManager.addDownload as any).mockResolvedValue("success");
 
       await downloadVideo(req as Request, res as Response);
 
@@ -235,7 +239,10 @@ describe("VideoController", () => {
       (storageService.checkVideoDownloadBySourceId as any).mockReturnValue({
         found: false,
       });
-      (downloadManager.addDownload as any).mockReturnValue(Promise.resolve());
+      (storageService.getSettings as any) = vi.fn().mockReturnValue({
+        dontSkipDeletedVideo: false,
+      });
+      (downloadManager.addDownload as any).mockResolvedValue("success");
 
       await downloadVideo(req as Request, res as Response);
 
