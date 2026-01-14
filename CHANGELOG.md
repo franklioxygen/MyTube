@@ -2,6 +2,17 @@
 
 
 
+## v1.7.57 (2026-01-13)
+
+### Feat
+
+- feat: Update browser extension installation instructions (93cceb4)
+- feat: Add option to re-download deleted videos (15d55fd)
+
+### Fix
+
+- fix: Update version to 1.0.1 (5343901)
+
 ## v1.7.56 (2026-01-13)
 
 ### Feat
