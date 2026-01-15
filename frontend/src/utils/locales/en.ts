@@ -314,6 +314,8 @@ export const en = {
   rateThisVideo: "Rate this video",
   enterFullscreen: "Enter Fullscreen",
   exitFullscreen: "Exit Fullscreen",
+  enterCinemaMode: "Enter Cinema Mode",
+  exitCinemaMode: "Exit Cinema Mode",
   share: "Share",
   editTitle: "Edit Title",
   hideVideo: "Make Video Hidden for Visitor Mode",

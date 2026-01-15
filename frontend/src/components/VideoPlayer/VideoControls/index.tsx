@@ -24,6 +24,8 @@ interface VideoControlsProps {
     onLoopToggle?: (enabled: boolean) => void;
     onEnded?: () => void;
     poster?: string;
+    isCinemaMode?: boolean;
+    onToggleCinemaMode?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -39,7 +41,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onSubtitlesToggle,
     onLoopToggle,
     onEnded,
-    poster
+    poster,
+    isCinemaMode = false,
+    onToggleCinemaMode
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -214,6 +218,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 onToggleFullscreen={fullscreen.handleToggleFullscreen}
                 onToggleLoop={handleToggleLoop}
                 onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
+                isCinemaMode={isCinemaMode}
+                onToggleCinemaMode={onToggleCinemaMode}
             />
         </Box>
     );

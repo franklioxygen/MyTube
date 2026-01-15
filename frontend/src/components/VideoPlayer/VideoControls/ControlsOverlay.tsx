@@ -7,6 +7,7 @@ import ProgressBar from './ProgressBar';
 import VolumeControl from './VolumeControl';
 import SubtitleControl from './SubtitleControl';
 import FullscreenControl from './FullscreenControl';
+import CinemaModeControl from './CinemaModeControl';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
 
@@ -41,6 +42,8 @@ interface ControlsOverlayProps {
     onToggleFullscreen: () => void;
     onToggleLoop: () => void;
     onControlsMouseEnter: () => void;
+    isCinemaMode?: boolean;
+    onToggleCinemaMode?: () => void;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -73,7 +76,9 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     onSelectSubtitle,
     onToggleFullscreen,
     onToggleLoop,
-    onControlsMouseEnter
+    onControlsMouseEnter,
+    isCinemaMode = false,
+    onToggleCinemaMode
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -144,12 +149,22 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         showOnMobile={true}
                     />
 
-                    {/* Right Side: Fullscreen, Subtitle, Loop (Desktop only) */}
+                    {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
                     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1, display: { xs: 'none', sm: 'flex' } }}>
                         <FullscreenControl
                             isFullscreen={isFullscreen}
                             onToggle={onToggleFullscreen}
                         />
+
+                        {/* Cinema Mode - only on large screens (lg and above) */}
+                        {onToggleCinemaMode && (
+                            <Box sx={{ display: { xs: 'none', sm: 'none', lg: 'block' } }}>
+                                <CinemaModeControl
+                                    isCinemaMode={isCinemaMode}
+                                    onToggle={onToggleCinemaMode}
+                                />
+                            </Box>
+                        )}
 
                         <SubtitleControl
                             subtitles={subtitles}

@@ -279,6 +279,8 @@ export const ar = {
   rateThisVideo: "قيم هذا الفيديو",
   enterFullscreen: "ملء الشاشة",
   exitFullscreen: "خروج من ملء الشاشة",
+  enterCinemaMode: "وضع السينما",
+  exitCinemaMode: "الخروج من وضع السينما",
   share: "مشاركة",
   editTitle: "تعديل العنوان",
   hideVideo: "جعل الفيديو مخفيًا في وضع الزائر",

@@ -305,6 +305,8 @@ export const zh = {
   rateThisVideo: "给视频评分",
   enterFullscreen: "全屏",
   exitFullscreen: "退出全屏",
+  enterCinemaMode: "进入影院模式",
+  exitCinemaMode: "退出影院模式",
   share: "分享",
   editTitle: "编辑标题",
   hideVideo: "使视频在访客模式下隐藏",

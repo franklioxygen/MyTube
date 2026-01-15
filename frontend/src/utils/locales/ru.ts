@@ -279,6 +279,8 @@ export const ru = {
   rateThisVideo: "Оценить это видео",
   enterFullscreen: "На весь экран",
   exitFullscreen: "Выйти из полноэкранного режима",
+  enterCinemaMode: "Кинорежим",
+  exitCinemaMode: "Выйти из кинорежима",
   share: "Поделиться",
   editTitle: "Редактировать название",
   hideVideo: "Скрыть видео для режима посетителя",

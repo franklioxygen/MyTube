@@ -43,6 +43,7 @@ const VideoPlayer: React.FC = () => {
         const saved = localStorage.getItem('autoPlayNext');
         return saved !== null ? JSON.parse(saved) : false;
     });
+    const [isCinemaMode, setIsCinemaMode] = useState<boolean>(false);
 
     useEffect(() => {
         localStorage.setItem('autoPlayNext', JSON.stringify(autoPlayNext));
@@ -294,9 +295,8 @@ const VideoPlayer: React.FC = () => {
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
-            <Grid container spacing={{ xs: 0, md: 4 }}>
-                {/* Main Content Column */}
-                <Grid size={{ xs: 12, lg: 8 }}>
+            {isCinemaMode ? (
+                <Box>
                     <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -310,50 +310,120 @@ const VideoPlayer: React.FC = () => {
                         onSubtitlesToggle={handleSubtitlesToggle}
                         onLoopToggle={handleLoopToggle}
                         onEnded={handleVideoEnded}
+                        isCinemaMode={isCinemaMode}
+                        onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
                     />
 
-                    <Box sx={{ px: { xs: 2, md: 0 } }}>
-                        <VideoInfo
-                            video={video}
-                            onTitleSave={handleSaveTitle}
-                            onRatingChange={handleRatingChange}
-                            onAuthorClick={handleAuthorClick}
-                            onAddToCollection={handleAddToCollection}
-                            onDelete={handleDelete}
-                            isDeleting={deleteMutation.isPending}
-                            deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
-                            videoCollections={videoCollections}
-                            onCollectionClick={handleCollectionClick}
-                            availableTags={availableTags}
-                            onTagsUpdate={handleUpdateTags}
-                            isSubscribed={isSubscribed}
-                            onSubscribe={handleSubscribe}
-                            onUnsubscribe={handleUnsubscribe}
-                            onToggleVisibility={handleToggleVisibility}
+                    <Box sx={{ px: { xs: 2, md: 0 }, mt: 2 }}>
+                        <Grid container spacing={4}>
+                            {/* Left Column - VideoInfo */}
+                            <Grid size={{ xs: 12, lg: 8 }}>
+                                <VideoInfo
+                                    video={video}
+                                    onTitleSave={handleSaveTitle}
+                                    onRatingChange={handleRatingChange}
+                                    onAuthorClick={handleAuthorClick}
+                                    onAddToCollection={handleAddToCollection}
+                                    onDelete={handleDelete}
+                                    isDeleting={deleteMutation.isPending}
+                                    deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
+                                    videoCollections={videoCollections}
+                                    onCollectionClick={handleCollectionClick}
+                                    availableTags={availableTags}
+                                    onTagsUpdate={handleUpdateTags}
+                                    isSubscribed={isSubscribed}
+                                    onSubscribe={handleSubscribe}
+                                    onUnsubscribe={handleUnsubscribe}
+                                    onToggleVisibility={handleToggleVisibility}
+                                />
+
+                                {(video.source === 'youtube' || video.source === 'bilibili') && (
+                                    <CommentsSection
+                                        comments={comments}
+                                        loading={loadingComments}
+                                        showComments={showComments}
+                                        onToggleComments={handleToggleComments}
+                                    />
+                                )}
+                            </Grid>
+
+                            {/* Right Column - UpNextSidebar */}
+                            <Grid size={{ xs: 12, lg: 4 }}>
+                                <UpNextSidebar
+                                    relatedVideos={relatedVideos}
+                                    autoPlayNext={autoPlayNext}
+                                    onAutoPlayNextChange={setAutoPlayNext}
+                                    onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
+                                    onAddToCollection={handleAddToCollection}
+                                />
+                            </Grid>
+                        </Grid>
+                    </Box>
+                </Box>
+            ) : (
+                <Grid container spacing={{ xs: 0, md: 4 }}>
+                    {/* Main Content Column */}
+                    <Grid size={{ xs: 12, lg: 8 }}>
+                        <VideoControls
+                            src={(videoUrl || video?.sourceUrl) || null}
+                            poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
+                            autoPlay={autoPlay}
+                            autoLoop={autoLoop}
+                            pauseOnFocusLoss={pauseOnFocusLoss}
+                            onTimeUpdate={handleTimeUpdate}
+                            startTime={video.progress || 0}
+                            subtitles={video.subtitles}
+                            subtitlesEnabled={subtitlesEnabled}
+                            onSubtitlesToggle={handleSubtitlesToggle}
+                            onLoopToggle={handleLoopToggle}
+                            onEnded={handleVideoEnded}
+                            isCinemaMode={isCinemaMode}
+                            onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
                         />
 
-                        {(video.source === 'youtube' || video.source === 'bilibili') && (
-                            <CommentsSection
-                                comments={comments}
-                                loading={loadingComments}
-                                showComments={showComments}
-                                onToggleComments={handleToggleComments}
+                        <Box sx={{ px: { xs: 2, md: 0 } }}>
+                            <VideoInfo
+                                video={video}
+                                onTitleSave={handleSaveTitle}
+                                onRatingChange={handleRatingChange}
+                                onAuthorClick={handleAuthorClick}
+                                onAddToCollection={handleAddToCollection}
+                                onDelete={handleDelete}
+                                isDeleting={deleteMutation.isPending}
+                                deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
+                                videoCollections={videoCollections}
+                                onCollectionClick={handleCollectionClick}
+                                availableTags={availableTags}
+                                onTagsUpdate={handleUpdateTags}
+                                isSubscribed={isSubscribed}
+                                onSubscribe={handleSubscribe}
+                                onUnsubscribe={handleUnsubscribe}
+                                onToggleVisibility={handleToggleVisibility}
                             />
-                        )}
-                    </Box>
-                </Grid>
 
-                {/* Sidebar Column - Up Next */}
-                <Grid size={{ xs: 12, lg: 4 }}>
-                    <UpNextSidebar
-                        relatedVideos={relatedVideos}
-                        autoPlayNext={autoPlayNext}
-                        onAutoPlayNextChange={setAutoPlayNext}
-                        onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
-                        onAddToCollection={handleAddToCollection}
-                    />
+                            {(video.source === 'youtube' || video.source === 'bilibili') && (
+                                <CommentsSection
+                                    comments={comments}
+                                    loading={loadingComments}
+                                    showComments={showComments}
+                                    onToggleComments={handleToggleComments}
+                                />
+                            )}
+                        </Box>
+                    </Grid>
+
+                    {/* Sidebar Column - Up Next */}
+                    <Grid size={{ xs: 12, lg: 4 }}>
+                        <UpNextSidebar
+                            relatedVideos={relatedVideos}
+                            autoPlayNext={autoPlayNext}
+                            onAutoPlayNextChange={setAutoPlayNext}
+                            onVideoClick={(videoId) => navigate(`/video/${videoId}`)}
+                            onAddToCollection={handleAddToCollection}
+                        />
+                    </Grid>
                 </Grid>
-            </Grid>
+            )}
 
             <CollectionModal
                 open={showCollectionModal}

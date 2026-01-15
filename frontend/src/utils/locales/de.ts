@@ -279,6 +279,8 @@ export const de = {
   rateThisVideo: "Dieses Video bewerten",
   enterFullscreen: "Vollbild",
   exitFullscreen: "Vollbild Verlassen",
+  enterCinemaMode: "Kinomodus",
+  exitCinemaMode: "Kinomodus Verlassen",
   share: "Teilen",
   editTitle: "Titel Bearbeiten",
   hideVideo: "Video für Besuchermodus ausblenden",

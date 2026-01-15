@@ -279,6 +279,8 @@ export const pt = {
   rateThisVideo: "Avaliar este vídeo",
   enterFullscreen: "Tela Cheia",
   exitFullscreen: "Sair da Tela Cheia",
+  enterCinemaMode: "Modo Cinema",
+  exitCinemaMode: "Sair do Modo Cinema",
   share: "Compartilhar",
   editTitle: "Editar Título",
   hideVideo: "Tornar Vídeo Oculto para Modo Visitante",

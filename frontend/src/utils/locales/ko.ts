@@ -279,6 +279,8 @@ export const ko = {
   rateThisVideo: "이 동영상 평가",
   enterFullscreen: "전체 화면",
   exitFullscreen: "전체 화면 종료",
+  enterCinemaMode: "시네마 모드",
+  exitCinemaMode: "시네마 모드 종료",
   share: "공유",
   editTitle: "제목 편집",
   hideVideo: "방문자 모드에서 동영상 숨기기",

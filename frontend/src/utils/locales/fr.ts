@@ -279,6 +279,8 @@ export const fr = {
   rateThisVideo: "Noter cette vidéo",
   enterFullscreen: "Plein écran",
   exitFullscreen: "Quitter le plein écran",
+  enterCinemaMode: "Mode Cinéma",
+  exitCinemaMode: "Quitter le Mode Cinéma",
   share: "Partager",
   editTitle: "Modifier le titre",
   hideVideo: "Rendre la vidéo cachée pour le mode visiteur",

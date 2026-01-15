@@ -279,6 +279,8 @@ export const es = {
   rateThisVideo: "Calificar este video",
   enterFullscreen: "Pantalla Completa",
   exitFullscreen: "Salir de Pantalla Completa",
+  enterCinemaMode: "Modo Cine",
+  exitCinemaMode: "Salir del Modo Cine",
   share: "Compartir",
   editTitle: "Editar Título",
   hideVideo: "Hacer Video Oculto para Modo Visitante",

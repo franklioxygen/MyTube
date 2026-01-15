@@ -279,6 +279,8 @@ export const ja = {
   rateThisVideo: "この動画を評価",
   enterFullscreen: "全画面表示",
   exitFullscreen: "全画面表示を終了",
+  enterCinemaMode: "シネマモード",
+  exitCinemaMode: "シネマモードを終了",
   share: "共有",
   editTitle: "タイトルを編集",
   hideVideo: "ビジターモードで動画を非表示にする",
