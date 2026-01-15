@@ -294,7 +294,7 @@ const VideoPlayer: React.FC = () => {
     };
 
     return (
-        <Container maxWidth={false} disableGutters sx={{ py: { xs: 0, md: 4 }, px: { xs: 0, md: 2 } }}>
+        <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
             {isCinemaMode ? (
                 <Box>
                     <VideoControls
