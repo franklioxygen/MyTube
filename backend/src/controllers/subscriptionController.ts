@@ -8,9 +8,9 @@ import { isBilibiliUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
 import {
-  executeYtDlpJson,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
+    executeYtDlpJson,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
 
 /**
@@ -426,10 +426,11 @@ export const subscribeChannelPlaylists = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url, interval } = req.body;
+  const { url, interval, downloadAllPrevious } = req.body;
   logger.info("Subscribing to channel playlists:", {
     url,
     interval,
+    downloadAllPrevious,
   });
 
   if (!url || !interval) {
@@ -520,40 +521,43 @@ export const subscribeChannelPlaylists = async (
       (sub) => sub.authorUrl === playlistUrl
     );
 
-    if (alreadySubscribed) {
-      logger.info(`Skipping playlist "${title}": already subscribed`);
-      skippedCount++;
-      continue;
-    }
+    // Check settings to see if we should save to author collection instead of playlist collection
+    const settings = storageService.getSettings();
+    const saveAuthorFilesToCollection = settings.saveAuthorFilesToCollection || false;
 
-    // Get or create collection for this playlist
-    const cleanChannelName =
-      channelName && channelName !== "Unknown"
-        ? channelName.replace(/[\/\\:*?"<>|]/g, "-").trim()
-        : null;
-    const collectionName = cleanChannelName
-      ? `${title} - ${cleanChannelName}`
-      : title;
+    let collectionId: string | null = null;
 
-    let collection = storageService.getCollectionByName(collectionName);
-    if (!collection) {
-      collection = storageService.getCollectionByName(title);
-    }
+    if (!saveAuthorFilesToCollection) {
+      // Get or create collection for this playlist
+      const cleanChannelName =
+        channelName && channelName !== "Unknown"
+          ? channelName.replace(/[\/\\:*?"<>|]/g, "-").trim()
+          : null;
+      const collectionName = cleanChannelName
+        ? `${title} - ${cleanChannelName}`
+        : title;
 
-    if (!collection) {
-      const uniqueCollectionName =
-        storageService.generateUniqueCollectionName(collectionName);
-      collection = {
-        id: Date.now().toString(),
-        name: uniqueCollectionName,
-        videos: [],
-        createdAt: new Date().toISOString(),
-        title: uniqueCollectionName,
-      };
-      storageService.saveCollection(collection);
-      logger.info(
-        `Created collection "${uniqueCollectionName}" for playlist: ${title}`
-      );
+      let collection = storageService.getCollectionByName(collectionName);
+      if (!collection) {
+        collection = storageService.getCollectionByName(title);
+      }
+
+      if (!collection) {
+        const uniqueCollectionName =
+          storageService.generateUniqueCollectionName(collectionName);
+        collection = {
+          id: Date.now().toString(),
+          name: uniqueCollectionName,
+          videos: [],
+          createdAt: new Date().toISOString(),
+          title: uniqueCollectionName,
+        };
+        storageService.saveCollection(collection);
+        logger.info(
+          `Created collection "${uniqueCollectionName}" for playlist: ${title}`
+        );
+      }
+      collectionId = collection.id;
     }
 
     // Extract playlist ID
@@ -567,24 +571,64 @@ export const subscribeChannelPlaylists = async (
       }
     }
 
-    try {
-      // Create subscription for this playlist
-      await subscriptionService.subscribePlaylist(
-        playlistUrl,
-        parseInt(interval),
-        title,
-        playlistId || "",
-        channelName,
-        platform,
-        collection.id
-      );
-      subscribedCount++;
-    } catch (error: any) {
-      logger.error(`Error subscribing to playlist "${title}":`, error);
-      if (error.name === "DuplicateError") {
-        skippedCount++;
-      } else {
-        errors.push(`${title}: ${error.message || "Unknown error"}`);
+    // Create subscription if not already subscribed
+    if (!alreadySubscribed) {
+      try {
+        // Create subscription for this playlist
+        await subscriptionService.subscribePlaylist(
+          playlistUrl,
+          parseInt(interval),
+          title,
+          playlistId || "",
+          channelName,
+          platform,
+          collectionId
+        );
+        subscribedCount++;
+      } catch (error: any) {
+        logger.error(`Error subscribing to playlist "${title}":`, error);
+        if (error.name === "DuplicateError") {
+          skippedCount++;
+        } else {
+          errors.push(`${title}: ${error.message || "Unknown error"}`);
+        }
+        // Continue to check if we should create download task even if subscription failed
+      }
+    } else {
+      logger.info(`Skipping playlist "${title}": already subscribed`);
+      skippedCount++;
+    }
+
+    // If user wants to download all previous videos, create a continuous download task
+    // This should happen even if the playlist was already subscribed
+    if (downloadAllPrevious) {
+      try {
+        // Check if task already exists
+        const existingTask = await continuousDownloadService.getTaskByAuthorUrl(
+          playlistUrl
+        );
+
+        if (existingTask) {
+          logger.info(
+            `Skipping download task creation for playlist "${title}": task already exists`
+          );
+        } else {
+          await continuousDownloadService.createPlaylistTask(
+            playlistUrl,
+            channelName,
+            platform,
+            collectionId
+          );
+          logger.info(
+            `Created continuous download task for playlist: ${title}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Error creating continuous download task for playlist "${title}":`,
+          error instanceof Error ? error : new Error(String(error))
+        );
+        // Don't fail the subscription if task creation fails
       }
     }
   }

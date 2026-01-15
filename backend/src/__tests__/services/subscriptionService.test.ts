@@ -29,7 +29,13 @@ vi.mock('../../db/schema', () => ({
 vi.mock('../../services/downloadService');
 vi.mock('../../services/storageService');
 vi.mock('../../services/downloaders/BilibiliDownloader');
+vi.mock('../../services/downloaders/BilibiliDownloader');
 vi.mock('../../services/downloaders/YtDlpDownloader');
+vi.mock('../../utils/ytDlpUtils', () => ({
+  executeYtDlpJson: vi.fn(),
+  getUserYtDlpConfig: vi.fn().mockReturnValue({}),
+  getNetworkConfigFromUserConfig: vi.fn().mockReturnValue({}),
+}));
 vi.mock('node-cron', () => ({
   default: {
     schedule: vi.fn().mockReturnValue({ stop: vi.fn() }),
@@ -237,6 +243,63 @@ describe('SubscriptionService', () => {
       expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
       // Should still update lastCheck
       expect(db.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('checkChannelPlaylists', () => {
+    it('should skip collection creation if saveAuthorFilesToCollection is true', async () => {
+      // Setup
+      const sub = {
+        id: 'sub-watcher',
+        author: 'User (Playlists Watcher)',
+        platform: 'YouTube',
+        authorUrl: 'https://youtube.com/@User/playlists',
+        interval: 60,
+        subscriptionType: 'channel_playlists'
+      };
+
+      // Mock settings
+      (storageService.getSettings as any).mockReturnValue({
+        saveAuthorFilesToCollection: true
+      });
+
+      // Mock yt-dlp return for playlists
+      const mockPlaylists = {
+        entries: [
+          {
+            id: 'pl-1',
+            title: 'My Playlist',
+            url: 'https://youtube.com/playlist?list=pl-1'
+          }
+        ]
+      };
+      
+      const { executeYtDlpJson } = await import('../../utils/ytDlpUtils');
+      (executeYtDlpJson as any).mockResolvedValue(mockPlaylists);
+
+      // Mock listSubscriptions to return empty (not already subscribed)
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+
+      // Spy on subscribePlaylist
+      const subscribeSpy = vi.spyOn(subscriptionService, 'subscribePlaylist');
+      subscribeSpy.mockResolvedValue({} as any);
+
+      // Execute
+      await subscriptionService.checkChannelPlaylists(sub as any);
+
+      // Verify
+      expect(subscribeSpy).toHaveBeenCalledWith(
+        expect.any(String), // url
+        expect.any(Number), // interval
+        'My Playlist',      // title
+        'pl-1',             // playlistId
+        'User',             // channelName
+        'YouTube',          // platform
+        null                // collectionId should be undefined/null
+      );
+
+      // Verify saveCollection was NOT called
+      expect(storageService.saveCollection).not.toHaveBeenCalled();
     });
   });
 });

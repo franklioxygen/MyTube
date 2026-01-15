@@ -82,11 +82,11 @@ export class ContinuousDownloadService {
     playlistUrl: string,
     author: string,
     platform: string,
-    collectionId: string
+    collectionId: string | null | undefined
   ): Promise<ContinuousDownloadTask> {
     const task: ContinuousDownloadTask = {
       id: uuidv4(),
-      collectionId,
+      collectionId: collectionId || undefined,
       authorUrl: playlistUrl,
       author,
       platform,
@@ -101,7 +101,9 @@ export class ContinuousDownloadService {
 
     await this.taskRepository.createTask(task);
     logger.info(
-      `Created playlist download task ${task.id} for collection ${collectionId} (${platform})`
+      `Created playlist download task ${task.id}${
+        collectionId ? ` for collection ${collectionId}` : ""
+      } (${platform})`
     );
 
     // Start processing the task asynchronously
@@ -129,7 +131,9 @@ export class ContinuousDownloadService {
   /**
    * Get a task by authorUrl (playlist URL)
    */
-  async getTaskByAuthorUrl(authorUrl: string): Promise<ContinuousDownloadTask | null> {
+  async getTaskByAuthorUrl(
+    authorUrl: string
+  ): Promise<ContinuousDownloadTask | null> {
     return this.taskRepository.getTaskByAuthorUrl(authorUrl);
   }
 

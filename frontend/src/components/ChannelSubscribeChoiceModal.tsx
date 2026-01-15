@@ -1,11 +1,14 @@
-import { Close } from '@mui/icons-material';
+import { Close, Warning } from '@mui/icons-material';
 import {
+    Alert,
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogContentText,
     DialogTitle,
+    FormControlLabel,
     IconButton,
     TextField,
     Typography
@@ -17,7 +20,7 @@ interface ChannelSubscribeChoiceModalProps {
     open: boolean;
     onClose: () => void;
     onChooseVideos: () => void;
-    onChoosePlaylists: (interval: number) => void;
+    onChoosePlaylists: (interval: number, downloadAllPrevious?: boolean) => void;
 }
 
 const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = ({
@@ -28,6 +31,7 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
 }) => {
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60);
+    const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
 
     return (
         <Dialog
@@ -75,6 +79,26 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
                     inputProps={{ min: 1 }}
                     sx={{ mb: 2 }}
                 />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={downloadAllPrevious}
+                            onChange={(e) => setDownloadAllPrevious(e.target.checked)}
+                        />
+                    }
+                    label={t('downloadAllPreviousVideosInPlaylists') || "Download previous videos in playlists"}
+                />
+                {downloadAllPrevious && (
+                    <Alert
+                        severity="warning"
+                        icon={<Warning />}
+                        sx={{ mt: 2 }}
+                    >
+                        <Typography variant="body2" component="div">
+                            {t('downloadAllPlaylistsWarning') || "This will download all videos from all playlists on this channel. This may be a large number of videos."}
+                        </Typography>
+                    </Alert>
+                )}
             </DialogContent>
             <DialogActions sx={{ p: 2, gap: 1, flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'flex-end' }}>
                 <Button onClick={onClose} color="inherit" variant="outlined" sx={{ width: { xs: '100%', sm: 'auto' } }}>
@@ -82,7 +106,7 @@ const ChannelSubscribeChoiceModal: React.FC<ChannelSubscribeChoiceModalProps> = 
                 </Button>
                 <Button
                     onClick={() => {
-                        onChoosePlaylists(interval);
+                        onChoosePlaylists(interval, downloadAllPrevious);
                         onClose();
                     }}
                     variant="contained"

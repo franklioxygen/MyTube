@@ -487,7 +487,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setShowSubscribeModal(true);
     };
 
-    const handleChooseSubscribePlaylists = async (interval: number) => {
+    const handleChooseSubscribePlaylists = async (interval: number, downloadAllPrevious: boolean = false) => {
         try {
             setShowChannelSubscribeChoiceModal(false);
 
@@ -502,12 +502,14 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Call the new endpoint to subscribe to all playlists
             const response = await axios.post(`${API_URL}/subscriptions/channel-playlists`, {
                 url: playlistsUrl,
-                interval: interval
+                interval: interval,
+                downloadAllPrevious: downloadAllPrevious
             });
 
             showSnackbar(response.data.message || 'Successfully subscribed to all playlists');
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             setSubscribeUrl('');
+
         } catch (err: any) {
             console.error('Error subscribing to channel playlists:', err);
             if (err.response && err.response.status === 409) {

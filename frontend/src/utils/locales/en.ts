@@ -562,6 +562,9 @@ export const en = {
   downloadAllPreviousVideos: "Download all previous videos from this author",
   downloadAllPreviousWarning:
     "Warning: This will download all previous videos from this author. This may consume significant storage space and could trigger bot detection mechanisms that may result in temporary or permanent bans from the platform. Use at your own risk.",
+  downloadAllPreviousVideosInPlaylists: "Download previous videos in playlists",
+  downloadAllPlaylistsWarning:
+    "Warning: This will download all videos from all playlists on this channel. This may be a large number of videos and consume significant storage space.",
   continuousDownloadTasks: "Continuous Download Tasks",
   taskStatusActive: "Active",
   taskStatusPaused: "Paused",

@@ -236,7 +236,7 @@ export class SubscriptionService {
     playlistId: string,
     author: string,
     platform: string,
-    collectionId: string
+    collectionId: string | null
   ): Promise<Subscription> {
     // Check if already subscribed to this playlist
     const existing = await db
@@ -264,7 +264,7 @@ export class SubscriptionService {
       playlistId,
       playlistTitle,
       subscriptionType: "playlist",
-      collectionId,
+      collectionId: collectionId || undefined,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -379,33 +379,40 @@ export class SubscriptionService {
 
         logger.info(`Watcher found new playlist: ${title} (${playlistUrl})`);
 
-        // Get or create collection
-        // We need to determine channel name for collection naming. 
-        // We can try to rely on what we have or extract.
-        // Since this is automatic background task, let's try to be safe.
+        // Check settings to see if we should save to author collection instead of playlist collection
+        const settings = storageService.getSettings();
+        const saveAuthorFilesToCollection = settings.saveAuthorFilesToCollection || false;
+
+        let collectionId: string | null = null;
+        
+        // Determine channel name for collection naming and subscription
         // If sub.author has " (Playlists Watcher)", remove it to get channel name.
         const channelName = sub.author.replace(" (Playlists Watcher)", "");
-        
-        const cleanChannelName = channelName.replace(/[\/\\:*?"<>|]/g, "-").trim();
-        const collectionName = cleanChannelName 
-            ? `${title} - ${cleanChannelName}`
-            : title;
-            
-        let collection = storageService.getCollectionByName(collectionName);
-        if (!collection) {
-            collection = storageService.getCollectionByName(title);
-        }
 
-        if (!collection) {
-            const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
-            collection = {
-                id: Date.now().toString(),
-                name: uniqueCollectionName,
-                videos: [],
-                createdAt: new Date().toISOString(),
-                title: uniqueCollectionName
-            };
-            storageService.saveCollection(collection);
+        if (!saveAuthorFilesToCollection) {
+            // Get or create collection
+            const cleanChannelName = channelName.replace(/[\/\\:*?"<>|]/g, "-").trim();
+            const collectionName = cleanChannelName 
+                ? `${title} - ${cleanChannelName}`
+                : title;
+                
+            let collection = storageService.getCollectionByName(collectionName);
+            if (!collection) {
+                collection = storageService.getCollectionByName(title);
+            }
+
+            if (!collection) {
+                const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
+                collection = {
+                    id: Date.now().toString(),
+                    name: uniqueCollectionName,
+                    videos: [],
+                    createdAt: new Date().toISOString(),
+                    title: uniqueCollectionName
+                };
+                storageService.saveCollection(collection);
+            }
+            collectionId = collection.id;
         }
 
         // Extract playlist ID
@@ -428,7 +435,7 @@ export class SubscriptionService {
                 playlistId || "",
                 channelName,
                 sub.platform,
-                collection.id
+                collectionId
             );
             newSubscriptionsCount++;
         } catch (error) {
