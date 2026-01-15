@@ -2,6 +2,12 @@
 
 
 
+## v1.7.60 (2026-01-14)
+
+### Refactor
+
+- refactor: Update cloudflaredService with execSync and fs.existsSync (f68c05e)
+
 ## v1.7.59 (2026-01-14)
 
 ### Feat
