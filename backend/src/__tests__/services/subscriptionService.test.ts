@@ -251,7 +251,7 @@ describe('SubscriptionService', () => {
       // Setup
       const sub = {
         id: 'sub-watcher',
-        author: 'User (Playlists Watcher)',
+        author: 'User', // Clean channel name, frontend will add translated suffix
         platform: 'YouTube',
         authorUrl: 'https://youtube.com/@User/playlists',
         interval: 60,

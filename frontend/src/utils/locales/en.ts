@@ -104,6 +104,15 @@ export const en = {
   scanFilesSuccess: "Scan complete. Added {count} new videos.",
   scanFilesDeleted: " {count} missing files removed.",
   scanFilesFailed: "Scan failed",
+  scanMountDirectoriesSuccess:
+    "Mount directories scan complete. Added {addedCount} new videos. Deleted {deletedCount} missing videos.",
+  subscribePlaylistsSuccess:
+    "Successfully subscribed to {count} playlist{plural}.",
+  subscribePlaylistsSkipped:
+    "{count} playlist{plural} {wasWere} already subscribed.",
+  subscribePlaylistsErrors: "{count} error{plural} occurred.",
+  subscribePlaylistsNoNew: "No new playlists subscribed.",
+  playlistsWatcher: "Playlists Watcher",
   scanFilesConfirmMessage:
     "The system will scan the root folder of the video path. New files will be added, and missing video files will be removed from the system.",
   scanning: "Scanning...",

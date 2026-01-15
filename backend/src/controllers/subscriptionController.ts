@@ -633,7 +633,8 @@ export const subscribeChannelPlaylists = async (
     }
   }
 
-  const message =
+  // Log message for debugging (not sent to frontend - frontend will construct from translations)
+  const logMessage =
     subscribedCount > 0
       ? `Successfully subscribed to ${subscribedCount} playlist${
           subscribedCount > 1 ? "s" : ""
@@ -659,6 +660,7 @@ export const subscribeChannelPlaylists = async (
             ? ` ${errors.length} error${errors.length > 1 ? "s" : ""} occurred.`
             : ""
         }`;
+  logger.info(logMessage);
 
   // Create persistent watcher for future playlists
   try {
@@ -675,7 +677,6 @@ export const subscribeChannelPlaylists = async (
   }
 
   res.status(201).json({
-    message,
     subscribedCount,
     skippedCount,
     errorCount: errors.length,

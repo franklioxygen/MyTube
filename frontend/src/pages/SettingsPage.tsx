@@ -216,24 +216,30 @@ const SettingsPage: React.FC = () => {
             if (!saveMutation.isPending) {
                 saveMutation.mutate(settingsToSave, {
                     onSuccess: () => {
-                        const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
-                        const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+                        const scanMsg = t('scanMountDirectoriesSuccess', {
+                            addedCount: data.addedCount,
+                            deletedCount: data.deletedCount
+                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
                         const saveMsg = t('settingsSaved') || 'Settings saved.';
-                        setMessage({ text: `${addedMsg}${deletedMsg} ${saveMsg}`, type: 'success' });
+                        setMessage({ text: `${scanMsg} ${saveMsg}`, type: 'success' });
                         // Update local settings state to reflect saved mountDirectories
                         setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
                     },
                     onError: (saveError: any) => {
-                        const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
-                        const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
+                        const scanMsg = t('scanMountDirectoriesSuccess', {
+                            addedCount: data.addedCount,
+                            deletedCount: data.deletedCount
+                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
                         const saveErrorMsg = saveError.response?.data?.message || t('settingsFailed') || 'Failed to save settings.';
-                        setMessage({ text: `${addedMsg}${deletedMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
+                        setMessage({ text: `${scanMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
                     }
                 });
             } else {
-                const addedMsg = t('scanFilesSuccess').replace('{count}', data.addedCount.toString()) || `Scan complete. ${data.addedCount} files added.`;
-                const deletedMsg = data.deletedCount > 0 ? (t('scanFilesDeleted').replace('{count}', data.deletedCount.toString()) || ` ${data.deletedCount} missing files removed.`) : '';
-                setMessage({ text: addedMsg + deletedMsg, type: 'success' });
+                const scanMsg = t('scanMountDirectoriesSuccess', {
+                    addedCount: data.addedCount,
+                    deletedCount: data.deletedCount
+                }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
+                setMessage({ text: scanMsg, type: 'success' });
             }
         },
         onError: (error: any) => {

@@ -103,6 +103,12 @@ export const zh = {
   scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
   scanFilesDeleted: " 移除了 {count} 个缺失文件。",
   scanFilesFailed: "扫描失败",
+  scanMountDirectoriesSuccess: "挂载目录扫描完成。添加了 {addedCount} 个新视频。删除了 {deletedCount} 个缺失视频。",
+  subscribePlaylistsSuccess: "成功订阅了 {count} 个播放列表{plural}。",
+  subscribePlaylistsSkipped: "{count} 个播放列表{plural}{wasWere}已订阅。",
+  subscribePlaylistsErrors: "发生了 {count} 个错误{plural}。",
+  subscribePlaylistsNoNew: "没有新的播放列表被订阅。",
+  playlistsWatcher: "播放列表监视器",
   scanFilesConfirmMessage:
     "系统将扫描视频路径的根文件夹。新文件将被添加，缺失的视频文件将从系统中移除。",
   scanning: "扫描中...",

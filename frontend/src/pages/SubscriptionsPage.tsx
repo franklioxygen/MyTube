@@ -1,5 +1,4 @@
 import { Cancel, Delete, DeleteOutline, Pause, PlayArrow } from '@mui/icons-material';
-import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -22,6 +21,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { getApiUrl } from '../utils/apiUrl';
 import { TranslationKey } from '../utils/translations';
 
 const API_URL = getApiUrl();
@@ -104,8 +104,12 @@ const SubscriptionsPage: React.FC = () => {
         gcTime: 10 * 60 * 1000, // Garbage collect after 10 minutes
     });
 
-    const handleUnsubscribeClick = (id: string, author: string) => {
-        setSelectedSubscription({ id, author });
+    const handleUnsubscribeClick = (id: string, author: string, subscriptionType?: string) => {
+        // Format display name with translated suffix for playlists watchers
+        const displayName = subscriptionType === 'channel_playlists' 
+            ? `${author} (${t('playlistsWatcher')})`
+            : author;
+        setSelectedSubscription({ id, author: displayName });
         setIsUnsubscribeModalOpen(true);
     };
 
@@ -275,7 +279,9 @@ const SubscriptionsPage: React.FC = () => {
                                             rel="noopener noreferrer"
                                             sx={{ textTransform: 'none', justifyContent: 'flex-start', p: 0 }}
                                         >
-                                            {sub.author}
+                                            {sub.subscriptionType === 'channel_playlists' 
+                                                ? `${sub.author} (${t('playlistsWatcher')})`
+                                                : sub.author}
                                         </Button>
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
@@ -286,7 +292,7 @@ const SubscriptionsPage: React.FC = () => {
                                         <TableCell align="right">
                                             <IconButton
                                                 color="error"
-                                                onClick={() => handleUnsubscribeClick(sub.id, sub.author)}
+                                                onClick={() => handleUnsubscribeClick(sub.id, sub.author, sub.subscriptionType)}
                                                 title={t('unsubscribe')}
                                             >
                                                 <Delete />

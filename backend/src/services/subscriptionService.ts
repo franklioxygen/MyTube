@@ -7,8 +7,8 @@ import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import { extractBilibiliMid, isBilibiliSpaceUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
-    downloadSingleBilibiliPart,
-    downloadYouTubeVideo,
+  downloadSingleBilibiliPart,
+  downloadYouTubeVideo,
 } from "./downloadService";
 import { BilibiliDownloader } from "./downloaders/BilibiliDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
@@ -26,7 +26,7 @@ export interface Subscription {
 
   platform: string;
   paused?: number;
-  
+
   // Playlist subscription fields
   playlistId?: string;
   playlistTitle?: string;
@@ -272,8 +272,6 @@ export class SubscriptionService {
     return newSubscription;
   }
 
-
-
   /**
    * Create a watcher subscription that monitors a channel's playlists
    */
@@ -288,7 +286,7 @@ export class SubscriptionService {
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.authorUrl, channelUrl));
-    
+
     if (existing.length > 0) {
       // If it exists, just return it (idempotent)
       return existing[0] as unknown as Subscription;
@@ -296,7 +294,7 @@ export class SubscriptionService {
 
     const newSubscription: Subscription = {
       id: uuidv4(),
-      author: `${channelName} (Playlists Watcher)`,
+      author: channelName, // Store clean channel name, frontend will add translated suffix
       authorUrl: channelUrl,
       interval,
       lastVideoLink: "",
@@ -319,7 +317,7 @@ export class SubscriptionService {
   async checkChannelPlaylists(sub: Subscription): Promise<void> {
     try {
       console.log(`Checking channel playlists for ${sub.author}...`);
-      
+
       const {
         executeYtDlpJson,
         getNetworkConfigFromUserConfig,
@@ -328,7 +326,7 @@ export class SubscriptionService {
       const { getProviderScript } = await import(
         "./downloaders/ytdlp/ytdlpHelpers"
       );
-      
+
       const userConfig = getUserYtDlpConfig(sub.authorUrl);
       const networkConfig = getNetworkConfigFromUserConfig(userConfig);
       const PROVIDER_SCRIPT = getProviderScript();
@@ -381,38 +379,42 @@ export class SubscriptionService {
 
         // Check settings to see if we should save to author collection instead of playlist collection
         const settings = storageService.getSettings();
-        const saveAuthorFilesToCollection = settings.saveAuthorFilesToCollection || false;
+        const saveAuthorFilesToCollection =
+          settings.saveAuthorFilesToCollection || false;
 
         let collectionId: string | null = null;
-        
+
         // Determine channel name for collection naming and subscription
-        // If sub.author has " (Playlists Watcher)", remove it to get channel name.
-        const channelName = sub.author.replace(" (Playlists Watcher)", "");
+        // For channel_playlists subscriptions, author is already the clean channel name
+        const channelName = sub.author;
 
         if (!saveAuthorFilesToCollection) {
-            // Get or create collection
-            const cleanChannelName = channelName.replace(/[\/\\:*?"<>|]/g, "-").trim();
-            const collectionName = cleanChannelName 
-                ? `${title} - ${cleanChannelName}`
-                : title;
-                
-            let collection = storageService.getCollectionByName(collectionName);
-            if (!collection) {
-                collection = storageService.getCollectionByName(title);
-            }
+          // Get or create collection
+          const cleanChannelName = channelName
+            .replace(/[\/\\:*?"<>|]/g, "-")
+            .trim();
+          const collectionName = cleanChannelName
+            ? `${title} - ${cleanChannelName}`
+            : title;
 
-            if (!collection) {
-                const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
-                collection = {
-                    id: Date.now().toString(),
-                    name: uniqueCollectionName,
-                    videos: [],
-                    createdAt: new Date().toISOString(),
-                    title: uniqueCollectionName
-                };
-                storageService.saveCollection(collection);
-            }
-            collectionId = collection.id;
+          let collection = storageService.getCollectionByName(collectionName);
+          if (!collection) {
+            collection = storageService.getCollectionByName(title);
+          }
+
+          if (!collection) {
+            const uniqueCollectionName =
+              storageService.generateUniqueCollectionName(collectionName);
+            collection = {
+              id: Date.now().toString(),
+              name: uniqueCollectionName,
+              videos: [],
+              createdAt: new Date().toISOString(),
+              title: uniqueCollectionName,
+            };
+            storageService.saveCollection(collection);
+          }
+          collectionId = collection.id;
         }
 
         // Extract playlist ID
@@ -427,24 +429,26 @@ export class SubscriptionService {
         }
 
         try {
-            // Subscribe to the new playlist
-            await this.subscribePlaylist(
-                playlistUrl,
-                sub.interval, // Use same interval as watcher
-                title,
-                playlistId || "",
-                channelName,
-                sub.platform,
-                collectionId
-            );
-            newSubscriptionsCount++;
+          // Subscribe to the new playlist
+          await this.subscribePlaylist(
+            playlistUrl,
+            sub.interval, // Use same interval as watcher
+            title,
+            playlistId || "",
+            channelName,
+            sub.platform,
+            collectionId
+          );
+          newSubscriptionsCount++;
         } catch (error) {
-            logger.error(`Error auto-subscribing to playlist ${title}:`, error);
+          logger.error(`Error auto-subscribing to playlist ${title}:`, error);
         }
       }
 
       if (newSubscriptionsCount > 0) {
-        logger.info(`Watcher ${sub.author} added ${newSubscriptionsCount} new playlists`);
+        logger.info(
+          `Watcher ${sub.author} added ${newSubscriptionsCount} new playlists`
+        );
       }
 
       // Update last check time
@@ -452,9 +456,8 @@ export class SubscriptionService {
         .update(subscriptions)
         .set({ lastCheck: Date.now() })
         .where(eq(subscriptions.id, sub.id));
-
     } catch (error) {
-        logger.error(`Error in playlists watcher for ${sub.author}:`, error);
+      logger.error(`Error in playlists watcher for ${sub.author}:`, error);
     }
   }
 
@@ -515,7 +518,7 @@ export class SubscriptionService {
       .update(subscriptions)
       .set({ paused: 1 })
       .where(eq(subscriptions.id, id));
-    
+
     logger.info(`Paused subscription ${id} (${existing[0].author})`);
   }
 
@@ -534,7 +537,7 @@ export class SubscriptionService {
       .update(subscriptions)
       .set({ paused: 0 })
       .where(eq(subscriptions.id, id));
-      
+
     logger.info(`Resumed subscription ${id} (${existing[0].author})`);
   }
 
@@ -650,7 +653,10 @@ export class SubscriptionService {
               // For playlist subscriptions, add video to the associated collection
               if (isPlaylistSubscription && sub.collectionId && videoData.id) {
                 try {
-                  storageService.addVideoToCollection(sub.collectionId, videoData.id);
+                  storageService.addVideoToCollection(
+                    sub.collectionId,
+                    videoData.id
+                  );
                   logger.info(
                     `Added video ${videoData.id} to collection ${sub.collectionId} from playlist subscription`
                   );

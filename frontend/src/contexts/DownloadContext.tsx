@@ -506,7 +506,46 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 downloadAllPrevious: downloadAllPrevious
             });
 
-            showSnackbar(response.data.message || 'Successfully subscribed to all playlists');
+            // Construct message from translations
+            const { subscribedCount, skippedCount, errorCount } = response.data;
+            let message = '';
+            
+            if (subscribedCount > 0) {
+                message = t('subscribePlaylistsSuccess', {
+                    count: subscribedCount,
+                    plural: subscribedCount > 1 ? 's' : ''
+                });
+                if (skippedCount > 0) {
+                    message += ' ' + t('subscribePlaylistsSkipped', {
+                        count: skippedCount,
+                        plural: skippedCount > 1 ? 's' : '',
+                        wasWere: skippedCount > 1 ? 'were' : 'was'
+                    });
+                }
+                if (errorCount > 0) {
+                    message += ' ' + t('subscribePlaylistsErrors', {
+                        count: errorCount,
+                        plural: errorCount > 1 ? 's' : ''
+                    });
+                }
+            } else {
+                message = t('subscribePlaylistsNoNew');
+                if (skippedCount > 0) {
+                    message += ' ' + t('subscribePlaylistsSkipped', {
+                        count: skippedCount,
+                        plural: skippedCount > 1 ? 's' : '',
+                        wasWere: skippedCount > 1 ? 'were' : 'was'
+                    });
+                }
+                if (errorCount > 0) {
+                    message += ' ' + t('subscribePlaylistsErrors', {
+                        count: errorCount,
+                        plural: errorCount > 1 ? 's' : ''
+                    });
+                }
+            }
+            
+            showSnackbar(message);
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             setSubscribeUrl('');
 
