@@ -480,7 +480,12 @@ export const de = {
 
   // Subscriptions
   subscribeToAuthor: "Autor abonnieren",
+  subscribeToChannel: "Kanal abonnieren",
   subscribeConfirmationMessage: "Möchten Sie {author} abonnieren?",
+  subscribeChannelChoiceMessage: "Wie möchten Sie diesen Kanal abonnieren?",
+  subscribeChannelChoiceDescription: "Wählen Sie, ob Sie alle Videos oder alle Wiedergabelisten dieses Kanals abonnieren möchten.",
+  subscribeAllVideos: "Alle Videos abonnieren",
+  subscribeAllPlaylists: "Alle Wiedergabelisten abonnieren",
   subscribeDescription: "Das System prüft automatisch auf neue Videos dieses Autors und lädt sie herunter.",
   checkIntervalMinutes: "Prüfintervall (Minuten)",
   subscribe: "Abonnieren",

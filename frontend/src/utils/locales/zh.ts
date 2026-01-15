@@ -20,7 +20,8 @@ export const zh = {
   downloadStarted: "开始下载",
   downloadFailed: "下载失败",
   downloadSuccess: "下载已成功开始",
-  confirmDownloadAllPlaylists: "是否下载该频道的所有播放列表？这将为每个播放列表创建一个合集。",
+  confirmDownloadAllPlaylists:
+    "是否下载该频道的所有播放列表？这将为每个播放列表创建一个合集。",
   downloadAll: "下载全部",
   loadingVideos: "加载视频中...",
   searchResultsFor: "搜索结果：",
@@ -50,9 +51,11 @@ export const zh = {
   websiteName: "网站名称",
   websiteNameHelper: "{current}/{max} 字符 (默认: {default})",
   tmdbApiKey: "TMDB API 密钥",
-  tmdbApiKeyHelper: "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",
+  tmdbApiKeyHelper:
+    "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",
   mountDirectories: "挂载目录",
-  mountDirectoriesPlaceholder: "输入挂载目录（每行一个）\n示例：\n/mnt/media1\n/mnt/media2",
+  mountDirectoriesPlaceholder:
+    "输入挂载目录（每行一个）\n示例：\n/mnt/media1\n/mnt/media2",
   mountDirectoriesHelper: "输入存储视频文件的挂载目录，每行一个目录",
   mountDirectoriesEmptyError: "请输入至少一个挂载目录",
   infiniteScroll: "无限滚动",
@@ -62,9 +65,11 @@ export const zh = {
   columnsCount: "{count} 列",
   enableLogin: "启用登录保护",
   allowPasswordLogin: "允许密码登录",
-  allowPasswordLoginHelper: "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
+  allowPasswordLoginHelper:
+    "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
   allowResetPassword: "允许重置密码",
-  allowResetPasswordHelper: "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
+  allowResetPasswordHelper:
+    "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
   password: "密码",
   enterPassword: "输入密码",
   togglePasswordVisibility: "切换密码可见性",
@@ -73,9 +78,11 @@ export const zh = {
   autoPlay: "自动播放视频",
   autoLoop: "自动循环播放",
   maxConcurrent: "最大同时下载数",
-  maxConcurrentDescription: "限制同时进行的下载数量，包括常规下载和连续订阅任务。",
+  maxConcurrentDescription:
+    "限制同时进行的下载数量，包括常规下载和连续订阅任务。",
   dontSkipDeletedVideo: "不跳过已删除的视频",
-  dontSkipDeletedVideoDescription: "启用后，状态为已删除的视频将自动重新下载，而不是被跳过。",
+  dontSkipDeletedVideoDescription:
+    "启用后，状态为已删除的视频将自动重新下载，而不是被跳过。",
   saveSettings: "保存设置",
   saving: "保存中...",
   backToManage: "返回管理",
@@ -89,13 +96,15 @@ export const zh = {
   tags: "标签",
   // Database
   database: "数据库",
-  migrateDataDescription: "从旧版 JSON 文件迁移数据到新的 SQLite 数据库。此操作可以安全地多次运行（将跳过重复项）。",
+  migrateDataDescription:
+    "从旧版 JSON 文件迁移数据到新的 SQLite 数据库。此操作可以安全地多次运行（将跳过重复项）。",
   migrateDataButton: "从 JSON 迁移数据",
   scanFiles: "扫描文件",
   scanFilesSuccess: "扫描完成。添加了 {count} 个新视频。",
   scanFilesDeleted: " 移除了 {count} 个缺失文件。",
   scanFilesFailed: "扫描失败",
-  scanFilesConfirmMessage: "系统将扫描视频路径的根文件夹。新文件将被添加，缺失的视频文件将从系统中移除。",
+  scanFilesConfirmMessage:
+    "系统将扫描视频路径的根文件夹。新文件将被添加，缺失的视频文件将从系统中移除。",
   scanning: "扫描中...",
   migrateConfirmation: "您确定要迁移数据吗？这可能需要一些时间。",
   migrationResults: "迁移结果",
@@ -109,22 +118,28 @@ export const zh = {
   fileNotFound: "未找到文件于",
   noDataFilesFound: "未找到可迁移的数据文件。请检查您的卷映射。",
   removeLegacyData: "删除旧数据",
-  removeLegacyDataDescription: "删除旧的 JSON 文件（videos.json, collections.json 等）以释放磁盘空间。请仅在确认数据已成功迁移后执行此操作。",
+  removeLegacyDataDescription:
+    "删除旧的 JSON 文件（videos.json, collections.json 等）以释放磁盘空间。请仅在确认数据已成功迁移后执行此操作。",
   removeLegacyDataConfirmTitle: "删除旧数据？",
-  removeLegacyDataConfirmMessage: "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
+  removeLegacyDataConfirmMessage:
+    "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
   legacyDataDeleted: "旧数据删除成功。",
   formatLegacyFilenames: "格式化旧文件名",
-  formatLegacyFilenamesDescription: "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
+  formatLegacyFilenamesDescription:
+    "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
   formatLegacyFilenamesButton: "格式化文件名",
   deleteLegacyDataButton: "删除旧数据",
   cleanupTempFiles: "清理临时文件",
-  cleanupTempFilesDescription: "从上传目录中删除所有临时下载文件（.ytdl、.part）。这有助于释放未完成或已取消下载占用的磁盘空间。",
+  cleanupTempFilesDescription:
+    "从上传目录中删除所有临时下载文件（.ytdl、.part）。这有助于释放未完成或已取消下载占用的磁盘空间。",
   cleanupTempFilesConfirmTitle: "清理临时文件？",
-  cleanupTempFilesConfirmMessage: "这将永久删除上传目录中的所有.ytdl和.part文件。请确保没有正在进行的下载。",
+  cleanupTempFilesConfirmMessage:
+    "这将永久删除上传目录中的所有.ytdl和.part文件。请确保没有正在进行的下载。",
 
   // Task Hooks
   taskHooks: "任务钩子",
-  taskHooksDescription: "在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
+  taskHooksDescription:
+    "在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
   taskHooksWarning: "警告：命令将以服务器权限运行。请谨慎使用。",
   hookTaskBeforeStart: "任务开始前",
   hookTaskBeforeStartHelper: "在下载开始前执行。",
@@ -141,8 +156,10 @@ export const zh = {
   uploadHook: "上传 .sh",
   enterPasswordToUploadHook: "请输入密码以上传此 Hook 脚本。",
   riskCommandDetected: "检测到危险命令：{command}。上传已拒绝。",
-  cleanupTempFilesActiveDownloads: "有活动下载时无法清理。请等待所有下载完成或取消它们。",
-  formatFilenamesSuccess: "处理: {processed}\n重命名: {renamed}\n错误: {errors}",
+  cleanupTempFilesActiveDownloads:
+    "有活动下载时无法清理。请等待所有下载完成或取消它们。",
+  formatFilenamesSuccess:
+    "处理: {processed}\n重命名: {renamed}\n错误: {errors}",
   formatFilenamesDetails: "详情:",
   formatFilenamesMore: "...还有 {count} 项",
   formatFilenamesError: "格式化文件名失败: {error}",
@@ -153,7 +170,8 @@ export const zh = {
   visitorModeReadOnly: "访客模式：只读",
   visitorUser: "访客用户",
   enableVisitorUser: "启用访客用户",
-  visitorUserHelper: "启用具有只读权限的单独访客帐户。访客可以查看内容，但不能进行更改。",
+  visitorUserHelper:
+    "启用具有只读权限的单独访客帐户。访客可以查看内容，但不能进行更改。",
   visitorPassword: "访客密码",
   visitorPasswordHelper: "设置访客帐户的密码。",
   visitorPasswordSetHelper: "密码已设置。留空以保持不变。",
@@ -162,7 +180,8 @@ export const zh = {
 
   // Cookie Settings
   cookieSettings: "Cookie 设置",
-  cookieUploadDescription: "上传 cookies.txt 以通过 YouTube 机器人检测并启用 Bilibili 字幕下载。文件将自动重命名为 cookies.txt。(例如：使用 \"Get cookies.txt LOCALLY\" 扩展导出 cookies)",
+  cookieUploadDescription:
+    '上传 cookies.txt 以通过 YouTube 机器人检测并启用 Bilibili 字幕下载。文件将自动重命名为 cookies.txt。(例如：使用 "Get cookies.txt LOCALLY" 扩展导出 cookies)',
   uploadCookies: "上传 Cookie",
   onlyTxtFilesAllowed: "仅允许 .txt 文件",
   cookiesUploadedSuccess: "Cookie 上传成功",
@@ -170,30 +189,36 @@ export const zh = {
   cookiesFound: "已找到 cookies.txt",
   cookiesNotFound: "未找到 cookies.txt",
   deleteCookies: "删除 Cookies",
-  confirmDeleteCookies: "您确定要删除 cookies 文件吗？这将影响您下载有年龄限制或仅限会员视频的能力。",
+  confirmDeleteCookies:
+    "您确定要删除 cookies 文件吗？这将影响您下载有年龄限制或仅限会员视频的能力。",
   cookiesDeletedSuccess: "Cookies 删除成功",
   cookiesDeleteFailed: "删除 Cookies 失败",
 
   // Cloud Drive
   cloudDriveSettings: "云端存储 (OpenList)",
-  cloudDriveDescription: "自动上传视频到云存储 (Alist) 并扫描云端新文件。上传成功后将删除本地文件。",
+  cloudDriveDescription:
+    "自动上传视频到云存储 (Alist) 并扫描云端新文件。上传成功后将删除本地文件。",
   enableAutoSave: "启用云端同步",
   apiUrl: "API 地址",
   apiUrlHelper: "例如：https://your-alist-instance.com/api/fs/put",
   token: "Token",
   publicUrl: "公开访问域名",
-  publicUrlHelper: "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
+  publicUrlHelper:
+    "用于访问文件的公开域名（例如：https://your-cloudflare-tunnel-domain.com）。如果设置，将使用此域名而不是 API 地址来访问文件。",
   uploadPath: "上传路径",
   cloudDrivePathHelper: "云端存储中的目录路径，例如：/mytube-uploads",
   scanPaths: "扫描路径",
-  scanPathsHelper: "每行一个路径。系统将扫描这些路径下的视频。留空则使用默认上传路径。示例：\n/a/电影\n/b/纪录片",
-  cloudDriveNote: "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
+  scanPathsHelper:
+    "每行一个路径。系统将扫描这些路径下的视频。留空则使用默认上传路径。示例：\n/a/电影\n/b/纪录片",
+  cloudDriveNote:
+    "启用此功能后，新下载的视频将自动上传到云端存储，本地文件将被删除。视频将通过代理从云端存储播放。",
   cloudScanAdded: "从云端添加",
   testing: "测试中...",
   testConnection: "测试连接",
   sync: "同步",
   syncToCloud: "双向同步",
-  syncWarning: "此操作将上传本地视频到云端并扫描云端新文件。上传后，本地文件将被删除。",
+  syncWarning:
+    "此操作将上传本地视频到云端并扫描云端新文件。上传后，本地文件将被删除。",
   syncing: "正在同步...",
   syncCompleted: "同步完成",
   syncFailed: "同步失败",
@@ -212,7 +237,8 @@ export const zh = {
   clearing: "清除中...",
   clearThumbnailCacheSuccess: "缩略图缓存清除成功。下次访问时将重新生成。",
   clearThumbnailCacheError: "清除缩略图缓存失败",
-  clearThumbnailCacheConfirmMessage: "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
+  clearThumbnailCacheConfirmMessage:
+    "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
 
   // Manage
   manageContent: "内容管理",
@@ -299,7 +325,8 @@ export const zh = {
   openInExternalPlayer: "在外部播放器中打开",
   playWith: "使用此应用播放...",
   deleteAllFilteredVideos: "删除所有过滤后的视频",
-  confirmDeleteFilteredVideos: "您确定要删除通过选定标签过滤的 {count} 个视频吗？",
+  confirmDeleteFilteredVideos:
+    "您确定要删除通过选定标签过滤的 {count} 个视频吗？",
   deleteFilteredVideosSuccess: "成功删除 {count} 个视频。",
   deletingVideos: "正在删除视频...",
 
@@ -314,15 +341,19 @@ export const zh = {
   defaultPasswordHint: "默认密码：123",
   checkingConnection: "正在检查连接...",
   connectionError: "连接错误",
-  backendConnectionFailed: "无法连接到服务器。请检查后端是否正在运行并确保端口已开放，然后重试。",
+  backendConnectionFailed:
+    "无法连接到服务器。请检查后端是否正在运行并确保端口已开放，然后重试。",
   retry: "重试",
   resetPassword: "重置密码",
   resetPasswordTitle: "重置密码",
-  resetPasswordMessage: "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
+  resetPasswordMessage:
+    "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
   resetPasswordConfirm: "重置",
   resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
-  resetPasswordDisabledInfo: "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
-  resetPasswordScriptGuide: "要手动重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n如果未提供密码，将生成一个随机的8位密码。",
+  resetPasswordDisabledInfo:
+    "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
+  resetPasswordScriptGuide:
+    "要手动重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n如果未提供密码，将生成一个随机的8位密码。",
   waitTimeMessage: "请等待 {time} 后再试。",
   tooManyAttempts: "失败尝试次数过多。",
   // Passkeys
@@ -330,8 +361,10 @@ export const zh = {
   creatingPasskey: "创建中...",
   passkeyCreated: "通行密钥创建成功",
   passkeyCreationFailed: "创建通行密钥失败，请重试。",
-  passkeyWebAuthnNotSupported: "此浏览器不支持 WebAuthn。请使用支持 WebAuthn 的现代浏览器。",
-  passkeyRequiresHttps: "WebAuthn 需要 HTTPS 或 localhost。请通过 HTTPS 访问应用程序，或使用 localhost 而不是 IP 地址。",
+  passkeyWebAuthnNotSupported:
+    "此浏览器不支持 WebAuthn。请使用支持 WebAuthn 的现代浏览器。",
+  passkeyRequiresHttps:
+    "WebAuthn 需要 HTTPS 或 localhost。请通过 HTTPS 访问应用程序，或使用 localhost 而不是 IP 地址。",
   removePasskeys: "删除所有通行密钥",
   removePasskeysTitle: "删除所有通行密钥",
   removePasskeysMessage: "您确定要删除所有通行密钥吗？此操作无法撤销。",
@@ -340,7 +373,8 @@ export const zh = {
   loginWithPasskey: "使用通行密钥登录",
   authenticating: "验证中...",
   passkeyLoginFailed: "通行密钥验证失败，请重试。",
-  passkeyErrorPermissionDenied: "用户代理或平台在当前上下文中不允许该请求，可能是因为用户拒绝了权限。",
+  passkeyErrorPermissionDenied:
+    "用户代理或平台在当前上下文中不允许该请求，可能是因为用户拒绝了权限。",
   passkeyErrorAlreadyRegistered: "该认证器之前已注册。",
   linkCopied: "链接已复制到剪贴板",
   copyFailed: "复制链接失败",
@@ -357,7 +391,8 @@ export const zh = {
   unknownAuthor: "未知",
   noVideosForAuthor: "未找到该作者的视频。",
   deleteAuthor: "删除作者",
-  deleteAuthorConfirmation: "您确定要删除作者 {author} 吗？这将删除该作者的所有视频。",
+  deleteAuthorConfirmation:
+    "您确定要删除作者 {author} 吗？这将删除该作者的所有视频。",
   authorDeletedSuccessfully: "作者删除成功",
   failedToDeleteAuthor: "删除作者失败",
   createCollectionFromAuthor: "为该作者创建合集",
@@ -366,11 +401,15 @@ export const zh = {
   collectionCreatedFromAuthor: "合集创建成功，所有视频已移动",
   failedToCreateCollectionFromAuthor: "创建合集失败",
   collectionAlreadyExists: "已存在同名合集",
-  createCollectionFromAuthorConfirmation: "将创建一个名为 \"{author}\" 的合集，主要包含该作者的所有视频。是否继续？",
-  createCollectionFromAuthorConfirmationWithMove: "将创建一个名为 \"{author}\" 的合集，主要包含该作者的所有视频。{count} 个当前在其他合集中的视频将被移动到此新合集。是否继续？",
+  createCollectionFromAuthorConfirmation:
+    '将创建一个名为 "{author}" 的合集，主要包含该作者的所有视频。是否继续？',
+  createCollectionFromAuthorConfirmationWithMove:
+    '将创建一个名为 "{author}" 的合集，主要包含该作者的所有视频。{count} 个当前在其他合集中的视频将被移动到此新合集。是否继续？',
   addVideosToCollection: "添加视频到合集",
-  addVideosToExistingCollectionConfirmation: "将作者 \"{author}\" 的 {count} 个视频添加到现有合集 \"{author}\"。是否继续？",
-  addVideosToExistingCollectionConfirmationWithMove: "将作者 \"{author}\" 的 {count} 个视频添加到现有合集 \"{author}\"。{moveCount} 个当前在其他合集中的视频将被移动到此合集。是否继续？",
+  addVideosToExistingCollectionConfirmation:
+    '将作者 "{author}" 的 {count} 个视频添加到现有合集 "{author}"。是否继续？',
+  addVideosToExistingCollectionConfirmationWithMove:
+    '将作者 "{author}" 的 {count} 个视频添加到现有合集 "{author}"。{moveCount} 个当前在其他合集中的视频将被移动到此合集。是否继续？',
 
   // Delete Collection Modal
   deleteCollectionTitle: "删除合集",
@@ -480,7 +519,12 @@ export const zh = {
 
   // Subscriptions
   subscribeToAuthor: "订阅作者",
+  subscribeToChannel: "订阅频道",
   subscribeConfirmationMessage: "您确定要订阅 {author} 吗？",
+  subscribeChannelChoiceMessage: "您想如何订阅此频道？",
+  subscribeChannelChoiceDescription: "选择订阅此频道的所有视频或所有播放列表。",
+  subscribeAllVideos: "订阅所有视频",
+  subscribeAllPlaylists: "订阅所有播放列表",
   subscribeDescription: "系统将自动检查此作者的新视频并下载。",
   checkIntervalMinutes: "检查间隔（分钟）",
   subscribe: "订阅",
@@ -496,7 +540,8 @@ export const zh = {
   minutes: "分钟",
   never: "从未",
   downloadAllPreviousVideos: "下载此作者的所有历史视频",
-  downloadAllPreviousWarning: "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
+  downloadAllPreviousWarning:
+    "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
   continuousDownloadTasks: "连续下载任务",
   taskStatusActive: "进行中",
   taskStatusPaused: "已暂停",
@@ -511,7 +556,8 @@ export const zh = {
   taskDeleted: "任务已成功删除",
   clearFinishedTasks: "清除已完成任务",
   tasksCleared: "已成功清除已完成的任务",
-  confirmClearFinishedTasks: "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
+  confirmClearFinishedTasks:
+    "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
   clear: "清除",
 
   // Subscription Pause/Resume
@@ -540,47 +586,62 @@ export const zh = {
   instructionSection1Desc: "本模块包含视频获取、批量任务及文件导入等功能。",
   instructionSection1Sub1: "链接下载：",
   instructionSection1Item1Label: "基础下载：",
-  instructionSection1Item1Text: "在链接文本框中粘贴各类视频网站的链接即可直接下载。",
+  instructionSection1Item1Text:
+    "在链接文本框中粘贴各类视频网站的链接即可直接下载。",
   instructionSection1Item2Label: "权限说明：",
-  instructionSection1Item2Text: "部分需要会员或登录才能观看的网站，请先在浏览器内另开标签页登录对应账号，以获取下载权限。",
+  instructionSection1Item2Text:
+    "部分需要会员或登录才能观看的网站，请先在浏览器内另开标签页登录对应账号，以获取下载权限。",
   instructionSection1Sub2: "智能识别：",
   instructionSection1Item3Label: "YouTube 作者订阅：",
-  instructionSection1Item3Text: "当粘贴链接为作者个人空间时，系统将询问是否订阅。订阅后，系统可设定时间间隔，自动扫描并下载该作者的更新。",
+  instructionSection1Item3Text:
+    "当粘贴链接为作者个人空间时，系统将询问是否订阅。订阅后，系统可设定时间间隔，自动扫描并下载该作者的更新。",
   instructionSection1Item4Label: "Bilibili 合集下载：",
-  instructionSection1Item4Text: "当粘贴链接为 Bilibili 收藏夹/合集时，系统将询问是否下载整个合集内容。",
+  instructionSection1Item4Text:
+    "当粘贴链接为 Bilibili 收藏夹/合集时，系统将询问是否下载整个合集内容。",
   instructionSection1Sub3: "高级工具（下载管理页）：",
   instructionSection1Item5Label: "批量添加任务：",
-  instructionSection1Item5Text: "支持一次性粘贴多个下载链接（请按行区分），进行批量添加。",
+  instructionSection1Item5Text:
+    "支持一次性粘贴多个下载链接（请按行区分），进行批量添加。",
   instructionSection1Item6Label: "扫描文件：",
-  instructionSection1Item6Text: "自动搜索视频储存根目录及一级文件夹下的所有文件。此功能适用于管理员在服务器后台直接存入文件后，将其批量同步至系统。",
+  instructionSection1Item6Text:
+    "自动搜索视频储存根目录及一级文件夹下的所有文件。此功能适用于管理员在服务器后台直接存入文件后，将其批量同步至系统。",
   instructionSection1Item7Label: "上传视频：",
-  instructionSection1Item7Text: "支持直接从客户端单独上传本地视频文件到服务器。",
+  instructionSection1Item7Text:
+    "支持直接从客户端单独上传本地视频文件到服务器。",
 
   instructionSection2Title: "2. 视频库管理",
   instructionSection2Desc: "对已下载或导入的视频资源进行维护和编辑。",
   instructionSection2Sub1: "合集/视频删除：",
-  instructionSection2Text1: "在管理页面删除合集时，系统提供两种选择：仅删除合集列表项（保留文件），或连同合集内的物理文件一并彻底删除。",
+  instructionSection2Text1:
+    "在管理页面删除合集时，系统提供两种选择：仅删除合集列表项（保留文件），或连同合集内的物理文件一并彻底删除。",
   instructionSection2Sub2: "缩略图修复：",
-  instructionSection2Text2: "若遇到下载后视频无封面的情况，可点击视频缩略图上的刷新按钮，系统将重新抓取视频首帧作为新的缩略图。",
+  instructionSection2Text2:
+    "若遇到下载后视频无封面的情况，可点击视频缩略图上的刷新按钮，系统将重新抓取视频首帧作为新的缩略图。",
 
   instructionSection3Title: "3. 系统设置",
   instructionSection3Desc: "配置系统参数、维护数据及扩展功能。",
   instructionSection3Sub1: "安全设定：",
-  instructionSection3Text1: "设置系统登录密码（默认初始密码为 123，建议首次登录后修改）。",
+  instructionSection3Text1:
+    "设置系统登录密码（默认初始密码为 123，建议首次登录后修改）。",
   instructionSection3Sub2: "标签管理：",
-  instructionSection3Text2: "支持添加或删除视频分类标签。注意： 所有操作完成后，必须点击页面底端的“保存”按钮方可生效。",
+  instructionSection3Text2:
+    "支持添加或删除视频分类标签。注意： 所有操作完成后，必须点击页面底端的“保存”按钮方可生效。",
   instructionSection3Sub3: "系统维护：",
   instructionSection3Item1Label: "清理临时文件：",
-  instructionSection3Item1Text: "用于清除因后端偶发故障而残留的临时下载文件，释放空间。",
+  instructionSection3Item1Text:
+    "用于清除因后端偶发故障而残留的临时下载文件，释放空间。",
   instructionSection3Item2Label: "数据库迁移：",
-  instructionSection3Item2Text: "专为早期版本用户设计。使用此功能可将数据从 JSON 迁移至新的 SQLite 数据库。迁移成功后，可点击删除按钮清理旧的历史数据。",
+  instructionSection3Item2Text:
+    "专为早期版本用户设计。使用此功能可将数据从 JSON 迁移至新的 SQLite 数据库。迁移成功后，可点击删除按钮清理旧的历史数据。",
   instructionSection3Sub4: "扩展服务：",
   instructionSection3Item3Label: "OpenList 云盘：",
-  instructionSection3Item3Text: "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
+  instructionSection3Item3Text:
+    "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
 
   // Disclaimer
   disclaimerTitle: "免责声明",
-  disclaimerText: "1. 用途与限制\n本软件（包括代码和文档）仅供个人学习、研究和技术交流使用。严禁将本软件用于任何商业用途或违反当地法律法规的非法活动。\n\n2. 责任\n开发者不知道也无法控制用户如何使用本软件。因非法或不当使用本软件而产生的任何法律责任、争议或损害（包括但不限于侵犯版权）应由用户自行承担。开发者不承担任何直接、间接或连带责任。\n\n3. 修改和分发\n本项目是开源的。任何修改或复刻此代码的个人或组织必须遵守开源许可证。重要提示：如果第三方修改代码以绕过或移除原始用户验证/安全机制并分发此类版本，修改者/分发者将承担所有后果的全责。我们强烈不建议绕过或篡改任何安全验证机制。\n\n4. 非盈利声明\n这是一个完全免费的开源项目。开发者不接受捐赠，也从未发布过任何捐赠页面。本软件本身不收费，也不提供任何付费服务。请提高警惕，谨防任何声称代表本项目收费的诈骗或误导信息。",
+  disclaimerText:
+    "1. 用途与限制\n本软件（包括代码和文档）仅供个人学习、研究和技术交流使用。严禁将本软件用于任何商业用途或违反当地法律法规的非法活动。\n\n2. 责任\n开发者不知道也无法控制用户如何使用本软件。因非法或不当使用本软件而产生的任何法律责任、争议或损害（包括但不限于侵犯版权）应由用户自行承担。开发者不承担任何直接、间接或连带责任。\n\n3. 修改和分发\n本项目是开源的。任何修改或复刻此代码的个人或组织必须遵守开源许可证。重要提示：如果第三方修改代码以绕过或移除原始用户验证/安全机制并分发此类版本，修改者/分发者将承担所有后果的全责。我们强烈不建议绕过或篡改任何安全验证机制。\n\n4. 非盈利声明\n这是一个完全免费的开源项目。开发者不接受捐赠，也从未发布过任何捐赠页面。本软件本身不收费，也不提供任何付费服务。请提高警惕，谨防任何声称代表本项目收费的诈骗或误导信息。",
   history: "历史",
 
   // Existing Video Detection
@@ -623,15 +684,18 @@ export const zh = {
   moveSubtitlesToVideoFolder: "字幕位置",
   moveSubtitlesToVideoFolderOn: "与视频在同一文件夹",
   moveSubtitlesToVideoFolderOff: "在独立字幕文件夹",
-  moveSubtitlesToVideoFolderDescription: "启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的字幕文件夹中。",
+  moveSubtitlesToVideoFolderDescription:
+    "启用后，字幕文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的字幕文件夹中。",
   moveThumbnailsToVideoFolder: "封面位置",
   moveThumbnailsToVideoFolderOn: "与视频在一起",
   moveThumbnailsToVideoFolderOff: "在独立的图片文件夹中",
-  moveThumbnailsToVideoFolderDescription: "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
+  moveThumbnailsToVideoFolderDescription:
+    "启用后，封面文件将被移动到与视频文件相同的文件夹中。禁用后，它们将被移动到独立的图片文件夹中。",
   saveAuthorFilesToCollection: "将作者文件保存到合集",
   saveAuthorFilesToCollectionOn: "按作者整理",
   saveAuthorFilesToCollectionOff: "保存到根文件夹",
-  saveAuthorFilesToCollectionDescription: "启用后，新下载的视频、缩略图和字幕将自动整理到以视频作者命名的合集中。如果合集不存在，将自动创建。",
+  saveAuthorFilesToCollectionDescription:
+    "启用后，新下载的视频、缩略图和字幕将自动整理到以视频作者命名的合集中。如果合集不存在，将自动创建。",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 穿透",
@@ -650,22 +714,26 @@ export const zh = {
 
   // Database Export/Import
   exportImportDatabase: "导出/导入数据库",
-  exportImportDatabaseDescription: "将数据库导出为备份文件或导入之前导出的备份。导入将使用备份数据覆盖现有数据。",
+  exportImportDatabaseDescription:
+    "将数据库导出为备份文件或导入之前导出的备份。导入将使用备份数据覆盖现有数据。",
   exportDatabase: "导出数据库",
   importDatabase: "导入数据库",
   onlyDbFilesAllowed: "仅允许 .db 文件",
-  importDatabaseWarning: "警告：导入数据库将覆盖所有现有数据。请确保首先导出当前数据库作为备份。",
+  importDatabaseWarning:
+    "警告：导入数据库将覆盖所有现有数据。请确保首先导出当前数据库作为备份。",
   selectDatabaseFile: "选择数据库文件",
   databaseExportedSuccess: "数据库导出成功",
   databaseExportFailed: "数据库导出失败",
   databaseImportedSuccess: "数据库导入成功。现有数据已被备份数据覆盖。",
   databaseImportFailed: "数据库导入失败",
   cleanupBackupDatabases: "清理备份数据库",
-  cleanupBackupDatabasesWarning: "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
+  cleanupBackupDatabasesWarning:
+    "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
   backupDatabasesCleanedUp: "备份数据库清理成功",
   backupDatabasesCleanupFailed: "清理备份数据库失败",
   restoreFromLastBackup: "从最后备份恢复",
-  restoreFromLastBackupWarning: "警告：这将从最后一个自动备份文件恢复数据库。所有当前数据将被备份数据覆盖。此操作无法撤销。您确定要继续吗？",
+  restoreFromLastBackupWarning:
+    "警告：这将从最后一个自动备份文件恢复数据库。所有当前数据将被备份数据覆盖。此操作无法撤销。您确定要继续吗？",
   restoreFromLastBackupSuccess: "从备份成功恢复数据库",
   restoreFromLastBackupFailed: "从备份恢复失败",
   lastBackupDate: "最后备份日期",

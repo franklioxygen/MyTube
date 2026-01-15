@@ -480,7 +480,12 @@ export const es = {
 
   // Subscriptions
   subscribeToAuthor: "Suscribirse al autor",
+  subscribeToChannel: "Suscribirse al canal",
   subscribeConfirmationMessage: "¿Quieres suscribirte a {author}?",
+  subscribeChannelChoiceMessage: "¿Cómo te gustaría suscribirte a este canal?",
+  subscribeChannelChoiceDescription: "Elige suscribirte a todos los vídeos o a todas las listas de reproducción de este canal.",
+  subscribeAllVideos: "Suscribirse a todos los vídeos",
+  subscribeAllPlaylists: "Suscribirse a todas las listas de reproducción",
   subscribeDescription: "El sistema comprobará automáticamente si hay nuevos vídeos de este autor y los descargará.",
   checkIntervalMinutes: "Intervalo de comprobación (minutos)",
   subscribe: "Suscribirse",

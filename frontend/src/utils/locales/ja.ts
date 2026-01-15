@@ -480,7 +480,12 @@ export const ja = {
 
   // Subscriptions
   subscribeToAuthor: "著者を購読する",
+  subscribeToChannel: "チャンネルを購読する",
   subscribeConfirmationMessage: "{author} を購読しますか？",
+  subscribeChannelChoiceMessage: "このチャンネルをどのように購読しますか？",
+  subscribeChannelChoiceDescription: "このチャンネルのすべての動画またはすべてのプレイリストを購読することを選択してください。",
+  subscribeAllVideos: "すべての動画を購読",
+  subscribeAllPlaylists: "すべてのプレイリストを購読",
   subscribeDescription: "システムはこの著者の新しい動画を自動的にチェックしてダウンロードします。",
   checkIntervalMinutes: "チェック間隔（分）",
   subscribe: "購読",

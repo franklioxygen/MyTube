@@ -272,6 +272,185 @@ export class SubscriptionService {
     return newSubscription;
   }
 
+
+
+  /**
+   * Create a watcher subscription that monitors a channel's playlists
+   */
+  async subscribeChannelPlaylistsWatcher(
+    channelUrl: string,
+    interval: number,
+    channelName: string,
+    platform: string
+  ): Promise<Subscription> {
+    // Check if watcher already exists
+    const existing = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.authorUrl, channelUrl));
+    
+    if (existing.length > 0) {
+      // If it exists, just return it (idempotent)
+      return existing[0] as unknown as Subscription;
+    }
+
+    const newSubscription: Subscription = {
+      id: uuidv4(),
+      author: `${channelName} (Playlists Watcher)`,
+      authorUrl: channelUrl,
+      interval,
+      lastVideoLink: "",
+      lastCheck: Date.now(),
+      downloadCount: 0,
+      createdAt: Date.now(),
+      platform,
+      paused: 0,
+      subscriptionType: "channel_playlists",
+    };
+
+    await db.insert(subscriptions).values(newSubscription);
+    logger.info(`Created channel playlists watcher: ${newSubscription.author}`);
+    return newSubscription;
+  }
+
+  /**
+   * Check for new playlists on a channel and subscribe to them
+   */
+  async checkChannelPlaylists(sub: Subscription): Promise<void> {
+    try {
+      console.log(`Checking channel playlists for ${sub.author}...`);
+      
+      const {
+        executeYtDlpJson,
+        getNetworkConfigFromUserConfig,
+        getUserYtDlpConfig,
+      } = await import("../utils/ytDlpUtils");
+      const { getProviderScript } = await import(
+        "./downloaders/ytdlp/ytdlpHelpers"
+      );
+      
+      const userConfig = getUserYtDlpConfig(sub.authorUrl);
+      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+      const PROVIDER_SCRIPT = getProviderScript();
+
+      // Use yt-dlp to get all playlists
+      const result = await executeYtDlpJson(sub.authorUrl, {
+        ...networkConfig,
+        noWarnings: true,
+        flatPlaylist: true,
+        dumpSingleJson: true,
+        playlistEnd: 100, // Limit to 100 playlists for safety
+        ...(PROVIDER_SCRIPT
+          ? {
+              extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+            }
+          : {}),
+      });
+
+      if (!result.entries || result.entries.length === 0) {
+        logger.debug(`No playlists found for watcher ${sub.author}`);
+        return;
+      }
+
+      // Extract channel name if needed (to update watcher name if generic?)
+      // For now keep existing name.
+
+      let newSubscriptionsCount = 0;
+
+      // Process each playlist
+      for (const entry of result.entries) {
+        if (!entry.url && !entry.id) continue;
+
+        const playlistUrl =
+          entry.url || `https://www.youtube.com/playlist?list=${entry.id}`;
+        const title = (entry.title || "Untitled Playlist")
+          .replace(/[\/\\:*?"<>|]/g, "-")
+          .trim();
+
+        // Check if already subscribed to this playlist
+        const existing = await this.listSubscriptions();
+        const alreadySubscribed = existing.some(
+          (s) => s.authorUrl === playlistUrl
+        );
+
+        if (alreadySubscribed) {
+          continue;
+        }
+
+        logger.info(`Watcher found new playlist: ${title} (${playlistUrl})`);
+
+        // Get or create collection
+        // We need to determine channel name for collection naming. 
+        // We can try to rely on what we have or extract.
+        // Since this is automatic background task, let's try to be safe.
+        // If sub.author has " (Playlists Watcher)", remove it to get channel name.
+        const channelName = sub.author.replace(" (Playlists Watcher)", "");
+        
+        const cleanChannelName = channelName.replace(/[\/\\:*?"<>|]/g, "-").trim();
+        const collectionName = cleanChannelName 
+            ? `${title} - ${cleanChannelName}`
+            : title;
+            
+        let collection = storageService.getCollectionByName(collectionName);
+        if (!collection) {
+            collection = storageService.getCollectionByName(title);
+        }
+
+        if (!collection) {
+            const uniqueCollectionName = storageService.generateUniqueCollectionName(collectionName);
+            collection = {
+                id: Date.now().toString(),
+                name: uniqueCollectionName,
+                videos: [],
+                createdAt: new Date().toISOString(),
+                title: uniqueCollectionName
+            };
+            storageService.saveCollection(collection);
+        }
+
+        // Extract playlist ID
+        let playlistId: string | null = null;
+        if (entry.id) {
+          playlistId = entry.id;
+        } else {
+          const match = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+          if (match && match[1]) {
+            playlistId = match[1];
+          }
+        }
+
+        try {
+            // Subscribe to the new playlist
+            await this.subscribePlaylist(
+                playlistUrl,
+                sub.interval, // Use same interval as watcher
+                title,
+                playlistId || "",
+                channelName,
+                sub.platform,
+                collection.id
+            );
+            newSubscriptionsCount++;
+        } catch (error) {
+            logger.error(`Error auto-subscribing to playlist ${title}:`, error);
+        }
+      }
+
+      if (newSubscriptionsCount > 0) {
+        logger.info(`Watcher ${sub.author} added ${newSubscriptionsCount} new playlists`);
+      }
+
+      // Update last check time
+      await db
+        .update(subscriptions)
+        .set({ lastCheck: Date.now() })
+        .where(eq(subscriptions.id, sub.id));
+
+    } catch (error) {
+        logger.error(`Error in playlists watcher for ${sub.author}:`, error);
+    }
+  }
+
   async unsubscribe(id: string): Promise<void> {
     // Verify subscription exists before deletion
     const existing = await db
@@ -395,6 +574,11 @@ export class SubscriptionService {
           );
 
           // 1. Fetch latest video link based on platform and subscription type
+          if (sub.subscriptionType === "channel_playlists") {
+            await this.checkChannelPlaylists(sub);
+            continue; // Watcher handled, move to next subscription
+          }
+
           const isPlaylistSubscription = sub.subscriptionType === "playlist";
           const latestVideoUrl = isPlaylistSubscription
             ? await this.getLatestPlaylistVideoUrl(sub.authorUrl, sub.platform)

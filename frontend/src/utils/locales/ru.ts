@@ -480,7 +480,12 @@ export const ru = {
 
   // Subscriptions
   subscribeToAuthor: "Подписаться на автора",
+  subscribeToChannel: "Подписаться на канал",
   subscribeConfirmationMessage: "Вы хотите подписаться на {author}?",
+  subscribeChannelChoiceMessage: "Как вы хотите подписаться на этот канал?",
+  subscribeChannelChoiceDescription: "Выберите подписку на все видео или все плейлисты этого канала.",
+  subscribeAllVideos: "Подписаться на все видео",
+  subscribeAllPlaylists: "Подписаться на все плейлисты",
   subscribeDescription: "Система будет автоматически проверять новые видео от этого автора и скачивать их.",
   checkIntervalMinutes: "Интервал проверки (минуты)",
   subscribe: "Подписаться",

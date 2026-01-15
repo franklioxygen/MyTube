@@ -147,6 +147,10 @@ router.post(
   "/subscriptions/playlist",
   asyncHandler(subscriptionController.createPlaylistSubscription)
 );
+router.post(
+  "/subscriptions/channel-playlists",
+  asyncHandler(subscriptionController.subscribeChannelPlaylists)
+);
 
 // Continuous download task routes
 router.get(

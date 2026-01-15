@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AlertModal from '../components/AlertModal';
+import ChannelSubscribeChoiceModal from '../components/ChannelSubscribeChoiceModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
 import { useSettings } from '../hooks/useSettings';
@@ -185,7 +186,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
             // Check for YouTube playlist URL (must check before channel check)
             const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
-            
+
             if (playlistRegex.test(videoUrl) && !skipCollectionCheck) {
                 setIsCheckingParts(true);
                 try {
@@ -228,7 +229,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const channelRegex = /youtube\.com\/(?:@|channel\/|user\/|c\/)/;
             if (channelRegex.test(videoUrl)) {
                 setSubscribeUrl(videoUrl);
-                setShowSubscribeModal(true);
+                setShowChannelSubscribeChoiceModal(true);
                 return { success: true };
             }
 
@@ -436,6 +437,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [subscribeUrl, setSubscribeUrl] = useState('');
 
+    // Channel subscribe choice modal
+    const [showChannelSubscribeChoiceModal, setShowChannelSubscribeChoiceModal] = useState(false);
+
     // Channel playlists confirmation modal
     const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
     const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
@@ -477,6 +481,44 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
+    const handleChooseSubscribeVideos = () => {
+        // Show the regular subscribe modal for videos
+        setShowChannelSubscribeChoiceModal(false);
+        setShowSubscribeModal(true);
+    };
+
+    const handleChooseSubscribePlaylists = async (interval: number) => {
+        try {
+            setShowChannelSubscribeChoiceModal(false);
+
+            // Construct the playlists URL
+            let playlistsUrl = subscribeUrl;
+            if (!playlistsUrl.includes('/playlists')) {
+                playlistsUrl = playlistsUrl.endsWith('/')
+                    ? `${playlistsUrl}playlists`
+                    : `${playlistsUrl}/playlists`;
+            }
+
+            // Call the new endpoint to subscribe to all playlists
+            const response = await axios.post(`${API_URL}/subscriptions/channel-playlists`, {
+                url: playlistsUrl,
+                interval: interval
+            });
+
+            showSnackbar(response.data.message || 'Successfully subscribed to all playlists');
+            queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+            setSubscribeUrl('');
+        } catch (err: any) {
+            console.error('Error subscribing to channel playlists:', err);
+            if (err.response && err.response.status === 409) {
+                showSnackbar(t('subscriptionAlreadyExists'), 'warning');
+            } else {
+                showSnackbar(err.response?.data?.error || t('error'), 'error');
+            }
+            setSubscribeUrl('');
+        }
+    };
+
     return (
         <DownloadContext.Provider value={{
             activeDownloads,
@@ -490,6 +532,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             handleDownloadCurrentBilibiliPart
         }}>
             {children}
+            <ChannelSubscribeChoiceModal
+                open={showChannelSubscribeChoiceModal}
+                onClose={() => {
+                    setShowChannelSubscribeChoiceModal(false);
+                    setSubscribeUrl('');
+                }}
+                onChooseVideos={handleChooseSubscribeVideos}
+                onChoosePlaylists={handleChooseSubscribePlaylists}
+            />
             <SubscribeModal
                 open={showSubscribeModal}
                 onClose={() => setShowSubscribeModal(false)}

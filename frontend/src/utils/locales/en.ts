@@ -534,7 +534,12 @@ export const en = {
 
   // Subscriptions
   subscribeToAuthor: "Subscribe to Author",
+  subscribeToChannel: "Subscribe to Channel",
   subscribeConfirmationMessage: "Do you want to subscribe to {author}?",
+  subscribeChannelChoiceMessage: "How would you like to subscribe to this channel?",
+  subscribeChannelChoiceDescription: "Choose to subscribe to all videos or all playlists from this channel.",
+  subscribeAllVideos: "Subscribe All Videos",
+  subscribeAllPlaylists: "Subscribe All Playlists",
   subscribeDescription:
     "The system will automatically check for new videos from this author and download them.",
   checkIntervalMinutes: "Check Interval (minutes)",

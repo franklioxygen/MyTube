@@ -419,6 +419,227 @@ export const createPlaylistSubscription = async (
 };
 
 /**
+ * Subscribe to all playlists from a channel
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const subscribeChannelPlaylists = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { url, interval } = req.body;
+  logger.info("Subscribing to channel playlists:", {
+    url,
+    interval,
+  });
+
+  if (!url || !interval) {
+    throw new ValidationError("URL and interval are required", "body");
+  }
+
+  // Adjust URL to ensure we target playlists tab
+  let targetUrl = url;
+  if (!targetUrl.includes("/playlists")) {
+    targetUrl = targetUrl.endsWith("/")
+      ? `${targetUrl}playlists`
+      : `${targetUrl}/playlists`;
+  }
+
+  const userConfig = getUserYtDlpConfig(targetUrl);
+  const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+  const { getProviderScript } = await import(
+    "../services/downloaders/ytdlp/ytdlpHelpers"
+  );
+  const PROVIDER_SCRIPT = getProviderScript();
+
+  // Use yt-dlp to get all playlists
+  const result = await executeYtDlpJson(targetUrl, {
+    ...networkConfig,
+    noWarnings: true,
+    flatPlaylist: true,
+    dumpSingleJson: true,
+    playlistEnd: 100, // Limit to 100 playlists for safety
+    ...(PROVIDER_SCRIPT
+      ? {
+          extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
+        }
+      : {}),
+  });
+
+  if (!result.entries || result.entries.length === 0) {
+    throw new ValidationError("No playlists found on this channel", "body");
+  }
+
+  // Extract channel name from result
+  let channelName = "Unknown";
+  if (result.uploader) {
+    channelName = result.uploader;
+  } else if (result.channel) {
+    channelName = result.channel;
+  } else if (result.channel_id && result.entries && result.entries.length > 0) {
+    const firstEntry = result.entries[0];
+    if (firstEntry.uploader) {
+      channelName = firstEntry.uploader;
+    } else if (firstEntry.channel) {
+      channelName = firstEntry.channel;
+    }
+  }
+
+  // Fallback: try to extract from URL if still not found
+  if (channelName === "Unknown") {
+    const match = decodeURI(url).match(/youtube\.com\/(@[^\/]+)/);
+    if (match && match[1]) {
+      channelName = match[1];
+    }
+  }
+
+  logger.info(
+    `Found ${result.entries.length} playlists for channel: ${channelName}`
+  );
+
+  const platform = isBilibiliUrl(targetUrl) ? "Bilibili" : "YouTube";
+  let subscribedCount = 0;
+  let skippedCount = 0;
+  const errors: string[] = [];
+
+  // Process each playlist
+  for (const entry of result.entries) {
+    // Must be a playlist type or have a title and url/id
+    if (!entry.url && !entry.id) continue;
+
+    const playlistUrl =
+      entry.url || `https://www.youtube.com/playlist?list=${entry.id}`;
+    const title = (entry.title || "Untitled Playlist")
+      .replace(/[\/\\:*?"<>|]/g, "-")
+      .trim();
+
+    logger.info(`Processing playlist subscription: ${title} (${playlistUrl})`);
+
+    // Check if already subscribed to this playlist
+    const existing = await subscriptionService.listSubscriptions();
+    const alreadySubscribed = existing.some(
+      (sub) => sub.authorUrl === playlistUrl
+    );
+
+    if (alreadySubscribed) {
+      logger.info(`Skipping playlist "${title}": already subscribed`);
+      skippedCount++;
+      continue;
+    }
+
+    // Get or create collection for this playlist
+    const cleanChannelName =
+      channelName && channelName !== "Unknown"
+        ? channelName.replace(/[\/\\:*?"<>|]/g, "-").trim()
+        : null;
+    const collectionName = cleanChannelName
+      ? `${title} - ${cleanChannelName}`
+      : title;
+
+    let collection = storageService.getCollectionByName(collectionName);
+    if (!collection) {
+      collection = storageService.getCollectionByName(title);
+    }
+
+    if (!collection) {
+      const uniqueCollectionName =
+        storageService.generateUniqueCollectionName(collectionName);
+      collection = {
+        id: Date.now().toString(),
+        name: uniqueCollectionName,
+        videos: [],
+        createdAt: new Date().toISOString(),
+        title: uniqueCollectionName,
+      };
+      storageService.saveCollection(collection);
+      logger.info(
+        `Created collection "${uniqueCollectionName}" for playlist: ${title}`
+      );
+    }
+
+    // Extract playlist ID
+    let playlistId: string | null = null;
+    if (entry.id) {
+      playlistId = entry.id;
+    } else {
+      const match = playlistUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        playlistId = match[1];
+      }
+    }
+
+    try {
+      // Create subscription for this playlist
+      await subscriptionService.subscribePlaylist(
+        playlistUrl,
+        parseInt(interval),
+        title,
+        playlistId || "",
+        channelName,
+        platform,
+        collection.id
+      );
+      subscribedCount++;
+    } catch (error: any) {
+      logger.error(`Error subscribing to playlist "${title}":`, error);
+      if (error.name === "DuplicateError") {
+        skippedCount++;
+      } else {
+        errors.push(`${title}: ${error.message || "Unknown error"}`);
+      }
+    }
+  }
+
+  const message =
+    subscribedCount > 0
+      ? `Successfully subscribed to ${subscribedCount} playlist${
+          subscribedCount > 1 ? "s" : ""
+        }.${
+          skippedCount > 0
+            ? ` ${skippedCount} playlist${
+                skippedCount > 1 ? "s were" : " was"
+              } already subscribed.`
+            : ""
+        }${
+          errors.length > 0
+            ? ` ${errors.length} error${errors.length > 1 ? "s" : ""} occurred.`
+            : ""
+        }`
+      : `No new playlists subscribed.${
+          skippedCount > 0
+            ? ` ${skippedCount} playlist${
+                skippedCount > 1 ? "s were" : " was"
+              } already subscribed.`
+            : ""
+        }${
+          errors.length > 0
+            ? ` ${errors.length} error${errors.length > 1 ? "s" : ""} occurred.`
+            : ""
+        }`;
+
+  // Create persistent watcher for future playlists
+  try {
+    await subscriptionService.subscribeChannelPlaylistsWatcher(
+      targetUrl,
+      parseInt(interval),
+      channelName,
+      platform
+    );
+    logger.info(`Created watcher for channel: ${channelName}`);
+  } catch (error) {
+    logger.error(`Error creating watcher for channel ${channelName}:`, error);
+    // Don't fail the request if watcher creation fails, main task succeeded
+  }
+
+  res.status(201).json({
+    message,
+    subscribedCount,
+    skippedCount,
+    errorCount: errors.length,
+    errors: errors.length > 0 ? errors : undefined,
+  });
+};
+
+/**
  * Create a continuous download task for a playlist
  * Errors are automatically handled by asyncHandler middleware
  */
