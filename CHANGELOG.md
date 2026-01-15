@@ -2,6 +2,12 @@
 
 
 
+## v1.7.63 (2026-01-15)
+
+### Feat
+
+- feat: Add default sort option for videos (ceed6bd)
+
 ## v1.7.62 (2026-01-15)
 
 ### Feat
