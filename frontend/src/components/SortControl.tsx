@@ -1,5 +1,5 @@
 import { AccessTime, Shuffle, Sort, SortByAlpha, Visibility } from '@mui/icons-material';
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, SxProps, Theme } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -8,13 +8,15 @@ interface SortControlProps {
     sortAnchorEl: null | HTMLElement;
     onSortClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
     onSortClose: (option?: string) => void;
+    sx?: SxProps<Theme>;
 }
 
 const SortControl: React.FC<SortControlProps> = ({
     sortOption,
     sortAnchorEl,
     onSortClick,
-    onSortClose
+    onSortClose,
+    sx
 }) => {
     const { t } = useLanguage();
 
@@ -29,7 +31,8 @@ const SortControl: React.FC<SortControlProps> = ({
                     px: { xs: 1, md: 2 },
                     height: '100%',
                     color: 'text.secondary',
-                    borderColor: 'text.secondary'
+                    borderColor: 'text.secondary',
+                    ...sx
                 }}
             >
                 <Sort fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />

@@ -11,10 +11,12 @@ import {
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
+import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useVideoSort } from '../hooks/useVideoSort';
 
 const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
@@ -32,9 +34,22 @@ const CollectionPage: React.FC = () => {
         ? videos.filter(video => collection.videos.includes(video.id))
         : [];
 
+    // Sort videos
+    const {
+        sortedVideos,
+        sortOption,
+        sortAnchorEl,
+        handleSortClick,
+        handleSortClose
+    } = useVideoSort({
+        videos: collectionVideos,
+        defaultSort: 'dateDesc',
+        onSortChange: () => setPage(1)
+    });
+
     // Pagination logic
-    const totalPages = Math.ceil(collectionVideos.length / ITEMS_PER_PAGE);
-    const displayedVideos = collectionVideos.slice(
+    const totalPages = Math.ceil(sortedVideos.length / ITEMS_PER_PAGE);
+    const displayedVideos = sortedVideos.slice(
         (page - 1) * ITEMS_PER_PAGE,
         page * ITEMS_PER_PAGE
     );
@@ -76,7 +91,7 @@ const CollectionPage: React.FC = () => {
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Avatar sx={{ width: 56, height: 56, bgcolor: 'secondary.main', mr: 2 }}>
                         <Folder fontSize="large" />
@@ -90,6 +105,17 @@ const CollectionPage: React.FC = () => {
                         </Typography>
                     </Box>
                 </Box>
+
+                {/* Sort Control */}
+                {collectionVideos.length > 0 && (
+                    <SortControl
+                        sortOption={sortOption}
+                        sortAnchorEl={sortAnchorEl}
+                        onSortClick={handleSortClick}
+                        onSortClose={handleSortClose}
+                        sx={{ height: '38px', marginTop: '2px' }}
+                    />
+                )}
             </Box>
 
             {collectionVideos.length === 0 ? (

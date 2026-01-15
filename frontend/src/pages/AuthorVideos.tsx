@@ -13,13 +13,15 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
+import SortControl from '../components/SortControl';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
-import { Video } from '../types';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
+import { useVideoSort } from '../hooks/useVideoSort';
+import { Video } from '../types';
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
@@ -143,11 +145,21 @@ const AuthorVideos: React.FC = () => {
         );
     }
 
-    // Show all videos for the author (no collection filtering)
-    const filteredVideos = authorVideos;
+    // Sort videos
+    const {
+        sortedVideos,
+        sortOption,
+        sortAnchorEl,
+        handleSortClick,
+        handleSortClose
+    } = useVideoSort({
+        videos: authorVideos,
+        defaultSort: 'dateDesc'
+    });
 
     // Build confirmation message
     const getCreateCollectionMessage = (): string => {
+        // ... (keep existing implementation, but referenced authorVideos, which is fine as it is the source)
         // Check if collection with this name already exists
         const existingCollection = collections.find(
             col => (col.name || col.title) === author
@@ -193,9 +205,9 @@ const AuthorVideos: React.FC = () => {
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar 
+                    <Avatar
                         src={avatarUrl || undefined}
                         sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
                     >
@@ -238,13 +250,24 @@ const AuthorVideos: React.FC = () => {
                         </Typography>
                     </Box>
                 </Box>
+
+                {/* Sort Control */}
+                {authorVideos.length > 0 && (
+                    <SortControl
+                        sortOption={sortOption}
+                        sortAnchorEl={sortAnchorEl}
+                        onSortClick={handleSortClick}
+                        onSortClose={handleSortClose}
+                        sx={{ height: '38px', marginTop: '2px' }}
+                    />
+                )}
             </Box>
 
             {authorVideos.length === 0 ? (
                 <Alert severity="info" variant="outlined">{t('noVideosForAuthor')}</Alert>
             ) : (
                 <Grid container spacing={3}>
-                    {filteredVideos.map(video => (
+                    {sortedVideos.map(video => (
                         <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
                             <VideoCard
                                 video={video}
