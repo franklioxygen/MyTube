@@ -2,6 +2,23 @@
 
 
 
+## v1.7.62 (2026-01-15)
+
+### Feat
+
+- feat: Add script to wait for backend before starting frontend (b6e7369)
+- feat: Add option to download all previous videos in playlists (f0c8795)
+- feat: Add don't skip deleted video setting in HistoryItem (c83bc9e)
+
+### Refactor
+
+- refactor: Clean channel name handling and log message for debugging (b544e75)
+- refactor: Update Vite config and server settings (8d255b0)
+
+### Style
+
+- style: Update padding values in VideoPlayer component (5efe37f)
+
 ## v1.7.61 (2026-01-15)
 
 ### Refactor
