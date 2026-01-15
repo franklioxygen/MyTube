@@ -40,7 +40,7 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 />
             </Box>
 
-            <Box sx={{ mt: 3 }}>
+            <Box sx={{ mt: 3 }} id="dontSkipDeletedVideo-setting">
                 <FormControlLabel
                     control={
                         <Switch

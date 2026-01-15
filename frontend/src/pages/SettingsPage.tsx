@@ -1,5 +1,4 @@
 
-import { getApiUrl } from '../utils/apiUrl';
 import {
     FindInPage
 } from '@mui/icons-material';
@@ -20,6 +19,7 @@ import TextField from '@mui/material/TextField';
 import { useMutation } from '@tanstack/react-query';
 import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import CollapsibleSection from '../components/CollapsibleSection';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AdvancedSettings from '../components/Settings/AdvancedSettings';
@@ -43,6 +43,7 @@ import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { Settings } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
@@ -76,6 +77,7 @@ const SettingsPage: React.FC = () => {
     const isVisitor = userRole === 'visitor';
     const theme = useTheme();
     const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+    const location = useLocation();
 
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
@@ -137,6 +139,37 @@ const SettingsPage: React.FC = () => {
         refetch();
     }, [refetch]);
 
+    // Handle initial tab selection from URL and scrolling
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tabParam = params.get('tab');
+        if (tabParam) {
+            const tabIndex = parseInt(tabParam, 10);
+            if (!isNaN(tabIndex)) {
+                setCurrentTab(tabIndex);
+            }
+        }
+
+        // Handle scrolling to element if hash is present
+        if (location.hash) {
+            const id = location.hash.replace('#', '');
+            // Small delay to allow tab content to render
+            setTimeout(() => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Provide a visual cue
+                    element.style.transition = 'background-color 0.5s ease';
+                    const originalBg = element.style.backgroundColor;
+                    element.style.backgroundColor = 'rgba(255, 235, 59, 0.3)'; // Light yellow highlight
+                    setTimeout(() => {
+                        element.style.backgroundColor = originalBg;
+                    }, 2000);
+                }
+            }, 500);
+        }
+    }, [location.search, location.hash]);
+
     useEffect(() => {
         if (settingsData) {
             const newSettings = {
@@ -179,7 +212,7 @@ const SettingsPage: React.FC = () => {
                 ...settings,
                 mountDirectories: data.mountDirectoriesText
             };
-            
+
             if (!saveMutation.isPending) {
                 saveMutation.mutate(settingsToSave, {
                     onSuccess: () => {

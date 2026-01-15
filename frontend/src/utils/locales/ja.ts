@@ -606,6 +606,7 @@ export const ja = {
   videoSkippedDeleted: "動画は以前削除されたため、ダウンロードをスキップしました",
   downloading: "ダウンロード中...",
   poweredBy: "MyTubeによって提供",
+  changeSettings: "設定を変更",
 
   // Sorting
   sort: "並び替え",

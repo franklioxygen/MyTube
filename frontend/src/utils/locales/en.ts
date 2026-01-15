@@ -686,6 +686,7 @@ export const en = {
   videoSkippedDeleted: "Video was previously deleted, skipped download",
   downloading: "Downloading...",
   poweredBy: "Powered by MyTube",
+  changeSettings: "Change Settings",
 
   // Sorting
   sort: "Sort",

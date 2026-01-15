@@ -606,6 +606,7 @@ export const es = {
   videoSkippedDeleted: "El video fue eliminado anteriormente, descarga omitida",
   downloading: "Descargando...",
   poweredBy: "Con tecnología de MyTube",
+  changeSettings: "Cambiar configuración",
 
   // Sorting
   sort: "Ordenar",

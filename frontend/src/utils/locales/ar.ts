@@ -606,6 +606,7 @@ export const ar = {
   videoSkippedDeleted: "تم حذف الفيديو سابقًا، تم تخطي التنزيل",
   downloading: "جاري التنزيل...",
   poweredBy: "مدعوم من MyTube",
+  changeSettings: "تغيير الإعدادات",
 
   // Sorting
   sort: "فرز",

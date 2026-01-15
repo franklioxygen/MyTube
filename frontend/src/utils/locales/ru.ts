@@ -606,6 +606,7 @@ export const ru = {
   videoSkippedDeleted: "Видео было ранее удалено, загрузка пропущена",
   downloading: "Скачивание...",
   poweredBy: "Работает на MyTube",
+  changeSettings: "Изменить настройки",
 
   // Sorting
   sort: "Сортировка",

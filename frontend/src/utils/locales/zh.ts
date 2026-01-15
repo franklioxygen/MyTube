@@ -663,6 +663,7 @@ export const zh = {
   videoSkippedDeleted: "视频曾被删除，跳过下载",
   downloading: "下载中...",
   poweredBy: "由 MyTube 提供支持",
+  changeSettings: "更改设置",
 
   // Sorting
   sort: "排序",

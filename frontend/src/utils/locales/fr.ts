@@ -606,6 +606,7 @@ export const fr = {
   videoSkippedDeleted: "La vidéo a été supprimée précédemment, téléchargement ignoré",
   downloading: "Téléchargement...",
   poweredBy: "Propulsé par MyTube",
+  changeSettings: "Modifier les paramètres",
 
   // Sorting
   sort: "Trier",

@@ -12,11 +12,13 @@ import {
     Button,
     Chip,
     IconButton,
+    Link,
     ListItem,
     ListItemText,
     Paper,
     Typography
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export interface DownloadHistoryItem {
@@ -44,6 +46,7 @@ interface HistoryItemProps {
     onReDownload: (sourceUrl: string) => void;
     onViewVideo: (videoId: string) => void;
     isDownloadInProgress: (sourceUrl: string) => boolean;
+    dontSkipDeletedVideo?: boolean;
 }
 
 const formatDate = (timestamp: number) => {
@@ -56,7 +59,8 @@ export function HistoryItem({
     onRetry,
     onReDownload,
     onViewVideo,
-    isDownloadInProgress
+    isDownloadInProgress,
+    dontSkipDeletedVideo
 }: HistoryItemProps) {
     const { t } = useLanguage();
 
@@ -144,6 +148,13 @@ export function HistoryItem({
                     width: { xs: '100%', md: 'auto' },
                     justifyContent: { xs: 'flex-start', md: 'flex-end' }
                 }}>
+                    {item.status === 'deleted' && !dontSkipDeletedVideo && (
+                        <Typography variant="caption" sx={{ mr: 1 }}>
+                            <Link component={RouterLink} to="/settings?tab=4#dontSkipDeletedVideo-setting" color="inherit">
+                                {t('changeSettings') || 'Change Settings'}
+                            </Link>
+                        </Typography>
+                    )}
                     {item.status === 'failed' && item.sourceUrl && (
                         <Button
                             variant="outlined"

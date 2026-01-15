@@ -606,6 +606,7 @@ export const ko = {
   videoSkippedDeleted: "동영상이 이전에 삭제되어 다운로드를 건너뛰었습니다",
   downloading: "다운로드 중...",
   poweredBy: "MyTube 제공",
+  changeSettings: "설정 변경",
 
   // Sorting
   sort: "정렬",

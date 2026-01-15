@@ -4,12 +4,14 @@ import {
     Button,
     List,
     Pagination,
-    Typography
+    Typography,
+    useMediaQuery, useTheme
 } from '@mui/material';
-import { useMediaQuery, useTheme } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { HistoryItem, DownloadHistoryItem } from './HistoryItem';
+import { DownloadHistoryItem, HistoryItem } from './HistoryItem';
+
+import { useSettings } from '../../hooks/useSettings';
 
 interface HistoryTabProps {
     history: DownloadHistoryItem[];
@@ -36,6 +38,7 @@ export function HistoryTab({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [page, setPage] = useState(1);
+    const { data: settings } = useSettings();
 
     return (
         <>
@@ -65,6 +68,7 @@ export function HistoryTab({
                                     onReDownload={onReDownload}
                                     onViewVideo={onViewVideo}
                                     isDownloadInProgress={isDownloadInProgress}
+                                    dontSkipDeletedVideo={settings?.dontSkipDeletedVideo}
                                 />
                             ))}
                     </List>
