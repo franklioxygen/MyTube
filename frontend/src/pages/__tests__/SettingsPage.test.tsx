@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '../SettingsPage';
 
-// Mock all external hooks and components
 // Mock all external hooks and components
 const mockSettingsData = { data: {} };
 vi.mock('@tanstack/react-query', () => ({
@@ -154,12 +154,20 @@ describe('SettingsPage', () => {
     });
 
     it('renders the page title', () => {
-        render(<SettingsPage />);
+        render(
+            <MemoryRouter>
+                <SettingsPage />
+            </MemoryRouter>
+        );
         expect(screen.getByText('settings')).toBeInTheDocument();
     });
 
     it('renders all settings sections', async () => {
-        render(<SettingsPage />);
+        render(
+            <MemoryRouter>
+                <SettingsPage />
+            </MemoryRouter>
+        );
 
         expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
         expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
@@ -178,7 +186,11 @@ describe('SettingsPage', () => {
     });
 
     it('renders save button', () => {
-        render(<SettingsPage />);
+        render(
+            <MemoryRouter>
+                <SettingsPage />
+            </MemoryRouter>
+        );
         // There are two save buttons (one sticky, one normal), so getAllByText
         const saveButtons = screen.getAllByText('save');
         expect(saveButtons.length).toBeGreaterThan(0);
