@@ -483,7 +483,7 @@ export const pt = {
   subscribeToChannel: "Inscrever-se no canal",
   subscribeConfirmationMessage: "Deseja se inscrever em {author}?",
   subscribeChannelChoiceMessage: "Como você gostaria de se inscrever neste canal?",
-  subscribeChannelChoiceDescription: "Escolha se inscrever em todos os vídeos ou em todas as listas de reprodução deste canal.",
+  subscribeChannelChoiceDescription: "Escolha se inscrever em todos os vídeos ou em todas as listas de reprodução deste canal. Inscrever-se em todas as listas de reprodução também o inscreverá nas futuras listas de reprodução criadas pelo autor.",
   subscribeAllVideos: "Inscrever-se em todos os vídeos",
   subscribeAllPlaylists: "Inscrever-se em todas as listas de reprodução",
   subscribeDescription: "O sistema verificará automaticamente novos vídeos deste autor e os baixará.",

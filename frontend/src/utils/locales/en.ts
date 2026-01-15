@@ -537,7 +537,7 @@ export const en = {
   subscribeToChannel: "Subscribe to Channel",
   subscribeConfirmationMessage: "Do you want to subscribe to {author}?",
   subscribeChannelChoiceMessage: "How would you like to subscribe to this channel?",
-  subscribeChannelChoiceDescription: "Choose to subscribe to all videos or all playlists from this channel.",
+  subscribeChannelChoiceDescription: "Choose to subscribe to all videos or all playlists from this channel. Subscribing to all playlists will also subscribe to future playlists created by the author.",
   subscribeAllVideos: "Subscribe All Videos",
   subscribeAllPlaylists: "Subscribe All Playlists",
   subscribeDescription:

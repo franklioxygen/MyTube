@@ -483,7 +483,7 @@ export const ko = {
   subscribeToChannel: "채널 구독",
   subscribeConfirmationMessage: "{author}님을 구독하시겠습니까?",
   subscribeChannelChoiceMessage: "이 채널을 어떻게 구독하시겠습니까?",
-  subscribeChannelChoiceDescription: "이 채널의 모든 동영상 또는 모든 재생 목록을 구독하도록 선택하세요.",
+  subscribeChannelChoiceDescription: "이 채널의 모든 동영상 또는 모든 재생 목록을 구독하도록 선택하세요. 모든 재생 목록을 구독하면 작성자가 앞으로 만들 재생 목록도 구독하게 됩니다。",
   subscribeAllVideos: "모든 동영상 구독",
   subscribeAllPlaylists: "모든 재생 목록 구독",
   subscribeDescription: "시스템이 자동으로 이 작가의 새 동영상을 확인하고 다운로드합니다.",

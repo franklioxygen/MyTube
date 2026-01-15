@@ -522,7 +522,7 @@ export const zh = {
   subscribeToChannel: "订阅频道",
   subscribeConfirmationMessage: "您确定要订阅 {author} 吗？",
   subscribeChannelChoiceMessage: "您想如何订阅此频道？",
-  subscribeChannelChoiceDescription: "选择订阅此频道的所有视频或所有播放列表。",
+  subscribeChannelChoiceDescription: "选择订阅此频道的所有视频或所有播放列表。订阅所有播放列表也会订阅作者未来创建的播放列表。",
   subscribeAllVideos: "订阅所有视频",
   subscribeAllPlaylists: "订阅所有播放列表",
   subscribeDescription: "系统将自动检查此作者的新视频并下载。",

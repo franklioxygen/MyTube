@@ -483,7 +483,7 @@ export const ru = {
   subscribeToChannel: "Подписаться на канал",
   subscribeConfirmationMessage: "Вы хотите подписаться на {author}?",
   subscribeChannelChoiceMessage: "Как вы хотите подписаться на этот канал?",
-  subscribeChannelChoiceDescription: "Выберите подписку на все видео или все плейлисты этого канала.",
+  subscribeChannelChoiceDescription: "Выберите подписку на все видео или все плейлисты этого канала. Подписка на все плейлисты также подпишет вас на будущие плейлисты, созданные автором.",
   subscribeAllVideos: "Подписаться на все видео",
   subscribeAllPlaylists: "Подписаться на все плейлисты",
   subscribeDescription: "Система будет автоматически проверять новые видео от этого автора и скачивать их.",

@@ -483,7 +483,7 @@ export const ar = {
   subscribeToChannel: "الاشتراك في القناة",
   subscribeConfirmationMessage: "هل تريد الاشتراك في {author}؟",
   subscribeChannelChoiceMessage: "كيف تريد الاشتراك في هذه القناة؟",
-  subscribeChannelChoiceDescription: "اختر الاشتراك في جميع مقاطع الفيديو أو جميع قوائم التشغيل من هذه القناة.",
+  subscribeChannelChoiceDescription: "اختر الاشتراك في جميع مقاطع الفيديو أو جميع قوائم التشغيل من هذه القناة. الاشتراك في جميع قوائم التشغيل سيؤدي أيضًا إلى الاشتراك في قوائم التشغيل المستقبلية التي ينشئها المؤلف.",
   subscribeAllVideos: "الاشتراك في جميع مقاطع الفيديو",
   subscribeAllPlaylists: "الاشتراك في جميع قوائم التشغيل",
   subscribeDescription: "سيقوم النظام تلقائيًا بالتحقق من مقاطع الفيديو الجديدة لهذا المؤلف وتنزيلها.",

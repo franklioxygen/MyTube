@@ -483,7 +483,7 @@ export const fr = {
   subscribeToChannel: "S'abonner à la chaîne",
   subscribeConfirmationMessage: "Voulez-vous vous abonner à {author} ?",
   subscribeChannelChoiceMessage: "Comment souhaitez-vous vous abonner à cette chaîne ?",
-  subscribeChannelChoiceDescription: "Choisissez de vous abonner à toutes les vidéos ou à toutes les listes de lecture de cette chaîne.",
+  subscribeChannelChoiceDescription: "Choisissez de vous abonner à toutes les vidéos ou à toutes les listes de lecture de cette chaîne. S'abonner à toutes les listes de lecture vous abonnera également aux futures listes de lecture créées par l'auteur.",
   subscribeAllVideos: "S'abonner à toutes les vidéos",
   subscribeAllPlaylists: "S'abonner à toutes les listes de lecture",
   subscribeDescription: "Le système vérifiera automatiquement les nouvelles vidéos de cet auteur et les téléchargera.",
