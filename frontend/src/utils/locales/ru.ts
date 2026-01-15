@@ -154,6 +154,7 @@ export const ru = {
   formatFilenamesError: "Не удалось отформатировать имена файлов: {error}",
   itemsPerPage: "Элементов на странице",
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
+  defaultSort: "Сортировка по умолчанию",
   showYoutubeSearch: "Показать результаты поиска YouTube",
   playSoundOnTaskComplete: "Воспроизводить звук при завершении задачи",
   visitorModeReadOnly: "Режим посетителя: Только чтение",
@@ -621,7 +622,9 @@ export const ru = {
   dateAsc: "Дата добавления (Сначала старые)",
   viewsDesc: "Просмотры (По убыванию)",
   viewsAsc: "Просмотры (По возрастанию)",
-  nameAsc: "Имя (А-Я)",
+  videoDateDesc: "Дата создания видео (сначала новые)",
+  videoDateAsc: "Дата создания видео (сначала старые)",
+  nameAsc: "Название (А-Я)",
   random: "Случайно",
 
   // yt-dlp Configuration

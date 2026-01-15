@@ -154,6 +154,7 @@ export const fr = {
   formatFilenamesError: "Échec du formatage des noms de fichiers : {error}",
   itemsPerPage: "Éléments par page",
   itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
+  defaultSort: "Tri par défaut",
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",
   playSoundOnTaskComplete: "Jouer un son à la fin de la tâche",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
@@ -621,6 +622,8 @@ export const fr = {
   dateAsc: "Date d'ajout (Plus ancien)",
   viewsDesc: "Vues (Décroissant)",
   viewsAsc: "Vues (Croissant)",
+  videoDateDesc: "Date de création de la vidéo (plus récent)",
+  videoDateAsc: "Date de création de la vidéo (plus ancien)",
   nameAsc: "Nom (A-Z)",
   random: "Aléatoire",
 

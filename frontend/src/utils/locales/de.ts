@@ -154,6 +154,7 @@ export const de = {
   formatFilenamesError: "Fehler beim Formatieren der Dateinamen: {error}",
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
+  defaultSort: "Standardsortierung",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
   playSoundOnTaskComplete: "Ton bei Aufgabenabschluss abspielen",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
@@ -621,6 +622,8 @@ export const de = {
   dateAsc: "Hinzugefügt (Älteste)",
   viewsDesc: "Aufrufe (Absteigend)",
   viewsAsc: "Aufrufe (Aufsteigend)",
+  videoDateDesc: "Video-Erstellungsdatum (neueste)",
+  videoDateAsc: "Video-Erstellungsdatum (älteste)",
   nameAsc: "Name (A-Z)",
   random: "Zufallswiedergabe",
 

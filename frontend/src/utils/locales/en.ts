@@ -181,7 +181,9 @@ export const en = {
   itemsPerPage: "Items Per Page",
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
+  defaultSort: "Default Video Sort Method",
   playSoundOnTaskComplete: "Play Sound on Task Complete",
+  soundSuccess: "Success Chime",
   visitorModeReadOnly: "Visitor mode: Read-only",
   visitorUser: "Visitor User",
   enableVisitorUser: "Enable Visitor User",
@@ -708,6 +710,8 @@ export const en = {
   viewsDesc: "Views (High to Low)",
   viewsAsc: "Views (Low to High)",
   nameAsc: "Name (A-Z)",
+  videoDateDesc: "Video Create Date (Newest)",
+  videoDateAsc: "Video Create Date (Oldest)",
   random: "Random Shuffle",
 
   // yt-dlp Configuration

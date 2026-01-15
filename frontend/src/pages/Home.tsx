@@ -40,6 +40,7 @@ const Home: React.FC = () => {
         itemsPerPage,
         infiniteScroll,
         videoColumns,
+        defaultSort,
         settingsLoaded,
         handleSidebarToggle
     } = useHomeSettings();
@@ -65,6 +66,7 @@ const Home: React.FC = () => {
         handleSortClose
     } = useVideoSort({
         videos: filteredVideos,
+        defaultSort,
         onSortChange: () => {
             setSearchParams((prev: URLSearchParams) => {
                 const newParams = new URLSearchParams(prev);

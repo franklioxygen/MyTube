@@ -72,6 +72,18 @@ const SortControl: React.FC<SortControlProps> = ({
                     </ListItemIcon>
                     <ListItemText>{t('nameAsc')}</ListItemText>
                 </MenuItem>
+                <MenuItem onClick={() => onSortClose('videoDateDesc')} selected={sortOption === 'videoDateDesc'}>
+                    <ListItemIcon>
+                        <AccessTime fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>{t('videoDateDesc')}</ListItemText>
+                </MenuItem>
+                <MenuItem onClick={() => onSortClose('videoDateAsc')} selected={sortOption === 'videoDateAsc'}>
+                    <ListItemIcon>
+                        <AccessTime fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>{t('videoDateAsc')}</ListItemText>
+                </MenuItem>
                 <MenuItem onClick={() => onSortClose('random')} selected={sortOption === 'random'}>
                     <ListItemIcon>
                         <Shuffle fontSize="small" />

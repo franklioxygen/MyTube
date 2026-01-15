@@ -35,6 +35,7 @@ export interface Settings {
   pauseOnFocusLoss?: boolean;
   playSoundOnTaskComplete?: string;
   mountDirectories?: string;
+  defaultSort?: string;
 }
 
 export const defaultSettings: Settings = {
@@ -44,6 +45,7 @@ export const defaultSettings: Settings = {
   defaultAutoLoop: false,
   maxConcurrentDownloads: 3,
   language: "en",
+  defaultSort: "dateDesc",
   cloudDriveEnabled: false,
   openListApiUrl: "",
   openListToken: "",

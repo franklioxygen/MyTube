@@ -171,6 +171,7 @@ export const zh = {
   formatFilenamesError: "格式化文件名失败: {error}",
   itemsPerPage: "每页显示数量",
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
+  defaultSort: "默认视频排序方式",
   showYoutubeSearch: "显示 YouTube 搜索结果",
   playSoundOnTaskComplete: "任务完成时播放声音",
   visitorModeReadOnly: "访客模式：只读",
@@ -679,6 +680,8 @@ export const zh = {
   viewsDesc: "观看次数 (从高到低)",
   viewsAsc: "观看次数 (从低到高)",
   nameAsc: "名称 (A-Z)",
+  videoDateDesc: "视频创建日期 (最新)",
+  videoDateAsc: "视频创建日期 (最早)",
   random: "随机播放",
 
   // yt-dlp Configuration

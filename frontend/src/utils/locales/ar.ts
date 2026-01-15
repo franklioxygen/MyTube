@@ -153,7 +153,8 @@ export const ar = {
   formatFilenamesMore: "...و {count} المزيد",
   formatFilenamesError: "فشل تنسيق أسماء الملفات: {error}",
   itemsPerPage: "عناصر لكل صفحة",
-  itemsPerPageHelper: "عدد مقاطع الفيديو المعروضة في كل صفحة (الافتراضي: 12)",
+  itemsPerPageHelper: "عدد مقاطع الفيديو التي ستظهر في كل صفحة (الافتراضي: 12)",
+  defaultSort: "الترتيب الافتراضي",
   showYoutubeSearch: "عرض نتائج بحث YouTube",
   playSoundOnTaskComplete: "تشغيل صوت عند اكتمال المهمة",
   visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
@@ -589,7 +590,7 @@ export const ar = {
   instructionSection3Item2Text: "مصمم لمستخدمي الإصدارات المبكرة. استخدم هذه الوظيفة لترحيل البيانات من JSON إلى قاعدة بيانات SQLite الجديدة. بعد الترحيل الناجح، انقر فوق زر الحذف لتنظيف بيانات السجل القديمة.",
   instructionSection3Sub4: "الخدمات الموسعة:",
   instructionSection3Item3Label: "OpenList Cloud Drive:",
-  instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراص السحابية.",
+  instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراط السحابية.",
 
   // Disclaimer
   disclaimerTitle: "إخلاء المسؤولية",
@@ -621,7 +622,9 @@ export const ar = {
   dateAsc: "تاريخ الإضافة (الأقدم)",
   viewsDesc: "المشاهدات (من الأعلى للأقل)",
   viewsAsc: "المشاهدات (من الأقل للأعلى)",
-  nameAsc: "الاسم (أ-ي)",
+  videoDateDesc: "تاريخ إنشاء الفيديو (الأحدث)",
+  videoDateAsc: "تاريخ إنشاء الفيديو (الأقدم)",
+  nameAsc: "الاسم (تصاعدي)",
   random: "تشغيل عشوائي",
 
   // yt-dlp Configuration

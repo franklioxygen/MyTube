@@ -154,6 +154,7 @@ export const ko = {
   formatFilenamesError: "파일 이름 형식을 지정하지 못했습니다: {error}",
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
+  defaultSort: "기본 동영상 정렬 방법",
   showYoutubeSearch: "YouTube 검색 결과 표시",
   playSoundOnTaskComplete: "작업 완료 시 소리 재생",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
@@ -622,6 +623,8 @@ export const ko = {
   viewsDesc: "조회수 (높은순)",
   viewsAsc: "조회수 (낮은순)",
   nameAsc: "이름 (A-Z)",
+  videoDateDesc: "동영상 생성 날짜 (최신순)",
+  videoDateAsc: "동영상 생성 날짜 (오래된순)",
   random: "무작위",
 
   // yt-dlp Configuration

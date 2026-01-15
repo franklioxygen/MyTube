@@ -23,6 +23,24 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   if (newSettings.itemsPerPage !== undefined && newSettings.itemsPerPage < 1) {
     newSettings.itemsPerPage = 12; // Default fallback if invalid
   }
+
+  // Validate defaultSort
+  const validSorts = [
+    "dateDesc",
+    "dateAsc",
+    "viewsDesc",
+    "viewsAsc",
+    "nameAsc",
+    "videoDateDesc",
+    "videoDateAsc",
+    "random",
+  ];
+  if (
+    newSettings.defaultSort !== undefined &&
+    !validSorts.includes(newSettings.defaultSort)
+  ) {
+    newSettings.defaultSort = "dateDesc";
+  }
 }
 
 /**

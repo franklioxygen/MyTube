@@ -9,6 +9,7 @@ interface InterfaceDisplaySettingsProps {
     infiniteScroll?: boolean;
     videoColumns?: number;
     playSoundOnTaskComplete?: string;
+    defaultSort?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
@@ -104,6 +105,27 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                                     {t(option.labelKey) || option.labelKey}
                                 </MenuItem>
                             ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+                <Box>
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
+                        {t('defaultSort') || "Default Video Sort Method"}
+                    </Typography>
+                    <FormControl fullWidth>
+                        <Select
+                            id="default-sort-select"
+                            value={props.defaultSort || 'dateDesc'}
+                            onChange={(e) => onChange('defaultSort', e.target.value)}
+                        >
+                            <MenuItem value="dateDesc">{t('dateDesc') || 'Date Added (Newest)'}</MenuItem>
+                            <MenuItem value="dateAsc">{t('dateAsc') || 'Date Added (Oldest)'}</MenuItem>
+                            <MenuItem value="videoDateDesc">{t('videoDateDesc') || 'Video Create Date (Newest)'}</MenuItem>
+                            <MenuItem value="videoDateAsc">{t('videoDateAsc') || 'Video Create Date (Oldest)'}</MenuItem>
+                            <MenuItem value="viewsDesc">{t('viewsDesc') || 'Views (High to Low)'}</MenuItem>
+                            <MenuItem value="viewsAsc">{t('viewsAsc') || 'Views (Low to High)'}</MenuItem>
+                            <MenuItem value="nameAsc">{t('nameAsc') || 'Name (A-Z)'}</MenuItem>
+                            <MenuItem value="random">{t('random') || 'Random Shuffle'}</MenuItem>
                         </Select>
                     </FormControl>
                 </Box>

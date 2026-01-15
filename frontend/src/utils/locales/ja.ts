@@ -154,6 +154,7 @@ export const ja = {
   formatFilenamesError: "ファイル名のフォーマットに失敗しました: {error}",
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
+  defaultSort: "デフォルトの動画並べ替え方法",
   showYoutubeSearch: "YouTube検索結果を表示",
   playSoundOnTaskComplete: "タスク完了時に音を再生",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
@@ -622,6 +623,8 @@ export const ja = {
   viewsDesc: "再生回数 (多い順)",
   viewsAsc: "再生回数 (少ない順)",
   nameAsc: "名前 (A-Z)",
+  videoDateDesc: "動画作成日 (新しい順)",
+  videoDateAsc: "動画作成日 (古い順)",
   random: "ランダム",
 
   // yt-dlp Configuration

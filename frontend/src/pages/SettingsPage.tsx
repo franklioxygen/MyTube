@@ -100,7 +100,8 @@ const SettingsPage: React.FC = () => {
         moveThumbnailsToVideoFolder: false,
         saveAuthorFilesToCollection: false,
         hooks: {},
-        playSoundOnTaskComplete: ''
+        playSoundOnTaskComplete: '',
+        defaultSort: 'dateDesc'
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
@@ -311,6 +312,7 @@ const SettingsPage: React.FC = () => {
             infiniteScroll={settings.infiniteScroll}
             videoColumns={settings.videoColumns}
             playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
+            defaultSort={settings.defaultSort}
             onChange={(field, value) => handleChange(field as keyof Settings, value)}
         />
     );

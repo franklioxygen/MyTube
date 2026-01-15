@@ -1,6 +1,6 @@
+import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { getApiUrl } from '../utils/apiUrl';
-import axios from 'axios';
 
 const API_URL = getApiUrl();
 
@@ -9,6 +9,7 @@ interface HomeSettings {
     itemsPerPage: number;
     infiniteScroll: boolean;
     videoColumns: number;
+    defaultSort: string;
     settingsLoaded: boolean;
 }
 
@@ -17,6 +18,7 @@ interface UseHomeSettingsReturn extends HomeSettings {
     setItemsPerPage: (value: number) => void;
     setInfiniteScroll: (value: boolean) => void;
     setVideoColumns: (value: number) => void;
+    setDefaultSort: (value: string) => void;
     handleSidebarToggle: () => Promise<void>;
 }
 
@@ -26,6 +28,7 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
     const [infiniteScroll, setInfiniteScroll] = useState(false);
     const [videoColumns, setVideoColumns] = useState(4);
     const [itemsPerPage, setItemsPerPage] = useState(12);
+    const [defaultSort, setDefaultSort] = useState('dateDesc');
 
     // Fetch settings on mount
     useEffect(() => {
@@ -44,6 +47,9 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
                     }
                     if (typeof response.data.videoColumns !== 'undefined') {
                         setVideoColumns(response.data.videoColumns);
+                    }
+                    if (typeof response.data.defaultSort !== 'undefined') {
+                        setDefaultSort(response.data.defaultSort);
                     }
                 }
             } catch (error) {
@@ -75,11 +81,13 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
         itemsPerPage,
         infiniteScroll,
         videoColumns,
+        defaultSort,
         settingsLoaded,
         setIsSidebarOpen,
         setItemsPerPage,
         setInfiniteScroll,
         setVideoColumns,
+        setDefaultSort,
         handleSidebarToggle
     };
 };
