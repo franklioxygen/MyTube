@@ -2,6 +2,24 @@
 
 
 
+## v1.7.59 (2026-01-14)
+
+### Feat
+
+- feat: Add Cinema Mode Control component (28fa3e7)
+- feat: add subscribe authors playlists (a64b600)
+- feat: Add centralized API and backend URL helpers (44d0bcd)
+
+## v1.7.58 (2026-01-14)
+
+### Refactor
+
+- refactor: Update subscription choice descriptions (c7f79e9)
+
+### Chore
+
+- chore: Update settings in videoController tests (14d3948)
+
 ## v1.7.57 (2026-01-13)
 
 ### Feat
