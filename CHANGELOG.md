@@ -2,6 +2,12 @@
 
 
 
+## v1.7.61 (2026-01-15)
+
+### Refactor
+
+- refactor: Update Vite config and server settings (37da389)
+
 ## v1.7.60 (2026-01-14)
 
 ### Refactor
