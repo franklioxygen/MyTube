@@ -23,6 +23,8 @@ interface VideoElementProps {
     onProgress?: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
     onWaiting?: () => void;
     onCanPlayThrough?: () => void;
+    onSeeking?: () => void;
+    onSeeked?: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
     onSubtitleInit: (e: React.SyntheticEvent<HTMLVideoElement>) => void;
 }
 
@@ -46,6 +48,8 @@ const VideoElement: React.FC<VideoElementProps> = ({
     onProgress,
     onWaiting,
     onCanPlayThrough,
+    onSeeking,
+    onSeeked,
     onSubtitleInit
 }) => {
     const { t } = useLanguage();
@@ -173,6 +177,8 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 onProgress={onProgress}
                 onWaiting={onWaiting}
                 onCanPlayThrough={onCanPlayThrough}
+                onSeeking={onSeeking}
+                onSeeked={onSeeked}
                 playsInline
                 crossOrigin={(() => {
                     if (!src) return undefined;

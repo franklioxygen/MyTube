@@ -184,6 +184,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 onProgress={handleProgress}
                 onWaiting={handleWaiting}
                 onCanPlayThrough={handleCanPlayThrough}
+                onSeeking={videoPlayer.handleSeeking}
+                onSeeked={videoPlayer.handleSeeked}
                 onSubtitleInit={subtitlesHook.initializeSubtitles}
             />
 

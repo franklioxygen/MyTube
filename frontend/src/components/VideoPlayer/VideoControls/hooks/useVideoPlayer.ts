@@ -7,7 +7,6 @@ interface UseVideoPlayerProps {
   startTime?: number;
   onTimeUpdate?: (currentTime: number) => void;
   onLoadedMetadata?: (duration: number) => void;
-  // onEnded is passed through to the video element via the component, not used in this hook
 }
 
 export const useVideoPlayer = ({
@@ -24,6 +23,7 @@ export const useVideoPlayer = ({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isSeeking, setIsSeeking] = useState<boolean>(false);
   const videoSrcRef = useRef<string>("");
 
   // Memory management: Clean up video source when component unmounts or src changes
@@ -31,30 +31,26 @@ export const useVideoPlayer = ({
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
-    // Store previous src for cleanup
     const previousSrc = videoSrcRef.current;
     videoSrcRef.current = src;
 
-    // Clean up previous source to free memory
     if (previousSrc && previousSrc !== src) {
       videoElement.pause();
       videoElement.src = "";
       videoElement.load();
-      // Reset state when src changes to prevent stale data flash
       setIsPlaying(false);
       setCurrentTime(0);
       setDuration(0);
       setIsDragging(false);
+      setIsSeeking(false);
     }
 
-    // Set new source
     if (src) {
       videoElement.preload = "metadata";
       videoElement.src = src;
     }
 
     return () => {
-      // Cleanup on unmount
       if (videoElement) {
         videoElement.pause();
         videoElement.src = "";
@@ -75,21 +71,19 @@ export const useVideoPlayer = ({
     }
   }, [autoPlay, autoLoop]);
 
-  // Listen for duration changes
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
     const handleDurationChange = () => {
-      const videoDuration = videoElement.duration;
-      setDuration(videoDuration);
+      setDuration(videoElement.duration);
     };
 
     videoElement.addEventListener("durationchange", handleDurationChange);
     return () => {
       videoElement.removeEventListener("durationchange", handleDurationChange);
     };
-  }, [videoRef]); // Include videoRef to ensure listener is attached when ref is ready
+  }, [videoRef]);
 
   const handlePlayPause = () => {
     if (videoRef.current) {
@@ -102,11 +96,24 @@ export const useVideoPlayer = ({
     }
   };
 
+  // Seek using fastSeek() on mobile for better audio sync, fallback to currentTime
   const handleSeek = useCallback((seconds: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime += seconds;
+    const videoElement = videoRef.current;
+    if (!videoElement || !isFinite(videoElement.duration)) return;
+
+    const newTime = Math.max(
+      0,
+      Math.min(videoElement.duration, videoElement.currentTime + seconds)
+    );
+
+    // fastSeek() is optimized for mobile - better audio/video sync during seeks
+    // Falls back to currentTime if fastSeek is not available
+    if (typeof videoElement.fastSeek === "function") {
+      videoElement.fastSeek(newTime);
+    } else {
+      videoElement.currentTime = newTime;
     }
-  }, []); // videoRef is stable, no dependencies needed
+  }, []);
 
   const handleProgressChange = (newValue: number) => {
     if (!videoRef.current || duration <= 0 || !isFinite(duration)) return;
@@ -115,12 +122,18 @@ export const useVideoPlayer = ({
   };
 
   const handleProgressChangeCommitted = (newValue: number) => {
-    if (videoRef.current && duration > 0 && isFinite(duration)) {
-      const newTime = (newValue / 100) * duration;
-      videoRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
-      setIsDragging(false);
+    const videoElement = videoRef.current;
+    if (!videoElement || duration <= 0 || !isFinite(duration)) return;
+
+    const newTime = (newValue / 100) * duration;
+
+    // Use fastSeek on mobile for better audio sync
+    if (typeof videoElement.fastSeek === "function") {
+      videoElement.fastSeek(newTime);
+    } else {
+      videoElement.currentTime = newTime;
     }
+    setIsDragging(false);
   };
 
   const handleProgressMouseDown = () => {
@@ -139,9 +152,14 @@ export const useVideoPlayer = ({
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const time = e.currentTarget.currentTime;
-    if (!isDragging) {
-      setCurrentTime(time);
+
+    // Don't update UI during dragging or seeking
+    if (isDragging || isSeeking) {
+      return;
     }
+
+    setCurrentTime(time);
+
     if (onTimeUpdate) {
       onTimeUpdate(time);
     }
@@ -149,7 +167,6 @@ export const useVideoPlayer = ({
 
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const videoDuration = e.currentTarget.duration;
-    // Only set duration if it's valid and finite
     if (videoDuration && isFinite(videoDuration) && videoDuration > 0) {
       setDuration(videoDuration);
     }
@@ -162,18 +179,15 @@ export const useVideoPlayer = ({
     }
   };
 
-  // Handle canPlay event - video can start playing even if metadata isn't fully loaded
   const handleCanPlay = useCallback(() => {
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
-    // Try to get duration from video element (may be available even if metadata isn't fully loaded)
     if (
       videoElement.duration &&
       isFinite(videoElement.duration) &&
       videoElement.duration > 0
     ) {
-      // Only update if we don't have duration yet or if the new duration is more accurate
       if (
         duration === 0 ||
         (videoElement.duration > duration &&
@@ -183,7 +197,6 @@ export const useVideoPlayer = ({
       }
     }
 
-    // Set start time if needed
     if (startTime > 0 && videoElement.currentTime === 0) {
       videoElement.currentTime = startTime;
       setCurrentTime(startTime);
@@ -197,6 +210,23 @@ export const useVideoPlayer = ({
   const handlePause = () => {
     setIsPlaying(false);
   };
+
+  const handleSeeking = useCallback(() => {
+    setIsSeeking(true);
+  }, []);
+
+  const handleSeeked = useCallback(
+    (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      const time = e.currentTarget.currentTime;
+      setIsSeeking(false);
+      setCurrentTime(time);
+
+      if (onTimeUpdate) {
+        onTimeUpdate(time);
+      }
+    },
+    [onTimeUpdate]
+  );
 
   return {
     videoRef,
@@ -216,5 +246,7 @@ export const useVideoPlayer = ({
     handleCanPlay,
     handlePlay,
     handlePause,
+    handleSeeking,
+    handleSeeked,
   };
 };
