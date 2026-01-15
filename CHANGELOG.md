@@ -2,6 +2,13 @@
 
 
 
+## v1.7.64 (2026-01-15)
+
+### Feat
+
+- feat: Add SortControl component for sorting videos (46a8a4a)
+- feat: Add seeking functionality to VideoPlayer (8112d13)
+
 ## v1.7.63 (2026-01-15)
 
 ### Feat
