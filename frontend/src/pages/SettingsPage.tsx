@@ -289,6 +289,7 @@ const SettingsPage: React.FC = () => {
             <CloudflareSettings
                 enabled={settings.cloudflaredTunnelEnabled}
                 token={settings.cloudflaredToken}
+                allowedHosts={settings.allowedHosts}
                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
             />
         </Box>

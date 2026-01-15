@@ -524,7 +524,8 @@ export const zh = {
   subscribeToChannel: "订阅频道",
   subscribeConfirmationMessage: "您确定要订阅 {author} 吗？",
   subscribeChannelChoiceMessage: "您想如何订阅此频道？",
-  subscribeChannelChoiceDescription: "选择订阅此频道的所有视频或所有播放列表。订阅所有播放列表也会订阅作者未来创建的播放列表。",
+  subscribeChannelChoiceDescription:
+    "选择订阅此频道的所有视频或所有播放列表。订阅所有播放列表也会订阅作者未来创建的播放列表。",
   subscribeAllVideos: "订阅所有视频",
   subscribeAllPlaylists: "订阅所有播放列表",
   subscribeDescription: "系统将自动检查此作者的新视频并下载。",
@@ -704,6 +705,10 @@ export const zh = {
   enableCloudflaredTunnel: "启用 Cloudflare 穿透",
   cloudflaredToken: "Token",
   cloudflaredTokenHelper: "在此粘贴您的 Token，或留空以使用随机 Quick Tunnel。",
+  allowedHosts: "已发布应用程序路由",
+  allowedHostsHelper:
+    "Vite 开发服务器允许的主机列表（逗号分隔）。用于Cloudflare Tunnel的域名白名单。",
+  allowedHostsRequired: "提供隧道令牌时，已发布应用程序路由是必需的。",
   waitingForUrl: "等待 Quick Tunnel URL...",
   running: "运行中",
   stopped: "已停止",

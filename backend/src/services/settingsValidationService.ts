@@ -139,6 +139,9 @@ export async function prepareSettingsForSave(
   if (prepared.cloudflaredToken === undefined) {
     prepared.cloudflaredToken = existingSettings.cloudflaredToken;
   }
+  if (prepared.allowedHosts === undefined) {
+    prepared.allowedHosts = existingSettings.allowedHosts;
+  }
 
   return prepared;
 }

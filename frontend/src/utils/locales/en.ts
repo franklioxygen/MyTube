@@ -538,8 +538,10 @@ export const en = {
   subscribeToAuthor: "Subscribe to Author",
   subscribeToChannel: "Subscribe to Channel",
   subscribeConfirmationMessage: "Do you want to subscribe to {author}?",
-  subscribeChannelChoiceMessage: "How would you like to subscribe to this channel?",
-  subscribeChannelChoiceDescription: "Choose to subscribe to all videos or all playlists from this channel. Subscribing to all playlists will also subscribe to future playlists created by the author.",
+  subscribeChannelChoiceMessage:
+    "How would you like to subscribe to this channel?",
+  subscribeChannelChoiceDescription:
+    "Choose to subscribe to all videos or all playlists from this channel. Subscribing to all playlists will also subscribe to future playlists created by the author.",
   subscribeAllVideos: "Subscribe All Videos",
   subscribeAllPlaylists: "Subscribe All Playlists",
   subscribeDescription:
@@ -596,7 +598,8 @@ export const en = {
 
   // Playlist Subscription
   subscribeToPlaylist: "Subscribe to this playlist",
-  subscribePlaylistDescription: "Automatically check for new videos added to this playlist",
+  subscribePlaylistDescription:
+    "Automatically check for new videos added to this playlist",
   playlistSubscribedSuccessfully: "Subscribed to playlist successfully",
   downloadAndSubscribe: "Download All & Subscribe",
   playlistSubscription: "Playlist",
@@ -726,6 +729,11 @@ export const en = {
   cloudflaredToken: "Tunnel Token (Optional)",
   cloudflaredTokenHelper:
     "Paste your tunnel token here, or leave empty to use a random Quick Tunnel.",
+  allowedHosts: "Published Application Routes",
+  allowedHostsHelper:
+    "Comma-separated list of allowed hosts for Vite dev server. Domain whitelist for Cloudflare Tunnel.",
+  allowedHostsRequired:
+    "Published Application Routes is required when tunnel token is provided.",
   waitingForUrl: "Waiting for Quick Tunnel URL...",
   running: "Running",
   stopped: "Stopped",

@@ -31,6 +31,7 @@ export interface Settings {
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
+  allowedHosts?: string;
   pauseOnFocusLoss?: boolean;
   playSoundOnTaskComplete?: string;
   mountDirectories?: string;

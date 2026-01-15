@@ -8,10 +8,11 @@ import { useCloudflareStatus } from '../../hooks/useCloudflareStatus';
 interface CloudflareSettingsProps {
     enabled?: boolean;
     token?: string;
+    allowedHosts?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, onChange }) => {
+const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, allowedHosts, onChange }) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
@@ -57,6 +58,11 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
     // Poll for Cloudflare Tunnel status
     const { data: cloudflaredStatus, isLoading } = useCloudflareStatus(enabled ?? false);
 
+    // Validate: if token is provided, allowedHosts is required
+    const allowedHostsError = token && token.trim() && (!allowedHosts || !allowedHosts.trim())
+        ? t('allowedHostsRequired') || 'Allowed domains is required when tunnel token is provided'
+        : null;
+
     return (
         <Box>
             <Typography variant="h6" sx={{ mb: 2 }}>{t('cloudflaredTunnel') || 'Cloudflare Tunnel'}</Typography>
@@ -72,16 +78,27 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
             />
 
             {(enabled) && (
-                <TextField
-                    fullWidth
-                    label={t('cloudflaredToken')}
-                    type="password"
-                    value={token || ''}
-                    onChange={(e) => onChange('cloudflaredToken', e.target.value)}
-                    margin="normal"
-                    disabled={isVisitor}
-                    helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
-                />
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400 }}>
+                    <TextField
+                        fullWidth
+                        label={t('cloudflaredToken')}
+                        value={token || ''}
+                        onChange={(e) => onChange('cloudflaredToken', e.target.value)}
+                        disabled={isVisitor}
+                        helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
+                    />
+                    <TextField
+                        fullWidth
+                        label={t('allowedHosts') || 'Allowed Hosts'}
+                        value={allowedHosts || ''}
+                        onChange={(e) => onChange('allowedHosts', e.target.value)}
+                        disabled={isVisitor}
+                        error={!!allowedHostsError}
+                        helperText={allowedHostsError || t('allowedHostsHelper') || "Comma-separated list of allowed hosts for Vite dev server. Restart dev server after changing."}
+                        placeholder="example.com, another-domain.com"
+                        required={!!token && !!token.trim()}
+                    />
+                </Box>
             )}
 
             {enabled && (isLoading || (!cloudflaredStatus && enabled) || (cloudflaredStatus?.isRunning && !token && !cloudflaredStatus.publicUrl)) ? (

@@ -94,6 +94,7 @@ export interface Settings {
   videoColumns?: number;
   cloudflaredTunnelEnabled?: boolean;
   cloudflaredToken?: string;
+  allowedHosts?: string;
   pauseOnFocusLoss?: boolean;
   hooks?: {
     task_before_start?: string;
