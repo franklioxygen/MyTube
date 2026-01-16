@@ -16,6 +16,7 @@ interface VideoCardThumbnailProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     collectionInfo: VideoCardCollectionInfo;
     isNew: boolean;
+    isAboveTheFold?: boolean; // For LCP optimization
 }
 
 export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
@@ -27,7 +28,8 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     setIsVideoPlaying,
     videoRef,
     collectionInfo,
-    isNew
+    isNew,
+    isAboveTheFold = false
 }) => {
     const { t } = useLanguage();
     const theme = useTheme();
@@ -98,7 +100,11 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 component="img"
                 image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
                 alt={`${video.title} thumbnail`}
-                loading="lazy"
+                loading={isAboveTheFold ? "eager" : "lazy"}
+                fetchPriority={isAboveTheFold ? "high" : "auto"}
+                decoding={isAboveTheFold ? "sync" : "async"}
+                width="480"
+                height="270"
                 onLoad={() => setIsImageLoaded(true)}
                 sx={{
                     position: 'absolute',

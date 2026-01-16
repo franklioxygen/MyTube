@@ -23,6 +23,7 @@ interface VideoCardProps {
     onDeleteVideo?: (id: string) => Promise<any>;
     showDeleteButton?: boolean;
     disableCollectionGrouping?: boolean;
+    isAboveTheFold?: boolean; // For LCP optimization
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({
@@ -30,7 +31,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
     collections = [],
     onDeleteVideo,
     showDeleteButton = false,
-    disableCollectionGrouping = false
+    disableCollectionGrouping = false,
+    isAboveTheFold = false
 }) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -112,6 +114,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     videoRef={hoverPreview.videoRef}
                     collectionInfo={collectionInfo}
                     isNew={metadata.isNew}
+                    isAboveTheFold={isAboveTheFold}
                 />
 
                 <VideoCardContent

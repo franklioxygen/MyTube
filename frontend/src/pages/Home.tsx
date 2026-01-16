@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeSidebar } from '../components/HomeSidebar';
+import { LCPImagePreloader } from '../components/LCPImagePreloader';
 import { VideoGrid } from '../components/VideoGrid';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -111,6 +112,9 @@ const Home: React.FC = () => {
     // Regular home view (not in search mode)
     return (
         <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
+            {/* Preload first video thumbnail for better LCP */}
+            {videoArray.length > 0 && <LCPImagePreloader videos={videoArray} />}
+            
             {/* Delete Filtered Videos Modal */}
             <ConfirmationModal
                 isOpen={isDeleteFilteredOpen}

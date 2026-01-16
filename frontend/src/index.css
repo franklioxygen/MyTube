@@ -1,4 +1,15 @@
 /* index.css */
+/* Font display optimization to prevent FOIT and improve FCP/LCP */
+@font-face {
+  font-family: 'Roboto';
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
 }

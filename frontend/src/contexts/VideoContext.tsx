@@ -3,9 +3,9 @@ import axios from 'axios';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
 import { getApiUrl } from '../utils/apiUrl';
+import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-import { useAuth } from './AuthContext';
 
 const API_URL = getApiUrl();
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
@@ -55,7 +55,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
 
-    // Videos Query
+    // Videos Query - Optimized for faster initial load
     const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
@@ -73,6 +73,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 30 to save memory)
+        // Prioritize initial load for better LCP
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
     });
 
     // Filter invisible videos when in visitor mode
@@ -203,8 +206,6 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loadMoreInProgress.current = false;
         setIsSearchMode(false);
         setSearchTerm('');
-        setSearchResults([]);
-        setLocalSearchResults([]);
         setSearchResults([]);
         setLocalSearchResults([]);
         setYoutubeLoading(false);

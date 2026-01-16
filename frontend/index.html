@@ -15,8 +15,12 @@
     <meta name="theme-color" content="#ff3e3e" />
     <title>MyTube - My Videos, My Rules.</title>
     <!-- Preconnect to improve resource loading performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="__BACKEND_URL__" />
+    <link rel="preconnect" href="__BACKEND_URL__" crossorigin />
+    <!-- Preload critical CSS for faster FCP -->
+    <link rel="preload" href="/src/index.css" as="style" />
   </head>
   <body>
     <div id="root"></div>

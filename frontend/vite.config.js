@@ -1,12 +1,19 @@
+/* eslint-env node */
 import react from "@vitejs/plugin-react";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { defineConfig, loadEnv } from "vite";
 import packageJson from "./package.json";
 
+// Get the directory of the current file (frontend directory)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
+  // Load env file based on `mode` in the frontend directory.
   // Only load environment variables prefixed with VITE_
-  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const env = loadEnv(mode, __dirname, "VITE_");
 
   // Get API URL from environment variable or use default
   // In dev mode, use relative path to leverage Vite proxy
@@ -21,12 +28,20 @@ export default defineConfig(({ mode }) => {
       cssCodeSplit: true,
       // Use esbuild for faster CSS minification
       cssMinify: "esbuild",
+      // Enable minification for better performance
+      minify: "esbuild",
+      // Optimize chunk size for better loading
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
           // Use Vite's automatic code splitting strategy to avoid circular dependency issues
           // Vite automatically handles chunk splitting intelligently based on imports
           // This prevents "Cannot access before initialization" errors from circular dependencies
           manualChunks: undefined,
+          // Optimize chunk names for better caching
+          chunkFileNames: "assets/js/[name]-[hash].js",
+          entryFileNames: "assets/js/[name]-[hash].js",
+          assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
         },
       },
     },

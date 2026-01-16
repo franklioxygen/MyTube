@@ -81,7 +81,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         [gridProps]
     );
 
-    const renderVideoItem = (video: Video) => {
+    const renderVideoItem = (video: Video, index?: number) => {
+        // First 4 videos are considered above-the-fold for mobile (2x2 grid)
+        // First 6 videos for desktop (3x2 grid)
+        const isAboveTheFold = index !== undefined && index < 6;
+        
         // In all-videos and history mode, ALWAYS render as VideoCard
         if (viewMode === 'all-videos' || viewMode === 'history') {
             return (
@@ -91,6 +95,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                     disableCollectionGrouping={true}
                     onDeleteVideo={onDeleteVideo}
                     showDeleteButton={true}
+                    isAboveTheFold={isAboveTheFold}
                 />
             );
         }
@@ -114,6 +119,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 collections={collections}
                 onDeleteVideo={onDeleteVideo}
                 showDeleteButton={true}
+                isAboveTheFold={isAboveTheFold}
             />
         );
     };
@@ -129,7 +135,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                     Item: VirtuosoItem
                 }}
                 overscan={5}
-                itemContent={(_index, video) => renderVideoItem(video)}
+                itemContent={(index, video) => renderVideoItem(video, index)}
             />
         );
     }
@@ -140,12 +146,12 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             rowSpacing={{ xs: 2, sm: 3 }}
             columnSpacing={{ xs: 0, sm: 3 }}
         >
-            {displayedVideos.map((video) => {
+            {displayedVideos.map((video, index) => {
                 // In all-videos and history mode, ALWAYS render as VideoCard
                 if (viewMode === 'all-videos' || viewMode === 'history') {
                     return (
                         <Grid size={gridProps} key={video.id}>
-                            {renderVideoItem(video)}
+                            {renderVideoItem(video, index)}
                         </Grid>
                     );
                 }
@@ -168,7 +174,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 // Otherwise render VideoCard for non-collection videos
                 return (
                     <Grid size={gridProps} key={video.id}>
-                        {renderVideoItem(video)}
+                        {renderVideoItem(video, index)}
                     </Grid>
                 );
             })}
