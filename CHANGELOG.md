@@ -2,6 +2,13 @@
 
 
 
+
+## v1.7.68 (2026-01-17)
+
+### Feat
+
+- feat: Add new passkeys check in login page (e6488bb)
+
 ## v1.7.67 (2026-01-17)
 
 ### Feat
