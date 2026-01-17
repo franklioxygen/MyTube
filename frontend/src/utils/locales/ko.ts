@@ -706,4 +706,12 @@ export const ko = {
   soundNotification: "새 알림",
   soundDrop: "물에 떨어지는 소리",
   soundWater: "금속에 물방울 떨어지는 소리",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "컬렉션이 성공적으로 업데이트되었습니다",
+  failedToUpdateCollection: "컬렉션 업데이트 실패, 다른 이름을 사용하세요",
+  collectionNameRequired: "컬렉션 이름은 필수입니다",
+  collectionNameTooLong: "컬렉션 이름은 200자 이하여야 합니다",
+  collectionNameInvalidChars: "컬렉션 이름에 유효하지 않은 문자가 포함되어 있습니다",
+  collectionNameReserved: "컬렉션 이름은 예약어입니다",
+  updateCollectionFailed: "컬렉션 업데이트 실패",
 };

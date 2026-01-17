@@ -706,4 +706,12 @@ export const pt = {
   soundNotification: "Nova notificação",
   soundDrop: "Objeto caindo na água",
   soundWater: "Gota d'água no metal",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "Coleção atualizada com sucesso",
+  failedToUpdateCollection: "Falha ao atualizar coleção, use um nome diferente",
+  collectionNameRequired: "O nome da coleção é obrigatório",
+  collectionNameTooLong: "O nome da coleção deve ter 200 caracteres ou menos",
+  collectionNameInvalidChars: "O nome da coleção contém caracteres inválidos",
+  collectionNameReserved: "O nome da coleção é reservado",
+  updateCollectionFailed: "Falha ao atualizar coleção",
 };

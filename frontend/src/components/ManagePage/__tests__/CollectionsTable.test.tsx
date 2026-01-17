@@ -14,6 +14,10 @@ vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => mockUseAuth(),
 }));
 
+vi.mock('../../../contexts/SnackbarContext', () => ({
+    useSnackbar: () => ({ showSnackbar: vi.fn() }),
+}));
+
 
 describe('CollectionsTable', () => {
     const mockCollections: Collection[] = [
@@ -24,10 +28,14 @@ describe('CollectionsTable', () => {
         displayedCollections: mockCollections,
         totalCollectionsCount: 1,
         onDelete: vi.fn(),
+        onUpdate: vi.fn(),
         page: 1,
         totalPages: 2,
         onPageChange: vi.fn(),
         getCollectionSize: () => '10 MB',
+        orderBy: 'name' as const,
+        order: 'asc' as const,
+        onSort: vi.fn(),
     };
 
     it('should render table with collections', () => {
@@ -43,12 +51,8 @@ describe('CollectionsTable', () => {
 
     it('should call onDelete when delete button is clicked', () => {
         render(<CollectionsTable {...defaultProps} />);
-        screen.getAllByRole('button');
-        // Filter for the delete icon button if possible, but here we likely only have delete buttons in rows + pagination
-        // Actually pagination buttons are also buttons.
-        // The delete button has a Delete icon.
-        // Let's try to find by label if tooltip is present
-        // Tooltip title is 'deleteCollection' (mocked t returns key)
+        // Use getAllByRole to find icon buttons, then filter or use label if available
+        // The delete button has tooltip title 'deleteCollection' which becomes aria-label or accessible name
         fireEvent.click(screen.getByLabelText('deleteCollection'));
 
         expect(defaultProps.onDelete).toHaveBeenCalledWith(mockCollections[0]);
@@ -64,6 +68,32 @@ describe('CollectionsTable', () => {
 
     it('should render pagination if totalPages > 1', () => {
         render(<CollectionsTable {...defaultProps} />);
-        expect(screen.getByRole('navigation')).toBeInTheDocument(); // Pagination uses nav
+        expect(screen.getByRole('navigation')).toBeInTheDocument();
+    });
+
+    // Edit tests
+    it('should show input field when edit button is clicked', () => {
+        render(<CollectionsTable {...defaultProps} />);
+
+        const editButton = screen.getByLabelText('edit collection');
+        fireEvent.click(editButton);
+
+        expect(screen.getByRole('textbox')).toBeInTheDocument();
+        expect(screen.getByRole('textbox')).toHaveValue('Collection 1');
+    });
+
+    it('should call onUpdate when save is clicked', async () => {
+        render(<CollectionsTable {...defaultProps} />);
+
+        const editButton = screen.getByLabelText('edit collection');
+        fireEvent.click(editButton);
+
+        const input = screen.getByRole('textbox');
+        fireEvent.change(input, { target: { value: 'New Name' } });
+
+        const saveButton = screen.getByLabelText('save collection name');
+        fireEvent.click(saveButton);
+
+        expect(defaultProps.onUpdate).toHaveBeenCalledWith('1', 'New Name');
     });
 });

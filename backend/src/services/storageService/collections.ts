@@ -2,18 +2,20 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
-  cleanupCollectionDirectories,
-  moveAllFilesFromCollection,
-  moveAllFilesToCollection,
+    cleanupCollectionDirectories,
+    moveAllFilesFromCollection,
+    moveAllFilesToCollection,
+    renameCollectionDirectories,
+    updateVideoPathsForCollectionRename,
 } from "./collectionFileManager";
 import {
-  atomicUpdateCollection as atomicUpdateCollectionRepo,
-  deleteCollection as deleteCollectionRepo,
-  getCollectionById as getCollectionByIdRepo,
-  getCollectionByName as getCollectionByNameRepo,
-  getCollectionByVideoId as getCollectionByVideoIdRepo,
-  getCollections as getCollectionsRepo,
-  saveCollection as saveCollectionRepo,
+    atomicUpdateCollection as atomicUpdateCollectionRepo,
+    deleteCollection as deleteCollectionRepo,
+    getCollectionById as getCollectionByIdRepo,
+    getCollectionByName as getCollectionByNameRepo,
+    getCollectionByVideoId as getCollectionByVideoIdRepo,
+    getCollections as getCollectionsRepo,
+    saveCollection as saveCollectionRepo,
 } from "./collectionRepository";
 import { Collection } from "./types";
 import { deleteVideo, getVideoById, updateVideo } from "./videos";
@@ -255,4 +257,48 @@ export function deleteCollectionAndVideos(collectionId: string): boolean {
   }
 
   return deleteCollection(collectionId);
+}
+
+export function renameCollection(id: string, newName: string): Collection | null {
+  const collection = getCollectionById(id);
+  if (!collection) return null;
+
+  const oldName = collection.name || collection.title;
+  if (!oldName) return null;
+
+  if (oldName === newName) return collection;
+
+  const existing = getCollectionByName(newName);
+  if (existing && existing.id !== id) {
+     throw new Error(`Collection name "${newName}" already exists`);
+  }
+
+  // 1. Rename directories
+  const dirRenameSuccess = renameCollectionDirectories(oldName, newName);
+  if (!dirRenameSuccess) {
+    logger.error(`Failed to rename collection directories from "${oldName}" to "${newName}"`);
+    throw new Error(`Failed to rename collection directories. Please check logs for details.`);
+  }
+
+  // 2. Update collection name in DB
+  const updatedCollection = atomicUpdateCollection(id, (c) => {
+    c.name = newName;
+    c.title = newName;
+    return c;
+  });
+
+  // 3. Update video paths
+  if (updatedCollection && updatedCollection.videos.length > 0) {
+    updatedCollection.videos.forEach(videoId => {
+      const video = getVideoById(videoId);
+      if (video) {
+        const updates = updateVideoPathsForCollectionRename(video, oldName, newName);
+        if (Object.keys(updates).length > 0) {
+          updateVideo(videoId, updates);
+        }
+      }
+    });
+  }
+
+  return updatedCollection;
 }

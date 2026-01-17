@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -16,6 +16,7 @@ interface CollectionContextType {
     addToCollection: (collectionId: string, videoId: string) => Promise<Collection | null>;
     removeFromCollection: (videoId: string) => Promise<boolean>;
     deleteCollection: (collectionId: string, deleteVideos?: boolean) => Promise<{ success: boolean; error?: string }>;
+    updateCollection: (id: string, name: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const CollectionContext = createContext<CollectionContextType | undefined>(undefined);
@@ -157,6 +158,32 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     };
 
+    const updateCollectionMutation = useMutation({
+        mutationFn: async ({ id, name }: { id: string, name: string }) => {
+            const response = await axios.put(`${API_URL}/collections/${id}`, { name });
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['collections'] });
+            // Video paths might change if collection renamed, so invalidate videos too
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
+            showSnackbar(t('collectionUpdatedSuccessfully') || 'Collection updated');
+        },
+        onError: (error: any) => {
+            console.error('Error updating collection:', error);
+            showSnackbar(error.response?.data?.error || t('updateCollectionFailed'), 'error');
+        }
+    });
+
+    const updateCollection = async (id: string, name: string) => {
+        try {
+            await updateCollectionMutation.mutateAsync({ id, name });
+            return { success: true };
+        } catch (error: any) {
+            return { success: false, error: error.response?.data?.error || t('updateCollectionFailed') };
+        }
+    };
+
     return (
         <CollectionContext.Provider value={{
             collections,
@@ -164,7 +191,8 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             createCollection,
             addToCollection,
             removeFromCollection,
-            deleteCollection
+            deleteCollection,
+            updateCollection
         }}>
             {children}
         </CollectionContext.Provider>

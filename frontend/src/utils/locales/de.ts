@@ -706,4 +706,12 @@ export const de = {
   soundNotification: "Neue Benachrichtigung",
   soundDrop: "Objekt fällt ins Wasser",
   soundWater: "Wassertropfen auf Metall",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "Sammlung erfolgreich aktualisiert",
+  failedToUpdateCollection: "Sammlung konnte nicht aktualisiert werden, bitte anderen Namen verwenden",
+  collectionNameRequired: "Name der Sammlung ist erforderlich",
+  collectionNameTooLong: "Name der Sammlung muss 200 Zeichen oder weniger lang sein",
+  collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
+  collectionNameReserved: "Name der Sammlung ist reserviert",
+  updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
 };

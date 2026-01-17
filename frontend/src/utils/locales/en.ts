@@ -536,6 +536,13 @@ export const en = {
   videoRemovedFromCollection: "Video removed from collection",
   collectionDeletedSuccessfully: "Collection deleted successfully",
   failedToDeleteCollection: "Failed to delete collection",
+  collectionUpdatedSuccessfully: "Collection updated successfully",
+  failedToUpdateCollection: "Failed to update collection, use different name",
+  collectionNameRequired: "Collection name is required",
+  collectionNameTooLong: "Collection name must be 200 characters or less",
+  collectionNameInvalidChars: "Collection name contains invalid characters",
+  collectionNameReserved: "Collection name is reserved",
+  updateCollectionFailed: "Failed to update collection",
 
   // Batch Download
   batchDownload: "Batch Download",

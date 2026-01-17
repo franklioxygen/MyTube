@@ -524,3 +524,149 @@ export function cleanupCollectionDirectories(collectionName: string): void {
     );
   }
 }
+
+/**
+ * Rename collection directories (video, image, subtitle)
+ */
+export function renameCollectionDirectories(
+  oldName: string,
+  newName: string
+): boolean {
+  // Sanitize both names
+  const sanitizedOldName = sanitizeCollectionName(oldName);
+  const sanitizedNewName = sanitizeCollectionName(newName);
+
+  if (!sanitizedOldName || !sanitizedNewName || sanitizedOldName === sanitizedNewName) {
+    return false;
+  }
+
+  let success = true;
+
+  // Function to rename a specific type of directory
+  const renameDir = (baseDir: string): void => {
+    const oldDir = path.join(baseDir, sanitizedOldName);
+    const newDir = path.join(baseDir, sanitizedNewName);
+
+    // Validate paths to prevent path traversal
+    const normalizedOldDir = path.normalize(oldDir);
+    const normalizedNewDir = path.normalize(newDir);
+    const normalizedBaseDir = path.normalize(baseDir);
+
+    // Ensure paths are within base directory
+    if (!normalizedOldDir.startsWith(normalizedBaseDir) || !normalizedNewDir.startsWith(normalizedBaseDir)) {
+      logger.error(`Path traversal detected: oldDir=${oldDir}, newDir=${newDir}, baseDir=${baseDir}`);
+      success = false;
+      return;
+    }
+
+    try {
+      if (fs.existsSync(oldDir)) {
+        if (fs.existsSync(newDir)) {
+          // If target directory already exists, we fail for now or merge.
+          // Let's assume name collision check is done before.
+          // But if it exists, merging is safer than overwriting.
+          logger.warn(`Target directory ${newDir} already exists. Merging content.`);
+          
+          // Move all files from old to new
+          const files = fs.readdirSync(oldDir);
+          files.forEach(file => {
+             const oldFile = path.join(oldDir, file);
+             const newFile = path.join(newDir, file);
+             try {
+                moveFile(oldFile, newFile);
+             } catch (e) {
+                logger.error(`Error moving file ${oldFile} to ${newFile}: ${e}`);
+                success = false;
+             }
+          });
+          // Remove old directory (use recursive to handle non-empty dirs)
+          try {
+            if (fs.existsSync(oldDir)) {
+              fs.rmSync(oldDir, { recursive: true, force: true });
+            }
+          } catch (e) {
+            logger.error(`Error removing old directory ${oldDir}: ${e}`);
+            success = false;
+          }
+        } else {
+          // Simple rename
+          fs.renameSync(oldDir, newDir);
+        }
+      }
+    } catch (e) {
+      logger.error(
+        `Error renaming directory from ${oldDir} to ${newDir}`,
+        e instanceof Error ? e : new Error(String(e))
+      );
+      success = false;
+    }
+  };
+
+  renameDir(VIDEOS_DIR);
+  renameDir(IMAGES_DIR);
+  renameDir(SUBTITLES_DIR);
+
+  return success;
+}
+
+/**
+ * Update video paths in memory after a collection rename
+ */
+export function updateVideoPathsForCollectionRename(
+  video: Video,
+  oldName: string,
+  newName: string
+): Partial<Video> {
+  const updates: Partial<Video> = {};
+  const sanitizedOldName = sanitizeCollectionName(oldName);
+  const sanitizedNewName = sanitizeCollectionName(newName);
+
+  if (!sanitizedOldName || !sanitizedNewName) return updates;
+
+  // Helper to replace path part
+  const replacePath = (currentPath: string, prefix: string): string => {
+    // path is web access path, usually /videos/CollectionName/file.mp4
+    const oldPrefix = `${prefix}/${sanitizedOldName}/`;
+    const newPrefix = `${prefix}/${sanitizedNewName}/`;
+    
+    if (currentPath.startsWith(oldPrefix)) {
+      return currentPath.replace(oldPrefix, newPrefix);
+    }
+    return currentPath;
+  };
+
+  if (video.videoPath) {
+    // Assume paths start with /videos for collection items
+    const newPath = replacePath(video.videoPath, '/videos');
+    if (newPath !== video.videoPath) updates.videoPath = newPath;
+  }
+
+  if (video.thumbnailPath) {
+    let newPath = video.thumbnailPath;
+    if (video.thumbnailPath.startsWith('/videos/')) {
+       newPath = replacePath(video.thumbnailPath, '/videos');
+    } else if (video.thumbnailPath.startsWith('/images/')) {
+       newPath = replacePath(video.thumbnailPath, '/images');
+    }
+    
+    if (newPath !== video.thumbnailPath) updates.thumbnailPath = newPath;
+  }
+
+  if (video.subtitles) {
+    const newSubtitles = video.subtitles.map(sub => {
+      let newPath = sub.path;
+      if (sub.path.startsWith('/videos/')) {
+         newPath = replacePath(sub.path, '/videos');
+      } else if (sub.path.startsWith('/subtitles/')) {
+         newPath = replacePath(sub.path, '/subtitles');
+      }
+      return { ...sub, path: newPath };
+    });
+
+    // Check if any subtitle changed
+    const changed = newSubtitles.some((sub, i) => sub.path !== video.subtitles![i].path);
+    if (changed) updates.subtitles = newSubtitles;
+  }
+
+  return updates;
+}

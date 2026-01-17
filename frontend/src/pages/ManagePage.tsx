@@ -1,7 +1,6 @@
 import {
     FindInPage
 } from '@mui/icons-material';
-import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -15,6 +14,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import CollectionsTable from '../components/ManagePage/CollectionsTable';
 import VideosTable from '../components/ManagePage/VideosTable';
+import { getApiUrl } from '../utils/apiUrl';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useCollection } from '../contexts/CollectionContext';
@@ -33,7 +33,7 @@ const ManagePage: React.FC = () => {
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const { videos, deleteVideo, refreshThumbnail, updateVideo } = useVideo();
-    const { collections, deleteCollection } = useCollection();
+    const { collections, deleteCollection, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
     const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
@@ -287,6 +287,10 @@ const ManagePage: React.FC = () => {
                 displayedCollections={displayedCollections}
                 totalCollectionsCount={collections.length}
                 onDelete={confirmDeleteCollection}
+                onUpdate={async (id, name) => {
+                    const result = await updateCollection(id, name);
+                    if (!result.success) throw new Error(result.error);
+                }}
                 page={collectionPage}
                 totalPages={totalCollectionPages}
                 onPageChange={handleCollectionPageChange}

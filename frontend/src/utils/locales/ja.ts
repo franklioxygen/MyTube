@@ -708,4 +708,12 @@ export const ja = {
   soundNotification: "新着通知",
   soundDrop: "水に物が落ちる音",
   soundWater: "金属に水滴が落ちる音",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "コレクションが正常に更新されました",
+  failedToUpdateCollection: "コレクションの更新に失敗しました。別の名前を使用してください",
+  collectionNameRequired: "コレクション名は必須です",
+  collectionNameTooLong: "コレクション名は200文字以下である必要があります",
+  collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
+  collectionNameReserved: "コレクション名は予約されています",
+  updateCollectionFailed: "コレクションの更新に失敗しました",
 };

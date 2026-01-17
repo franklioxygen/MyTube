@@ -708,4 +708,12 @@ export const es = {
   soundNotification: "Nueva notificación",
   soundDrop: "Objeto cayendo al agua",
   soundWater: "Gota de agua en metal",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "Colección actualizada con éxito",
+  failedToUpdateCollection: "Error al actualizar la colección, use un nombre diferente",
+  collectionNameRequired: "El nombre de la colección es obligatorio",
+  collectionNameTooLong: "El nombre de la colección debe tener 200 caracteres o menos",
+  collectionNameInvalidChars: "El nombre de la colección contiene caracteres no válidos",
+  collectionNameReserved: "El nombre de la colección está reservado",
+  updateCollectionFailed: "Error al actualizar la colección",
 };

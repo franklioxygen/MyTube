@@ -107,4 +107,60 @@ describe('collectionsService', () => {
             expect(collectionRepo.deleteCollection).toHaveBeenCalledWith('col1');
         });
     });
+
+    describe('renameCollection', () => {
+        it('should rename directories and update video paths', () => {
+            const mockCollection = { 
+                id: 'col1', 
+                name: 'Old Name', 
+                videos: ['vid1'],
+                title: 'Old Name'
+            };
+            const mockVideo = { 
+                id: 'vid1',
+                videoPath: '/videos/Old Name/vid.mp4',
+                thumbnailPath: '/videos/Old Name/thumb.jpg',
+                subtitles: [{ path: '/videos/Old Name/sub.srt' }]
+            };
+
+            vi.mocked(collectionRepo.getCollectionById).mockReturnValue(mockCollection as any);
+            vi.mocked(collectionRepo.getCollectionByName).mockReturnValue(undefined); // Unique name check
+            vi.mocked(collectionFileManager.renameCollectionDirectories).mockReturnValue(true);
+            vi.mocked(collectionRepo.atomicUpdateCollection).mockImplementation((id, fn) => {
+                 const updated = fn({ ...mockCollection } as any);
+                 return updated;
+            });
+            vi.mocked(videosService.getVideoById).mockReturnValue(mockVideo as any);
+            vi.mocked(collectionFileManager.updateVideoPathsForCollectionRename).mockReturnValue({
+                videoPath: '/videos/New Name/vid.mp4',
+                thumbnailPath: '/videos/New Name/thumb.jpg',
+                subtitles: [{ path: '/videos/New Name/sub.srt' }] as any
+            });
+
+            const result = collectionsService.renameCollection('col1', 'New Name');
+
+            expect(collectionRepo.getCollectionById).toHaveBeenCalledWith('col1');
+            expect(collectionRepo.getCollectionByName).toHaveBeenCalledWith('New Name');
+            expect(collectionFileManager.renameCollectionDirectories).toHaveBeenCalledWith('Old Name', 'New Name');
+            
+            // Should update collection name
+            expect(result?.name).toBe('New Name');
+            expect(result?.title).toBe('New Name');
+
+            // Should update video paths
+            expect(collectionFileManager.updateVideoPathsForCollectionRename).toHaveBeenCalledWith(
+                mockVideo, 'Old Name', 'New Name'
+            );
+            expect(videosService.updateVideo).toHaveBeenCalledWith('vid1', expect.objectContaining({
+                videoPath: '/videos/New Name/vid.mp4'
+            }));
+        });
+
+        it('should throw error if name already exists', () => {
+             vi.mocked(collectionRepo.getCollectionById).mockReturnValue({ id: 'col1', name: 'Old' } as any);
+             vi.mocked(collectionRepo.getCollectionByName).mockReturnValue({ id: 'col2' } as any);
+
+             expect(() => collectionsService.renameCollection('col1', 'New')).toThrowError(/already exists/);
+        });
+    });
 });

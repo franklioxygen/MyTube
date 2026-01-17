@@ -771,4 +771,12 @@ export const zh = {
   soundNotification: "新通知",
   soundDrop: "物体落水声",
   soundWater: "水滴金属声",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "合集更新成功",
+  failedToUpdateCollection: "更新合集失败，请使用其他名称",
+  collectionNameRequired: "合集名称不能为空",
+  collectionNameTooLong: "合集名称必须少于 200 个字符",
+  collectionNameInvalidChars: "合集名称包含无效字符",
+  collectionNameReserved: "合集名称为保留名称",
+  updateCollectionFailed: "更新合集失败",
 };

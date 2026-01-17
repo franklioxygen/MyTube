@@ -708,4 +708,12 @@ export const fr = {
   soundNotification: "Nouvelle notification",
   soundDrop: "Objet tombant dans l'eau",
   soundWater: "Goutte d'eau sur métal",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "Collection mise à jour avec succès",
+  failedToUpdateCollection: "Échec de la mise à jour de la collection, utilisez un nom différent",
+  collectionNameRequired: "Le nom de la collection est requis",
+  collectionNameTooLong: "Le nom de la collection doit comporter 200 caractères ou moins",
+  collectionNameInvalidChars: "Le nom de la collection contient des caractères invalides",
+  collectionNameReserved: "Le nom de la collection est réservé",
+  updateCollectionFailed: "Échec de la mise à jour de la collection",
 };

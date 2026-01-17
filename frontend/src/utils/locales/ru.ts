@@ -706,4 +706,12 @@ export const ru = {
   soundNotification: "Новое уведомление",
   soundDrop: "Предмет падает в воду",
   soundWater: "Капля воды на металл",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "Коллекция успешно обновлена",
+  failedToUpdateCollection: "Не удалось обновить коллекцию, используйте другое имя",
+  collectionNameRequired: "Требуется название коллекции",
+  collectionNameTooLong: "Название коллекции должно содержать не более 200 символов",
+  collectionNameInvalidChars: "Название коллекции содержит недопустимые символы",
+  collectionNameReserved: "Название коллекции зарезервировано",
+  updateCollectionFailed: "Не удалось обновить коллекцию",
 };

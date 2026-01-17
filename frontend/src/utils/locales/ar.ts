@@ -706,4 +706,12 @@ export const ar = {
   soundNotification: "إشعار جديد",
   soundDrop: "جسم يسقط في الماء",
   soundWater: "قطرة ماء على المعدن",
+  // Collection Renaming
+  collectionUpdatedSuccessfully: "تم تحديث المجموعة بنجاح",
+  failedToUpdateCollection: "فشل تحديث المجموعة، استخدم اسماً مختلفاً",
+  collectionNameRequired: "اسم المجموعة مطلوب",
+  collectionNameTooLong: "يجب أن يكون اسم المجموعة 200 حرف أو أقل",
+  collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
+  collectionNameReserved: "اسم المجموعة محجوز",
+  updateCollectionFailed: "فشل تحديث المجموعة",
 };

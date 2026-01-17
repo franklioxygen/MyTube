@@ -78,14 +78,7 @@ export const updateCollection = async (
 
   // Handle name update first
   if (name) {
-    updatedCollection = storageService.atomicUpdateCollection(
-      id,
-      (collection) => {
-        collection.name = name;
-        collection.title = name;
-        return collection;
-      }
-    );
+    updatedCollection = storageService.renameCollection(id, name);
   }
 
   // Handle video add/remove
