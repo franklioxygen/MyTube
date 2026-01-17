@@ -13,6 +13,7 @@ import {
   trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { getStringParam, getNumberParam } from "../utils/paramUtils";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 import { validateUrl } from "../utils/security";
 
@@ -25,17 +26,17 @@ export const searchVideos = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { query } = req.query;
+  const query = getStringParam(req.query.query);
 
   if (!query) {
     throw new ValidationError("Search query is required", "query");
   }
 
-  const limit = req.query.limit ? parseInt(req.query.limit as string) : 8;
-  const offset = req.query.offset ? parseInt(req.query.offset as string) : 1;
+  const limit = getNumberParam(req.query.limit, 8) || 8;
+  const offset = getNumberParam(req.query.offset, 1) || 1;
 
   const results = await downloadService.searchYouTube(
-    query as string,
+    query,
     limit,
     offset
   );
@@ -51,9 +52,9 @@ export const checkVideoDownloadStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url } = req.query;
+  const url = getStringParam(req.query.url);
 
-  if (!url || typeof url !== "string") {
+  if (!url) {
     throw new ValidationError("URL is required", "url");
   }
 
@@ -538,18 +539,18 @@ export const checkBilibiliParts = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url } = req.query;
+  const url = getStringParam(req.query.url);
 
   if (!url) {
     throw new ValidationError("URL is required", "url");
   }
 
-  if (!isBilibiliUrl(url as string)) {
+  if (!isBilibiliUrl(url)) {
     throw new ValidationError("Not a valid Bilibili URL", "url");
   }
 
   // Resolve shortened URLs (like b23.tv)
-  let videoUrl = url as string;
+  let videoUrl = url;
   if (videoUrl.includes("b23.tv")) {
     videoUrl = await resolveShortUrl(videoUrl);
     logger.info("Resolved shortened URL to:", videoUrl);
@@ -579,18 +580,18 @@ export const checkBilibiliCollection = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url } = req.query;
+  const url = getStringParam(req.query.url);
 
   if (!url) {
     throw new ValidationError("URL is required", "url");
   }
 
-  if (!isBilibiliUrl(url as string)) {
+  if (!isBilibiliUrl(url)) {
     throw new ValidationError("Not a valid Bilibili URL", "url");
   }
 
   // Resolve shortened URLs (like b23.tv)
-  let videoUrl = url as string;
+  let videoUrl = url;
   if (videoUrl.includes("b23.tv")) {
     videoUrl = await resolveShortUrl(videoUrl);
     logger.info("Resolved shortened URL to:", videoUrl);
@@ -621,13 +622,13 @@ export const checkPlaylist = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url } = req.query;
+  const url = getStringParam(req.query.url);
 
   if (!url) {
     throw new ValidationError("URL is required", "url");
   }
 
-  const playlistUrl = url as string;
+  const playlistUrl = url;
 
   // For YouTube, validate that it has a playlist parameter
   if (playlistUrl.includes("youtube.com") || playlistUrl.includes("youtu.be")) {

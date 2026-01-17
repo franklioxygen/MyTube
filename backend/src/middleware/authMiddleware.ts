@@ -25,8 +25,12 @@ export const authMiddleware = (
   const cookieName = getAuthCookieName();
   const tokenFromCookie = req.cookies?.[cookieName];
 
+  // Security: Even though tokenFromCookie comes from user input (cookies),
+  // the security decision is based on verifyToken() which verifies the JWT signature server-side.
+  // If the token is invalid or tampered with, verifyToken() returns null and req.user remains undefined.
   if (tokenFromCookie) {
     const decoded = verifyToken(tokenFromCookie);
+    // Only set req.user if token is valid (server-verified)
     if (decoded) {
       req.user = decoded;
       next();
@@ -35,11 +39,14 @@ export const authMiddleware = (
   }
 
   // Fallback to Authorization header for backward compatibility
+  // Security: Similar to above - authHeader is user-controlled, but security decision
+  // is based on verifyToken() which performs server-side JWT signature verification.
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
     const decoded = verifyToken(token);
 
+    // Only set req.user if token is valid (server-verified)
     if (decoded) {
       req.user = decoded;
     }

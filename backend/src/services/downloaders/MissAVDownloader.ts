@@ -8,6 +8,7 @@ import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
+import { validateUrl } from "../../utils/security";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -30,7 +31,10 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      logger.info(`Fetching page content for ${url} with Puppeteer...`);
+      // Validate URL to prevent SSRF attacks
+      const validatedUrl = validateUrl(url);
+      
+      logger.info(`Fetching page content for ${validatedUrl} with Puppeteer...`);
 
       const USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -46,7 +50,7 @@ export class MissAVDownloader extends BaseDownloader {
       });
       const page = await browser.newPage();
 
-      await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.goto(validatedUrl, { waitUntil: "networkidle2", timeout: 60000 });
 
       const html = await page.content();
       await browser.close();
@@ -117,6 +121,9 @@ export class MissAVDownloader extends BaseDownloader {
       const USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+      // Validate URL to prevent SSRF attacks
+      const validatedUrl = validateUrl(url);
+      
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
       const browser = await puppeteer.launch({
@@ -143,8 +150,8 @@ export class MissAVDownloader extends BaseDownloader {
         }
       });
 
-      logger.info("Navigating to:", url);
-      await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
+      logger.info("Navigating to:", validatedUrl);
+      await page.goto(validatedUrl, { waitUntil: "networkidle2", timeout: 60000 });
 
       const html = await page.content();
       await browser.close();

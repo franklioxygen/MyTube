@@ -46,15 +46,15 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
   const maxAge = 24 * 60 * 60 * 1000;
   
   // Set HTTP-only cookie (not accessible to JavaScript, preventing XSS attacks)
-  // SameSite=Strict provides CSRF protection
-  // Secure flag should be set in production (HTTPS only)
-  // Set HTTP-only cookie (not accessible to JavaScript, preventing XSS attacks)
   // SameSite=Lax allows for better usability while maintaining CSRF protection
   // Secure flag is optional (env var) to allow potential HTTP usage in private networks
+  // Note: The token is a JWT (JSON Web Token) which is designed to be transmitted and stored.
+  // JWT tokens are signed and contain user role information, but are not considered sensitive
+  // in the same way as passwords. Passwords are hashed using bcrypt and never stored in plain text.
   const isSecure = process.env.SECURE_COOKIES === "true";
   
   res.cookie(COOKIE_NAME, token, {
-    httpOnly: true, // Not accessible to JavaScript
+    httpOnly: true, // Not accessible to JavaScript, preventing XSS attacks
     secure: isSecure, // Only sent over HTTPS if explicitly configured
     sameSite: "lax", // Better persistence across navigations
     maxAge: maxAge, // 24 hours
@@ -63,7 +63,7 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
   
   // Also set role in a separate cookie (non-HTTP-only for frontend to read)
   // Note: This cookie is not sensitive (only contains role: "admin" or "visitor")
-  // and is needed by the frontend for UI rendering
+  // and is needed by the frontend for UI rendering. The role value is not sensitive data.
   res.cookie("mytube_role", role, {
     httpOnly: false, // Frontend needs to read this for UI rendering
     secure: isSecure,

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
+import { validateUrl } from "../../../utils/security";
 
 /**
  * Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
@@ -8,8 +9,11 @@ export async function extractXiaoHongShuAuthor(
   url: string
 ): Promise<string | null> {
   try {
+    // Validate URL to prevent SSRF attacks
+    const validatedUrl = validateUrl(url);
+    
     logger.info("Attempting to extract XiaoHongShu author from webpage...");
-    const response = await axios.get(url, {
+    const response = await axios.get(validatedUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

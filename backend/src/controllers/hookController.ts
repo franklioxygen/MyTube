@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
+import fs from "fs";
 import path from "path";
+import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
+import { validatePathWithinDirectory } from "../utils/security";
 import { successMessage } from "../utils/response";
 
 /**
@@ -35,19 +38,30 @@ export const uploadHook = async (
   try {
     // Resolve the path and ensure it's within expected upload directories
     // Note: multer typically uses system temp directory, so we validate the path exists
-    safeFilePath = path.resolve(req.file.path);
-    if (!safeFilePath || !safeFilePath.includes(path.sep)) {
+    const resolvedPath = path.resolve(req.file.path);
+    if (!resolvedPath || !resolvedPath.includes(path.sep)) {
       throw new ValidationError("Invalid file path", "file");
     }
+    
+    // Validate path is within system temp directory to prevent path traversal
+    const tempDir = os.tmpdir();
+    if (!validatePathWithinDirectory(resolvedPath, tempDir)) {
+      throw new ValidationError("Invalid file path: path traversal detected", "file");
+    }
+    
+    safeFilePath = resolvedPath;
   } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
     throw new ValidationError("Invalid file path", "file");
   }
 
   // Scan for risk commands
   const riskCommand = scanForRiskCommands(safeFilePath);
   if (riskCommand) {
-    // Delete the file immediately
-    require("fs").unlinkSync(safeFilePath);
+    // Delete the file immediately - safeFilePath is validated above
+    fs.unlinkSync(safeFilePath);
     throw new ValidationError(
       `Risk command detected: ${riskCommand}. Upload rejected.`,
       "file"
@@ -60,24 +74,32 @@ export const uploadHook = async (
 
 /**
  * Scan file for risk commands
+ * @param filePath - Path to file (must be validated before calling this function)
  */
 const scanForRiskCommands = (filePath: string): string | null => {
-  const fs = require("fs");
+  // filePath is validated before this function is called
   const content = fs.readFileSync(filePath, "utf-8");
 
   // List of risky patterns
-  // We use regex to match commands, trying to avoid false positives in comments if possible,
-  // but for safety, even commented dangerous commands might be flagged or we just accept strictness.
-  // A simple include check is safer for now.
+  // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
+  // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
   const riskyPatterns = [
-    { pattern: /rm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+|-[a-zA-Z]*f[a-zA-Z]*\s+)*-?[rf][a-zA-Z]*\s+.*[\/\*]/, name: "rm -rf / (recursive delete)" }, // Matches rm -rf /, rm -fr *, etc roughly
+    // Check for rm -rf / or rm -fr / with simpler pattern
+    { pattern: /rm\s+-[rf]+\s+\//, name: "rm -rf / (recursive delete)" },
+    { pattern: /rm\s+-[fr]+\s+\//, name: "rm -fr / (recursive delete)" },
+    { pattern: /rm\s+-r\s+-f\s+\//, name: "rm -r -f / (recursive delete)" },
+    { pattern: /rm\s+-f\s+-r\s+\//, name: "rm -f -r / (recursive delete)" },
+    { pattern: /rm\s+-rf\s+\*/, name: "rm -rf * (recursive delete all)" },
+    { pattern: /rm\s+-fr\s+\*/, name: "rm -fr * (recursive delete all)" },
     { pattern: /mkfs/, name: "mkfs (format disk)" },
     { pattern: /dd\s+if=/, name: "dd (disk write)" },
-    { pattern: /:[:\(\)\{\}\s|&]+;:/, name: "fork bomb" },
+    // Simplified fork bomb pattern - avoid nested quantifiers
+    { pattern: /::\s*;:/, name: "fork bomb" },
     { pattern: />\s*\/dev\/sd/, name: "write to block device" },
     { pattern: />\s*\/dev\/nvme/, name: "write to block device" },
-    { pattern: /mv\s+.*[\s\/]+\//, name: "mv to root" }, // deeply simplified, but mv / is dangerous
-    { pattern: /chmod\s+.*777\s+\//, name: "chmod 777 root" },
+    // Simplified mv pattern
+    { pattern: /mv\s+[^\s]+\s+\//, name: "mv to root" },
+    { pattern: /chmod\s+777\s+\//, name: "chmod 777 root" },
     { pattern: /wget\s+http/, name: "wget (potential malware download)" },
     { pattern: /curl\s+http/, name: "curl (potential malware download)" },
   ];

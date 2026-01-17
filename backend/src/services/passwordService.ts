@@ -356,8 +356,8 @@ export async function resetPassword(): Promise<string> {
 
   storageService.saveSettings(mergedSettings);
 
-  // Log the new password (as requested)
-  logger.info(`Password has been reset. New password: ${newPassword}`);
+  // Log that password was reset (redact actual password)
+  logger.info(`Password has been reset. New password: [REDACTED]`);
 
   // Reset failed login attempts
   loginAttemptService.resetFailedAttempts();

@@ -47,11 +47,64 @@ export class Logger {
   }
 
   /**
+   * Sanitize arguments for logging to prevent log injection
+   */
+  private sanitizeArgs(args: any[]): any[] {
+    return args.map((arg) => {
+      if (typeof arg === "string") {
+        return sanitizeLogMessage(arg);
+      }
+      if (arg instanceof Error) {
+        // Errors are safe to log as-is, but sanitize the message
+        return arg;
+      }
+      if (typeof arg === "object" && arg !== null) {
+        // For objects, try to sanitize string values
+        try {
+          const sanitized = JSON.parse(JSON.stringify(arg));
+          if (typeof sanitized === "object") {
+            const sanitizeObject = (obj: any): any => {
+              if (Array.isArray(obj)) {
+                return obj.map((item) =>
+                  typeof item === "string"
+                    ? sanitizeLogMessage(item)
+                    : typeof item === "object" && item !== null
+                    ? sanitizeObject(item)
+                    : item
+                );
+              }
+              const result: any = {};
+              for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                  const value = obj[key];
+                  result[key] =
+                    typeof value === "string"
+                      ? sanitizeLogMessage(value)
+                      : typeof value === "object" && value !== null
+                      ? sanitizeObject(value)
+                      : value;
+                }
+              }
+              return result;
+            };
+            return sanitizeObject(sanitized);
+          }
+        } catch {
+          // If JSON serialization fails, return as-is
+        }
+      }
+      return arg;
+    });
+  }
+
+  /**
    * Log debug messages (most verbose)
    */
   debug(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.DEBUG) {
-      console.debug(`[${this.formatTimestamp()}] [DEBUG] ${message}`, ...args);
+      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedArgs = this.sanitizeArgs(args);
+      console.debug(`[${this.formatTimestamp()}] [DEBUG] ${sanitizedMessage}`, ...sanitizedArgs);
     }
   }
 
@@ -60,7 +113,9 @@ export class Logger {
    */
   info(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.INFO) {
-      console.log(`[${this.formatTimestamp()}] [INFO] ${message}`, ...args);
+      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedArgs = this.sanitizeArgs(args);
+      console.log(`[${this.formatTimestamp()}] [INFO] ${sanitizedMessage}`, ...sanitizedArgs);
     }
   }
 
@@ -69,7 +124,9 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.WARN) {
-      console.warn(`[${this.formatTimestamp()}] [WARN] ${message}`, ...args);
+      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedArgs = this.sanitizeArgs(args);
+      console.warn(`[${this.formatTimestamp()}] [WARN] ${sanitizedMessage}`, ...sanitizedArgs);
     }
   }
 
@@ -82,15 +139,53 @@ export class Logger {
   error(message: string, error?: Error | unknown, ...args: any[]): void {
     if (this.level <= LogLevel.ERROR) {
       const timestamp = this.formatTimestamp();
+      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedArgs = this.sanitizeArgs(args);
       if (error instanceof Error) {
-        console.error(`[${timestamp}] [ERROR] ${message}`, error, ...args);
+        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, error, ...sanitizedArgs);
       } else if (error !== undefined) {
-        console.error(`[${timestamp}] [ERROR] ${message}`, error, ...args);
+        const sanitizedError = typeof error === "string" ? sanitizeLogMessage(error) : error;
+        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, sanitizedError, ...sanitizedArgs);
       } else {
-        console.error(`[${timestamp}] [ERROR] ${message}`, ...args);
+        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, ...sanitizedArgs);
       }
     }
   }
+}
+
+/**
+ * Sanitize log message to prevent log injection attacks
+ * Escapes newlines, carriage returns, and other control characters
+ */
+export function sanitizeLogMessage(message: string): string {
+  if (typeof message !== "string") {
+    return String(message);
+  }
+  return message
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t")
+    .replace(/[\x00-\x1F\x7F-\x9F]/g, (char) => {
+      const code = char.charCodeAt(0);
+      return `\\x${code.toString(16).padStart(2, "0")}`;
+    });
+}
+
+/**
+ * Redact sensitive data from log messages
+ * Replaces sensitive patterns with [REDACTED]
+ */
+export function redactSensitive(message: string): string {
+  if (typeof message !== "string") {
+    return String(message);
+  }
+  // Redact common sensitive patterns
+  return message
+    .replace(/password[=:]\s*[^\s]+/gi, "password=[REDACTED]")
+    .replace(/token[=:]\s*[^\s]+/gi, "token=[REDACTED]")
+    .replace(/secret[=:]\s*[^\s]+/gi, "secret=[REDACTED]")
+    .replace(/api[_-]?key[=:]\s*[^\s]+/gi, "api_key=[REDACTED]")
+    .replace(/authorization[=:]\s*[^\s]+/gi, "authorization=[REDACTED]");
 }
 
 /**

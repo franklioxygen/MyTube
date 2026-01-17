@@ -395,15 +395,25 @@ export const serveMountVideo = async (
   // Validate and sanitize path to prevent path traversal
   // For mount paths, we need to validate they're safe
   // Note: mount paths are user-configured, so we validate they don't contain traversal sequences
+  if (!rawFilePath || typeof rawFilePath !== "string") {
+    throw new ValidationError("Invalid file path: empty or invalid", "videoPath");
+  }
+  
   if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
     throw new ValidationError("Invalid file path: path traversal detected", "videoPath");
   }
   
+  // Additional validation: ensure path is absolute
+  if (!path.isAbsolute(rawFilePath)) {
+    throw new ValidationError("Invalid file path: must be absolute", "videoPath");
+  }
+  
+  // Resolve the path (should not change absolute paths, but normalizes them)
   const filePath = path.resolve(rawFilePath);
   
-  // Additional validation: ensure path is absolute and doesn't contain dangerous sequences
-  if (!path.isAbsolute(filePath)) {
-    throw new ValidationError("Invalid file path: must be absolute", "videoPath");
+  // Final validation: ensure resolved path is still absolute and doesn't contain traversal
+  if (!path.isAbsolute(filePath) || filePath.includes("..") || filePath.includes("\0")) {
+    throw new ValidationError("Invalid file path: path traversal detected", "videoPath");
   }
 
   // Validate path exists and is safe

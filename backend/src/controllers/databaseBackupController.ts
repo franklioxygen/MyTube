@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import path from "path";
+import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as databaseBackupService from "../services/databaseBackupService";
 import { generateTimestamp } from "../utils/helpers";
-import { resolveSafePath } from "../utils/security";
+import { validatePathWithinDirectory } from "../utils/security";
 import { DATA_DIR } from "../config/paths";
 import { successMessage } from "../utils/response";
 
@@ -49,11 +50,22 @@ export const importDatabase = async (
   // Multer uploads to a temp directory, but we should still validate
   let safeFilePath: string;
   try {
-    safeFilePath = path.resolve(req.file.path);
-    if (!safeFilePath || !safeFilePath.includes(path.sep)) {
+    const resolvedPath = path.resolve(req.file.path);
+    if (!resolvedPath || !resolvedPath.includes(path.sep)) {
       throw new ValidationError("Invalid file path", "file");
     }
+    
+    // Validate path is within system temp directory to prevent path traversal
+    const tempDir = os.tmpdir();
+    if (!validatePathWithinDirectory(resolvedPath, tempDir)) {
+      throw new ValidationError("Invalid file path: path traversal detected", "file");
+    }
+    
+    safeFilePath = resolvedPath;
   } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
     throw new ValidationError("Invalid file path", "file");
   }
 
