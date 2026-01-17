@@ -65,3 +65,7 @@ backend/data/*
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+
+# CodeQL
+codeql-db/
+codeql-reports/
