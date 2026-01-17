@@ -1,9 +1,50 @@
 import { NextFunction, Request, Response } from "express";
+import { isLoginRequired } from "../services/passwordService";
+
+/**
+ * Check if the current request is to a public endpoint that doesn't require authentication
+ */
+const isPublicEndpoint = (req: Request): boolean => {
+  const path = req.path || req.url || "";
+
+  // Allow password verification endpoints (for login)
+  if (
+    path.includes("/verify-password") ||
+    path.includes("/verify-admin-password") ||
+    path.includes("/verify-visitor-password")
+  ) {
+    return true;
+  }
+
+  // Allow passkey authentication endpoints (for login)
+  if (
+    path.includes("/passkeys/authenticate") ||
+    path.includes("/passkeys/register")
+  ) {
+    return true;
+  }
+
+  // Allow logout endpoint (can be called without auth)
+  if (path.includes("/logout")) {
+    return true;
+  }
+
+  // Allow password-related endpoints that are needed for authentication
+  if (
+    path.includes("/password-enabled") ||
+    path.includes("/reset-password-cooldown")
+  ) {
+    return true;
+  }
+
+  return false;
+};
 
 /**
  * Middleware specifically for settings routes with role-based access control
  * Visitors can only read settings and update CloudFlare tunnel settings
  * Admins have full access to all settings
+ * Unauthenticated users are blocked when loginEnabled is true (except for public endpoints)
  */
 export const roleBasedSettingsMiddleware = (
   req: Request,
@@ -92,7 +133,24 @@ export const roleBasedSettingsMiddleware = (
     return;
   }
 
-  // For unauthenticated users, allow the request to proceed
-  // (loginEnabled check and other auth logic will handle it)
+  // For unauthenticated users, check if login is required
+  if (!req.user) {
+    const loginRequired = isLoginRequired();
+
+    // If login is required and this is not a public endpoint, reject the request
+    if (loginRequired && !isPublicEndpoint(req)) {
+      res.status(401).json({
+        success: false,
+        error: "Authentication required. Please log in to access this resource.",
+      });
+      return;
+    }
+
+    // If login is not required, or this is a public endpoint, allow the request
+    next();
+    return;
+  }
+
+  // Fallback: allow the request (should not reach here)
   next();
 };
