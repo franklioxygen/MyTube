@@ -3,6 +3,13 @@
 
 
 
+## v1.7.70 (2026-01-17)
+
+### Refactor
+
+- refactor: Update collection renaming logic and UI in ManagePage (59f1cae)
+- refactor: Update file paths to use os and path modules (f8933c8)
+
 ## v1.7.69 (2026-01-17)
 
 ### Feat
