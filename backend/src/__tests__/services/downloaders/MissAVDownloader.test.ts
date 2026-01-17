@@ -35,7 +35,6 @@ describe('MissAVDownloader', () => {
   describe('getVideoInfo', () => {
     it('should extract author from domain name', async () => {
       const mockPage = {
-        setUserAgent: vi.fn(),
         goto: vi.fn(),
         content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"><meta property="og:image" content="http://test.com/img.jpg"></head><body></body></html>'),
         close: vi.fn(),
@@ -54,7 +53,6 @@ describe('MissAVDownloader', () => {
 
     it('should extract author from domain name for 123av', async () => {
       const mockPage = {
-        setUserAgent: vi.fn(),
         goto: vi.fn(),
         content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"></head><body></body></html>'),
         close: vi.fn(),

@@ -9,11 +9,11 @@ import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
-    flagsToArgs,
-    getAxiosProxyConfig,
-    getNetworkConfigFromUserConfig,
-    getUserYtDlpConfig,
-    InvalidProxyError,
+  flagsToArgs,
+  getAxiosProxyConfig,
+  getNetworkConfigFromUserConfig,
+  getUserYtDlpConfig,
+  InvalidProxyError,
 } from "../../utils/ytDlpUtils";
 import * as storageService from "../storageService";
 import { Video } from "../storageService";
@@ -32,15 +32,20 @@ export class MissAVDownloader extends BaseDownloader {
     try {
       logger.info(`Fetching page content for ${url} with Puppeteer...`);
 
+      const USER_AGENT =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
       const browser = await puppeteer.launch({
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          `--user-agent=${USER_AGENT}`,
+        ],
       });
       const page = await browser.newPage();
-      await page.setUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      );
+
       await page.goto(url, { waitUntil: "networkidle2", timeout: 60000 });
 
       const html = await page.content();
@@ -108,19 +113,23 @@ export class MissAVDownloader extends BaseDownloader {
     try {
       // 1. Extract m3u8 URL and metadata using Puppeteer
       // (yt-dlp doesn't support MissAV natively, so we extract the m3u8 URL first)
+      // Set a real user agent
+      const USER_AGENT =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
       const browser = await puppeteer.launch({
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          `--user-agent=${USER_AGENT}`,
+        ],
       });
       const page = await browser.newPage();
 
-      // Set a real user agent
-      const userAgent =
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-      await page.setUserAgent(userAgent);
 
       // Setup request listener to find m3u8 URLs
       const m3u8Urls: string[] = [];
@@ -298,7 +307,7 @@ export class MissAVDownloader extends BaseDownloader {
         output: newVideoPath,
         format: downloadFormat,
         mergeOutputFormat: mergeOutputFormat,
-        addHeader: [`Referer:${referer}`, `User-Agent:${userAgent}`],
+        addHeader: [`Referer:${referer}`, `User-Agent:${USER_AGENT}`],
       };
 
       // Apply format sort if user specified it
