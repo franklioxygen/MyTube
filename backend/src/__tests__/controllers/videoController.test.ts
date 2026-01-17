@@ -36,7 +36,26 @@ vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
-vi.mock("../../utils/security");
+vi.mock("../../utils/security", () => ({
+  validateUrl: vi.fn((url: string) => url), // Return URL as-is for tests
+  validatePathWithinDirectory: vi.fn(() => true),
+  validateVideoPath: vi.fn((path: string) => path),
+  validateImagePath: vi.fn((path: string) => path),
+  execFileSafe: vi.fn(),
+  resolveSafePath: vi.fn((path: string) => path),
+}));
+vi.mock("../../utils/helpers", () => ({
+  extractBilibiliVideoId: vi.fn((url: string) => url.includes("bilibili") ? "BV1xx" : null),
+  isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
+  isValidUrl: vi.fn((url: string) => url.startsWith("http")),
+  processVideoUrl: vi.fn(async (url: string) => ({
+    videoUrl: url,
+    sourceVideoId: url.includes("bilibili") ? "BV1xx" : "123",
+    platform: url.includes("bilibili") ? "bilibili" : url.includes("missav") ? "missav" : "youtube",
+  })),
+  resolveShortUrl: vi.fn(async (url: string) => url),
+  trimBilibiliUrl: vi.fn((url: string) => url),
+}));
 vi.mock("fs-extra");
 vi.mock("child_process");
 vi.mock("multer", () => {
