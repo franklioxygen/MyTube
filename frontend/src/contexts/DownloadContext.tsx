@@ -9,6 +9,7 @@ import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
 import { getApiUrl } from '../utils/apiUrl';
 import { INFO_SOUNDS } from '../utils/sounds';
+import { useAuth } from './AuthContext';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -81,6 +82,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { fetchVideos, handleSearch, setVideos } = useVideo();
     const { fetchCollections } = useCollection();
     const { data: settings } = useSettings();
+    const { isAuthenticated } = useAuth();
     const queryClient = useQueryClient();
 
     // Get initial download status from localStorage
@@ -92,6 +94,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const response = await axios.get(`${API_URL}/download-status`);
             return response.data;
         },
+        // Only query when authenticated to avoid 401 errors on login page
+        enabled: isAuthenticated,
         // Only poll when there are active or queued downloads
         refetchInterval: (query) => {
             const data = query.state.data as { activeDownloads?: any[]; queuedDownloads?: any[] } | undefined;
@@ -105,6 +109,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         refetchOnMount: 'always',
         staleTime: 1000, // Consider data stale after 1 second
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes
+        // Suppress errors when not authenticated (expected behavior)
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors (unauthorized) - user is not authenticated
+            if (error?.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 3 times
+            return failureCount < 3;
+        },
     });
 
     const activeDownloads = downloadStatus.activeDownloads || [];

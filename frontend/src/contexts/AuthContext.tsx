@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const roleCookie = document.cookie
                         .split('; ')
                         .find(row => row.startsWith('mytube_role='));
-                    
+
                     if (roleCookie) {
                         const role = roleCookie.split('=')[1] as 'admin' | 'visitor';
                         if (role === 'admin' || role === 'visitor') {
@@ -61,11 +61,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }
                 }
                 return response.data;
-            } catch (error) {
+            } catch (error: any) {
+                // Handle 401 errors (expected when not authenticated)
+                if (error?.response?.status === 401) {
+                    setLoginRequired(true);
+                    setIsAuthenticated(false);
+                    setUserRole(null);
+                    return null;
+                }
+                // Handle 429 errors (rate limited) - use cached cookie state if available
+                if (error?.response?.status === 429) {
+                    // Check cookie to determine auth state without making another request
+                    const roleCookie = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('mytube_role='));
+
+                    if (roleCookie) {
+                        const role = roleCookie.split('=')[1] as 'admin' | 'visitor';
+                        if (role === 'admin' || role === 'visitor') {
+                            setIsAuthenticated(true);
+                            setUserRole(role);
+                            setLoginRequired(true);
+                        } else {
+                            setIsAuthenticated(false);
+                            setUserRole(null);
+                            setLoginRequired(true);
+                        }
+                    } else {
+                        setIsAuthenticated(false);
+                        setUserRole(null);
+                        setLoginRequired(true);
+                    }
+                    return null;
+                }
+                // For other errors, log but don't break the flow
                 console.error('Error checking auth settings:', error);
                 return null;
             }
-        }
+        },
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 or 429 errors
+            if (error?.response?.status === 401 || error?.response?.status === 429) {
+                return false;
+            }
+            // Retry other errors once
+            return failureCount < 1;
+        },
+        // Add staleTime to prevent unnecessary refetches on page reload
+        staleTime: 30 * 1000, // Consider data fresh for 30 seconds
+        gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     });
 
     const login = (role?: 'admin' | 'visitor') => {
@@ -80,11 +124,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Clear local state immediately
         setIsAuthenticated(false);
         setUserRole(null);
-        
+
         // Clear role cookie from frontend (it's not HTTP-only, so we can clear it)
         // This prevents the auth check from seeing the cookie before backend clears it
         document.cookie = 'mytube_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        
+
         try {
             // Call backend logout endpoint to clear HTTP-only cookies
             await axios.post(`${API_URL}/settings/logout`, {}, {
@@ -94,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Error during logout:', error);
             // Continue with logout even if backend call fails
         }
-        
+
         // Invalidate and refetch auth settings to ensure fresh auth state
         queryClient.invalidateQueries({ queryKey: ['authSettings'] });
         queryClient.refetchQueries({ queryKey: ['authSettings'] });

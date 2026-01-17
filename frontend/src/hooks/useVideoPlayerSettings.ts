@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 
@@ -12,6 +13,7 @@ const API_URL = getApiUrl();
 export function useVideoPlayerSettings() {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const { isAuthenticated } = useAuth();
     const queryClient = useQueryClient();
 
     // Fetch settings
@@ -20,7 +22,17 @@ export function useVideoPlayerSettings() {
         queryFn: async () => {
             const response = await axios.get(`${API_URL}/settings`);
             return response.data;
-        }
+        },
+        // Only query when authenticated to avoid 401 errors
+        enabled: isAuthenticated,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors (unauthorized) - user is not authenticated
+            if (error?.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 3 times
+            return failureCount < 3;
+        },
     });
 
     const autoPlay = settings?.defaultAutoPlay || false;

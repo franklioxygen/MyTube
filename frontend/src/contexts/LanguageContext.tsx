@@ -43,7 +43,17 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [language]);
 
     useEffect(() => {
-        fetchSettings();
+        // Only fetch settings if we appear to be authenticated (check for role cookie)
+        // This prevents 401 errors on the login page
+        const roleCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('mytube_role='));
+
+        if (roleCookie) {
+            // User appears to be authenticated, fetch settings
+            fetchSettings();
+        }
+        // If no cookie, skip the request and use localStorage value
     }, []);
 
     const fetchSettings = async () => {
@@ -59,8 +69,11 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
                     console.error('Error saving language to localStorage:', error);
                 }
             }
-        } catch (error) {
-            console.error('Error fetching settings for language:', error);
+        } catch (error: any) {
+            // Silently handle 401 errors (expected when not authenticated)
+            if (error?.response?.status !== 401) {
+                console.error('Error fetching settings for language:', error);
+            }
             // If backend fails, keep using localStorage value
         }
     };
@@ -74,6 +87,16 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             console.error('Error saving language to localStorage:', error);
         }
 
+        // Only save to backend if authenticated (check for role cookie)
+        const roleCookie = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('mytube_role='));
+
+        if (!roleCookie) {
+            // Not authenticated, skip backend save
+            return;
+        }
+
         try {
             // We need to fetch current settings first to not overwrite other settings
             // Or ideally the backend supports partial updates, but our controller expects full object usually
@@ -85,8 +108,12 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
                 ...currentSettings,
                 language: lang
             });
-        } catch (error) {
-            console.error('Error saving language setting:', error);
+        } catch (error: any) {
+            // Silently handle 401 errors (expected when not authenticated)
+            // Language is already saved to localStorage, so UI will update correctly
+            if (error?.response?.status !== 401) {
+                console.error('Error saving language setting:', error);
+            }
         }
     };
 

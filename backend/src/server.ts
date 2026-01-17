@@ -104,6 +104,17 @@ app.use((req, res, next) => {
     return next();
   }
   
+  // Skip rate limiting for health check and status endpoints
+  // These are read-only endpoints that may be called frequently during login/logout
+  if (
+    req.path === "/api/settings/password-enabled" ||
+    req.path === "/api/settings/passkeys/exists" ||
+    req.path === "/api/settings/reset-password-cooldown" ||
+    req.path === "/api/settings"
+  ) {
+    return next();
+  }
+  
   // Apply rate limiting to all other routes
   generalLimiter(req, res, next);
 });

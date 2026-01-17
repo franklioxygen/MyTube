@@ -21,6 +21,11 @@ export function isPasswordEnabled(): {
   enabled: boolean;
   waitTime?: number;
   loginRequired?: boolean;
+  visitorUserEnabled?: boolean;
+  isVisitorPasswordSet?: boolean;
+  passwordLoginAllowed?: boolean;
+  allowResetPassword?: boolean;
+  websiteName?: string;
 } {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
@@ -38,6 +43,11 @@ export function isPasswordEnabled(): {
     enabled: isEnabled,
     waitTime: remainingWaitTime > 0 ? remainingWaitTime : undefined,
     loginRequired: mergedSettings.loginEnabled === true,
+    visitorUserEnabled: mergedSettings.visitorUserEnabled !== false,
+    isVisitorPasswordSet: !!mergedSettings.visitorPassword,
+    passwordLoginAllowed,
+    allowResetPassword: mergedSettings.allowResetPassword !== false,
+    websiteName: mergedSettings.websiteName,
   };
 }
 

@@ -52,7 +52,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
     const queryClient = useQueryClient();
-    const { userRole } = useAuth();
+    const { userRole, isAuthenticated } = useAuth();
     const isVisitor = userRole === 'visitor';
 
     // Videos Query - Optimized for faster initial load
@@ -69,7 +69,16 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 throw err;
             }
         },
-        retry: 3, // Reduced from 10 to 3
+        // Only query when authenticated to avoid 401 errors on login page
+        enabled: isAuthenticated,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors (unauthorized) - user is not authenticated
+            if (error?.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 3 times
+            return failureCount < 3;
+        },
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 30 to save memory)
@@ -93,7 +102,16 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const response = await axios.get(`${API_URL}/settings`);
             return response.data;
         },
-        retry: 3, // Reduced from 10 to 3
+        // Only query when authenticated to avoid 401 errors on login page
+        enabled: isAuthenticated,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors (unauthorized) - user is not authenticated
+            if (error?.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 3 times
+            return failureCount < 3;
+        },
         retryDelay: 1000,
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
         gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 15 to save memory)

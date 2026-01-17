@@ -53,44 +53,55 @@ const LoginPage: React.FC = () => {
     const { login } = useAuth();
     const queryClient = useQueryClient();
 
-    // Fetch website name and settings from settings
-    const { data: settingsData } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000, withCredentials: true });
-                return response.data;
-            } catch (error) {
-                return null;
-            }
-        },
-        retry: 1,
-        retryDelay: 1000,
-    });
-
-    const passwordLoginAllowed = settingsData?.passwordLoginAllowed !== false;
-    const allowResetPassword = settingsData?.allowResetPassword !== false;
-    // Show visitor tab if visitor user is enabled AND visitorPassword is set
-    const visitorUserEnabled = settingsData?.visitorUserEnabled !== false;
-    const showVisitorTab = visitorUserEnabled && !!settingsData?.isVisitorPasswordSet;
-
-    // Update website name when settings are loaded
-    useEffect(() => {
-        if (settingsData && settingsData.websiteName) {
-            setWebsiteName(settingsData.websiteName);
-        }
-    }, [settingsData]);
-
     // Check backend connection and password status
+    // This endpoint now includes visitor password info and other login-related settings
     const { data: statusData, isLoading: isCheckingConnection, isError: isConnectionError, refetch: retryConnection } = useQuery({
         queryKey: ['healthCheck'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/password-enabled`, { timeout: 5000, withCredentials: true });
-            return response.data;
+            try {
+                const response = await axios.get(`${API_URL}/settings/password-enabled`, { timeout: 5000, withCredentials: true });
+                return response.data;
+            } catch (error: any) {
+                // Handle 401 errors (expected when not authenticated)
+                if (error?.response?.status === 401) {
+                    // Return default values for 401
+                    return { loginRequired: true, passwordEnabled: false };
+                }
+                // Handle 429 errors (rate limited) - return default values
+                if (error?.response?.status === 429) {
+                    // Return default values for rate limiting
+                    return { loginRequired: true, passwordEnabled: false };
+                }
+                throw error;
+            }
         },
-        retry: 1,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 or 429 errors
+            if (error?.response?.status === 401 || error?.response?.status === 429) {
+                return false;
+            }
+            // Retry other errors once
+            return failureCount < 1;
+        },
         retryDelay: 1000,
     });
+
+    // Get settings from password-enabled endpoint (doesn't require auth)
+    // This endpoint now includes visitor password info and other login-related settings
+    const passwordEnabledData = statusData;
+
+    const passwordLoginAllowed = passwordEnabledData?.passwordLoginAllowed !== false;
+    const allowResetPassword = passwordEnabledData?.allowResetPassword !== false;
+    // Show visitor tab if visitor user is enabled AND visitorPassword is set
+    const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
+    const showVisitorTab = visitorUserEnabled && !!passwordEnabledData?.isVisitorPasswordSet;
+
+    // Update website name when settings are loaded
+    useEffect(() => {
+        if (passwordEnabledData && passwordEnabledData.websiteName) {
+            setWebsiteName(passwordEnabledData.websiteName);
+        }
+    }, [passwordEnabledData]);
 
     // Check if passkeys exist
     const { data: passkeysData } = useQuery({
@@ -99,11 +110,24 @@ const LoginPage: React.FC = () => {
             try {
                 const response = await axios.get(`${API_URL}/settings/passkeys/exists`, { timeout: 5000, withCredentials: true });
                 return response.data;
-            } catch (error) {
+            } catch (error: any) {
+                // Handle 401 or 429 errors gracefully
+                if (error?.response?.status === 401 || error?.response?.status === 429) {
+                    return { exists: false };
+                }
+                // Log other errors but still return default
+                console.error('Error checking passkeys:', error);
                 return { exists: false };
             }
         },
-        retry: 1,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 or 429 errors
+            if (error?.response?.status === 401 || error?.response?.status === 429) {
+                return false;
+            }
+            // Retry other errors once
+            return failureCount < 1;
+        },
         retryDelay: 1000,
         enabled: !isCheckingConnection && !isConnectionError,
     });
@@ -117,11 +141,24 @@ const LoginPage: React.FC = () => {
             try {
                 const response = await axios.get(`${API_URL}/settings/reset-password-cooldown`, { timeout: 5000, withCredentials: true });
                 return response.data;
-            } catch (error) {
+            } catch (error: any) {
+                // Handle 401 or 429 errors gracefully
+                if (error?.response?.status === 401 || error?.response?.status === 429) {
+                    return { cooldown: 0 };
+                }
+                // Log other errors but still return default
+                console.error('Error fetching reset password cooldown:', error);
                 return { cooldown: 0 };
             }
         },
-        retry: 1,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 or 429 errors
+            if (error?.response?.status === 401 || error?.response?.status === 429) {
+                return false;
+            }
+            // Retry other errors once
+            return failureCount < 1;
+        },
         retryDelay: 1000,
         enabled: !isCheckingConnection && !isConnectionError,
         refetchInterval: (query) => {

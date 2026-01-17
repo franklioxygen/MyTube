@@ -3,6 +3,7 @@ import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
+import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 
@@ -30,6 +31,7 @@ export const useCollection = () => {
 export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
+    const { isAuthenticated } = useAuth();
     const queryClient = useQueryClient();
 
     const { data: collections = [], refetch: fetchCollectionsQuery } = useQuery({
@@ -37,7 +39,17 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         queryFn: async () => {
             const response = await axios.get(`${API_URL}/collections`);
             return response.data as Collection[];
-        }
+        },
+        // Only query when authenticated to avoid 401 errors on login page
+        enabled: isAuthenticated,
+        retry: (failureCount, error: any) => {
+            // Don't retry on 401 errors (unauthorized) - user is not authenticated
+            if (error?.response?.status === 401) {
+                return false;
+            }
+            // Retry other errors up to 3 times
+            return failureCount < 3;
+        },
     });
 
     const fetchCollections = async () => {

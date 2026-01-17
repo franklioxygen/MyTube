@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { getApiUrl } from '../utils/apiUrl';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = getApiUrl();
 
@@ -29,9 +30,15 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
     const [videoColumns, setVideoColumns] = useState(4);
     const [itemsPerPage, setItemsPerPage] = useState(12);
     const [defaultSort, setDefaultSort] = useState('dateDesc');
+    const { isAuthenticated } = useAuth();
 
-    // Fetch settings on mount
+    // Fetch settings on mount (only when authenticated)
     useEffect(() => {
+        if (!isAuthenticated) {
+            setSettingsLoaded(true);
+            return;
+        }
+
         const fetchSettings = async () => {
             try {
                 const response = await axios.get(`${API_URL}/settings`);
@@ -52,18 +59,27 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
                         setDefaultSort(response.data.defaultSort);
                     }
                 }
-            } catch (error) {
-                console.error('Failed to fetch settings:', error);
+            } catch (error: any) {
+                // Silently handle 401 errors (expected when not authenticated)
+                if (error?.response?.status !== 401) {
+                    console.error('Failed to fetch settings:', error);
+                }
             } finally {
                 setSettingsLoaded(true);
             }
         };
         fetchSettings();
-    }, []);
+    }, [isAuthenticated]);
 
     const handleSidebarToggle = async () => {
         const newState = !isSidebarOpen;
         setIsSidebarOpen(newState);
+        
+        // Only save to backend if authenticated
+        if (!isAuthenticated) {
+            return;
+        }
+
         try {
             const response = await axios.get(`${API_URL}/settings`);
             const currentSettings = response.data;
@@ -71,8 +87,11 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
                 ...currentSettings,
                 homeSidebarOpen: newState
             });
-        } catch (error) {
-            console.error('Failed to save sidebar state:', error);
+        } catch (error: any) {
+            // Silently handle 401 errors (expected when not authenticated)
+            if (error?.response?.status !== 401) {
+                console.error('Failed to save sidebar state:', error);
+            }
         }
     };
 
