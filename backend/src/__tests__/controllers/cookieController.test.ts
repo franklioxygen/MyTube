@@ -1,5 +1,7 @@
 
 import { Request, Response } from 'express';
+import os from 'os';
+import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as cookieController from '../../controllers/cookieController';
 import * as cookieService from '../../services/cookieService';
@@ -23,11 +25,11 @@ describe('cookieController', () => {
 
     describe('uploadCookies', () => {
         it('should upload cookies successfully', async () => {
-            mockReq.file = { path: '/tmp/cookies.txt' } as any;
+            mockReq.file = { path: path.join(os.tmpdir(), 'cookies.txt') } as any;
             
             await cookieController.uploadCookies(mockReq as Request, mockRes as Response);
 
-            expect(cookieService.uploadCookies).toHaveBeenCalledWith('/tmp/cookies.txt');
+            expect(cookieService.uploadCookies).toHaveBeenCalledWith(path.join(os.tmpdir(), 'cookies.txt'));
             expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
                 success: true
             }));

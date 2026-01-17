@@ -118,7 +118,7 @@ describe('passwordService', () => {
           password: 'hashed_new',
           loginEnabled: true
       }));
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(newPass));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('[REDACTED]'));
       expect(loginAttemptService.resetFailedAttempts).toHaveBeenCalled();
     });
   });
