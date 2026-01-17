@@ -3,6 +3,20 @@
 
 
 
+## v1.7.69 (2026-01-17)
+
+### Feat
+
+- feat: Add utility functions for safely extracting and normalizing HTTP request parameters (301e53f)
+
+### Style
+
+- style: Remove redundant setUserAgent calls (8f29f48)
+
+### Docs
+
+- docs: Update .gitignore for CodeQL files (07948b4)
+
 ## v1.7.68 (2026-01-17)
 
 ### Feat
