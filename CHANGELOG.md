@@ -2,6 +2,23 @@
 
 
 
+## v1.7.66 (2026-01-16)
+
+### Feat
+
+- feat: Optimize frontend for better LCP performance (1ba9f95)
+
+## v1.7.65 (2026-01-16)
+
+### Fix
+
+- fix: Security fix: Add authentication checks for unauthenticated users in role-based middleware (f85ae9b)
+
+### Build
+
+- build(deps): bump qs and body-parser in /backend (d013be3)
+- build(deps): bump undici from 7.16.0 to 7.18.2 in /backend (947e3f2)
+
 ## v1.7.64 (2026-01-15)
 
 ### Feat
