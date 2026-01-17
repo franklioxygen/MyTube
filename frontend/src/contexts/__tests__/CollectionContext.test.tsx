@@ -11,6 +11,17 @@ import { SnackbarProvider } from '../SnackbarContext';
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
+// Mock AuthContext
+vi.mock('../AuthContext', () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
+    }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 // Wrappers
 const createWrapper = () => {
     const queryClient = new QueryClient({

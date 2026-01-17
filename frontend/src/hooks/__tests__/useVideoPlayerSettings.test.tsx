@@ -10,6 +10,15 @@ vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: () => ({
+        isAuthenticated: true,
+        userRole: 'admin',
+        login: vi.fn(),
+        logout: vi.fn(),
+    }),
+}));
+
 const mockShowSnackbar = vi.fn();
 vi.mock('../../contexts/SnackbarContext', () => ({
     useSnackbar: () => ({ showSnackbar: mockShowSnackbar }),

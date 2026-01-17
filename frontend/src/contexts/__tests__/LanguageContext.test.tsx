@@ -43,6 +43,12 @@ describe('LanguageContext', () => {
         // Default Settings Mock
         mockedAxios.get.mockResolvedValue({ data: { language: 'en' } });
         mockedAxios.post.mockResolvedValue({});
+
+        // Simulate authenticated user
+        Object.defineProperty(document, 'cookie', {
+            writable: true,
+            value: 'mytube_role=admin',
+        });
     });
 
     it('should initialize with default language (en) if nothing stored', async () => {

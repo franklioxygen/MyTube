@@ -56,6 +56,9 @@ vi.mock('../TagsList', () => ({ default: () => <div data-testid="tags-list" /> }
 // Mock axios for settings fetch
 const mockedAxios = vi.hoisted(() => ({
     get: vi.fn().mockResolvedValue({ data: {} }),
+    post: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
+    delete: vi.fn().mockResolvedValue({ data: {} }),
 }));
 
 vi.mock('axios', async () => {
@@ -65,6 +68,9 @@ vi.mock('axios', async () => {
         default: {
             ...actual.default,
             get: mockedAxios.get,
+            post: mockedAxios.post || vi.fn(),
+            put: mockedAxios.put || vi.fn(),
+            delete: mockedAxios.delete || vi.fn(),
         },
         __esModule: true,
     };
@@ -145,7 +151,7 @@ describe('Header', () => {
         expect(logo).toBeInTheDocument();
     });
 
-    it('handles search input change and submission', () => {
+    it('handles search input change and submission', async () => {
         const onSubmit = vi.fn().mockResolvedValue({ success: true });
         renderHeader({ onSubmit });
 
@@ -157,6 +163,10 @@ describe('Header', () => {
         fireEvent.submit(form!);
 
         expect(onSubmit).toHaveBeenCalledWith('https://youtube.com/watch?v=123');
+
+        // Wait for potential async state updates (like navigation) to settle
+        // This helps prevent "act(...)" warnings if test ends too quickly
+        await waitFor(() => { });
     });
 
     it('toggles theme when button is clicked', () => {
