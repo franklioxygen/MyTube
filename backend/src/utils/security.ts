@@ -1,9 +1,9 @@
 import { execFile } from "child_process";
 import path from "path";
 import {
-  CLOUD_THUMBNAIL_CACHE_DIR,
-  IMAGES_DIR,
-  VIDEOS_DIR,
+    CLOUD_THUMBNAIL_CACHE_DIR,
+    IMAGES_DIR,
+    VIDEOS_DIR,
 } from "../config/paths";
 
 /**

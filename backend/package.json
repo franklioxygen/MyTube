@@ -28,6 +28,7 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.44.7",
     "express": "^4.22.0",
+    "express-rate-limit": "^8.2.1",
     "fs-extra": "^11.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",

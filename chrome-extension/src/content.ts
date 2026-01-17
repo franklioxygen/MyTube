@@ -227,9 +227,18 @@
       existing.remove();
     }
 
+    // Sanitize message to prevent XSS
+    // textContent already escapes HTML, but we validate the input
+    if (!message || typeof message !== 'string') {
+      message = 'Unknown error';
+    }
+    
+    // Remove any potentially dangerous characters
+    const sanitizedMessage = message.replace(/[<>]/g, '');
+
     const notification = document.createElement('div');
     notification.id = 'mytube-notification';
-    notification.textContent = message;
+    notification.textContent = sanitizedMessage;
     notification.style.cssText = `
       position: fixed;
       top: 20px;

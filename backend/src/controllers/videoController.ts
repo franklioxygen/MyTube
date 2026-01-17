@@ -9,9 +9,9 @@ import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { sendData, sendSuccess, successResponse } from "../utils/response";
 import {
-    execFileSafe,
-    validateImagePath,
-    validateVideoPath,
+  execFileSafe,
+  validateImagePath,
+  validateVideoPath,
 } from "../utils/security";
 
 // Configure Multer for file uploads
@@ -390,7 +390,21 @@ export const serveMountVideo = async (
   }
 
   // Extract the actual file path (remove "mount:" prefix)
-  const filePath = video.videoPath.substring(6); // Remove "mount:" prefix
+  const rawFilePath = video.videoPath.substring(6); // Remove "mount:" prefix
+
+  // Validate and sanitize path to prevent path traversal
+  // For mount paths, we need to validate they're safe
+  // Note: mount paths are user-configured, so we validate they don't contain traversal sequences
+  if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
+    throw new ValidationError("Invalid file path: path traversal detected", "videoPath");
+  }
+  
+  const filePath = path.resolve(rawFilePath);
+  
+  // Additional validation: ensure path is absolute and doesn't contain dangerous sequences
+  if (!path.isAbsolute(filePath)) {
+    throw new ValidationError("Invalid file path: must be absolute", "videoPath");
+  }
 
   // Validate path exists and is safe
   if (!fs.existsSync(filePath)) {

@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -8,14 +8,23 @@ import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import { execFileSafe, resolveSafePath, validateImagePath } from "../utils/security";
 
 // Recursive function to get all files in a directory
 const getFilesRecursively = (dir: string): string[] => {
+  // Validate directory path to prevent path traversal
+  const safeDir = resolveSafePath(dir, VIDEOS_DIR);
   let results: string[] = [];
-  const list = fs.readdirSync(dir);
+  const list = fs.readdirSync(safeDir);
 
   list.forEach((file) => {
-    const filePath = path.join(dir, file);
+    // Validate file path to prevent path traversal
+    const filePath = path.join(safeDir, file);
+    // Ensure the file path is still within the allowed directory
+    if (!filePath.startsWith(safeDir + path.sep) && filePath !== safeDir) {
+      logger.warn(`Skipping file outside allowed directory: ${filePath}`);
+      return;
+    }
     const stat = fs.statSync(filePath);
 
     if (stat && stat.isDirectory()) {
@@ -173,36 +182,45 @@ export const scanFiles = async (
 
     // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
     if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
-      await new Promise<void>((resolve) => {
-        exec(
-          `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
-          (error) => {
-            if (error) {
-              logger.error("Error generating thumbnail:", error);
-              resolve();
-            } else {
-              resolve();
-            }
-          }
-        );
-      });
+      try {
+        // Validate paths before using them
+        const validatedFilePath = resolveSafePath(filePath, VIDEOS_DIR);
+        const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
+        
+        // Use execFileSafe to prevent command injection
+        await execFileSafe("ffmpeg", [
+          "-i",
+          validatedFilePath,
+          "-ss",
+          "00:00:00",
+          "-vframes",
+          "1",
+          validatedThumbnailPath,
+        ]);
+      } catch (error) {
+        logger.error("Error generating thumbnail:", error);
+        // Continue without thumbnail - don't block the scan
+      }
     }
 
     // Get duration
     let duration = undefined;
     try {
-      const durationOutput = await new Promise<string>((resolve, reject) => {
-        exec(
-          `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,
-          (error, stdout, _stderr) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve(stdout.trim());
-            }
-          }
-        );
-      });
+      // Validate path before using it
+      const validatedFilePath = resolveSafePath(filePath, VIDEOS_DIR);
+      
+      // Use execFileSafe to prevent command injection
+      const { stdout } = await execFileSafe("ffprobe", [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        validatedFilePath,
+      ]);
+      
+      const durationOutput = stdout.trim();
       if (durationOutput) {
         const durationSec = parseFloat(durationOutput);
         if (!isNaN(durationSec)) {
@@ -458,9 +476,15 @@ const processDirectoryFiles = async (
 
       // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
       if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
+        // Validate paths to prevent path traversal
+        const safeFilePath = resolveSafePath(filePath, VIDEOS_DIR);
+        const safeThumbnailPath = validateImagePath(tempThumbnailPath);
+        
         await new Promise<void>((resolve) => {
-          exec(
-            `ffmpeg -i "${filePath}" -ss 00:00:00 -vframes 1 "${tempThumbnailPath}"`,
+          // Use execFile instead of exec to prevent command injection
+          execFile(
+            "ffmpeg",
+            ["-i", safeFilePath, "-ss", "00:00:00", "-vframes", "1", safeThumbnailPath],
             (error) => {
               if (error) {
                 logger.error("Error generating thumbnail:", error);
@@ -476,14 +500,23 @@ const processDirectoryFiles = async (
       // Get duration
       let duration = undefined;
       try {
+        // Validate file path to prevent path traversal
+        const safeFilePath = resolveSafePath(filePath, VIDEOS_DIR);
         const durationOutput = await new Promise<string>((resolve, reject) => {
-          exec(
-            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`,
+          // Use execFile instead of exec to prevent command injection
+          execFile(
+            "ffprobe",
+            [
+              "-v", "error",
+              "-show_entries", "format=duration",
+              "-of", "default=noprint_wrappers=1:nokey=1",
+              safeFilePath
+            ],
             (error, stdout, _stderr) => {
               if (error) {
                 reject(error);
               } else {
-                resolve(stdout.trim());
+                resolve(stdout.toString().trim());
               }
             }
           );
@@ -510,8 +543,9 @@ const processDirectoryFiles = async (
       // If TMDB provided a poster, use it
       if (tmdbMetadata?.thumbnailPath && tmdbMetadata.thumbnailPath.startsWith("/images/")) {
         if (tmdbThumbnailFilename) {
-          const tmdbFilePath = path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep));
-          if (fs.existsSync(tmdbFilePath)) {
+          // Validate path to prevent path traversal
+          const safeTmdbFilePath = validateImagePath(path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep)));
+          if (fs.existsSync(safeTmdbFilePath)) {
             finalThumbnailFilename = path.basename(tmdbThumbnailFilename);
             finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
             finalThumbnailUrl = tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
@@ -528,16 +562,18 @@ const processDirectoryFiles = async (
         }
       } else {
         // Handle ffmpeg-generated thumbnail
-        const targetThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
+        // Validate paths to prevent path traversal
+        const safeTargetThumbnailPath = validateImagePath(path.join(IMAGES_DIR, finalThumbnailFilename));
+        const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
         try {
-          if (fs.existsSync(tempThumbnailPath)) {
+          if (fs.existsSync(safeTempThumbnailPath)) {
             if (
-              fs.existsSync(targetThumbnailPath) &&
-              tempThumbnailPath !== targetThumbnailPath
+              fs.existsSync(safeTargetThumbnailPath) &&
+              safeTempThumbnailPath !== safeTargetThumbnailPath
             ) {
-              fs.removeSync(tempThumbnailPath);
-            } else if (tempThumbnailPath !== targetThumbnailPath) {
-              fs.moveSync(tempThumbnailPath, targetThumbnailPath);
+              fs.removeSync(safeTempThumbnailPath);
+            } else if (safeTempThumbnailPath !== safeTargetThumbnailPath) {
+              fs.moveSync(safeTempThumbnailPath, safeTargetThumbnailPath);
             }
             finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
             finalThumbnailUrl = `/images/${finalThumbnailFilename}`;

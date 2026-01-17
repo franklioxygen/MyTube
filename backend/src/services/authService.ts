@@ -2,6 +2,11 @@ import { Response } from "express";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 
+// Warn if JWT_SECRET is not set in production
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.error("WARNING: JWT_SECRET is not set in production environment. This is a security risk!");
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_do_not_use_in_production";
 const JWT_EXPIRES_IN = "24h";
 const COOKIE_NAME = "mytube_auth_token";
@@ -57,8 +62,10 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
   });
   
   // Also set role in a separate cookie (non-HTTP-only for frontend to read)
+  // Note: This cookie is not sensitive (only contains role: "admin" or "visitor")
+  // and is needed by the frontend for UI rendering
   res.cookie("mytube_role", role, {
-    httpOnly: false, // Frontend needs to read this
+    httpOnly: false, // Frontend needs to read this for UI rendering
     secure: isSecure,
     sameSite: "lax",
     maxAge: maxAge,

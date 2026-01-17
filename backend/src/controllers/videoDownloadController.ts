@@ -14,6 +14,7 @@ import {
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
+import { validateUrl } from "../utils/security";
 
 /**
  * Search for videos
@@ -56,8 +57,19 @@ export const checkVideoDownloadStatus = async (
     throw new ValidationError("URL is required", "url");
   }
 
+  // Validate URL to prevent SSRF attacks
+  let validatedUrl: string;
+  try {
+    validatedUrl = validateUrl(url);
+  } catch (error) {
+    throw new ValidationError(
+      error instanceof Error ? error.message : "Invalid URL format",
+      "url"
+    );
+  }
+
   // Process URL: extract from text, resolve shortened URLs, extract source video ID
-  const { sourceVideoId } = await processVideoUrl(url);
+  const { sourceVideoId } = await processVideoUrl(validatedUrl);
 
   if (!sourceVideoId) {
     // Return object directly for backward compatibility (frontend expects response.data.found)
@@ -144,12 +156,23 @@ export const downloadVideo = async (
 
     logger.info("Processing download request for input:", videoUrl);
 
+    // Validate URL to prevent SSRF attacks before processing
+    let validatedVideoUrl: string;
+    try {
+      validatedVideoUrl = validateUrl(videoUrl);
+    } catch (error) {
+      return sendBadRequest(
+        res,
+        error instanceof Error ? error.message : "Invalid URL format"
+      );
+    }
+
     // Process URL: extract from text, resolve shortened URLs, extract source video ID
     const {
       videoUrl: processedUrl,
       sourceVideoId,
       platform,
-    } = await processVideoUrl(videoUrl);
+    } = await processVideoUrl(validatedVideoUrl);
     logger.info("Processed URL:", processedUrl);
 
     // Check if the input is a valid URL

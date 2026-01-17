@@ -1,8 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+const VOLUME_STORAGE_KEY = 'videoPlayerVolume';
+const PREVIOUS_VOLUME_STORAGE_KEY = 'videoPlayerPreviousVolume';
+
+const getStoredVolume = (): number => {
+    try {
+        const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
+        if (stored !== null) {
+            const parsed = parseFloat(stored);
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+                return parsed;
+            }
+        }
+    } catch (error) {
+        console.error('Error reading volume from localStorage:', error);
+    }
+    return 1;
+};
+
+const getStoredPreviousVolume = (): number => {
+    try {
+        const stored = localStorage.getItem(PREVIOUS_VOLUME_STORAGE_KEY);
+        if (stored !== null) {
+            const parsed = parseFloat(stored);
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+                return parsed;
+            }
+        }
+    } catch (error) {
+        console.error('Error reading previous volume from localStorage:', error);
+    }
+    return 1;
+};
+
 export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) => {
-    const [volume, setVolume] = useState<number>(1);
-    const [previousVolume, setPreviousVolume] = useState<number>(1);
+    const [volume, setVolume] = useState<number>(getStoredVolume);
+    const [previousVolume, setPreviousVolume] = useState<number>(getStoredPreviousVolume);
     const [showVolumeSlider, setShowVolumeSlider] = useState<boolean>(false);
     const volumeSliderRef = useRef<HTMLDivElement>(null);
     const volumeSliderHideTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -12,6 +45,24 @@ export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
             videoRef.current.volume = volume;
         }
     }, [volume, videoRef]);
+
+    // Save volume to localStorage when it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem(VOLUME_STORAGE_KEY, volume.toString());
+        } catch (error) {
+            console.error('Error saving volume to localStorage:', error);
+        }
+    }, [volume]);
+
+    // Save previous volume to localStorage when it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem(PREVIOUS_VOLUME_STORAGE_KEY, previousVolume.toString());
+        } catch (error) {
+            console.error('Error saving previous volume to localStorage:', error);
+        }
+    }, [previousVolume]);
 
     // Close volume slider when clicking outside
     useEffect(() => {

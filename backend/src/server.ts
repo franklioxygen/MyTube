@@ -5,6 +5,7 @@ dotenv.config();
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import {
   AVATARS_DIR,
@@ -37,11 +38,81 @@ VERSION.displayVersion();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5551;
 
+// Trust proxy: Enable when behind a reverse proxy (nginx, Docker, load balancer, etc.)
+// This is required for express-rate-limit to correctly identify client IPs
+// Set to 1 to trust only the first proxy (safer than true)
+// If you have multiple proxies, set to the number of proxies in the chain
+// For Docker/nginx setups, typically 1 proxy is sufficient
+app.set("trust proxy", 1);
+
 // Security: Disable X-Powered-By header to prevent information disclosure
 app.disable("x-powered-by");
 
+// Rate limiting middleware to prevent abuse
+// General API rate limiter: 100 requests per 15 minutes per IP
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again later.",
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  // Skip trust proxy validation since we've configured it appropriately
+  validate: {
+    trustProxy: false, // Disable validation - we've set trust proxy to 1 (safer than true)
+  },
+});
+
+// Stricter rate limiter for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login requests per windowMs
+  message: "Too many authentication attempts, please try again later.",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful requests
+  // Skip trust proxy validation since we've configured it appropriately
+  validate: {
+    trustProxy: false, // Disable validation - we've set trust proxy to 1 (safer than true)
+  },
+});
+
+// Apply general rate limiting to all requests EXCEPT video streaming and download-related routes
+// Video streaming (especially 4K) requires many Range requests
+// Download process requires multiple API calls (status polling, collections, etc.)
+app.use((req, res, next) => {
+  // Skip rate limiting for video streaming routes
+  if (
+    req.path.startsWith("/videos/") ||
+    req.path.startsWith("/api/mount-video/") ||
+    req.path.startsWith("/images/") ||
+    req.path.startsWith("/subtitles/") ||
+    req.path.startsWith("/avatars/")
+  ) {
+    return next();
+  }
+  
+  // Skip rate limiting for download-related endpoints
+  // These endpoints are part of the download workflow and need frequent polling
+  if (
+    req.path.startsWith("/api/download") ||
+    req.path.startsWith("/api/check-video-download") ||
+    req.path.startsWith("/api/check-bilibili") ||
+    req.path.startsWith("/api/check-playlist") ||
+    req.path.startsWith("/api/collections") ||
+    req.path.startsWith("/api/downloads/")
+  ) {
+    return next();
+  }
+  
+  // Apply rate limiting to all other routes
+  generalLimiter(req, res, next);
+});
+
 // Middleware
 // Configure CORS to allow credentials for HTTP-only cookies
+// CSRF Protection: Cookies use sameSite: "lax" which provides CSRF protection
+// for same-site requests. For additional protection, consider implementing
+// CSRF tokens for state-changing operations (POST, PUT, DELETE, PATCH).
 app.use(
   cors({
     origin: true, // Allow requests from any origin (can be restricted in production)
@@ -287,6 +358,14 @@ const startServer = async () => {
     );
 
     // API Routes
+    // Apply stricter rate limiting to authentication endpoints
+    app.use("/api/settings/verify-password", authLimiter);
+    app.use("/api/settings/verify-admin-password", authLimiter);
+    app.use("/api/settings/verify-visitor-password", authLimiter);
+    app.use("/api/settings/reset-password", authLimiter);
+    app.use("/api/settings/passkeys/authenticate", authLimiter);
+    app.use("/api/settings/passkeys/authenticate/verify", authLimiter);
+    
     // Apply auth middleware to all API routes
     app.use("/api", authMiddleware);
     // Apply role-based access control middleware to all API routes

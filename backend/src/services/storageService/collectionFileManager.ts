@@ -12,6 +12,18 @@ import { getSettings } from "./settings";
 import { Collection, Video } from "./types";
 
 /**
+ * Sanitizes a collection name to prevent path traversal attacks
+ * Removes path separators and dangerous sequences
+ */
+function sanitizeCollectionName(collectionName: string): string {
+  // Remove path traversal sequences and path separators
+  return collectionName
+    .replace(/\.\./g, "") // Remove parent directory references
+    .replace(/[\/\\]/g, "") // Remove path separators
+    .trim();
+}
+
+/**
  * File manager layer for collection-related file operations
  * This module handles all file system operations when videos are added/removed from collections
  */
@@ -32,17 +44,24 @@ export function moveVideoToCollection(
   const updates: Partial<Video> = {};
   let updated = false;
 
+  // Sanitize collection name to prevent path traversal
+  const sanitizedCollectionName = sanitizeCollectionName(collectionName);
+  if (!sanitizedCollectionName) {
+    logger.warn(`Invalid collection name provided: ${collectionName}`);
+    return { updated: false, updates: {} };
+  }
+
   if (video.videoFilename) {
     const currentVideoPath = findVideoFile(video.videoFilename, allCollections);
     const targetVideoPath = path.join(
       VIDEOS_DIR,
-      collectionName,
+      sanitizedCollectionName,
       video.videoFilename
     );
 
     if (currentVideoPath && currentVideoPath !== targetVideoPath) {
       moveFile(currentVideoPath, targetVideoPath);
-      updates.videoPath = `/videos/${collectionName}/${video.videoFilename}`;
+      updates.videoPath = `/videos/${sanitizedCollectionName}/${video.videoFilename}`;
       updated = true;
     }
   }
@@ -87,6 +106,13 @@ export function moveThumbnailToCollection(
   const updates: Partial<Video> = {};
   let updated = false;
 
+  // Sanitize collection name to prevent path traversal
+  const sanitizedCollectionName = sanitizeCollectionName(collectionName);
+  if (!sanitizedCollectionName) {
+    logger.warn(`Invalid collection name provided: ${collectionName}`);
+    return { updated: false, updates: {} };
+  }
+
   if (video.thumbnailFilename) {
     // Find existing file using path from DB if possible, or fallback to search
     let currentImagePath = "";
@@ -119,17 +145,17 @@ export function moveThumbnailToCollection(
     if (moveWithVideo) {
       targetImagePath = path.join(
         VIDEOS_DIR,
-        collectionName,
+        sanitizedCollectionName,
         video.thumbnailFilename
       );
-      newWebPath = `/videos/${collectionName}/${video.thumbnailFilename}`;
+      newWebPath = `/videos/${sanitizedCollectionName}/${video.thumbnailFilename}`;
     } else {
       targetImagePath = path.join(
         IMAGES_DIR,
-        collectionName,
+        sanitizedCollectionName,
         video.thumbnailFilename
       );
-      newWebPath = `/images/${collectionName}/${video.thumbnailFilename}`;
+      newWebPath = `/images/${sanitizedCollectionName}/${video.thumbnailFilename}`;
     }
 
     if (currentImagePath && currentImagePath !== targetImagePath) {
@@ -215,6 +241,13 @@ export function moveSubtitlesToCollection(
   const updates: Partial<Video> = {};
   let updated = false;
 
+  // Sanitize collection name to prevent path traversal
+  const sanitizedCollectionName = sanitizeCollectionName(collectionName);
+  if (!sanitizedCollectionName) {
+    logger.warn(`Invalid collection name provided: ${collectionName}`);
+    return { updated: false, updates: {} };
+  }
+
   if (video.subtitles && video.subtitles.length > 0) {
     const newSubtitles = [...video.subtitles];
     let subtitlesUpdated = false;
@@ -245,12 +278,12 @@ export function moveSubtitlesToCollection(
       // Determine target based on moveSubtitlesToVideoFolder setting
       if (moveWithVideo) {
         // Always move to video folder
-        targetSubDir = path.join(VIDEOS_DIR, collectionName);
-        newWebPath = `/videos/${collectionName}/${path.basename(sub.path)}`;
+        targetSubDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
+        newWebPath = `/videos/${sanitizedCollectionName}/${path.basename(sub.path)}`;
       } else {
         // Move to central subtitles folder (mirror collection structure)
-        targetSubDir = path.join(SUBTITLES_DIR, collectionName);
-        newWebPath = `/subtitles/${collectionName}/${path.basename(sub.path)}`;
+        targetSubDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
+        newWebPath = `/subtitles/${sanitizedCollectionName}/${path.basename(sub.path)}`;
       }
 
       if (absoluteSourcePath && targetSubDir && newWebPath) {
@@ -454,9 +487,16 @@ export function moveAllFilesFromCollection(
  * Clean up empty collection directories
  */
 export function cleanupCollectionDirectories(collectionName: string): void {
-  const collectionVideoDir = path.join(VIDEOS_DIR, collectionName);
-  const collectionImageDir = path.join(IMAGES_DIR, collectionName);
-  const collectionSubtitleDir = path.join(SUBTITLES_DIR, collectionName);
+  // Sanitize collection name to prevent path traversal
+  const sanitizedCollectionName = sanitizeCollectionName(collectionName);
+  if (!sanitizedCollectionName) {
+    logger.warn(`Invalid collection name provided: ${collectionName}`);
+    return;
+  }
+  
+  const collectionVideoDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
+  const collectionImageDir = path.join(IMAGES_DIR, sanitizedCollectionName);
+  const collectionSubtitleDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
 
   try {
     if (

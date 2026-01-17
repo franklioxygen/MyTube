@@ -161,12 +161,19 @@ export function removeVideoFromCollection(
       if (otherCollection) {
         const otherName = otherCollection.name || otherCollection.title;
         if (otherName) {
-          targetVideoDir = path.join(VIDEOS_DIR, otherName);
-          targetImageDir = path.join(IMAGES_DIR, otherName);
-          targetSubDir = path.join(SUBTITLES_DIR, otherName);
-          videoPathPrefix = `/videos/${otherName}`;
-          imagePathPrefix = `/images/${otherName}`;
-          subtitlePathPrefix = `/subtitles/${otherName}`;
+          // Sanitize collection name to prevent path traversal
+          const sanitizedOtherName = otherName
+            .replace(/\.\./g, "")
+            .replace(/[\/\\]/g, "")
+            .trim();
+          if (sanitizedOtherName) {
+            targetVideoDir = path.join(VIDEOS_DIR, sanitizedOtherName);
+            targetImageDir = path.join(IMAGES_DIR, sanitizedOtherName);
+            targetSubDir = path.join(SUBTITLES_DIR, sanitizedOtherName);
+            videoPathPrefix = `/videos/${sanitizedOtherName}`;
+            imagePathPrefix = `/images/${sanitizedOtherName}`;
+            subtitlePathPrefix = `/subtitles/${sanitizedOtherName}`;
+          }
         }
       }
 

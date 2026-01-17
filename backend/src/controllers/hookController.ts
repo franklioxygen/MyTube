@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import path from "path";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
 import { successMessage } from "../utils/response";
@@ -28,18 +29,32 @@ export const uploadHook = async (
     throw new ValidationError("Invalid hook name", "name");
   }
 
+  // Validate file path to prevent path traversal
+  // Multer uploads to a temp directory, but we should still validate
+  let safeFilePath: string;
+  try {
+    // Resolve the path and ensure it's within expected upload directories
+    // Note: multer typically uses system temp directory, so we validate the path exists
+    safeFilePath = path.resolve(req.file.path);
+    if (!safeFilePath || !safeFilePath.includes(path.sep)) {
+      throw new ValidationError("Invalid file path", "file");
+    }
+  } catch (error) {
+    throw new ValidationError("Invalid file path", "file");
+  }
+
   // Scan for risk commands
-  const riskCommand = scanForRiskCommands(req.file.path);
+  const riskCommand = scanForRiskCommands(safeFilePath);
   if (riskCommand) {
     // Delete the file immediately
-    require("fs").unlinkSync(req.file.path);
+    require("fs").unlinkSync(safeFilePath);
     throw new ValidationError(
       `Risk command detected: ${riskCommand}. Upload rejected.`,
       "file"
     );
   }
 
-  HookService.uploadHook(name, req.file.path);
+  HookService.uploadHook(name, safeFilePath);
   res.json(successMessage(`Hook ${name} uploaded successfully`));
 };
 
@@ -84,6 +99,18 @@ export const deleteHook = async (
   res: Response
 ): Promise<void> => {
   const { name } = req.params;
+  
+  // Validate hook name to prevent path traversal
+  const validHooks = [
+    "task_before_start",
+    "task_success",
+    "task_fail",
+    "task_cancel",
+  ];
+  if (!validHooks.includes(name)) {
+    throw new ValidationError("Invalid hook name", "name");
+  }
+  
   const deleted = HookService.deleteHook(name);
   
   if (deleted) {

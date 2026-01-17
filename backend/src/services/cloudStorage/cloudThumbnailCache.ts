@@ -16,10 +16,10 @@ fs.ensureDirSync(CLOUD_THUMBNAIL_CACHE_DIR);
 
 /**
  * Generate cache key from cloud storage path
- * Uses hash to create safe filename
+ * Uses SHA-256 hash to create safe filename
  */
 function getCacheKey(cloudPath: string): string {
-  const hash = crypto.createHash("md5").update(cloudPath).digest("hex");
+  const hash = crypto.createHash("sha256").update(cloudPath).digest("hex");
   return `${hash}.jpg`;
 }
 

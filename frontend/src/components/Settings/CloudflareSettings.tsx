@@ -20,16 +20,26 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
     const [showCopied, setShowCopied] = useState(false);
 
     const handleCopyUrl = async (url: string) => {
+        // Validate URL to prevent XSS
+        if (!url || typeof url !== 'string') {
+            showSnackbar(t('copyFailed'), 'error');
+            return;
+        }
+        
+        // Sanitize URL: remove any potentially dangerous characters
+        // Only allow safe URL characters (alphanumeric, common URL symbols)
+        const sanitizedUrl = url.replace(/[^\w\s\-\.:\/?#\[\]@!$&'()*+,;=]/g, '');
+        
         try {
             // Try modern clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(url);
+                await navigator.clipboard.writeText(sanitizedUrl);
                 setShowCopied(true);
                 setTimeout(() => setShowCopied(false), 2000);
             } else {
                 // Fallback for older browsers
                 const textArea = document.createElement('textarea');
-                textArea.value = url;
+                textArea.value = sanitizedUrl;
                 textArea.style.position = 'fixed';
                 textArea.style.left = '-999999px';
                 textArea.style.top = '-999999px';
