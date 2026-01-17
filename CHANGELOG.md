@@ -2,6 +2,16 @@
 
 
 
+## v1.7.67 (2026-01-17)
+
+### Feat
+
+- feat: implement comprehensive security hardening, rate limiting, and path sanitization (973e055)
+
+### Test
+
+- test: Update mock functions in test files (d4fe074)
+
 ## v1.7.66 (2026-01-16)
 
 ### Feat
