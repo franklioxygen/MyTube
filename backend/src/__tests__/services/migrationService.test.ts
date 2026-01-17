@@ -22,6 +22,7 @@ vi.mock('fs-extra', () => ({
     default: {
         existsSync: vi.fn().mockReturnValue(true),
         readJsonSync: vi.fn().mockReturnValue([]),
+        readJSONSync: vi.fn().mockReturnValue([]),
         ensureDirSync: vi.fn()
     }
 }));

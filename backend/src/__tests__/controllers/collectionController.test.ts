@@ -90,11 +90,11 @@ describe('CollectionController', () => {
       req.params = { id: '1' };
       req.body = { name: 'Updated Name' };
       const mockCollection = { id: '1', title: 'Updated Name', videos: [] };
-      (storageService.atomicUpdateCollection as any).mockReturnValue(mockCollection);
+      (storageService.renameCollection as any).mockReturnValue(mockCollection);
 
       updateCollection(req as Request, res as Response);
 
-      expect(storageService.atomicUpdateCollection).toHaveBeenCalled();
+      expect(storageService.renameCollection).toHaveBeenCalledWith('1', 'Updated Name');
       expect(json).toHaveBeenCalledWith(mockCollection);
     });
 
@@ -125,7 +125,7 @@ describe('CollectionController', () => {
     it('should throw NotFoundError if collection not found', async () => {
       req.params = { id: '1' };
       req.body = { name: 'Update' };
-      (storageService.atomicUpdateCollection as any).mockReturnValue(null);
+      (storageService.renameCollection as any).mockReturnValue(null);
 
       try {
         await updateCollection(req as Request, res as Response);

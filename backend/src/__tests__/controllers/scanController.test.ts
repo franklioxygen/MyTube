@@ -5,6 +5,9 @@ import { scanFiles } from '../../controllers/scanController';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
+vi.mock('../../services/tmdbService', () => ({
+  scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null), // Default to null (no metadata found)
+}));
 vi.mock('fs-extra', () => ({
   default: {
     existsSync: vi.fn(),
@@ -20,6 +23,7 @@ vi.mock('fs-extra', () => ({
     unlinkSync: vi.fn(),
     moveSync: vi.fn(),
     removeSync: vi.fn(),
+    remove: vi.fn(), // Added remove for fs.removeSync mock check if used
   },
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
@@ -33,7 +37,8 @@ vi.mock('fs-extra', () => ({
   copyFileSync: vi.fn(),
   unlinkSync: vi.fn(),
   moveSync: vi.fn(),
-  removeSync: vi.fn(),
+  removeSync: vi.fn(), // direct export mock
+  remove: vi.fn(),
 }));
 vi.mock('../../utils/security', () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
