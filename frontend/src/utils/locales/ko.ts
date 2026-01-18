@@ -156,6 +156,7 @@ export const ko = {
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
   defaultSort: "기본 동영상 정렬 방법",
   showYoutubeSearch: "YouTube 검색 결과 표시",
+  showTagsOnThumbnail: "썸네일에 태그 표시",
   playSoundOnTaskComplete: "작업 완료 시 소리 재생",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
   visitorUser: "방문자 사용자",

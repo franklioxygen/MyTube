@@ -156,6 +156,7 @@ export const ja = {
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
   defaultSort: "デフォルトの動画並べ替え方法",
   showYoutubeSearch: "YouTube検索結果を表示",
+  showTagsOnThumbnail: "サムネイルにタグを表示",
   playSoundOnTaskComplete: "タスク完了時に音を再生",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
   visitorUser: "ビジターユーザー",

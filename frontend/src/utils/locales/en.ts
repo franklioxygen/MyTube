@@ -182,6 +182,7 @@ export const en = {
   itemsPerPageHelper: "Number of videos to show per page (Default: 12)",
   showYoutubeSearch: "Show YouTube Search Results",
   defaultSort: "Default Video Sort Method",
+  showTagsOnThumbnail: "Show Tags on Thumbnail",
   playSoundOnTaskComplete: "Play Sound on Task Complete",
   soundSuccess: "Success Chime",
   visitorModeReadOnly: "Visitor mode: Read-only",

@@ -156,6 +156,7 @@ export const ru = {
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
   defaultSort: "Сортировка по умолчанию",
   showYoutubeSearch: "Показать результаты поиска YouTube",
+  showTagsOnThumbnail: "Показывать теги на миниатюре",
   playSoundOnTaskComplete: "Воспроизводить звук при завершении задачи",
   visitorModeReadOnly: "Режим посетителя: Только чтение",
   visitorUser: "Посетитель",

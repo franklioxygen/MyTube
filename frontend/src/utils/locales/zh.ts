@@ -173,6 +173,7 @@ export const zh = {
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
   defaultSort: "默认视频排序方式",
   showYoutubeSearch: "显示 YouTube 搜索结果",
+  showTagsOnThumbnail: "在缩略图上显示标签",
   playSoundOnTaskComplete: "任务完成时播放声音",
   visitorModeReadOnly: "访客模式：只读",
   visitorUser: "访客用户",

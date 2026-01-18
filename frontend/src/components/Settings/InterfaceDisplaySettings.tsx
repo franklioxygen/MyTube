@@ -10,6 +10,7 @@ interface InterfaceDisplaySettingsProps {
     videoColumns?: number;
     playSoundOnTaskComplete?: string;
     defaultSort?: string;
+    showTagsOnThumbnail?: boolean;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
@@ -56,26 +57,6 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                         <MenuItem value={6}>{t('columnsCount', { count: 6 }) || '6 Columns'}</MenuItem>
                     </Select>
                 </FormControl>
-
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={infiniteScroll ?? false}
-                            onChange={(e) => onChange('infiniteScroll', e.target.checked)}
-                        />
-                    }
-                    label={t('infiniteScroll') || "Infinite Scroll"}
-                />
-
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={showYoutubeSearch ?? true}
-                            onChange={(e) => onChange('showYoutubeSearch', e.target.checked)}
-                        />
-                    }
-                    label={t('showYoutubeSearch') || "Show YouTube Search Results"}
-                />
 
                 <Box>
                     <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 500 }}>
@@ -129,6 +110,35 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                         </Select>
                     </FormControl>
                 </Box>
+
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={infiniteScroll ?? false}
+                            onChange={(e) => onChange('infiniteScroll', e.target.checked)}
+                        />
+                    }
+                    label={t('infiniteScroll') || "Infinite Scroll"}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={showYoutubeSearch ?? true}
+                            onChange={(e) => onChange('showYoutubeSearch', e.target.checked)}
+                        />
+                    }
+                    label={t('showYoutubeSearch') || "Show YouTube Search Results"}
+                />
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={props.showTagsOnThumbnail ?? false}
+                            onChange={(e) => onChange('showTagsOnThumbnail', e.target.checked)}
+                        />
+                    }
+                    label={t('showTagsOnThumbnail') || "Show Tags on Thumbnail"}
+                />
             </Box>
         </Box>
     );

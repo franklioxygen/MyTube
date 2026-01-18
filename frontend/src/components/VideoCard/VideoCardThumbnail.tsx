@@ -17,6 +17,7 @@ interface VideoCardThumbnailProps {
     collectionInfo: VideoCardCollectionInfo;
     isNew: boolean;
     isAboveTheFold?: boolean; // For LCP optimization
+    showTagsOnThumbnail?: boolean;
 }
 
 export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
@@ -29,7 +30,8 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     videoRef,
     collectionInfo,
     isNew,
-    isAboveTheFold = false
+    isAboveTheFold = false,
+    showTagsOnThumbnail = false
 }) => {
     const { t } = useLanguage();
     const theme = useTheme();
@@ -176,8 +178,8 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
             {collectionInfo.isFirstInAnyCollection && (
                 <Chip
                     icon={<Folder />}
-                    label={collectionInfo.firstInCollectionNames.length > 1 
-                        ? `${collectionInfo.firstInCollectionNames[0]} +${collectionInfo.firstInCollectionNames.length - 1}` 
+                    label={collectionInfo.firstInCollectionNames.length > 1
+                        ? `${collectionInfo.firstInCollectionNames[0]} +${collectionInfo.firstInCollectionNames.length - 1}`
                         : collectionInfo.firstInCollectionNames[0]}
                     color="secondary"
                     size="small"
@@ -188,6 +190,44 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                         zIndex: 3
                     }}
                 />
+            )}
+
+            {showTagsOnThumbnail && video.tags && video.tags.length > 0 && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        right: 60, // Leave space for duration
+                        display: 'flex',
+                        flexWrap: 'nowrap',
+                        gap: 0.5,
+                        overflow: 'hidden',
+                        zIndex: 2,
+                        pointerEvents: 'none',
+                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)'
+                    }}
+                >
+                    {video.tags.map((tag) => (
+                        <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            sx={{
+                                height: 20,
+                                fontSize: '0.65rem',
+                                bgcolor: 'rgba(0, 0, 0, 0.5)',
+                                color: 'white',
+                                backdropFilter: 'blur(2px)',
+                                '& .MuiChip-label': {
+                                    px: 1
+                                },
+                                maxWidth: '100px' // individual tag max width
+                            }}
+                        />
+                    ))}
+                </Box>
             )}
         </Box>
     );

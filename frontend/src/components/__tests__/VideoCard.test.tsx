@@ -152,4 +152,30 @@ describe('VideoCard', () => {
         fireEvent.click(screen.getByText('Test Author'));
         expect(mockNavigate).toHaveBeenCalledWith('/author/Test%20Author');
     });
+
+    it('renders tags on thumbnail when showTagsOnThumbnail is true', () => {
+        const videoWithTags = { ...mockVideo, tags: ['tag1', 'tag2'] };
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <VideoCard video={videoWithTags} showTagsOnThumbnail={true} />
+            </ThemeProvider>
+        );
+
+        expect(screen.getByText('tag1')).toBeInTheDocument();
+        expect(screen.getByText('tag2')).toBeInTheDocument();
+    });
+
+    it('does not render tags on thumbnail when showTagsOnThumbnail is false', () => {
+        const videoWithTags = { ...mockVideo, tags: ['tag1', 'tag2'] };
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <VideoCard video={videoWithTags} showTagsOnThumbnail={false} />
+            </ThemeProvider>
+        );
+
+        expect(screen.queryByText('tag1')).not.toBeInTheDocument();
+        expect(screen.queryByText('tag2')).not.toBeInTheDocument();
+    });
 });

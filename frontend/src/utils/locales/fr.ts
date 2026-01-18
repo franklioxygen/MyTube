@@ -156,6 +156,7 @@ export const fr = {
   itemsPerPageHelper: "Nombre de vidéos à afficher par page (Défaut : 12)",
   defaultSort: "Tri par défaut",
   showYoutubeSearch: "Afficher les résultats de recherche YouTube",
+  showTagsOnThumbnail: "Afficher les étiquettes sur la miniature",
   playSoundOnTaskComplete: "Jouer un son à la fin de la tâche",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
   visitorUser: "Utilisateur Visiteur",

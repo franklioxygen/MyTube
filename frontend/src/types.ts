@@ -106,4 +106,5 @@ export interface Settings {
   tmdbApiKey?: string;
   mountDirectories?: string;
   defaultSort?: string;
+  showTagsOnThumbnail?: boolean;
 }

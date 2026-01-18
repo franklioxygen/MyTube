@@ -8,11 +8,11 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import {
-  AVATARS_DIR,
-  CLOUD_THUMBNAIL_CACHE_DIR,
-  IMAGES_DIR,
-  SUBTITLES_DIR,
-  VIDEOS_DIR,
+    AVATARS_DIR,
+    CLOUD_THUMBNAIL_CACHE_DIR,
+    IMAGES_DIR,
+    SUBTITLES_DIR,
+    VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { authMiddleware } from "./middleware/authMiddleware";
@@ -27,9 +27,9 @@ import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import {
-  getClientIp,
-  validateCloudThumbnailCachePath,
-  validateRedirectUrl,
+    getClientIp,
+    validateCloudThumbnailCachePath,
+    validateRedirectUrl,
 } from "./utils/security";
 import { VERSION } from "./version";
 
@@ -54,7 +54,7 @@ app.disable("x-powered-by");
 // Security: Use custom keyGenerator to prevent X-Forwarded-For header spoofing
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers

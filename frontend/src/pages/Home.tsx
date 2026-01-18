@@ -42,6 +42,7 @@ const Home: React.FC = () => {
         infiniteScroll,
         videoColumns,
         defaultSort,
+        showTagsOnThumbnail,
         settingsLoaded,
         handleSidebarToggle
     } = useHomeSettings();
@@ -114,7 +115,7 @@ const Home: React.FC = () => {
         <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
             {/* Preload first video thumbnail for better LCP */}
             {videoArray.length > 0 && <LCPImagePreloader videos={videoArray} />}
-            
+
             {/* Delete Filtered Videos Modal */}
             <ConfirmationModal
                 isOpen={isDeleteFilteredOpen}
@@ -193,6 +194,7 @@ const Home: React.FC = () => {
                                 infiniteScroll={infiniteScroll}
                                 gridProps={gridProps}
                                 onDeleteVideo={deleteVideo}
+                                showTagsOnThumbnail={showTagsOnThumbnail}
                             />
                         )}
 

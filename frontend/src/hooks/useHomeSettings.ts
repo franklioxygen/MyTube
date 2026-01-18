@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { getApiUrl } from '../utils/apiUrl';
 import { useAuth } from '../contexts/AuthContext';
+import { getApiUrl } from '../utils/apiUrl';
 
 const API_URL = getApiUrl();
 
@@ -11,6 +11,7 @@ interface HomeSettings {
     infiniteScroll: boolean;
     videoColumns: number;
     defaultSort: string;
+    showTagsOnThumbnail: boolean;
     settingsLoaded: boolean;
 }
 
@@ -20,6 +21,7 @@ interface UseHomeSettingsReturn extends HomeSettings {
     setInfiniteScroll: (value: boolean) => void;
     setVideoColumns: (value: number) => void;
     setDefaultSort: (value: string) => void;
+    setShowTagsOnThumbnail: (value: boolean) => void;
     handleSidebarToggle: () => Promise<void>;
 }
 
@@ -30,6 +32,7 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
     const [videoColumns, setVideoColumns] = useState(4);
     const [itemsPerPage, setItemsPerPage] = useState(12);
     const [defaultSort, setDefaultSort] = useState('dateDesc');
+    const [showTagsOnThumbnail, setShowTagsOnThumbnail] = useState(false);
     const { isAuthenticated } = useAuth();
 
     // Fetch settings on mount (only when authenticated)
@@ -57,6 +60,9 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
                     }
                     if (typeof response.data.defaultSort !== 'undefined') {
                         setDefaultSort(response.data.defaultSort);
+                    }
+                    if (typeof response.data.showTagsOnThumbnail !== 'undefined') {
+                        setShowTagsOnThumbnail(response.data.showTagsOnThumbnail);
                     }
                 }
             } catch (error: any) {
@@ -101,12 +107,14 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
         infiniteScroll,
         videoColumns,
         defaultSort,
+        showTagsOnThumbnail,
         settingsLoaded,
         setIsSidebarOpen,
         setItemsPerPage,
         setInfiniteScroll,
         setVideoColumns,
         setDefaultSort,
+        setShowTagsOnThumbnail,
         handleSidebarToggle
     };
 };

@@ -156,6 +156,7 @@ export const ar = {
   itemsPerPageHelper: "عدد مقاطع الفيديو التي ستظهر في كل صفحة (الافتراضي: 12)",
   defaultSort: "الترتيب الافتراضي",
   showYoutubeSearch: "عرض نتائج بحث YouTube",
+  showTagsOnThumbnail: "عرض العلامات على الصورة المصغرة",
   playSoundOnTaskComplete: "تشغيل صوت عند اكتمال المهمة",
   visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
   visitorUser: "المستخدم الزائر",

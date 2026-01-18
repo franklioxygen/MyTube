@@ -23,6 +23,7 @@ interface VideoGridProps {
     infiniteScroll: boolean;
     gridProps: GridProps;
     onDeleteVideo: (id: string) => Promise<{ success: boolean; error?: string }>;
+    showTagsOnThumbnail?: boolean;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
@@ -33,7 +34,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     viewMode,
     infiniteScroll,
     gridProps,
-    onDeleteVideo
+    onDeleteVideo,
+    showTagsOnThumbnail
 }) => {
     // Components for VirtuosoGrid - MUST be defined before any conditional returns
     // Using useMemo to create stable component references
@@ -85,7 +87,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         // First 4 videos are considered above-the-fold for mobile (2x2 grid)
         // First 6 videos for desktop (3x2 grid)
         const isAboveTheFold = index !== undefined && index < 6;
-        
+
         // In all-videos and history mode, ALWAYS render as VideoCard
         if (viewMode === 'all-videos' || viewMode === 'history') {
             return (
@@ -96,6 +98,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                     onDeleteVideo={onDeleteVideo}
                     showDeleteButton={true}
                     isAboveTheFold={isAboveTheFold}
+                    showTagsOnThumbnail={showTagsOnThumbnail}
                 />
             );
         }
@@ -120,6 +123,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 onDeleteVideo={onDeleteVideo}
                 showDeleteButton={true}
                 isAboveTheFold={isAboveTheFold}
+                showTagsOnThumbnail={showTagsOnThumbnail}
             />
         );
     };

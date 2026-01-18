@@ -313,6 +313,7 @@ const SettingsPage: React.FC = () => {
             videoColumns={settings.videoColumns}
             playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
             defaultSort={settings.defaultSort}
+            showTagsOnThumbnail={settings.showTagsOnThumbnail}
             onChange={(field, value) => handleChange(field as keyof Settings, value)}
         />
     );
