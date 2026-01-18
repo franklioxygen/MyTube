@@ -27,6 +27,7 @@ import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import {
+  getClientIp,
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
 } from "./utils/security";
@@ -50,19 +51,26 @@ app.disable("x-powered-by");
 
 // Rate limiting middleware to prevent abuse
 // General API rate limiter: 100 requests per 15 minutes per IP
+// Security: Use custom keyGenerator to prevent X-Forwarded-For header spoofing
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   message: "Too many requests from this IP, please try again later.",
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Skip trust proxy validation since we've configured it appropriately
+  // Use custom key generator to safely extract and validate client IP
+  // This prevents X-Forwarded-For header spoofing attacks
+  keyGenerator: (req) => {
+    return getClientIp(req);
+  },
+  // Skip trust proxy validation since we're using custom IP extraction
   validate: {
-    trustProxy: false, // Disable validation - we've set trust proxy to 1 (safer than true)
+    trustProxy: false, // Disable validation - we're handling IP extraction manually
   },
 });
 
 // Stricter rate limiter for authentication endpoints
+// Security: Use custom keyGenerator to prevent X-Forwarded-For header spoofing
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 login requests per windowMs
@@ -70,9 +78,14 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful requests
-  // Skip trust proxy validation since we've configured it appropriately
+  // Use custom key generator to safely extract and validate client IP
+  // This prevents X-Forwarded-For header spoofing attacks
+  keyGenerator: (req) => {
+    return getClientIp(req);
+  },
+  // Skip trust proxy validation since we're using custom IP extraction
   validate: {
-    trustProxy: false, // Disable validation - we've set trust proxy to 1 (safer than true)
+    trustProxy: false, // Disable validation - we're handling IP extraction manually
   },
 });
 
