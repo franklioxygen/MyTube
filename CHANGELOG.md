@@ -3,6 +3,18 @@
 
 
 
+## v1.7.72 (2026-01-18)
+
+### Feat
+
+- feat: Add showTagsOnThumbnail feature (231a5f3)
+
+## v1.7.71 (2026-01-17)
+
+### Refactor
+
+- refactor: Improve IP extraction and validation safety (bc05745)
+
 ## v1.7.70 (2026-01-17)
 
 ### Refactor
