@@ -3,6 +3,20 @@
 
 
 
+## v1.7.73 (2026-01-19)
+
+### Feat
+
+- feat: Add TagsModal component and functionality (2028580)
+
+### Fix
+
+- fix: re-apply dotenv upgrade from PR #88 (b14ee6b)
+- fix: upgrade better-sqlite3 from 12.4.6 to 12.5.0 (fbb4aa8)
+- fix: upgrade fs-extra from 11.3.0 to 11.3.3 (8bf029e)
+- fix: upgrade puppeteer from 24.31.0 to 24.34.0 (f8543e6)
+- fix: upgrade drizzle-orm from 0.44.7 to 0.45.1 (c71a1c2)
+
 ## v1.7.72 (2026-01-18)
 
 ### Feat
