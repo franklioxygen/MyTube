@@ -3,6 +3,12 @@
 
 
 
+## v1.7.74 (2026-01-19)
+
+### Refactor
+
+- refactor: Update password handling in tests and middleware (2a13708)
+
 ## v1.7.73 (2026-01-19)
 
 ### Feat
