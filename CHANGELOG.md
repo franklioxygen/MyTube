@@ -3,6 +3,12 @@
 
 
 
+## v1.7.75 (2026-01-20)
+
+### Feat
+
+- feat: Add settings hooks for global tag updates (8acc088)
+
 ## v1.7.74 (2026-01-19)
 
 ### Refactor
