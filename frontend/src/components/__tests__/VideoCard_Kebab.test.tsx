@@ -28,6 +28,19 @@ vi.mock('../../contexts/AuthContext', () => ({
         logout: vi.fn(),
     }),
 }));
+vi.mock('../../hooks/useSettings', () => ({
+    useSettings: () => ({
+        data: { tags: [] }
+    })
+}));
+vi.mock('../../hooks/useSettingsMutations', () => ({
+    useSettingsMutations: () => ({
+        saveMutation: {
+            mutate: vi.fn(),
+            isPending: false
+        }
+    })
+}));
 
 const mockVideo = {
     id: '123',
