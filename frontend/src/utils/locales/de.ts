@@ -87,6 +87,9 @@ export const de = {
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
   tags: "Tags",
+  selectTags: "Tags auswählen",
+  noTagsAvailable: "Keine Tags verfügbar",
+  addTag: "Tag hinzufügen",
   // Database
   database: "Datenbank",
   migrateDataDescription: "Daten von Legacy-JSON-Dateien zur neuen SQLite-Datenbank migrieren. Diese Aktion kann sicher mehrmals ausgeführt werden (Duplikate werden übersprungen).",

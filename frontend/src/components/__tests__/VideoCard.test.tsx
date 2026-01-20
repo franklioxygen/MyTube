@@ -48,6 +48,7 @@ const mockUpdateVideo = vi.fn();
 vi.mock('../../contexts/VideoContext', () => ({
     useVideo: () => ({
         updateVideo: mockUpdateVideo,
+        availableTags: [],
     }),
 }));
 

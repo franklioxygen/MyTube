@@ -1,11 +1,13 @@
 import { Box, Menu, MenuItem } from '@mui/material';
 import React from 'react';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useCollection } from '../../contexts/CollectionContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useVideo } from '../../contexts/VideoContext';
 import { useShareVideo } from '../../hooks/useShareVideo';
 import { Video } from '../../types';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
+import TagsModal from '../TagsModal';
 import VideoKebabMenuButtons from '../VideoPlayer/VideoInfo/VideoKebabMenuButtons';
 
 interface VideoCardActionsProps {
@@ -43,8 +45,10 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
 }) => {
     const { t } = useLanguage();
     const { collections: allCollections, addToCollection, createCollection, removeFromCollection } = useCollection();
+    const { updateVideo, availableTags } = useVideo();
     const { handleShare } = useShareVideo(video);
     const [showCollectionModal, setShowCollectionModal] = React.useState(false);
+    const [showTagsModal, setShowTagsModal] = React.useState(false);
 
     // Calculate collections that contain THIS video
     const currentVideoCollections = allCollections.filter(c => c.videos.includes(video.id));
@@ -62,6 +66,11 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
     const handleRemoveFromCollection = async () => {
         if (!video.id) return;
         await removeFromCollection(video.id);
+    };
+
+    const handleSaveTags = async (tags: string[]) => {
+        if (!video.id) return;
+        await updateVideo(video.id, { tags });
     };
 
     const handlePlayerMenuClose = () => {
@@ -88,6 +97,7 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     onDelete={canDelete ? () => setShowDeleteModal(true) : undefined}
                     isDeleting={isDeleting}
                     onToggleVisibility={handleToggleVisibility}
+                    onAddTag={() => setShowTagsModal(true)}
                     video={video}
                     sx={{
                         color: 'white',
@@ -140,6 +150,14 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                 onAddToCollection={handleAddToCollection}
                 onCreateCollection={handleCreateCollection}
                 onRemoveFromCollection={handleRemoveFromCollection}
+            />
+
+            <TagsModal
+                open={showTagsModal}
+                onClose={() => setShowTagsModal(false)}
+                videoTags={video.tags || []}
+                availableTags={availableTags}
+                onSave={handleSaveTags}
             />
         </>
     );

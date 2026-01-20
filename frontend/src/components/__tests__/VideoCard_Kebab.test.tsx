@@ -58,6 +58,7 @@ describe('VideoCard Kebab Menu', () => {
         vi.spyOn(SnackbarContext, 'useSnackbar').mockReturnValue({ showSnackbar: vi.fn() });
         vi.spyOn(VideoContext, 'useVideo').mockReturnValue({
             updateVideo: vi.fn().mockResolvedValue({ success: true }),
+            availableTags: [],
         } as any);
     });
 

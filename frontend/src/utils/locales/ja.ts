@@ -87,6 +87,9 @@ export const ja = {
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
   tags: "タグ",
+  selectTags: "タグを選択",
+  noTagsAvailable: "利用可能なタグはありません",
+  addTag: "タグを追加",
   // Database
   database: "データベース",
   migrateDataDescription: "レガシーJSONファイルから新しいSQLiteデータベースにデータを移行します。この操作は複数回実行しても安全です（重複はスキップされます）。",

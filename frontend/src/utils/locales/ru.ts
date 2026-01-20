@@ -87,6 +87,9 @@ export const ru = {
   tagsManagement: "Управление тегами",
   newTag: "Новый тег",
   tags: "Теги",
+  selectTags: "Выбрать теги",
+  noTagsAvailable: "Нет доступных тегов",
+  addTag: "Добавить тег",
   // Database
   database: "База данных",
   migrateDataDescription: "Перенос данных из устаревших файлов JSON в новую базу данных SQLite. Это действие безопасно запускать несколько раз (дубликаты будут пропущены).",

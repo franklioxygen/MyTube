@@ -94,6 +94,9 @@ export const zh = {
   tagsManagement: "标签管理",
   newTag: "新标签",
   tags: "标签",
+  selectTags: "选择标签",
+  noTagsAvailable: "暂无可用标签",
+  addTag: "添加标签",
   // Database
   database: "数据库",
   migrateDataDescription:

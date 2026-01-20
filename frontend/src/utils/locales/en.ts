@@ -94,7 +94,10 @@ export const en = {
   pauseOnFocusLoss: "Pause on Focus Loss",
   tagsManagement: "Tags Management",
   newTag: "New Tag",
+  selectTags: "Select Tags",
   tags: "Tags",
+  noTagsAvailable: "No tags available",
+  addTag: "Add Tag",
   // Database
   database: "Database",
   migrateDataDescription:

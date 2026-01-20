@@ -87,6 +87,9 @@ export const pt = {
   tagsManagement: "Gerenciamento de Tags",
   newTag: "Nova Tag",
   tags: "Tags",
+  selectTags: "Selecionar Tags",
+  noTagsAvailable: "Nenhuma tag disponível",
+  addTag: "Adicionar Tag",
   // Database
   database: "Banco de Dados",
   migrateDataDescription: "Migrar dados de arquivos JSON legados para o novo banco de dados SQLite. Esta ação é segura para executar várias vezes (duplicatas serão ignoradas).",

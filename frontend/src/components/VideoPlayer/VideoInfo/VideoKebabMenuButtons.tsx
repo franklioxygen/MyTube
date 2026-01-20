@@ -1,8 +1,8 @@
-import { Add, Cast, Delete, MoreVert, Share, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, Cast, Delete, Label, MoreVert, Share, Visibility, VisibilityOff } from '@mui/icons-material';
 import { Button, IconButton, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React, { useState } from 'react';
-import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;
@@ -11,6 +11,7 @@ interface VideoKebabMenuButtonsProps {
     onDelete?: () => void;
     isDeleting?: boolean;
     onToggleVisibility?: () => void;
+    onAddTag?: () => void;
     video?: { visibility?: number };
     sx?: any;
 }
@@ -22,6 +23,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     onDelete,
     isDeleting = false,
     onToggleVisibility,
+    onAddTag,
     video,
     sx
 }) => {
@@ -175,6 +177,21 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                                         sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
                                     >
                                         <Delete />
+                                    </Button>
+                                </Tooltip>
+                            )}
+                            {onAddTag && (
+                                <Tooltip title={t('addTag') || 'Add Tag'} disableHoverListener={isTouch}>
+                                    <Button
+                                        variant="outlined"
+                                        color="inherit"
+                                        onClick={() => {
+                                            handleKebabMenuClose();
+                                            onAddTag();
+                                        }}
+                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
+                                    >
+                                        <Label />
                                     </Button>
                                 </Tooltip>
                             )}

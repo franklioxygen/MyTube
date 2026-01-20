@@ -31,6 +31,14 @@ vi.mock('../../../hooks/useShareVideo', () => ({
     }),
 }));
 
+const mockUpdateVideo = vi.fn();
+vi.mock('../../../contexts/VideoContext', () => ({
+    useVideo: () => ({
+        updateVideo: mockUpdateVideo,
+        availableTags: []
+    })
+}));
+
 // Mock child components that trigger complex logic or portals
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
     default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility }: any) => (

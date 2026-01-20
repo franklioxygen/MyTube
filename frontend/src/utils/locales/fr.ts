@@ -87,6 +87,9 @@ export const fr = {
   tagsManagement: "Gestion des tags",
   newTag: "Nouveau tag",
   tags: "Tags",
+  selectTags: "Sélectionner des tags",
+  noTagsAvailable: "Aucun tag disponible",
+  addTag: "Ajouter un tag",
   // Database
   database: "Base de données",
   migrateDataDescription: "Migrer les données des fichiers JSON hérités vers la nouvelle base de données SQLite. Cette action peut être exécutée plusieurs fois en toute sécurité (les doublons seront ignorés).",

@@ -87,6 +87,9 @@ export const ar = {
   tagsManagement: "إدارة العلامات",
   newTag: "علامة جديدة",
   tags: "العلامات",
+  selectTags: "تحديد العلامات",
+  noTagsAvailable: "لا توجد علامات متاحة",
+  addTag: "إضافة علامة",
   // Database
   database: "قاعدة البيانات",
   migrateDataDescription: "نقل البيانات من ملفات JSON القديمة إلى قاعدة بيانات SQLite الجديدة. هذا الإجراء آمن للتشغيل عدة مرات (سيتم تخطي التكرارات).",
