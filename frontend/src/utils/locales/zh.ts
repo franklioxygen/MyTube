@@ -97,6 +97,7 @@ export const zh = {
   selectTags: "选择标签",
   noTagsAvailable: "暂无可用标签",
   addTag: "添加标签",
+  failedToSaveTags: "保存标签失败",
   // Database
   database: "数据库",
   migrateDataDescription:

@@ -90,6 +90,7 @@ export const es = {
   selectTags: "Seleccionar Etiquetas",
   noTagsAvailable: "No hay etiquetas disponibles",
   addTag: "Añadir Etiqueta",
+  failedToSaveTags: "Error al guardar etiquetas",
   // Database
   database: "Base de Datos",
   migrateDataDescription: "Migrar datos de archivos JSON heredados a la nueva base de datos SQLite. Esta acción es segura para ejecutar varias veces (se omitirán duplicados).",

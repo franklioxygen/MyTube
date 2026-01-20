@@ -59,6 +59,11 @@ vi.mock('../../hooks/useVideoPrefetch', () => ({
     }),
 }));
 
+// Mock TagsModal to avoid complex context dependencies
+vi.mock('../TagsModal', () => ({
+    default: ({ open }: { open: boolean }) => open ? <div data-testid="tags-modal">Tags Modal</div> : null
+}));
+
 // Mock the child component to avoid sizing/visibility issues in JSDOM
 // and to easily verify props passed to it
 vi.mock('../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({

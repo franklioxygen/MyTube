@@ -12,6 +12,9 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
+import { useSettings } from '../hooks/useSettings';
+import { useSettingsMutations } from '../hooks/useSettingsMutations';
 
 interface TagsModalProps {
     open: boolean;
@@ -25,10 +28,18 @@ const TagsModal: React.FC<TagsModalProps> = ({
     open,
     onClose,
     videoTags,
-    availableTags,
+    availableTags = [],
     onSave
 }) => {
     const { t } = useLanguage();
+    const { showSnackbar } = useSnackbar();
+
+    // Settings hooks for global tag updates
+    const { data: globalSettings } = useSettings();
+    const { saveMutation } = useSettingsMutations({
+        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
+        setInfoModal: () => { /* No-op: TagsModal doesn't use info modals */ }
+    });
 
     // State for selected tags (starts with videoTags)
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -62,8 +73,39 @@ const TagsModal: React.FC<TagsModalProps> = ({
 
     const handleSave = async () => {
         setSaving(true);
-        await onSave(selectedTags);
-        handleClose();
+
+        try {
+            // Check for new tags that need to be added to global settings
+            const newGlobalTags = selectedTags.filter(tag => !availableTags.includes(tag));
+
+            if (newGlobalTags.length > 0 && globalSettings) {
+                // Update global settings with new tags
+                const currentTags = globalSettings.tags || [];
+                // Merge and deduplicate
+                const updatedTags = Array.from(new Set([...currentTags, ...newGlobalTags])).sort();
+
+                const newSettings = {
+                    ...globalSettings,
+                    tags: updatedTags
+                };
+
+                // We don't await this one to avoid blocking the UI too long, or we can catch error silently
+                saveMutation.mutate(newSettings);
+            }
+
+            await onSave(selectedTags);
+            handleClose();
+        } catch (error: any) {
+            // Extract error message from various error formats
+            const errorMessage = error?.message ||
+                error?.response?.data?.error ||
+                error?.error ||
+                t('failedToSaveTags') ||
+                'Failed to save tags';
+            showSnackbar(errorMessage, 'error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleClose = () => {
@@ -73,7 +115,8 @@ const TagsModal: React.FC<TagsModalProps> = ({
     };
 
     // Combine available tags with any newly added selected tags that aren't in availableTags yet
-    const displayTags = Array.from(new Set([...availableTags, ...selectedTags])).sort();
+    const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
+    const displayTags = Array.from(new Set([...safeAvailableTags, ...selectedTags])).sort();
 
     return (
         <Dialog

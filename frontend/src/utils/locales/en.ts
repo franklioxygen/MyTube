@@ -98,6 +98,7 @@ export const en = {
   tags: "Tags",
   noTagsAvailable: "No tags available",
   addTag: "Add Tag",
+  failedToSaveTags: "Failed to save tags",
   // Database
   database: "Database",
   migrateDataDescription:

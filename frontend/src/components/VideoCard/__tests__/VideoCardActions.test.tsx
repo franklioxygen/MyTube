@@ -32,12 +32,16 @@ vi.mock('../../../hooks/useShareVideo', () => ({
 }));
 
 const mockUpdateVideo = vi.fn();
-vi.mock('../../../contexts/VideoContext', () => ({
-    useVideo: () => ({
-        updateVideo: mockUpdateVideo,
-        availableTags: []
-    })
-}));
+// Mock child components that trigger complex logic or portals
+vi.mock('../../../contexts/VideoContext', () => {
+    return {
+        useVideo: () => ({
+            updateVideo: mockUpdateVideo,
+            availableTags: []
+        }),
+        VideoProvider: ({ children }: any) => <div>{children}</div>
+    };
+});
 
 // Mock child components that trigger complex logic or portals
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
@@ -64,6 +68,14 @@ vi.mock('../../CollectionModal', () => ({
     default: ({ open, onAddToCollection }: any) => open ? (
         <div data-testid="collection-modal">
             <button onClick={() => onAddToCollection('col2')}>Add to Col 2</button>
+        </div>
+    ) : null
+}));
+
+vi.mock('../../TagsModal', () => ({
+    default: ({ open, onSave }: any) => open ? (
+        <div data-testid="tags-modal">
+            <button onClick={() => onSave(['tag1'])}>Save Tags</button>
         </div>
     ) : null
 }));

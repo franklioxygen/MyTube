@@ -90,6 +90,7 @@ export const de = {
   selectTags: "Tags auswählen",
   noTagsAvailable: "Keine Tags verfügbar",
   addTag: "Tag hinzufügen",
+  failedToSaveTags: "Fehler beim Speichern der Tags",
   // Database
   database: "Datenbank",
   migrateDataDescription: "Daten von Legacy-JSON-Dateien zur neuen SQLite-Datenbank migrieren. Diese Aktion kann sicher mehrmals ausgeführt werden (Duplikate werden übersprungen).",
