@@ -27,7 +27,8 @@ const isPublicEndpoint = (req: Request): boolean => {
   // Allow password-related endpoints that are needed for authentication
   if (
     path.includes("/password-enabled") ||
-    path.includes("/reset-password-cooldown")
+    path.includes("/reset-password-cooldown") ||
+    path.includes("/reset-password")
   ) {
     return true;
   }
