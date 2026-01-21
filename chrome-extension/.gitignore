@@ -15,5 +15,4 @@ node_modules/
 package-lock.json
 
 # Package files
-*.zip
 .package-temp/

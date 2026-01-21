@@ -23,28 +23,20 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **Video Downloading**: Download YouTube, Bilibili and MissAV videos with a simple URL input.
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
 - **TMDB Metadata Scraping**: Automatically scrape movie and TV show metadata (title, description, poster, director, year, rating) from TMDB based on filename. Supports localized content matching your site language.
-- **Bilibili Support**: Support for downloading single videos, multi-part videos, and entire collections/series.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
 - **Batch Download**: Add multiple video URLs at once to the download queue.
 - **Concurrent Download Limit**: Set a limit on the number of simultaneous downloads to manage bandwidth.
-- **Local Library**: Automatically save video thumbnails and metadata for a rich browsing experience.
-- **Video Player**: Custom player with Play/Pause, Loop, Seek, Full-screen, and Dimming controls.
+- **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
-- **Search**: Search for videos locally in your library or online via YouTube.
 - **Collections**: Organize videos into custom collections for easy access.
-- **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
-- **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
-- **Pagination**: Efficiently browse large libraries with pagination support.
 - **Subscriptions**: Manage subscriptions to channels or creators to automatically download new content.
-- **Video Rating**: Rate your videos with a 5-star system.
+- **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
+- **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
+- **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
 - **Mobile Optimizations**: Mobile-friendly tags menu and optimized layout for smaller screens.
-- **Temp Files Cleanup**: Manage storage by cleaning up temporary download files directly from settings.
-- **View Modes**: Toggle between Collection View and Video View on the home page.
 - **Cookie Management**: Support for uploading `cookies.txt` to enable downloading of age-restricted or premium content.
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
 - **TMDB Integration**: Configure your TMDB API key in settings to enable automatic metadata scraping for local video files. The scraper intelligently parses filenames to extract titles and matches them with TMDB database.
-- **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
-- **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
 - **Task Hooks**: Execute custom shell scripts at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
 - **Browser Extension**: A Chrome extension to download videos directly from your browser. Supports all yt-dlp supported sites.

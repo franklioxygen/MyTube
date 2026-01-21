@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DOCKER_PATH="/Applications/Docker.app/Contents/Resources/bin/docker"
+DOCKER_PATH="docker"
 USERNAME="franklioxygen"
 
 # Default build arguments (can be overridden by environment variables)

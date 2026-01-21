@@ -8,6 +8,17 @@
 - 连接测试功能，验证服务器是否可访问。
 
 ## 安装
+
+### 快速安装 (推荐)
+1. 下载 [mytube-extension-v1.0.1.zip](../../chrome-extension/mytube-extension-v1.0.1.zip) 文件。
+2. 将文件解压到一个文件夹。
+3. 打开 Chrome 浏览器并访问 `chrome://extensions/`。
+4. 启用“开发者模式” (Developer mode)（右上角开关）。
+5. 点击“加载已解压的扩展程序” (Load unpacked)。
+6. 选择解压后的文件夹。
+7. 扩展程序现已安装完成！
+
+### 从源码安装
 1. 进入 `chrome-extension` 目录。
 2. 安装依赖并构建：
    ```bash
