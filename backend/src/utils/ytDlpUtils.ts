@@ -9,6 +9,22 @@ const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 
 /**
+ * Preprocess URL to handle specific domain replacements
+ * e.g. xvideos.red -> xvideos.com to support yt-dlp extraction
+ */
+function preprocessUrl(url: string): string {
+  if (!url) return url;
+  
+  // Handle XVideos mirrors
+  if (url.includes("xvideos.red")) {
+    console.log(`Preprocessing URL: replacing xvideos.red with xvideos.com`);
+    return url.replace("xvideos.red", "xvideos.com");
+  }
+  
+  return url;
+}
+
+/**
  * Get cookies file path if it exists
  */
 function getCookiesPath(): string | null {
@@ -112,10 +128,11 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
  * @param retryWithoutFormatRestrictions - If true, retry without format restrictions if format error occurs
  */
 export async function executeYtDlpJson(
-  url: string,
+  rawUrl: string,
   flags: Record<string, any> = {},
   retryWithoutFormatRestrictions: boolean = true
 ): Promise<any> {
+  const url = preprocessUrl(rawUrl);
   const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
 
   // Add cookies if file exists
@@ -256,9 +273,10 @@ export async function executeYtDlpJson(
  * Uses: yt-dlp <video_url> --print channel_url --skip-download
  */
 export async function getChannelUrlFromVideo(
-  videoUrl: string,
+  videoUrlRaw: string,
   networkConfig: Record<string, any> = {}
 ): Promise<string | null> {
+  const videoUrl = preprocessUrl(videoUrlRaw);
   const args = [
     "--print",
     "channel_url",
@@ -319,10 +337,11 @@ export async function getChannelUrlFromVideo(
  * Uses: yt-dlp <channel_url> --write-thumbnail --playlist-items 0 -o <output_path>
  */
 export async function downloadChannelAvatar(
-  channelUrl: string,
+  channelUrlRaw: string,
   outputPath: string,
   networkConfig: Record<string, any> = {}
 ): Promise<boolean> {
+  const channelUrl = preprocessUrl(channelUrlRaw);
   const outputDir = path.dirname(outputPath);
   const outputFilename = path.basename(outputPath, path.extname(outputPath));
   const outputTemplate = path.join(outputDir, `${outputFilename}.%(ext)s`);
@@ -424,7 +443,7 @@ export async function downloadChannelAvatar(
  * Returns a subprocess-like object with kill() method
  */
 export function executeYtDlpSpawn(
-  url: string,
+  rawUrl: string,
   flags: Record<string, any> = {}
 ): {
   stdout: NodeJS.ReadableStream | null;
@@ -435,6 +454,7 @@ export function executeYtDlpSpawn(
     onRejected?: (reason: any) => void | Promise<void>
   ) => Promise<void>;
 } {
+  const url = preprocessUrl(rawUrl);
   const args = [...flagsToArgs(flags)];
 
   // Add cookies if file exists
