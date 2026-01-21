@@ -7,11 +7,12 @@ import {
     extractBilibiliVideoId,
     extractUrlFromText,
     formatVideoFilename,
+    getDomainFromUrl,
     isBilibiliUrl,
     isValidUrl,
     resolveShortUrl,
     sanitizeFilename,
-    trimBilibiliUrl,
+    trimBilibiliUrl
 } from '../../utils/helpers';
 
 vi.mock('axios');
@@ -210,6 +211,28 @@ describe('Helpers', () => {
         // Should contain 50 'a's
         expect(result).toContain('a'.repeat(50));
         expect(result).not.toContain('a'.repeat(51));
+    });
+  });
+
+  describe('getDomainFromUrl', () => {
+    it('should extract domain from simplified URL', () => {
+      expect(getDomainFromUrl('https://example.com/video')).toBe('example.com');
+    });
+
+    it('should extract domain from simplified URL with www', () => {
+      expect(getDomainFromUrl('https://www.example.com/video')).toBe('example.com');
+    });
+
+    it('should extract domain from simplified URL with subdomain', () => {
+      expect(getDomainFromUrl('https://sub.example.com/video')).toBe('sub.example.com');
+    });
+
+    it('should return Unknown for invalid URL', () => {
+      expect(getDomainFromUrl('invalid-url')).toBe('Unknown');
+    });
+    
+    it('should handle xvideos.red', () => {
+        expect(getDomainFromUrl('https://xvideos.red/video/123')).toBe('xvideos.red');
     });
   });
 });

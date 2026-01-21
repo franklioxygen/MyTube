@@ -379,3 +379,15 @@ export function generateTimestamp(): string {
   const seconds = String(now.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day}-${hours}-${minutes}-${seconds}`;
 }
+
+// Helper function to extract domain name from URL
+export function getDomainFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    // Remove www. prefix if present
+    return hostname.replace(/^www\./, "");
+  } catch (error) {
+    return "Unknown";
+  }
+}

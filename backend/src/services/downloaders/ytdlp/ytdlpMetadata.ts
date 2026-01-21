@@ -1,3 +1,4 @@
+import { getDomainFromUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
   executeYtDlpJson,
@@ -5,8 +6,7 @@ import {
   getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
-import { getProviderScript } from "./ytdlpHelpers";
-import { extractXiaoHongShuAuthor } from "./ytdlpHelpers";
+import { extractXiaoHongShuAuthor, getProviderScript } from "./ytdlpHelpers";
 
 /**
  * Get video info without downloading
@@ -42,7 +42,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
 
     return {
       title: info.title || "Video",
-      author: info.uploader || "Unknown",
+      author: (info.uploader && info.uploader !== "Unknown") ? info.uploader : getDomainFromUrl(url),
       date:
         info.upload_date ||
         new Date().toISOString().slice(0, 10).replace(/-/g, ""),
@@ -65,7 +65,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
  */
 export async function extractVideoMetadata(videoUrl: string, info: any) {
   let videoTitle = info.title || "Video";
-  let videoAuthor = info.uploader || "Unknown";
+  let videoAuthor = (info.uploader && info.uploader !== "Unknown") ? info.uploader : getDomainFromUrl(videoUrl);
 
   // If author is unknown and it's a XiaoHongShu video, try custom extraction
   if (
