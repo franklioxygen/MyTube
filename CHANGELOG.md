@@ -3,6 +3,16 @@
 
 
 
+## v1.7.76 (2026-01-20)
+
+### Feat
+
+- feat: Update readme files (e760c4f)
+
+### Test
+
+- test: Add mock for useSettings and useSettingsMutations (5f48a68)
+
 ## v1.7.75 (2026-01-20)
 
 ### Feat
