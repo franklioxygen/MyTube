@@ -3,6 +3,12 @@
 
 
 
+## v1.7.77 (2026-01-21)
+
+### Feat
+
+- feat: Add URL preprocessing function for xvideo red (953c042)
+
 ## v1.7.76 (2026-01-20)
 
 ### Feat
