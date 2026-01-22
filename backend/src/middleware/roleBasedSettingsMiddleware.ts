@@ -63,7 +63,42 @@ export const roleBasedSettingsMiddleware = (
   if (req.user?.role === "visitor") {
     // Allow GET requests (read-only)
     if (req.method === "GET") {
-      next();
+      // Define allowlist for visitor GET requests
+      // This strict allowlist prevents access to sensitive endpoints like /export-database
+      const visitorAllowedGetPaths = [
+        "/", // General settings
+        "/cloudflared/status",
+        "/password-enabled",
+        "/reset-password-cooldown",
+        "/passkeys",
+        "/passkeys/exists",
+        "/check-cookies",
+        "/hooks/status",
+        "/last-backup-info",
+      ];
+
+      // Check if the requested path is in the allowlist
+      // We check both exact match and if the path starts with allowed prefixes
+      // This handles potential sub-paths (though most here do not have them)
+      const isAllowed = visitorAllowedGetPaths.some(
+        (allowedPath) =>
+          req.path === allowedPath ||
+          req.url === allowedPath ||
+          req.path.startsWith(`${allowedPath}/`) ||
+          req.url.startsWith(`${allowedPath}/`)
+      );
+
+      if (isAllowed) {
+        next();
+        return;
+      }
+
+      // If not in allowlist, block the request
+      // This specifically blocks /export-database and any other sensitive GET endpoints
+      res.status(403).json({
+        success: false,
+        error: "Visitor role: Access to this resource is restricted.",
+      });
       return;
     }
 
