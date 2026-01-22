@@ -292,7 +292,7 @@ describe('StorageService', () => {
         }),
       });
 
-      storageService.saveSettings({ theme: 'light' });
+      storageService.saveSettings({ language: 'en' });
       expect(mockRun).toHaveBeenCalled();
     });
   });

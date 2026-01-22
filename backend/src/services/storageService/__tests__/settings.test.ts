@@ -76,8 +76,8 @@ describe('storageService settings', () => {
     describe('saveSettings', () => {
         it('should save settings in a transaction', () => {
             const newSettings = {
-                key1: 'value1',
-                key2: { nested: true }
+                language: 'en',
+                websiteName: { nested: true }
             };
 
             saveSettings(newSettings);
