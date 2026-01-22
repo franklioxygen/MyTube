@@ -3,6 +3,22 @@
 
 
 
+## v1.7.79 (2026-01-22)
+
+### Refactor
+
+- refactor: Implement mass assignment protection in saveSettings (9d737cb)
+
+### Test
+
+- test: Add roleBasedSettingsMiddleware unit tests (e271775)
+
+## v1.7.78 (2026-01-21)
+
+### Feat
+
+- feat: Add getDomainFromUrl helper function (f8e9122)
+
 ## v1.7.77 (2026-01-21)
 
 ### Feat
