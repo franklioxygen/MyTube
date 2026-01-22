@@ -27,13 +27,59 @@ export function getSettings(): Record<string, any> {
   }
 }
 
+// Whitelist of allowed settings keys to prevent mass assignment
+const WHITELISTED_SETTINGS = [
+  "loginEnabled",
+  "password",
+  "passwordLoginAllowed",
+  "allowResetPassword",
+  "defaultAutoPlay",
+  "defaultAutoLoop",
+  "maxConcurrentDownloads",
+  "dontSkipDeletedVideo",
+  "language",
+  "tags",
+  "cloudDriveEnabled",
+  "openListApiUrl",
+  "openListToken",
+  "openListPublicUrl",
+  "cloudDrivePath",
+  "cloudDriveScanPaths",
+  "homeSidebarOpen",
+  "subtitlesEnabled",
+  "websiteName",
+  "itemsPerPage",
+  "ytDlpConfig",
+  "showYoutubeSearch",
+  "proxyOnlyYoutube",
+  "moveSubtitlesToVideoFolder",
+  "moveThumbnailsToVideoFolder",
+  "saveAuthorFilesToCollection",
+  "visitorPassword",
+  "visitorUserEnabled",
+  "infiniteScroll",
+  "videoColumns",
+  "cloudflaredTunnelEnabled",
+  "cloudflaredToken",
+  "allowedHosts",
+  "pauseOnFocusLoss",
+  "playSoundOnTaskComplete",
+  "mountDirectories",
+  "defaultSort",
+];
+
 export function saveSettings(newSettings: Record<string, any>): void {
   try {
     db.transaction(() => {
       for (const [key, value] of Object.entries(newSettings)) {
         // Skip undefined values - they should not be saved
-        // This prevents "No values to set" error from drizzle-orm
         if (value === undefined) {
+          continue;
+        }
+
+        // Whitelist validation: only allow known settings keys
+        if (!WHITELISTED_SETTINGS.includes(key)) {
+          // Silently ignore unknown keys
           continue;
         }
 
