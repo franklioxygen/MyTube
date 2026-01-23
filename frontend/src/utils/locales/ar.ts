@@ -163,6 +163,7 @@ export const ar = {
   showTagsOnThumbnail: "عرض العلامات على الصورة المصغرة",
   playSoundOnTaskComplete: "تشغيل صوت عند اكتمال المهمة",
   visitorModeReadOnly: "وضع الزائر: للقراءة فقط",
+  visitorModeUrlRestricted: "لا يمكن للزوار معالجة الروابط",
   visitorUser: "المستخدم الزائر",
   enableVisitorUser: "تفعيل المستخدم الزائر",
   visitorUserHelper: "قم تمكين حساب زائر منفصل مع وصول للقراءة فقط. يمكن للزوار عرض المحتوى ولكن لا يمكنهم إجراء تغييرات.",

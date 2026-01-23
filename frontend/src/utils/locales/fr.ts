@@ -163,6 +163,7 @@ export const fr = {
   showTagsOnThumbnail: "Afficher les étiquettes sur la miniature",
   playSoundOnTaskComplete: "Jouer un son à la fin de la tâche",
   visitorModeReadOnly: "Mode visiteur : Lecture seule",
+  visitorModeUrlRestricted: "Les visiteurs ne peuvent pas traiter les URL",
   visitorUser: "Utilisateur Visiteur",
   enableVisitorUser: "Activer l'Utilisateur Visiteur",
   visitorUserHelper: "Activez un compte visiteur séparé avec un accès en lecture seule. Les visiteurs peuvent voir le contenu mais ne peuvent pas effectuer de modifications.",

@@ -163,6 +163,7 @@ export const pt = {
   showTagsOnThumbnail: "Mostrar tags na miniatura",
   playSoundOnTaskComplete: "Reproduzir som ao concluir tarefa",
   visitorModeReadOnly: "Modo visitante: Somente leitura",
+  visitorModeUrlRestricted: "Visitantes não podem processar URLs",
   visitorUser: "Usuário Visitante",
   enableVisitorUser: "Habilitar Usuário Visitante",
   visitorUserHelper: "Habilite uma conta de visitante separada com acesso somente leitura. Os visitantes podem visualizar o conteúdo, mas não podem fazer alterações.",

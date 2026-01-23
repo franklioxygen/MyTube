@@ -190,6 +190,7 @@ export const en = {
   playSoundOnTaskComplete: "Play Sound on Task Complete",
   soundSuccess: "Success Chime",
   visitorModeReadOnly: "Visitor mode: Read-only",
+  visitorModeUrlRestricted: "Visitors cannot process URLs",
   visitorUser: "Visitor User",
   enableVisitorUser: "Enable Visitor User",
   visitorUserHelper:

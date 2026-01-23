@@ -13,10 +13,10 @@ import {
 } from '@mui/material';
 import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { getApiUrl } from '../../utils/apiUrl';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
@@ -179,6 +179,13 @@ const Header: React.FC<HeaderProps> = ({
 
         try {
             if (isUrl) {
+                // Visitors cannot process URLs (download/subscribe)
+                if (isVisitor) {
+                    setError(t('visitorModeUrlRestricted') || 'Visitors cannot process URLs');
+                    setIsSubmitting(false);
+                    return;
+                }
+
                 const result = await onSubmit(videoUrl);
                 if (result.success) {
                     setVideoUrl('');
@@ -318,20 +325,18 @@ const Header: React.FC<HeaderProps> = ({
                                 {/* Desktop Layout */}
                                 {!isMobile && (
                                     <>
-                                        {!isVisitor && (
-                                            <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
-                                                <SearchInput
-                                                    videoUrl={videoUrl}
-                                                    setVideoUrl={setVideoUrl}
-                                                    isSubmitting={isSubmitting}
-                                                    error={error}
-                                                    isSearchMode={isSearchMode}
-                                                    searchTerm={searchTerm}
-                                                    onResetSearch={onResetSearch}
-                                                    onSubmit={handleSubmit}
-                                                />
-                                            </Box>
-                                        )}
+                                        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', maxWidth: 800, mx: 'auto' }}>
+                                            <SearchInput
+                                                videoUrl={videoUrl}
+                                                setVideoUrl={setVideoUrl}
+                                                isSubmitting={isSubmitting}
+                                                error={error}
+                                                isSearchMode={isSearchMode}
+                                                searchTerm={searchTerm}
+                                                onResetSearch={onResetSearch}
+                                                onSubmit={handleSubmit}
+                                            />
+                                        </Box>
                                         <Box sx={{ display: 'flex', alignItems: 'center', ml: isVisitor ? 'auto' : 2 }}>
                                             <ActionButtons
                                                 activeDownloads={activeDownloads}

@@ -163,6 +163,7 @@ export const ko = {
   showTagsOnThumbnail: "썸네일에 태그 표시",
   playSoundOnTaskComplete: "작업 완료 시 소리 재생",
   visitorModeReadOnly: "방문자 모드: 읽기 전용",
+  visitorModeUrlRestricted: "방문자는 URL을 처리할 수 없습니다",
   visitorUser: "방문자 사용자",
   enableVisitorUser: "방문자 사용자 활성화",
   visitorUserHelper: "읽기 전용 액세스 권한이 있는 별도의 방문자 계정을 활성화합니다. 방문자는 콘텐츠를 볼 수 있지만 변경할 수는 없습니다.",

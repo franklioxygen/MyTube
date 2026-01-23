@@ -163,6 +163,7 @@ export const ja = {
   showTagsOnThumbnail: "サムネイルにタグを表示",
   playSoundOnTaskComplete: "タスク完了時に音を再生",
   visitorModeReadOnly: "ビジターモード：読み取り専用",
+  visitorModeUrlRestricted: "ビジターはURLを処理できません",
   visitorUser: "ビジターユーザー",
   enableVisitorUser: "ビジターユーザーを有効にする",
   visitorUserHelper: "読み取り専用アクセス権を持つ別のビジターアカウントを有効にします。ビジターはコンテンツを閲覧できますが、変更することはできません。",

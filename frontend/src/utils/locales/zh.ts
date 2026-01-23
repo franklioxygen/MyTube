@@ -180,6 +180,7 @@ export const zh = {
   showTagsOnThumbnail: "在缩略图上显示标签",
   playSoundOnTaskComplete: "任务完成时播放声音",
   visitorModeReadOnly: "访客模式：只读",
+  visitorModeUrlRestricted: "访客无法处理链接",
   visitorUser: "访客用户",
   enableVisitorUser: "启用访客用户",
   visitorUserHelper:

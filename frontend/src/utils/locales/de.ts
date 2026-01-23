@@ -163,6 +163,7 @@ export const de = {
   showTagsOnThumbnail: "Tags auf dem Miniaturbild anzeigen",
   playSoundOnTaskComplete: "Ton bei Aufgabenabschluss abspielen",
   visitorModeReadOnly: "Besuchermodus: Nur-Lesen",
+  visitorModeUrlRestricted: "Besucher können keine URLs verarbeiten",
   visitorUser: "Besucher-Benutzer",
   enableVisitorUser: "Besucher-Benutzer aktivieren",
   visitorUserHelper: "Aktivieren Sie ein separates Besucherkonto mit schreibgeschütztem Zugriff. Besucher können Inhalte ansehen, aber keine Änderungen vornehmen.",

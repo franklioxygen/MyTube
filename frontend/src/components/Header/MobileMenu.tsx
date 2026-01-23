@@ -48,8 +48,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onTagToggle = () => { }
 }) => {
     const { t } = useLanguage();
-    const { logout, userRole } = useAuth();
-    const isVisitor = userRole === 'visitor';
+    const { logout } = useAuth();
+
     const navigate = useNavigate();
     const API_URL = getApiUrl();
 
@@ -81,20 +81,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             <Box sx={{ maxHeight: '80vh', overflowY: 'auto' }}>
                 <Stack spacing={2} sx={{ py: 2 }}>
                     {/* Row 1: Search Input */}
-                    {!isVisitor && (
-                        <Box>
-                            <SearchInput
-                                videoUrl={videoUrl}
-                                setVideoUrl={setVideoUrl}
-                                isSubmitting={isSubmitting}
-                                error={error}
-                                isSearchMode={isSearchMode}
-                                searchTerm={searchTerm}
-                                onResetSearch={onResetSearch}
-                                onSubmit={onSubmit}
-                            />
-                        </Box>
-                    )}
+                    <Box>
+                        <SearchInput
+                            videoUrl={videoUrl}
+                            setVideoUrl={setVideoUrl}
+                            isSubmitting={isSubmitting}
+                            error={error}
+                            isSearchMode={isSearchMode}
+                            searchTerm={searchTerm}
+                            onResetSearch={onResetSearch}
+                            onSubmit={onSubmit}
+                        />
+                    </Box>
 
                     {/* Mobile Navigation Buttons */}
                     <Box sx={{ display: 'flex', gap: 2 }}>
