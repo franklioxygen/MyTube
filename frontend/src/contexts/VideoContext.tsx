@@ -209,11 +209,26 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const searchLocalVideos = (query: string) => {
         if (!query || !videos.length) return [];
-        const searchTermLower = query.toLowerCase();
-        return videos.filter(video =>
-            video.title.toLowerCase().includes(searchTermLower) ||
-            video.author.toLowerCase().includes(searchTermLower)
-        );
+
+        // Normalize query: lowercase, trim, split by whitespace
+        const terms = query.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+
+        if (terms.length === 0) return videos;
+
+        return videos.filter(video => {
+            // Prepare searchable text
+            // We join all searchable fields into one large string for easy checking
+            // You can optimize this by checking fields individually if performance becomes an issue
+            const searchableText = [
+                video.title,
+                video.author,
+                video.description || '', // Description might be undefined
+                ...(video.tags || [])
+            ].join(' ').toLowerCase();
+
+            // Check if ALL terms are present (AND logic)
+            return terms.every(term => searchableText.includes(term));
+        });
     };
 
     const resetSearch = () => {
