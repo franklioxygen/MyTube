@@ -89,10 +89,12 @@ const TagsModal: React.FC<TagsModalProps> = ({
                     tags: updatedTags
                 };
 
-                // We don't await this one to avoid blocking the UI too long, or we can catch error silently
-                saveMutation.mutate(newSettings);
+                // Await the settings mutation to ensure settings are updated before continuing
+                // This ensures that availableTags is refreshed in all components
+                await saveMutation.mutateAsync(newSettings);
             }
 
+            // Save video tags - this will update the video in the videos list
             await onSave(selectedTags);
             handleClose();
         } catch (error: any) {

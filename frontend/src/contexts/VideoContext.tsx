@@ -418,10 +418,15 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         onSuccess: ({ id, updates, data }) => {
             if (data.success) {
+                // Update the videos list query
                 queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                     old ? old.map(video =>
                         video.id === id ? { ...video, ...updates } : video
                     ) : []
+                );
+                // Also update the individual video query if it exists
+                queryClient.setQueryData(['video', id], (old: Video | undefined) =>
+                    old ? { ...old, ...updates } : old
                 );
                 showSnackbar(t('videoUpdated'));
             }
