@@ -16,6 +16,10 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
     // Ensure tags and availableTags are always arrays
     const tagsArray = Array.isArray(tags) ? tags : [];
     const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
+    
+    // Filter tags to only show tags that are in availableTags
+    // This ensures that when a tag is removed from settings, it's also removed from the display
+    const filteredTagsArray = tagsArray.filter(tag => availableTagsArray.includes(tag));
 
     return (
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
@@ -27,7 +31,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                 onClose={() => setOpen(false)}
                 disableCloseOnSelect
                 options={availableTagsArray}
-                value={tagsArray}
+                value={filteredTagsArray}
                 isOptionEqualToValue={(option, value) => option === value}
                 onChange={(_, newValue) => onTagsUpdate(newValue)}
                 slotProps={{
@@ -59,7 +63,7 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                     <TextField
                         {...params}
                         variant="standard"
-                        placeholder={tagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
+                        placeholder={filteredTagsArray.length === 0 ? (t('tags') || 'Tags') : ''}
                         sx={{  minWidth: 300 , width: 'auto', display: 'inline-flex' }}
                         slotProps={{
                             input: { 

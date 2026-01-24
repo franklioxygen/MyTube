@@ -18,6 +18,7 @@ interface VideoCardThumbnailProps {
     isNew: boolean;
     isAboveTheFold?: boolean; // For LCP optimization
     showTagsOnThumbnail?: boolean;
+    availableTags?: string[]; // Available tags from settings - used to filter displayed tags
 }
 
 export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
@@ -31,7 +32,8 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     collectionInfo,
     isNew,
     isAboveTheFold = false,
-    showTagsOnThumbnail = false
+    showTagsOnThumbnail = false,
+    availableTags = []
 }) => {
     const { t } = useLanguage();
     const theme = useTheme();
@@ -192,43 +194,52 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 />
             )}
 
-            {showTagsOnThumbnail && video.tags && video.tags.length > 0 && (
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        bottom: 8,
-                        left: 8,
-                        right: 60, // Leave space for duration
-                        display: 'flex',
-                        flexWrap: 'nowrap',
-                        gap: 0.5,
-                        overflow: 'hidden',
-                        zIndex: 2,
-                        pointerEvents: 'none',
-                        maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
-                        WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)'
-                    }}
-                >
-                    {video.tags.map((tag) => (
-                        <Chip
-                            key={tag}
-                            label={tag}
-                            size="small"
-                            sx={{
-                                height: 20,
-                                fontSize: '0.65rem',
-                                bgcolor: 'rgba(0, 0, 0, 0.5)',
-                                color: 'white',
-                                backdropFilter: 'blur(2px)',
-                                '& .MuiChip-label': {
-                                    px: 1
-                                },
-                                maxWidth: '100px' // individual tag max width
-                            }}
-                        />
-                    ))}
-                </Box>
-            )}
+            {showTagsOnThumbnail && video.tags && video.tags.length > 0 && (() => {
+                // Filter tags to only show tags that are in availableTags
+                // This ensures that when a tag is removed from settings, it's also removed from the display
+                const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
+                const filteredTags = video.tags.filter(tag => availableTagsArray.includes(tag));
+                
+                if (filteredTags.length === 0) return null;
+                
+                return (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: 8,
+                            left: 8,
+                            right: 60, // Leave space for duration
+                            display: 'flex',
+                            flexWrap: 'nowrap',
+                            gap: 0.5,
+                            overflow: 'hidden',
+                            zIndex: 2,
+                            pointerEvents: 'none',
+                            maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
+                            WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)'
+                        }}
+                    >
+                        {filteredTags.map((tag) => (
+                            <Chip
+                                key={tag}
+                                label={tag}
+                                size="small"
+                                sx={{
+                                    height: 20,
+                                    fontSize: '0.65rem',
+                                    bgcolor: 'rgba(0, 0, 0, 0.5)',
+                                    color: 'white',
+                                    backdropFilter: 'blur(2px)',
+                                    '& .MuiChip-label': {
+                                        px: 1
+                                    },
+                                    maxWidth: '100px' // individual tag max width
+                                }}
+                            />
+                        ))}
+                    </Box>
+                );
+            })()}
         </Box>
     );
 };

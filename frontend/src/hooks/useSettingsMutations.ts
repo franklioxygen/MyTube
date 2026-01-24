@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import { Settings } from '../types';
@@ -19,6 +19,7 @@ interface UseSettingsMutationsProps {
  */
 export function useSettingsMutations({ setMessage, setInfoModal }: UseSettingsMutationsProps) {
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
 
     // Save settings mutation
     const saveMutation = useMutation({
@@ -30,8 +31,16 @@ export function useSettingsMutations({ setMessage, setInfoModal }: UseSettingsMu
             }
             await axios.post(`${API_URL}/settings`, settingsToSend);
         },
-        onSuccess: () => {
+        onSuccess: (_, newSettings) => {
             setMessage({ text: t('settingsSaved'), type: 'success' });
+            // Invalidate settings query to refresh available tags
+            queryClient.invalidateQueries({ queryKey: ['settings'] });
+            // If tags were changed, invalidate videos query to refresh video data
+            // This ensures that when tags are removed from settings, videos are refreshed
+            // and the backend's processTagDeletions changes are reflected in the UI
+            if (newSettings.tags !== undefined) {
+                queryClient.invalidateQueries({ queryKey: ['videos'] });
+            }
         },
         onError: () => {
             setMessage({ text: t('settingsFailed'), type: 'error' });
