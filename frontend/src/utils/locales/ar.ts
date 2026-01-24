@@ -253,6 +253,9 @@ export const ar = {
   deleteVideo: "حذف الفيديو",
   noVideosFoundMatching: "لم يتم العثور على فيديوهات مطابقة لبحثك.",
   refreshThumbnail: "تحديث الصورة المصغرة",
+  selected: "محدد",
+  moveCollection: "نقل إلى المجموعة",
+  confirmBulkDelete: "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
 
   // Video Player
   playing: "تشغيل",

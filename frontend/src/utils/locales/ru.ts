@@ -253,6 +253,9 @@ export const ru = {
   deleteVideo: "Удалить видео",
   noVideosFoundMatching: "Видео, соответствующие вашему поиску, не найдены.",
   refreshThumbnail: "Обновить миниатюру",
+  selected: "Выбрано",
+  moveCollection: "Переместить в коллекцию",
+  confirmBulkDelete: "Вы уверены, что хотите удалить эти видео? Это действие нельзя отменить.",
 
   // Video Player
   playing: "Воспроизведение",

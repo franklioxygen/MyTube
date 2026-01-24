@@ -253,6 +253,9 @@ export const de = {
   deleteVideo: "Video Löschen",
   noVideosFoundMatching: "Keine Videos gefunden, die Ihrer Suche entsprechen.",
   refreshThumbnail: "Vorschaubild aktualisieren",
+  selected: "Ausgewählt",
+  moveCollection: "In Sammlung verschieben",
+  confirmBulkDelete: "Sind Sie sicher, dass Sie diese Videos löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
 
   // Video Player
   playing: "Abspielen",

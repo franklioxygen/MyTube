@@ -253,6 +253,9 @@ export const ja = {
   deleteVideo: "動画を削除",
   noVideosFoundMatching: "検索に一致する動画は見つかりませんでした。",
   refreshThumbnail: "サムネイルを更新",
+  selected: "選択済み",
+  moveCollection: "コレクションに移動",
+  confirmBulkDelete: "これらの動画を削除してもよろしいですか？この操作は取り消せません。",
 
   // Video Player
   playing: "再生",

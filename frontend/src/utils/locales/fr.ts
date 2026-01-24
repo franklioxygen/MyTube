@@ -253,6 +253,9 @@ export const fr = {
   deleteVideo: "Supprimer la vidéo",
   noVideosFoundMatching: "Aucune vidéo ne correspond à votre recherche.",
   refreshThumbnail: "Actualiser la miniature",
+  selected: "Sélectionné",
+  moveCollection: "Déplacer vers la collection",
+  confirmBulkDelete: "Êtes-vous sûr de vouloir supprimer ces vidéos ? Cette action est irréversible.",
 
   // Video Player
   playing: "Lecture",

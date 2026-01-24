@@ -290,6 +290,9 @@ export const en = {
   deleteVideo: "Delete Video",
   noVideosFoundMatching: "No videos found matching your search.",
   refreshThumbnail: "Refresh Thumbnail",
+  selected: "Selected",
+  moveCollection: "Move to Collection",
+  confirmBulkDelete: "Are you sure you want to delete these videos? This action cannot be undone.",
 
   // Video Player
   playing: "Play",

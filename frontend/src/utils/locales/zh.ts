@@ -279,6 +279,9 @@ export const zh = {
   deleteVideo: "删除视频",
   noVideosFoundMatching: "未找到匹配的视频。",
   refreshThumbnail: "刷新缩略图",
+  selected: "已选择",
+  moveCollection: "移动到合集",
+  confirmBulkDelete: "确定要删除这些视频吗？此操作无法撤销。",
 
   // Video Player
   playing: "播放",

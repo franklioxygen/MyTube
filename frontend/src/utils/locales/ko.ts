@@ -253,6 +253,9 @@ export const ko = {
   deleteVideo: "동영상 삭제",
   noVideosFoundMatching: "검색과 일치하는 동영상이 없습니다.",
   refreshThumbnail: "썸네일 새로고침",
+  selected: "선택됨",
+  moveCollection: "컬렉션으로 이동",
+  confirmBulkDelete: "이 동영상들을 삭제하시겠습니까? 이 작업을 취소할 수 없습니다.",
 
   // Video Player
   playing: "재생",

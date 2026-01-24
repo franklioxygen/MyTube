@@ -253,6 +253,9 @@ export const pt = {
   deleteVideo: "Excluir Vídeo",
   noVideosFoundMatching: "Nenhum vídeo encontrado correspondente à sua pesquisa.",
   refreshThumbnail: "Atualizar miniatura",
+  selected: "Selecionado",
+  moveCollection: "Mover para coleção",
+  confirmBulkDelete: "Tem certeza de que deseja excluir estes vídeos? Esta ação não pode ser desfeita.",
 
   // Video Player
   playing: "Reproduzir",

@@ -253,6 +253,9 @@ export const es = {
   deleteVideo: "Eliminar Video",
   noVideosFoundMatching: "No se encontraron videos que coincidan con su búsqueda.",
   refreshThumbnail: "Actualizar miniatura",
+  selected: "Seleccionado",
+  moveCollection: "Mover a la colección",
+  confirmBulkDelete: "¿Está seguro de que desea eliminar estos videos? Esta acción no se puede deshacer.",
 
   // Video Player
   playing: "Reproducir",
