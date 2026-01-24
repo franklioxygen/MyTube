@@ -1,16 +1,15 @@
 import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
-import { DownloadResult } from "../services/downloaders/bilibili/types";
 import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-    extractBilibiliVideoId,
-    isBilibiliUrl,
-    isValidUrl,
-    processVideoUrl,
-    resolveShortUrl,
-    trimBilibiliUrl,
+  extractBilibiliVideoId,
+  isBilibiliUrl,
+  isValidUrl,
+  processVideoUrl,
+  resolveShortUrl,
+  trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { getNumberParam, getStringParam } from "../utils/paramUtils";
@@ -237,23 +236,6 @@ export const downloadVideo = async (
     ) => {
       // Use resolved URL for download (already processed)
       let downloadUrl = resolvedUrl;
-      let videoTitle = initialTitle;
-
-      // Fetch video info for title update if we can
-      try {
-        // Try to fetch video info for all URLs
-        logger.info("Fetching video info for title...");
-        const info = await downloadService.getVideoInfo(downloadUrl);
-        if (info && info.title) {
-          videoTitle = info.title;
-          logger.info("Fetched title in background:", videoTitle);
-          
-          // Update the title in storage immediately
-          storageService.updateActiveDownloadTitle(downloadId, videoTitle);
-        }
-      } catch (err) {
-        logger.warn("Failed to fetch video info for title in background:", err);
-      }
 
       // Trim Bilibili URL if needed
       if (isBilibiliUrl(downloadUrl)) {
@@ -265,7 +247,9 @@ export const downloadVideo = async (
           logger.info("Downloading Bilibili collection/series");
           
           // Use the fetched title if available, otherwise fallback to collection name
-          const collectionTitle = videoTitle !== initialTitle ? videoTitle : (collectionName || collectionInfo.title || "Bilibili Collection");
+          // Note: videoTitle might be updated in background but we use what we have
+          const currentTitle = storageService.getActiveDownload(downloadId)?.title || initialTitle;
+          const collectionTitle = currentTitle !== initialTitle ? currentTitle : (collectionName || collectionInfo.title || "Bilibili Collection");
 
           const result = await downloadService.downloadBilibiliCollection(
             collectionInfo,
@@ -307,14 +291,15 @@ export const downloadVideo = async (
           const { videosNumber, title } = partsInfo;
           // Use the more accurate title from parts info
           if (title) {
-             videoTitle = title;
-             storageService.updateActiveDownloadTitle(downloadId, videoTitle);
+             storageService.updateActiveDownloadTitle(downloadId, title);
+             // Also update manager in case it's still in queue
+             downloadManager.updateTaskTitle(downloadId, title);
           }
 
           // Update title in storage
           storageService.addActiveDownload(
             downloadId,
-            videoTitle || "Bilibili Video"
+            title || "Bilibili Video"
           );
 
           // Start downloading the first part
@@ -324,7 +309,7 @@ export const downloadVideo = async (
           // Check if part 1 already exists
           const existingPart1 =
             storageService.getVideoBySourceUrl(firstPartUrl);
-          let firstPartResult: DownloadResult;
+          let firstPartResult: downloadService.DownloadResult;
           let collectionId: string | null = null;
 
           // Find or create collection
@@ -406,11 +391,14 @@ export const downloadVideo = async (
             }
 
             // Download the first part
+            // Pass the CURRENT title from storage or manager
+            const currentTitle = storageService.getActiveDownload(downloadId)?.title || title || "Bilibili Video";
+            
             firstPartResult = await downloadService.downloadSingleBilibiliPart(
               firstPartUrl,
               1,
               videosNumber,
-              videoTitle || "Bilibili Video",
+              currentTitle,
               downloadId,
               registerCancel,
               collectionName
@@ -431,12 +419,13 @@ export const downloadVideo = async (
           // Set up background download for remaining parts
           // Note: We don't await this, it runs in background
           if (videosNumber > 1) {
+            const currentTitle = storageService.getActiveDownload(downloadId)?.title || title || "Bilibili Video";
             downloadService
               .downloadRemainingBilibiliParts(
                 baseUrl,
                 2,
                 videosNumber,
-                videoTitle || "Bilibili Video",
+                currentTitle,
                 collectionId,
                 downloadId // Pass downloadId to track progress
               )
@@ -454,7 +443,7 @@ export const downloadVideo = async (
             isMultiPart: true,
             totalParts: videosNumber,
             collectionId,
-            title: videoTitle
+            title: title || initialTitle
           };
         } else {
           // Regular single video download for Bilibili
@@ -507,7 +496,9 @@ export const downloadVideo = async (
       type = "bilibili";
     }
 
-    // Add to download manager
+    // Add to download manager immediately with initial title to show in queue
+    // We don't await the result here because we want to return response immediately
+    // and let the download happen in background
     downloadManager
       .addDownload(downloadTask, downloadId, initialTitle, resolvedUrl, type)
       .then((result: any) => {
@@ -517,12 +508,31 @@ export const downloadVideo = async (
         logger.error("Download failed:", error);
       });
 
-    // Return success immediately indicating the download is queued/started
+    // Send success response immediately
     sendData(res, {
       success: true,
       message: "Download queued",
       downloadId,
     });
+
+    // Process metadata update in background
+    (async () => {
+      let videoTitle = initialTitle;
+      
+      try {
+        // Fetch video info for title
+        logger.info("Fetching video info for title update...");
+        const info = await downloadService.getVideoInfo(resolvedUrl);
+        if (info && info.title) {
+          videoTitle = info.title;
+          logger.info("Fetched title:", videoTitle);
+          // Update the task title in manager (handles both queued and active)
+          downloadManager.updateTaskTitle(downloadId, videoTitle);
+        }
+      } catch (err) {
+        logger.warn("Failed to fetch video info for title:", err);
+      }
+    })();
   } catch (error: any) {
     logger.error("Error queuing download:", error);
     sendInternalError(res, "Failed to queue download");

@@ -157,3 +157,40 @@ export function getDownloadStatus(): DownloadStatus {
     return { activeDownloads: [], queuedDownloads: [] };
   }
 }
+
+export function getActiveDownload(id: string): DownloadInfo | undefined {
+  try {
+    const results = db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.id, id))
+      .all();
+      
+    const download = results[0];
+    
+    if (download && download.status === "active") {
+      return {
+        id: download.id,
+        title: download.title,
+        timestamp: download.timestamp || 0,
+        filename: download.filename || undefined,
+        totalSize: download.totalSize || undefined,
+        downloadedSize: download.downloadedSize || undefined,
+        progress:
+          download.progress !== null && download.progress !== undefined
+            ? download.progress
+            : undefined,
+        speed: download.speed || undefined,
+        sourceUrl: download.sourceUrl || undefined,
+        type: download.type || undefined,
+      };
+    }
+    return undefined;
+  } catch (error) {
+    logger.error(
+      "Error getting active download",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    return undefined;
+  }
+}

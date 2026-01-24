@@ -148,6 +148,29 @@ class DownloadManager {
   }
 
   /**
+   * Update the title of a download task (queued or active)
+   * @param id - ID of the download
+   * @param title - New title
+   */
+  updateTaskTitle(id: string, title: string): void {
+    // Check active tasks
+    const activeTask = this.activeTasks.get(id);
+    if (activeTask) {
+      console.log(`Updating active task title: ${sanitizeLogMessage(id)} -> ${sanitizeLogMessage(title)}`);
+      activeTask.title = title;
+      storageService.updateActiveDownloadTitle(id, title);
+    } else {
+      // Check queued tasks
+      const queuedTask = this.queue.find((t) => t.id === id);
+      if (queuedTask) {
+        console.log(`Updating queued task title: ${sanitizeLogMessage(id)} -> ${sanitizeLogMessage(title)}`);
+        queuedTask.title = title;
+        this.updateQueuedDownloads();
+      }
+    }
+  }
+
+  /**
    * Cancel an active download
    * @param id - ID of the download to cancel
    */
