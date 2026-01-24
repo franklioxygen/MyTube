@@ -3,6 +3,30 @@
 
 
 
+## v1.7.80 (2026-01-23)
+
+### Feat
+
+- feat: Update version to 1.0.2 and add alarm permission (b55a007)
+- feat: Add language key to storage settings (bec7337)
+- feat: Add getDomainFromUrl helper function (7fce91f)
+
+### Fix
+
+- fix: Remove unnecessary userRole check in MobileMenu (8329beb)
+
+### Refactor
+
+- refactor: Improve title fetching logic and storage functionality (52a8f2c)
+
+### Build
+
+- build(deps): bump lodash from 4.17.21 to 4.17.23 (7db73c9)
+
+### Test
+
+- test: Add tests for search optimization logic (d73a4b9)
+
 ## v1.7.79 (2026-01-22)
 
 ### Refactor
