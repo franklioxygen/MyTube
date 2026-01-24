@@ -3,7 +3,7 @@
   "name": "MyTube Downloader",
   "version": "1.0.1",
   "description": "One-click download videos from yt-dlp supported sites to MyTube",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

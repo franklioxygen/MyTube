@@ -129,6 +129,25 @@ async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ m
   const normalizedUrl = finalServerUrl.replace(/\/+$/, '');
   const downloadUrl = `${normalizedUrl}/api/download`;
 
+  // Check if video is already downloaded
+  try {
+    const checkUrl = `${normalizedUrl}/api/check-video-download?url=${encodeURIComponent(videoUrl)}`;
+    const checkResponse = await fetch(checkUrl, {
+      method: 'GET',
+    });
+    
+    if (checkResponse.ok) {
+      const data = await checkResponse.json();
+      // If video exists, return success immediately without downloading again
+      if (data.found && data.status === 'exists') {
+         return { message: 'Video already downloaded', downloadId: data.videoId };
+      }
+    }
+  } catch (error) {
+    // Ignore check errors and proceed to download attempt
+    console.warn('Failed to check existing download:', error);
+  }
+
   try {
     const response = await fetch(downloadUrl, {
       method: 'POST',
@@ -146,6 +165,8 @@ async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ m
     }
 
     const data = await response.json();
+    // Refresh status immediately
+    fetchDownloadStatus(); 
     return { message: data.message || 'Download queued successfully', downloadId: data.downloadId };
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -154,3 +175,74 @@ async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ m
     throw error;
   }
 }
+
+// --- Badge Update Logic ---
+
+const POLL_INTERVAL = 2000; // 2 seconds
+let pollIntervalId: number | undefined;
+
+/**
+ * Fetch download status and update badge
+ */
+async function fetchDownloadStatus(): Promise<void> {
+  const result = await chrome.storage.sync.get(['serverUrl']);
+  const serverUrl = result.serverUrl;
+
+  if (!serverUrl) {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const normalizedUrl = serverUrl.replace(/\/+$/, '');
+  const statusUrl = `${normalizedUrl}/api/download-status`;
+
+  try {
+    const response = await fetch(statusUrl, {
+      method: 'GET',
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const activeCount = (data.activeDownloads?.length || 0) + (data.queuedDownloads?.length || 0);
+      
+      if (activeCount > 0) {
+        chrome.action.setBadgeText({ text: String(activeCount) });
+        chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }); // Green color
+      } else {
+        chrome.action.setBadgeText({ text: '' });
+      }
+    } else {
+       // Failed to fetch status (maybe auth error or server down) - clear badge
+       chrome.action.setBadgeText({ text: '' });
+    }
+  } catch (error) {
+    // Connection error - clear badge
+    chrome.action.setBadgeText({ text: '' });
+  }
+}
+
+// Start polling alarm
+chrome.alarms.create('pollDownloadStatus', {
+  periodInMinutes: 0.05 // every 3 seconds (approx) - Chrome limits alarms to 1 min usually but dev builds allow frequent
+});
+
+// Fallback to setInterval if alarms are too slow (sometimes alarms are throttled)
+// But strictly speaking, background service workers might sleep.
+// For MV3, alarms are preferred.
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'pollDownloadStatus') {
+    fetchDownloadStatus();
+  }
+});
+
+// Also poll on startup
+chrome.runtime.onStartup.addListener(() => {
+  fetchDownloadStatus();
+});
+
+// Poll when messages are received (interaction happened)
+chrome.runtime.onMessage.addListener(() => {
+    fetchDownloadStatus();
+    // Return false, we just want to trigger a check
+    return false;
+});
