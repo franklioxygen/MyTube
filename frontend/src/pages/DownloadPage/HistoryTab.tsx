@@ -3,11 +3,14 @@ import {
     Box,
     Button,
     List,
+    MenuItem,
     Pagination,
+    Select,
     Typography,
-    useMediaQuery, useTheme
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { DownloadHistoryItem, HistoryItem } from './HistoryItem';
 
@@ -38,11 +41,36 @@ export function HistoryTab({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const [page, setPage] = useState(1);
+    const [filterType, setFilterType] = useState('all');
     const { data: settings } = useSettings();
+
+    const filteredHistory = useMemo(() => {
+        return history.filter((item) => {
+            if (filterType === 'all') return true;
+            return item.status === filterType;
+        });
+    }, [history, filterType]);
+
+    // Reset page when filter changes
+    React.useEffect(() => {
+        setPage(1);
+    }, [filterType]);
 
     return (
         <>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, flexWrap: 'wrap' }}>
+                <Select
+                    size="small"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    sx={{ minWidth: 150 }}
+                >
+                    <MenuItem value="all">{t('filterAll') || 'All'}</MenuItem>
+                    <MenuItem value="success">{t('success') || 'Success'}</MenuItem>
+                    <MenuItem value="failed">{t('failed') || 'Failed'}</MenuItem>
+                    <MenuItem value="skipped">{t('skipped') || 'Skipped'}</MenuItem>
+                    <MenuItem value="deleted">{t('previouslyDeleted') || 'Previously Deleted'}</MenuItem>
+                </Select>
                 <Button
                     variant="outlined"
                     startIcon={<ClearAllIcon />}
@@ -52,12 +80,12 @@ export function HistoryTab({
                     {t('clearHistory') || 'Clear History'}
                 </Button>
             </Box>
-            {history.length === 0 ? (
+            {filteredHistory.length === 0 ? (
                 <Typography color="textSecondary">{t('noDownloadHistory') || 'No download history'}</Typography>
             ) : (
                 <>
                     <List>
-                        {history
+                        {filteredHistory
                             .slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
                             .map((item) => (
                                 <HistoryItem
@@ -72,10 +100,10 @@ export function HistoryTab({
                                 />
                             ))}
                     </List>
-                    {history.length > ITEMS_PER_PAGE && (
+                    {filteredHistory.length > ITEMS_PER_PAGE && (
                         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
                             <Pagination
-                                count={Math.ceil(history.length / ITEMS_PER_PAGE)}
+                                count={Math.ceil(filteredHistory.length / ITEMS_PER_PAGE)}
                                 page={page}
                                 onChange={(_: React.ChangeEvent<unknown>, newPage: number) => setPage(newPage)}
                                 color="primary"

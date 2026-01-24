@@ -798,6 +798,9 @@ export const en = {
   cleanupBackupDatabasesWarning:
     "Warning: This will permanently delete all backup database files (mytube-backup-*.db.backup) that were created during previous imports. This action cannot be undone. Are you sure you want to continue?",
   backupDatabasesCleanedUp: "Backup databases cleaned up successfully",
+
+  // History Filter
+  filterAll: "All",
   backupDatabasesCleanupFailed: "Failed to clean up backup databases",
   restoreFromLastBackup: "Restore from Last Backup",
   restoreFromLastBackupWarning:

@@ -723,4 +723,6 @@ export const ar = {
   collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
   collectionNameReserved: "اسم المجموعة محجوز",
   updateCollectionFailed: "فشل تحديث المجموعة",
+  // History Filter
+  filterAll: "الكل",
 };

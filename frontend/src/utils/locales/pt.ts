@@ -723,4 +723,6 @@ export const pt = {
   collectionNameInvalidChars: "O nome da coleção contém caracteres inválidos",
   collectionNameReserved: "O nome da coleção é reservado",
   updateCollectionFailed: "Falha ao atualizar coleção",
+  // History Filter
+  filterAll: "Todos",
 };

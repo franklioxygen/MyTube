@@ -723,4 +723,6 @@ export const de = {
   collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
   collectionNameReserved: "Name der Sammlung ist reserviert",
   updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
+  // History Filter
+  filterAll: "Alle",
 };

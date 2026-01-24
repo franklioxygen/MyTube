@@ -788,4 +788,6 @@ export const zh = {
   collectionNameInvalidChars: "合集名称包含无效字符",
   collectionNameReserved: "合集名称为保留名称",
   updateCollectionFailed: "更新合集失败",
+  // History Filter
+  filterAll: "全部",
 };

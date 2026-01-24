@@ -723,4 +723,6 @@ export const ru = {
   collectionNameInvalidChars: "Название коллекции содержит недопустимые символы",
   collectionNameReserved: "Название коллекции зарезервировано",
   updateCollectionFailed: "Не удалось обновить коллекцию",
+  // History Filter
+  filterAll: "Все",
 };

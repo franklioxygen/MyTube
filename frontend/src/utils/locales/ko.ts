@@ -723,4 +723,6 @@ export const ko = {
   collectionNameInvalidChars: "컬렉션 이름에 유효하지 않은 문자가 포함되어 있습니다",
   collectionNameReserved: "컬렉션 이름은 예약어입니다",
   updateCollectionFailed: "컬렉션 업데이트 실패",
+  // History Filter
+  filterAll: "전체",
 };

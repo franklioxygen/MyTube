@@ -725,4 +725,6 @@ export const ja = {
   collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
   collectionNameReserved: "コレクション名は予約されています",
   updateCollectionFailed: "コレクションの更新に失敗しました",
+  // History Filter
+  filterAll: "すべて",
 };

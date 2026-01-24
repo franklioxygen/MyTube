@@ -725,4 +725,6 @@ export const fr = {
   collectionNameInvalidChars: "Le nom de la collection contient des caractères invalides",
   collectionNameReserved: "Le nom de la collection est réservé",
   updateCollectionFailed: "Échec de la mise à jour de la collection",
+  // History Filter
+  filterAll: "Tous",
 };
