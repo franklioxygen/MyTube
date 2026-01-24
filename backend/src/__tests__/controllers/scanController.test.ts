@@ -73,12 +73,14 @@ describe('ScanController', () => {
       (fs.stat as any).mockResolvedValue({
         isDirectory: () => false,
         birthtime: new Date(),
+        size: 1024,
       });
       // Also mock readdirSync for getFilesRecursively if it's still used
       (fs.readdirSync as any).mockReturnValue(['video.mp4']);
       (fs.statSync as any).mockReturnValue({
         isDirectory: () => false,
         birthtime: new Date(),
+        size: 1024,
       });
       
       // Mock execFileSafe from security utils
