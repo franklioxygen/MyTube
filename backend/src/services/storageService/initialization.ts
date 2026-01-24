@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import fs from "fs-extra";
+import path from "path";
 import {
   AVATARS_DIR,
   DATA_DIR,
@@ -343,15 +344,47 @@ export function initializeStorage(): void {
     const allVideos = db.select().from(videos).all();
     let updatedCount = 0;
     for (const video of allVideos) {
-      if (!video.fileSize && video.videoFilename) {
-        const videoPath = findVideoFile(video.videoFilename);
+      if (!video.fileSize) {
+        let videoPath: string | null = null;
+        
+        // Check if video is in a mount directory
+        if (video.videoPath?.startsWith("mount:")) {
+          // Extract the actual file path (remove "mount:" prefix)
+          const rawFilePath = video.videoPath.substring(6); // Remove "mount:" prefix
+          
+          // Validate path is absolute and doesn't contain traversal
+          if (path.isAbsolute(rawFilePath) && !rawFilePath.includes("..") && !rawFilePath.includes("\0")) {
+            const resolvedPath = path.resolve(rawFilePath);
+            if (fs.existsSync(resolvedPath)) {
+              videoPath = resolvedPath;
+            }
+          }
+        } else if (video.videoFilename) {
+          // For regular videos, use findVideoFile
+          videoPath = findVideoFile(video.videoFilename);
+        } else if (video.videoPath?.startsWith("/videos/")) {
+          // Fallback: try to resolve from videoPath
+          const relativePath = video.videoPath.replace("/videos/", "");
+          const fullPath = path.join(VIDEOS_DIR, relativePath);
+          if (fs.existsSync(fullPath)) {
+            videoPath = fullPath;
+          }
+        }
+        
         if (videoPath && fs.existsSync(videoPath)) {
-          const stats = fs.statSync(videoPath);
-          db.update(videos)
-            .set({ fileSize: stats.size.toString() })
-            .where(eq(videos.id, video.id))
-            .run();
-          updatedCount++;
+          try {
+            const stats = fs.statSync(videoPath);
+            // Skip 0-byte files
+            if (stats.size > 0) {
+              db.update(videos)
+                .set({ fileSize: stats.size.toString() })
+                .where(eq(videos.id, video.id))
+                .run();
+              updatedCount++;
+            }
+          } catch (error) {
+            logger.warn(`Failed to get file size for video ${video.id}: ${error}`);
+          }
         }
       }
     }

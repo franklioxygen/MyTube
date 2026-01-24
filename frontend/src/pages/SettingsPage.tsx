@@ -101,6 +101,7 @@ const SettingsPage: React.FC = () => {
         saveAuthorFilesToCollection: false,
         hooks: {},
         playSoundOnTaskComplete: '',
+        mountDirectories: '',
         defaultSort: 'dateDesc'
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
