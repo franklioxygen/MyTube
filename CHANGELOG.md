@@ -3,6 +3,24 @@
 
 
 
+## v1.7.81 (2026-01-24)
+
+### Feat
+
+- feat: Add bulk selection and actions in VideosTable (a691f6d)
+
+### Refactor
+
+- refactor: Update download task title handling and storage (c9190d6)
+
+### Style
+
+- style: Update HistoryTab UI elements (dc5caf7)
+
+### Chore
+
+- chore: Update extension version to v1.0.2 (071c6bf)
+
 ## v1.7.80 (2026-01-23)
 
 ### Feat
