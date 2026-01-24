@@ -10,7 +10,7 @@
 ## 安装
 
 ### 快速安装 (推荐)
-1. 下载 [mytube-extension-v1.0.1.zip](../../chrome-extension/mytube-extension-v1.0.1.zip) 文件。
+1. 下载 [mytube-extension-v1.0.2.zip](../../chrome-extension/mytube-extension-v1.0.2.zip) 文件。
 2. 将文件解压到一个文件夹。
 3. 打开 Chrome 浏览器并访问 `chrome://extensions/`。
 4. 启用“开发者模式” (Developer mode)（右上角开关）。

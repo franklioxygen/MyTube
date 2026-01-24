@@ -10,7 +10,7 @@ The project includes a Chrome Extension for easier downloading.
 ## Installation
 
 ### Quick Install (Recommended)
-1. Download the [mytube-extension-v1.0.1.zip](../../chrome-extension/mytube-extension-v1.0.1.zip) file.
+1. Download the [mytube-extension-v1.0.2.zip](../../chrome-extension/mytube-extension-v1.0.2.zip) file.
 2. Unzip the file to a folder.
 3. Open Chrome and navigate to `chrome://extensions/`.
 4. Enable "Developer mode" (toggle in the top right).

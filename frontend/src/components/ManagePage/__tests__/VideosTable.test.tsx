@@ -13,6 +13,21 @@ vi.mock('../../../contexts/AuthContext', () => ({
     useAuth: () => ({ userRole: 'admin' }),
 }));
 
+vi.mock('../../../contexts/VideoContext', () => ({
+    useVideo: () => ({
+        deleteVideo: vi.fn(),
+    }),
+}));
+
+vi.mock('../../../contexts/CollectionContext', () => ({
+    useCollection: () => ({
+        collections: [],
+        addToCollection: vi.fn(),
+        createCollection: vi.fn(),
+        fetchCollections: vi.fn(),
+    }),
+}));
+
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({
     useCloudStorageUrl: () => 'mock-url',
 }));
