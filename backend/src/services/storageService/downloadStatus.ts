@@ -1,5 +1,4 @@
 import { and, eq, lt } from "drizzle-orm";
-import { DatabaseError } from "../../errors/DownloadErrors";
 import { db } from "../../db";
 import { downloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
@@ -68,6 +67,10 @@ export function removeActiveDownload(id: string): void {
     logger.error("Error removing active download", error instanceof Error ? error : new Error(String(error)));
     // Don't throw - download tracking is non-critical
   }
+}
+
+export function updateActiveDownloadTitle(id: string, title: string): void {
+  updateActiveDownload(id, { title });
 }
 
 export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {

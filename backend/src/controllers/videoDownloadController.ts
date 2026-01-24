@@ -5,15 +5,15 @@ import downloadManager from "../services/downloadManager";
 import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
-  extractBilibiliVideoId,
-  isBilibiliUrl,
-  isValidUrl,
-  processVideoUrl,
-  resolveShortUrl,
-  trimBilibiliUrl,
+    extractBilibiliVideoId,
+    isBilibiliUrl,
+    isValidUrl,
+    processVideoUrl,
+    resolveShortUrl,
+    trimBilibiliUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { getStringParam, getNumberParam } from "../utils/paramUtils";
+import { getNumberParam, getStringParam } from "../utils/paramUtils";
 import { sendBadRequest, sendData, sendInternalError } from "../utils/response";
 import { validateUrl } from "../utils/security";
 
@@ -212,25 +212,20 @@ export const downloadVideo = async (
     }
 
     // Determine initial title for the download task
-    let initialTitle = "Video";
-    try {
-      // Try to fetch video info for all URLs (using already processed URL)
-      logger.info("Fetching video info for title...");
-      const info = await downloadService.getVideoInfo(resolvedUrl);
-      if (info && info.title) {
-        initialTitle = info.title;
-        logger.info("Fetched initial title:", initialTitle);
-      }
-    } catch (err) {
-      logger.warn("Failed to fetch video info for title, using default:", err);
-      if (
+    let initialTitle = "Pending...";
+    // We purposefully delay title fetching to the background task to make the API response instant
+    if (
         resolvedUrl.includes("youtube.com") ||
         resolvedUrl.includes("youtu.be")
-      ) {
+    ) {
         initialTitle = "YouTube Video";
-      } else if (isBilibiliUrl(resolvedUrl)) {
+    } else if (isBilibiliUrl(resolvedUrl)) {
         initialTitle = "Bilibili Video";
-      }
+    } else if (
+        resolvedUrl.includes("missav") ||
+        resolvedUrl.includes("123av")
+    ) {
+        initialTitle = "MissAV Video";
     }
 
     // Generate a unique ID for this download task
@@ -242,6 +237,23 @@ export const downloadVideo = async (
     ) => {
       // Use resolved URL for download (already processed)
       let downloadUrl = resolvedUrl;
+      let videoTitle = initialTitle;
+
+      // Fetch video info for title update if we can
+      try {
+        // Try to fetch video info for all URLs
+        logger.info("Fetching video info for title...");
+        const info = await downloadService.getVideoInfo(downloadUrl);
+        if (info && info.title) {
+          videoTitle = info.title;
+          logger.info("Fetched title in background:", videoTitle);
+          
+          // Update the title in storage immediately
+          storageService.updateActiveDownloadTitle(downloadId, videoTitle);
+        }
+      } catch (err) {
+        logger.warn("Failed to fetch video info for title in background:", err);
+      }
 
       // Trim Bilibili URL if needed
       if (isBilibiliUrl(downloadUrl)) {
@@ -251,6 +263,9 @@ export const downloadVideo = async (
         // If downloadCollection is true, handle collection/series download
         if (downloadCollection && collectionInfo) {
           logger.info("Downloading Bilibili collection/series");
+          
+          // Use the fetched title if available, otherwise fallback to collection name
+          const collectionTitle = videoTitle !== initialTitle ? videoTitle : (collectionName || collectionInfo.title || "Bilibili Collection");
 
           const result = await downloadService.downloadBilibiliCollection(
             collectionInfo,
@@ -264,6 +279,7 @@ export const downloadVideo = async (
               collectionId: result.collectionId,
               videosDownloaded: result.videosDownloaded,
               isCollection: true,
+              title: collectionTitle
             };
           } else {
             throw new Error(
@@ -289,11 +305,16 @@ export const downloadVideo = async (
           }
 
           const { videosNumber, title } = partsInfo;
+          // Use the more accurate title from parts info
+          if (title) {
+             videoTitle = title;
+             storageService.updateActiveDownloadTitle(downloadId, videoTitle);
+          }
 
           // Update title in storage
           storageService.addActiveDownload(
             downloadId,
-            title || "Bilibili Video"
+            videoTitle || "Bilibili Video"
           );
 
           // Start downloading the first part
@@ -389,7 +410,7 @@ export const downloadVideo = async (
               firstPartUrl,
               1,
               videosNumber,
-              title || "Bilibili Video",
+              videoTitle || "Bilibili Video",
               downloadId,
               registerCancel,
               collectionName
@@ -415,7 +436,7 @@ export const downloadVideo = async (
                 baseUrl,
                 2,
                 videosNumber,
-                title || "Bilibili Video",
+                videoTitle || "Bilibili Video",
                 collectionId,
                 downloadId // Pass downloadId to track progress
               )
@@ -433,6 +454,7 @@ export const downloadVideo = async (
             isMultiPart: true,
             totalParts: videosNumber,
             collectionId,
+            title: videoTitle
           };
         } else {
           // Regular single video download for Bilibili

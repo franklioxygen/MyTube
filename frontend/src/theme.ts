@@ -15,7 +15,7 @@ const getTheme = (mode: 'light' | 'dark') => createTheme({
     },
     text: {
       primary: mode === 'dark' ? '#ffffff' : '#212121', // Dark grey for light mode
-      secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)',
+      secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(18, 18, 18, 0.7)',
     },
   },
   typography: {
@@ -64,7 +64,7 @@ const getTheme = (mode: 'light' | 'dark') => createTheme({
           backdropFilter: 'blur(10px)',
           borderBottom: mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.05)',
           backgroundImage: 'none',
-          color: mode === 'dark' ? '#fff' : '#000',
+          color: mode === 'dark' ? '#fff' : '#121212',
         },
       },
     },

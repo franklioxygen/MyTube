@@ -13,7 +13,8 @@ export {
     getDownloadStatus,
     removeActiveDownload,
     setQueuedDownloads,
-    updateActiveDownload
+    updateActiveDownload,
+    updateActiveDownloadTitle
 } from "./downloadStatus";
 
 // Download History
