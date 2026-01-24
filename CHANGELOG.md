@@ -3,6 +3,21 @@
 
 
 
+## v1.7.82 (2026-01-24)
+
+### Feat
+
+- feat: Add availableTags filtering to VideoCardThumbnail (0ccd630)
+- feat: Add updates to video and videos list queries (2e83bf4)
+
+### Refactor
+
+- refactor: Improve file scanning functions and error handling (fc276fe)
+
+### Style
+
+- style: Update test mocks with additional properties (2622a65)
+
 ## v1.7.81 (2026-01-24)
 
 ### Feat
