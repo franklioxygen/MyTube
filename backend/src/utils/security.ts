@@ -24,13 +24,8 @@ export function validatePathWithinDirectory(
     return false;
   }
 
-  // Explicit validation: check for path traversal sequences before any path operations
-  // This prevents attacks like ../../../etc/passwd
-  if (filePath.includes("..") || allowedDir.includes("..")) {
-    return false;
-  }
-
   // Validate path components by splitting and checking each segment
+  // Only check if path components themselves are "..", not if filenames contain ".."
   const filePathParts = filePath
     .split(path.sep)
     .filter((part) => part !== "" && part !== ".");
@@ -38,13 +33,15 @@ export function validatePathWithinDirectory(
     .split(path.sep)
     .filter((part) => part !== "" && part !== ".");
 
-  // Check each path component for dangerous values and filter them out
+  // Check each path component for dangerous values
+  // Only reject if a path component IS "..", not if it contains ".." as part of a filename
   const sanitizedFilePathParts: string[] = [];
   for (const part of filePathParts) {
     if (part === "..") {
       return false; // Path traversal detected
     }
-    // Only include safe path components
+    // Filenames can contain ".." as part of their name (e.g., "file..mp4"), which is valid
+    // Only reject if the entire component is ".."
     sanitizedFilePathParts.push(part);
   }
 
@@ -65,8 +62,12 @@ export function validatePathWithinDirectory(
     ? path.sep + path.join(...sanitizedAllowedDirParts)
     : path.join(...sanitizedAllowedDirParts);
 
-  // Final validation: ensure reconstructed paths don't contain traversal sequences
-  if (sanitizedFilePath.includes("..") || sanitizedAllowedDir.includes("..")) {
+  // Final validation: check if any path component in the reconstructed path is ".."
+  // Split again to check components after reconstruction
+  const finalFilePathParts = sanitizedFilePath.split(path.sep).filter((part) => part !== "");
+  const finalAllowedDirParts = sanitizedAllowedDir.split(path.sep).filter((part) => part !== "");
+  
+  if (finalFilePathParts.some(part => part === "..") || finalAllowedDirParts.some(part => part === "..")) {
     return false;
   }
 
@@ -96,15 +97,8 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     throw new Error(`Invalid file path: ${filePath}`);
   }
 
-  // Explicit validation: check for path traversal sequences before any path operations
-  // This prevents attacks like ../../../etc/passwd
-  if (filePath.includes("..") || allowedDir.includes("..")) {
-    throw new Error(
-      `Path traversal detected: ${filePath} contains invalid path components`
-    );
-  }
-
   // Validate path components by splitting and checking each segment
+  // Only check if path components themselves are "..", not if filenames contain ".."
   const filePathParts = filePath
     .split(path.sep)
     .filter((part) => part !== "" && part !== ".");
@@ -112,7 +106,8 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     .split(path.sep)
     .filter((part) => part !== "" && part !== ".");
 
-  // Check each path component for dangerous values and filter them out
+  // Check each path component for dangerous values
+  // Only reject if a path component IS "..", not if it contains ".." as part of a filename
   const sanitizedFilePathParts: string[] = [];
   for (const part of filePathParts) {
     if (part === "..") {
@@ -120,7 +115,8 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
         `Path traversal detected: ${filePath} contains invalid path components`
       );
     }
-    // Only include safe path components
+    // Filenames can contain ".." as part of their name (e.g., "file..mp4"), which is valid
+    // Only reject if the entire component is ".."
     sanitizedFilePathParts.push(part);
   }
 
@@ -141,8 +137,12 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     ? path.sep + path.join(...sanitizedAllowedDirParts)
     : path.join(...sanitizedAllowedDirParts);
 
-  // Final validation: ensure reconstructed paths don't contain traversal sequences
-  if (sanitizedFilePath.includes("..") || sanitizedAllowedDir.includes("..")) {
+  // Final validation: check if any path component in the reconstructed path is ".."
+  // Split again to check components after reconstruction
+  const finalFilePathParts = sanitizedFilePath.split(path.sep).filter((part) => part !== "");
+  const finalAllowedDirParts = sanitizedAllowedDir.split(path.sep).filter((part) => part !== "");
+  
+  if (finalFilePathParts.some(part => part === "..") || finalAllowedDirParts.some(part => part === "..")) {
     throw new Error(
       `Path traversal detected: ${filePath} contains invalid path components`
     );
