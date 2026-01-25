@@ -316,8 +316,22 @@ export const renameTag = async (
     return;
   }
 
+  // Validate that tags are strings and not empty after trimming
+  const trimmedOldTag = typeof oldTag === "string" ? oldTag.trim() : "";
+  const trimmedNewTag = typeof newTag === "string" ? newTag.trim() : "";
+
+  if (!trimmedOldTag || !trimmedNewTag) {
+    res.status(400).json({ error: "oldTag and newTag cannot be empty" });
+    return;
+  }
+
+  if (trimmedOldTag === trimmedNewTag) {
+    res.status(400).json({ error: "oldTag and newTag cannot be the same" });
+    return;
+  }
+
   const { renameTag } = await import("../services/tagService");
-  const result = renameTag(oldTag, newTag);
+  const result = renameTag(trimmedOldTag, trimmedNewTag);
   
   res.json({ success: true, result });
 };
