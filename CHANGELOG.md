@@ -1,7 +1,23 @@
 # Change Log
 
 
+### v1.7.84 (2026-01-25)
 
+### Refactor
+
+- refactor: Improve path traversal prevention logic (ce43a03)
+
+
+## v1.7.83 (2026-01-25)
+
+### Feat
+
+- feat: Add functionality to delete tags from videos (fe6a3e4)
+- feat: Add functionality to rename a tag (13d8429)
+
+### Fix
+
+- fix: Validate and rename tags in settingsController (05d87cb)
 
 ## v1.7.82 (2026-01-24)
 
