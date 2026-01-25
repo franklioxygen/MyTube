@@ -91,6 +91,12 @@ export const ja = {
   noTagsAvailable: "利用可能なタグはありません",
   addTag: "タグを追加",
   failedToSaveTags: "タグの保存に失敗しました",
+  renameTag: "タグ名を変更",
+  confirmRenameTag: "変更",
+  tagRenamedSuccess: "タグ名が正常に変更されました",
+  tagRenameFailed: "タグ名の変更に失敗しました",
+  renameTagDescription: "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
+  enterNewTagName: "タグ '{tag}' の新しい名前を入力してください",
   // Database
   database: "データベース",
   migrateDataDescription: "レガシーJSONファイルから新しいSQLiteデータベースにデータを移行します。この操作は複数回実行しても安全です（重複はスキップされます）。",

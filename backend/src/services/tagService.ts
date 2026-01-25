@@ -91,3 +91,56 @@ export function renameTag(oldTag: string, newTag: string): RenameTagResult {
     );
   }
 }
+
+/**
+ * Remove specific tags from all videos in the database
+ * @param tagsToDelete Array of tag names to remove
+ * @returns Number of videos updated
+ */
+export function deleteTagsFromVideos(tagsToDelete: string[]): number {
+  if (!tagsToDelete || tagsToDelete.length === 0) return 0;
+
+  try {
+    let updatedVideosCount = 0;
+    const allVideos = db.select().from(videos).all();
+
+    db.transaction(() => {
+      for (const video of allVideos) {
+        if (!video.tags) continue;
+
+        let videoTags: string[] = [];
+        try {
+          videoTags = JSON.parse(video.tags);
+        } catch (e) {
+          continue;
+        }
+
+        // Check if video has any of the tags to delete
+        const hasTagToDelete = videoTags.some(tag => tagsToDelete.includes(tag));
+        
+        if (hasTagToDelete) {
+          // Filter out deleted tags
+          const updatedTags = videoTags.filter(tag => !tagsToDelete.includes(tag));
+          
+          db.update(videos)
+            .set({ tags: JSON.stringify(updatedTags) })
+            .where(eq(videos.id, video.id))
+            .run();
+
+          updatedVideosCount++;
+        }
+      }
+    });
+
+    logger.info(`Deleted tags [${tagsToDelete.join(", ")}] from ${updatedVideosCount} videos.`);
+    return updatedVideosCount;
+  } catch (error) {
+    logger.error(
+      `Error deleting tags [${tagsToDelete.join(", ")}] from videos`,
+      error instanceof Error ? error : new Error(String(error))
+    );
+    // We don't throw here to avoid failing the entire settings update if this cleanup fails,
+    // but we log the error.
+    return 0;
+  }
+}

@@ -91,6 +91,12 @@ export const ko = {
   noTagsAvailable: "사용 가능한 태그 없음",
   addTag: "태그 추가",
   failedToSaveTags: "태그 저장 실패",
+  renameTag: "태그 이름 변경",
+  confirmRenameTag: "이름 변경",
+  tagRenamedSuccess: "태그 이름이 성공적으로 변경되었습니다",
+  tagRenameFailed: "태그 이름 변경 실패",
+  renameTagDescription: "태그 이름을 변경하면 현재 이 태그를 사용하는 모든 동영상이 확인되고 업데이트됩니다.",
+  enterNewTagName: "'{tag}' 태그의 새 이름을 입력하세요",
   // Database
   database: "데이터베이스",
   migrateDataDescription: "레거시 JSON 파일에서 새 SQLite 데이터베이스로 데이터를 마이그레이션합니다. 이 작업은 여러 번 실행해도 안전합니다(중복은 건너뜀).",

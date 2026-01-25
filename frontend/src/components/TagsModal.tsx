@@ -117,7 +117,12 @@ const TagsModal: React.FC<TagsModalProps> = ({
     };
 
     // Combine available tags with any newly added selected tags that aren't in availableTags yet
-    const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
+    // Prefer globalSettings from hook if available to ensure we have the latest data after settings updates
+    const effectiveAvailableTags = globalSettings?.tags && Array.isArray(globalSettings.tags)
+        ? globalSettings.tags
+        : (Array.isArray(availableTags) ? availableTags : []);
+
+    const safeAvailableTags = effectiveAvailableTags;
     const displayTags = Array.from(new Set([...safeAvailableTags, ...selectedTags])).sort();
 
     return (

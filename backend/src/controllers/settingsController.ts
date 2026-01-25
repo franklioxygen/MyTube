@@ -150,6 +150,23 @@ export const updateSettings = async (
 
   storageService.saveSettings(finalSettings);
 
+  // Check for deleted tags and remove them from all videos
+  if (newSettings.tags && Array.isArray(newSettings.tags)) {
+    const oldTags = Array.isArray(existingSettings.tags) ? (existingSettings.tags as string[]) : [];
+    const newTags = newSettings.tags as string[];
+    
+    const deletedTags = oldTags.filter(tag => !newTags.includes(tag));
+    
+    if (deletedTags.length > 0) {
+      // Run asynchronously to not block the response
+      import("../services/tagService").then(({ deleteTagsFromVideos }) => {
+        deleteTagsFromVideos(deletedTags);
+      }).catch(err => {
+        logger.error("Error processing tag deletions:", err);
+      });
+    }
+  }
+
   // Check for moveSubtitlesToVideoFolder change
   if (
     newSettings.moveSubtitlesToVideoFolder !==

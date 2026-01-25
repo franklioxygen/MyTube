@@ -76,6 +76,7 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
         importDatabaseMutation: { isPending: false, mutate: vi.fn() },
         cleanupBackupDatabasesMutation: { isPending: false, mutate: vi.fn() },
         restoreFromLastBackupMutation: { isPending: false, mutate: vi.fn() },
+        renameTagMutation: { isPending: false, mutate: vi.fn() },
         lastBackupInfo: null,
         isSaving: false,
     })),

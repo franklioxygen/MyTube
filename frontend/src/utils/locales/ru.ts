@@ -91,6 +91,12 @@ export const ru = {
   noTagsAvailable: "Нет доступных тегов",
   addTag: "Добавить тег",
   failedToSaveTags: "Не удалось сохранить теги",
+  renameTag: "Переименовать тег",
+  confirmRenameTag: "Переименовать",
+  tagRenamedSuccess: "Тег успешно переименован",
+  tagRenameFailed: "Не удалось переименовать тег",
+  renameTagDescription: "Переименование тега приведет к проверке и обновлению всех видео, которые в настоящее время используют этот тег.",
+  enterNewTagName: "Введите новое имя для тега '{tag}'",
   // Database
   database: "База данных",
   migrateDataDescription: "Перенос данных из устаревших файлов JSON в новую базу данных SQLite. Это действие безопасно запускать несколько раз (дубликаты будут пропущены).",

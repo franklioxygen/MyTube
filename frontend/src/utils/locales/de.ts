@@ -91,6 +91,12 @@ export const de = {
   noTagsAvailable: "Keine Tags verfügbar",
   addTag: "Tag hinzufügen",
   failedToSaveTags: "Fehler beim Speichern der Tags",
+  renameTag: "Tag umbenennen",
+  confirmRenameTag: "Umbenennen",
+  tagRenamedSuccess: "Tag erfolgreich umbenannt",
+  tagRenameFailed: "Tag-Umbenennung fehlgeschlagen",
+  renameTagDescription: "Das Umbenennen eines Tags überprüft und aktualisiert alle Videos, die diesen Tag derzeit verwenden.",
+  enterNewTagName: "Neuen Namen für Tag '{tag}' eingeben",
   // Database
   database: "Datenbank",
   migrateDataDescription: "Daten von Legacy-JSON-Dateien zur neuen SQLite-Datenbank migrieren. Diese Aktion kann sicher mehrmals ausgeführt werden (Duplikate werden übersprungen).",

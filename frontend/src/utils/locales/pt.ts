@@ -91,6 +91,12 @@ export const pt = {
   noTagsAvailable: "Nenhuma tag disponível",
   addTag: "Adicionar Tag",
   failedToSaveTags: "Falha ao salvar tags",
+  renameTag: "Renomear Tag",
+  confirmRenameTag: "Renomear",
+  tagRenamedSuccess: "Tag renomeada com sucesso",
+  tagRenameFailed: "Falha ao renomear tag",
+  renameTagDescription: "Renomear uma tag verificará e atualizará todos os vídeos que usam atualmente esta tag.",
+  enterNewTagName: "Digite o novo nome para a tag '{tag}'",
   // Database
   database: "Banco de Dados",
   migrateDataDescription: "Migrar dados de arquivos JSON legados para o novo banco de dados SQLite. Esta ação é segura para executar várias vezes (duplicatas serão ignoradas).",

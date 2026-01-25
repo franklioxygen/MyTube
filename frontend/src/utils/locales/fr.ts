@@ -91,6 +91,12 @@ export const fr = {
   noTagsAvailable: "Aucun tag disponible",
   addTag: "Ajouter un tag",
   failedToSaveTags: "Échec de l'enregistrement des tags",
+  renameTag: "Renommer l'étiquette",
+  confirmRenameTag: "Renommer",
+  tagRenamedSuccess: "Étiquette renommée avec succès",
+  tagRenameFailed: "Échec du renommage de l'étiquette",
+  renameTagDescription: "Renommer une étiquette vérifiera et mettra à jour toutes les vidéos qui utilisent actuellement cette étiquette.",
+  enterNewTagName: "Entrez le nouveau nom pour l'étiquette '{tag}'",
   // Database
   database: "Base de données",
   migrateDataDescription: "Migrer les données des fichiers JSON hérités vers la nouvelle base de données SQLite. Cette action peut être exécutée plusieurs fois en toute sécurité (les doublons seront ignorés).",

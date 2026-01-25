@@ -98,6 +98,12 @@ export const zh = {
   noTagsAvailable: "暂无可用标签",
   addTag: "添加标签",
   failedToSaveTags: "保存标签失败",
+  renameTag: "重命名标签",
+  confirmRenameTag: "重命名",
+  tagRenamedSuccess: "标签重命名成功",
+  tagRenameFailed: "标签重命名失败",
+  renameTagDescription: "重命名标签将验证并更新当前使用此标签的所有视频。",
+  enterNewTagName: "请输入标签 '{tag}' 的新名称",
   // Database
   database: "数据库",
   migrateDataDescription:

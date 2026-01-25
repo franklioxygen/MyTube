@@ -91,6 +91,12 @@ export const ar = {
   noTagsAvailable: "لا توجد علامات متاحة",
   addTag: "إضافة علامة",
   failedToSaveTags: "فشل حفظ العلامات",
+  renameTag: "إعادة تسمية العلامة",
+  confirmRenameTag: "إعادة تسمية",
+  tagRenamedSuccess: "تمت إعادة تسمية العلامة بنجاح",
+  tagRenameFailed: "فشل إعادة تسمية العلامة",
+  renameTagDescription: "ستؤدي إعادة تسمية العلامة إلى التحقق من وتحديث جميع مقاطع الفيديو التي تستخدم هذه العلامة حاليًا.",
+  enterNewTagName: "أدخل اسمًا جديدًا للعلامة '{tag}'",
   // Database
   database: "قاعدة البيانات",
   migrateDataDescription: "نقل البيانات من ملفات JSON القديمة إلى قاعدة بيانات SQLite الجديدة. هذا الإجراء آمن للتشغيل عدة مرات (سيتم تخطي التكرارات).",

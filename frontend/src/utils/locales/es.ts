@@ -91,6 +91,12 @@ export const es = {
   noTagsAvailable: "No hay etiquetas disponibles",
   addTag: "Añadir Etiqueta",
   failedToSaveTags: "Error al guardar etiquetas",
+  renameTag: "Renombrar etiqueta",
+  confirmRenameTag: "Renombrar",
+  tagRenamedSuccess: "Etiqueta renombrada con éxito",
+  tagRenameFailed: "Error al renombrar etiqueta",
+  renameTagDescription: "Renombrar una etiqueta verificará y actualizará todos los videos que usan actualmente esta etiqueta.",
+  enterNewTagName: "Ingrese el nuevo nombre para la etiqueta '{tag}'",
   // Database
   database: "Base de Datos",
   migrateDataDescription: "Migrar datos de archivos JSON heredados a la nueva base de datos SQLite. Esta acción es segura para ejecutar varias veces (se omitirán duplicados).",
