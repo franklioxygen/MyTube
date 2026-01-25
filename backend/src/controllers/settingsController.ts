@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
@@ -283,3 +283,25 @@ export const getCloudflaredStatus = async (
   const status = cloudflaredService.getStatus();
   res.json(status);
 };
+
+/**
+ * Rename a tag
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const renameTag = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { oldTag, newTag } = req.body;
+  
+  if (!oldTag || !newTag) {
+    res.status(400).json({ error: "oldTag and newTag are required" });
+    return;
+  }
+
+  const { renameTag } = await import("../services/tagService");
+  const result = renameTag(oldTag, newTag);
+  
+  res.json({ success: true, result });
+};
+

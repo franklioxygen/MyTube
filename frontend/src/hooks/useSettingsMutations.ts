@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
-import { Settings } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { Settings } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 import { generateTimestamp } from '../utils/formatUtils';
-import { Language } from '../utils/translations';
 import { InfoModalState } from './useSettingsModals';
 
 const API_URL = getApiUrl();
@@ -331,6 +330,25 @@ export function useSettingsMutations({ setMessage, setInfoModal }: UseSettingsMu
         }
     });
 
+    // Rename tag mutation
+    const renameTagMutation = useMutation({
+        mutationFn: async ({ oldTag, newTag }: { oldTag: string; newTag: string }) => {
+            await axios.post(`${API_URL}/settings/tags/rename`, { oldTag, newTag });
+            return { oldTag, newTag };
+        },
+        onSuccess: (data) => {
+            setMessage({ text: t('tagRenamedSuccess') || 'Tag renamed successfully', type: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['settings'] });
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
+        },
+        onError: (error: any) => {
+            setMessage({ 
+                text: `${t('tagRenameFailed') || 'Failed to rename tag'}: ${error.response?.data?.details || error.message}`, 
+                type: 'error' 
+            });
+        }
+    });
+
     // Computed isSaving state
     const isSaving = saveMutation.isPending || 
         migrateMutation.isPending || 
@@ -352,6 +370,7 @@ export function useSettingsMutations({ setMessage, setInfoModal }: UseSettingsMu
         importDatabaseMutation,
         cleanupBackupDatabasesMutation,
         restoreFromLastBackupMutation,
+        renameTagMutation,
         lastBackupInfo,
         isSaving
     };

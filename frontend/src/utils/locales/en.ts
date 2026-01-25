@@ -99,6 +99,12 @@ export const en = {
   noTagsAvailable: "No tags available",
   addTag: "Add Tag",
   failedToSaveTags: "Failed to save tags",
+  renameTag: "Rename Tag",
+  confirmRenameTag: "Rename",
+  tagRenamedSuccess: "Tag renamed successfully",
+  tagRenameFailed: "Failed to rename tag",
+  renameTagDescription: "Renaming a tag will verify and update all videos that currently use this tag.",
+  enterNewTagName: "Enter new name for tag '{tag}'",
   // Database
   database: "Database",
   migrateDataDescription:

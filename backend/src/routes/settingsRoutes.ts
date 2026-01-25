@@ -2,47 +2,48 @@ import express from "express";
 import multer from "multer";
 import os from "os";
 import {
-  checkCookies,
-  deleteCookies,
-  uploadCookies,
+    checkCookies,
+    deleteCookies,
+    uploadCookies,
 } from "../controllers/cookieController";
 import {
-  cleanupBackupDatabases,
-  exportDatabase,
-  getLastBackupInfo,
-  importDatabase,
-  restoreFromLastBackup,
+    cleanupBackupDatabases,
+    exportDatabase,
+    getLastBackupInfo,
+    importDatabase,
+    restoreFromLastBackup,
 } from "../controllers/databaseBackupController";
 import {
-  deleteHook,
-  getHookStatus,
-  uploadHook,
+    deleteHook,
+    getHookStatus,
+    uploadHook,
 } from "../controllers/hookController";
 import {
-  getPasswordEnabled,
-  getResetPasswordCooldown,
-  logout,
-  resetPassword,
-  verifyPassword,
-  verifyAdminPassword,
-  verifyVisitorPassword,
-} from "../controllers/passwordController";
-import {
-  checkPasskeysExist,
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  getPasskeys,
-  removeAllPasskeys,
-  verifyAuthentication,
-  verifyRegistration,
+    checkPasskeysExist,
+    generateAuthenticationOptions,
+    generateRegistrationOptions,
+    getPasskeys,
+    removeAllPasskeys,
+    verifyAuthentication,
+    verifyRegistration,
 } from "../controllers/passkeyController";
 import {
-  deleteLegacyData,
-  formatFilenames,
-  getCloudflaredStatus,
-  getSettings,
-  migrateData,
-  updateSettings,
+    getPasswordEnabled,
+    getResetPasswordCooldown,
+    logout,
+    resetPassword,
+    verifyAdminPassword,
+    verifyPassword,
+    verifyVisitorPassword,
+} from "../controllers/passwordController";
+import {
+    deleteLegacyData,
+    formatFilenames,
+    getCloudflaredStatus,
+    getSettings,
+    migrateData,
+    renameTag,
+    updateSettings,
 } from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
 
@@ -55,6 +56,7 @@ router.post("/migrate", asyncHandler(migrateData));
 router.post("/delete-legacy", asyncHandler(deleteLegacyData));
 router.post("/format-filenames", asyncHandler(formatFilenames));
 router.get("/cloudflared/status", asyncHandler(getCloudflaredStatus));
+router.post("/tags/rename", asyncHandler(renameTag));
 
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));

@@ -195,6 +195,7 @@ const SettingsPage: React.FC = () => {
         importDatabaseMutation,
         cleanupBackupDatabasesMutation,
         restoreFromLastBackupMutation,
+        renameTagMutation,
         lastBackupInfo,
         isSaving
     } = mutations;
@@ -266,6 +267,11 @@ const SettingsPage: React.FC = () => {
     const handleTagsChange = (newTags: string[]) => {
         setSettings(prev => ({ ...prev, tags: newTags }));
         triggerGlow();
+    };
+
+    const handleRenameTag = (oldTag: string, newTag: string) => {
+        if (!oldTag || !newTag || oldTag === newTag) return;
+        renameTagMutation.mutate({ oldTag, newTag });
     };
 
     const handleExportDatabase = () => {
@@ -424,6 +430,8 @@ const SettingsPage: React.FC = () => {
             <TagsSettings
                 tags={Array.isArray(settings.tags) ? settings.tags : []}
                 onTagsChange={handleTagsChange}
+                onRenameTag={handleRenameTag}
+                isRenaming={renameTagMutation.isPending}
             />
             {renderMountDirectories()}
             {renderTmdbApiKey()}
