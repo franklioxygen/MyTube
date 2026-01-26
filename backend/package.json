@@ -27,7 +27,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.45.1",
-    "express": "^4.22.0",
+    "express": "^4.22.1",
     "express-rate-limit": "^8.2.1",
     "fs-extra": "^11.3.3",
     "jsonwebtoken": "^9.0.3",
