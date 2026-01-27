@@ -1,9 +1,8 @@
-/* eslint-env node */
 import react from "@vitejs/plugin-react";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { defineConfig, loadEnv } from "vite";
-import packageJson from "./package.json";
+import packageJson from "./package.json" with { type: "json" };
 
 // Get the directory of the current file (frontend directory)
 const __filename = fileURLToPath(import.meta.url);
@@ -101,7 +100,7 @@ export default defineConfig(({ mode }) => {
         ? { "import.meta.env.VITE_API_URL": JSON.stringify(env.VITE_API_URL) }
         : {}),
       "import.meta.env.VITE_BUILD_DATE": JSON.stringify(
-        new Date().toISOString()
+        new Date().toISOString(),
       ),
     },
     test: {

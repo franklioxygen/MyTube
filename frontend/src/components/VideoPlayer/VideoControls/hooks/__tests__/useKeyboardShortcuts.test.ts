@@ -1,4 +1,3 @@
-/* eslint-env browser */
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
