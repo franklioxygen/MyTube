@@ -5,10 +5,12 @@ import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
 describe('useKeyboardShortcuts', () => {
   const onSeekLeft = vi.fn();
   const onSeekRight = vi.fn();
+  const onPlayPause = vi.fn();
 
   beforeEach(() => {
     onSeekLeft.mockClear();
     onSeekRight.mockClear();
+    onPlayPause.mockClear();
     vi.useFakeTimers();
   });
 
@@ -18,7 +20,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should handle ArrowLeft key', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     const event = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
     const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
@@ -32,7 +34,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should handle ArrowRight key', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight' });
     window.dispatchEvent(event);
@@ -41,7 +43,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should ignore input when typing in an input element', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     const input = document.createElement('input');
     document.body.appendChild(input);
@@ -55,7 +57,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should ignore key repeat events', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', repeat: true });
     window.dispatchEvent(event);
@@ -64,7 +66,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should debounce rapid key presses', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     // First press
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
@@ -83,7 +85,7 @@ describe('useKeyboardShortcuts', () => {
   });
 
   it('should not interfere with other keys', () => {
-    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight }));
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
 
     const event = new KeyboardEvent('keydown', { key: 'Enter' });
     const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
@@ -92,6 +94,56 @@ describe('useKeyboardShortcuts', () => {
 
     expect(onSeekLeft).not.toHaveBeenCalled();
     expect(onSeekRight).not.toHaveBeenCalled();
+    expect(onPlayPause).not.toHaveBeenCalled();
     expect(preventDefaultSpy).not.toHaveBeenCalled();
+  });
+
+  it('should handle space bar key for play/pause', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const event = new KeyboardEvent('keydown', { key: ' ' });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+    const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+    window.dispatchEvent(event);
+
+    expect(onPlayPause).toHaveBeenCalledTimes(1);
+    expect(preventDefaultSpy).toHaveBeenCalled();
+    expect(stopPropagationSpy).toHaveBeenCalled();
+  });
+
+  it('should handle Spacebar key for play/pause (legacy)', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const event = new KeyboardEvent('keydown', { key: 'Spacebar' });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+    window.dispatchEvent(event);
+
+    expect(onPlayPause).toHaveBeenCalledTimes(1);
+    expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+
+  it('should ignore space bar when typing in an input element', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent('keydown', { key: ' ' });
+    window.dispatchEvent(event);
+
+    expect(onPlayPause).not.toHaveBeenCalled();
+    document.body.removeChild(input);
+  });
+
+  it('should ignore space bar key repeat events', () => {
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onPlayPause }));
+
+    const event = new KeyboardEvent('keydown', { key: ' ', repeat: true });
+    window.dispatchEvent(event);
+
+    expect(onPlayPause).not.toHaveBeenCalled();
   });
 });
