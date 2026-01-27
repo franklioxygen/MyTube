@@ -3,13 +3,11 @@ import { useEffect, useRef } from "react";
 interface UseKeyboardShortcutsProps {
   onSeekLeft: () => void;
   onSeekRight: () => void;
-  onTogglePlay?: () => void;
 }
 
 export const useKeyboardShortcuts = ({
   onSeekLeft,
   onSeekRight,
-  onTogglePlay,
 }: UseKeyboardShortcutsProps) => {
   const lastSeekTimeRef = useRef<number>(0);
   const DEBOUNCE_MS = 100; // Minimum time between seeks (100ms)
@@ -21,16 +19,6 @@ export const useKeyboardShortcuts = ({
         document.activeElement instanceof HTMLInputElement ||
         document.activeElement instanceof HTMLTextAreaElement
       ) {
-        return;
-      }
-
-      // Handle Space key for Play/Pause
-      if (e.code === "Space" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        if (onTogglePlay) {
-          onTogglePlay();
-        }
         return;
       }
 
@@ -67,5 +55,5 @@ export const useKeyboardShortcuts = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onSeekLeft, onSeekRight, onTogglePlay]);
+  }, [onSeekLeft, onSeekRight]);
 };

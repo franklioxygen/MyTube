@@ -1,13 +1,7 @@
 # Change Log
 
 
-## v1.7.85 (2026-01-26)
-
-### Feat
-
-- feat: Add new tools and eslint configuration options (6e3a796)
-
-## v1.7.84 (2026-01-25)
+### v1.7.84 (2026-01-25)
 
 ### Refactor
 
