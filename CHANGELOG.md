@@ -1,7 +1,31 @@
 # Change Log
 
 
-### v1.7.84 (2026-01-25)
+## v1.7.88 (2026-01-26)
+
+### Build
+
+- build(deps): Upgrade express from 4.22.0 to 4.22.1 (c5b4b15)
+
+## v1.7.87 (2026-01-26)
+
+### Test
+
+- test: Add tests for handling play/pause keyboard shortcuts (4be87ba)
+
+## v1.7.86 (2026-01-26)
+
+### Chore
+
+- chore: Improve Dockerfile package download speed (8e92aa6)
+
+## v1.7.85 (2026-01-26)
+
+### Chore
+
+- chore: enhance lint (94470e0)
+
+## v1.7.84 (2026-01-25)
 
 ### Refactor
 
