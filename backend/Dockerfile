@@ -4,13 +4,25 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-# Install dependencies
 COPY backend/package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 # Install build dependencies for native modules (python3, make, g++)
-RUN apk add --no-cache python3 make g++ pkgconfig cairo-dev pango-dev libjpeg-turbo-dev giflib-dev librsvg-dev
-RUN npm ci
+# Using BuildKit cache mount to speed up package downloads
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache --virtual .build-deps \
+    python3 \
+    make \
+    g++ \
+    pkgconfig \
+    cairo-dev \
+    pango-dev \
+    libjpeg-turbo-dev \
+    giflib-dev \
+    librsvg-dev
+# Use BuildKit cache mount for npm to speed up subsequent builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Copy backend source
 COPY backend/ .
