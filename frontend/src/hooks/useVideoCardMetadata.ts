@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { useCloudStorageUrl } from './useCloudStorageUrl';
 import { Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
 import { isNewVideo } from '../utils/videoCardUtils';
+import { useCloudStorageUrl } from './useCloudStorageUrl';
 
 interface UseVideoCardMetadataProps {
     video: Video;
@@ -53,7 +53,7 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
     };
 
     // Check if video is new (memoized)
-    const isNew = useMemo(() => isNewVideo(video), [video.viewCount, video.addedAt, video.id]);
+    const isNew = useMemo(() => isNewVideo(video), [video.viewCount, video.addedAt, video.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return {
         thumbnailSrc,

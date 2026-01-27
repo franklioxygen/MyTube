@@ -10,7 +10,7 @@ interface UseViewModeReturn {
 }
 
 export const useViewMode = (): UseViewModeReturn => {
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [_searchParams, setSearchParams] = useSearchParams();
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
         const saved = localStorage.getItem('homeViewMode');
         return (saved as ViewMode) || 'all-videos';

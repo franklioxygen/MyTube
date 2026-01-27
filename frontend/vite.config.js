@@ -1,4 +1,4 @@
-/* eslint-env node */
+
 import react from "@vitejs/plugin-react";
 import { dirname } from "path";
 import { fileURLToPath } from "url";

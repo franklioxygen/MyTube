@@ -5,7 +5,7 @@ import React from 'react';
 interface VolumeControlProps {
     volume: number;
     showVolumeSlider: boolean;
-    volumeSliderRef: React.RefObject<HTMLDivElement>;
+    volumeSliderRef: React.RefObject<HTMLDivElement | null>;
     onVolumeChange: (value: number) => void;
     onVolumeClick: () => void;
     onMouseEnter: () => void;

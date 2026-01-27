@@ -127,7 +127,7 @@ describe('LanguageContext', () => {
             wrapper: LanguageProvider
         });
 
-        // @ts-ignore - Testing invalid key
+        // @ts-expect-error - Testing invalid key
         expect(result.current.t('non_existent_key')).toBe('non_existent_key');
     });
 });

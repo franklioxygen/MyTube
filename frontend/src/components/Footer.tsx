@@ -16,7 +16,7 @@ const isNewerVersion = (latest: string, current: string): boolean => {
             if (num1 < num2) return false;
         }
         return false;
-    } catch (e) {
+    } catch {
         // Fallback to string comparison if parsing fails
         return latest !== current;
     }

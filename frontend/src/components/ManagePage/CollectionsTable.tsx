@@ -68,27 +68,28 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
     // Validate collection name
     const validateName = (name: string): string | null => {
         const trimmed = name.trim();
-        
+
         if (trimmed.length === 0) {
             return t('collectionNameRequired') || 'Collection name is required';
         }
-        
+
         if (trimmed.length > 200) {
             return t('collectionNameTooLong') || 'Collection name must be 200 characters or less';
         }
-        
+
         // Check for invalid filesystem characters
+        // eslint-disable-next-line no-control-regex
         const invalidChars = /[<>:"/\\|?*\x00-\x1F]/;
         if (invalidChars.test(trimmed)) {
             return t('collectionNameInvalidChars') || 'Collection name contains invalid characters';
         }
-        
+
         // Check for reserved names (Windows)
         const reservedNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'];
         if (reservedNames.includes(trimmed.toUpperCase())) {
             return t('collectionNameReserved') || 'Collection name is reserved';
         }
-        
+
         return null;
     };
 
@@ -114,7 +115,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
 
     const handleSave = async (id: string) => {
         const trimmedName = editName.trim();
-        
+
         // Validate name
         const error = validateName(trimmedName);
         if (error) {
@@ -122,7 +123,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
             showSnackbar(error, 'error');
             return;
         }
-        
+
         setIsSaving(true);
         setNameError('');
         try {

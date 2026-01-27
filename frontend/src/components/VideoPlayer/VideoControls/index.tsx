@@ -76,13 +76,15 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     });
 
     // Memoize seek callbacks to prevent unnecessary re-registration of keyboard listeners
+    const { handleSeek } = videoPlayer;
+
     const handleSeekLeft = useCallback(() => {
-        videoPlayer.handleSeek(-10);
-    }, [videoPlayer.handleSeek]);
+        handleSeek(-10);
+    }, [handleSeek]);
 
     const handleSeekRight = useCallback(() => {
-        videoPlayer.handleSeek(10);
-    }, [videoPlayer.handleSeek]);
+        handleSeek(10);
+    }, [handleSeek]);
 
     // Keyboard shortcuts
     useKeyboardShortcuts({
@@ -99,7 +101,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             loading.stopLoading();
             loading.setError(null);
         }
-    }, [src]); // eslint-disable-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [src]);
 
     // Handle video loading events
     const handleLoadStart = () => {

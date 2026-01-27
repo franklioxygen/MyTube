@@ -336,7 +336,7 @@ export function useSettingsMutations({ setMessage, setInfoModal }: UseSettingsMu
             await axios.post(`${API_URL}/settings/tags/rename`, { oldTag, newTag });
             return { oldTag, newTag };
         },
-        onSuccess: (data) => {
+        onSuccess: () => {
             setMessage({ text: t('tagRenamedSuccess') || 'Tag renamed successfully', type: 'success' });
             queryClient.invalidateQueries({ queryKey: ['settings'] });
             queryClient.invalidateQueries({ queryKey: ['videos'] });

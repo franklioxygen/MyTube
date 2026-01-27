@@ -4,13 +4,10 @@ import {
     Forward10,
     KeyboardDoubleArrowLeft,
     KeyboardDoubleArrowRight,
-    Pause,
-    PlayArrow,
     Replay10
 } from '@mui/icons-material';
 import { IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React from 'react';
-import { useLanguage } from '../../../contexts/LanguageContext';
 
 interface PlaybackControlsProps {
     isPlaying: boolean;
@@ -19,11 +16,10 @@ interface PlaybackControlsProps {
 }
 
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
-    isPlaying,
-    onPlayPause,
     onSeek
 }) => {
-    const { t } = useLanguage();
+    // Unused translation hook
+    // const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (

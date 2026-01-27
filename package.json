@@ -12,6 +12,8 @@
     "dev:backend": "cd backend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
     "build": "cd frontend && npm run build",
+    "lint": "npm run lint:frontend",
+    "lint:frontend": "cd frontend && npm run lint",
     "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
     "test:frontend": "cd frontend && npm run test",
     "test:backend": "cd backend && npm run test"

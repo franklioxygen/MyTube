@@ -16,7 +16,7 @@ export const useVideoFiltering = ({
   collections,
 }: UseVideoFilteringProps): Video[] => {
   // Add default empty array to ensure videos is always an array
-  const videoArray = Array.isArray(videos) ? videos : [];
+  const videoArray = useMemo(() => Array.isArray(videos) ? videos : [], [videos]);
 
   return useMemo(() => {
     if (viewMode === "all-videos") {

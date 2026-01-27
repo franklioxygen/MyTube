@@ -37,7 +37,7 @@ describe('useVideoHoverPreview', () => {
         const { result } = renderHook(() => useVideoHoverPreview({ videoPath: 'path.mp4' }));
         
         // Mock video ref
-        // @ts-ignore
+        // @ts-expect-error - Mocking legacy video properties for testing
         result.current.videoRef.current = {
             pause: vi.fn(),
             load: vi.fn(),
@@ -56,7 +56,7 @@ describe('useVideoHoverPreview', () => {
         });
 
         expect(result.current.isHovered).toBe(false);
-        // @ts-ignore
+        // @ts-expect-error - Checking mock call
         expect(result.current.videoRef.current.pause).toHaveBeenCalled();
     });
 });

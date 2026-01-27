@@ -53,8 +53,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
     // Cleanup video element on unmount or when video changes
     useEffect(() => {
+        const videoElement = videoRef.current;
         return () => {
-            const videoElement = videoRef.current;
             if (videoElement) {
                 // Pause and clear video source to free memory
                 videoElement.pause();
@@ -62,7 +62,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 videoElement.load();
             }
         };
-    }, [video.id]); // Clean up when video ID changes
+    }, [video.id, videoRef]); // Clean up when video ID changes
 
     return (
         <Box sx={{ mt: 2 }}>
@@ -71,7 +71,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                 <video
                     ref={videoRef}
                     src={videoUrl || video.sourceUrl}
-                    style={{ 
+                    style={{
                         position: 'absolute',
                         width: '1px',
                         height: '1px',

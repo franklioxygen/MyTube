@@ -1,15 +1,14 @@
-import { Box, IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import { Pause, PlayArrow } from '@mui/icons-material';
+import { Box, IconButton, Stack, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import React from 'react';
-import { useTheme } from '@mui/material';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import ProgressBar from './ProgressBar';
-import VolumeControl from './VolumeControl';
-import SubtitleControl from './SubtitleControl';
-import FullscreenControl from './FullscreenControl';
 import CinemaModeControl from './CinemaModeControl';
+import FullscreenControl from './FullscreenControl';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
+import ProgressBar from './ProgressBar';
+import SubtitleControl from './SubtitleControl';
+import VolumeControl from './VolumeControl';
 
 interface ControlsOverlayProps {
     isFullscreen: boolean;
@@ -52,7 +51,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     isPlaying,
     currentTime,
     duration,
-    isDragging,
+    // isDragging,
     volume,
     showVolumeSlider,
     volumeSliderRef,

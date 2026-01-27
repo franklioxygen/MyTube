@@ -208,7 +208,7 @@ const VideoPlayer: React.FC = () => {
         setIsDeleting(true);
         try {
             await deleteMutation.mutateAsync(id);
-        } catch (error) {
+        } catch {
             setIsDeleting(false);
         }
     };

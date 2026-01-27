@@ -34,6 +34,10 @@ if [ "$CURRENT_BRANCH" != "master" ]; then
   fi
 fi
 
+# Run lint
+echo "🧹 Running lint..."
+npm run lint
+
 # Run tests
 echo "🧪 Running tests..."
 npm run test

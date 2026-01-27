@@ -40,6 +40,7 @@ interface VideoContextType {
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useVideo = () => {
     const context = useContext(VideoContext);
     if (!context) {
@@ -173,7 +174,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             await deleteVideoMutation.mutateAsync({ id, options });
             return { success: true };
-        } catch (error) {
+        } catch {
             return { success: false, error: t('failedToDeleteVideo') };
         }
     };
@@ -202,7 +203,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 showSnackbar(`${t('deleteFilteredVideosSuccess', { count: successCount })} (${failCount} failed)`);
                 return { success: failCount === 0 }; // Consider partial success as success? strict: fail if any fail
             }
-        } catch (error) {
+        } catch {
             return { success: false, error: t('failedToDeleteVideo') };
         }
     };
@@ -406,7 +407,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 return { success: true };
             }
             return { success: false, error: t('thumbnailRefreshFailed') };
-        } catch (error) {
+        } catch {
             return { success: false, error: t('thumbnailRefreshFailed') };
         }
     };
@@ -443,7 +444,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 return { success: true };
             }
             return { success: false, error: t('videoUpdateFailed') };
-        } catch (error) {
+        } catch {
             return { success: false, error: t('videoUpdateFailed') };
         }
     };

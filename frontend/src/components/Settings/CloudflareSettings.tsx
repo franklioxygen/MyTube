@@ -25,11 +25,11 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
             showSnackbar(t('copyFailed'), 'error');
             return;
         }
-        
+
         // Sanitize URL: remove any potentially dangerous characters
         // Only allow safe URL characters (alphanumeric, common URL symbols)
-        const sanitizedUrl = url.replace(/[^\w\s\-\.:\/?#\[\]@!$&'()*+,;=]/g, '');
-        
+        const sanitizedUrl = url.replace(/[^\w\s-.:/?#[\]@!$&'()*+,;=]/g, '');
+
         try {
             // Try modern clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -54,13 +54,13 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     } else {
                         showSnackbar(t('copyFailed'), 'error');
                     }
-                } catch (err) {
+                } catch {
                     showSnackbar(t('copyFailed'), 'error');
                 } finally {
                     document.body.removeChild(textArea);
                 }
             }
-        } catch (err) {
+        } catch {
             showSnackbar(t('copyFailed'), 'error');
         }
     };

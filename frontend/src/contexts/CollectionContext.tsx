@@ -21,6 +21,7 @@ interface CollectionContextType {
 
 const CollectionContext = createContext<CollectionContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCollection = () => {
     const context = useContext(CollectionContext);
     if (!context) {

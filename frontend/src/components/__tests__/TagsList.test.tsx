@@ -32,10 +32,10 @@ describe('TagsList', () => {
         const theme = createTheme();
         render(
             <ThemeProvider theme={theme}>
-                <TagsList 
-                    availableTags={['tag1', 'tag2', 'tag3']} 
-                    selectedTags={[]} 
-                    onTagToggle={mockOnTagToggle} 
+                <TagsList
+                    availableTags={['tag1', 'tag2', 'tag3']}
+                    selectedTags={[]}
+                    onTagToggle={mockOnTagToggle}
                 />
             </ThemeProvider>
         );
@@ -50,10 +50,10 @@ describe('TagsList', () => {
         const theme = createTheme();
         render(
             <ThemeProvider theme={theme}>
-                <TagsList 
-                    availableTags={['tag1', 'tag2', 'tag3']} 
-                    selectedTags={['tag1', 'tag3']} 
-                    onTagToggle={mockOnTagToggle} 
+                <TagsList
+                    availableTags={['tag1', 'tag2', 'tag3']}
+                    selectedTags={['tag1', 'tag3']}
+                    onTagToggle={mockOnTagToggle}
                 />
             </ThemeProvider>
         );
@@ -72,10 +72,10 @@ describe('TagsList', () => {
         const theme = createTheme();
         render(
             <ThemeProvider theme={theme}>
-                <TagsList 
-                    availableTags={['tag1', 'tag2']} 
-                    selectedTags={[]} 
-                    onTagToggle={mockOnTagToggle} 
+                <TagsList
+                    availableTags={['tag1', 'tag2']}
+                    selectedTags={[]}
+                    onTagToggle={mockOnTagToggle}
                 />
             </ThemeProvider>
         );
@@ -91,16 +91,16 @@ describe('TagsList', () => {
         const theme = createTheme();
         render(
             <ThemeProvider theme={theme}>
-                <TagsList 
-                    availableTags={['tag1', 'tag2']} 
-                    selectedTags={[]} 
-                    onTagToggle={mockOnTagToggle} 
+                <TagsList
+                    availableTags={['tag1', 'tag2']}
+                    selectedTags={[]}
+                    onTagToggle={mockOnTagToggle}
                 />
             </ThemeProvider>
         );
 
         const header = screen.getByText('Tags');
-        const tagsContainer = header.closest('div')?.querySelector('[role="region"]');
+        header.closest('div')?.querySelector('[role="region"]');
 
         // Initially should be open (tags visible)
         expect(screen.getByText('tag1')).toBeInTheDocument();

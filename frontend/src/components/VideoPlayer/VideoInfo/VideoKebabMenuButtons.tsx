@@ -73,7 +73,7 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
 
     // Close menu on scroll
     React.useEffect(() => {
-        if (Boolean(kebabMenuAnchor)) {
+        if (kebabMenuAnchor) {
             const handleScroll = () => {
                 handleKebabMenuClose();
             };

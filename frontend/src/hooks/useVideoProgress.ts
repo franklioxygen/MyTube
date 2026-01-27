@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Video } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 
 const API_URL = getApiUrl();
 
@@ -40,7 +40,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
                     .catch(err => console.error('Error saving progress on unmount:', err));
             }
         };
-    }, [videoId, userRole]);
+    }, [videoId, isVisitor]);
 
     const handleTimeUpdate = (currentTime: number) => {
         currentTimeRef.current = currentTime;

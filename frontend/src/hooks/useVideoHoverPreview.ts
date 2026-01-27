@@ -62,6 +62,7 @@ export const useVideoHoverPreview = ({
         videoRef.current.pause();
         videoRef.current.src = "";
         videoRef.current.load();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         videoRef.current.removeAttribute("src");
       }
     };

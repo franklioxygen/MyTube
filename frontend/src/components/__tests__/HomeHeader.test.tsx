@@ -76,7 +76,7 @@ describe('HomeHeader', () => {
         // But integration tests usually avoid implementation details like specific icons.
 
         // Let's fire generic click on the button that appears.
-        const buttons = screen.getAllByRole('button');
+        screen.getAllByRole('button');
         // With tags, we expect: Sidebar Toggle, Delete Button, 3 toggle buttons, Sort Button.
     });
 

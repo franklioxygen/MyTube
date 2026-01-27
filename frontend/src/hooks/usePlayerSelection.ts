@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useSnackbar } from '../contexts/SnackbarContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Video } from '../types';
 import { getAvailablePlayers, getPlayerUrl } from '../utils/playerUtils';
@@ -61,7 +61,7 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
                         } else {
                             showSnackbar(t('copyFailed'), 'error');
                         }
-                    } catch (err) {
+                    } catch {
                         showSnackbar(t('copyFailed'), 'error');
                     }
                     document.body.removeChild(textArea);

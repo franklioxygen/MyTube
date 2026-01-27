@@ -56,7 +56,6 @@ const VideoElement: React.FC<VideoElementProps> = ({
     // Use useMemo to generate a stable unique ID per component instance
     // Using Date.now() and a simple counter is safe for non-cryptographic purposes
     const videoId = useMemo(() => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const counter = (globalThis as any).__videoControlCounter = ((globalThis as any).__videoControlCounter || 0) + 1;
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
@@ -65,7 +64,6 @@ const VideoElement: React.FC<VideoElementProps> = ({
 
     React.useEffect(() => {
         // Dynamic preload strategy based on connection
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
 
         if (connection) {

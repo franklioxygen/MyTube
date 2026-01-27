@@ -137,14 +137,6 @@ const AuthorVideos: React.FC = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-                <CircularProgress />
-            </Box>
-        );
-    }
-
     // Sort videos
     const {
         sortedVideos,
@@ -156,6 +148,14 @@ const AuthorVideos: React.FC = () => {
         videos: authorVideos,
         defaultSort: 'dateDesc'
     });
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
     // Build confirmation message
     const getCreateCollectionMessage = (): string => {

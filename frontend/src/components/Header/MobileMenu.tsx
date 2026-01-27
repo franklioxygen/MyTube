@@ -60,7 +60,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
             try {
                 const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
                 return response.data;
-            } catch (error) {
+            } catch {
                 return null;
             }
         },

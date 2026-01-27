@@ -46,6 +46,7 @@ interface DownloadContextType {
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useDownload = () => {
     const context = useContext(DownloadContext);
     if (!context) {
@@ -120,8 +121,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
     });
 
-    const activeDownloads = downloadStatus.activeDownloads || [];
-    const queuedDownloads = downloadStatus.queuedDownloads || [];
+    const activeDownloads = React.useMemo(() => downloadStatus.activeDownloads || [], [downloadStatus.activeDownloads]);
+    const queuedDownloads = React.useMemo(() => downloadStatus.queuedDownloads || [], [downloadStatus.queuedDownloads]);
 
     // Debug log to see what data we're receiving
     useEffect(() => {
@@ -189,7 +190,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } else {
             localStorage.removeItem(DOWNLOAD_STATUS_KEY);
         }
-    }, [activeDownloads, queuedDownloads, fetchVideos]);
+    }, [activeDownloads, queuedDownloads, fetchVideos, settings]);
 
     const checkBackendDownloadStatus = async () => {
         await queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
@@ -522,7 +523,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Construct message from translations
             const { subscribedCount, skippedCount, errorCount } = response.data;
             let message = '';
-            
+
             if (subscribedCount > 0) {
                 message = t('subscribePlaylistsSuccess', {
                     count: subscribedCount,
@@ -557,7 +558,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     });
                 }
             }
-            
+
             showSnackbar(message);
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             setSubscribeUrl('');
