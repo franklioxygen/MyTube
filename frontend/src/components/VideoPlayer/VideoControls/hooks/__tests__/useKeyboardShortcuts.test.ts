@@ -1,3 +1,4 @@
+/* eslint-env browser */
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
@@ -38,6 +39,21 @@ describe('useKeyboardShortcuts', () => {
     window.dispatchEvent(event);
 
     expect(onSeekRight).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle Space key to toggle play/pause', () => {
+    const onTogglePlay = vi.fn();
+    renderHook(() => useKeyboardShortcuts({ onSeekLeft, onSeekRight, onTogglePlay }));
+
+    const event = new KeyboardEvent('keydown', { code: 'Space', key: ' ' });
+    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+    const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+    window.dispatchEvent(event);
+
+    expect(onTogglePlay).toHaveBeenCalledTimes(1);
+    expect(preventDefaultSpy).toHaveBeenCalled();
+    expect(stopPropagationSpy).toHaveBeenCalled();
   });
 
   it('should ignore input when typing in an input element', () => {

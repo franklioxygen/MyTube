@@ -87,7 +87,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     // Keyboard shortcuts
     useKeyboardShortcuts({
         onSeekLeft: handleSeekLeft,
-        onSeekRight: handleSeekRight
+        onSeekRight: handleSeekRight,
+        onTogglePlay: videoPlayer.handlePlayPause
     });
 
     // Handle video source changes - trigger loading
