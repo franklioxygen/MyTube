@@ -40,7 +40,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    const { availableTags } = useVideo();
+    const { availableTags, selectedTags, handleTagToggle } = useVideo();
 
     // Get collection information
     const collectionInfo = getVideoCardCollectionInfo(
@@ -121,6 +121,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     isAboveTheFold={isAboveTheFold}
                     showTagsOnThumbnail={showTagsOnThumbnail}
                     availableTags={availableTags}
+                    selectedTags={selectedTags}
+                    onTagClick={handleTagToggle}
                 />
 
                 <VideoCardContent

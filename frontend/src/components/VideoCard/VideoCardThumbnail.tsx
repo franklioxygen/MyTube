@@ -19,6 +19,8 @@ interface VideoCardThumbnailProps {
     isAboveTheFold?: boolean; // For LCP optimization
     showTagsOnThumbnail?: boolean;
     availableTags?: string[]; // Available tags from settings - used to filter displayed tags
+    selectedTags?: string[];
+    onTagClick?: (tag: string) => void;
 }
 
 export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
@@ -33,7 +35,9 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     isNew,
     isAboveTheFold = false,
     showTagsOnThumbnail = false,
-    availableTags = []
+    availableTags = [],
+    selectedTags = [],
+    onTagClick
 }) => {
     const { t } = useLanguage();
     const theme = useTheme();
@@ -199,9 +203,9 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 // This ensures that when a tag is removed from settings, it's also removed from the display
                 const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
                 const filteredTags = video.tags.filter(tag => availableTagsArray.includes(tag));
-                
+
                 if (filteredTags.length === 0) return null;
-                
+
                 return (
                     <Box
                         sx={{
@@ -213,30 +217,44 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                             flexWrap: 'nowrap',
                             gap: 0.5,
                             overflow: 'hidden',
-                            zIndex: 2,
-                            pointerEvents: 'none',
+                            zIndex: 4, // Higher z-index to be above other elements and clickable
+                            pointerEvents: 'auto', // Enable pointer events for children
                             maskImage: 'linear-gradient(to right, black 90%, transparent 100%)',
                             WebkitMaskImage: 'linear-gradient(to right, black 90%, transparent 100%)'
                         }}
                     >
-                        {filteredTags.map((tag) => (
-                            <Chip
-                                key={tag}
-                                label={tag}
-                                size="small"
-                                sx={{
-                                    height: 20,
-                                    fontSize: '0.65rem',
-                                    bgcolor: 'rgba(0, 0, 0, 0.5)',
-                                    color: 'white',
-                                    backdropFilter: 'blur(2px)',
-                                    '& .MuiChip-label': {
-                                        px: 1
-                                    },
-                                    maxWidth: '100px' // individual tag max width
-                                }}
-                            />
-                        ))}
+                        {filteredTags.map((tag) => {
+                            const isSelected = selectedTags.includes(tag);
+                            return (
+                                <Chip
+                                    key={tag}
+                                    label={tag}
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        if (onTagClick) {
+                                            onTagClick(tag);
+                                        }
+                                    }}
+                                    sx={{
+                                        height: 20,
+                                        fontSize: '0.65rem',
+                                        bgcolor: isSelected ? theme.palette.primary.main : 'rgba(0, 0, 0, 0.5)',
+                                        color: 'white',
+                                        backdropFilter: 'blur(2px)',
+                                        '& .MuiChip-label': {
+                                            px: 1
+                                        },
+                                        maxWidth: '100px', // individual tag max width
+                                        cursor: 'pointer',
+                                        '&:hover': {
+                                            bgcolor: isSelected ? theme.palette.primary.dark : 'rgba(0, 0, 0, 0.7)'
+                                        }
+                                    }}
+                                />
+                            );
+                        })}
                     </Box>
                 );
             })()}
