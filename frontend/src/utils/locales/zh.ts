@@ -567,6 +567,8 @@ export const zh = {
   downloadAllPreviousVideos: "下载此作者的所有历史视频",
   downloadAllPreviousWarning:
     "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
+  downloadAllPreviousVideosInPlaylists: "下载播放列表中以前的视频",
+  downloadAllPlaylistsWarning: "警告：这将下载此频道上所有播放列表中的所有视频。这可能会涉及大量视频并消耗大量存储空间。",
   continuousDownloadTasks: "连续下载任务",
   taskStatusActive: "进行中",
   taskStatusPaused: "已暂停",

@@ -526,6 +526,8 @@ export const de = {
   never: "Nie",
   downloadAllPreviousVideos: "Alle vorherigen Videos dieses Autors herunterladen",
   downloadAllPreviousWarning: "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
+  downloadAllPreviousVideosInPlaylists: "Vorherige Videos in Wiedergabelisten herunterladen",
+  downloadAllPlaylistsWarning: "Warnung: Dies lädt alle Videos aus allen Wiedergabelisten auf diesem Kanal herunter. Dies kann eine große Anzahl von Videos sein und erheblichen Speicherplatz verbrauchen.",
   continuousDownloadTasks: "Kontinuierliche Download-Aufgaben",
   taskStatusActive: "Aktiv",
   taskStatusPaused: "Pausiert",

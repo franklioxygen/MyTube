@@ -526,6 +526,8 @@ export const ja = {
   never: "なし",
   downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",
   downloadAllPreviousWarning: "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
+  downloadAllPreviousVideosInPlaylists: "プレイリスト内の過去の動画をダウンロード",
+  downloadAllPlaylistsWarning: "警告：これにより、このチャンネルのすべてのプレイリストからすべての動画がダウンロードされます。これは多数の動画になる可能性があり、かなりのストレージ容量を消費する可能性があります。",
   continuousDownloadTasks: "連続ダウンロードタスク",
   taskStatusActive: "アクティブ",
   taskStatusPaused: "一時停止",

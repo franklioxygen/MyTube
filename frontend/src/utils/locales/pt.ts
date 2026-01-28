@@ -526,6 +526,8 @@ export const pt = {
   never: "Nunca",
   downloadAllPreviousVideos: "Baixar todos os vídeos anteriores deste autor",
   downloadAllPreviousWarning: "Aviso: Isso baixará todos os vídeos anteriores deste autor. Isso pode consumir um espaço de armazenamento significativo e pode acionar mecanismos de detecção de bots que podem resultar em proibições temporárias ou permanentes da plataforma. Use por sua conta e risco.",
+  downloadAllPreviousVideosInPlaylists: "Baixar vídeos anteriores em playlists",
+  downloadAllPlaylistsWarning: "Aviso: Isso baixará todos os vídeos de todas as playlists neste canal. Isso pode ser um grande número de vídeos e consumir um espaço de armazenamento significativo.",
   continuousDownloadTasks: "Tarefas de download contínuo",
   taskStatusActive: "Ativo",
   taskStatusPaused: "Pausado",
