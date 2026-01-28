@@ -1,6 +1,17 @@
 # Change Log
 
 
+## v1.7.89 (2026-01-27)
+
+### Feat
+
+- feat: Add selectedTags and handleTagToggle functionality (1c412cd)
+- feat: Add download options for previous videos in playlists (6a7dc3f)
+
+### Chore
+
+- chore: Upgrade dependencies and enhance lint (9637425)
+
 ## v1.7.88 (2026-01-26)
 
 ### Build
