@@ -163,7 +163,7 @@ const VideoPlayer: React.FC = () => {
         onDeleteSuccess: () => navigate('/', { replace: true })
     });
 
-    const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video });
+    const { handleTimeUpdate, setIsDeleting, currentTimeRef } = useVideoProgress({ videoId: id, video });
 
     const { relatedVideos } = useVideoRecommendations({ video });
 
@@ -304,7 +304,7 @@ const VideoPlayer: React.FC = () => {
                         autoLoop={autoLoop}
                         pauseOnFocusLoss={pauseOnFocusLoss}
                         onTimeUpdate={handleTimeUpdate}
-                        startTime={video.progress || 0}
+                        startTime={currentTimeRef.current > 0 ? currentTimeRef.current : (video.progress ?? 0)}
                         subtitles={video.subtitles}
                         subtitlesEnabled={subtitlesEnabled}
                         onSubtitlesToggle={handleSubtitlesToggle}
@@ -371,7 +371,7 @@ const VideoPlayer: React.FC = () => {
                             autoLoop={autoLoop}
                             pauseOnFocusLoss={pauseOnFocusLoss}
                             onTimeUpdate={handleTimeUpdate}
-                            startTime={video.progress || 0}
+                            startTime={currentTimeRef.current > 0 ? currentTimeRef.current : (video.progress ?? 0)}
                             subtitles={video.subtitles}
                             subtitlesEnabled={subtitlesEnabled}
                             onSubtitlesToggle={handleSubtitlesToggle}
