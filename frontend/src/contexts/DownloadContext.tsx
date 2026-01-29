@@ -450,6 +450,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showSubscribeModal, setShowSubscribeModal] = useState(false);
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [subscribeUrl, setSubscribeUrl] = useState('');
+    const [subscribeMode, setSubscribeMode] = useState<'video' | 'playlist'>('video');
 
     // Channel subscribe choice modal
     const [showChannelSubscribeChoiceModal, setShowChannelSubscribeChoiceModal] = useState(false);
@@ -497,14 +498,19 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleChooseSubscribeVideos = () => {
         // Show the regular subscribe modal for videos
+        setSubscribeMode('video');
         setShowChannelSubscribeChoiceModal(false);
         setShowSubscribeModal(true);
     };
 
-    const handleChooseSubscribePlaylists = async (interval: number, downloadAllPrevious: boolean = false) => {
-        try {
-            setShowChannelSubscribeChoiceModal(false);
+    const handleChooseSubscribePlaylists = () => {
+        setSubscribeMode('playlist');
+        setShowChannelSubscribeChoiceModal(false);
+        setShowSubscribeModal(true);
+    };
 
+    const performSubscribePlaylists = async (interval: number, downloadAllPrevious: boolean = false) => {
+        try {
             // Construct the playlists URL
             let playlistsUrl = subscribeUrl;
             if (!playlistsUrl.includes('/playlists')) {
@@ -562,6 +568,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             showSnackbar(message);
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             setSubscribeUrl('');
+            setShowSubscribeModal(false);
 
         } catch (err: any) {
             console.error('Error subscribing to channel playlists:', err);
@@ -571,6 +578,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 showSnackbar(err.response?.data?.error || t('error'), 'error');
             }
             setSubscribeUrl('');
+            setShowSubscribeModal(false);
+        }
+    };
+
+    const handleSubscribeConfirm = (interval: number, downloadAllPrevious: boolean) => {
+        if (subscribeMode === 'video') {
+            handleSubscribe(interval, downloadAllPrevious);
+        } else {
+            performSubscribePlaylists(interval, downloadAllPrevious);
         }
     };
 
@@ -599,8 +615,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             <SubscribeModal
                 open={showSubscribeModal}
                 onClose={() => setShowSubscribeModal(false)}
-                onConfirm={handleSubscribe}
+                onConfirm={handleSubscribeConfirm}
                 url={subscribeUrl}
+                title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
+                description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
             />
             <AlertModal
                 open={showDuplicateModal}

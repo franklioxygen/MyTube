@@ -1,7 +1,6 @@
 import { Close, Warning } from '@mui/icons-material';
 import {
     Alert,
-    Box,
     Button,
     Checkbox,
     Dialog,
@@ -23,6 +22,8 @@ interface SubscribeModalProps {
     onConfirm: (interval: number, downloadAllPrevious: boolean) => void;
     authorName?: string;
     url: string;
+    title?: string;
+    description?: string;
 }
 
 const SubscribeModal: React.FC<SubscribeModalProps> = ({
@@ -30,7 +31,9 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     onClose,
     onConfirm,
     authorName,
-    url
+    url,
+    title,
+    description
 }) => {
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60); // Default 60 minutes
@@ -55,7 +58,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         >
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {t('subscribeToAuthor')}
+                    {title || t('subscribeToAuthor')}
                 </Typography>
                 <IconButton
                     aria-label="close"
@@ -69,7 +72,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
             </DialogTitle>
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
-                    {t('subscribeConfirmationMessage', { author: authorName || url })}
+                    {description || t('subscribeConfirmationMessage', { author: authorName || url })}
                 </DialogContentText>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     {t('subscribeDescription')}

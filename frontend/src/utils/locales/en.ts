@@ -577,6 +577,7 @@ export const en = {
     "Choose to subscribe to all videos or all playlists from this channel. Subscribing to all playlists will also subscribe to future playlists created by the author.",
   subscribeAllVideos: "Subscribe All Videos",
   subscribeAllPlaylists: "Subscribe All Playlists",
+  subscribeAllPlaylistsDescription: "This will subscribe to all playlists in this channel.",
   subscribeDescription:
     "The system will automatically check for new videos from this author and download them.",
   checkIntervalMinutes: "Check Interval (minutes)",
