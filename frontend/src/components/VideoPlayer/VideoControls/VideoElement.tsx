@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import React, { useMemo } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { getBackendUrl } from '../../../utils/apiUrl';
+import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -197,13 +198,13 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 })()}
                 poster={poster}
             >
-                {subtitles && subtitles.map((subtitle) => (
+                {subtitles && subtitles.map((subtitle, index) => (
                     <track
-                        key={subtitle.language}
+                        key={`${subtitle.language}-${index}`}
                         kind="subtitles"
                         src={`${getBackendUrl()}${subtitle.path}`}
                         srcLang={subtitle.language}
-                        label={subtitle.language.toUpperCase()}
+                        label={getSubtitleLanguageLabel(subtitle.language, subtitle.path)}
                     />
                 ))}
                 Your browser does not support the video tag.

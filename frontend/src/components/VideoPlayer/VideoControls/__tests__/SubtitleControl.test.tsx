@@ -49,15 +49,15 @@ describe('SubtitleControl', () => {
 
         // Menu should be open, verify items
         // MUI Menu renders into a portal, so queryByText for items
-        expect(screen.getByText('EN')).toBeInTheDocument();
-        expect(screen.getByText('ES')).toBeInTheDocument();
+        expect(screen.getByText('English')).toBeInTheDocument();
+        expect(screen.getByText('Spanish')).toBeInTheDocument();
     });
 
     it('should call onSelectSubtitle when item clicked', () => {
         const anchor = document.createElement('div');
         render(<SubtitleControl {...defaultProps} subtitleMenuAnchor={anchor} />);
 
-        const enOption = screen.getByText('EN');
+        const enOption = screen.getByText('English');
         fireEvent.click(enOption);
         expect(defaultProps.onSelectSubtitle).toHaveBeenCalledWith(0);
     });

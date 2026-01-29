@@ -2,6 +2,7 @@ import { Subtitles, SubtitlesOff } from '@mui/icons-material';
 import { IconButton, Menu, MenuItem, Tooltip, useMediaQuery } from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 
 interface SubtitleControlProps {
     subtitles: Array<{ language: string; filename: string; path: string }>;
@@ -48,8 +49,8 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
                     {t('off') || 'Off'}
                 </MenuItem>
                 {subtitles.map((subtitle, index) => (
-                    <MenuItem key={subtitle.language} onClick={() => onSelectSubtitle(index)}>
-                        {subtitle.language.toUpperCase()}
+                    <MenuItem key={`${subtitle.language}-${index}`} onClick={() => onSelectSubtitle(index)}>
+                        {getSubtitleLanguageLabel(subtitle.language, subtitle.path)}
                     </MenuItem>
                 ))}
             </Menu>

@@ -17,7 +17,7 @@ class YtDlpDownloaderHelper extends BaseDownloader {
   // Expose protected methods as public for use in module functions
   public handleCancellationErrorPublic(
     error: unknown,
-    cleanupFn?: () => void | Promise<void>
+    cleanupFn?: () => void | Promise<void>,
   ): Promise<void> {
     return this.handleCancellationError(error, cleanupFn);
   }
@@ -33,13 +33,13 @@ class YtDlpDownloaderHelper extends BaseDownloader {
 export async function processSubtitles(
   baseFilename: string,
   downloadId?: string,
-  moveSubtitlesToVideoFolder: boolean = false
+  moveSubtitlesToVideoFolder: boolean = false,
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   const subtitles: Array<{ language: string; filename: string; path: string }> =
     [];
 
   logger.info(
-    `Processing subtitles for ${baseFilename}, move to video folder: ${moveSubtitlesToVideoFolder}`
+    `Processing subtitles for ${baseFilename}, move to video folder: ${moveSubtitlesToVideoFolder}`,
   );
 
   const downloader = new YtDlpDownloaderHelper();
@@ -85,12 +85,14 @@ export async function processSubtitles(
         throw error;
       }
 
-      // Parse language from filename (e.g., video_123.en.vtt -> en)
-      const match = subtitleFile.match(
-        /\.([a-z]{2}(?:-[A-Z]{2})?)(?:\..*?)?\.[^.]+$/
-      );
-      const language = match ? match[1] : "unknown";
-      const extension = path.extname(subtitleFile);
+      // Parse language from filename: only the segment immediately before the extension
+      // (e.g. video_123.en.vtt -> en; Title.With.Dots-2026.ko.vtt -> ko, not "is" from "is")
+      const ext = path.extname(subtitleFile);
+      const withoutExt = subtitleFile.slice(0, -ext.length);
+      const lastSegment = withoutExt.split(".").pop() ?? "";
+      const langMatch = lastSegment.match(/^([a-z]{2}(?:-[A-Z]{2})?)$/);
+      const language = langMatch ? langMatch[1] : "unknown";
+      const extension = ext;
 
       // Move subtitle to subtitles directory or keep in video directory if requested
       const sourceSubPath = path.join(dir, subtitleFile);
@@ -130,7 +132,7 @@ export async function processSubtitles(
       }
 
       logger.info(
-        `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`
+        `Processed and moved subtitle ${subtitleFile} to ${destSubPath}`,
       );
 
       subtitles.push({

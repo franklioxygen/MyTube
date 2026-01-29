@@ -17,7 +17,7 @@ export interface PreparedFlags {
 export function prepareDownloadFlags(
   videoUrl: string,
   outputPath: string,
-  userConfig?: any
+  userConfig?: any,
 ): PreparedFlags {
   // Get user's yt-dlp configuration if not provided
   const config = userConfig || getUserYtDlpConfig(videoUrl);
@@ -48,6 +48,7 @@ export function prepareDownloadFlags(
     // Extract user subtitle preferences (use them if provided)
     writeSubs: userWriteSubs,
     writeAutoSubs: userWriteAutoSubs,
+    subLangs: userSubLangs,
     convertSubs: userConvertSubs,
     // Extract user merge output format (use it if provided)
     mergeOutputFormat: userMergeOutputFormat,
@@ -84,6 +85,8 @@ export function prepareDownloadFlags(
 
   // Prepare flags - defaults first, then user config to allow overrides
   // Network options (like proxy) are applied last to ensure they're not overridden
+  // Default: manual subs only in all languages (no auto-subs) to avoid duplicate/repeat subtitle files.
+  // Use ignoreErrors so one failed subtitle (e.g. 429) does not abort the whole download.
   const flags: YtDlpFlags = {
     ...safeUserConfig, // Apply user config
     ...networkOptions, // Explicitly apply network options (proxy, etc.) to ensure they're preserved
@@ -92,8 +95,10 @@ export function prepareDownloadFlags(
     // Use user preferences if provided, otherwise use defaults
     mergeOutputFormat: mergeOutputFormat,
     writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
-    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
+    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : false,
+    subLangs: userSubLangs !== undefined ? userSubLangs : "all",
     convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
+    ignoreErrors: true, // Continue when a subtitle fails (e.g. HTTP 429); keep video and other subs
   };
 
   // Apply format sort if user specified it (e.g., -S res:480)
@@ -112,7 +117,7 @@ export function prepareDownloadFlags(
     }
     // Ensure merge output format is mp4 (already handled above, but log it)
     logger.info(
-      "Twitter/X URL detected - using MP4 format for Safari compatibility"
+      "Twitter/X URL detected - using MP4 format for Safari compatibility",
     );
   }
 
@@ -173,7 +178,7 @@ export function prepareDownloadFlags(
   } else if (config.proxy) {
     logger.warn(
       "Proxy was in config but not in final flags. Config proxy:",
-      config.proxy
+      config.proxy,
     );
   }
 

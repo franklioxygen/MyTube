@@ -2,7 +2,7 @@
  * Helper to parse duration to seconds
  */
 export const parseDuration = (
-  duration: string | number | undefined
+  duration: string | number | undefined,
 ): number => {
   if (!duration) return 0;
   if (typeof duration === "number") return duration;
@@ -26,7 +26,7 @@ export const parseDuration = (
  * Format duration (seconds or MM:SS or H:MM:SS)
  */
 export const formatDuration = (
-  duration: string | number | undefined
+  duration: string | number | undefined,
 ): string => {
   if (!duration) return "00:00";
 
@@ -93,11 +93,11 @@ export const formatDate = (dateString?: string) => {
 export const formatRelativeDownloadTime = (
   downloadTimestamp?: string,
   originalDate?: string,
-  t?: (key: string, replacements?: Record<string, string | number>) => string
+  t?: (key: string, replacements?: Record<string, string | number>) => string,
 ): string => {
   const getTranslation = (
     key: string,
-    replacements?: Record<string, string | number>
+    replacements?: Record<string, string | number>,
   ): string => {
     if (t) {
       return t(key as any, replacements);
@@ -203,7 +203,7 @@ export const generateTimestamp = (): string => {
  */
 export const getFileUrl = (
   path: string | null | undefined,
-  backendUrl: string
+  backendUrl: string,
 ): string | undefined => {
   if (!path) return undefined;
 
@@ -215,3 +215,41 @@ export const getFileUrl = (
   // Otherwise, prepend backend URL
   return `${backendUrl}${path}`;
 };
+
+/**
+ * Parse language code from subtitle path/filename (segment before extension, e.g. ".en.vtt" -> "en").
+ * Used as fallback when stored language was wrong (e.g. "is" from old backend bug).
+ */
+export function getLanguageFromSubtitlePath(
+  pathOrFilename: string,
+): string | null {
+  const basename = pathOrFilename.split("/").pop() ?? pathOrFilename;
+  const lastDot = basename.lastIndexOf(".");
+  if (lastDot <= 0) return null;
+  const withoutExt = basename.slice(0, lastDot);
+  const segment = withoutExt.split(".").pop() ?? "";
+  return /^[a-z]{2}(-[A-Z]{2})?$/.test(segment) ? segment : null;
+}
+
+/**
+ * Display label for a subtitle language code (e.g. "en" -> "English", "ko" -> "Korean").
+ * If lang is "is" and path is provided, tries to parse real language from path (fixes old DB data).
+ * Falls back to uppercase code if Intl is unavailable or code is unknown.
+ */
+export function getSubtitleLanguageLabel(
+  lang: string,
+  pathOrFilename?: string,
+): string {
+  let code = lang;
+  if ((!code || code === "unknown" || code === "is") && pathOrFilename) {
+    const fromPath = getLanguageFromSubtitlePath(pathOrFilename);
+    if (fromPath) code = fromPath;
+  }
+  if (!code || code === "unknown") return code === "unknown" ? "Unknown" : "";
+  try {
+    const display = new Intl.DisplayNames(undefined, { type: "language" });
+    return display.of(code) ?? code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+}
