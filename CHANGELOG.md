@@ -1,6 +1,25 @@
 # Change Log
 
 
+## v1.7.92 (2026-01-29)
+
+### Feat
+
+- feat: Add option to subscribe to all playlists in channel (f6b58de)
+
+## v1.7.91 (2026-01-29)
+
+### Refactor
+
+- refactor: Improve parsing and displaying subtitle language (4b1fb56)
+
+## v1.7.90 (2026-01-28)
+
+### Test
+
+- test: Add tests for TagsModal and Home components (636f159)
+- test: Add unit tests for passkey service functionality (6bc21dc)
+
 ## v1.7.89 (2026-01-27)
 
 ### Feat

@@ -97,7 +97,7 @@ vi.mock('../../hooks/useVideoPlayerSettings', () => ({
     })
 }));
 vi.mock('../../hooks/useVideoProgress', () => ({
-    useVideoProgress: () => ({ handleTimeUpdate: vi.fn(), setIsDeleting: vi.fn() })
+    useVideoProgress: () => ({ handleTimeUpdate: vi.fn(), setIsDeleting: vi.fn(), currentTimeRef: { current: 0 } })
 }));
 vi.mock('../../hooks/useVideoRecommendations', () => ({
     useVideoRecommendations: () => ({ relatedVideos: [] })
