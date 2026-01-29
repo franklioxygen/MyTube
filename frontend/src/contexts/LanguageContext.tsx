@@ -42,18 +42,17 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         load();
     }, [language]);
 
+    // Always try to fetch settings on mount so language persists across browsers
+    // (backend returns language when login is disabled, or when cookies are sent)
     useEffect(() => {
-        // Only fetch settings if we appear to be authenticated (check for role cookie)
-        // This prevents 401 errors on the login page
-        const roleCookie = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('mytube_role='));
+        fetchSettings();
+    }, []);
 
-        if (roleCookie) {
-            // User appears to be authenticated, fetch settings
-            fetchSettings();
-        }
-        // If no cookie, skip the request and use localStorage value
+    // Refetch settings when user logs in (e.g. opening app in another browser)
+    useEffect(() => {
+        const onLogin = () => fetchSettings();
+        window.addEventListener('mytube-login', onLogin);
+        return () => window.removeEventListener('mytube-login', onLogin);
     }, []);
 
     const fetchSettings = async () => {
@@ -87,16 +86,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             console.error('Error saving language to localStorage:', error);
         }
 
-        // Only save to backend if authenticated (check for role cookie)
-        const roleCookie = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('mytube_role='));
-
-        if (!roleCookie) {
-            // Not authenticated, skip backend save
-            return;
-        }
-
+        // Always try to save to backend so language persists across browsers
+        // (backend accepts when login is disabled, or when cookies are sent; 401 is ignored)
         try {
             // We need to fetch current settings first to not overwrite other settings
             // Or ideally the backend supports partial updates, but our controller expects full object usually

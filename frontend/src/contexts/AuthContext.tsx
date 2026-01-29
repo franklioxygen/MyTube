@@ -117,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (role) {
             setUserRole(role);
         }
+        // Notify LanguageContext to refetch settings (e.g. so language persists in new browser)
+        window.dispatchEvent(new CustomEvent('mytube-login'));
         // Token is now stored in HTTP-only cookie by backend, no need to store it here
     };
 
