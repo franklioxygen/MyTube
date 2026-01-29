@@ -20,7 +20,7 @@ export function getSettings(): Record<string, any> {
   } catch (error) {
     logger.error(
       "Error getting settings",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error : new Error(String(error)),
     );
     // Return empty object for backward compatibility
     return {};
@@ -66,6 +66,7 @@ const WHITELISTED_SETTINGS = [
   "playSoundOnTaskComplete",
   "mountDirectories",
   "defaultSort",
+  "preferredAudioLanguage",
 ];
 
 export function saveSettings(newSettings: Record<string, any>): void {
@@ -99,12 +100,12 @@ export function saveSettings(newSettings: Record<string, any>): void {
   } catch (error) {
     logger.error(
       "Error saving settings",
-      error instanceof Error ? error : new Error(String(error))
+      error instanceof Error ? error : new Error(String(error)),
     );
     throw new DatabaseError(
       "Failed to save settings",
       error instanceof Error ? error : new Error(String(error)),
-      "saveSettings"
+      "saveSettings",
     );
   }
 }

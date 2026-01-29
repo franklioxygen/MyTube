@@ -107,4 +107,5 @@ export interface Settings {
   mountDirectories?: string;
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
+  preferredAudioLanguage?: string;
 }

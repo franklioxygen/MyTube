@@ -5,7 +5,8 @@ export const ja = {
   settings: "設定",
   logout: "ログアウト",
   pleaseEnterUrlOrSearchTerm: "動画のURLまたは検索語を入力してください",
-  unexpectedErrorOccurred: "予期しないエラーが発生しました。もう一度お試しください。",
+  unexpectedErrorOccurred:
+    "予期しないエラーが発生しました。もう一度お試しください。",
   uploadVideo: "動画をアップロード",
   enterUrlOrSearchTerm: "動画のURLまたは検索語を入力",
   manageVideos: "動画の管理",
@@ -20,7 +21,8 @@ export const ja = {
   downloadStarted: "ダウンロードを開始しました",
   downloadFailed: "ダウンロードに失敗しました",
   downloadSuccess: "ダウンロードが正常に開始されました",
-  confirmDownloadAllPlaylists: "このチャンネルのすべての再生リストをダウンロードしますか？これにより、再生リストごとにコレクションが作成されます。",
+  confirmDownloadAllPlaylists:
+    "このチャンネルのすべての再生リストをダウンロードしますか？これにより、再生リストごとにコレクションが作成されます。",
   downloadAll: "すべてダウンロード",
   loadingVideos: "動画を読み込み中...",
   searchResultsFor: "検索結果:",
@@ -29,7 +31,8 @@ export const ja = {
   fromYouTube: "YouTubeから",
   loadingYouTubeResults: "YouTubeの結果を読み込み中...",
   noYouTubeResults: "YouTubeの結果が見つかりません",
-  noVideosYet: "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
+  noVideosYet:
+    "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
   views: "回視聴",
 
   // Settings
@@ -50,11 +53,15 @@ export const ja = {
   websiteName: "ウェブサイト名",
   websiteNameHelper: "{current}/{max} 文字 (デフォルト: {default})",
   tmdbApiKey: "TMDB APIキー",
-  tmdbApiKeyHelper: "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
+  tmdbApiKeyHelper:
+    "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
   mountDirectories: "マウントディレクトリ",
-  mountDirectoriesPlaceholder: "マウントディレクトリを入力してください（1行に1つ）\n例：\n/mnt/media1\n/mnt/media2",
-  mountDirectoriesHelper: "ビデオファイルが保存されているマウントディレクトリを入力してください。1行に1つのディレクトリ",
-  mountDirectoriesEmptyError: "少なくとも1つのマウントディレクトリを入力してください",
+  mountDirectoriesPlaceholder:
+    "マウントディレクトリを入力してください（1行に1つ）\n例：\n/mnt/media1\n/mnt/media2",
+  mountDirectoriesHelper:
+    "ビデオファイルが保存されているマウントディレクトリを入力してください。1行に1つのディレクトリ",
+  mountDirectoriesEmptyError:
+    "少なくとも1つのマウントディレクトリを入力してください",
   infiniteScroll: "無限スクロール",
   infiniteScrollDisabled: "無限スクロールが有効な場合は無効",
   maxVideoColumns: "最大ビデオ列数 (ホームページ)",
@@ -62,27 +69,54 @@ export const ja = {
   columnsCount: "{count} 列",
   enableLogin: "ログイン保護を有効にする",
   allowPasswordLogin: "パスワードログインを許可",
-  allowPasswordLoginHelper: "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
+  allowPasswordLoginHelper:
+    "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
   allowResetPassword: "パスワードリセットを許可",
-  allowResetPasswordHelper: "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
+  allowResetPasswordHelper:
+    "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
   password: "パスワード",
   enterPassword: "パスワードを入力",
   togglePasswordVisibility: "パスワードの表示切り替え",
-  passwordHelper: "現在のパスワードを維持する場合は空欄にし、変更する場合は入力してください",
-  passwordSetHelper: "アプリケーションにアクセスするためのパスワードを設定します",
+  passwordHelper:
+    "現在のパスワードを維持する場合は空欄にし、変更する場合は入力してください",
+  passwordSetHelper:
+    "アプリケーションにアクセスするためのパスワードを設定します",
   autoPlay: "動画の自動再生",
   autoLoop: "動画の自動ループ",
   maxConcurrent: "最大同時ダウンロード数",
-  maxConcurrentDescription: "通常のダウンロードや継続的なサブスクリプションタスクを含む、同時ダウンロード数を制限します。",
+  maxConcurrentDescription:
+    "通常のダウンロードや継続的なサブスクリプションタスクを含む、同時ダウンロード数を制限します。",
   dontSkipDeletedVideo: "削除された動画をスキップしない",
-  dontSkipDeletedVideoDescription: "有効にすると、削除されたステータスの動画はスキップされず、自動的に再ダウンロードされます。",
+  dontSkipDeletedVideoDescription:
+    "有効にすると、削除されたステータスの動画はスキップされず、自動的に再ダウンロードされます。",
+  preferredAudioLanguage: "優先オーディオ言語",
+  preferredAudioLanguageDescription:
+    "利用可能な場合、YouTubeのマルチストリームオーディオでこの言語が優先されます。",
+  preferredAudioLanguageDefault: "デフォルト",
+  preferredAudioLanguage_en: "英語",
+  preferredAudioLanguage_zh: "中国語",
+  preferredAudioLanguage_ja: "日本語",
+  preferredAudioLanguage_ko: "韓国語",
+  preferredAudioLanguage_es: "スペイン語",
+  preferredAudioLanguage_fr: "フランス語",
+  preferredAudioLanguage_de: "ドイツ語",
+  preferredAudioLanguage_pt: "ポルトガル語",
+  preferredAudioLanguage_ru: "ロシア語",
+  preferredAudioLanguage_ar: "アラビア語",
+  preferredAudioLanguage_hi: "ヒンディー語",
+  preferredAudioLanguage_it: "イタリア語",
+  preferredAudioLanguage_nl: "オランダ語",
+  preferredAudioLanguage_pl: "ポーランド語",
+  preferredAudioLanguage_tr: "トルコ語",
+  preferredAudioLanguage_vi: "ベトナム語",
   saveSettings: "設定を保存",
   saving: "保存中...",
   backToManage: "管理に戻る",
   settingsSaved: "設定が正常に保存されました",
   settingsFailed: "設定の保存に失敗しました",
   debugMode: "デバッグモード",
-  debugModeDescription: "コンソールメッセージを表示または非表示にします（更新が必要）",
+  debugModeDescription:
+    "コンソールメッセージを表示または非表示にします（更新が必要）",
   pauseOnFocusLoss: "フォーカス喪失時に一時停止",
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
@@ -95,25 +129,32 @@ export const ja = {
   confirmRenameTag: "変更",
   tagRenamedSuccess: "タグ名が正常に変更されました",
   tagRenameFailed: "タグ名の変更に失敗しました",
-  renameTagDescription: "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
+  renameTagDescription:
+    "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
   enterNewTagName: "タグ '{tag}' の新しい名前を入力してください",
   // Database
   database: "データベース",
-  migrateDataDescription: "レガシーJSONファイルから新しいSQLiteデータベースにデータを移行します。この操作は複数回実行しても安全です（重複はスキップされます）。",
+  migrateDataDescription:
+    "レガシーJSONファイルから新しいSQLiteデータベースにデータを移行します。この操作は複数回実行しても安全です（重複はスキップされます）。",
   migrateDataButton: "JSONからデータを移行",
   scanFiles: "ファイルをスキャン",
   scanFilesSuccess: "スキャン完了。{count} 個の新しい動画が追加されました。",
   scanFilesDeleted: " {count} 個の不足ファイルが削除されました。",
   scanFilesFailed: "スキャンに失敗しました",
-  scanMountDirectoriesSuccess: "マウントディレクトリのスキャンが完了しました。{addedCount} 個の新しい動画が追加されました。{deletedCount} 個の不足動画が削除されました。",
-  subscribePlaylistsSuccess: "{count} 個のプレイリスト{plural}の購読に成功しました。",
-  subscribePlaylistsSkipped: "{count} 個のプレイリスト{plural}{wasWere}既に購読されています。",
+  scanMountDirectoriesSuccess:
+    "マウントディレクトリのスキャンが完了しました。{addedCount} 個の新しい動画が追加されました。{deletedCount} 個の不足動画が削除されました。",
+  subscribePlaylistsSuccess:
+    "{count} 個のプレイリスト{plural}の購読に成功しました。",
+  subscribePlaylistsSkipped:
+    "{count} 個のプレイリスト{plural}{wasWere}既に購読されています。",
   subscribePlaylistsErrors: "{count} 個のエラー{plural}が発生しました。",
   subscribePlaylistsNoNew: "新しいプレイリストは購読されませんでした。",
   playlistsWatcher: "プレイリスト監視",
-  scanFilesConfirmMessage: "システムはビデオパスのルートフォルダをスキャンします。新しいファイルが追加され、不足しているビデオファイルはシステムから削除されます。",
+  scanFilesConfirmMessage:
+    "システムはビデオパスのルートフォルダをスキャンします。新しいファイルが追加され、不足しているビデオファイルはシステムから削除されます。",
   scanning: "スキャン中...",
-  migrateConfirmation: "データを移行してもよろしいですか？これには時間がかかる場合があります。",
+  migrateConfirmation:
+    "データを移行してもよろしいですか？これには時間がかかる場合があります。",
   migrationResults: "移行結果",
   migrationReport: "移行レポート",
   migrationSuccess: "移行が完了しました。詳細はアラートを確認してください。",
@@ -123,29 +164,38 @@ export const ja = {
   migrationErrors: "エラー",
   itemsMigrated: "項目が移行されました",
   fileNotFound: "ファイルが見つかりません:",
-  noDataFilesFound: "移行するデータファイルが見つかりませんでした。ボリュームマッピングを確認してください。",
+  noDataFilesFound:
+    "移行するデータファイルが見つかりませんでした。ボリュームマッピングを確認してください。",
   removeLegacyData: "レガシーデータを削除",
-  removeLegacyDataDescription: "古いJSONファイル（videos.json、collections.jsonなど）を削除してディスク容量を解放します。データが正常に移行されたことを確認した後にのみ実行してください。",
+  removeLegacyDataDescription:
+    "古いJSONファイル（videos.json、collections.jsonなど）を削除してディスク容量を解放します。データが正常に移行されたことを確認した後にのみ実行してください。",
   removeLegacyDataConfirmTitle: "レガシーデータを削除しますか？",
-  removeLegacyDataConfirmMessage: "レガシーJSONデータファイルを削除してもよろしいですか？この操作は元に戻せません。",
+  removeLegacyDataConfirmMessage:
+    "レガシーJSONデータファイルを削除してもよろしいですか？この操作は元に戻せません。",
   legacyDataDeleted: "レガシーデータが正常に削除されました。",
   formatLegacyFilenames: "レガシーファイル名のフォーマット",
-  formatLegacyFilenamesDescription: "すべての動画ファイル、サムネイル、字幕を新しい標準フォーマット（タイトル-作成者-YYYY）に一括リネームします。この操作はディスク上のファイル名を変更し、データベースのロジックを更新します。",
+  formatLegacyFilenamesDescription:
+    "すべての動画ファイル、サムネイル、字幕を新しい標準フォーマット（タイトル-作成者-YYYY）に一括リネームします。この操作はディスク上のファイル名を変更し、データベースのロジックを更新します。",
   formatLegacyFilenamesButton: "ファイル名をフォーマット",
   deleteLegacyDataButton: "レガシーデータを削除",
   cleanupTempFiles: "一時ファイルをクリーンアップ",
-  cleanupTempFilesDescription: "アップロードディレクトリからすべての一時ダウンロードファイル（.ytdl、.part）を削除します。不完全またはキャンセルされたダウンロードのディスク容量を解放するのに役立ちます。",
+  cleanupTempFilesDescription:
+    "アップロードディレクトリからすべての一時ダウンロードファイル（.ytdl、.part）を削除します。不完全またはキャンセルされたダウンロードのディスク容量を解放するのに役立ちます。",
   cleanupTempFilesConfirmTitle: "一時ファイルをクリーンアップしますか？",
-  cleanupTempFilesConfirmMessage: "これにより、アップロードディレクトリ内のすべての.ytdlおよび.partファイルが永久に削除されます。続行する前に、アクティブなダウンロードがないことを確認してください。",
+  cleanupTempFilesConfirmMessage:
+    "これにより、アップロードディレクトリ内のすべての.ytdlおよび.partファイルが永久に削除されます。続行する前に、アクティブなダウンロードがないことを確認してください。",
 
   // Task Hooks
   taskHooks: "タスクフック",
-  taskHooksDescription: "タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
-  taskHooksWarning: "警告: コマンドはサーバーの権限で実行されます。注意して使用してください。",
+  taskHooksDescription:
+    "タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
+  taskHooksWarning:
+    "警告: コマンドはサーバーの権限で実行されます。注意して使用してください。",
   hookTaskBeforeStart: "タスク開始前",
   hookTaskBeforeStartHelper: "ダウンロードが始まる前に実行されます。",
   hookTaskSuccess: "タスク成功",
-  hookTaskSuccessHelper: "ダウンロード成功後、クラウドアップロード/削除の前に実行されます（完了を待ちます）。",
+  hookTaskSuccessHelper:
+    "ダウンロード成功後、クラウドアップロード/削除の前に実行されます（完了を待ちます）。",
   hookTaskFail: "タスク失敗",
   hookTaskFailHelper: "タスクが失敗したときに実行されます。",
   hookTaskCancel: "タスクキャンセル",
@@ -155,10 +205,14 @@ export const ja = {
   deleteHook: "フックスクリプトを削除",
   confirmDeleteHook: "このフックスクリプトを削除してもよろしいですか？",
   uploadHook: "アップロード .sh",
-  enterPasswordToUploadHook: "このフック・スクリプトをアップロードするにはパスワードを入力してください。",
-  riskCommandDetected: "危険なコマンドが検出されました: {command}。アップロードは拒否されました。",
-  cleanupTempFilesActiveDownloads: "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
-  formatFilenamesSuccess: "処理済み: {processed}\n名前変更: {renamed}\nエラー: {errors}",
+  enterPasswordToUploadHook:
+    "このフック・スクリプトをアップロードするにはパスワードを入力してください。",
+  riskCommandDetected:
+    "危険なコマンドが検出されました: {command}。アップロードは拒否されました。",
+  cleanupTempFilesActiveDownloads:
+    "ダウンロードがアクティブな間はクリーンアップできません。すべてのダウンロードが完了するまで待つか、キャンセルしてください。",
+  formatFilenamesSuccess:
+    "処理済み: {processed}\n名前変更: {renamed}\nエラー: {errors}",
   formatFilenamesDetails: "詳細:",
   formatFilenamesMore: "...他 {count} 件",
   formatFilenamesError: "ファイル名のフォーマットに失敗しました: {error}",
@@ -173,16 +227,19 @@ export const ja = {
   visitorModeUrlRestricted: "ビジターはURLを処理できません",
   visitorUser: "ビジターユーザー",
   enableVisitorUser: "ビジターユーザーを有効にする",
-  visitorUserHelper: "読み取り専用アクセス権を持つ別のビジターアカウントを有効にします。ビジターはコンテンツを閲覧できますが、変更することはできません。",
+  visitorUserHelper:
+    "読み取り専用アクセス権を持つ別のビジターアカウントを有効にします。ビジターはコンテンツを閲覧できますが、変更することはできません。",
   visitorPassword: "ビジターパスワード",
   visitorPasswordHelper: "ビジターアカウントのパスワードを設定します。",
-  visitorPasswordSetHelper: "パスワードが設定されています。変更しない場合は空欄にしてください。",
+  visitorPasswordSetHelper:
+    "パスワードが設定されています。変更しない場合は空欄にしてください。",
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 
   // Cookie Settings
   cookieSettings: "Cookie設定",
-  cookieUploadDescription: "YouTubeのボットチェックを通過し、Bilibiliの字幕ダウンロードを有効にするためにcookies.txtをアップロードしてください。ファイルは自動的にcookies.txtにリネームされます。(例：\"Get cookies.txt LOCALLY\" 拡張機能を使用してクッキーをエクスポート)",
+  cookieUploadDescription:
+    'YouTubeのボットチェックを通過し、Bilibiliの字幕ダウンロードを有効にするためにcookies.txtをアップロードしてください。ファイルは自動的にcookies.txtにリネームされます。(例："Get cookies.txt LOCALLY" 拡張機能を使用してクッキーをエクスポート)',
   uploadCookies: "Cookieをアップロード",
   onlyTxtFilesAllowed: ".txtファイルのみ許可されています",
   cookiesUploadedSuccess: "Cookieが正常にアップロードされました",
@@ -190,30 +247,37 @@ export const ja = {
   cookiesFound: "cookies.txtが見つかりました",
   cookiesNotFound: "cookies.txtが見つかりません",
   deleteCookies: "Cookiesを削除",
-  confirmDeleteCookies: "cookiesファイルを削除してもよろしいですか？年齢制限のある動画やメンバー限定動画のダウンロードに影響する可能性があります。",
+  confirmDeleteCookies:
+    "cookiesファイルを削除してもよろしいですか？年齢制限のある動画やメンバー限定動画のダウンロードに影響する可能性があります。",
   cookiesDeletedSuccess: "Cookiesが正常に削除されました",
   cookiesDeleteFailed: "Cookiesの削除に失敗しました",
 
   // Cloud Drive
   cloudDriveSettings: "クラウドストレージ (OpenList)",
-  cloudDriveDescription: "クラウドストレージ(Alist)に動画を自動アップロードし、クラウド内の新しいファイルをスキャンします。アップロード成功後、ローカルファイルは削除されます。",
+  cloudDriveDescription:
+    "クラウドストレージ(Alist)に動画を自動アップロードし、クラウド内の新しいファイルをスキャンします。アップロード成功後、ローカルファイルは削除されます。",
   enableAutoSave: "クラウド同期を有効化",
   apiUrl: "API URL",
   apiUrlHelper: "例: https://your-alist-instance.com/api/fs/put",
   token: "トークン",
   publicUrl: "公開URL",
-  publicUrlHelper: "ファイルにアクセスするための公開ドメイン（例: https://your-cloudflare-tunnel-domain.com）。設定されている場合、ファイルアクセスにはAPI URLの代わりにこれが使用されます。",
+  publicUrlHelper:
+    "ファイルにアクセスするための公開ドメイン（例: https://your-cloudflare-tunnel-domain.com）。設定されている場合、ファイルアクセスにはAPI URLの代わりにこれが使用されます。",
   uploadPath: "アップロードパス",
-  cloudDrivePathHelper: "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
+  cloudDrivePathHelper:
+    "クラウドドライブ内のディレクトリパス、例: /mytube-uploads",
   scanPaths: "スキャンパス",
-  scanPathsHelper: "1行に1つのパスを入力してください。これらのパスから動画がスキャンされます。空の場合はアップロードパスが使用されます。例：\n/a/映画\n/b/ドキュメンタリー",
-  cloudDriveNote: "この機能を有効にすると、新しくダウンロードされた動画は自動的にクラウドストレージにアップロードされ、ローカルファイルは削除されます。動画はプロキシ経由でクラウドストレージから再生されます。",
+  scanPathsHelper:
+    "1行に1つのパスを入力してください。これらのパスから動画がスキャンされます。空の場合はアップロードパスが使用されます。例：\n/a/映画\n/b/ドキュメンタリー",
+  cloudDriveNote:
+    "この機能を有効にすると、新しくダウンロードされた動画は自動的にクラウドストレージにアップロードされ、ローカルファイルは削除されます。動画はプロキシ経由でクラウドストレージから再生されます。",
   cloudScanAdded: "クラウドから追加",
   testing: "テスト中...",
   testConnection: "接続をテスト",
   sync: "同期",
   syncToCloud: "双方向同期",
-  syncWarning: "この操作はローカル動画をクラウドにアップロードし、クラウド上の新しいファイルをスキャンします。アップロード後、ローカルファイルは削除されます。",
+  syncWarning:
+    "この操作はローカル動画をクラウドにアップロードし、クラウド上の新しいファイルをスキャンします。アップロード後、ローカルファイルは削除されます。",
   syncing: "同期中...",
   syncCompleted: "同期完了",
   syncFailed: "同期に失敗しました",
@@ -221,18 +285,22 @@ export const ja = {
   syncErrors: "エラー:",
   fillApiUrlToken: "API URLとトークンを入力してください",
   connectionTestSuccess: "接続テスト成功！設定は有効です。",
-  connectionFailedStatus: "接続失敗：サーバーがステータス {status} を返しました",
+  connectionFailedStatus:
+    "接続失敗：サーバーがステータス {status} を返しました",
   connectionFailedUrl: "サーバーに接続できません。API URLを確認してください。",
   authFailed: "認証に失敗しました。トークンを確認してください。",
   connectionTestFailed: "接続テスト失敗：{error}",
   syncFailedMessage: "同期に失敗しました。もう一度お試しください。",
-  foundVideosToSync: "同期するローカルファイルを持つ動画が {count} 件見つかりました",
+  foundVideosToSync:
+    "同期するローカルファイルを持つ動画が {count} 件見つかりました",
   uploadingVideo: "アップロード中: {title}",
   clearThumbnailCache: "サムネイルのローカルキャッシュをクリア",
   clearing: "クリア中...",
-  clearThumbnailCacheSuccess: "サムネイルキャッシュが正常にクリアされました。サムネイルは次回のアクセス時に再生成されます。",
+  clearThumbnailCacheSuccess:
+    "サムネイルキャッシュが正常にクリアされました。サムネイルは次回のアクセス時に再生成されます。",
   clearThumbnailCacheError: "サムネイルキャッシュのクリアに失敗しました",
-  clearThumbnailCacheConfirmMessage: "クラウド動画用にローカルにキャッシュされたすべてのサムネイルをクリアします。サムネイルは次回のアクセス時にクラウドストレージから再生成されます。続行しますか？",
+  clearThumbnailCacheConfirmMessage:
+    "クラウド動画用にローカルにキャッシュされたすべてのサムネイルをクリアします。サムネイルは次回のアクセス時にクラウドストレージから再生成されます。続行しますか？",
 
   // Manage
   manageContent: "コンテンツの管理",
@@ -262,7 +330,8 @@ export const ja = {
   refreshThumbnail: "サムネイルを更新",
   selected: "選択済み",
   moveCollection: "コレクションに移動",
-  confirmBulkDelete: "これらの動画を削除してもよろしいですか？この操作は取り消せません。",
+  confirmBulkDelete:
+    "これらの動画を削除してもよろしいですか？この操作は取り消せません。",
 
   // Video Player
   playing: "再生",
@@ -287,7 +356,8 @@ export const ja = {
   upNext: "次はこれ",
   noOtherVideos: "他の動画はありません",
   currentlyIn: "現在:",
-  collectionWarning: "別のコレクションに追加すると、現在のコレクションから削除されます。",
+  collectionWarning:
+    "別のコレクションに追加すると、現在のコレクションから削除されます。",
   addToExistingCollection: "既存のコレクションに追加:",
   selectCollection: "コレクションを選択",
   add: "追加",
@@ -295,7 +365,8 @@ export const ja = {
   collectionName: "コレクション名",
   create: "作成",
   removeFromCollection: "コレクションから削除",
-  confirmRemoveFromCollection: "この動画をコレクションから削除してもよろしいですか？",
+  confirmRemoveFromCollection:
+    "この動画をコレクションから削除してもよろしいですか？",
   remove: "削除",
   loadingVideo: "動画を読み込み中...",
   current: "（現在）",
@@ -315,7 +386,8 @@ export const ja = {
   thumbnailRefreshFailed: "サムネイルの更新に失敗しました",
   videoUpdated: "動画を更新しました",
   videoUpdateFailed: "動画の更新に失敗しました",
-  failedToLoadVideos: "動画の読み込みに失敗しました。後でもう一度お試しください。",
+  failedToLoadVideos:
+    "動画の読み込みに失敗しました。後でもう一度お試しください。",
   videoRemovedSuccessfully: "動画を削除しました",
   failedToDeleteVideo: "動画の削除に失敗しました",
   pleaseEnterSearchTerm: "検索語を入力してください",
@@ -324,7 +396,8 @@ export const ja = {
   openInExternalPlayer: "外部プレーヤーで開く",
   playWith: "で再生...",
   deleteAllFilteredVideos: "フィルタリングされた動画をすべて削除",
-  confirmDeleteFilteredVideos: "選択されたタグでフィルタリングされた {count} 本の動画を削除してもよろしいですか？",
+  confirmDeleteFilteredVideos:
+    "選択されたタグでフィルタリングされた {count} 本の動画を削除してもよろしいですか？",
   deleteFilteredVideosSuccess: "{count} 本の動画を削除しました。",
   deletingVideos: "動画を削除中...",
 
@@ -339,33 +412,44 @@ export const ja = {
   defaultPasswordHint: "デフォルトのパスワード: 123",
   checkingConnection: "接続を確認中...",
   connectionError: "接続エラー",
-  backendConnectionFailed: "サーバーに接続できません。バックエンドが実行中でポートが開いているか確認してから、もう一度お試しください。",
+  backendConnectionFailed:
+    "サーバーに接続できません。バックエンドが実行中でポートが開いているか確認してから、もう一度お試しください。",
   retry: "再試行",
   resetPassword: "パスワードをリセット",
   resetPasswordTitle: "パスワードをリセット",
-  resetPasswordMessage: "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
+  resetPasswordMessage:
+    "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
   resetPasswordConfirm: "リセット",
-  resetPasswordSuccess: "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
-  resetPasswordDisabledInfo: "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
-  resetPasswordScriptGuide: "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
+  resetPasswordSuccess:
+    "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
+  resetPasswordDisabledInfo:
+    "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
+  resetPasswordScriptGuide:
+    "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
   // Passkeys
   createPasskey: "パスキーを作成",
   creatingPasskey: "作成中...",
   passkeyCreated: "パスキーが正常に作成されました",
-  passkeyCreationFailed: "パスキーの作成に失敗しました。もう一度お試しください。",
-  passkeyWebAuthnNotSupported: "このブラウザはWebAuthnをサポートしていません。WebAuthnをサポートする最新のブラウザを使用してください。",
-  passkeyRequiresHttps: "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",
+  passkeyCreationFailed:
+    "パスキーの作成に失敗しました。もう一度お試しください。",
+  passkeyWebAuthnNotSupported:
+    "このブラウザはWebAuthnをサポートしていません。WebAuthnをサポートする最新のブラウザを使用してください。",
+  passkeyRequiresHttps:
+    "WebAuthnにはHTTPSまたはlocalhostが必要です。HTTPS経由でアプリケーションにアクセスするか、IPアドレスの代わりにlocalhostを使用してください。",
   removePasskeys: "すべてのパスキーを削除",
   removePasskeysTitle: "すべてのパスキーを削除",
-  removePasskeysMessage: "すべてのパスキーを削除してもよろしいですか？この操作は元に戻せません。",
+  removePasskeysMessage:
+    "すべてのパスキーを削除してもよろしいですか？この操作は元に戻せません。",
   passkeysRemoved: "すべてのパスキーが削除されました",
-  passkeysRemoveFailed: "パスキーの削除に失敗しました。もう一度お試しください。",
+  passkeysRemoveFailed:
+    "パスキーの削除に失敗しました。もう一度お試しください。",
   loginWithPasskey: "パスキーでログイン",
   authenticating: "認証中...",
   passkeyLoginFailed: "パスキー認証に失敗しました。もう一度お試しください。",
-  passkeyErrorPermissionDenied: "ユーザーエージェントまたはプラットフォームが現在のコンテキストでリクエストを許可していません。ユーザーが権限を拒否した可能性があります。",
+  passkeyErrorPermissionDenied:
+    "ユーザーエージェントまたはプラットフォームが現在のコンテキストでリクエストを許可していません。ユーザーが権限を拒否した可能性があります。",
   passkeyErrorAlreadyRegistered: "認証器は以前に登録されています。",
   linkCopied: "リンクをクリップボードにコピーしました",
   copyFailed: "リンクのコピーに失敗しました",
@@ -382,20 +466,28 @@ export const ja = {
   unknownAuthor: "不明",
   noVideosForAuthor: "この作成者の動画は見つかりませんでした。",
   deleteAuthor: "著者を削除",
-  deleteAuthorConfirmation: "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
+  deleteAuthorConfirmation:
+    "著者 {author} を削除してもよろしいですか？これにより、この著者に関連するすべての動画が削除されます。",
   authorDeletedSuccessfully: "著者が正常に削除されました",
   failedToDeleteAuthor: "著者の削除に失敗しました",
   createCollectionFromAuthor: "著者からコレクションを作成",
-  createCollectionFromAuthorTooltip: "この著者のすべての動画をコレクションに移動",
+  createCollectionFromAuthorTooltip:
+    "この著者のすべての動画をコレクションに移動",
   creatingCollection: "コレクションを作成中...",
-  collectionCreatedFromAuthor: "コレクションが作成され、すべての動画が正常に移動されました",
-  failedToCreateCollectionFromAuthor: "著者からのコレクション作成に失敗しました",
+  collectionCreatedFromAuthor:
+    "コレクションが作成され、すべての動画が正常に移動されました",
+  failedToCreateCollectionFromAuthor:
+    "著者からのコレクション作成に失敗しました",
   collectionAlreadyExists: "この名前のコレクションはすでに存在します",
-  createCollectionFromAuthorConfirmation: "\"{author}\" という名前のコレクションが作成され、この著者のすべての動画がそこに移動されます。続行しますか？",
-  createCollectionFromAuthorConfirmationWithMove: "\"{author}\" という名前のコレクションが作成され、この著者のすべての動画がそこに移動されます。現在他のコレクションにある {count} 本の動画もこの新しいコレクションに移動されます。続行しますか？",
+  createCollectionFromAuthorConfirmation:
+    '"{author}" という名前のコレクションが作成され、この著者のすべての動画がそこに移動されます。続行しますか？',
+  createCollectionFromAuthorConfirmationWithMove:
+    '"{author}" という名前のコレクションが作成され、この著者のすべての動画がそこに移動されます。現在他のコレクションにある {count} 本の動画もこの新しいコレクションに移動されます。続行しますか？',
   addVideosToCollection: "動画をコレクションに追加",
-  addVideosToExistingCollectionConfirmation: "著者 \"{author}\" の動画 {count} 本を既存のコレクション \"{author}\" に追加します。続行しますか？",
-  addVideosToExistingCollectionConfirmationWithMove: "著者 \"{author}\" の動画 {count} 本を既存のコレクション \"{author}\" に追加します。現在他のコレクションにある {moveCount} 本の動画がこのコレクションに移動されます。続行しますか？",
+  addVideosToExistingCollectionConfirmation:
+    '著者 "{author}" の動画 {count} 本を既存のコレクション "{author}" に追加します。続行しますか？',
+  addVideosToExistingCollectionConfirmationWithMove:
+    '著者 "{author}" の動画 {count} 本を既存のコレクション "{author}" に追加します。現在他のコレクションにある {moveCount} 本の動画がこのコレクションに移動されます。続行しますか？',
 
   // Delete Collection Modal
   deleteCollectionTitle: "コレクションを削除",
@@ -446,9 +538,11 @@ export const ja = {
   authorOrPlaylist: "作者 / 再生リスト",
   playlistDetected: "プレイリストが検出されました",
   playlistHasVideos: "このプレイリストには{count}本の動画があります。",
-  downloadPlaylistAndCreateCollection: "プレイリストの動画をダウンロードして、コレクションを作成しますか？",
+  downloadPlaylistAndCreateCollection:
+    "プレイリストの動画をダウンロードして、コレクションを作成しますか？",
   playlistDownloadStarted: "プレイリストのダウンロードが開始されました",
-  collectionHasVideos: "このBilibiliコレクションには{count}個の動画があります。",
+  collectionHasVideos:
+    "このBilibiliコレクションには{count}個の動画があります。",
   seriesHasVideos: "このBilibiliシリーズには{count}個の動画があります。",
   videoHasParts: "このBilibili動画には{count}個のパートがあります。",
   downloadAllVideos: "全{count}個の動画をダウンロード",
@@ -508,11 +602,14 @@ export const ja = {
   subscribeToChannel: "チャンネルを購読する",
   subscribeConfirmationMessage: "{author} を購読しますか？",
   subscribeChannelChoiceMessage: "このチャンネルをどのように購読しますか？",
-  subscribeChannelChoiceDescription: "このチャンネルのすべての動画またはすべてのプレイリストを購読することを選択してください。すべてのプレイリストを購読すると、作成者が将来作成するプレイリストも購読されます。",
+  subscribeChannelChoiceDescription:
+    "このチャンネルのすべての動画またはすべてのプレイリストを購読することを選択してください。すべてのプレイリストを購読すると、作成者が将来作成するプレイリストも購読されます。",
   subscribeAllVideos: "すべての動画を購読",
   subscribeAllPlaylists: "すべてのプレイリストを購読",
-  subscribeAllPlaylistsDescription: "これで、このチャンネルのすべての再生リストに登録されます。",
-  subscribeDescription: "システムはこの著者の新しい動画を自動的にチェックしてダウンロードします。",
+  subscribeAllPlaylistsDescription:
+    "これで、このチャンネルのすべての再生リストに登録されます。",
+  subscribeDescription:
+    "システムはこの著者の新しい動画を自動的にチェックしてダウンロードします。",
   checkIntervalMinutes: "チェック間隔（分）",
   subscribe: "購読",
   subscriptions: "購読",
@@ -527,9 +624,12 @@ export const ja = {
   minutes: "分",
   never: "なし",
   downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",
-  downloadAllPreviousWarning: "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
-  downloadAllPreviousVideosInPlaylists: "プレイリスト内の過去の動画をダウンロード",
-  downloadAllPlaylistsWarning: "警告：これにより、このチャンネルのすべてのプレイリストからすべての動画がダウンロードされます。これは多数の動画になる可能性があり、かなりのストレージ容量を消費する可能性があります。",
+  downloadAllPreviousWarning:
+    "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
+  downloadAllPreviousVideosInPlaylists:
+    "プレイリスト内の過去の動画をダウンロード",
+  downloadAllPlaylistsWarning:
+    "警告：これにより、このチャンネルのすべてのプレイリストからすべての動画がダウンロードされます。これは多数の動画になる可能性があり、かなりのストレージ容量を消費する可能性があります。",
   continuousDownloadTasks: "連続ダウンロードタスク",
   taskStatusActive: "アクティブ",
   taskStatusPaused: "一時停止",
@@ -537,14 +637,17 @@ export const ja = {
   taskStatusCancelled: "キャンセル済み",
   downloaded: "ダウンロード済み",
   cancelTask: "タスクをキャンセル",
-  confirmCancelTask: "{author} のダウンロードタスクをキャンセルしてもよろしいですか？",
+  confirmCancelTask:
+    "{author} のダウンロードタスクをキャンセルしてもよろしいですか？",
   taskCancelled: "タスクが正常にキャンセルされました",
   deleteTask: "タスクを削除",
-  confirmDeleteTask: "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
+  confirmDeleteTask:
+    "{author} のタスクレコードを削除してもよろしいですか？この操作は元に戻せません。",
   taskDeleted: "タスクが正常に削除されました",
   clearFinishedTasks: "完了したタスクをクリア",
   tasksCleared: "完了したタスクを正常にクリアしました",
-  confirmClearFinishedTasks: "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
+  confirmClearFinishedTasks:
+    "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
   clear: "クリア",
 
   // Subscription Pause/Resume
@@ -563,57 +666,76 @@ export const ja = {
 
   // Playlist Subscription
   subscribeToPlaylist: "このプレイリストを購読する",
-  subscribePlaylistDescription: "このプレイリストに追加された新しい動画を自動的にチェック",
+  subscribePlaylistDescription:
+    "このプレイリストに追加された新しい動画を自動的にチェック",
   playlistSubscribedSuccessfully: "プレイリストの購読に成功しました",
   downloadAndSubscribe: "すべてダウンロードして購読",
   playlistSubscription: "プレイリスト",
 
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
-  instructionSection1Desc: "このモジュールには、ビデオ取得、バッチタスク、およびファイルインポート機能が含まれています。",
+  instructionSection1Desc:
+    "このモジュールには、ビデオ取得、バッチタスク、およびファイルインポート機能が含まれています。",
   instructionSection1Sub1: "リンクダウンロード：",
   instructionSection1Item1Label: "基本ダウンロード：",
-  instructionSection1Item1Text: "さまざまなビデオサイトのリンクを入力ボックスに貼り付けて直接ダウンロードします。",
+  instructionSection1Item1Text:
+    "さまざまなビデオサイトのリンクを入力ボックスに貼り付けて直接ダウンロードします。",
   instructionSection1Item2Label: "権限：",
-  instructionSection1Item2Text: "メンバーシップまたはログインが必要なサイトの場合、ダウンロード権限を取得するために、まず新しいブラウザタブで対応するアカウントにログインしてください。",
+  instructionSection1Item2Text:
+    "メンバーシップまたはログインが必要なサイトの場合、ダウンロード権限を取得するために、まず新しいブラウザタブで対応するアカウントにログインしてください。",
   instructionSection1Sub2: "スマート認識：",
   instructionSection1Item3Label: "YouTube 著者登録：",
-  instructionSection1Item3Text: "貼り付けられたリンクが著者のチャンネルである場合、システムは登録するかどうかを尋ねます。登録後、システムは設定された間隔で著者の更新を自動的にスキャンしてダウンロードできます。",
+  instructionSection1Item3Text:
+    "貼り付けられたリンクが著者のチャンネルである場合、システムは登録するかどうかを尋ねます。登録後、システムは設定された間隔で著者の更新を自動的にスキャンしてダウンロードできます。",
   instructionSection1Item4Label: "Bilibili コレクションダウンロード：",
-  instructionSection1Item4Text: "貼り付けられたリンクが Bilibili のお気に入り/コレクションである場合、システムはコレクションの内容全体をダウンロードするかどうかを尋ねます。",
+  instructionSection1Item4Text:
+    "貼り付けられたリンクが Bilibili のお気に入り/コレクションである場合、システムはコレクションの内容全体をダウンロードするかどうかを尋ねます。",
   instructionSection1Sub3: "高度なツール（ダウンロード管理ページ）：",
   instructionSection1Item5Label: "バッチタスクの追加：",
-  instructionSection1Item5Text: "バッチ追加のために、複数のダウンロードリンクを一度に（1行に1つ）貼り付けることをサポートします。",
+  instructionSection1Item5Text:
+    "バッチ追加のために、複数のダウンロードリンクを一度に（1行に1つ）貼り付けることをサポートします。",
   instructionSection1Item6Label: "ファイルのスキャン：",
-  instructionSection1Item6Text: "ビデオストレージのルートディレクトリと第1レベルのフォルダ内のすべてのファイルを自動的に検索します。この機能は、管理者がサーバーバックエンドに手動でファイルを配置した後、システムにファイルを同期するのに適しています。",
+  instructionSection1Item6Text:
+    "ビデオストレージのルートディレクトリと第1レベルのフォルダ内のすべてのファイルを自動的に検索します。この機能は、管理者がサーバーバックエンドに手動でファイルを配置した後、システムにファイルを同期するのに適しています。",
   instructionSection1Item7Label: "ビデオのアップロード：",
-  instructionSection1Item7Text: "クライアントからサーバーにローカルビデオファイルを直接アップロードすることをサポートします。",
+  instructionSection1Item7Text:
+    "クライアントからサーバーにローカルビデオファイルを直接アップロードすることをサポートします。",
 
   instructionSection2Title: "2. ビデオライブラリ管理",
-  instructionSection2Desc: "ダウンロードまたはインポートされたビデオリソースを維持および編集します。",
+  instructionSection2Desc:
+    "ダウンロードまたはインポートされたビデオリソースを維持および編集します。",
   instructionSection2Sub1: "コレクション/ビデオの削除：",
-  instructionSection2Text1: "管理ページでコレクションを削除する場合、システムには2つのオプションがあります。コレクションリスト項目のみを削除する（ファイルを保持する）か、コレクション内の物理ファイルを完全に削除するかです。",
+  instructionSection2Text1:
+    "管理ページでコレクションを削除する場合、システムには2つのオプションがあります。コレクションリスト項目のみを削除する（ファイルを保持する）か、コレクション内の物理ファイルを完全に削除するかです。",
   instructionSection2Sub2: "サムネイルの修復：",
-  instructionSection2Text2: "ダウンロード後にビデオにカバーがない場合は、ビデオサムネイルの更新ボタンをクリックすると、システムはビデオの最初のフレームを新しいサムネイルとして再キャプチャします。",
+  instructionSection2Text2:
+    "ダウンロード後にビデオにカバーがない場合は、ビデオサムネイルの更新ボタンをクリックすると、システムはビデオの最初のフレームを新しいサムネイルとして再キャプチャします。",
 
   instructionSection3Title: "3. システム設定",
-  instructionSection3Desc: "システムパラメータの構成、データの維持、および機能の拡張。",
+  instructionSection3Desc:
+    "システムパラメータの構成、データの維持、および機能の拡張。",
   instructionSection3Sub1: "セキュリティ設定：",
-  instructionSection3Text1: "システムログインパスワードを設定します（デフォルトの初期パスワードは123です。初回ログイン後に変更することをお勧めします）。",
+  instructionSection3Text1:
+    "システムログインパスワードを設定します（デフォルトの初期パスワードは123です。初回ログイン後に変更することをお勧めします）。",
   instructionSection3Sub2: "タグ管理：",
-  instructionSection3Text2: "ビデオ分類タグの追加または削除をサポートします。注：変更を有効にするには、ページ下部の「保存」ボタンをクリックする必要があります。",
+  instructionSection3Text2:
+    "ビデオ分類タグの追加または削除をサポートします。注：変更を有効にするには、ページ下部の「保存」ボタンをクリックする必要があります。",
   instructionSection3Sub3: "システムメンテナンス：",
   instructionSection3Item1Label: "一時ファイルのクリーンアップ：",
-  instructionSection3Item1Text: "スペースを解放するために、時折発生するバックエンドの障害によって引き起こされる残留一時ダウンロードファイルをクリアするために使用されます。",
+  instructionSection3Item1Text:
+    "スペースを解放するために、時折発生するバックエンドの障害によって引き起こされる残留一時ダウンロードファイルをクリアするために使用されます。",
   instructionSection3Item2Label: "データベース移行：",
-  instructionSection3Item2Text: "初期バージョンのユーザー向けに設計されています。この機能を使用して、JSON から新しい SQLite データベースにデータを移行します。移行が成功したら、削除ボタンをクリックして古い履歴データをクリーンアップします。",
+  instructionSection3Item2Text:
+    "初期バージョンのユーザー向けに設計されています。この機能を使用して、JSON から新しい SQLite データベースにデータを移行します。移行が成功したら、削除ボタンをクリックして古い履歴データをクリーンアップします。",
   instructionSection3Sub4: "拡張サービス：",
   instructionSection3Item3Label: "OpenList クラウドドライブ：",
-  instructionSection3Item3Text: "（開発中）ユーザーがデプロイした OpenList サービスへの接続をサポートします。ここで構成を追加して、クラウドドライブ統合を有効にします。",
+  instructionSection3Item3Text:
+    "（開発中）ユーザーがデプロイした OpenList サービスへの接続をサポートします。ここで構成を追加して、クラウドドライブ統合を有効にします。",
 
   // Disclaimer
   disclaimerTitle: "免責事項",
-  disclaimerText: "1. 目的と制限\nこのソフトウェア（コードおよびドキュメントを含む）は、個人の学習、研究、および技術交流のみを目的としています。このソフトウェアを商業目的で使用すること、または地域の法律や規制に違反する違法行為に使用することは固く禁じられています。\n\n2. 責任\n開発者は、ユーザーがこのソフトウェアをどのように使用するかについて認識しておらず、管理もしていません。このソフトウェアの違法または不適切な使用（著作権侵害を含むがこれに限定されない）から生じる法的責任、紛争、または損害は、ユーザーのみが負担するものとします。開発者は、直接的、間接的、または連帯責任を負いません。\n\n3. 修正と配布\nこのプロジェクトはオープンソースです。このコードを修正またはフォークする個人または組織は、オープンソースライセンスを遵守する必要があります。重要：第三者が元のユーザー認証/セキュリティメカニズムを回避または削除するためにコードを修正し、そのようなバージョンを配布する場合、修正者/配布者はすべての結果に対して全責任を負います。セキュリティ検証メカニズムを回避または改ざんすることを強くお勧めしません。\n\n4. 非営利声明\nこれは完全に無料のオープンソースプロジェクトです。開発者は寄付を受け付けておらず、寄付ページを公開したこともありません。ソフトウェア自体は料金を許可しておらず、有料サービスも提供していません。このプロジェクトに代わって料金を徴収すると主張する詐欺や誤解を招く情報には十分ご注意ください。",
+  disclaimerText:
+    "1. 目的と制限\nこのソフトウェア（コードおよびドキュメントを含む）は、個人の学習、研究、および技術交流のみを目的としています。このソフトウェアを商業目的で使用すること、または地域の法律や規制に違反する違法行為に使用することは固く禁じられています。\n\n2. 責任\n開発者は、ユーザーがこのソフトウェアをどのように使用するかについて認識しておらず、管理もしていません。このソフトウェアの違法または不適切な使用（著作権侵害を含むがこれに限定されない）から生じる法的責任、紛争、または損害は、ユーザーのみが負担するものとします。開発者は、直接的、間接的、または連帯責任を負いません。\n\n3. 修正と配布\nこのプロジェクトはオープンソースです。このコードを修正またはフォークする個人または組織は、オープンソースライセンスを遵守する必要があります。重要：第三者が元のユーザー認証/セキュリティメカニズムを回避または削除するためにコードを修正し、そのようなバージョンを配布する場合、修正者/配布者はすべての結果に対して全責任を負います。セキュリティ検証メカニズムを回避または改ざんすることを強くお勧めしません。\n\n4. 非営利声明\nこれは完全に無料のオープンソースプロジェクトです。開発者は寄付を受け付けておらず、寄付ページを公開したこともありません。ソフトウェア自体は料金を許可しておらず、有料サービスも提供していません。このプロジェクトに代わって料金を徴収すると主張する詐欺や誤解を招く情報には十分ご注意ください。",
   history: "履歴",
 
   // Existing Video Detection
@@ -629,7 +751,8 @@ export const ja = {
   existingVideo: "既存の動画",
   skipped: "スキップ",
   videoSkippedExists: "動画は既に存在するため、ダウンロードをスキップしました",
-  videoSkippedDeleted: "動画は以前削除されたため、ダウンロードをスキップしました",
+  videoSkippedDeleted:
+    "動画は以前削除されたため、ダウンロードをスキップしました",
   downloading: "ダウンロード中...",
   poweredBy: "MyTubeによって提供",
   changeSettings: "設定を変更",
@@ -648,7 +771,8 @@ export const ja = {
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp 設定",
-  ytDlpConfigurationDescription: "yt-dlpのダウンロードオプションを設定します。詳細は",
+  ytDlpConfigurationDescription:
+    "yt-dlpのダウンロードオプションを設定します。詳細は",
   ytDlpConfigurationDocs: "ドキュメント",
   ytDlpConfigurationDescriptionEnd: "をご覧ください。",
   customize: "カスタマイズ",
@@ -659,12 +783,14 @@ export const ja = {
   moveSubtitlesToVideoFolder: "字幕の場所",
   moveSubtitlesToVideoFolderOn: "動画と同じ場所",
   moveSubtitlesToVideoFolderOff: "独立した字幕フォルダー",
-  moveSubtitlesToVideoFolderDescription: "有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動します。無効にすると、独立した字幕フォルダーに移動します。",
+  moveSubtitlesToVideoFolderDescription:
+    "有効にすると、字幕ファイルは動画ファイルと同じフォルダーに移動します。無効にすると、独立した字幕フォルダーに移動します。",
   moveThumbnailsToVideoFolder: "サムネイルの場所",
   moveThumbnailsToVideoFolderOn: "動画と一緒",
   moveThumbnailsToVideoFolderOff: "独立した画像フォルダ",
 
-  moveThumbnailsToVideoFolderDescription: "有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。",
+  moveThumbnailsToVideoFolderDescription:
+    "有効にすると、サムネイルファイルは動画ファイルと同じフォルダに移動されます。無効にすると、独立した画像フォルダに移動されます。",
   saveAuthorFilesToCollection: "著者のファイルをコレクションに保存",
   saveAuthorFilesToCollectionOn: "オン",
   saveAuthorFilesToCollectionOff: "オフ",
@@ -675,10 +801,13 @@ export const ja = {
   cloudflaredTunnel: "Cloudflare トンネル",
   enableCloudflaredTunnel: "Cloudflare Tunnelを有効にする",
   cloudflaredToken: "トンネルトークン (オプション)",
-  cloudflaredTokenHelper: "ここにトンネルトークンを貼り付けるか、空のままにしてランダムなQuick Tunnelを使用します。",
+  cloudflaredTokenHelper:
+    "ここにトンネルトークンを貼り付けるか、空のままにしてランダムなQuick Tunnelを使用します。",
   allowedHosts: "公開されたアプリケーションルート",
-  allowedHostsHelper: "Vite開発サーバー用の許可されたホストのリスト（カンマ区切り）。Cloudflare Tunnelのドメインホワイトリスト。",
-  allowedHostsRequired: "トンネルトークンが提供されている場合、公開されたアプリケーションルートは必須です。",
+  allowedHostsHelper:
+    "Vite開発サーバー用の許可されたホストのリスト（カンマ区切り）。Cloudflare Tunnelのドメインホワイトリスト。",
+  allowedHostsRequired:
+    "トンネルトークンが提供されている場合、公開されたアプリケーションルートは必須です。",
   waitingForUrl: "Quick Tunnel URLを待機中...",
   running: "実行中",
   stopped: "停止",
@@ -686,32 +815,43 @@ export const ja = {
   accountTag: "アカウントタグ",
   copied: "コピーしました！",
   clickToCopy: "クリックしてコピー",
-  quickTunnelWarning: "Quick TunnelのURLは、トンネルが再起動するたびに変更されます。",
-  managedInDashboard: "パブリックホスト名はCloudflare Zero Trustダッシュボードで管理されています。",
+  quickTunnelWarning:
+    "Quick TunnelのURLは、トンネルが再起動するたびに変更されます。",
+  managedInDashboard:
+    "パブリックホスト名はCloudflare Zero Trustダッシュボードで管理されています。",
 
   // Database Export/Import
   exportImportDatabase: "データベースのエクスポート/インポート",
-  exportImportDatabaseDescription: "データベースをバックアップファイルとしてエクスポートするか、以前にエクスポートしたバックアップをインポートします。インポートすると、既存のデータがバックアップデータで上書きされます。",
+  exportImportDatabaseDescription:
+    "データベースをバックアップファイルとしてエクスポートするか、以前にエクスポートしたバックアップをインポートします。インポートすると、既存のデータがバックアップデータで上書きされます。",
   exportDatabase: "データベースをエクスポート",
   importDatabase: "データベースをインポート",
   onlyDbFilesAllowed: ".dbファイルのみ許可されています",
-  importDatabaseWarning: "警告：データベースをインポートすると、既存のすべてのデータが上書きされます。まず現在のデータベースをバックアップとしてエクスポートしてください。",
+  importDatabaseWarning:
+    "警告：データベースをインポートすると、既存のすべてのデータが上書きされます。まず現在のデータベースをバックアップとしてエクスポートしてください。",
   selectDatabaseFile: "データベースファイルを選択",
   databaseExportedSuccess: "データベースのエクスポートが成功しました",
   databaseExportFailed: "データベースのエクスポートに失敗しました",
-  databaseImportedSuccess: "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
+  databaseImportedSuccess:
+    "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
   databaseImportFailed: "データベースのインポートに失敗しました",
   cleanupBackupDatabases: "バックアップデータベースをクリーンアップ",
-  cleanupBackupDatabasesWarning: "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
-  backupDatabasesCleanedUp: "バックアップデータベースのクリーンアップが成功しました",
-  backupDatabasesCleanupFailed: "バックアップデータベースのクリーンアップに失敗しました",
+  cleanupBackupDatabasesWarning:
+    "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
+  backupDatabasesCleanedUp:
+    "バックアップデータベースのクリーンアップが成功しました",
+  backupDatabasesCleanupFailed:
+    "バックアップデータベースのクリーンアップに失敗しました",
   restoreFromLastBackup: "最後のバックアップから復元",
-  restoreFromLastBackupWarning: "警告：これにより、最後の自動バックアップファイルからデータベースが復元されます。すべての現在のデータがバックアップデータで上書きされます。この操作は元に戻せません。続行してもよろしいですか？",
-  restoreFromLastBackupSuccess: "バックアップからデータベースの復元が成功しました",
+  restoreFromLastBackupWarning:
+    "警告：これにより、最後の自動バックアップファイルからデータベースが復元されます。すべての現在のデータがバックアップデータで上書きされます。この操作は元に戻せません。続行してもよろしいですか？",
+  restoreFromLastBackupSuccess:
+    "バックアップからデータベースの復元が成功しました",
   restoreFromLastBackupFailed: "バックアップからの復元に失敗しました",
   lastBackupDate: "最後のバックアップ日時",
   noBackupAvailable: "利用可能なバックアップがありません",
-  failedToDownloadVideo: "動画のダウンロードに失敗しました。もう一度お試しください。",
+  failedToDownloadVideo:
+    "動画のダウンロードに失敗しました。もう一度お試しください。",
   failedToDownload: "ダウンロードに失敗しました。もう一度お試しください。",
   openFolder: "フォルダを開く",
   openInNewTab: "新しいタブで開く",
@@ -719,7 +859,8 @@ export const ja = {
   refresh: "更新",
   showSensitiveContent: "センシティブな内容を表示",
   hideSensitiveContent: "センシティブな内容を隠す",
-  sensitiveContentWarning: "この動画にはセンシティブな内容が含まれている可能性があります。クリックして表示します。",
+  sensitiveContentWarning:
+    "この動画にはセンシティブな内容が含まれている可能性があります。クリックして表示します。",
   soundNone: "なし",
   soundBell: "ベル音",
   soundMessage: "メッセージ受信",
@@ -729,7 +870,8 @@ export const ja = {
   soundWater: "金属に水滴が落ちる音",
   // Collection Renaming
   collectionUpdatedSuccessfully: "コレクションが正常に更新されました",
-  failedToUpdateCollection: "コレクションの更新に失敗しました。別の名前を使用してください",
+  failedToUpdateCollection:
+    "コレクションの更新に失敗しました。別の名前を使用してください",
   collectionNameRequired: "コレクション名は必須です",
   collectionNameTooLong: "コレクション名は200文字以下である必要があります",
   collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",

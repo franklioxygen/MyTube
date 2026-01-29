@@ -15,6 +15,7 @@ describe('DownloadSettings', () => {
     const defaultProps = {
         settings: {
             maxConcurrentDownloads: 3,
+            preferredAudioLanguage: '',
         } as any,
         onChange: mockOnChange,
         activeDownloadsCount: 0,
@@ -56,5 +57,25 @@ describe('DownloadSettings', () => {
         fireEvent.change(slider, { target: { value: 5 } });
 
         expect(mockOnChange).toHaveBeenCalledWith('maxConcurrentDownloads', 5);
+    });
+
+    it('should render preferred audio language dropdown and call onChange when selection changes', async () => {
+        const user = userEvent.setup();
+        render(<DownloadSettings {...defaultProps} />);
+
+        const dropdown = screen.getByRole('combobox');
+        expect(dropdown).toBeInTheDocument();
+
+        await user.click(dropdown);
+        const option = await screen.findByRole('option', { name: 'preferredAudioLanguage_ja' });
+        await user.click(option);
+
+        expect(mockOnChange).toHaveBeenCalledWith('preferredAudioLanguage', 'ja');
+    });
+
+    it('should show preferred audio language description', () => {
+        render(<DownloadSettings {...defaultProps} />);
+
+        expect(screen.getByText('preferredAudioLanguageDescription')).toBeInTheDocument();
     });
 });

@@ -1,3 +1,4 @@
+import * as storageService from "../../../services/storageService";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
 import { getProviderScript } from "./ytdlpHelpers";
@@ -81,7 +82,7 @@ export function prepareDownloadFlags(
     // But skip this for Twitter/X to ensure Safari compatibility
     defaultMergeFormat = "webm";
   }
-  const mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
+  let mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
 
   // Prepare flags - defaults first, then user config to allow overrides
   // Network options (like proxy) are applied last to ensure they're not overridden
@@ -135,6 +136,35 @@ export function prepareDownloadFlags(
         "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
     } else {
       flags.format = youtubeFormat;
+    }
+
+    // Prefer app setting "preferred audio language" when user has not specified a custom format.
+    // Use MP4 + H.264 + M4A so the result is playable in-browser (Safari/Chrome); generic bv+ba
+    // can yield WebM/VP9/Opus which causes MEDIA_ERR_SRC_NOT_SUPPORTED in some players.
+    const appSettings = storageService.getSettings();
+    const preferredAudioLanguage = appSettings?.preferredAudioLanguage;
+    if (
+      !config.f &&
+      !config.format &&
+      preferredAudioLanguage &&
+      typeof preferredAudioLanguage === "string" &&
+      preferredAudioLanguage.trim() !== ""
+    ) {
+      const lang = preferredAudioLanguage.trim().replace(/["\\]/g, "");
+      if (lang.length > 0) {
+        flags.format =
+          `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[language=${lang}][ext=m4a]/` +
+          `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/` +
+          `bestvideo[ext=mp4]+bestaudio[language=${lang}]/` +
+          `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
+        // Force MP4 container so merge succeeds (format is MP4/m4a; WebM would cause "Conversion failed!")
+        flags.mergeOutputFormat = "mp4";
+        mergeOutputFormat = "mp4";
+        logger.info(
+          "Using preferred audio language (MP4/m4a for playback):",
+          lang,
+        );
+      }
     }
 
     // Use user's extractor args if provided, otherwise let yt-dlp use its defaults

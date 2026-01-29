@@ -84,6 +84,26 @@ export const en = {
   dontSkipDeletedVideo: "Don't skip deleted video",
   dontSkipDeletedVideoDescription:
     "When enabled, videos with deleted status will be re-downloaded automatically instead of being skipped.",
+  preferredAudioLanguage: "Preferred audio language",
+  preferredAudioLanguageDescription:
+    "When available, YouTube multistream audio in this language will be preferred for downloads.",
+  preferredAudioLanguageDefault: "Default",
+  preferredAudioLanguage_en: "English",
+  preferredAudioLanguage_zh: "Chinese",
+  preferredAudioLanguage_ja: "Japanese",
+  preferredAudioLanguage_ko: "Korean",
+  preferredAudioLanguage_es: "Spanish",
+  preferredAudioLanguage_fr: "French",
+  preferredAudioLanguage_de: "German",
+  preferredAudioLanguage_pt: "Portuguese",
+  preferredAudioLanguage_ru: "Russian",
+  preferredAudioLanguage_ar: "Arabic",
+  preferredAudioLanguage_hi: "Hindi",
+  preferredAudioLanguage_it: "Italian",
+  preferredAudioLanguage_nl: "Dutch",
+  preferredAudioLanguage_pl: "Polish",
+  preferredAudioLanguage_tr: "Turkish",
+  preferredAudioLanguage_vi: "Vietnamese",
   saveSettings: "Save Settings",
   saving: "Saving...",
   backToManage: "Back to Manage",
@@ -103,7 +123,8 @@ export const en = {
   confirmRenameTag: "Rename",
   tagRenamedSuccess: "Tag renamed successfully",
   tagRenameFailed: "Failed to rename tag",
-  renameTagDescription: "Renaming a tag will verify and update all videos that currently use this tag.",
+  renameTagDescription:
+    "Renaming a tag will verify and update all videos that currently use this tag.",
   enterNewTagName: "Enter new name for tag '{tag}'",
   // Database
   database: "Database",
@@ -298,7 +319,8 @@ export const en = {
   refreshThumbnail: "Refresh Thumbnail",
   selected: "Selected",
   moveCollection: "Move to Collection",
-  confirmBulkDelete: "Are you sure you want to delete these videos? This action cannot be undone.",
+  confirmBulkDelete:
+    "Are you sure you want to delete these videos? This action cannot be undone.",
 
   // Video Player
   playing: "Play",
@@ -577,7 +599,8 @@ export const en = {
     "Choose to subscribe to all videos or all playlists from this channel. Subscribing to all playlists will also subscribe to future playlists created by the author.",
   subscribeAllVideos: "Subscribe All Videos",
   subscribeAllPlaylists: "Subscribe All Playlists",
-  subscribeAllPlaylistsDescription: "This will subscribe to all playlists in this channel.",
+  subscribeAllPlaylistsDescription:
+    "This will subscribe to all playlists in this channel.",
   subscribeDescription:
     "The system will automatically check for new videos from this author and download them.",
   checkIntervalMinutes: "Check Interval (minutes)",

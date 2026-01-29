@@ -102,7 +102,8 @@ const SettingsPage: React.FC = () => {
         hooks: {},
         playSoundOnTaskComplete: '',
         mountDirectories: '',
-        defaultSort: 'dateDesc'
+        defaultSort: 'dateDesc',
+        preferredAudioLanguage: ''
     });
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);

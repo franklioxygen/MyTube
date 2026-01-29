@@ -1,7 +1,19 @@
-import { Alert, Box, Button, FormControlLabel, Slider, Switch, Typography } from '@mui/material';
+import {
+    Alert,
+    Box,
+    Button,
+    FormControl,
+    FormControlLabel,
+    MenuItem,
+    Select,
+    Slider,
+    Switch,
+    Typography
+} from '@mui/material';
 import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
 
 interface DownloadSettingsProps {
     settings: Settings;
@@ -52,6 +64,39 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 />
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
                     {t('dontSkipDeletedVideoDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="preferredAudioLanguage-setting">
+                <Typography variant="h6" gutterBottom>{t('preferredAudioLanguage')}</Typography>
+                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                    <Select
+                        labelId="preferred-audio-language-label"
+                        id="preferred-audio-language"
+                        value={settings.preferredAudioLanguage ?? ''}
+                        onChange={(e) => onChange('preferredAudioLanguage', e.target.value)}
+                        displayEmpty
+                        renderValue={(v) =>
+                            v === ''
+                                ? t('preferredAudioLanguageDefault')
+                                : (() => {
+                                      const opt = PREFERRED_AUDIO_LANGUAGE_OPTIONS.find((o) => o.value === v);
+                                      return opt ? t(opt.labelKey) : v;
+                                  })()
+                        }
+                    >
+                        <MenuItem value="">
+                            <em>{t('preferredAudioLanguageDefault')}</em>
+                        </MenuItem>
+                        {PREFERRED_AUDIO_LANGUAGE_OPTIONS.map((opt) => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                                {t(opt.labelKey)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('preferredAudioLanguageDescription')}
                 </Typography>
             </Box>
 

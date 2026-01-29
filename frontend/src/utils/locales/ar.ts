@@ -20,7 +20,8 @@ export const ar = {
   downloadStarted: "بدأ التحميل",
   downloadFailed: "فشل التحميل",
   downloadSuccess: "بدأ التنزيل بنجاح",
-  confirmDownloadAllPlaylists: "هل تريد تنزيل جميع قوائم التشغيل من هذه القناة؟ سيؤدي هذا إلى إنشاء مجموعة لكل قائمة تشغيل.",
+  confirmDownloadAllPlaylists:
+    "هل تريد تنزيل جميع قوائم التشغيل من هذه القناة؟ سيؤدي هذا إلى إنشاء مجموعة لكل قائمة تشغيل.",
   downloadAll: "تنزيل الكل",
   loadingVideos: "جاري تحميل الفيديوهات...",
   searchResultsFor: "نتائج البحث عن",
@@ -50,10 +51,13 @@ export const ar = {
   websiteName: "اسم الموقع",
   websiteNameHelper: "{current}/{max} أحرف (الافتراضي: {default})",
   tmdbApiKey: "مفتاح API الخاص بـ TMDB",
-  tmdbApiKeyHelper: "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
+  tmdbApiKeyHelper:
+    "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
   mountDirectories: "المجلدات المثبتة",
-  mountDirectoriesPlaceholder: "أدخل المجلدات المثبتة (واحد لكل سطر)\nمثال:\n/mnt/media1\n/mnt/media2",
-  mountDirectoriesHelper: "أدخل المجلدات المثبتة حيث يتم تخزين ملفات الفيديو، مجلد واحد لكل سطر",
+  mountDirectoriesPlaceholder:
+    "أدخل المجلدات المثبتة (واحد لكل سطر)\nمثال:\n/mnt/media1\n/mnt/media2",
+  mountDirectoriesHelper:
+    "أدخل المجلدات المثبتة حيث يتم تخزين ملفات الفيديو، مجلد واحد لكل سطر",
   mountDirectoriesEmptyError: "الرجاء إدخال مجلد مثبت واحد على الأقل",
   infiniteScroll: "التمرير اللانهائي",
   infiniteScrollDisabled: "معطل عند تمكين التمرير اللانهائي",
@@ -62,9 +66,11 @@ export const ar = {
   columnsCount: "{count} أعمدة",
   enableLogin: "تفعيل حماية تسجيل الدخول",
   allowPasswordLogin: "السماح بتسجيل الدخول بكلمة المرور",
-  allowPasswordLoginHelper: "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
+  allowPasswordLoginHelper:
+    "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
   allowResetPassword: "السماح بإعادة تعيين كلمة المرور",
-  allowResetPasswordHelper: "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
+  allowResetPasswordHelper:
+    "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
   password: "كلمة المرور",
   enterPassword: "أدخل كلمة المرور",
   togglePasswordVisibility: "تبديل رؤية كلمة المرور",
@@ -73,9 +79,31 @@ export const ar = {
   autoPlay: "تشغيل تلقائي للفيديوهات",
   autoLoop: "تكرار تلقائي للفيديوهات",
   maxConcurrent: "الحد الأقصى للتحميلات المتزامنة",
-  maxConcurrentDescription: "يحد من عدد التنزيلات المتزامنة، بما في ذلك التنزيلات العادية ومهام الاشتراك المستمر.",
+  maxConcurrentDescription:
+    "يحد من عدد التنزيلات المتزامنة، بما في ذلك التنزيلات العادية ومهام الاشتراك المستمر.",
   dontSkipDeletedVideo: "عدم تخطي الفيديو المحذوف",
-  dontSkipDeletedVideoDescription: "عند التمكين، سيتم إعادة تنزيل مقاطع الفيديو ذات الحالة المحذوفة تلقائيًا بدلاً من تخطيها.",
+  dontSkipDeletedVideoDescription:
+    "عند التمكين، سيتم إعادة تنزيل مقاطع الفيديو ذات الحالة المحذوفة تلقائيًا بدلاً من تخطيها.",
+  preferredAudioLanguage: "لغة الصوت المفضلة",
+  preferredAudioLanguageDescription:
+    "عند التوفر، سيتم تفضيل صوت YouTube بهذه اللغة للتنزيلات.",
+  preferredAudioLanguageDefault: "افتراضي",
+  preferredAudioLanguage_en: "الإنجليزية",
+  preferredAudioLanguage_zh: "الصينية",
+  preferredAudioLanguage_ja: "اليابانية",
+  preferredAudioLanguage_ko: "الكورية",
+  preferredAudioLanguage_es: "الإسبانية",
+  preferredAudioLanguage_fr: "الفرنسية",
+  preferredAudioLanguage_de: "الألمانية",
+  preferredAudioLanguage_pt: "البرتغالية",
+  preferredAudioLanguage_ru: "الروسية",
+  preferredAudioLanguage_ar: "العربية",
+  preferredAudioLanguage_hi: "الهندية",
+  preferredAudioLanguage_it: "الإيطالية",
+  preferredAudioLanguage_nl: "الهولندية",
+  preferredAudioLanguage_pl: "البولندية",
+  preferredAudioLanguage_tr: "التركية",
+  preferredAudioLanguage_vi: "الفيتنامية",
   saveSettings: "حفظ الإعدادات",
   saving: "جاري الحفظ...",
   backToManage: "العودة للإدارة",
@@ -95,25 +123,32 @@ export const ar = {
   confirmRenameTag: "إعادة تسمية",
   tagRenamedSuccess: "تمت إعادة تسمية العلامة بنجاح",
   tagRenameFailed: "فشل إعادة تسمية العلامة",
-  renameTagDescription: "ستؤدي إعادة تسمية العلامة إلى التحقق من وتحديث جميع مقاطع الفيديو التي تستخدم هذه العلامة حاليًا.",
+  renameTagDescription:
+    "ستؤدي إعادة تسمية العلامة إلى التحقق من وتحديث جميع مقاطع الفيديو التي تستخدم هذه العلامة حاليًا.",
   enterNewTagName: "أدخل اسمًا جديدًا للعلامة '{tag}'",
   // Database
   database: "قاعدة البيانات",
-  migrateDataDescription: "نقل البيانات من ملفات JSON القديمة إلى قاعدة بيانات SQLite الجديدة. هذا الإجراء آمن للتشغيل عدة مرات (سيتم تخطي التكرارات).",
+  migrateDataDescription:
+    "نقل البيانات من ملفات JSON القديمة إلى قاعدة بيانات SQLite الجديدة. هذا الإجراء آمن للتشغيل عدة مرات (سيتم تخطي التكرارات).",
   migrateDataButton: "نقل البيانات من JSON",
   scanFiles: "فحص الملفات",
   scanFilesSuccess: "اكتمل المسح. تمت إضافة {count} مقاطع فيديو جديدة.",
   scanFilesDeleted: " تمت إزالة {count} ملفات مفقودة.",
   scanFilesFailed: "فشل المسح",
-  scanMountDirectoriesSuccess: "اكتمل فحص الدلائل المثبتة. تمت إضافة {addedCount} مقاطع فيديو جديدة. تم حذف {deletedCount} مقاطع فيديو مفقودة.",
-  subscribePlaylistsSuccess: "تم الاشتراك بنجاح في {count} قائمة{plural} تشغيل.",
-  subscribePlaylistsSkipped: "{count} قائمة{plural} تشغيل {wasWere} مشتركة{plural} بالفعل.",
+  scanMountDirectoriesSuccess:
+    "اكتمل فحص الدلائل المثبتة. تمت إضافة {addedCount} مقاطع فيديو جديدة. تم حذف {deletedCount} مقاطع فيديو مفقودة.",
+  subscribePlaylistsSuccess:
+    "تم الاشتراك بنجاح في {count} قائمة{plural} تشغيل.",
+  subscribePlaylistsSkipped:
+    "{count} قائمة{plural} تشغيل {wasWere} مشتركة{plural} بالفعل.",
   subscribePlaylistsErrors: "حدث {count} خطأ{plural}.",
   subscribePlaylistsNoNew: "لم يتم الاشتراك في قوائم تشغيل جديدة.",
   playlistsWatcher: "مراقب قوائم التشغيل",
-  scanFilesConfirmMessage: "سيقوم النظام بفحص المجلد الجذر لمسار الفيديو. سيتم إضافة ملفات جديدة، وستتم إزالة ملفات الفيديو المفقودة من النظام.",
+  scanFilesConfirmMessage:
+    "سيقوم النظام بفحص المجلد الجذر لمسار الفيديو. سيتم إضافة ملفات جديدة، وستتم إزالة ملفات الفيديو المفقودة من النظام.",
   scanning: "جارٍ المسح...",
-  migrateConfirmation: "هل أنت متأكد أنك تريد ترحيل البيانات؟ قد يستغرق هذا بضع لحظات.",
+  migrateConfirmation:
+    "هل أنت متأكد أنك تريد ترحيل البيانات؟ قد يستغرق هذا بضع لحظات.",
   migrationResults: "نتائج النقل",
   migrationReport: "تقرير النقل",
   migrationSuccess: "اكتمل النقل. انظر التفاصيل في التنبيه.",
@@ -123,29 +158,37 @@ export const ar = {
   migrationErrors: "أخطاء",
   itemsMigrated: "عناصر تم نقلها",
   fileNotFound: "لم يتم العثور على الملف في",
-  noDataFilesFound: "لم يتم العثور على ملفات بيانات للنقل. يرجى التحقق من تعيينات وحدة التخزين الخاصة بك.",
+  noDataFilesFound:
+    "لم يتم العثور على ملفات بيانات للنقل. يرجى التحقق من تعيينات وحدة التخزين الخاصة بك.",
   removeLegacyData: "إزالة البيانات القديمة",
-  removeLegacyDataDescription: "حذف ملفات JSON القديمة (videos.json، collections.json، إلخ) لتحرير مساحة القرص. قم بذلك فقط بعد التحقق من نقل بياناتك بنجاح.",
+  removeLegacyDataDescription:
+    "حذف ملفات JSON القديمة (videos.json، collections.json، إلخ) لتحرير مساحة القرص. قم بذلك فقط بعد التحقق من نقل بياناتك بنجاح.",
   removeLegacyDataConfirmTitle: "حذف البيانات القديمة؟",
-  removeLegacyDataConfirmMessage: "هل أنت متأكد أنك تريد حذف ملفات بيانات JSON القديمة؟ لا يمكن التراجع عن هذا الإجراء.",
+  removeLegacyDataConfirmMessage:
+    "هل أنت متأكد أنك تريد حذف ملفات بيانات JSON القديمة؟ لا يمكن التراجع عن هذا الإجراء.",
   legacyDataDeleted: "تم حذف البيانات القديمة بنجاح.",
   formatLegacyFilenames: "تنسيق أسماء الملفات القديمة",
-  formatLegacyFilenamesDescription: "إعادة تسمية جميع ملفات الفيديو والصور والترجمات دفعة واحدة إلى التنسيق القياسي الجديد: العنوان-المؤلف-السنة. ستؤدي هذه العملية إلى تعديل أسماء الملفات على القرص وتحديث منطق قاعدة البيانات.",
+  formatLegacyFilenamesDescription:
+    "إعادة تسمية جميع ملفات الفيديو والصور والترجمات دفعة واحدة إلى التنسيق القياسي الجديد: العنوان-المؤلف-السنة. ستؤدي هذه العملية إلى تعديل أسماء الملفات على القرص وتحديث منطق قاعدة البيانات.",
   formatLegacyFilenamesButton: "تنسيق أسماء الملفات",
   deleteLegacyDataButton: "حذف البيانات القديمة",
   cleanupTempFiles: "تنظيف الملفات المؤقتة",
-  cleanupTempFilesDescription: "إزالة جميع ملفات التنزيل المؤقتة (.ytdl، .part) من دليل التحميلات. يساعد هذا في تحرير مساحة القرص من التنزيلات غير المكتملة أو الملغاة.",
+  cleanupTempFilesDescription:
+    "إزالة جميع ملفات التنزيل المؤقتة (.ytdl، .part) من دليل التحميلات. يساعد هذا في تحرير مساحة القرص من التنزيلات غير المكتملة أو الملغاة.",
   cleanupTempFilesConfirmTitle: "تنظيف الملفات المؤقتة؟",
-  cleanupTempFilesConfirmMessage: "سيؤدي هذا إلى حذف جميع ملفات .ytdl و .part في دليل التحميلات نهائيًا. تأكد من عدم وجود تنزيلات نشطة قبل المتابعة.",
+  cleanupTempFilesConfirmMessage:
+    "سيؤدي هذا إلى حذف جميع ملفات .ytdl و .part في دليل التحميلات نهائيًا. تأكد من عدم وجود تنزيلات نشطة قبل المتابعة.",
 
   // Task Hooks
   taskHooks: "خطافات المهام",
-  taskHooksDescription: "نفذ أوامر shell مخصصة في نقاط محددة من دورة حياة المهمة. متغيرات البيئة المتاحة: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+  taskHooksDescription:
+    "نفذ أوامر shell مخصصة في نقاط محددة من دورة حياة المهمة. متغيرات البيئة المتاحة: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning: "تحذير: يتم تشغيل الأوامر بصلاحيات الخادم. استخدم بحذر.",
   hookTaskBeforeStart: "قبل بدء المهمة",
   hookTaskBeforeStartHelper: "ينفذ قبل بدء التنزيل.",
   hookTaskSuccess: "نجاح المهمة",
-  hookTaskSuccessHelper: "ينفذ بعد التنزيل الناجح، قبل الرفع السحابي/الحذف (ينتظر الاكتمال).",
+  hookTaskSuccessHelper:
+    "ينفذ بعد التنزيل الناجح، قبل الرفع السحابي/الحذف (ينتظر الاكتمال).",
   hookTaskFail: "فشل المهمة",
   hookTaskFailHelper: "ينفذ عند فشل المهمة.",
   hookTaskCancel: "إلغاء المهمة",
@@ -157,8 +200,10 @@ export const ar = {
   uploadHook: "رفع .sh",
   enterPasswordToUploadHook: "الرجاء إدخال كلمة المرور لتحميل نص Hook هذا.",
   riskCommandDetected: "تم اكتشاف أمر خطر: {command}. تم رفض التحميل.",
-  cleanupTempFilesActiveDownloads: "لا يمكن التنظيف أثناء نشاط التنزيلات. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
-  formatFilenamesSuccess: "تمت المعالجة: {processed}\nتمت إعادة التسمية: {renamed}\nالأخطاء: {errors}",
+  cleanupTempFilesActiveDownloads:
+    "لا يمكن التنظيف أثناء نشاط التنزيلات. يرجى الانتظار حتى تكتمل جميع التنزيلات أو إلغائها أولاً.",
+  formatFilenamesSuccess:
+    "تمت المعالجة: {processed}\nتمت إعادة التسمية: {renamed}\nالأخطاء: {errors}",
   formatFilenamesDetails: "التفاصيل:",
   formatFilenamesMore: "...و {count} المزيد",
   formatFilenamesError: "فشل تنسيق أسماء الملفات: {error}",
@@ -173,7 +218,8 @@ export const ar = {
   visitorModeUrlRestricted: "لا يمكن للزوار معالجة الروابط",
   visitorUser: "المستخدم الزائر",
   enableVisitorUser: "تفعيل المستخدم الزائر",
-  visitorUserHelper: "قم تمكين حساب زائر منفصل مع وصول للقراءة فقط. يمكن للزوار عرض المحتوى ولكن لا يمكنهم إجراء تغييرات.",
+  visitorUserHelper:
+    "قم تمكين حساب زائر منفصل مع وصول للقراءة فقط. يمكن للزوار عرض المحتوى ولكن لا يمكنهم إجراء تغييرات.",
   visitorPassword: "كلمة مرور الزائر",
   visitorPasswordHelper: "تعيين كلمة المرور لحساب الزائر.",
   visitorPasswordSetHelper: "تم تعيين كلمة المرور. اتركها فارغة للاحتفاظ بها.",
@@ -182,7 +228,8 @@ export const ar = {
 
   // Cookie Settings
   cookieSettings: "إعدادات ملفات تعريف الارتباط",
-  cookieUploadDescription: "قم بتحميل cookies.txt لتجاوز فحوصات الروبوت في YouTube وتمكين تنزيل ترجمات Bilibili. ستتم إعادة تسمية الملف تلقائيًا إلى cookies.txt. (مثال: استخدم إضافة \"Get cookies.txt LOCALLY\" لتصدير ملفات تعريف الارتباط)",
+  cookieUploadDescription:
+    'قم بتحميل cookies.txt لتجاوز فحوصات الروبوت في YouTube وتمكين تنزيل ترجمات Bilibili. ستتم إعادة تسمية الملف تلقائيًا إلى cookies.txt. (مثال: استخدم إضافة "Get cookies.txt LOCALLY" لتصدير ملفات تعريف الارتباط)',
   uploadCookies: "تحميل ملفات تعريف الارتباط",
   onlyTxtFilesAllowed: "يسمح فقط بملفات .txt",
   cookiesUploadedSuccess: "تم تحميل ملفات تعريف الارتباط بنجاح",
@@ -190,30 +237,36 @@ export const ar = {
   cookiesFound: "تم العثور على cookies.txt",
   cookiesNotFound: "لم يتم العثور على cookies.txt",
   deleteCookies: "حذف ملفات تعريف الارتباط",
-  confirmDeleteCookies: "هل أنت متأكد أنك تريد حذف ملف تعريف الارتباط؟ سيؤثر هذا على قدرتك على تنزيل مقاطع الفيديو المقيدة بالعمر أو الخاصة بالأعضاء فقط.",
+  confirmDeleteCookies:
+    "هل أنت متأكد أنك تريد حذف ملف تعريف الارتباط؟ سيؤثر هذا على قدرتك على تنزيل مقاطع الفيديو المقيدة بالعمر أو الخاصة بالأعضاء فقط.",
   cookiesDeletedSuccess: "تم حذف ملفات تعريف الارتباط بنجاح",
   cookiesDeleteFailed: "فشل حذف ملفات تعريف الارتباط",
 
   // Cloud Drive
   cloudDriveSettings: "التخزين السحابي (OpenList)",
-  cloudDriveDescription: "رفع مقاطع الفيديو تلقائيًا إلى التخزين السحابي (Alist) والبحث عن ملفات جديدة في السحابة. سيتم حذف الملفات المحلية بعد الرفع الناجح.",
+  cloudDriveDescription:
+    "رفع مقاطع الفيديو تلقائيًا إلى التخزين السحابي (Alist) والبحث عن ملفات جديدة في السحابة. سيتم حذف الملفات المحلية بعد الرفع الناجح.",
   enableAutoSave: "تمكين المزامنة السحابية",
   apiUrl: "رابط API",
   apiUrlHelper: "مثال: https://your-alist-instance.com/api/fs/put",
   token: "الرمز المميز (Token)",
   publicUrl: "عنوان URL العام",
-  publicUrlHelper: "النطاق العام للوصول إلى الملفات (مثال: https://your-cloudflare-tunnel-domain.com). إذا تم تعيينه، سيتم استخدامه بدلاً من عنوان API للوصول إلى الملفات.",
+  publicUrlHelper:
+    "النطاق العام للوصول إلى الملفات (مثال: https://your-cloudflare-tunnel-domain.com). إذا تم تعيينه، سيتم استخدامه بدلاً من عنوان API للوصول إلى الملفات.",
   uploadPath: "مسار التحميل",
   cloudDrivePathHelper: "مسار الدليل في التخزين السحابي، مثال: /mytube-uploads",
   scanPaths: "مسارات المسح",
-  scanPathsHelper: "مسار واحد في كل سطر. سيتم مسح مقاطع الفيديو من هذه المسارات. إذا كانت فارغة، سيتم استخدام مسار التحميل. مثال:\n/a/أفلام\n/b/وثائقيات",
-  cloudDriveNote: "بعد تفعيل هذه الميزة، سيتم تحميل مقاطع الفيديو التي تم تنزيلها حديثًا تلقائيًا إلى التخزين السحابي وسيتم حذف الملفات المحلية. سيتم تشغيل مقاطع الفيديو من التخزين السحابي عبر الوكيل.",
+  scanPathsHelper:
+    "مسار واحد في كل سطر. سيتم مسح مقاطع الفيديو من هذه المسارات. إذا كانت فارغة، سيتم استخدام مسار التحميل. مثال:\n/a/أفلام\n/b/وثائقيات",
+  cloudDriveNote:
+    "بعد تفعيل هذه الميزة، سيتم تحميل مقاطع الفيديو التي تم تنزيلها حديثًا تلقائيًا إلى التخزين السحابي وسيتم حذف الملفات المحلية. سيتم تشغيل مقاطع الفيديو من التخزين السحابي عبر الوكيل.",
   cloudScanAdded: "تمت الإضافة من السحابة",
   testing: "جارٍ الاختبار...",
   testConnection: "اختبار الاتصال",
   sync: "مزامنة",
   syncToCloud: "مزامنة ثنائية الاتجاه",
-  syncWarning: "ستقوم هذه العملية برفع مقاطع الفيديو المحلية إلى السحابة ومسح التخزين السحابي بحثًا عن ملفات جديدة. سيتم حذف الملفات المحلية بعد الرفع.",
+  syncWarning:
+    "ستقوم هذه العملية برفع مقاطع الفيديو المحلية إلى السحابة ومسح التخزين السحابي بحثًا عن ملفات جديدة. سيتم حذف الملفات المحلية بعد الرفع.",
   syncing: "جاري المزامنة...",
   syncCompleted: "اكتملت المزامنة",
   syncFailed: "فشلت المزامنة",
@@ -230,9 +283,11 @@ export const ar = {
   uploadingVideo: "جاري الرفع: {title}",
   clearThumbnailCache: "مسح ذاكرة التخزين المؤقت للصور المصغرة",
   clearing: "جاري المسح...",
-  clearThumbnailCacheSuccess: "تم مسح ذاكرة التخزين المؤقت للصور المصغرة بنجاح. سيتم إعادة إنشاء الصور المصغرة عند الوصول إليها في المرة القادمة.",
+  clearThumbnailCacheSuccess:
+    "تم مسح ذاكرة التخزين المؤقت للصور المصغرة بنجاح. سيتم إعادة إنشاء الصور المصغرة عند الوصول إليها في المرة القادمة.",
   clearThumbnailCacheError: "فشل مسح ذاكرة التخزين المؤقت للصور المصغرة",
-  clearThumbnailCacheConfirmMessage: "سيؤدي هذا إلى مسح جميع الصور المصغرة المخزنة مؤقتًا محليًا لمقاطع الفيديو السحابية. سيتم إعادة إنشاء الصور المصغرة من التخزين السحابي عند الوصول إليها في المرة القادمة. هل تريد المتابعة؟",
+  clearThumbnailCacheConfirmMessage:
+    "سيؤدي هذا إلى مسح جميع الصور المصغرة المخزنة مؤقتًا محليًا لمقاطع الفيديو السحابية. سيتم إعادة إنشاء الصور المصغرة من التخزين السحابي عند الوصول إليها في المرة القادمة. هل تريد المتابعة؟",
 
   // Manage
   manageContent: "إدارة المحتوى",
@@ -262,7 +317,8 @@ export const ar = {
   refreshThumbnail: "تحديث الصورة المصغرة",
   selected: "محدد",
   moveCollection: "نقل إلى المجموعة",
-  confirmBulkDelete: "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
+  confirmBulkDelete:
+    "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
 
   // Video Player
   playing: "تشغيل",
@@ -287,7 +343,8 @@ export const ar = {
   upNext: "التالي",
   noOtherVideos: "لا توجد فيديوهات أخرى متاحة",
   currentlyIn: "حالياً في:",
-  collectionWarning: "الإضافة إلى مجموعة مختلفة سيؤدي إلى إزالته من المجموعة الحالية.",
+  collectionWarning:
+    "الإضافة إلى مجموعة مختلفة سيؤدي إلى إزالته من المجموعة الحالية.",
   addToExistingCollection: "إضافة إلى مجموعة موجودة:",
   selectCollection: "اختر مجموعة",
   add: "إضافة",
@@ -295,7 +352,8 @@ export const ar = {
   collectionName: "اسم المجموعة",
   create: "إنشاء",
   removeFromCollection: "إزالة من المجموعة",
-  confirmRemoveFromCollection: "هل أنت متأكد أنك تريد إزالة هذا الفيديو من المجموعة؟",
+  confirmRemoveFromCollection:
+    "هل أنت متأكد أنك تريد إزالة هذا الفيديو من المجموعة؟",
   remove: "إزالة",
   loadingVideo: "جاري تحميل الفيديو...",
   current: "(الحالي)",
@@ -324,7 +382,8 @@ export const ar = {
   openInExternalPlayer: "فتح في مشغل خارجي",
   playWith: "تشغيل بواسطة...",
   deleteAllFilteredVideos: "حذف جميع الفيديوهات المصفاة",
-  confirmDeleteFilteredVideos: "هل أنت متأكد أنك تريد حذف {count} فيديو مصفى بواسطة العلامات المحددة؟",
+  confirmDeleteFilteredVideos:
+    "هل أنت متأكد أنك تريد حذف {count} فيديو مصفى بواسطة العلامات المحددة؟",
   deleteFilteredVideosSuccess: "تم حذف {count} فيديو بنجاح.",
   deletingVideos: "جاري حذف الفيديوهات...",
 
@@ -339,15 +398,20 @@ export const ar = {
   defaultPasswordHint: "كلمة المرور الافتراضية: 123",
   checkingConnection: "جارٍ التحقق من الاتصال...",
   connectionError: "خطأ في الاتصال",
-  backendConnectionFailed: "لا يمكن الاتصال بالخادم. يرجى التحقق مما إذا كان الخادم يعمل والمنفذ مفتوح، ثم حاول مرة أخرى.",
+  backendConnectionFailed:
+    "لا يمكن الاتصال بالخادم. يرجى التحقق مما إذا كان الخادم يعمل والمنفذ مفتوح، ثم حاول مرة أخرى.",
   retry: "إعادة المحاولة",
   resetPassword: "إعادة تعيين كلمة المرور",
   resetPasswordTitle: "إعادة تعيين كلمة المرور",
-  resetPasswordMessage: "هل أنت متأكد من أنك تريد إعادة تعيين كلمة المرور؟ سيتم إعادة تعيين كلمة المرور الحالية إلى سلسلة عشوائية مكونة من 8 أحرف وعرضها في سجل الخادم.",
+  resetPasswordMessage:
+    "هل أنت متأكد من أنك تريد إعادة تعيين كلمة المرور؟ سيتم إعادة تعيين كلمة المرور الحالية إلى سلسلة عشوائية مكونة من 8 أحرف وعرضها في سجل الخادم.",
   resetPasswordConfirm: "إعادة التعيين",
-  resetPasswordSuccess: "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
-  resetPasswordDisabledInfo: "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
-  resetPasswordScriptGuide: "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
+  resetPasswordSuccess:
+    "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
+  resetPasswordDisabledInfo:
+    "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
+  resetPasswordScriptGuide:
+    "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
   // Passkeys
@@ -355,17 +419,21 @@ export const ar = {
   creatingPasskey: "جاري الإنشاء...",
   passkeyCreated: "تم إنشاء مفتاح المرور بنجاح",
   passkeyCreationFailed: "فشل إنشاء مفتاح المرور. يرجى المحاولة مرة أخرى.",
-  passkeyWebAuthnNotSupported: "WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث يدعم WebAuthn.",
-  passkeyRequiresHttps: "يتطلب WebAuthn استخدام HTTPS أو localhost. يرجى الدخول إلى التطبيق عبر HTTPS أو استخدام localhost بدلاً من عنوان IP.",
+  passkeyWebAuthnNotSupported:
+    "WebAuthn غير مدعوم في هذا المتصفح. يرجى استخدام متصفح حديث يدعم WebAuthn.",
+  passkeyRequiresHttps:
+    "يتطلب WebAuthn استخدام HTTPS أو localhost. يرجى الدخول إلى التطبيق عبر HTTPS أو استخدام localhost بدلاً من عنوان IP.",
   removePasskeys: "إزالة جميع مفاتيح المرور",
   removePasskeysTitle: "إزالة جميع مفاتيح المرور",
-  removePasskeysMessage: "هل أنت متأكد من أنك تريد إزالة جميع مفاتيح المرور؟ لا يمكن التراجع عن هذا الإجراء.",
+  removePasskeysMessage:
+    "هل أنت متأكد من أنك تريد إزالة جميع مفاتيح المرور؟ لا يمكن التراجع عن هذا الإجراء.",
   passkeysRemoved: "تم إزالة جميع مفاتيح المرور",
   passkeysRemoveFailed: "فشل إزالة مفاتيح المرور. يرجى المحاولة مرة أخرى.",
   loginWithPasskey: "تسجيل الدخول بمفتاح المرور",
   authenticating: "جاري المصادقة...",
   passkeyLoginFailed: "فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.",
-  passkeyErrorPermissionDenied: "لا يُسمح بالطلب من قبل وكيل المستخدم أو المنصة في السياق الحالي، ربما لأن المستخدم رفض الإذن.",
+  passkeyErrorPermissionDenied:
+    "لا يُسمح بالطلب من قبل وكيل المستخدم أو المنصة في السياق الحالي، ربما لأن المستخدم رفض الإذن.",
   passkeyErrorAlreadyRegistered: "تم تسجيل المصادق مسبقاً.",
   linkCopied: "تم نسخ الرابط إلى الحافظة",
   copyFailed: "فشل نسخ الرابط",
@@ -382,20 +450,27 @@ export const ar = {
   unknownAuthor: "غير معروف",
   noVideosForAuthor: "لم يتم العثور على فيديوهات لهذا المؤلف.",
   deleteAuthor: "حذف المؤلف",
-  deleteAuthorConfirmation: "هل أنت متأكد أنك تريد حذف المؤلف {author}؟ سيؤدي هذا إلى حذف جميع مقاطع الفيديو المرتبطة بهذا المؤلف.",
+  deleteAuthorConfirmation:
+    "هل أنت متأكد أنك تريد حذف المؤلف {author}؟ سيؤدي هذا إلى حذف جميع مقاطع الفيديو المرتبطة بهذا المؤلف.",
   authorDeletedSuccessfully: "تم حذف المؤلف بنجاح",
   failedToDeleteAuthor: "فشل حذف المؤلف",
   createCollectionFromAuthor: "إنشاء مجموعة من المؤلف",
-  createCollectionFromAuthorTooltip: "نقل جميع مقاطع الفيديو لهذا المؤلف إلى مجموعة",
+  createCollectionFromAuthorTooltip:
+    "نقل جميع مقاطع الفيديو لهذا المؤلف إلى مجموعة",
   creatingCollection: "جاري إنشاء المجموعة...",
-  collectionCreatedFromAuthor: "تم إنشاء المجموعة ونقل جميع مقاطع الفيديو بنجاح",
+  collectionCreatedFromAuthor:
+    "تم إنشاء المجموعة ونقل جميع مقاطع الفيديو بنجاح",
   failedToCreateCollectionFromAuthor: "فشل إنشاء المجموعة من المؤلف",
   collectionAlreadyExists: "توجد مجموعة بهذا الاسم بالفعل",
-  createCollectionFromAuthorConfirmation: "سيتم إنشاء مجموعة باسم \"{author}\" وسيتم نقل جميع مقاطع الفيديو لهذا المؤلف إليها. هل تريد الاستمرار؟",
-  createCollectionFromAuthorConfirmationWithMove: "سيتم إنشاء مجموعة باسم \"{author}\" وسيتم نقل جميع مقاطع الفيديو لهذا المؤلف إليها. سيتم نقل {count} مقطع فيديو موجود حاليًا في مجموعات أخرى إلى هذه المجموعة الجديدة. هل تريد الاستمرار؟",
+  createCollectionFromAuthorConfirmation:
+    'سيتم إنشاء مجموعة باسم "{author}" وسيتم نقل جميع مقاطع الفيديو لهذا المؤلف إليها. هل تريد الاستمرار؟',
+  createCollectionFromAuthorConfirmationWithMove:
+    'سيتم إنشاء مجموعة باسم "{author}" وسيتم نقل جميع مقاطع الفيديو لهذا المؤلف إليها. سيتم نقل {count} مقطع فيديو موجود حاليًا في مجموعات أخرى إلى هذه المجموعة الجديدة. هل تريد الاستمرار؟',
   addVideosToCollection: "إضافة مقاطع فيديو إلى المجموعة",
-  addVideosToExistingCollectionConfirmation: "إضافة {count} مقطع فيديو من المؤلف \"{author}\" إلى المجموعة الموجودة \"{author}\". هل تريد الاستمرار؟",
-  addVideosToExistingCollectionConfirmationWithMove: "إضافة {count} مقطع فيديو من المؤلف \"{author}\" إلى المجموعة الموجودة \"{author}\". سيتم نقل {moveCount} مقطع فيديو موجود حاليًا في مجموعات أخرى إلى هذه المجموعة. هل تريد الاستمرار؟",
+  addVideosToExistingCollectionConfirmation:
+    'إضافة {count} مقطع فيديو من المؤلف "{author}" إلى المجموعة الموجودة "{author}". هل تريد الاستمرار؟',
+  addVideosToExistingCollectionConfirmationWithMove:
+    'إضافة {count} مقطع فيديو من المؤلف "{author}" إلى المجموعة الموجودة "{author}". سيتم نقل {moveCount} مقطع فيديو موجود حاليًا في مجموعات أخرى إلى هذه المجموعة. هل تريد الاستمرار؟',
 
   // Delete Collection Modal
   deleteCollectionTitle: "حذف المجموعة",
@@ -446,7 +521,8 @@ export const ar = {
   authorOrPlaylist: "المؤلف / قائمة التشغيل",
   playlistDetected: "تم اكتشاف قائمة تشغيل",
   playlistHasVideos: "تحتوي قائمة التشغيل هذه على {count} فيديوهات.",
-  downloadPlaylistAndCreateCollection: "هل تريد تحميل فيديوهات قائمة التشغيل وإنشاء مجموعة لها؟",
+  downloadPlaylistAndCreateCollection:
+    "هل تريد تحميل فيديوهات قائمة التشغيل وإنشاء مجموعة لها؟",
   playlistDownloadStarted: "بدأ تنزيل قائمة التشغيل",
   collectionHasVideos: "تحتوي هذه المجموعة من Bilibili على {count} فيديوهات.",
   seriesHasVideos: "تحتوي هذه السلسلة من Bilibili على {count} فيديوهات.",
@@ -508,11 +584,14 @@ export const ar = {
   subscribeToChannel: "الاشتراك في القناة",
   subscribeConfirmationMessage: "هل تريد الاشتراك في {author}؟",
   subscribeChannelChoiceMessage: "كيف تريد الاشتراك في هذه القناة؟",
-  subscribeChannelChoiceDescription: "اختر الاشتراك في جميع مقاطع الفيديو أو جميع قوائم التشغيل من هذه القناة. الاشتراك في جميع قوائم التشغيل سيؤدي أيضًا إلى الاشتراك في قوائم التشغيل المستقبلية التي ينشئها المؤلف.",
+  subscribeChannelChoiceDescription:
+    "اختر الاشتراك في جميع مقاطع الفيديو أو جميع قوائم التشغيل من هذه القناة. الاشتراك في جميع قوائم التشغيل سيؤدي أيضًا إلى الاشتراك في قوائم التشغيل المستقبلية التي ينشئها المؤلف.",
   subscribeAllVideos: "الاشتراك في جميع مقاطع الفيديو",
   subscribeAllPlaylists: "الاشتراك في جميع قوائم التشغيل",
-  subscribeAllPlaylistsDescription: "سيقوم هذا بالاشتراك في جميع قوائم التشغيل في هذه القناة.",
-  subscribeDescription: "سيقوم النظام تلقائيًا بالتحقق من مقاطع الفيديو الجديدة لهذا المؤلف وتنزيلها.",
+  subscribeAllPlaylistsDescription:
+    "سيقوم هذا بالاشتراك في جميع قوائم التشغيل في هذه القناة.",
+  subscribeDescription:
+    "سيقوم النظام تلقائيًا بالتحقق من مقاطع الفيديو الجديدة لهذا المؤلف وتنزيلها.",
   checkIntervalMinutes: "فاصل التحقق (دقائق)",
   subscribe: "اشتراك",
   subscriptions: "الاشتراكات",
@@ -527,9 +606,12 @@ export const ar = {
   minutes: "دقائق",
   never: "أبداً",
   downloadAllPreviousVideos: "تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف",
-  downloadAllPreviousWarning: "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
-  downloadAllPreviousVideosInPlaylists: "تنزيل مقاطع الفيديو السابقة في قوائم التشغيل",
-  downloadAllPlaylistsWarning: "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو من جميع قوائم التشغيل على هذه القناة. قد يكون هذا عددًا كبيرًا من مقاطع الفيديو ويستهلك مساحة تخزين كبيرة.",
+  downloadAllPreviousWarning:
+    "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
+  downloadAllPreviousVideosInPlaylists:
+    "تنزيل مقاطع الفيديو السابقة في قوائم التشغيل",
+  downloadAllPlaylistsWarning:
+    "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو من جميع قوائم التشغيل على هذه القناة. قد يكون هذا عددًا كبيرًا من مقاطع الفيديو ويستهلك مساحة تخزين كبيرة.",
   continuousDownloadTasks: "مهام التنزيل المستمر",
   taskStatusActive: "نشط",
   taskStatusPaused: "متوقف مؤقتاً",
@@ -540,11 +622,13 @@ export const ar = {
   confirmCancelTask: "هل أنت متأكد أنك تريد إلغاء مهمة التنزيل لـ {author}؟",
   taskCancelled: "تم إلغاء المهمة بنجاح",
   deleteTask: "حذف المهمة",
-  confirmDeleteTask: "هل أنت متأكد أنك تريد حذف سجل المهمة لـ {author}؟ لا يمكن التراجع عن هذا الإجراء.",
+  confirmDeleteTask:
+    "هل أنت متأكد أنك تريد حذف سجل المهمة لـ {author}؟ لا يمكن التراجع عن هذا الإجراء.",
   taskDeleted: "تم حذف المهمة بنجاح",
   clearFinishedTasks: "مسح المهام المنتهية",
   tasksCleared: "تم مسح المهام المنتهية بنجاح",
-  confirmClearFinishedTasks: "هل أنت متأكد أنك تريد مسح جميع المهام المنتهية (المكتملة، الملغاة)؟ سيؤدي هذا إلى إزالتها من القائمة ولكن لن يحذف أي ملفات تم تنزيلها.",
+  confirmClearFinishedTasks:
+    "هل أنت متأكد أنك تريد مسح جميع المهام المنتهية (المكتملة، الملغاة)؟ سيؤدي هذا إلى إزالتها من القائمة ولكن لن يحذف أي ملفات تم تنزيلها.",
   clear: "مسح",
 
   // Subscription Pause/Resume
@@ -563,57 +647,76 @@ export const ar = {
 
   // Playlist Subscription
   subscribeToPlaylist: "الاشتراك في قائمة التشغيل هذه",
-  subscribePlaylistDescription: "التحقق تلقائياً من مقاطع الفيديو الجديدة المضافة إلى قائمة التشغيل هذه",
+  subscribePlaylistDescription:
+    "التحقق تلقائياً من مقاطع الفيديو الجديدة المضافة إلى قائمة التشغيل هذه",
   playlistSubscribedSuccessfully: "تم الاشتراك في قائمة التشغيل بنجاح",
   downloadAndSubscribe: "تنزيل الكل والاشتراك",
   playlistSubscription: "قائمة التشغيل",
 
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
-  instructionSection1Desc: "تتضمن هذه الوحدة وظائف الحصول على الفيديو والمهام المجمعة واستيراد الملفات.",
+  instructionSection1Desc:
+    "تتضمن هذه الوحدة وظائف الحصول على الفيديو والمهام المجمعة واستيراد الملفات.",
   instructionSection1Sub1: "تنزيل الرابط:",
   instructionSection1Item1Label: "تنزيل أساسي:",
-  instructionSection1Item1Text: "الصق روابط من مواقع فيديو مختلفة في مربع الإدخال للتنزيل مباشرة.",
+  instructionSection1Item1Text:
+    "الصق روابط من مواقع فيديو مختلفة في مربع الإدخال للتنزيل مباشرة.",
   instructionSection1Item2Label: "الأذونات:",
-  instructionSection1Item2Text: "بالنسبة للمواقع التي تتطلب عضوية أو تسجيل دخول، يرجى تسجيل الدخول إلى الحساب المقابل في علامة تبويب متصفح جديدة أولاً للحصول على أذونات التنزيل.",
+  instructionSection1Item2Text:
+    "بالنسبة للمواقع التي تتطلب عضوية أو تسجيل دخول، يرجى تسجيل الدخول إلى الحساب المقابل في علامة تبويب متصفح جديدة أولاً للحصول على أذونات التنزيل.",
   instructionSection1Sub2: "التعرف الذكي:",
   instructionSection1Item3Label: "اشتراك مؤلف YouTube:",
-  instructionSection1Item3Text: "عندما يكون الرابط الذي تم لصقه هو قناة مؤلف، سيسأل النظام عما إذا كنت تريد الاشتراك. بعد الاشتراك، يمكن للنظام مسح وتنزيل تحديثات المؤلف تلقائيًا على فترات زمنية محددة.",
+  instructionSection1Item3Text:
+    "عندما يكون الرابط الذي تم لصقه هو قناة مؤلف، سيسأل النظام عما إذا كنت تريد الاشتراك. بعد الاشتراك، يمكن للنظام مسح وتنزيل تحديثات المؤلف تلقائيًا على فترات زمنية محددة.",
   instructionSection1Item4Label: "تنزيل مجموعة Bilibili:",
-  instructionSection1Item4Text: "عندما يكون الرابط الذي تم لصقه مفضلة/مجموعة Bilibili، سيسأل النظام عما إذا كنت تريد تنزيل محتوى المجموعة بالكامل.",
+  instructionSection1Item4Text:
+    "عندما يكون الرابط الذي تم لصقه مفضلة/مجموعة Bilibili، سيسأل النظام عما إذا كنت تريد تنزيل محتوى المجموعة بالكامل.",
   instructionSection1Sub3: "أدوات متقدمة (صفحة إدارة التنزيل):",
   instructionSection1Item5Label: "إضافة مهام مجمعة:",
-  instructionSection1Item5Text: "يدعم لصق روابط تنزيل متعددة في وقت واحد (واحد في كل سطر) للإضافة المجمعة.",
+  instructionSection1Item5Text:
+    "يدعم لصق روابط تنزيل متعددة في وقت واحد (واحد في كل سطر) للإضافة المجمعة.",
   instructionSection1Item6Label: "مسح الملفات:",
-  instructionSection1Item6Text: "يبحث تلقائيًا عن جميع الملفات في الدليل الجذر لتخزين الفيديو والمجلدات من المستوى الأول. هذه الوظيفة مناسبة لمزامنة الملفات مع النظام بعد أن يقوم المسؤولون بإيداعها يدويًا في الواجهة الخلفية للخادم.",
+  instructionSection1Item6Text:
+    "يبحث تلقائيًا عن جميع الملفات في الدليل الجذر لتخزين الفيديو والمجلدات من المستوى الأول. هذه الوظيفة مناسبة لمزامنة الملفات مع النظام بعد أن يقوم المسؤولون بإيداعها يدويًا في الواجهة الخلفية للخادم.",
   instructionSection1Item7Label: "تحميل فيديو:",
-  instructionSection1Item7Text: "يدعم تحميل ملفات الفيديو المحلية مباشرة من العميل إلى الخادم.",
+  instructionSection1Item7Text:
+    "يدعم تحميل ملفات الفيديو المحلية مباشرة من العميل إلى الخادم.",
 
   instructionSection2Title: "2. إدارة مكتبة الفيديو",
-  instructionSection2Desc: "صيانة وتحرير موارد الفيديو التي تم تنزيلها أو استيرادها.",
+  instructionSection2Desc:
+    "صيانة وتحرير موارد الفيديو التي تم تنزيلها أو استيرادها.",
   instructionSection2Sub1: "حذف المجموعة/الفيديو:",
-  instructionSection2Text1: "عند حذف مجموعة في صفحة الإدارة، يقدم النظام خيارين: حذف عنصر قائمة المجموعة فقط (الاحتفاظ بالملفات)، أو حذف الملفات المادية داخل المجموعة تمامًا.",
+  instructionSection2Text1:
+    "عند حذف مجموعة في صفحة الإدارة، يقدم النظام خيارين: حذف عنصر قائمة المجموعة فقط (الاحتفاظ بالملفات)، أو حذف الملفات المادية داخل المجموعة تمامًا.",
   instructionSection2Sub2: "إصلاح الصورة المصغرة:",
-  instructionSection2Text2: "إذا لم يكن للفيديو غلاف بعد التنزيل، فانقر فوق زر التحديث على الصورة المصغرة للفيديو، وسيقوم النظام بإعادة التقاط الإطار الأول للفيديو كصورة مصغرة جديدة.",
+  instructionSection2Text2:
+    "إذا لم يكن للفيديو غلاف بعد التنزيل، فانقر فوق زر التحديث على الصورة المصغرة للفيديو، وسيقوم النظام بإعادة التقاط الإطار الأول للفيديو كصورة مصغرة جديدة.",
 
   instructionSection3Title: "3. إعدادات النظام",
-  instructionSection3Desc: "تكوين معلمات النظام وصيانة البيانات وتوسيع الوظائف.",
+  instructionSection3Desc:
+    "تكوين معلمات النظام وصيانة البيانات وتوسيع الوظائف.",
   instructionSection3Sub1: "إعدادات الأمان:",
-  instructionSection3Text1: "قم بتعيين كلمة مرور تسجيل الدخول للنظام (كلمة المرور الأولية الافتراضية هي 123، يوصى بتغييرها بعد تسجيل الدخول الأول).",
+  instructionSection3Text1:
+    "قم بتعيين كلمة مرور تسجيل الدخول للنظام (كلمة المرور الأولية الافتراضية هي 123، يوصى بتغييرها بعد تسجيل الدخول الأول).",
   instructionSection3Sub2: "إدارة العلامات:",
-  instructionSection3Text2: "يدعم إضافة أو حذف علامات تصنيف الفيديو. ملاحظة: يجب النقر فوق الزر \"حفظ\" في أسفل الصفحة لتصبح التغييرات سارية المفعول.",
+  instructionSection3Text2:
+    'يدعم إضافة أو حذف علامات تصنيف الفيديو. ملاحظة: يجب النقر فوق الزر "حفظ" في أسفل الصفحة لتصبح التغييرات سارية المفعول.',
   instructionSection3Sub3: "صيانة النظام:",
   instructionSection3Item1Label: "تنظيف الملفات المؤقتة:",
-  instructionSection3Item1Text: "يستخدم لمسح ملفات التنزيل المؤقتة المتبقية الناتجة عن فشل الواجهة الخلفية العرضي لتحرير المساحة.",
+  instructionSection3Item1Text:
+    "يستخدم لمسح ملفات التنزيل المؤقتة المتبقية الناتجة عن فشل الواجهة الخلفية العرضي لتحرير المساحة.",
   instructionSection3Item2Label: "ترحيل قاعدة البيانات:",
-  instructionSection3Item2Text: "مصمم لمستخدمي الإصدارات المبكرة. استخدم هذه الوظيفة لترحيل البيانات من JSON إلى قاعدة بيانات SQLite الجديدة. بعد الترحيل الناجح، انقر فوق زر الحذف لتنظيف بيانات السجل القديمة.",
+  instructionSection3Item2Text:
+    "مصمم لمستخدمي الإصدارات المبكرة. استخدم هذه الوظيفة لترحيل البيانات من JSON إلى قاعدة بيانات SQLite الجديدة. بعد الترحيل الناجح، انقر فوق زر الحذف لتنظيف بيانات السجل القديمة.",
   instructionSection3Sub4: "الخدمات الموسعة:",
   instructionSection3Item3Label: "OpenList Cloud Drive:",
-  instructionSection3Item3Text: "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراط السحابية.",
+  instructionSection3Item3Text:
+    "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراط السحابية.",
 
   // Disclaimer
   disclaimerTitle: "إخلاء المسؤولية",
-  disclaimerText: "1. الغرض والقيود\nهذا البرنامج (بما في ذلك الكود والوثائق) مخصص فقط للتعلم الشخصي والبحث والتبادل التقني. يُحظر تمامًا استخدام هذا البرنامج لأي أغراض تجارية أو لأي أنشطة غير قانونية تنتهك القوانين واللوائح المحلية.\n\n2. المسؤولية\nالمطور ليس على علم ولا يملك أي سيطرة على كيفية استخدام المستخدمين لهذا البرنامج. يتحمل المستخدم وحده أي مسؤوليات قانونية أو نزاعات أو أضرار تنشأ عن الاستخدام غير القانوني أو غير السليم لهذا البرنامج (بما في ذلك على سبيل المثال لا الحصر انتهاك حقوق الطبع والنشر). لا يتحمل المطور أي مسؤولية مباشرة أو غير مباشرة أو مشتركة.\n\n3. التعديلات والتوزيع\nهذا المشروع مفتوح المصدر. يجب على أي فرد أو منظمة تقوم بتعديل أو تفرع هذا الكود الالتزام بترخيص المصدر المفتوح. هام: إذا قام طرف ثالث بتعديل الكود لتجاوز أو إزالة آليات مصادقة/أمان المستخدم الأصلية وتوزيع مثل هذه الإصدارات، فإن المعدل/الموزع يتحمل المسؤولية الكاملة عن أي عواقب. ننصح بشدة بعدم تجاوز أو العبث بأي آليات للتحقق من الأمان.\n\n4. بيان غير ربحي\nهذا مشروع مفتوح المصدر مجاني تمامًا. لا يقبل المطور التبرعات ولم ينشر أي صفحات للتبرع. لا يسمح البرنامج نفسه بأي رسوم ولا يقدم أي خدمات مدفوعة. يرجى توخي الحذر والحذر من أي عمليات احتيال أو معلومات مضللة تدعي تحصيل رسوم نيابة عن هذا المشروع.",
+  disclaimerText:
+    "1. الغرض والقيود\nهذا البرنامج (بما في ذلك الكود والوثائق) مخصص فقط للتعلم الشخصي والبحث والتبادل التقني. يُحظر تمامًا استخدام هذا البرنامج لأي أغراض تجارية أو لأي أنشطة غير قانونية تنتهك القوانين واللوائح المحلية.\n\n2. المسؤولية\nالمطور ليس على علم ولا يملك أي سيطرة على كيفية استخدام المستخدمين لهذا البرنامج. يتحمل المستخدم وحده أي مسؤوليات قانونية أو نزاعات أو أضرار تنشأ عن الاستخدام غير القانوني أو غير السليم لهذا البرنامج (بما في ذلك على سبيل المثال لا الحصر انتهاك حقوق الطبع والنشر). لا يتحمل المطور أي مسؤولية مباشرة أو غير مباشرة أو مشتركة.\n\n3. التعديلات والتوزيع\nهذا المشروع مفتوح المصدر. يجب على أي فرد أو منظمة تقوم بتعديل أو تفرع هذا الكود الالتزام بترخيص المصدر المفتوح. هام: إذا قام طرف ثالث بتعديل الكود لتجاوز أو إزالة آليات مصادقة/أمان المستخدم الأصلية وتوزيع مثل هذه الإصدارات، فإن المعدل/الموزع يتحمل المسؤولية الكاملة عن أي عواقب. ننصح بشدة بعدم تجاوز أو العبث بأي آليات للتحقق من الأمان.\n\n4. بيان غير ربحي\nهذا مشروع مفتوح المصدر مجاني تمامًا. لا يقبل المطور التبرعات ولم ينشر أي صفحات للتبرع. لا يسمح البرنامج نفسه بأي رسوم ولا يقدم أي خدمات مدفوعة. يرجى توخي الحذر والحذر من أي عمليات احتيال أو معلومات مضللة تدعي تحصيل رسوم نيابة عن هذا المشروع.",
   history: "سجل",
 
   // Existing Video Detection
@@ -659,23 +762,28 @@ export const ar = {
   moveSubtitlesToVideoFolder: "موقع الترجمة",
   moveSubtitlesToVideoFolderOn: "مع الفيديو",
   moveSubtitlesToVideoFolderOff: "في مجلد الترجمات المعزول",
-  moveSubtitlesToVideoFolderDescription: "عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.",
+  moveSubtitlesToVideoFolderDescription:
+    "عند التمكن، سيتم نقل ملفات الترجمة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الترجمات المعزول.",
   moveThumbnailsToVideoFolder: "موقع الصور المصغرة",
   moveThumbnailsToVideoFolderOn: "مع الفيديو",
   moveThumbnailsToVideoFolderOff: "في مجلد صور معزول",
-  moveThumbnailsToVideoFolderDescription: "عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.",
+  moveThumbnailsToVideoFolderDescription:
+    "عند التفعيل، سيتم نقل ملفات الصور المصغرة إلى نفس المجلد الموجود به ملف الفيديو. عند التعطيل، سيتم نقلها إلى مجلد الصور المعزول.",
   saveAuthorFilesToCollection: "حفظ ملفات المؤلف في مجموعة",
   saveAuthorFilesToCollectionOn: "تنتظيم حسب المؤلف",
   saveAuthorFilesToCollectionOff: "حفظ في المجلدات الجذرية",
-  saveAuthorFilesToCollectionDescription: "عند التفعيل، سيتم تنظيم مقاطع الفيديو والصور المصغرة والترجمات التي تم تنزيلها حديثًا تلقائيًا في مجموعات مسماة باسم مؤلف الفيديو. إذا لم تكن المجموعة موجودة، فسيتم إنشاؤها تلقائيًا.",
+  saveAuthorFilesToCollectionDescription:
+    "عند التفعيل، سيتم تنظيم مقاطع الفيديو والصور المصغرة والترجمات التي تم تنزيلها حديثًا تلقائيًا في مجموعات مسماة باسم مؤلف الفيديو. إذا لم تكن المجموعة موجودة، فسيتم إنشاؤها تلقائيًا.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "نفق Cloudflare",
   enableCloudflaredTunnel: "تمكين نفق Cloudflare",
   cloudflaredToken: "رمز النفق (اختياري)",
-  cloudflaredTokenHelper: "الصق رمز النفق الخاص بك هنا، أو اتركه فارغًا لاستخدام نفق سريع عشوائي.",
+  cloudflaredTokenHelper:
+    "الصق رمز النفق الخاص بك هنا، أو اتركه فارغًا لاستخدام نفق سريع عشوائي.",
   allowedHosts: "مسارات التطبيق المنشورة",
-  allowedHostsHelper: "قائمة العناوين المسموحة لخادم Vite للتطوير (مفصولة بفواصل). قائمة النطاقات المسموحة لنفق Cloudflare.",
+  allowedHostsHelper:
+    "قائمة العناوين المسموحة لخادم Vite للتطوير (مفصولة بفواصل). قائمة النطاقات المسموحة لنفق Cloudflare.",
   allowedHostsRequired: "مسارات التطبيق المنشورة مطلوبة عند توفير رمز النفق.",
   waitingForUrl: "في انتظار عنوان النفق السريع URL...",
   running: "يعمل",
@@ -684,28 +792,36 @@ export const ar = {
   accountTag: "علامة الحساب",
   copied: "تم النسخ!",
   clickToCopy: "انقر للنسخ",
-  quickTunnelWarning: "تتغير عناوين URL للنفق السريع في كل مرة يتم فيها إعادة تشغيل النفق.",
-  managedInDashboard: "تتم إدارة اسم المضيف العام في لوحة تحكم Cloudflare Zero Trust الخاصة بك.",
+  quickTunnelWarning:
+    "تتغير عناوين URL للنفق السريع في كل مرة يتم فيها إعادة تشغيل النفق.",
+  managedInDashboard:
+    "تتم إدارة اسم المضيف العام في لوحة تحكم Cloudflare Zero Trust الخاصة بك.",
 
   // Database Export/Import
   exportImportDatabase: "تصدير/استيراد قاعدة البيانات",
-  exportImportDatabaseDescription: "قم بتصدير قاعدة البيانات الخاصة بك كملف نسخ احتياطي أو قم باستيراد نسخة احتياطية تم تصديرها مسبقًا. سيؤدي الاستيراد إلى استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
+  exportImportDatabaseDescription:
+    "قم بتصدير قاعدة البيانات الخاصة بك كملف نسخ احتياطي أو قم باستيراد نسخة احتياطية تم تصديرها مسبقًا. سيؤدي الاستيراد إلى استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
   exportDatabase: "تصدير قاعدة البيانات",
   importDatabase: "استيراد قاعدة البيانات",
   onlyDbFilesAllowed: "يسمح فقط بملفات .db",
-  importDatabaseWarning: "تحذير: سيؤدي استيراد قاعدة البيانات إلى استبدال جميع البيانات الموجودة. تأكد من تصدير قاعدة البيانات الحالية أولاً كنسخة احتياطية.",
+  importDatabaseWarning:
+    "تحذير: سيؤدي استيراد قاعدة البيانات إلى استبدال جميع البيانات الموجودة. تأكد من تصدير قاعدة البيانات الحالية أولاً كنسخة احتياطية.",
   selectDatabaseFile: "اختر ملف قاعدة البيانات",
   databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
   databaseExportFailed: "فشل تصدير قاعدة البيانات",
-  databaseImportedSuccess: "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
+  databaseImportedSuccess:
+    "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
   databaseImportFailed: "فشل استيراد قاعدة البيانات",
   cleanupBackupDatabases: "تنظيف قواعد البيانات الاحتياطية",
-  cleanupBackupDatabasesWarning: "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
+  cleanupBackupDatabasesWarning:
+    "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
   backupDatabasesCleanedUp: "تم تنظيف قواعد البيانات الاحتياطية بنجاح",
   backupDatabasesCleanupFailed: "فشل تنظيف قواعد البيانات الاحتياطية",
   restoreFromLastBackup: "استعادة من آخر نسخة احتياطية",
-  restoreFromLastBackupWarning: "تحذير: سيؤدي هذا إلى استعادة قاعدة البيانات من آخر ملف نسخ احتياطي تلقائي. سيتم استبدال جميع البيانات الحالية ببيانات النسخ الاحتياطي. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
-  restoreFromLastBackupSuccess: "تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية",
+  restoreFromLastBackupWarning:
+    "تحذير: سيؤدي هذا إلى استعادة قاعدة البيانات من آخر ملف نسخ احتياطي تلقائي. سيتم استبدال جميع البيانات الحالية ببيانات النسخ الاحتياطي. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
+  restoreFromLastBackupSuccess:
+    "تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية",
   restoreFromLastBackupFailed: "فشل الاستعادة من النسخة الاحتياطية",
   lastBackupDate: "تاريخ آخر نسخة احتياطية",
   noBackupAvailable: "لا توجد نسخة احتياطية متاحة",

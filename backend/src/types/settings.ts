@@ -36,6 +36,7 @@ export interface Settings {
   playSoundOnTaskComplete?: string;
   mountDirectories?: string;
   defaultSort?: string;
+  preferredAudioLanguage?: string;
 }
 
 export const defaultSettings: Settings = {
@@ -60,5 +61,5 @@ export const defaultSettings: Settings = {
   infiniteScroll: false,
   videoColumns: 4,
   pauseOnFocusLoss: false,
-  playSoundOnTaskComplete: '',
+  playSoundOnTaskComplete: "",
 };
