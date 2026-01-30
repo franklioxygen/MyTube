@@ -37,13 +37,22 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           chmod +x ./build-and-push.sh
+          
           if [ "${{ github.event_name }}" == "release" ]; then
-            VERSION=${{ github.event.release.tag_name }}
-            # Remove 'v' prefix if present
-            VERSION=${VERSION#v}
-            ./build-and-push.sh $VERSION
+            VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            VERSION="${{ github.ref_name }}"
           elif [ "${{ github.event.inputs.version }}" != "" ]; then
-             ./build-and-push.sh ${{ github.event.inputs.version }}
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          
+          # Remove 'v' prefix if present
+          VERSION="${VERSION#v}"
+          
+          if [ -n "$VERSION" ]; then
+            echo "🔖 Building version: $VERSION"
+            ./build-and-push.sh "$VERSION"
           else
-             ./build-and-push.sh
+            echo "⚠️  No version specified, building 'latest'"
+            ./build-and-push.sh
           fi
