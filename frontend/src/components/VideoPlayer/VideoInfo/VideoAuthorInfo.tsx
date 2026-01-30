@@ -1,8 +1,8 @@
 import { Notifications, NotificationsActive } from '@mui/icons-material';
 import { Avatar, Box, IconButton, Tooltip, Typography, useMediaQuery } from '@mui/material';
 import React from 'react';
-import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../../../hooks/useCloudStorageUrl';
 
 interface VideoAuthorInfoProps {

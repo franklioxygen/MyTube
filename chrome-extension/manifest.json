@@ -37,8 +37,16 @@
         "*://missav.ai/*",
         "*://*.missav.ws/*",
         "*://missav.ws/*",
+        "*://*.missav.live/*",
+        "*://missav.live/*",
         "*://*.123av.com/*",
-        "*://123av.com/*"
+        "*://123av.com/*",
+        "*://*.123av.ai/*",
+        "*://123av.ai/*",
+        "*://*.123av.ws/*",
+        "*://123av.ws/*",
+        "*://*.njavtv.com/*",
+        "*://njavtv.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

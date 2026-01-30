@@ -12,7 +12,7 @@ import {
  */
 export function validatePathWithinDirectory(
   filePath: string,
-  allowedDir: string
+  allowedDir: string,
 ): boolean {
   // Sanitize and validate input before resolving to prevent path traversal
   if (
@@ -64,10 +64,17 @@ export function validatePathWithinDirectory(
 
   // Final validation: check if any path component in the reconstructed path is ".."
   // Split again to check components after reconstruction
-  const finalFilePathParts = sanitizedFilePath.split(path.sep).filter((part) => part !== "");
-  const finalAllowedDirParts = sanitizedAllowedDir.split(path.sep).filter((part) => part !== "");
-  
-  if (finalFilePathParts.some(part => part === "..") || finalAllowedDirParts.some(part => part === "..")) {
+  const finalFilePathParts = sanitizedFilePath
+    .split(path.sep)
+    .filter((part) => part !== "");
+  const finalAllowedDirParts = sanitizedAllowedDir
+    .split(path.sep)
+    .filter((part) => part !== "");
+
+  if (
+    finalFilePathParts.some((part) => part === "..") ||
+    finalAllowedDirParts.some((part) => part === "..")
+  ) {
     return false;
   }
 
@@ -112,7 +119,7 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
   for (const part of filePathParts) {
     if (part === "..") {
       throw new Error(
-        `Path traversal detected: ${filePath} contains invalid path components`
+        `Path traversal detected: ${filePath} contains invalid path components`,
       );
     }
     // Filenames can contain ".." as part of their name (e.g., "file..mp4"), which is valid
@@ -139,12 +146,19 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
 
   // Final validation: check if any path component in the reconstructed path is ".."
   // Split again to check components after reconstruction
-  const finalFilePathParts = sanitizedFilePath.split(path.sep).filter((part) => part !== "");
-  const finalAllowedDirParts = sanitizedAllowedDir.split(path.sep).filter((part) => part !== "");
-  
-  if (finalFilePathParts.some(part => part === "..") || finalAllowedDirParts.some(part => part === "..")) {
+  const finalFilePathParts = sanitizedFilePath
+    .split(path.sep)
+    .filter((part) => part !== "");
+  const finalAllowedDirParts = sanitizedAllowedDir
+    .split(path.sep)
+    .filter((part) => part !== "");
+
+  if (
+    finalFilePathParts.some((part) => part === "..") ||
+    finalAllowedDirParts.some((part) => part === "..")
+  ) {
     throw new Error(
-      `Path traversal detected: ${filePath} contains invalid path components`
+      `Path traversal detected: ${filePath} contains invalid path components`,
     );
   }
 
@@ -157,7 +171,7 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     resolvedPath !== resolvedAllowedDir
   ) {
     throw new Error(
-      `Path traversal detected: ${filePath} is outside ${allowedDir}`
+      `Path traversal detected: ${filePath} is outside ${allowedDir}`,
     );
   }
 
@@ -192,7 +206,7 @@ export function validateCloudThumbnailCachePath(filePath: string): string {
 export function execFileSafe(
   command: string,
   args: string[],
-  options?: { cwd?: string; timeout?: number }
+  options?: { cwd?: string; timeout?: number },
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     execFile(command, args, options, (error, stdout, stderr) => {
@@ -216,7 +230,7 @@ export function validateUrl(url: string): string {
     // Only allow http and https protocols
     if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
       throw new Error(
-        `Invalid protocol: ${urlObj.protocol}. Only http and https are allowed.`
+        `Invalid protocol: ${urlObj.protocol}. Only http and https are allowed.`,
       );
     }
 
@@ -248,7 +262,7 @@ export function validateUrl(url: string): string {
       hostname === "[::1]"
     ) {
       throw new Error(
-        `SSRF protection: Blocked access to private/internal IP: ${hostname}`
+        `SSRF protection: Blocked access to private/internal IP: ${hostname}`,
       );
     }
 
@@ -259,6 +273,65 @@ export function validateUrl(url: string): string {
     }
     throw error;
   }
+}
+
+/**
+ * Allowed hostnames are exact (e.g. "missav.com") or subdomains (e.g. "www.missav.com").
+ * Comparison is case-insensitive; hostname is normalized to lowercase.
+ */
+function isHostnameAllowed(
+  hostname: string,
+  allowedHostnames: readonly string[],
+): boolean {
+  const normalized = hostname.toLowerCase();
+  for (const allowed of allowedHostnames) {
+    const allowedLower = allowed.toLowerCase();
+    if (
+      normalized === allowedLower ||
+      normalized.endsWith("." + allowedLower)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Rejects path traversal: pathname must not contain ".." as a path segment.
+ */
+function hasPathTraversal(pathname: string): boolean {
+  const segments = pathname.split("/").filter((s) => s.length > 0);
+  return segments.some((segment) => segment === "..");
+}
+
+/**
+ * Validates a URL for outgoing requests with an allow-list of hostnames to prevent SSRF.
+ * Use this when the request target must be restricted to specific domains (e.g. a downloader for one site).
+ * - Enforces http/https and blocks private IPs (same as validateUrl).
+ * - Restricts hostname to the allow-list (exact or subdomain match).
+ * - Rejects path traversal ("..") in the pathname.
+ */
+export function validateUrlWithAllowlist(
+  url: string,
+  allowedHostnames: readonly string[],
+): string {
+  validateUrl(url);
+  const urlObj = new URL(url);
+  const hostname = urlObj.hostname;
+
+  if (!isHostnameAllowed(hostname, allowedHostnames)) {
+    throw new Error(
+      `SSRF protection: Hostname ${hostname} is not in the allow-list.`,
+    );
+  }
+
+  if (hasPathTraversal(urlObj.pathname)) {
+    throw new Error(
+      `SSRF protection: Path traversal ("..") is not allowed in the URL path.`,
+    );
+  }
+
+  return url;
 }
 
 /**
@@ -311,7 +384,12 @@ function isPrivateIp(ip: string): boolean {
   const cleanIp = ip.replace(/^::ffff:/, "");
 
   // Check for localhost
-  if (cleanIp === "localhost" || cleanIp === "0.0.0.0" || cleanIp === "::1" || cleanIp === "[::1]") {
+  if (
+    cleanIp === "localhost" ||
+    cleanIp === "0.0.0.0" ||
+    cleanIp === "::1" ||
+    cleanIp === "[::1]"
+  ) {
     return true;
   }
 
@@ -347,13 +425,13 @@ function isPrivateIp(ip: string): boolean {
 /**
  * Safely extracts the client IP address from a request
  * Prevents X-Forwarded-For header spoofing by validating the IP address
- * 
+ *
  * Security considerations:
  * - Validates all IP addresses before using them
  * - Prioritizes socket IP (cannot be spoofed) over X-Forwarded-For
  * - Validates X-Forwarded-For header format and IP addresses
  * - When behind a proxy, uses X-Forwarded-For but validates it
- * 
+ *
  * @param req - Express request object
  * @returns The validated client IP address
  */
@@ -392,7 +470,7 @@ export function getClientIp(req: any): string {
       for (let i = ips.length - 1; i >= 0; i--) {
         const ip = ips[i].trim();
         const cleanIp = ip.replace(/^::ffff:/, "");
-        
+
         if (isValidIpAddress(cleanIp)) {
           // Security: Only trust X-Forwarded-For when we're actually behind a proxy
           // If socket IP is public (not behind proxy), ignore X-Forwarded-For to prevent spoofing
@@ -449,7 +527,7 @@ export function getClientIp(req: any): string {
  */
 export function validateRedirectUrl(
   url: string,
-  allowedOrigin: string
+  allowedOrigin: string,
 ): string {
   // Ensure URL is a string and not empty
   if (typeof url !== "string" || url.trim().length === 0) {
@@ -481,7 +559,7 @@ export function validateRedirectUrl(
   // Only allow http and https protocols
   if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
     throw new Error(
-      `Invalid protocol: ${urlObj.protocol}. Only http and https are allowed.`
+      `Invalid protocol: ${urlObj.protocol}. Only http and https are allowed.`,
     );
   }
 
@@ -496,7 +574,7 @@ export function validateRedirectUrl(
   // Validate that the URL's origin matches the allowed origin exactly
   if (urlObj.origin !== allowedOriginObj.origin) {
     throw new Error(
-      `Redirect URL origin mismatch: ${urlObj.origin} is not allowed. Only ${allowedOriginObj.origin} is permitted.`
+      `Redirect URL origin mismatch: ${urlObj.origin} is not allowed. Only ${allowedOriginObj.origin} is permitted.`,
     );
   }
 

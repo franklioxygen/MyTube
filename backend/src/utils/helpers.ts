@@ -192,7 +192,11 @@ export function extractSourceVideoId(url: string): {
     return { id: extractYouTubeVideoId(url), platform: "youtube" };
   }
 
-  if (url.includes("missav") || url.includes("123av")) {
+  if (
+    url.includes("missav") ||
+    url.includes("123av") ||
+    url.includes("njavtv")
+  ) {
     return { id: extractMissAVVideoId(url), platform: "missav" };
   }
 
@@ -203,13 +207,11 @@ export function extractSourceVideoId(url: string): {
 /**
  * Process video URL: extract from text, resolve shortened URLs, and extract source video ID
  * This consolidates the common pattern used across multiple controllers
- * 
+ *
  * @param input - URL string that may contain text with a URL
  * @returns Object containing processed videoUrl, sourceVideoId, and platform
  */
-export async function processVideoUrl(
-  input: string
-): Promise<{
+export async function processVideoUrl(input: string): Promise<{
   videoUrl: string;
   sourceVideoId: string | null;
   platform: string;
@@ -289,7 +291,7 @@ export function extractBilibiliSeriesId(url: string): string | null {
 export function formatVideoFilename(
   title: string,
   author: string,
-  dateString: string
+  dateString: string,
 ): string {
   // Helper to clean segments: remove symbols (keep letters/numbers/spaces), replace spaces with dots
   const cleanSegment = (str: string) => {
@@ -358,9 +360,10 @@ export function formatAvatarFilename(platform: string, author: string): string {
 
   // Truncate author if too long (max 100 chars to leave room for platform prefix)
   const maxAuthorLength = 100;
-  const finalAuthor = authorName.length > maxAuthorLength
-    ? authorName.substring(0, maxAuthorLength)
-    : authorName;
+  const finalAuthor =
+    authorName.length > maxAuthorLength
+      ? authorName.substring(0, maxAuthorLength)
+      : authorName;
 
   return `${cleanPlatform}-${finalAuthor}.jpg`;
 }

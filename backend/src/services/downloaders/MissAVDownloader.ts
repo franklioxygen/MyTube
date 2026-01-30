@@ -8,7 +8,7 @@ import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
-import { validateUrl } from "../../utils/security";
+import { validateUrlWithAllowlist } from "../../utils/security";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -22,6 +22,18 @@ import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 
+/** Hostnames allowed for MissAV/123av requests. Subdomains (e.g. www.) are allowed. */
+const ALLOWED_MISSAV_HOSTNAMES = [
+  "missav.com",
+  "missav.ai",
+  "missav.ws",
+  "missav.live",
+  "123av.com",
+  "123av.ai",
+  "123av.ws",
+  "njavtv.com",
+] as const;
+
 export class MissAVDownloader extends BaseDownloader {
   // Implementation of IDownloader.getVideoInfo
   async getVideoInfo(url: string): Promise<VideoInfo> {
@@ -31,10 +43,15 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      // Validate URL to prevent SSRF attacks
-      const validatedUrl = validateUrl(url);
-      
-      logger.info(`Fetching page content for ${validatedUrl} with Puppeteer...`);
+      // Validate URL against allow-list to prevent SSRF (hostname + path traversal)
+      const validatedUrl = validateUrlWithAllowlist(
+        url,
+        ALLOWED_MISSAV_HOSTNAMES,
+      );
+
+      logger.info(
+        `Fetching page content for ${validatedUrl} with Puppeteer...`,
+      );
 
       const USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -50,7 +67,10 @@ export class MissAVDownloader extends BaseDownloader {
       });
       const page = await browser.newPage();
 
-      await page.goto(validatedUrl, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.goto(validatedUrl, {
+        waitUntil: "networkidle2",
+        timeout: 60000,
+      });
 
       const html = await page.content();
       await browser.close();
@@ -87,7 +107,7 @@ export class MissAVDownloader extends BaseDownloader {
     return MissAVDownloader.downloadVideo(
       url,
       options?.downloadId,
-      options?.onStart
+      options?.onStart,
     );
   }
 
@@ -95,7 +115,7 @@ export class MissAVDownloader extends BaseDownloader {
   static async downloadVideo(
     url: string,
     downloadId?: string,
-    onStart?: (cancel: () => void) => void
+    onStart?: (cancel: () => void) => void,
   ): Promise<Video> {
     logger.info("Detected MissAV/123av URL:", url);
 
@@ -121,9 +141,12 @@ export class MissAVDownloader extends BaseDownloader {
       const USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-      // Validate URL to prevent SSRF attacks
-      const validatedUrl = validateUrl(url);
-      
+      // Validate URL against allow-list to prevent SSRF (hostname + path traversal)
+      const validatedUrl = validateUrlWithAllowlist(
+        url,
+        ALLOWED_MISSAV_HOSTNAMES,
+      );
+
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
       const browser = await puppeteer.launch({
@@ -136,7 +159,6 @@ export class MissAVDownloader extends BaseDownloader {
         ],
       });
       const page = await browser.newPage();
-
 
       // Setup request listener to find m3u8 URLs
       const m3u8Urls: string[] = [];
@@ -151,7 +173,10 @@ export class MissAVDownloader extends BaseDownloader {
       });
 
       logger.info("Navigating to:", validatedUrl);
-      await page.goto(validatedUrl, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.goto(validatedUrl, {
+        waitUntil: "networkidle2",
+        timeout: 60000,
+      });
 
       const html = await page.content();
       await browser.close();
@@ -184,7 +209,7 @@ export class MissAVDownloader extends BaseDownloader {
       if (m3u8Url) {
         logger.info(
           `Selected m3u8 URL from ${m3u8Urls.length} candidates (format sort: ${hasFormatSort}):`,
-          m3u8Url
+          m3u8Url,
         );
         const alternatives = m3u8Urls.filter((u) => u !== m3u8Url);
         if (alternatives.length > 0) {
@@ -195,7 +220,7 @@ export class MissAVDownloader extends BaseDownloader {
       // 5. If m3u8 URL was not found via network, try regex extraction as fallback
       if (!m3u8Url) {
         logger.info(
-          "m3u8 URL not found via network, trying regex extraction..."
+          "m3u8 URL not found via network, trying regex extraction...",
         );
 
         // Logic ported from: https://github.com/smalltownjj/yt-dlp-plugin-missav/blob/main/yt_dlp_plugins/extractor/missav.py
@@ -233,7 +258,7 @@ export class MissAVDownloader extends BaseDownloader {
         fs.writeFileSync(debugFile, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
-          "Could not find m3u8 URL in page source or network requests"
+          "Could not find m3u8 URL in page source or network requests",
         );
       }
 
@@ -248,7 +273,7 @@ export class MissAVDownloader extends BaseDownloader {
       const newSafeBaseFilename = formatVideoFilename(
         videoTitle,
         videoAuthor,
-        videoDate
+        videoDate,
       );
       const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
@@ -274,7 +299,7 @@ export class MissAVDownloader extends BaseDownloader {
         });
       } else {
         logger.warn(
-          "[MissAV] Warning: downloadId is not set, progress updates will not work!"
+          "[MissAV] Warning: downloadId is not set, progress updates will not work!",
         );
       }
 
@@ -298,7 +323,7 @@ export class MissAVDownloader extends BaseDownloader {
           "Using permissive format with format sort for MissAV:",
           downloadFormat,
           "format sort:",
-          formatSortValue
+          formatSortValue,
         );
       }
 
@@ -333,7 +358,7 @@ export class MissAVDownloader extends BaseDownloader {
         if (lines.length > 0 && lines[0].includes("[download]")) {
           logger.info(
             `[MissAV Progress ${source}]:`,
-            lines[0].substring(0, 100)
+            lines[0].substring(0, 100),
           );
         }
         progressTracker.parseAndUpdate(output);
@@ -414,7 +439,7 @@ export class MissAVDownloader extends BaseDownloader {
             if (error instanceof InvalidProxyError) {
               logger.warn(
                 "Invalid proxy configuration for thumbnail download, proceeding without proxy:",
-                error.message
+                error.message,
               );
             } else {
               throw error;
@@ -425,16 +450,15 @@ export class MissAVDownloader extends BaseDownloader {
         thumbnailSaved = await downloader.downloadThumbnail(
           thumbnailUrl,
           newThumbnailPath,
-          axiosConfig
+          axiosConfig,
         );
       }
 
       // 9. Get video duration
       let duration: string | undefined;
       try {
-        const { getVideoDuration } = await import(
-          "../../services/metadataService"
-        );
+        const { getVideoDuration } =
+          await import("../../services/metadataService");
         const durationSec = await getVideoDuration(newVideoPath);
         if (durationSec) {
           duration = durationSec.toString();
@@ -480,12 +504,11 @@ export class MissAVDownloader extends BaseDownloader {
       storageService.saveVideo(videoData);
       logger.info("MissAV video saved to database");
 
-
       // Add video to author collection if enabled
       const authorCollection = storageService.addVideoToAuthorCollection(
         videoData.id,
         videoAuthor,
-        settings.saveAuthorFilesToCollection || false
+        settings.saveAuthorFilesToCollection || false,
       );
 
       if (authorCollection) {
@@ -507,15 +530,15 @@ export class MissAVDownloader extends BaseDownloader {
         const cleanupSafeBaseFilename = formatVideoFilename(
           videoTitle,
           videoAuthor,
-          videoDate
+          videoDate,
         );
         const cleanupVideoPath = path.join(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.${cleanupFormat}`
+          `${cleanupSafeBaseFilename}.${cleanupFormat}`,
         );
         const cleanupThumbnailPath = path.join(
           IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`
+          `${cleanupSafeBaseFilename}.jpg`,
         );
         if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
         if (fs.existsSync(cleanupThumbnailPath))
@@ -523,7 +546,7 @@ export class MissAVDownloader extends BaseDownloader {
         // Also try mp4 in case the file was created with default extension
         const cleanupVideoPathMp4 = path.join(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`
+          `${cleanupSafeBaseFilename}.mp4`,
         );
         if (fs.existsSync(cleanupVideoPathMp4))
           await safeRemove(cleanupVideoPathMp4);
@@ -532,15 +555,15 @@ export class MissAVDownloader extends BaseDownloader {
         const cleanupSafeBaseFilename = formatVideoFilename(
           videoTitle,
           videoAuthor,
-          videoDate
+          videoDate,
         );
         const cleanupVideoPath = path.join(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`
+          `${cleanupSafeBaseFilename}.mp4`,
         );
         const cleanupThumbnailPath = path.join(
           IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`
+          `${cleanupSafeBaseFilename}.jpg`,
         );
         if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
         if (fs.existsSync(cleanupThumbnailPath))
@@ -553,7 +576,7 @@ export class MissAVDownloader extends BaseDownloader {
   // Helper to select best m3u8 URL
   static selectBestM3u8Url(
     urls: string[],
-    hasFormatSort: boolean
+    hasFormatSort: boolean,
   ): string | null {
     if (urls.length === 0) return null;
 

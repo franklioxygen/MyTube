@@ -23,7 +23,7 @@ import { validateUrl } from "../utils/security";
  */
 export const searchVideos = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const query = getStringParam(req.query.query);
 
@@ -34,11 +34,7 @@ export const searchVideos = async (
   const limit = getNumberParam(req.query.limit, 8) || 8;
   const offset = getNumberParam(req.query.offset, 1) || 1;
 
-  const results = await downloadService.searchYouTube(
-    query,
-    limit,
-    offset
-  );
+  const results = await downloadService.searchYouTube(query, limit, offset);
   // Return { results } format for backward compatibility (frontend expects response.data.results)
   sendData(res, { results });
 };
@@ -49,7 +45,7 @@ export const searchVideos = async (
  */
 export const checkVideoDownloadStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
 
@@ -64,7 +60,7 @@ export const checkVideoDownloadStatus = async (
   } catch (error) {
     throw new ValidationError(
       error instanceof Error ? error.message : "Invalid URL format",
-      "url"
+      "url",
     );
   }
 
@@ -85,7 +81,7 @@ export const checkVideoDownloadStatus = async (
     // Verify video exists if status is "exists"
     const verification = storageService.verifyVideoExists(
       downloadCheck,
-      storageService.getVideoById
+      storageService.getVideoById,
     );
 
     if (verification.updatedCheck) {
@@ -137,7 +133,7 @@ export const checkVideoDownloadStatus = async (
  */
 export const downloadVideo = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<any> => {
   try {
     const {
@@ -163,7 +159,7 @@ export const downloadVideo = async (
     } catch (error) {
       return sendBadRequest(
         res,
-        error instanceof Error ? error.message : "Invalid URL format"
+        error instanceof Error ? error.message : "Invalid URL format",
       );
     }
 
@@ -201,7 +197,7 @@ export const downloadVideo = async (
         storageService.getVideoById,
         (item) => storageService.addDownloadHistoryItem(item),
         forceDownload,
-        dontSkipDeletedVideo
+        dontSkipDeletedVideo,
       );
 
       if (checkResult.shouldSkip && checkResult.response) {
@@ -214,17 +210,18 @@ export const downloadVideo = async (
     let initialTitle = "Pending...";
     // We purposefully delay title fetching to the background task to make the API response instant
     if (
-        resolvedUrl.includes("youtube.com") ||
-        resolvedUrl.includes("youtu.be")
+      resolvedUrl.includes("youtube.com") ||
+      resolvedUrl.includes("youtu.be")
     ) {
-        initialTitle = "YouTube Video";
+      initialTitle = "YouTube Video";
     } else if (isBilibiliUrl(resolvedUrl)) {
-        initialTitle = "Bilibili Video";
+      initialTitle = "Bilibili Video";
     } else if (
-        resolvedUrl.includes("missav") ||
-        resolvedUrl.includes("123av")
+      resolvedUrl.includes("missav") ||
+      resolvedUrl.includes("123av") ||
+      resolvedUrl.includes("njavtv")
     ) {
-        initialTitle = "MissAV Video";
+      initialTitle = "MissAV Video";
     }
 
     // Generate a unique ID for this download task
@@ -232,7 +229,7 @@ export const downloadVideo = async (
 
     // Define the download task function
     const downloadTask = async (
-      registerCancel: (cancel: () => void) => void
+      registerCancel: (cancel: () => void) => void,
     ) => {
       // Use resolved URL for download (already processed)
       let downloadUrl = resolvedUrl;
@@ -245,16 +242,20 @@ export const downloadVideo = async (
         // If downloadCollection is true, handle collection/series download
         if (downloadCollection && collectionInfo) {
           logger.info("Downloading Bilibili collection/series");
-          
+
           // Use the fetched title if available, otherwise fallback to collection name
           // Note: videoTitle might be updated in background but we use what we have
-          const currentTitle = storageService.getActiveDownload(downloadId)?.title || initialTitle;
-          const collectionTitle = currentTitle !== initialTitle ? currentTitle : (collectionName || collectionInfo.title || "Bilibili Collection");
+          const currentTitle =
+            storageService.getActiveDownload(downloadId)?.title || initialTitle;
+          const collectionTitle =
+            currentTitle !== initialTitle
+              ? currentTitle
+              : collectionName || collectionInfo.title || "Bilibili Collection";
 
           const result = await downloadService.downloadBilibiliCollection(
             collectionInfo,
             collectionName,
-            downloadId
+            downloadId,
           );
 
           if (result.success) {
@@ -263,11 +264,11 @@ export const downloadVideo = async (
               collectionId: result.collectionId,
               videosDownloaded: result.videosDownloaded,
               isCollection: true,
-              title: collectionTitle
+              title: collectionTitle,
             };
           } else {
             throw new Error(
-              result.error || "Failed to download collection/series"
+              result.error || "Failed to download collection/series",
             );
           }
         }
@@ -280,9 +281,8 @@ export const downloadVideo = async (
           }
 
           // Get video info to determine number of parts
-          const partsInfo = await downloadService.checkBilibiliVideoParts(
-            videoId
-          );
+          const partsInfo =
+            await downloadService.checkBilibiliVideoParts(videoId);
 
           if (!partsInfo.success) {
             throw new Error("Failed to get video parts information");
@@ -291,15 +291,15 @@ export const downloadVideo = async (
           const { videosNumber, title } = partsInfo;
           // Use the more accurate title from parts info
           if (title) {
-             storageService.updateActiveDownloadTitle(downloadId, title);
-             // Also update manager in case it's still in queue
-             downloadManager.updateTaskTitle(downloadId, title);
+            storageService.updateActiveDownloadTitle(downloadId, title);
+            // Also update manager in case it's still in queue
+            downloadManager.updateTaskTitle(downloadId, title);
           }
 
           // Update title in storage
           storageService.addActiveDownload(
             downloadId,
-            title || "Bilibili Video"
+            title || "Bilibili Video",
           );
 
           // Start downloading the first part
@@ -317,14 +317,14 @@ export const downloadVideo = async (
             // First, try to find if an existing part belongs to a collection
             if (existingPart1?.id) {
               const existingCollection = storageService.getCollectionByVideoId(
-                existingPart1.id
+                existingPart1.id,
               );
               if (existingCollection) {
                 collectionId = existingCollection.id;
                 logger.info(
                   `Found existing collection "${
                     existingCollection.name || existingCollection.title
-                  }" for this series`
+                  }" for this series`,
                 );
               }
             }
@@ -336,7 +336,7 @@ export const downloadVideo = async (
               if (collectionByName) {
                 collectionId = collectionByName.id;
                 logger.info(
-                  `Found existing collection "${collectionName}" by name`
+                  `Found existing collection "${collectionName}" by name`,
                 );
               }
             }
@@ -358,7 +358,7 @@ export const downloadVideo = async (
 
           if (existingPart1) {
             logger.info(
-              `Part 1/${videosNumber} already exists, skipping. Video ID: ${existingPart1.id}`
+              `Part 1/${videosNumber} already exists, skipping. Video ID: ${existingPart1.id}`,
             );
             firstPartResult = {
               success: true,
@@ -376,7 +376,7 @@ export const downloadVideo = async (
                       collection.videos.push(existingPart1.id);
                     }
                     return collection;
-                  }
+                  },
                 );
               }
             }
@@ -392,8 +392,11 @@ export const downloadVideo = async (
 
             // Download the first part
             // Pass the CURRENT title from storage or manager
-            const currentTitle = storageService.getActiveDownload(downloadId)?.title || title || "Bilibili Video";
-            
+            const currentTitle =
+              storageService.getActiveDownload(downloadId)?.title ||
+              title ||
+              "Bilibili Video";
+
             firstPartResult = await downloadService.downloadSingleBilibiliPart(
               firstPartUrl,
               1,
@@ -401,7 +404,7 @@ export const downloadVideo = async (
               currentTitle,
               downloadId,
               registerCancel,
-              collectionName
+              collectionName,
             );
 
             // Add to collection if needed
@@ -411,7 +414,7 @@ export const downloadVideo = async (
                 (collection) => {
                   collection.videos.push(firstPartResult.videoData!.id);
                   return collection;
-                }
+                },
               );
             }
           }
@@ -419,7 +422,10 @@ export const downloadVideo = async (
           // Set up background download for remaining parts
           // Note: We don't await this, it runs in background
           if (videosNumber > 1) {
-            const currentTitle = storageService.getActiveDownload(downloadId)?.title || title || "Bilibili Video";
+            const currentTitle =
+              storageService.getActiveDownload(downloadId)?.title ||
+              title ||
+              "Bilibili Video";
             downloadService
               .downloadRemainingBilibiliParts(
                 baseUrl,
@@ -427,12 +433,12 @@ export const downloadVideo = async (
                 videosNumber,
                 currentTitle,
                 collectionId,
-                downloadId // Pass downloadId to track progress
+                downloadId, // Pass downloadId to track progress
               )
               .catch((error) => {
                 logger.error(
                   "Error in background download of remaining parts:",
-                  error
+                  error,
                 );
               });
           }
@@ -443,7 +449,7 @@ export const downloadVideo = async (
             isMultiPart: true,
             totalParts: videosNumber,
             collectionId,
-            title: title || initialTitle
+            title: title || initialTitle,
           };
         } else {
           // Regular single video download for Bilibili
@@ -455,26 +461,27 @@ export const downloadVideo = async (
             1,
             "", // seriesTitle not used when totalParts is 1
             downloadId,
-            registerCancel
+            registerCancel,
           );
 
           if (result.success) {
             return { success: true, video: result.videoData };
           } else {
             throw new Error(
-              result.error || "Failed to download Bilibili video"
+              result.error || "Failed to download Bilibili video",
             );
           }
         }
       } else if (
         downloadUrl.includes("missav") ||
-        downloadUrl.includes("123av")
+        downloadUrl.includes("123av") ||
+        downloadUrl.includes("njavtv")
       ) {
-        // MissAV/123av download
+        // MissAV/123av/njavtv download
         const videoData = await downloadService.downloadMissAVVideo(
           downloadUrl,
           downloadId,
-          registerCancel
+          registerCancel,
         );
         return { success: true, video: videoData };
       } else {
@@ -482,7 +489,7 @@ export const downloadVideo = async (
         const videoData = await downloadService.downloadYouTubeVideo(
           downloadUrl,
           downloadId,
-          registerCancel
+          registerCancel,
         );
         return { success: true, video: videoData };
       }
@@ -490,7 +497,11 @@ export const downloadVideo = async (
 
     // Determine type
     let type = "youtube";
-    if (resolvedUrl.includes("missav") || resolvedUrl.includes("123av")) {
+    if (
+      resolvedUrl.includes("missav") ||
+      resolvedUrl.includes("123av") ||
+      resolvedUrl.includes("njavtv")
+    ) {
       type = "missav";
     } else if (isBilibiliUrl(resolvedUrl)) {
       type = "bilibili";
@@ -518,7 +529,7 @@ export const downloadVideo = async (
     // Process metadata update in background
     (async () => {
       let videoTitle = initialTitle;
-      
+
       try {
         // Fetch video info for title
         logger.info("Fetching video info for title update...");
@@ -546,7 +557,7 @@ export const downloadVideo = async (
  */
 export const getDownloadStatus = async (
   _req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const status = storageService.getDownloadStatus();
   // Debug log to verify progress data is included
@@ -554,7 +565,7 @@ export const getDownloadStatus = async (
     status.activeDownloads.forEach((d) => {
       if (d.progress !== undefined || d.speed) {
         logger.debug(
-          `[API] Download ${d.id}: progress=${d.progress}%, speed=${d.speed}, totalSize=${d.totalSize}`
+          `[API] Download ${d.id}: progress=${d.progress}%, speed=${d.speed}, totalSize=${d.totalSize}`,
         );
       }
     });
@@ -569,7 +580,7 @@ export const getDownloadStatus = async (
  */
 export const checkBilibiliParts = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
 
@@ -610,7 +621,7 @@ export const checkBilibiliParts = async (
  */
 export const checkBilibiliCollection = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
 
@@ -652,7 +663,7 @@ export const checkBilibiliCollection = async (
  */
 export const checkPlaylist = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   const url = getStringParam(req.query.url);
 
@@ -668,7 +679,7 @@ export const checkPlaylist = async (
     if (!playlistRegex.test(playlistUrl)) {
       throw new ValidationError(
         "YouTube URL must contain a playlist parameter (list=)",
-        "url"
+        "url",
       );
     }
   }

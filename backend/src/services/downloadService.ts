@@ -29,20 +29,20 @@ export async function downloadBilibiliVideo(
   videoPath: string,
   thumbnailPath: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
 ): Promise<BilibiliVideoInfo> {
   return BilibiliDownloader.downloadVideo(
     url,
     videoPath,
     thumbnailPath,
     downloadId,
-    onStart
+    onStart,
   );
 }
 
 // Helper function to check if a Bilibili video has multiple parts
 export async function checkBilibiliVideoParts(
-  videoId: string
+  videoId: string,
 ): Promise<BilibiliPartsCheckResult> {
   return BilibiliDownloader.checkVideoParts(videoId);
 }
@@ -60,9 +60,8 @@ export async function checkPlaylist(playlistUrl: string): Promise<{
       getNetworkConfigFromUserConfig,
       getUserYtDlpConfig,
     } = await import("../utils/ytDlpUtils");
-    const { getProviderScript } = await import(
-      "./downloaders/ytdlp/ytdlpHelpers"
-    );
+    const { getProviderScript } =
+      await import("./downloaders/ytdlp/ytdlpHelpers");
 
     const userConfig = getUserYtDlpConfig(playlistUrl);
     const networkConfig = getNetworkConfigFromUserConfig(userConfig);
@@ -112,7 +111,7 @@ export async function checkPlaylist(playlistUrl: string): Promise<{
 
 // Helper function to check if a Bilibili video belongs to a collection or series
 export async function checkBilibiliCollectionOrSeries(
-  videoId: string
+  videoId: string,
 ): Promise<BilibiliCollectionCheckResult> {
   return BilibiliDownloader.checkCollectionOrSeries(videoId);
 }
@@ -120,7 +119,7 @@ export async function checkBilibiliCollectionOrSeries(
 // Helper function to get all videos from a Bilibili collection
 export async function getBilibiliCollectionVideos(
   mid: number,
-  seasonId: number
+  seasonId: number,
 ): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getCollectionVideos(mid, seasonId);
 }
@@ -128,7 +127,7 @@ export async function getBilibiliCollectionVideos(
 // Helper function to get all videos from a Bilibili series
 export async function getBilibiliSeriesVideos(
   mid: number,
-  seriesId: number
+  seriesId: number,
 ): Promise<BilibiliVideosResult> {
   return BilibiliDownloader.getSeriesVideos(mid, seriesId);
 }
@@ -141,7 +140,7 @@ export async function downloadSingleBilibiliPart(
   seriesTitle: string,
   downloadId?: string,
   onStart?: (cancel: () => void) => void,
-  collectionName?: string
+  collectionName?: string,
 ): Promise<DownloadResult> {
   return BilibiliDownloader.downloadSinglePart(
     url,
@@ -150,7 +149,7 @@ export async function downloadSingleBilibiliPart(
     seriesTitle,
     downloadId,
     onStart,
-    collectionName
+    collectionName,
   );
 }
 
@@ -158,12 +157,12 @@ export async function downloadSingleBilibiliPart(
 export async function downloadBilibiliCollection(
   collectionInfo: BilibiliCollectionCheckResult,
   collectionName: string,
-  downloadId: string
+  downloadId: string,
 ): Promise<CollectionDownloadResult> {
   return BilibiliDownloader.downloadCollection(
     collectionInfo,
     collectionName,
-    downloadId
+    downloadId,
   );
 }
 
@@ -174,7 +173,7 @@ export async function downloadRemainingBilibiliParts(
   totalParts: number,
   seriesTitle: string,
   collectionId: string | null,
-  downloadId: string
+  downloadId: string,
 ): Promise<void> {
   return BilibiliDownloader.downloadRemainingParts(
     baseUrl,
@@ -182,7 +181,7 @@ export async function downloadRemainingBilibiliParts(
     totalParts,
     seriesTitle,
     collectionId,
-    downloadId
+    downloadId,
   );
 }
 
@@ -190,7 +189,7 @@ export async function downloadRemainingBilibiliParts(
 export async function searchYouTube(
   query: string,
   limit?: number,
-  offset?: number
+  offset?: number,
 ): Promise<any[]> {
   return YtDlpDownloader.search(query, limit, offset);
 }
@@ -199,7 +198,7 @@ export async function searchYouTube(
 export async function downloadYouTubeVideo(
   videoUrl: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
 ): Promise<Video> {
   return YtDlpDownloader.downloadVideo(videoUrl, downloadId, onStart);
 }
@@ -208,7 +207,7 @@ export async function downloadYouTubeVideo(
 export async function downloadMissAVVideo(
   url: string,
   downloadId?: string,
-  onStart?: (cancel: () => void) => void
+  onStart?: (cancel: () => void) => void,
 ): Promise<Video> {
   return MissAVDownloader.downloadVideo(url, downloadId, onStart);
 }
@@ -220,7 +219,11 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
     if (videoId) {
       return BilibiliDownloader.getVideoInfo(videoId);
     }
-  } else if (url.includes("missav") || url.includes("123av")) {
+  } else if (
+    url.includes("missav") ||
+    url.includes("123av") ||
+    url.includes("njavtv")
+  ) {
     return MissAVDownloader.getVideoInfo(url);
   }
 
@@ -232,7 +235,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
 export function createDownloadTask(
   type: string,
   url: string,
-  downloadId: string
+  downloadId: string,
 ): (registerCancel: (cancel: () => void) => void) => Promise<any> {
   return async (registerCancel: (cancel: () => void) => void) => {
     if (type === "missav") {
@@ -246,7 +249,7 @@ export function createDownloadTask(
         1,
         "",
         downloadId,
-        registerCancel
+        registerCancel,
       );
     } else {
       // Default to yt-dlp
@@ -258,7 +261,7 @@ export function createDownloadTask(
 // Helper function to download all playlists from a channel
 export async function downloadChannelPlaylists(
   channelUrl: string,
-  onProgress?: (data: any) => void
+  onProgress?: (data: any) => void,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const {
@@ -266,9 +269,8 @@ export async function downloadChannelPlaylists(
       getNetworkConfigFromUserConfig,
       getUserYtDlpConfig,
     } = await import("../utils/ytDlpUtils");
-    const { getProviderScript } = await import(
-      "./downloaders/ytdlp/ytdlpHelpers"
-    );
+    const { getProviderScript } =
+      await import("./downloaders/ytdlp/ytdlpHelpers");
     const {
       getCollectionByName,
       saveCollection,
@@ -276,9 +278,8 @@ export async function downloadChannelPlaylists(
     } = await import("./storageService");
     const { logger } = await import("../utils/logger");
     const { v4: uuidv4 } = await import("uuid");
-    const { continuousDownloadService } = await import(
-      "./continuousDownloadService"
-    );
+    const { continuousDownloadService } =
+      await import("./continuousDownloadService");
 
     logger.info(`Fetching playlists for channel: ${channelUrl}`);
 
@@ -357,7 +358,7 @@ export async function downloadChannelPlaylists(
     }
 
     logger.info(
-      `Found ${result.entries.length} playlists for channel: ${channelName}`
+      `Found ${result.entries.length} playlists for channel: ${channelName}`,
     );
 
     let startedCount = 0;
@@ -377,31 +378,30 @@ export async function downloadChannelPlaylists(
       logger.info(`Processing playlist: ${title} (${playlistUrl})`);
 
       // Check if there's already a task for this playlist URL
-      const existingTask = await continuousDownloadService.getTaskByAuthorUrl(
-        playlistUrl
-      );
+      const existingTask =
+        await continuousDownloadService.getTaskByAuthorUrl(playlistUrl);
 
       if (existingTask) {
         // Task already exists for this playlist
         if (existingTask.collectionId) {
           const { getCollectionById } = await import("./storageService");
           const existingCollection = getCollectionById(
-            existingTask.collectionId
+            existingTask.collectionId,
           );
           if (existingCollection) {
             logger.info(
-              `Skipping playlist "${title}": task already exists with collection "${existingCollection.name}"`
+              `Skipping playlist "${title}": task already exists with collection "${existingCollection.name}"`,
             );
             continue; // Skip creating duplicate task
           } else {
             logger.warn(
-              `Task exists for playlist "${title}" but collection ${existingTask.collectionId} not found. Skipping.`
+              `Task exists for playlist "${title}" but collection ${existingTask.collectionId} not found. Skipping.`,
             );
             continue; // Skip to avoid data inconsistency
           }
         } else {
           logger.info(
-            `Skipping playlist "${title}": task already exists (no collection)`
+            `Skipping playlist "${title}": task already exists (no collection)`,
           );
           continue; // Skip creating duplicate task
         }
@@ -438,7 +438,7 @@ export async function downloadChannelPlaylists(
         });
       } else {
         logger.info(
-          `Reusing existing collection "${collection.name}" for playlist: ${title}`
+          `Reusing existing collection "${collection.name}" for playlist: ${title}`,
         );
       }
 
@@ -448,7 +448,7 @@ export async function downloadChannelPlaylists(
         playlistUrl,
         channelName, // Use extracted channel name as author
         "YouTube",
-        collection.id
+        collection.id,
       );
 
       startedCount++;
