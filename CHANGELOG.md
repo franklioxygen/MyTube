@@ -1,6 +1,33 @@
 # Change Log
 
 
+## v1.7.94 (2026-01-30)
+
+### Feat
+
+- feat: Add tag push trigger for publishing Docker images (fde3199)
+- feat: add publish workflow and update release script (3a8ec01)
+
+## v1.7.93 (2026-01-30)
+
+### Feat
+
+- feat: Add download button to Chrome extension (b9786ba)
+- feat: select preferred audio track (ac0e9eb)
+
+### Refactor
+
+- refactor: Remove Grid layout and rearrange components (d6e2c04)
+- refactor: Update indentation and variable names (5e797fa)
+
+### Test
+
+- test: Add currentTimeRef to useVideoProgress in tests (084ff7e)
+
+### Docs
+
+- docs: Update comments for language and auth context (9d92e48)
+
 ## v1.7.92 (2026-01-29)
 
 ### Feat
