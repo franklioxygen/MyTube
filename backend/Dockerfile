@@ -7,6 +7,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+ENV SKIP_PROVIDER_BUILD=1
 # Install build dependencies for native modules (python3, make, g++)
 # Using BuildKit cache mount to speed up package downloads
 RUN --mount=type=cache,target=/var/cache/apk \
@@ -84,6 +85,7 @@ RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs curl-cffi --break-s
 ENV NODE_ENV=production
 ENV PORT=5551
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+ENV SKIP_PROVIDER_BUILD=1
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Install production dependencies only
