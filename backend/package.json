@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.7.92",
+  "version": "1.7.93",
   "main": "server.js",
   "scripts": {
     "start": "ts-node src/server.ts",
