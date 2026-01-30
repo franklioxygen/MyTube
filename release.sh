@@ -72,8 +72,5 @@ git push origin "v$NEW_VERSION"
 
 echo "✅ Version bumped and tagged: v$NEW_VERSION"
 
-# Build and Push
-echo "🚀 Starting build and push process..."
-./build-and-push.sh $NEW_VERSION
-
-echo "🎉 Release v$NEW_VERSION completed successfully!"
+echo "🚀 Release v$NEW_VERSION tagged and pushed."
+echo "   GitHub Action 'Publish Docker Images' will now build and push the Docker images."
