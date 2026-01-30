@@ -1,0 +1,27 @@
+build/
+node_modules/
+tsconfig.tsbuildinfo
+
+dist/
+__pycache__/
+plugin/CHANGELOG.md
+**.pyc
+**.pyo
+
+yt-dlp
+yt-dlp.exe
+yt-dlp_macos
+yt-dlp_x86.exe
+yt-dlp_min.exe
+yt-dlp_linux
+yt-dlp_linux_armv7l
+yt-dlp_linux_aarch64
+yt-dlp_win.zip
+yt-dlp_macos.zip
+yt-dlp_macos_legacy
+# yt-dlp binaries
+yt-dlp/
+# yt-dlp source code
+
+/tmp/
+cache.json

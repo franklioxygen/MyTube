@@ -1,0 +1,185 @@
+name: Create release
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Release to Github
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set_variables.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Hatch
+        run: pipx install hatch
+
+      - name: Set variables
+        id: set_variables
+        run: |
+          cp README.md plugin/
+          cd plugin/
+          metadata=$(hatch project metadata)
+          echo "::group::Variables"
+          cat << EOF | tee -a "$GITHUB_OUTPUT"
+          tag=$(git for-each-ref refs/tags --sort=-creatordate --format='%(refname:strip=2)' --count=1)
+          version=$(echo ${metadata} | jq -r .version)
+          project_name=$(echo ${metadata} | jq -r .name)
+          EOF
+          echo "::endgroup::"
+      - name: Bundle
+        if: format('refs/heads/{0}', github.event.repository.default_branch) == github.ref
+        # only release on default branch
+        id: bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          tag: ${{ steps.set_variables.outputs.tag }}
+          version: ${{ steps.set_variables.outputs.version }}
+          project_name: ${{ steps.set_variables.outputs.project_name }}
+        shell: bash
+        run: |
+          cd plugin/
+          mkdir bundle/
+          cp -r yt_dlp_plugins bundle/
+          cd bundle/
+          find . -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete
+          zip -9 --recurse-paths "${project_name}" *
+          printf "## What's Changed\n\n" >> CHANGELOG.md
+          gh pr list --json author,number,title,mergedAt --base "${{ github.event.repository.default_branch }}" --state merged -R ${{ github.repository }} \
+          | jq -r --arg authortime "$(git log --format='%at' -n1 ${tag})" \
+          '.[]|select((.mergedAt|strptime("%Y-%m-%dT%H:%M:%SZ")|mktime)>($authortime|tonumber))| "* \(.title) by @\(.author.login) in #\(.number|tostring)"' \
+          >> CHANGELOG.md
+          printf "\n**Full Changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${tag}...${version}\n" >> CHANGELOG.md
+          r=$(cat CHANGELOG.md)                           # <--- Read release Notes
+          r="${r//'%'/'%25'}"                             # Multiline escape sequences for %
+          r="${r//$'\n'/'%0A'}"                           # Multiline escape sequences for '\n'
+          r="${r//$'\r'/'%0D'}"                           # Multiline escape sequences for '\r'
+          echo "RELEASE_BODY=$r" | tee -a $GITHUB_OUTPUT  # <--- Set environment variable
+
+      - name: Create Release on Github
+        if: format('refs/heads/{0}', github.event.repository.default_branch) == github.ref
+        # only release on default branch
+        uses: svenstaro/upload-release-action@v2
+        with:
+          tag: ${{ steps.set_variables.outputs.version }}
+          release_name: |
+            ${{ steps.set_variables.outputs.project_name }} ${{ steps.set_variables.outputs.version }}
+          body: ${{ steps.bundle.outputs.RELEASE_BODY }}
+          file: plugin/bundle/${{ steps.set_variables.outputs.project_name }}.zip
+          asset_name: ${{ steps.set_variables.outputs.project_name }}.zip
+          overwrite: true
+
+  release_pypi:
+    name: Release to PyPI
+    if: format('refs/heads/{0}', github.event.repository.default_branch) == github.ref
+    # only release on default branch
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # mandatory for trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build hatchling
+
+      - name: Build
+        run: |
+          printf '%s\n\n' \
+            "Official repository: <${{ github.server_url }}/${{ github.repository }}>" > ./README.md.new
+          cat ./README.md >> ./README.md.new
+          mv -f ./README.md.new ./README.md
+          cd plugin/
+          rm -rf dist/**
+          python -m build --no-isolation .
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          packages-dir: plugin/dist
+
+  release_docker:
+    name: Build Docker Image
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      repository: ${{ github.repository }} # like `brainicism/bgutil-ytdlp-pot-provider`
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          context: git
+          images: ${{ env.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            # mark as latest only if built on default branch of repository
+            type=raw,value=${{ needs.release.outputs.version }},enable={{is_default_branch}}
+            # add the new git tag only if built on default branch of repository
+            type=sha
+            type=ref,event=branch
+            type=ref,event=pr
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: server/
+          file: server/Dockerfile
+          platforms: "linux/amd64,linux/arm64"
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+
+      - name: Add official repository link to README.md
+        run: |
+          printf '%s\n\n' \
+            "Official repository: <${{ github.server_url }}/${{ github.repository }}>" > ./README.md.new
+          cat ./README.md >> ./README.md.new && mv -f ./README.md.new ./README.md
+
+      - name: Update repo description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.repository }}
+          short-description: ${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.description'] }}
+          readme-filepath: README.md

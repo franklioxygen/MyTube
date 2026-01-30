@@ -1,0 +1,49 @@
+{
+    "name": "bgutil-ytdlp-pot-provider",
+    "description": "Proof-of-origin token provider and plugin for yt-dlp, using bgutils",
+    "license": "GPL-3.0-only",
+    "type": "module",
+    "contributors": [
+        {
+            "name": "Brainicism",
+            "email": "brainicism@gmail.com"
+        },
+        {
+            "name": "grqz"
+        }
+    ],
+    "version": "1.2.2",
+    "scripts": {
+        "lint": "npx eslint --max-warnings=0 src/",
+        "lint-fix": "npx eslint --fix --max-warnings=0 src/",
+        "format": "npx prettier --write 'src/**/*.{js,ts}'"
+    },
+    "dependencies": {
+        "axios": "^1.11.0",
+        "bgutils-js": "^3.2.0",
+        "body-parser": "^2.2.0",
+        "canvas": "^3.1.1",
+        "commander": "^14.0.2",
+        "express": "^5.1.0",
+        "jsdom": "^26.1.0",
+        "proxy-agent": "^6.5.0",
+        "youtubei.js": "^15.0.1"
+    },
+    "devDependencies": {
+        "@commander-js/extra-typings": "^14.0.0",
+        "@eslint/js": "^9.32.0",
+        "@types/body-parser": "^1.19.6",
+        "@types/express": "^5.0.3",
+        "@types/jsdom": "^21.1.7",
+        "@types/node": "^24.1.0",
+        "@typescript-eslint/parser": "^8.38.0",
+        "eslint": "^9.32.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-only-warn": "^1.1.0",
+        "eslint-plugin-prettier": "^5.5.3",
+        "prettier": "3.6.2",
+        "swc-node": "^1.0.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.38.0"
+    }
+}

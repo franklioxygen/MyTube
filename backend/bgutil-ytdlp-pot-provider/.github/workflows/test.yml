@@ -1,0 +1,214 @@
+name: Run tests
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_ARGS: >-
+    -vF --color always
+    --extractor-args "youtube:player-client=web,web_music,mweb;pot_trace=true;fetch_pot=always"
+    --ignore-no-formats-error
+
+jobs:
+  lint-format:
+    name: Lint and format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ruff and autopep8
+        run: pip install ruff autopep8
+      - name: Python lint check (Ruff)
+        run: ruff check --output-format=github -v plugin/
+      - name: Python lint check (autopep8)
+        if: always()
+        run: autopep8 --diff plugin/
+      - name: Install server dependencies
+        if: always()
+        run: cd server && npm ci
+      - name: Server lint check (ESlint)
+        if: always()
+        run: cd server && npx eslint --max-warnings=0 src/
+      - name: Server format check (Prettier)
+        if: always()
+        run: cd server && npx prettier --check 'src/**/*.{js,ts}'
+
+  script-method:
+    name: Test plugin (script method)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x" # keep in sync with yt-dlp's python requirement
+      - name: Download yt-dlp
+        run: curl -L https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o yt-dlp && chmod +x ./yt-dlp
+      - name: Install and build server dependencies
+        run: cd server/ && npm ci && npx tsc
+      - name: Install plugin
+        run: |
+          mkdir -p ~/yt-dlp-plugins/bgutil-ytdlp-pot-provider/
+          cp -r plugin/ ~/yt-dlp-plugins/
+      - name: Test script method
+        shell: bash
+        run: |
+          exit_code=0
+
+          echo "script version: $(node server/build/generate_once.js --version)"
+
+          # check that the script is returning a POT
+          script_output=$(node server/build/generate_once.js | tail -n 1)
+          echo "::group::POT response from the script"
+          echo "$script_output" | jq -C
+          echo "::endgroup::"
+
+          poToken=$(echo "$script_output" | jq -r '.poToken')
+          contentBinding=$(echo "$script_output" | jq -r '.contentBinding')
+
+          if [[ "$poToken" == "null" || "$contentBinding" == "null" ]]; then
+              echo "::error title=PoToken generation failed,file=server/src/session_manager.ts::'poToken' or 'contentBinding' is null."
+              exit 1
+          fi
+
+          # expect this to fail, but just make sure that the plugin is invoked
+          {
+            script_response=$(./yt-dlp ${{ env.TEST_ARGS }} --extractor-args "youtubepot-bgutilscript:script_path=server/build/generate_once.js" dQw4w9WgXcQ 2>&1)
+            ret=$?
+          } || true
+
+          echo "::group::Logs from yt-dlp"
+          printf "%s\n" "$script_response"
+          echo "::endgroup::"
+
+          if [ "$ret" -ne 0 ]; then
+            echo "::warning title=yt-dlp failed when testing script,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_script.py::yt-dlp returned $ret exit status"
+          fi
+
+          if [[ "$script_response" != *"[youtube] [pot:bgutil:script] TRACE: Generating POT via script: "* ]]; then
+            echo "::error title=BgUtilScript was not invoked,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_script.py::\
+          BgUtilScript was not invoked"
+            [ "$exit_code" -eq 0 ] && exit_code=1
+          fi
+
+          pot_response=$(echo "$script_response" | grep -A1 -m1 '\[youtube\] \[pot:bgutil:script\] TRACE: JSON response:' | tail -n1 | jq -r '.poToken')
+          echo "POT: $pot_response"
+          if [[ "$pot_response" == "null" || -z "$pot_response" || "$pot_response" == '""' ]]; then
+             echo "::error title=Failed to generate POT,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_script.py::\
+          Failed to generate POT"
+            [ "$exit_code" -eq 0 ] && exit_code=1
+          fi
+
+          exit $exit_code
+
+  server-method:
+    name: Test plugin (server method)
+    runs-on: ubuntu-latest
+    env:
+      PORT: 4426
+      # Interval/Timeout in seconds to wait for the server to be up
+      INTERVAL: 0.5
+      TIMEOUT: 7.5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x" # keep in sync with yt-dlp's python requirement
+      - name: Download yt-dlp
+        run: curl -L https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp -o yt-dlp && chmod +x ./yt-dlp
+      - name: Install plugin
+        run: |
+          mkdir -p ~/yt-dlp-plugins/bgutil-ytdlp-pot-provider/
+          cp -r plugin/ ~/yt-dlp-plugins/
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: server/
+          file: server/Dockerfile
+          load: true
+          tags: brainicism/bgutil-ytdlp-pot-provider:ci
+      - name: Test server method
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          exit_code=0
+          ping() {
+            until curl -o- --silent --fail http://127.0.0.1:${{ env.PORT }}/ping 2>&1; do
+              sleep ${1:-0.5}
+            done
+          }
+          export -f ping
+
+          docker run --name bgutil-provider -d -p ${{ env.PORT }}:4416 brainicism/bgutil-ytdlp-pot-provider:ci
+
+          echo "Waiting for server to be up..."
+          PING_RESP=$(timeout ${{ env.TIMEOUT }} bash -c "ping ${{ env.INTERVAL }}") || \
+            (echo "::error title=Timeout reached,file=server/src/main.ts::\
+          Timeout reached before the server is up." && exit 1)
+
+          echo "::group::Response from HTTP server"
+          if echo "$PING_RESP" | jq -e . >/dev/null 2>&1; then
+            echo "$PING_RESP" | jq -C
+          else
+            echo "$PING_RESP"
+          fi
+          echo "::endgroup::"
+
+          # check that the server is returning a POT
+          pot_response=$(curl -s -X POST "http://127.0.0.1:${{ env.PORT }}/get_pot")
+          echo "::group::Get pot response from the HTTP server"
+          if echo "$pot_response" | jq -e . >/dev/null 2>&1; then
+            echo "$pot_response" | jq -C
+          else
+            echo "$pot_response"
+          fi
+          echo "::endgroup::"
+          poToken=$(echo "$pot_response" | jq -r '.poToken')
+          contentBinding=$(echo "$pot_response" | jq -r '.contentBinding')
+
+          if [[ "$poToken" == "null" || "$contentBinding" == "null" ]]; then
+              echo "::error title=PoToken generation failed,file=server/src/session_manager.ts::'poToken' or 'contentBinding' is null."
+              exit 1
+          fi
+
+          # expect this to fail, but just make sure that the plugin is invoked
+          {
+            server_response=$(./yt-dlp ${{ env.TEST_ARGS }} --extractor-args "youtubepot-bgutilhttp:base_url=http://127.0.0.1:${{ env.PORT }}" dQw4w9WgXcQ 2>&1)
+            ret=$?
+          } || true
+
+          docker stop bgutil-provider
+
+          echo "::group::Logs from HTTP server container"
+          docker logs bgutil-provider
+          echo "::endgroup::"
+
+          echo "::group::Logs from yt-dlp"
+          printf "%s\n" "$server_response"
+          echo "::endgroup::"
+
+          if [ "$ret" -ne 0 ]; then
+            echo "::warning title=yt-dlp failed when testing HTTP server,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_http.py::yt-dlp returned $ret exit status"
+          fi
+
+          if [[ "$server_response" != *"[pot:bgutil:http] TRACE: Generating POT via HTTP server"* ]]; then
+            echo "::error title=BgUtilHTTP was not invoked,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_http.py::\
+          BgUtilHTTP was not invoked"
+            [ "$exit_code" -eq 0 ] && exit_code=1
+          fi
+
+          {
+            po_token=$(echo "$server_response" | grep -m1 '\[youtube\] \[pot:bgutil:http\] TRACE: Generated POT: ' | sed 's/.*Generated POT: //')
+          } || true
+          echo "POT: $po_token"
+          if [[ "$po_token" == "None" || -z "$po_token" ]]; then
+             echo "::error title=Failed to generate POT,file=plugin/yt_dlp_plugins/extractor/getpot_bgutil_http.py::\
+          Failed to generate POT"
+            [ "$exit_code" -eq 0 ] && exit_code=1
+          fi
+
+          exit $exit_code

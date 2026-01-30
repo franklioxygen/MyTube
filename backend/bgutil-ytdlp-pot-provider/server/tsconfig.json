@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "incremental": true,
+        "outDir": "./build",
+        "allowJs": true,
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "baseUrl": ".",
+        "rootDir": "src",
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+        "noImplicitThis": true,
+        "noImplicitAny": true,
+        "strictPropertyInitialization": true,
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "noUncheckedIndexedAccess": true,
+        "paths": {
+            "commander": ["./types/commander.d.ts"]
+        }
+    },
+    "include": ["./src/**/*"]
+}

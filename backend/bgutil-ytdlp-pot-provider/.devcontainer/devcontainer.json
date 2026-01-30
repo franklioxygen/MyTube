@@ -1,0 +1,22 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+{
+  "name": "Dev Container",
+  "dockerFile": "Dockerfile",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "lokalise.i18n-ally",
+        "hbenl.vscode-mocha-test-adapter",
+        "chamboug.js-auto-backticks",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens",
+        "github.vscode-pull-request-github",
+        "charliermarsh.ruff"
+      ]
+    }
+  },
+  "remoteUser": "node",
+  "postCreateCommand": "/bin/sh .devcontainer/post_create_command.sh"
+}
