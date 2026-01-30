@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -8,19 +8,20 @@ COPY backend/package*.json ./
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
+
 # Install build dependencies for native modules (python3, make, g++)
-# Using BuildKit cache mount to speed up package downloads
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache --virtual .build-deps \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
-    pkgconfig \
-    cairo-dev \
-    pango-dev \
-    libjpeg-turbo-dev \
-    giflib-dev \
-    librsvg-dev
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    librsvg2-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Use BuildKit cache mount for npm to speed up subsequent builds
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
@@ -49,29 +50,28 @@ WORKDIR /app
 RUN npm run build
 
 # Stage 2: Production
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
 # Install system dependencies
-# chromium: for Puppeteer (saves ~300MB vs bundled)
+# chromium: for Puppeteer
 # ffmpeg: for video processing
 # python3: for yt-dlp
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     ffmpeg \
     python3 \
-    py3-pip \
+    python3-pip \
     curl \
-    cairo \
-    pango \
-    libjpeg-turbo \
-    giflib \
-    librsvg \
-    ca-certificates && \
-    ln -sf python3 /usr/bin/python
-
-
+    libcairo2 \
+    libpango-1.0-0 \
+    libjpeg62-turbo \
+    libgif7 \
+    librsvg2-2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
 # Install cloudflared (Binary download)
 ARG TARGETARCH
@@ -79,6 +79,7 @@ RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https:
     chmod +x /usr/local/bin/cloudflared
 
 # Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
+# Using --break-system-packages because we are in a container and want to install globally
 RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs curl-cffi --break-system-packages
 
 # Environment variables
@@ -86,7 +87,8 @@ ENV NODE_ENV=production
 ENV PORT=5551
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Debian chromium path
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install production dependencies only
 COPY backend/package*.json ./
