@@ -108,7 +108,8 @@ export const useVideoPlayer = ({
 
     // fastSeek() is optimized for mobile - better audio/video sync during seeks
     // Falls back to currentTime if fastSeek is not available
-    if (typeof videoElement.fastSeek === "function") {
+    // Special case: fastSeek(0) is unreliable on some browsers/codecs (may not be a keyframe)
+    if (newTime > 0 && typeof videoElement.fastSeek === "function") {
       videoElement.fastSeek(newTime);
     } else {
       videoElement.currentTime = newTime;
@@ -128,7 +129,8 @@ export const useVideoPlayer = ({
     const newTime = (newValue / 100) * duration;
 
     // Use fastSeek on mobile for better audio sync
-    if (typeof videoElement.fastSeek === "function") {
+    // Special case: fastSeek(0) is unreliable
+    if (newTime > 0 && typeof videoElement.fastSeek === "function") {
       videoElement.fastSeek(newTime);
     } else {
       videoElement.currentTime = newTime;
