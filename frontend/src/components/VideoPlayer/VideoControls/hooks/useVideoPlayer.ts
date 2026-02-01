@@ -25,6 +25,8 @@ export const useVideoPlayer = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isSeeking, setIsSeeking] = useState<boolean>(false);
   const videoSrcRef = useRef<string>("");
+  // Track if startTime has been applied for this video source
+  const startTimeAppliedRef = useRef<boolean>(false);
 
   // Memory management: Clean up video source when component unmounts or src changes
   useEffect(() => {
@@ -43,11 +45,17 @@ export const useVideoPlayer = ({
       setDuration(0);
       setIsDragging(false);
       setIsSeeking(false);
+      // Reset startTime flag for new video
+      startTimeAppliedRef.current = false;
     }
 
     if (src) {
       videoElement.preload = "metadata";
       videoElement.src = src;
+      // Reset flag when setting new source (for initial load)
+      if (!previousSrc) {
+        startTimeAppliedRef.current = false;
+      }
     }
 
     return () => {
@@ -108,8 +116,7 @@ export const useVideoPlayer = ({
 
     // fastSeek() is optimized for mobile - better audio/video sync during seeks
     // Falls back to currentTime if fastSeek is not available
-    // Special case: fastSeek(0) is unreliable on some browsers/codecs (may not be a keyframe)
-    if (newTime > 0 && typeof videoElement.fastSeek === "function") {
+    if (typeof videoElement.fastSeek === "function") {
       videoElement.fastSeek(newTime);
     } else {
       videoElement.currentTime = newTime;
@@ -129,8 +136,7 @@ export const useVideoPlayer = ({
     const newTime = (newValue / 100) * duration;
 
     // Use fastSeek on mobile for better audio sync
-    // Special case: fastSeek(0) is unreliable
-    if (newTime > 0 && typeof videoElement.fastSeek === "function") {
+    if (typeof videoElement.fastSeek === "function") {
       videoElement.fastSeek(newTime);
     } else {
       videoElement.currentTime = newTime;
@@ -172,9 +178,10 @@ export const useVideoPlayer = ({
     if (videoDuration && isFinite(videoDuration) && videoDuration > 0) {
       setDuration(videoDuration);
     }
-    if (startTime > 0) {
+    if (startTime > 0 && !startTimeAppliedRef.current) {
       e.currentTarget.currentTime = startTime;
       setCurrentTime(startTime);
+      startTimeAppliedRef.current = true;
     }
     if (onLoadedMetadata) {
       onLoadedMetadata(videoDuration);
@@ -199,9 +206,15 @@ export const useVideoPlayer = ({
       }
     }
 
-    if (startTime > 0 && videoElement.currentTime === 0) {
+    // Only apply startTime once per video load (not on every canplay after seeks)
+    if (
+      startTime > 0 &&
+      videoElement.currentTime === 0 &&
+      !startTimeAppliedRef.current
+    ) {
       videoElement.currentTime = startTime;
       setCurrentTime(startTime);
+      startTimeAppliedRef.current = true;
     }
   }, [duration, startTime]);
 
