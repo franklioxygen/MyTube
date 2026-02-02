@@ -15,10 +15,15 @@ const CinemaModeControl: React.FC<CinemaModeControlProps> = ({
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onToggle();
+    };
+
     return (
         <Tooltip title={isCinemaMode ? t('exitCinemaMode') : t('enterCinemaMode')} disableHoverListener={isTouch}>
             <IconButton
-                onClick={onToggle}
+                onClick={handleClick}
                 size="small"
             >
                 {isCinemaMode ? <MovieFilter /> : <Movie />}

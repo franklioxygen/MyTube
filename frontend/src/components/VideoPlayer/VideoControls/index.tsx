@@ -225,7 +225,16 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 onToggleLoop={handleToggleLoop}
                 onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
                 isCinemaMode={isCinemaMode}
-                onToggleCinemaMode={onToggleCinemaMode}
+                onToggleCinemaMode={(() => {
+                    const toggle = onToggleCinemaMode;
+                    if (!toggle) return undefined;
+                    return () => {
+                        toggle();
+                        if (fullscreen.isFullscreen) {
+                            fullscreen.handleToggleFullscreen();
+                        }
+                    };
+                })()}
             />
         </Box>
     );
