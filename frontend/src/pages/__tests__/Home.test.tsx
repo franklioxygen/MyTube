@@ -54,8 +54,9 @@ vi.mock('../../hooks/useGridLayout', () => ({
     useGridLayout: () => ({}),
 }));
 
+const mockUseVideoFiltering = vi.fn((_props: any) => [] as any[]);
 vi.mock('../../hooks/useVideoFiltering', () => ({
-    useVideoFiltering: () => [],
+    useVideoFiltering: (props: any) => mockUseVideoFiltering(props),
 }));
 
 const mockUseVideoSort = vi.fn((props: any) => ({
@@ -77,6 +78,17 @@ vi.mock('../../hooks/useHomePagination', () => ({
         totalPages: 1,
         displayedVideos: [],
         handlePageChange: vi.fn(),
+    }),
+}));
+
+vi.mock('../../hooks/useSettings', () => ({
+    useSettings: () => ({
+        data: {
+            authorTags: [],
+            collectionTags: [],
+        },
+        isLoading: false,
+        error: null,
     }),
 }));
 
@@ -119,7 +131,10 @@ describe('Home Page', () => {
         mockUseVideoSort.mockClear();
         // Since we defined mockUseVideoSort with a specific implementation that returns an object, 
         // mockClear clears the call history but keeps the implementation.
+        // mockClear clears the call history but keeps the implementation.
         mockSetSearchParams.mockClear();
+        mockUseVideoFiltering.mockClear();
+        mockUseVideoFiltering.mockReturnValue([]);
     });
 
     const renderHome = () => {
@@ -176,6 +191,9 @@ describe('Home Page', () => {
 
         // Mock useVideoFiltering to return something so logical flow holds (though Home logic uses videoArray filter implicitly for count)
         // Actually Home uses videoArray.filter internally for the delete logic, independent of useVideoFiltering hook result which is for display.
+
+        // Return matching videos (1 and 3 have 'tag1')
+        mockUseVideoFiltering.mockReturnValue([mockVideos[0], mockVideos[2]]);
 
         renderHome();
 
