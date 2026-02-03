@@ -125,6 +125,7 @@ export const es = {
   selectTags: "Seleccionar Etiquetas",
   noTagsAvailable: "No hay etiquetas disponibles",
   addTag: "Añadir Etiqueta",
+  addTags: "Añadir Etiquetas",
   failedToSaveTags: "Error al guardar etiquetas",
   renameTag: "Renombrar etiqueta",
   confirmRenameTag: "Renombrar",

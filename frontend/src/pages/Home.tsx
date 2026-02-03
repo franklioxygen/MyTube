@@ -12,6 +12,7 @@ import { useVideo } from '../contexts/VideoContext';
 import { useGridLayout } from '../hooks/useGridLayout';
 import { useHomePagination } from '../hooks/useHomePagination';
 import { useHomeSettings } from '../hooks/useHomeSettings';
+import { useSettings } from '../hooks/useSettings';
 import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useViewMode } from '../hooks/useViewMode';
@@ -31,6 +32,7 @@ const Home: React.FC = () => {
         deleteVideos
     } = useVideo();
     const { collections } = useCollection();
+    const { data: settings } = useSettings();
     const [_searchParams, setSearchParams] = useSearchParams();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
 
@@ -56,7 +58,9 @@ const Home: React.FC = () => {
         videos: videoArray,
         viewMode,
         selectedTags,
-        collections
+        collections,
+        authorTags: settings?.authorTags,
+        collectionTags: settings?.collectionTags
     });
 
     // Use the custom hook for sorting
@@ -116,32 +120,18 @@ const Home: React.FC = () => {
             {/* Preload first video thumbnail for better LCP */}
             {videoArray.length > 0 && <LCPImagePreloader videos={videoArray} />}
 
-            {/* Delete Filtered Videos Modal */}
+            {/* Delete Filtered Videos Modal - deletes the same set as currently shown when filtering */}
             <ConfirmationModal
                 isOpen={isDeleteFilteredOpen}
                 onClose={() => setIsDeleteFilteredOpen(false)}
                 onConfirm={async () => {
-                    const videosToDelete = videoArray.filter(video => {
-                        if (selectedTags.length === 0) return false;
-                        const videoTags = video.tags || [];
-                        return selectedTags.every(tag => videoTags.includes(tag));
-                    });
-
-                    if (videosToDelete.length > 0) {
-                        await deleteVideos(videosToDelete.map(v => v.id));
-                        // Optionally clear tags after delete, or keep them? Keeping them might show empty list.
-                        // Let's keep them for now, user can clear if they want. 
-                        // Actually, better to clear tags if all videos are gone? 
-                        // No, simpler is better.
+                    if (filteredVideos.length > 0) {
+                        await deleteVideos(filteredVideos.map((v) => v.id));
                     }
                 }}
                 title={t('deleteAllFilteredVideos')}
                 message={t('confirmDeleteFilteredVideos', {
-                    count: videoArray.filter(video => {
-                        if (selectedTags.length === 0) return false;
-                        const videoTags = video.tags || [];
-                        return selectedTags.every(tag => videoTags.includes(tag));
-                    }).length
+                    count: filteredVideos.length
                 })}
                 confirmText={t('delete')}
                 cancelText={t('cancel')}

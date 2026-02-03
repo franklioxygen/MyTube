@@ -117,6 +117,7 @@ export const zh = {
   selectTags: "选择标签",
   noTagsAvailable: "暂无可用标签",
   addTag: "添加标签",
+  addTags: "添加标签",
   failedToSaveTags: "保存标签失败",
   renameTag: "重命名标签",
   confirmRenameTag: "重命名",

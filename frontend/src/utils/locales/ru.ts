@@ -123,6 +123,7 @@ export const ru = {
   selectTags: "Выбрать теги",
   noTagsAvailable: "Нет доступных тегов",
   addTag: "Добавить тег",
+  addTags: "Добавить теги",
   failedToSaveTags: "Не удалось сохранить теги",
   renameTag: "Переименовать тег",
   confirmRenameTag: "Переименовать",

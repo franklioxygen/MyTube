@@ -124,6 +124,7 @@ export const pt = {
   selectTags: "Selecionar Tags",
   noTagsAvailable: "Nenhuma tag disponível",
   addTag: "Adicionar Tag",
+  addTags: "Adicionar Tags",
   failedToSaveTags: "Falha ao salvar tags",
   renameTag: "Renomear Tag",
   confirmRenameTag: "Renomear",

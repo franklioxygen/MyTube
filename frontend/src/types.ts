@@ -108,4 +108,6 @@ export interface Settings {
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
+  authorTags?: Record<string, string[]>;
+  collectionTags?: Record<string, string[]>;
 }

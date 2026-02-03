@@ -120,6 +120,7 @@ export const ko = {
   selectTags: "태그 선택",
   noTagsAvailable: "사용 가능한 태그 없음",
   addTag: "태그 추가",
+  addTags: "태그 추가",
   failedToSaveTags: "태그 저장 실패",
   renameTag: "태그 이름 변경",
   confirmRenameTag: "이름 변경",

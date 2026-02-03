@@ -33,8 +33,6 @@ const TagsModal: React.FC<TagsModalProps> = ({
 }) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-
-    // Settings hooks for global tag updates
     const { data: globalSettings } = useSettings();
     const { saveMutation } = useSettingsMutations({
         setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
@@ -75,26 +73,16 @@ const TagsModal: React.FC<TagsModalProps> = ({
         setSaving(true);
 
         try {
-            // Check for new tags that need to be added to global settings
             const newGlobalTags = selectedTags.filter(tag => !availableTags.includes(tag));
-
             if (newGlobalTags.length > 0 && globalSettings) {
-                // Update global settings with new tags
                 const currentTags = globalSettings.tags || [];
-                // Merge and deduplicate
                 const updatedTags = Array.from(new Set([...currentTags, ...newGlobalTags])).sort();
-
                 const newSettings = {
                     ...globalSettings,
                     tags: updatedTags
                 };
-
-                // Await the settings mutation to ensure settings are updated before continuing
-                // This ensures that availableTags is refreshed in all components
                 await saveMutation.mutateAsync(newSettings);
             }
-
-            // Save video tags - this will update the video in the videos list
             await onSave(selectedTags);
             handleClose();
         } catch (error: any) {
@@ -117,11 +105,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
     };
 
     // Combine available tags with any newly added selected tags that aren't in availableTags yet
-    // Prefer globalSettings from hook if available to ensure we have the latest data after settings updates
     const effectiveAvailableTags = globalSettings?.tags && Array.isArray(globalSettings.tags)
         ? globalSettings.tags
         : (Array.isArray(availableTags) ? availableTags : []);
-
     const safeAvailableTags = effectiveAvailableTags;
     const displayTags = Array.from(new Set([...safeAvailableTags, ...selectedTags])).sort();
 

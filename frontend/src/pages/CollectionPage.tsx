@@ -1,31 +1,49 @@
-import { Folder } from '@mui/icons-material';
+import { Folder, LocalOffer } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
+    Chip,
     Container,
     Grid,
+    IconButton,
     Pagination,
+    Tooltip,
     Typography
 } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import SortControl from '../components/SortControl';
+import TagsModal from '../components/TagsModal';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useSettings } from '../hooks/useSettings';
+import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
+
+function normalizeTagValue(value: string): string {
+    return value.trim().toLowerCase();
+}
 
 const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { showSnackbar } = useSnackbar();
     const { collections, deleteCollection } = useCollection();
-    const { videos, deleteVideo } = useVideo();
+    const { videos, deleteVideo, availableTags } = useVideo();
+    const { data: settings } = useSettings();
+    const { saveMutation } = useSettingsMutations({
+        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
+        setInfoModal: () => {}
+    });
 
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+    const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 12;
 
@@ -33,6 +51,7 @@ const CollectionPage: React.FC = () => {
     const collectionVideos = collection
         ? videos.filter(video => collection.videos.includes(video.id))
         : [];
+    const collectionTagsList = (collection && settings?.collectionTags?.[collection.id]) ?? [];
 
     // Sort videos
     const {
@@ -61,6 +80,19 @@ const CollectionPage: React.FC = () => {
 
     const handleCloseDeleteModal = () => {
         setShowDeleteModal(false);
+    };
+
+    const handleSaveCollectionTags = async (tags: string[]) => {
+        if (!settings || !collection) return;
+        const normalizedTags = Array.from(
+            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
+        );
+        const collectionTags = { ...(settings.collectionTags ?? {}), [collection.id]: normalizedTags };
+        if (normalizedTags.length === 0) {
+            delete collectionTags[collection.id];
+        }
+        await saveMutation.mutateAsync({ ...settings, collectionTags });
+        setIsTagsModalOpen(false);
     };
 
     const handleDeleteCollectionOnly = async () => {
@@ -97,12 +129,30 @@ const CollectionPage: React.FC = () => {
                         <Folder fontSize="large" />
                     </Avatar>
                     <Box>
-                        <Typography variant="h4" component="h1" fontWeight="bold">
-                            {collection.name}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h4" component="h1" fontWeight="bold">
+                                {collection.name}
+                            </Typography>
+                            <Tooltip title={t('addTags')}>
+                                <IconButton
+                                    color="primary"
+                                    onClick={() => setIsTagsModalOpen(true)}
+                                    aria-label="add tags to collection"
+                                >
+                                    <LocalOffer />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                         <Typography variant="subtitle1" color="text.secondary">
                             {collectionVideos.length} {t('videos')}
                         </Typography>
+                        {collectionTagsList.length > 0 && (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                                {collectionTagsList.map((tag) => (
+                                    <Chip key={tag} label={tag} size="small" variant="outlined" />
+                                ))}
+                            </Box>
+                        )}
                     </Box>
                 </Box>
 
@@ -159,6 +209,14 @@ const CollectionPage: React.FC = () => {
                 onDeleteCollectionAndVideos={handleDeleteCollectionAndVideos}
                 collectionName={collection?.name || ''}
                 videoCount={collectionVideos.length}
+            />
+
+            <TagsModal
+                open={isTagsModalOpen}
+                onClose={() => setIsTagsModalOpen(false)}
+                videoTags={collectionTagsList}
+                availableTags={availableTags}
+                onSave={handleSaveCollectionTags}
             />
         </Container>
     );

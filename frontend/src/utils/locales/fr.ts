@@ -124,6 +124,7 @@ export const fr = {
   selectTags: "Sélectionner des tags",
   noTagsAvailable: "Aucun tag disponible",
   addTag: "Ajouter un tag",
+  addTags: "Ajouter des tags",
   failedToSaveTags: "Échec de l'enregistrement des tags",
   renameTag: "Renommer l'étiquette",
   confirmRenameTag: "Renommer",

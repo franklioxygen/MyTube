@@ -126,6 +126,7 @@ export const de = {
   selectTags: "Tags auswählen",
   noTagsAvailable: "Keine Tags verfügbar",
   addTag: "Tag hinzufügen",
+  addTags: "Tags hinzufügen",
   failedToSaveTags: "Fehler beim Speichern der Tags",
   renameTag: "Tag umbenennen",
   confirmRenameTag: "Umbenennen",

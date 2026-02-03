@@ -37,6 +37,8 @@ export interface Settings {
   mountDirectories?: string;
   defaultSort?: string;
   preferredAudioLanguage?: string;
+  authorTags?: Record<string, string[]>;
+  collectionTags?: Record<string, string[]>;
 }
 
 export const defaultSettings: Settings = {

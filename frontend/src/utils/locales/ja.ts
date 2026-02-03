@@ -124,6 +124,7 @@ export const ja = {
   selectTags: "タグを選択",
   noTagsAvailable: "利用可能なタグはありません",
   addTag: "タグを追加",
+  addTags: "タグを追加",
   failedToSaveTags: "タグの保存に失敗しました",
   renameTag: "タグ名を変更",
   confirmRenameTag: "変更",

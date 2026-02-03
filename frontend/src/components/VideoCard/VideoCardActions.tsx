@@ -70,7 +70,10 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
 
     const handleSaveTags = async (tags: string[]) => {
         if (!video.id) return;
-        await updateVideo(video.id, { tags });
+        const normalizedTags = Array.from(
+            new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))
+        );
+        await updateVideo(video.id, { tags: normalizedTags });
     };
 
     const handlePlayerMenuClose = () => {

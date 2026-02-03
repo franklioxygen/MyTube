@@ -126,8 +126,6 @@ describe('TagsModal', () => {
     it('updates global settings when adding a new tag that is not available globally', async () => {
         renderComponent();
 
-        // 'NewGlobalTag' is not in mockSettings (existingGlobalTag1, existingGlobalTag2)
-        // nor in defaultAvailableTags (Tag1, Tag2, Tag3)
         const input = screen.getByLabelText('New Tag');
         fireEvent.change(input, { target: { value: 'NewGlobalTag' } });
         fireEvent.click(screen.getByText('Add'));
@@ -135,12 +133,7 @@ describe('TagsModal', () => {
         fireEvent.click(screen.getByText('Save'));
 
         await waitFor(() => {
-            // It should try to save the new global settings
             expect(mockSaveMutation.mutateAsync).toHaveBeenCalled();
-
-            // Verify the argument to mutateAsync contains the new tag merged with existing ones
-            // existing: existingGlobalTag1, existingGlobalTag2
-            // new: NewGlobalTag
             const callArg = mockSaveMutation.mutateAsync.mock.calls[0][0];
             expect(callArg.tags).toContain('NewGlobalTag');
             expect(callArg.tags).toContain('Tag1');

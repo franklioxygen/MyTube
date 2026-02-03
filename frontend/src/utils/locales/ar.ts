@@ -118,6 +118,7 @@ export const ar = {
   selectTags: "تحديد العلامات",
   noTagsAvailable: "لا توجد علامات متاحة",
   addTag: "إضافة علامة",
+  addTags: "إضافة علامات",
   failedToSaveTags: "فشل حفظ العلامات",
   renameTag: "إعادة تسمية العلامة",
   confirmRenameTag: "إعادة تسمية",

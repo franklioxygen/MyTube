@@ -118,6 +118,7 @@ export const en = {
   tags: "Tags",
   noTagsAvailable: "No tags available",
   addTag: "Add Tag",
+  addTags: "Add Tags",
   failedToSaveTags: "Failed to save tags",
   renameTag: "Rename Tag",
   confirmRenameTag: "Rename",
