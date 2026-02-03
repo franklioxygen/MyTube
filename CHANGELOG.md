@@ -1,6 +1,61 @@
 # Change Log
 
 
+## v1.7.102 (2026-02-03)
+
+### Feat
+
+- feat: Add author & collection tags feature plan (9d64e9f)
+
+### Test
+
+- test: Mock useSettings hook in Home.test file (ce89ba7)
+
+## v1.7.101 (2026-02-02)
+
+### Style
+
+- style: Improve click handling in CinemaModeControl (ca77ae5)
+
+## v1.7.99 (2026-02-01)
+
+### Feat
+
+- feat: Implement startTime functionality in useVideoPlayer (025bdd3)
+
+## v1.7.98 (2026-01-31)
+
+### Fix
+
+- fix: 0 sec seek issue (cd70e10)
+- fix: resolve merge conflicts in frontend dependencies (132128a)
+- fix: upgrade @mui/icons-material from 7.3.5 to 7.3.7 (0fba8c7)
+- fix: upgrade @tanstack/react-query from 5.90.11 to 5.90.16 (c6d27a8)
+- fix: upgrade framer-motion from 12.23.24 to 12.25.0 (05c01e8)
+- fix: upgrade react-dom from 19.0.0 to 19.2.3 (b14be03)
+- fix: upgrade react from 19.0.0 to 19.2.3 (9e4fbc7)
+
+## v1.7.97 (2026-01-30)
+
+### Fix
+
+- fix(docker): migrate to debian bookworm to fix arm64 qemu crash (95f78ae)
+
+## v1.7.96 (2026-01-30)
+
+### Fix
+
+- fix(git): actually track provider as files (not submodule) (528dd5c)
+- fix(ci): use tag name as version in publish workflow (edeab82)
+- fix(git): re-track provider as regular files (fd071a2)
+- fix(git): remove invalid submodule reference (01754af)
+
+## v1.7.95 (2026-01-30)
+
+### Fix
+
+- fix(docker): skip provider build in docker (2c5c510)
+
 ## v1.7.94 (2026-01-30)
 
 ### Feat
