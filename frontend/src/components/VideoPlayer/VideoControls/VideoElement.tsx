@@ -86,14 +86,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
     }, []);
 
     return (
-        <Box
-            sx={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '16/9',
-                overflow: 'hidden'
-            }}
-        >
+        <>
             {/* Scoped style for centering subtitles */}
             <style>
                 {`
@@ -163,16 +156,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
             <video
                 id={videoId}
                 ref={videoRef}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    display: 'block',
-                    cursor: 'pointer'
-                }}
+                style={{ width: '100%', aspectRatio: '16/9', display: 'block', cursor: 'pointer' }}
                 controls={false}
                 src={src}
                 preload={preloadStrategy}
@@ -225,7 +209,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 ))}
                 Your browser does not support the video tag.
             </video>
-        </Box>
+        </>
     );
 };
 
