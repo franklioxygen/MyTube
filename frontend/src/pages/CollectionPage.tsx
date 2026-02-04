@@ -36,9 +36,9 @@ const CollectionPage: React.FC = () => {
     const ITEMS_PER_PAGE = 12;
 
     const collection = collections.find(c => c.id === id);
-    const collectionVideos = collection
+    const collectionVideos = useMemo(() => collection
         ? videos.filter(video => collection.videos.includes(video.id))
-        : [];
+        : [], [collection, videos]);
     const availableTags = useMemo(
         () => Array.from(new Set(collectionVideos.flatMap(v => v.tags || []))).sort(),
         [collectionVideos]

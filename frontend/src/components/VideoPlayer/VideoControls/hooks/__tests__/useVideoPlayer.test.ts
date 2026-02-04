@@ -27,12 +27,11 @@ describe("useVideoPlayer seek behavior", () => {
     const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
 
     // Manually set the current ref value since renderHook won't attach it to our mock
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     // Initialize duration state and set initial position
     act(() => {
-      // @ts-ignore
+      // @ts-expect-error Mock event missing properties
       result.current.handleLoadedMetadata({ currentTarget: videoElement });
     });
 
@@ -51,12 +50,11 @@ describe("useVideoPlayer seek behavior", () => {
   it("should allow seeking to 0 via handleSeek", () => {
     const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
 
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     // Initialize duration state
     act(() => {
-      // @ts-ignore
+      // @ts-expect-error Mock event missing properties
       result.current.handleLoadedMetadata({ currentTarget: videoElement });
     });
 
@@ -75,12 +73,11 @@ describe("useVideoPlayer seek behavior", () => {
   it("should allow seeking to 0 via slider", () => {
     const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
 
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     // Initialize duration state
     act(() => {
-      // @ts-ignore
+      // @ts-expect-error Mock event missing properties
       result.current.handleLoadedMetadata({ currentTarget: videoElement });
     });
 
@@ -119,11 +116,10 @@ describe("useVideoPlayer startTime behavior", () => {
       useVideoPlayer({ src: "test.mp4", startTime: 30 })
     );
 
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     act(() => {
-      // @ts-ignore
+      // @ts-expect-error Mock event missing properties
       result.current.handleLoadedMetadata({ currentTarget: videoElement });
     });
 
@@ -136,7 +132,6 @@ describe("useVideoPlayer startTime behavior", () => {
       useVideoPlayer({ src: "test.mp4", startTime: 30 })
     );
 
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     // First handleCanPlay should apply startTime
@@ -163,12 +158,11 @@ describe("useVideoPlayer startTime behavior", () => {
       useVideoPlayer({ src: "test.mp4", startTime: 30 })
     );
 
-    // @ts-ignore
     result.current.videoRef.current = videoElement;
 
     // Initial load - startTime applied
     act(() => {
-      // @ts-ignore
+      // @ts-expect-error Mock event missing properties
       result.current.handleLoadedMetadata({ currentTarget: videoElement });
     });
 

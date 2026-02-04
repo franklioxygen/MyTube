@@ -54,7 +54,7 @@ vi.mock('../../hooks/useGridLayout', () => ({
     useGridLayout: () => ({}),
 }));
 
-const mockUseVideoFiltering = vi.fn((_props: any) => [] as any[]);
+const mockUseVideoFiltering = vi.fn().mockReturnValue([] as any[]);
 vi.mock('../../hooks/useVideoFiltering', () => ({
     useVideoFiltering: (props: any) => mockUseVideoFiltering(props),
 }));

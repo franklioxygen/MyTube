@@ -28,6 +28,7 @@ export const PageTagFilterProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePageTagFilter(): PageTagFilterContextType {
     const ctx = useContext(PageTagFilterContext);
     if (!ctx) {
@@ -40,6 +41,7 @@ export function usePageTagFilter(): PageTagFilterContextType {
  * Optional hook for components that may be outside the provider (e.g. Header in tests).
  * Returns context value or null. Use for reading page tag filter when provider may be absent.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePageTagFilterOptional(): PageTagFilterContextType | null {
     return useContext(PageTagFilterContext);
 }
