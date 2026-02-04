@@ -878,6 +878,10 @@ export const ja = {
   collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
   collectionNameReserved: "コレクション名は予約されています",
   updateCollectionFailed: "コレクションの更新に失敗しました",
+  uploadSubtitle: "字幕をアップロード",
+  subtitleUploaded: "字幕のアップロードに成功しました",
+  confirmDeleteSubtitle: "この字幕を削除しますか？",
+  subtitleDeleted: "字幕を削除しました",
   // History Filter
   filterAll: "すべて",
 };

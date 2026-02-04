@@ -891,6 +891,10 @@ export const es = {
     "El nombre de la colección contiene caracteres no válidos",
   collectionNameReserved: "El nombre de la colección está reservado",
   updateCollectionFailed: "Error al actualizar la colección",
+  uploadSubtitle: "Subir subtítulo",
+  subtitleUploaded: "Subtítulo subido correctamente",
+  confirmDeleteSubtitle: "¿Eliminar este subtítulo?",
+  subtitleDeleted: "Subtítulo eliminado",
   // History Filter
   filterAll: "Todos",
 };

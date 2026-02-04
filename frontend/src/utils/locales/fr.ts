@@ -896,6 +896,10 @@ export const fr = {
     "Le nom de la collection contient des caractères invalides",
   collectionNameReserved: "Le nom de la collection est réservé",
   updateCollectionFailed: "Échec de la mise à jour de la collection",
+  uploadSubtitle: "Télécharger le sous-titre",
+  subtitleUploaded: "Sous-titre téléchargé avec succès",
+  confirmDeleteSubtitle: "Supprimer ce sous-titre ?",
+  subtitleDeleted: "Sous-titre supprimé",
   // History Filter
   filterAll: "Tous",
 };

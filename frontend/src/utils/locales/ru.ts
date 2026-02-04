@@ -871,6 +871,10 @@ export const ru = {
     "Название коллекции содержит недопустимые символы",
   collectionNameReserved: "Название коллекции зарезервировано",
   updateCollectionFailed: "Не удалось обновить коллекцию",
+  uploadSubtitle: "Загрузить субтитры",
+  subtitleUploaded: "Субтитры успешно загружены",
+  confirmDeleteSubtitle: "Удалить этот субтитр?",
+  subtitleDeleted: "Субтитр удалён",
   // History Filter
   filterAll: "Все",
 };

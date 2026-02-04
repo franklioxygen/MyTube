@@ -43,6 +43,8 @@ interface ControlsOverlayProps {
     onControlsMouseEnter: () => void;
     isCinemaMode?: boolean;
     onToggleCinemaMode?: () => void;
+    onUploadSubtitle?: (file: File) => void;
+    onDeleteSubtitle?: (index: number) => void | Promise<void>;
 }
 
 const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
@@ -77,7 +79,9 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     onToggleLoop,
     onControlsMouseEnter,
     isCinemaMode = false,
-    onToggleCinemaMode
+    onToggleCinemaMode,
+    onUploadSubtitle,
+    onDeleteSubtitle
 }) => {
     const theme = useTheme();
     const { t } = useLanguage();
@@ -146,6 +150,8 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         onCloseMenu={onCloseSubtitleMenu}
                         onSelectSubtitle={onSelectSubtitle}
                         showOnMobile={true}
+                        onUploadSubtitle={onUploadSubtitle}
+                        onDeleteSubtitle={onDeleteSubtitle}
                     />
 
                     {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
@@ -172,6 +178,8 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                             onSubtitleClick={onSubtitleClick}
                             onCloseMenu={onCloseSubtitleMenu}
                             onSelectSubtitle={onSelectSubtitle}
+                            onUploadSubtitle={onUploadSubtitle}
+                            onDeleteSubtitle={onDeleteSubtitle}
                         />
 
                         <LoopControl

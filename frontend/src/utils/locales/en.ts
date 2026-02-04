@@ -581,6 +581,10 @@ export const en = {
   collectionNameInvalidChars: "Collection name contains invalid characters",
   collectionNameReserved: "Collection name is reserved",
   updateCollectionFailed: "Failed to update collection",
+  uploadSubtitle: "Upload Subtitle",
+  subtitleUploaded: "Subtitle uploaded successfully",
+  confirmDeleteSubtitle: "Delete this subtitle?",
+  subtitleDeleted: "Subtitle deleted",
 
   // Batch Download
   batchDownload: "Batch Download",

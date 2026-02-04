@@ -821,6 +821,10 @@ export const zh = {
   collectionNameInvalidChars: "合集名称包含无效字符",
   collectionNameReserved: "合集名称为保留名称",
   updateCollectionFailed: "更新合集失败",
+  uploadSubtitle: "上传字幕",
+  subtitleUploaded: "字幕上传成功",
+  confirmDeleteSubtitle: "确定要删除这条字幕吗？",
+  subtitleDeleted: "字幕已删除",
   // History Filter
   filterAll: "全部",
 };

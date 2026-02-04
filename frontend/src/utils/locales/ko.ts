@@ -855,6 +855,10 @@ export const ko = {
     "컬렉션 이름에 유효하지 않은 문자가 포함되어 있습니다",
   collectionNameReserved: "컬렉션 이름은 예약어입니다",
   updateCollectionFailed: "컬렉션 업데이트 실패",
+  uploadSubtitle: "자막 업로드",
+  subtitleUploaded: "자막이 성공적으로 업로드되었습니다",
+  confirmDeleteSubtitle: "이 자막을 삭제하시겠습니까?",
+  subtitleDeleted: "자막이 삭제되었습니다",
   // History Filter
   filterAll: "전체",
 };

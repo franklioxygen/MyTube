@@ -850,6 +850,10 @@ export const ar = {
   collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
   collectionNameReserved: "اسم المجموعة محجوز",
   updateCollectionFailed: "فشل تحديث المجموعة",
+  uploadSubtitle: "رفع الترجمة",
+  subtitleUploaded: "تم رفع الترجمة بنجاح",
+  confirmDeleteSubtitle: "حذف هذه الترجمة؟",
+  subtitleDeleted: "تم حذف الترجمة",
   // History Filter
   filterAll: "الكل",
 };

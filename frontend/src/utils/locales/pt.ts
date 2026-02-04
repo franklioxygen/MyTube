@@ -878,6 +878,10 @@ export const pt = {
   collectionNameInvalidChars: "O nome da coleção contém caracteres inválidos",
   collectionNameReserved: "O nome da coleção é reservado",
   updateCollectionFailed: "Falha ao atualizar coleção",
+  uploadSubtitle: "Enviar legenda",
+  subtitleUploaded: "Legenda enviada com sucesso",
+  confirmDeleteSubtitle: "Excluir esta legenda?",
+  subtitleDeleted: "Legenda excluída",
   // History Filter
   filterAll: "Todos",
 };

@@ -8,11 +8,11 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import {
-    AVATARS_DIR,
-    CLOUD_THUMBNAIL_CACHE_DIR,
-    IMAGES_DIR,
-    SUBTITLES_DIR,
-    VIDEOS_DIR,
+  AVATARS_DIR,
+  CLOUD_THUMBNAIL_CACHE_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
 } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { authMiddleware } from "./middleware/authMiddleware";
@@ -27,9 +27,9 @@ import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import {
-    getClientIp,
-    validateCloudThumbnailCachePath,
-    validateRedirectUrl,
+  getClientIp,
+  validateCloudThumbnailCachePath,
+  validateRedirectUrl,
 } from "./utils/security";
 import { VERSION } from "./version";
 
@@ -103,7 +103,7 @@ app.use((req, res, next) => {
   ) {
     return next();
   }
-  
+
   // Skip rate limiting for download-related endpoints
   // These endpoints are part of the download workflow and need frequent polling
   if (
@@ -116,7 +116,7 @@ app.use((req, res, next) => {
   ) {
     return next();
   }
-  
+
   // Skip rate limiting for health check and status endpoints
   // These are read-only endpoints that may be called frequently during login/logout
   if (
@@ -127,7 +127,7 @@ app.use((req, res, next) => {
   ) {
     return next();
   }
-  
+
   // Apply rate limiting to all other routes
   generalLimiter(req, res, next);
 });
@@ -195,6 +195,12 @@ const startServer = async () => {
             res.setHeader("Content-Type", "video/x-flv");
           } else if (lowerPath.endsWith(".3gp")) {
             res.setHeader("Content-Type", "video/3gpp");
+          } else if (lowerPath.endsWith(".vtt")) {
+            res.setHeader("Content-Type", "text/vtt");
+          } else if (lowerPath.endsWith(".srt")) {
+            res.setHeader("Content-Type", "application/x-subrip");
+          } else if (lowerPath.endsWith(".ass") || lowerPath.endsWith(".ssa")) {
+            res.setHeader("Content-Type", "text/x-ssa");
           } else {
             // Default to mp4 for unknown extensions (Safari prefers this)
             // This helps with files that might not have proper extensions
@@ -226,9 +232,16 @@ const startServer = async () => {
     app.use(
       "/subtitles",
       express.static(SUBTITLES_DIR, {
-        setHeaders: (res, path) => {
-          if (path.endsWith(".vtt")) {
+        setHeaders: (res, filePath) => {
+          const lower = filePath.toLowerCase();
+          if (lower.endsWith(".vtt")) {
             res.setHeader("Content-Type", "text/vtt");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+          } else if (lower.endsWith(".srt")) {
+            res.setHeader("Content-Type", "application/x-subrip");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+          } else if (lower.endsWith(".ass") || lower.endsWith(".ssa")) {
+            res.setHeader("Content-Type", "text/x-ssa");
             res.setHeader("Access-Control-Allow-Origin", "*");
           }
         },
@@ -389,7 +402,7 @@ const startServer = async () => {
     app.use("/api/settings/reset-password", authLimiter);
     app.use("/api/settings/passkeys/authenticate", authLimiter);
     app.use("/api/settings/passkeys/authenticate/verify", authLimiter);
-    
+
     // Apply auth middleware to all API routes
     app.use("/api", authMiddleware);
     // Apply role-based access control middleware to all API routes

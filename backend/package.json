@@ -19,6 +19,7 @@
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
     "@types/cookie-parser": "^1.4.10",
+    "ass-to-vtt": "^1.2.0",
     "axios": "^1.13.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.5.0",

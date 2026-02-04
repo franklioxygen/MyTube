@@ -29,6 +29,11 @@ router.get(
 router.get("/videos/:id", asyncHandler(videoController.getVideoById));
 router.get("/mount-video/:id", asyncHandler(videoController.serveMountVideo));
 router.put("/videos/:id", asyncHandler(videoController.updateVideoDetails));
+router.post(
+  "/videos/:id/subtitles",
+  videoController.uploadSubtitleMiddleware.single("subtitle"),
+  asyncHandler(videoController.uploadSubtitle)
+);
 router.delete("/videos/:id", asyncHandler(videoController.deleteVideo));
 router.get(
   "/videos/:id/comments",

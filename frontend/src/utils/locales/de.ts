@@ -888,6 +888,10 @@ export const de = {
   collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
   collectionNameReserved: "Name der Sammlung ist reserviert",
   updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
+  uploadSubtitle: "Untertitel hochladen",
+  subtitleUploaded: "Untertitel erfolgreich hochgeladen",
+  confirmDeleteSubtitle: "Diesen Untertitel löschen?",
+  subtitleDeleted: "Untertitel gelöscht",
   // History Filter
   filterAll: "Alle",
 };

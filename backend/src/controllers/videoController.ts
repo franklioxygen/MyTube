@@ -1,18 +1,14 @@
+/// <reference path="../types/ass-to-vtt.d.ts" />
+import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import multer from "multer";
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
-import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
-import { sendData, sendSuccess, successResponse } from "../utils/response";
-import {
-  execFileSafe,
-  validateImagePath,
-  validateVideoPath,
-} from "../utils/security";
+import { successResponse } from "../utils/response";
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -21,7 +17,8 @@ const storage = multer.diskStorage({
     cb(null, VIDEOS_DIR);
   },
   filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const uniqueSuffix =
+      Date.now() + "-" + crypto.randomBytes(8).toString("hex");
     cb(null, uniqueSuffix + path.extname(file.originalname));
   },
 });
@@ -33,6 +30,132 @@ export const upload = multer({
     fileSize: 100 * 1024 * 1024 * 1024, // 10GB in bytes
   },
 });
+
+// Configure Multer for subtitle uploads
+const subtitleStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.ensureDirSync(SUBTITLES_DIR);
+    cb(null, SUBTITLES_DIR);
+  },
+  filename: (_req, file, cb) => {
+    // Preserve original name for language detection, prepend timestamp for uniqueness
+    // Sanitize filename to prevent issues
+    const safeOriginalName = file.originalname.replace(
+      /[^a-zA-Z0-9.\-_]/g,
+      "_"
+    );
+    const uniqueSuffix = Date.now() + "-" + safeOriginalName;
+    cb(null, uniqueSuffix);
+  },
+});
+
+export const uploadSubtitleMiddleware = multer({
+  storage: subtitleStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.originalname.match(/\.(vtt|srt|ass|ssa)$/i)) {
+      cb(null, true);
+    } else {
+      cb(
+        new Error(
+          "Invalid file type. Only .vtt, .srt, .ass and .ssa are allowed."
+        )
+      );
+    }
+  },
+});
+
+// Helper to safely execute files (prevent command injection)
+const execFileSafe = async (
+  file: string,
+  args: string[],
+  options: any = {}
+): Promise<void> => {
+  const { execFile } = await import("child_process");
+  return new Promise((resolve, reject) => {
+    execFile(file, args, options, (error, _stdout, stderr) => {
+      if (error) {
+        logger.error(`execFile error: ${error.message}`);
+        logger.error(`stderr: ${stderr}`);
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+};
+
+// Helper validate paths functions
+const validateVideoPath = (inputPath: string): string => {
+  const normalized = path.normalize(inputPath);
+  if (!normalized.startsWith(VIDEOS_DIR)) {
+    throw new ValidationError("Invalid video path", "path");
+  }
+  return normalized;
+};
+
+const validateImagePath = (inputPath: string): string => {
+  const normalized = path.normalize(inputPath);
+  if (!normalized.startsWith(IMAGES_DIR)) {
+    throw new ValidationError("Invalid image path", "path");
+  }
+  return normalized;
+};
+
+// Helper for video duration
+const getVideoDuration = async (
+  videoPath: string
+): Promise<number | undefined> => {
+  try {
+    const { execFile } = await import("child_process");
+    return new Promise((resolve) => {
+      execFile(
+        "ffprobe",
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "format=duration",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
+          videoPath,
+        ],
+        (error, stdout) => {
+          if (error) {
+            logger.error("ffprobe error:", error);
+            resolve(undefined);
+            return;
+          }
+          const duration = parseFloat(stdout);
+          resolve(isNaN(duration) ? undefined : duration);
+        }
+      );
+    });
+  } catch (err) {
+    logger.error("Failed to get video duration:", err);
+    return undefined;
+  }
+};
+
+// Helper responses
+const sendData = (res: Response, data: any) => {
+  res.status(200).json(data);
+};
+
+const sendSuccess = (res: Response, data: any, message: string) => {
+  res.status(200).json(successResponse(data, message));
+};
+
+// Extract language code from filename (e.g. "movie.en.vtt" -> "en")
+const getLanguageFromFilename = (filename: string): string | null => {
+  const parts = filename.split(".");
+  if (parts.length < 2) return null;
+  const langCode = parts[parts.length - 2];
+  if (/^[a-z]{2,3}(-[A-Z]{2})?$/i.test(langCode)) return langCode;
+  return null;
+};
 
 /**
  * Get all videos
@@ -66,24 +189,32 @@ export const getVideoById = async (
 
   // Check if video is in cloud storage and inject signed URLs
   if (video.videoPath?.startsWith("cloud:")) {
-    const { CloudStorageService } = await import("../services/CloudStorageService");
-    
+    const { CloudStorageService } = await import(
+      "../services/CloudStorageService"
+    );
+
     // Helper to extract cloud filename
     const extractCloudFilename = (path: string) => {
-        return path.startsWith("cloud:") ? path.substring(6) : path;
+      return path.startsWith("cloud:") ? path.substring(6) : path;
     };
 
     const videoFilename = extractCloudFilename(video.videoPath);
-    const signedUrl = await CloudStorageService.getSignedUrl(videoFilename, "video");
-    
+    const signedUrl = await CloudStorageService.getSignedUrl(
+      videoFilename,
+      "video"
+    );
+
     if (signedUrl) {
       (video as any).signedUrl = signedUrl;
     }
 
     if (video.thumbnailPath?.startsWith("cloud:")) {
       const thumbnailFilename = extractCloudFilename(video.thumbnailPath);
-      const signedThumbnailUrl = await CloudStorageService.getSignedUrl(thumbnailFilename, "thumbnail");
-      
+      const signedThumbnailUrl = await CloudStorageService.getSignedUrl(
+        thumbnailFilename,
+        "thumbnail"
+      );
+
       if (signedThumbnailUrl) {
         (video as any).signedThumbnailUrl = signedThumbnailUrl;
       }
@@ -152,10 +283,21 @@ export const uploadVideo = async (
   const videoFilename = req.file.filename;
   const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
 
-  const videoPath = path.join(VIDEOS_DIR, videoFilename);
-  const thumbnailPath = path.join(IMAGES_DIR, thumbnailFilename);
+  const videoPath = path.normalize(path.join(VIDEOS_DIR, videoFilename));
+  const thumbnailPath = path.normalize(
+    path.join(IMAGES_DIR, thumbnailFilename)
+  );
 
-  // Validate paths to prevent path traversal
+  // Validate paths to ensure they are within the intended directories
+  if (!videoPath.startsWith(VIDEOS_DIR)) {
+    throw new ValidationError("Invalid video filename", "file");
+  }
+  if (!thumbnailPath.startsWith(IMAGES_DIR)) {
+    // Should technically not happen if generated from safe filename, but good to check
+    throw new ValidationError("Invalid thumbnail path", "file");
+  }
+
+  // Validate paths to prevent path traversal (using existing helper for file existence/permission checks if any)
   const validatedVideoPath = validateVideoPath(videoPath);
   const validatedThumbnailPath = validateImagePath(thumbnailPath);
 
@@ -235,7 +377,10 @@ export const updateVideoDetails = async (
   const allowedUpdates: any = {};
   if (updates.title !== undefined) allowedUpdates.title = updates.title;
   if (updates.tags !== undefined) allowedUpdates.tags = updates.tags;
-  if (updates.visibility !== undefined) allowedUpdates.visibility = updates.visibility;
+  if (updates.visibility !== undefined)
+    allowedUpdates.visibility = updates.visibility;
+  if (updates.subtitles !== undefined)
+    allowedUpdates.subtitles = updates.subtitles;
   // Add other allowed fields here if needed in the future
 
   if (Object.keys(allowedUpdates).length === 0) {
@@ -370,6 +515,174 @@ export const getAuthorChannelUrl = async (
 };
 
 /**
+ * Upload subtitle
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const uploadSubtitle = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  const { language } = req.body;
+
+  if (!req.file) {
+    throw new ValidationError("No subtitle file uploaded", "file");
+  }
+
+  // Find the video first
+  const video = storageService.getVideoById(id);
+  if (!video) {
+    // Clean up the uploaded file if video doesn't exist
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    throw new NotFoundError("Video", id);
+  }
+
+  let sourcePath = req.file.path;
+  let filename = req.file.filename;
+
+  // Convert ASS/SSA to VTT for HTML5 <track> playback (browsers don't support ASS natively)
+  if (/\.(ass|ssa)$/i.test(filename)) {
+    const assToVttModule = await import("ass-to-vtt");
+    const assToVtt = ((): (() => NodeJS.ReadWriteStream) => {
+      const m = assToVttModule as {
+        default?: () => NodeJS.ReadWriteStream;
+      } & (() => NodeJS.ReadWriteStream);
+      return typeof m.default === "function" ? m.default : m;
+    })();
+    const vttPath = sourcePath.replace(/\.(ass|ssa)$/i, ".vtt");
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const readStream = fs.createReadStream(sourcePath);
+        const writeStream = fs.createWriteStream(vttPath);
+        readStream
+          .pipe(assToVtt())
+          .pipe(writeStream)
+          .on("finish", () => resolve())
+          .on("error", reject);
+        readStream.on("error", reject);
+      });
+      fs.unlinkSync(sourcePath);
+      sourcePath = vttPath;
+      filename = path.basename(vttPath);
+    } catch (err) {
+      if (fs.existsSync(sourcePath)) fs.unlinkSync(sourcePath);
+      logger.error("ASS/SSA to VTT conversion failed:", err);
+      throw new ValidationError(
+        "Invalid ASS/SSA file or conversion failed. Try uploading VTT or SRT.",
+        "file"
+      );
+    }
+  }
+
+  // Determine the target directory and web path based on settings
+  const settings = storageService.getSettings();
+  const moveSubtitlesToVideoFolder = settings.moveSubtitlesToVideoFolder;
+
+  let finalWebPath = "";
+
+  // Determine relative video directory (Collection/Folder)
+  let relativeVideoDir = "";
+
+  if (video.videoPath) {
+    // videoPath is like /videos/Folder/video.mp4 or /videos/video.mp4
+    const cleanPath = video.videoPath.replace(/^\/videos\//, "");
+    const dirName = path.dirname(cleanPath);
+    const normalizedDir = path.normalize(dirName);
+    // Reject path traversal
+    if (
+      normalizedDir &&
+      normalizedDir !== "." &&
+      !normalizedDir.includes("..")
+    ) {
+      relativeVideoDir = normalizedDir;
+    }
+  }
+
+  try {
+    if (moveSubtitlesToVideoFolder) {
+      // Move to VIDEO folder: uploads/videos/Collection/filename
+      const videoDir = relativeVideoDir
+        ? path.join(VIDEOS_DIR, relativeVideoDir)
+        : VIDEOS_DIR;
+
+      fs.ensureDirSync(videoDir);
+      const targetPath = path.join(videoDir, filename);
+
+      fs.moveSync(sourcePath, targetPath, { overwrite: true });
+
+      if (relativeVideoDir) {
+        finalWebPath = `/videos/${relativeVideoDir}/${filename}`;
+      } else {
+        finalWebPath = `/videos/${filename}`;
+      }
+    } else {
+      // Move to SUBTITLE folder: uploads/subtitles/Collection/filename (Mirroring)
+      // If relativeVideoDir exists, move it into that subfolder in subtitles
+      if (relativeVideoDir) {
+        const targetDir = path.join(SUBTITLES_DIR, relativeVideoDir);
+        fs.ensureDirSync(targetDir);
+        const targetPath = path.join(targetDir, filename);
+
+        fs.moveSync(sourcePath, targetPath, { overwrite: true });
+
+        finalWebPath = `/subtitles/${relativeVideoDir}/${filename}`;
+      } else {
+        // Keep in default location (root of subtitles dir), but path needs to be correct
+        // Multer put it in SUBTITLES_DIR already
+        finalWebPath = `/subtitles/${filename}`;
+      }
+    }
+  } catch (err) {
+    logger.error("Failed to move subtitle:", err);
+    // Fallback: assume it's where Multer put it
+    finalWebPath = `/subtitles/${filename}`;
+  }
+
+  // Determine language
+  let finalLanguage = language;
+
+  if (!finalLanguage || finalLanguage === "unknown") {
+    const detectedLang = getLanguageFromFilename(req.file.originalname);
+    if (detectedLang) {
+      finalLanguage = detectedLang;
+    } else {
+      finalLanguage = "unknown";
+    }
+  }
+
+  // Create new subtitle object
+  const newSubtitle = {
+    language: finalLanguage,
+    filename: filename,
+    path: finalWebPath,
+  };
+
+  // Update video with new subtitle
+  const currentSubtitles = video.subtitles || [];
+  const updatedSubtitles = [...currentSubtitles, newSubtitle];
+
+  const updatedVideo = storageService.updateVideo(id, {
+    subtitles: updatedSubtitles,
+  });
+
+  if (!updatedVideo) {
+    throw new NotFoundError("Video", id);
+  }
+
+  res.status(201).json(
+    successResponse(
+      {
+        subtitle: newSubtitle,
+        video: updatedVideo,
+      },
+      "Subtitle uploaded successfully"
+    )
+  );
+};
+
+/**
  * Serve mount directory video file
  * Errors are automatically handled by asyncHandler middleware
  */
@@ -396,24 +709,40 @@ export const serveMountVideo = async (
   // For mount paths, we need to validate they're safe
   // Note: mount paths are user-configured, so we validate they don't contain traversal sequences
   if (!rawFilePath || typeof rawFilePath !== "string") {
-    throw new ValidationError("Invalid file path: empty or invalid", "videoPath");
+    throw new ValidationError(
+      "Invalid file path: empty or invalid",
+      "videoPath"
+    );
   }
-  
+
   if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
-    throw new ValidationError("Invalid file path: path traversal detected", "videoPath");
+    throw new ValidationError(
+      "Invalid file path: path traversal detected",
+      "videoPath"
+    );
   }
-  
+
   // Additional validation: ensure path is absolute
   if (!path.isAbsolute(rawFilePath)) {
-    throw new ValidationError("Invalid file path: must be absolute", "videoPath");
+    throw new ValidationError(
+      "Invalid file path: must be absolute",
+      "videoPath"
+    );
   }
-  
+
   // Resolve the path (should not change absolute paths, but normalizes them)
   const filePath = path.resolve(rawFilePath);
-  
+
   // Final validation: ensure resolved path is still absolute and doesn't contain traversal
-  if (!path.isAbsolute(filePath) || filePath.includes("..") || filePath.includes("\0")) {
-    throw new ValidationError("Invalid file path: path traversal detected", "videoPath");
+  if (
+    !path.isAbsolute(filePath) ||
+    filePath.includes("..") ||
+    filePath.includes("\0")
+  ) {
+    throw new ValidationError(
+      "Invalid file path: path traversal detected",
+      "videoPath"
+    );
   }
 
   // Validate path exists and is safe

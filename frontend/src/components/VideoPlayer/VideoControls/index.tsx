@@ -26,6 +26,8 @@ interface VideoControlsProps {
     poster?: string;
     isCinemaMode?: boolean;
     onToggleCinemaMode?: () => void;
+    onUploadSubtitle?: (file: File) => Promise<void>;
+    onDeleteSubtitle?: (index: number) => void | Promise<void>;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -43,7 +45,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     onEnded,
     poster,
     isCinemaMode = false,
-    onToggleCinemaMode
+    onToggleCinemaMode,
+    onUploadSubtitle,
+    onDeleteSubtitle
 }) => {
     // Core video player logic
     const videoPlayer = useVideoPlayer({
@@ -235,6 +239,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                         }
                     };
                 })()}
+                onUploadSubtitle={onUploadSubtitle}
+                onDeleteSubtitle={onDeleteSubtitle}
             />
         </Box>
     );

@@ -156,7 +156,9 @@ const VideoPlayer: React.FC = () => {
         titleMutation,
         tagsMutation,
         visibilityMutation,
-        deleteMutation
+        deleteMutation,
+        uploadSubtitleMutation,
+        deleteSubtitleMutation
     } = useVideoMutations({
         videoId: id,
         onDeleteSuccess: () => navigate('/', { replace: true })
@@ -327,6 +329,17 @@ const VideoPlayer: React.FC = () => {
                         onEnded={handleVideoEnded}
                         isCinemaMode={isCinemaMode}
                         onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
+                        onUploadSubtitle={async (file: File) => {
+                            if (!id) return;
+                            await uploadSubtitleMutation.mutateAsync({ file });
+                        }}
+                        onDeleteSubtitle={async (index: number) => {
+                            if (!video?.subtitles) return;
+                            await deleteSubtitleMutation.mutateAsync({
+                                index,
+                                currentSubtitles: video.subtitles
+                            });
+                        }}
                     />
                 </Box>
 

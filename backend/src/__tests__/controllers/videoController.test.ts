@@ -540,6 +540,16 @@ describe("VideoController", () => {
       (fs.statSync as any).mockReturnValue({ size: 1024 });
       (fs.ensureDirSync as any).mockImplementation(() => {});
 
+      // Mock child_process.execFile to invoke callback (needed for local getVideoDuration and execFileSafe)
+      const cp = await import("child_process");
+      vi.mocked(cp.execFile).mockImplementation((...args: any[]) => {
+        const callback = args[args.length - 1];
+        if (typeof callback === "function") {
+          callback(null, "120", ""); // success, stdout="120"
+        }
+        return {} as any;
+      });
+
       // Set up mocks before importing the controller
       const securityUtils = await import("../../utils/security");
       vi.mocked(securityUtils.execFileSafe).mockResolvedValue({
