@@ -1,6 +1,27 @@
 # Change Log
 
 
+## v1.7.104 (2026-02-04)
+
+### Feat
+
+- feat: add upload subtitle feature (46a5a1d)
+
+### Style
+
+- style: Update font loading comments and system font stack (65bf99a)
+- style: Update video element styling for better control (c1f72e9)
+
+### Test
+
+- test: Update ts-ignore comments to ts-expect-error (cadaee6)
+
+## v1.7.103 (2026-02-04)
+
+### Feat
+
+- feat: Add page tag filtering functionality (369378d)
+
 ## v1.7.102 (2026-02-03)
 
 ### Feat
