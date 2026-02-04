@@ -25,6 +25,7 @@ interface MobileMenuProps {
     onClose: () => void;
     collections?: Collection[];
     videos?: Video[];
+    showTags?: boolean;
     availableTags?: string[];
     selectedTags?: string[];
     onTagToggle?: (tag: string) => void;
@@ -43,6 +44,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
     onClose,
     collections = [],
     videos = [],
+    showTags = false,
     availableTags = [],
     selectedTags = [],
     onTagToggle = () => { }
@@ -134,19 +136,21 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                         </>
                     )}
 
-                    {/* Mobile Navigation Items */}
+                    {/* Mobile Navigation Items - Tags only on home/author/collection */}
                     <Box sx={{ mt: 2 }}>
                         <Collections
                             collections={collections}
                             onItemClick={onClose}
                         />
-                        <Box sx={{ mt: 2 }}>
-                            <TagsList
-                                availableTags={availableTags}
-                                selectedTags={selectedTags}
-                                onTagToggle={onTagToggle}
-                            />
-                        </Box>
+                        {showTags && (
+                            <Box sx={{ mt: 2 }}>
+                                <TagsList
+                                    availableTags={availableTags}
+                                    selectedTags={selectedTags}
+                                    onTagToggle={onTagToggle}
+                                />
+                            </Box>
+                        )}
                         <Box sx={{ mt: 2 }}>
                             <AuthorsList
                                 videos={videos}

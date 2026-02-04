@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CollectionProvider, useCollection } from './contexts/CollectionContext';
 import { DownloadProvider, useDownload } from './contexts/DownloadContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { PageTagFilterProvider } from './contexts/PageTagFilterContext';
 import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
@@ -96,8 +97,9 @@ function AppContent() {
                 )
             ) : (
                 <Router>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-                        <Header
+                    <PageTagFilterProvider>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                            <Header
                             onSearch={handleSearch}
                             onSubmit={handleVideoSubmit}
                             activeDownloads={activeDownloads}
@@ -145,8 +147,9 @@ function AppContent() {
                             </Suspense>
                         </Box>
 
-                        <Footer />
-                    </Box>
+                            <Footer />
+                        </Box>
+                    </PageTagFilterProvider>
                 </Router>
             )}
         </>

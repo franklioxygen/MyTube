@@ -15,6 +15,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { usePageTagFilterOptional } from '../../contexts/PageTagFilterContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { getApiUrl } from '../../utils/apiUrl';
@@ -53,9 +54,18 @@ const Header: React.FC<HeaderProps> = ({
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
+    const pageTagFilter = usePageTagFilterOptional()?.pageTagFilter ?? null;
+    const effectiveTags = pageTagFilter ?? {
+        availableTags,
+        selectedTags,
+        onTagToggle: handleTagToggle
+    };
 
     const isSettingsPage = location.pathname.startsWith('/settings');
     const isHomePage = location.pathname === '/';
+    const isAuthorPage = location.pathname.startsWith('/author/');
+    const isCollectionPage = location.pathname.startsWith('/collection/');
+    const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
 
     useEffect(() => {
         console.log('Header props:', { activeDownloads, queuedDownloads });
@@ -368,9 +378,10 @@ const Header: React.FC<HeaderProps> = ({
                                         onClose={() => setMobileMenuOpen(false)}
                                         collections={collections}
                                         videos={videos}
-                                        availableTags={availableTags}
-                                        selectedTags={selectedTags}
-                                        onTagToggle={handleTagToggle}
+                                        showTags={showTagsInMobileMenu}
+                                        availableTags={effectiveTags.availableTags}
+                                        selectedTags={effectiveTags.selectedTags}
+                                        onTagToggle={effectiveTags.onTagToggle}
                                     />
                                 )}
                             </>

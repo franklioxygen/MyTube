@@ -1,9 +1,9 @@
-import { CreateNewFolder, Delete, LocalOffer } from '@mui/icons-material';
+import { CreateNewFolder, Delete, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
-    Chip,
+    Button,
     CircularProgress,
     Container,
     Grid,
@@ -11,59 +11,88 @@ import {
     Tooltip,
     Typography
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SortControl from '../components/SortControl';
-import TagsModal from '../components/TagsModal';
+import { TagsSidebar } from '../components/TagsSidebar';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePageTagFilter } from '../contexts/PageTagFilterContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
-import { useSettings } from '../hooks/useSettings';
-import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { Video } from '../types';
-
-function normalizeTagValue(value: string): string {
-    return value.trim().toLowerCase();
-}
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
     const { authorName } = useParams<{ authorName: string }>();
-    const authorParam = authorName;
-    const { videos, loading, deleteVideo, availableTags } = useVideo();
+    const author = authorName;
+    const { videos, loading, deleteVideo } = useVideo();
     const { collections, createCollection, addToCollection } = useCollection();
     const { showSnackbar } = useSnackbar();
+    const { setPageTagFilter } = usePageTagFilter();
     const navigate = useNavigate();
-    const { data: settings } = useSettings();
-    const { saveMutation } = useSettingsMutations({
-        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
-        setInfoModal: () => {}
-    });
 
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isCreateCollectionModalOpen, setIsCreateCollectionModalOpen] = useState(false);
     const [isCreatingCollection, setIsCreatingCollection] = useState(false);
-    const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
-
-    const authorDisplayName = authorVideos[0]?.author ?? authorParam ?? '';
-    const authorKey = authorDisplayName ? normalizeTagValue(authorDisplayName) : '';
-    const authorTagsList = (authorKey && settings?.authorTags?.[authorKey]) ?? [];
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     useEffect(() => {
-        if (!authorParam) return;
+        if (!author) return;
 
         const filteredVideos = videos.filter(
-            video => video.author === authorParam
+            video => video.author === author
         );
         setAuthorVideos(filteredVideos);
-    }, [authorParam, videos]);
+    }, [author, videos]);
+
+    const availableTags = useMemo(
+        () => Array.from(new Set(authorVideos.flatMap(v => v.tags || []))).sort(),
+        [authorVideos]
+    );
+
+    const [filterVersion, setFilterVersion] = useState(0);
+
+    const handleTagToggle = useCallback((tag: string) => {
+        setSelectedTags(prev =>
+            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+        );
+        setFilterVersion(v => v + 1);
+    }, []);
+
+    const videosFilteredByTags = useMemo(() => {
+        if (selectedTags.length === 0) return authorVideos;
+        return authorVideos.filter(video =>
+            selectedTags.every(tag => (video.tags || []).includes(tag))
+        );
+    }, [authorVideos, selectedTags]);
+
+    // Keep a ref so the context always reads current values (menu gets latest when it opens)
+    const filterRef = useRef({ availableTags, selectedTags, onTagToggle: handleTagToggle });
+    filterRef.current = { availableTags, selectedTags, onTagToggle: handleTagToggle };
+
+    // Register page tag filter; bump filterVersion only in handleTagToggle so Header re-renders on tag click (no effect loop)
+    useEffect(() => {
+        const stableFilter = {
+            get availableTags() {
+                return filterRef.current.availableTags;
+            },
+            get selectedTags() {
+                return filterRef.current.selectedTags;
+            },
+            onTagToggle: (tag: string) => filterRef.current.onTagToggle(tag),
+            _version: filterVersion
+        };
+        setPageTagFilter(stableFilter);
+        return () => setPageTagFilter(null);
+    }, [filterVersion, setPageTagFilter]);
 
     // Get avatar path from first video that has an avatar
     const authorAvatarPath = authorVideos.find(video => video.authorAvatarPath)?.authorAvatarPath;
@@ -95,31 +124,18 @@ const AuthorVideos: React.FC = () => {
     };
 
     const handleOpenCreateCollectionModal = () => {
-        if (!authorDisplayName || !authorVideos.length) return;
+        if (!author || !authorVideos.length) return;
         setIsCreateCollectionModalOpen(true);
     };
 
-    const handleSaveAuthorTags = async (tags: string[]) => {
-        if (!settings || !authorKey) return;
-        const normalizedTags = Array.from(
-            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
-        );
-        const authorTags = { ...(settings.authorTags ?? {}), [authorKey]: normalizedTags };
-        if (normalizedTags.length === 0) {
-            delete authorTags[authorKey];
-        }
-        await saveMutation.mutateAsync({ ...settings, authorTags });
-        setIsTagsModalOpen(false);
-    };
-
     const handleCreateCollectionFromAuthor = async () => {
-        if (!authorDisplayName || !authorVideos.length) return;
+        if (!author || !authorVideos.length) return;
 
         setIsCreatingCollection(true);
         try {
             // Check if collection with this name already exists
             const existingCollection = collections.find(
-                col => (col.name || col.title) === authorDisplayName
+                col => (col.name || col.title) === author
             );
 
             let targetCollection;
@@ -130,7 +146,7 @@ const AuthorVideos: React.FC = () => {
             } else {
                 // Create new collection with first video (this will create the collection and add the first video)
                 const firstVideo = authorVideos[0];
-                const newCollection = await createCollection(authorDisplayName, firstVideo.id);
+                const newCollection = await createCollection(author, firstVideo.id);
 
                 if (!newCollection) {
                     throw new Error('Failed to create collection');
@@ -168,7 +184,7 @@ const AuthorVideos: React.FC = () => {
         }
     };
 
-    // Sort videos
+    // Sort videos (after tag filter)
     const {
         sortedVideos,
         sortOption,
@@ -176,7 +192,7 @@ const AuthorVideos: React.FC = () => {
         handleSortClick,
         handleSortClose
     } = useVideoSort({
-        videos: authorVideos,
+        videos: videosFilteredByTags,
         defaultSort: 'dateDesc'
     });
 
@@ -190,10 +206,8 @@ const AuthorVideos: React.FC = () => {
 
     // Build confirmation message
     const getCreateCollectionMessage = (): string => {
-        // ... (keep existing implementation, but referenced authorVideos, which is fine as it is the source)
-        // Check if collection with this name already exists
         const existingCollection = collections.find(
-            col => (col.name || col.title) === authorDisplayName
+            col => (col.name || col.title) === author
         );
 
         // Check which videos are already in other collections (not the target collection)
@@ -213,119 +227,134 @@ const AuthorVideos: React.FC = () => {
             // Using existing collection
             if (videosInOtherCollections.length > 0) {
                 return t('addVideosToExistingCollectionConfirmationWithMove' as any, {
-                    author: authorDisplayName || '',
+                    author: author || '',
                     count: videosNotInTarget.length,
                     moveCount: videosInOtherCollections.length
                 });
             }
             return t('addVideosToExistingCollectionConfirmation' as any, {
-                author: authorDisplayName || '',
+                author: author || '',
                 count: videosNotInTarget.length
             });
         } else {
             // Creating new collection
             if (videosInOtherCollections.length > 0) {
                 return t('createCollectionFromAuthorConfirmationWithMove' as any, {
-                    author: authorDisplayName || '',
+                    author: author || '',
                     count: videosInOtherCollections.length
                 });
             }
-            return t('createCollectionFromAuthorConfirmation' as any, { author: authorDisplayName || '' });
+            return t('createCollectionFromAuthorConfirmation' as any, { author: author || '' });
         }
     };
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Avatar
-                        src={avatarUrl || undefined}
-                        sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
-                    >
-                        {authorDisplayName ? authorDisplayName.charAt(0).toUpperCase() : 'A'}
-                    </Avatar>
-                    <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Typography variant="h4" component="h1" fontWeight="bold">
-                                {authorDisplayName || t('unknownAuthor')}
-                            </Typography>
-                            <Tooltip title={t('addTags')}>
-                                <IconButton
-                                    color="primary"
-                                    onClick={() => setIsTagsModalOpen(true)}
-                                    disabled={isCreatingCollection || isDeleting}
-                                    aria-label="add tags to author"
-                                >
-                                    <LocalOffer />
-                                </IconButton>
-                            </Tooltip>
-                            {authorVideos.length > 0 && (
-                                <>
-                                    <Tooltip title={t('createCollectionFromAuthorTooltip')}>
-                                        <IconButton
-                                            color="primary"
-                                            onClick={handleOpenCreateCollectionModal}
-                                            disabled={isCreatingCollection || isDeleting}
-                                            aria-label="create collection from author"
-                                        >
-                                            <CreateNewFolder />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title={t('deleteAuthor')}>
-                                        <IconButton
-                                            color="error"
-                                            onClick={() => {
-                                                setIsDeleteModalOpen(true);
-                                            }}
-                                            disabled={isCreatingCollection || isDeleting}
-                                            aria-label="delete author"
-                                        >
-                                            <Delete />
-                                        </IconButton>
-                                    </Tooltip>
-                                </>
-                            )}
-                        </Box>
-                        <Typography variant="subtitle1" color="text.secondary">
-                            {authorVideos.length} {t('videos')}
-                        </Typography>
-                        {authorTagsList.length > 0 && (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                                {authorTagsList.map((tag) => (
-                                    <Chip key={tag} label={tag} size="small" variant="outlined" />
-                                ))}
+            <Box sx={{ display: 'flex', alignItems: 'stretch' }}>
+                <TagsSidebar
+                    isSidebarOpen={isSidebarOpen}
+                    availableTags={availableTags}
+                    selectedTags={selectedTags}
+                    onTagToggle={handleTagToggle}
+                />
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Button
+                                onClick={() => setIsSidebarOpen(prev => !prev)}
+                                variant="outlined"
+                                size="small"
+                                sx={{
+                                    minWidth: 'auto',
+                                    p: 1,
+                                    display: { xs: 'none', md: 'inline-flex' },
+                                    color: 'text.secondary',
+                                    borderColor: 'text.secondary',
+                                    mr: 2,
+                                    height: 38,
+                                }}
+                            >
+                                <ViewSidebar sx={{ transform: 'rotate(180deg)' }} />
+                            </Button>
+                            <Avatar
+                                src={avatarUrl || undefined}
+                                sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
+                            >
+                                {author ? author.charAt(0).toUpperCase() : 'A'}
+                            </Avatar>
+                            <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Typography variant="h4" component="h1" fontWeight="bold">
+                                        {author || t('unknownAuthor')}
+                                    </Typography>
+                                    {authorVideos.length > 0 && (
+                                        <>
+                                            <Tooltip title={t('createCollectionFromAuthorTooltip')}>
+                                                <IconButton
+                                                    color="primary"
+                                                    onClick={handleOpenCreateCollectionModal}
+                                                    disabled={isCreatingCollection || isDeleting}
+                                                    aria-label="create collection from author"
+                                                >
+                                                    <CreateNewFolder />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title={t('deleteAuthor')}>
+                                                <IconButton
+                                                    color="error"
+                                                    onClick={() => setIsDeleteModalOpen(true)}
+                                                    disabled={isCreatingCollection || isDeleting}
+                                                    aria-label="delete author"
+                                                >
+                                                    <Delete />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </>
+                                    )}
+                                </Box>
+                                <Typography variant="subtitle1" color="text.secondary">
+                                    {authorVideos.length === 0
+                                        ? `0 ${t('videos')}`
+                                        : selectedTags.length > 0
+                                            ? `${sortedVideos.length} / ${authorVideos.length} ${t('videos')}`
+                                            : `${authorVideos.length} ${t('videos')}`}
+                                </Typography>
                             </Box>
+                        </Box>
+
+                        {authorVideos.length > 0 && (
+                            <SortControl
+                                sortOption={sortOption}
+                                sortAnchorEl={sortAnchorEl}
+                                onSortClick={handleSortClick}
+                                onSortClose={handleSortClose}
+                                sx={{ height: 38 }}
+                            />
                         )}
                     </Box>
-                </Box>
 
-                {/* Sort Control */}
-                {authorVideos.length > 0 && (
-                    <SortControl
-                        sortOption={sortOption}
-                        sortAnchorEl={sortAnchorEl}
-                        onSortClick={handleSortClick}
-                        onSortClose={handleSortClose}
-                        sx={{ height: '38px', marginTop: '2px' }}
-                    />
-                )}
-            </Box>
-
-            {authorVideos.length === 0 ? (
-                <Alert severity="info" variant="outlined">{t('noVideosForAuthor')}</Alert>
-            ) : (
-                <Grid container spacing={3}>
-                    {sortedVideos.map(video => (
-                        <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
-                            <VideoCard
-                                video={video}
-                                onDeleteVideo={deleteVideo}
-                                showDeleteButton={true}
-                            />
+                    {authorVideos.length === 0 ? (
+                        <Alert severity="info" variant="outlined">{t('noVideosForAuthor')}</Alert>
+                    ) : sortedVideos.length === 0 ? (
+                        <Alert severity="info" variant="outlined">
+                            {t('noVideosFoundMatching')}
+                        </Alert>
+                    ) : (
+                        <Grid container spacing={3}>
+                            {sortedVideos.map(video => (
+                                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={video.id}>
+                                    <VideoCard
+                                        video={video}
+                                        onDeleteVideo={deleteVideo}
+                                        showDeleteButton={true}
+                                    />
+                                </Grid>
+                            ))}
                         </Grid>
-                    ))}
-                </Grid>
-            )}
+                    )}
+                </Box>
+            </Box>
 
             <ConfirmationModal
                 isOpen={isDeleteModalOpen}
@@ -334,7 +363,7 @@ const AuthorVideos: React.FC = () => {
                 }}
                 onConfirm={handleDeleteAuthor}
                 title={t('deleteAuthor')}
-                message={t('deleteAuthorConfirmation', { author: authorDisplayName || '' })}
+                message={t('deleteAuthorConfirmation', { author: author || '' })}
                 confirmText={isDeleting ? t('deleting') : t('delete')}
                 cancelText={t('cancel')}
                 isDanger={true}
@@ -348,7 +377,7 @@ const AuthorVideos: React.FC = () => {
                 onConfirm={handleCreateCollectionFromAuthor}
                 title={(() => {
                     const existingCollection = collections.find(
-                        col => (col.name || col.title) === authorDisplayName
+                        col => (col.name || col.title) === author
                     );
                     return existingCollection
                         ? t('addVideosToCollection' as any)
@@ -360,13 +389,6 @@ const AuthorVideos: React.FC = () => {
                 isDanger={false}
             />
 
-            <TagsModal
-                open={isTagsModalOpen}
-                onClose={() => setIsTagsModalOpen(false)}
-                videoTags={authorTagsList}
-                availableTags={availableTags}
-                onSave={handleSaveAuthorTags}
-            />
         </Container>
     );
 };
