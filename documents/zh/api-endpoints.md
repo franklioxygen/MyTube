@@ -28,9 +28,14 @@
   - 自动生成缩略图
 - `GET /api/videos` - 获取所有已下载的视频
   - 查询参数: `page` (可选), `limit` (可选), `sortBy` (可选), `order` (可选), `search` (可选), `author` (可选), `tags` (可选)
+- `GET /api/mount-video/:id` - 服务挂载目录视频文件
+  - 支持 HTTP Range 请求进行流式传输
 - `GET /api/videos/:id` - 通过 ID 获取特定视频
 - `PUT /api/videos/:id` - 更新视频详情
   - 请求体: `{ title?, author?, tags?, rating?, ... }`
+- `POST /api/videos/:id/subtitles` - 为视频上传字幕
+  - 多部分表单数据: `subtitle` (文件)
+  - 请求体: `language` (可选)
 - `DELETE /api/videos/:id` - 删除视频及其文件
 - `GET /api/videos/:id/comments` - 获取视频评论 (如果可用)
 - `POST /api/videos/:id/rate` - 评价视频 (1-5 星)
@@ -44,7 +49,8 @@
   - 返回: `{ success: boolean, channelUrl: string | null }`
 
 ## 下载管理
-
+- `POST /api/downloads/channel-playlists` - 处理频道播放列表下载 (一次性)
+  - 请求体: `{ url: string }`
 - `POST /api/downloads/cancel/:id` - 取消活动下载
 - `DELETE /api/downloads/queue/:id` - 从队列中移除下载
 - `DELETE /api/downloads/queue` - 清空整个下载队列
@@ -69,6 +75,12 @@
   - 请求体: `{ authorUrl: string, interval: number, platform?: string }`
   - `interval`: 检查间隔（分钟）
   - `platform`: 'YouTube' (默认) 或 'Bilibili'
+- `POST /api/subscriptions/playlist` - 创建新的播放列表订阅
+  - 请求体: `{ playlistUrl: string, interval: number, collectionName: string, downloadAll?: boolean }`
+- `POST /api/subscriptions/channel-playlists` - 订阅频道的所有播放列表
+  - 请求体: `{ url: string, interval: number, downloadAllPrevious?: boolean }`
+- `PUT /api/subscriptions/:id/pause` - 暂停订阅
+- `PUT /api/subscriptions/:id/resume` - 恢复订阅
 - `DELETE /api/subscriptions/:id` - 删除订阅
 
 ## 持续下载任务 (订阅)
@@ -76,7 +88,9 @@
 - `GET /api/subscriptions/tasks` - 获取所有持续下载任务
   - 查询参数: `page` (可选), `limit` (可选)
 - `POST /api/subscriptions/tasks/playlist` - 创建新的播放列表下载任务
-  - 请求体: `{ url: string, ...options }`
+  - 请求体: `{ playlistUrl: string, collectionName: string }`
+- `PUT /api/subscriptions/tasks/:id/pause` - 暂停持续下载任务
+- `PUT /api/subscriptions/tasks/:id/resume` - 恢复持续下载任务
 - `DELETE /api/subscriptions/tasks/:id` - 取消持续下载任务
 - `DELETE /api/subscriptions/tasks/:id/delete` - 删除任务记录
 - `DELETE /api/subscriptions/tasks/clear-finished` - 清除所有已完成的任务
@@ -86,6 +100,8 @@
 - `GET /api/settings` - 获取应用设置
 - `POST /api/settings` - 更新应用设置
   - 请求体: `{ [key: string]: any }` - 设置对象
+- `POST /api/settings/tags/rename` - 重命名标签
+  - 请求体: `{ oldTag: string, newTag: string }`
 - `GET /api/settings/cloudflared/status` - 获取 Cloudflare Tunnel 状态
 - `POST /api/settings/migrate` - 从 JSON 迁移数据到 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧的 JSON 数据文件
@@ -139,6 +155,8 @@
 ## 文件管理
 
 - `POST /api/scan-files` - 扫描上传目录中的现有视频文件
+- `POST /api/scan-mount-directories` - 扫描挂载目录中的视频文件
+  - 请求体: `{ directories: string[] }`
 - `POST /api/cleanup-temp-files` - 清理临时下载文件
 
 ## 云存储

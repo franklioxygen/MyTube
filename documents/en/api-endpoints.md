@@ -28,9 +28,14 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Automatically generates thumbnail
 - `GET /api/videos` - Get all downloaded videos
   - Query params: `page` (optional), `limit` (optional), `sortBy` (optional), `order` (optional), `search` (optional), `author` (optional), `tags` (optional)
+- `GET /api/mount-video/:id` - Serve mount directory video file
+  - Supports HTTP Range requests for streaming
 - `GET /api/videos/:id` - Get a specific video by ID
 - `PUT /api/videos/:id` - Update video details
   - Body: `{ title?, author?, tags?, rating?, ... }`
+- `POST /api/videos/:id/subtitles` - Upload a subtitle for a video
+  - Multipart form data: `subtitle` (file)
+  - Body: `language` (optional)
 - `DELETE /api/videos/:id` - Delete a video and its files
 - `GET /api/videos/:id/comments` - Get video comments (if available)
 - `POST /api/videos/:id/rate` - Rate a video (1-5 stars)
@@ -44,7 +49,8 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Returns: `{ success: boolean, channelUrl: string | null }`
 
 ## Download Management
-
+- `POST /api/downloads/channel-playlists` - Process channel playlists download (one-time)
+  - Body: `{ url: string }`
 - `POST /api/downloads/cancel/:id` - Cancel an active download
 - `DELETE /api/downloads/queue/:id` - Remove a download from queue
 - `DELETE /api/downloads/queue` - Clear entire download queue
@@ -69,6 +75,12 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Body: `{ authorUrl: string, interval: number, platform?: string }`
   - `interval`: Check interval in minutes
   - `platform`: 'YouTube' (default) or 'Bilibili'
+- `POST /api/subscriptions/playlist` - Create a new playlist subscription
+  - Body: `{ playlistUrl: string, interval: number, collectionName: string, downloadAll?: boolean }`
+- `POST /api/subscriptions/channel-playlists` - Subscribe to all playlists from a channel
+  - Body: `{ url: string, interval: number, downloadAllPrevious?: boolean }`
+- `PUT /api/subscriptions/:id/pause` - Pause a subscription
+- `PUT /api/subscriptions/:id/resume` - Resume a subscription
 - `DELETE /api/subscriptions/:id` - Delete a subscription
 
 ## Continuous Download Tasks (Subscriptions)
@@ -76,7 +88,9 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/subscriptions/tasks` - Get all continuous download tasks
   - Query params: `page` (optional), `limit` (optional)
 - `POST /api/subscriptions/tasks/playlist` - Create a new playlist download task
-  - Body: `{ url: string, ...options }`
+  - Body: `{ playlistUrl: string, collectionName: string }`
+- `PUT /api/subscriptions/tasks/:id/pause` - Pause a continuous download task
+- `PUT /api/subscriptions/tasks/:id/resume` - Resume a continuous download task
 - `DELETE /api/subscriptions/tasks/:id` - Cancel a continuous download task
 - `DELETE /api/subscriptions/tasks/:id/delete` - Delete a task record
 - `DELETE /api/subscriptions/tasks/clear-finished` - Clear all finished tasks
@@ -86,6 +100,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/settings` - Get application settings
 - `POST /api/settings` - Update application settings
   - Body: `{ [key: string]: any }` - Settings object
+- `POST /api/settings/tags/rename` - Rename a tag
+  - Body: `{ oldTag: string, newTag: string }`
 - `GET /api/settings/cloudflared/status` - Get Cloudflare Tunnel status
 - `POST /api/settings/migrate` - Migrate data from JSON to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files
@@ -139,6 +155,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## File Management
 
 - `POST /api/scan-files` - Scan for existing video files in uploads directory
+- `POST /api/scan-mount-directories` - Scan mount directories for video files
+  - Body: `{ directories: string[] }`
 - `POST /api/cleanup-temp-files` - Cleanup temporary download files
 
 ## Cloud Storage
