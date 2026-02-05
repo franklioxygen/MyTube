@@ -1,6 +1,16 @@
 # Change Log
 
 
+## v1.7.105 (2026-02-04)
+
+### Feat
+
+- feat: Add case-insensitive tag conflict validation (9061a9f)
+
+### Revert
+
+- Revert "style: Update video element styling for better control" (a85a156)
+
 ## v1.7.104 (2026-02-04)
 
 ### Feat
