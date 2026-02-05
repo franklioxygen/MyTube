@@ -1,9 +1,10 @@
-import { CreateNewFolder, Delete, ViewSidebar } from '@mui/icons-material';
+import { CreateNewFolder, Delete, LocalOffer, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
     Button,
+    Chip,
     CircularProgress,
     Container,
     Grid,
@@ -15,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SortControl from '../components/SortControl';
+import TagsModal from '../components/TagsModal';
 import { TagsSidebar } from '../components/TagsSidebar';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
@@ -23,18 +25,29 @@ import { usePageTagFilter } from '../contexts/PageTagFilterContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
+import { useSettings } from '../hooks/useSettings';
+import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { Video } from '../types';
+
+function normalizeTagValue(value: string): string {
+    return value.trim().toLowerCase();
+}
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
     const { authorName } = useParams<{ authorName: string }>();
-    const author = authorName;
-    const { videos, loading, deleteVideo } = useVideo();
+    const authorParam = authorName;
+    const { videos, loading, deleteVideo, availableTags: globalAvailableTags } = useVideo();
     const { collections, createCollection, addToCollection } = useCollection();
     const { showSnackbar } = useSnackbar();
     const { setPageTagFilter } = usePageTagFilter();
     const navigate = useNavigate();
+    const { data: settings } = useSettings();
+    const { saveMutation } = useSettingsMutations({
+        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
+        setInfoModal: () => {}
+    });
 
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -43,15 +56,20 @@ const AuthorVideos: React.FC = () => {
     const [isCreatingCollection, setIsCreatingCollection] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
+
+    const authorDisplayName = authorVideos[0]?.author ?? authorParam ?? '';
+    const authorKey = authorDisplayName ? normalizeTagValue(authorDisplayName) : '';
+    const authorTagsList = (authorKey && settings?.authorTags?.[authorKey]) ?? [];
 
     useEffect(() => {
-        if (!author) return;
+        if (!authorParam) return;
 
         const filteredVideos = videos.filter(
-            video => video.author === author
+            video => video.author === authorParam
         );
         setAuthorVideos(filteredVideos);
-    }, [author, videos]);
+    }, [authorParam, videos]);
 
     const availableTags = useMemo(
         () => Array.from(new Set(authorVideos.flatMap(v => v.tags || []))).sort(),
@@ -124,18 +142,31 @@ const AuthorVideos: React.FC = () => {
     };
 
     const handleOpenCreateCollectionModal = () => {
-        if (!author || !authorVideos.length) return;
+        if (!authorDisplayName || !authorVideos.length) return;
         setIsCreateCollectionModalOpen(true);
     };
 
+    const handleSaveAuthorTags = async (tags: string[]) => {
+        if (!settings || !authorKey) return;
+        const normalizedTags = Array.from(
+            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
+        );
+        const authorTags = { ...(settings.authorTags ?? {}), [authorKey]: normalizedTags };
+        if (normalizedTags.length === 0) {
+            delete authorTags[authorKey];
+        }
+        await saveMutation.mutateAsync({ ...settings, authorTags });
+        setIsTagsModalOpen(false);
+    };
+
     const handleCreateCollectionFromAuthor = async () => {
-        if (!author || !authorVideos.length) return;
+        if (!authorDisplayName || !authorVideos.length) return;
 
         setIsCreatingCollection(true);
         try {
             // Check if collection with this name already exists
             const existingCollection = collections.find(
-                col => (col.name || col.title) === author
+                col => (col.name || col.title) === authorDisplayName
             );
 
             let targetCollection;
@@ -146,7 +177,7 @@ const AuthorVideos: React.FC = () => {
             } else {
                 // Create new collection with first video (this will create the collection and add the first video)
                 const firstVideo = authorVideos[0];
-                const newCollection = await createCollection(author, firstVideo.id);
+                const newCollection = await createCollection(authorDisplayName, firstVideo.id);
 
                 if (!newCollection) {
                     throw new Error('Failed to create collection');
@@ -207,7 +238,7 @@ const AuthorVideos: React.FC = () => {
     // Build confirmation message
     const getCreateCollectionMessage = (): string => {
         const existingCollection = collections.find(
-            col => (col.name || col.title) === author
+            col => (col.name || col.title) === authorDisplayName
         );
 
         // Check which videos are already in other collections (not the target collection)
@@ -227,24 +258,24 @@ const AuthorVideos: React.FC = () => {
             // Using existing collection
             if (videosInOtherCollections.length > 0) {
                 return t('addVideosToExistingCollectionConfirmationWithMove' as any, {
-                    author: author || '',
+                    author: authorDisplayName || '',
                     count: videosNotInTarget.length,
                     moveCount: videosInOtherCollections.length
                 });
             }
             return t('addVideosToExistingCollectionConfirmation' as any, {
-                author: author || '',
+                author: authorDisplayName || '',
                 count: videosNotInTarget.length
             });
         } else {
             // Creating new collection
             if (videosInOtherCollections.length > 0) {
                 return t('createCollectionFromAuthorConfirmationWithMove' as any, {
-                    author: author || '',
+                    author: authorDisplayName || '',
                     count: videosInOtherCollections.length
                 });
             }
-            return t('createCollectionFromAuthorConfirmation' as any, { author: author || '' });
+            return t('createCollectionFromAuthorConfirmation' as any, { author: authorDisplayName || '' });
         }
     };
 
@@ -281,13 +312,23 @@ const AuthorVideos: React.FC = () => {
                                 src={avatarUrl || undefined}
                                 sx={{ width: 56, height: 56, bgcolor: 'primary.main', mr: 2, fontSize: '1.5rem' }}
                             >
-                                {author ? author.charAt(0).toUpperCase() : 'A'}
+                                {authorDisplayName ? authorDisplayName.charAt(0).toUpperCase() : 'A'}
                             </Avatar>
                             <Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                     <Typography variant="h4" component="h1" fontWeight="bold">
-                                        {author || t('unknownAuthor')}
+                                        {authorDisplayName || t('unknownAuthor')}
                                     </Typography>
+                                    <Tooltip title={t('addTags')}>
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => setIsTagsModalOpen(true)}
+                                            disabled={isCreatingCollection || isDeleting}
+                                            aria-label="add tags to author"
+                                        >
+                                            <LocalOffer />
+                                        </IconButton>
+                                    </Tooltip>
                                     {authorVideos.length > 0 && (
                                         <>
                                             <Tooltip title={t('createCollectionFromAuthorTooltip')}>
@@ -320,6 +361,13 @@ const AuthorVideos: React.FC = () => {
                                             ? `${sortedVideos.length} / ${authorVideos.length} ${t('videos')}`
                                             : `${authorVideos.length} ${t('videos')}`}
                                 </Typography>
+                                {authorTagsList.length > 0 && (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                                        {authorTagsList.map((tag) => (
+                                            <Chip key={tag} label={tag} size="small" variant="outlined" />
+                                        ))}
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
@@ -363,7 +411,7 @@ const AuthorVideos: React.FC = () => {
                 }}
                 onConfirm={handleDeleteAuthor}
                 title={t('deleteAuthor')}
-                message={t('deleteAuthorConfirmation', { author: author || '' })}
+                message={t('deleteAuthorConfirmation', { author: authorDisplayName || '' })}
                 confirmText={isDeleting ? t('deleting') : t('delete')}
                 cancelText={t('cancel')}
                 isDanger={true}
@@ -377,7 +425,7 @@ const AuthorVideos: React.FC = () => {
                 onConfirm={handleCreateCollectionFromAuthor}
                 title={(() => {
                     const existingCollection = collections.find(
-                        col => (col.name || col.title) === author
+                        col => (col.name || col.title) === authorDisplayName
                     );
                     return existingCollection
                         ? t('addVideosToCollection' as any)
@@ -389,6 +437,13 @@ const AuthorVideos: React.FC = () => {
                 isDanger={false}
             />
 
+            <TagsModal
+                open={isTagsModalOpen}
+                onClose={() => setIsTagsModalOpen(false)}
+                videoTags={authorTagsList}
+                availableTags={globalAvailableTags ?? []}
+                onSave={handleSaveAuthorTags}
+            />
         </Container>
     );
 };

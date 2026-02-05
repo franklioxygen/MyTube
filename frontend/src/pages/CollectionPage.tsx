@@ -1,35 +1,53 @@
-import { Folder, ViewSidebar } from '@mui/icons-material';
+import { Folder, LocalOffer, ViewSidebar } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
     Box,
     Button,
+    Chip,
     Container,
     Grid,
+    IconButton,
     Pagination,
+    Tooltip,
     Typography
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import SortControl from '../components/SortControl';
+import TagsModal from '../components/TagsModal';
 import { TagsSidebar } from '../components/TagsSidebar';
 import VideoCard from '../components/VideoCard';
 import { useCollection } from '../contexts/CollectionContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePageTagFilter } from '../contexts/PageTagFilterContext';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
+import { useSettings } from '../hooks/useSettings';
+import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
+
+function normalizeTagValue(value: string): string {
+    return value.trim().toLowerCase();
+}
 
 const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { showSnackbar } = useSnackbar();
     const { collections, deleteCollection } = useCollection();
-    const { videos, deleteVideo } = useVideo();
+    const { videos, deleteVideo, availableTags: globalAvailableTags } = useVideo();
     const { setPageTagFilter } = usePageTagFilter();
+    const { data: settings } = useSettings();
+    const { saveMutation } = useSettingsMutations({
+        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
+        setInfoModal: () => {}
+    });
 
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+    const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
     const [page, setPage] = useState(1);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -43,6 +61,7 @@ const CollectionPage: React.FC = () => {
         () => Array.from(new Set(collectionVideos.flatMap(v => v.tags || []))).sort(),
         [collectionVideos]
     );
+    const collectionTagsList = (collection && settings?.collectionTags?.[collection.id]) ?? [];
 
     const [filterVersion, setFilterVersion] = useState(0);
 
@@ -110,6 +129,19 @@ const CollectionPage: React.FC = () => {
         setShowDeleteModal(false);
     };
 
+    const handleSaveCollectionTags = async (tags: string[]) => {
+        if (!settings || !collection) return;
+        const normalizedTags = Array.from(
+            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
+        );
+        const collectionTags = { ...(settings.collectionTags ?? {}), [collection.id]: normalizedTags };
+        if (normalizedTags.length === 0) {
+            delete collectionTags[collection.id];
+        }
+        await saveMutation.mutateAsync({ ...settings, collectionTags });
+        setIsTagsModalOpen(false);
+    };
+
     const handleDeleteCollectionOnly = async () => {
         if (!id) return;
         const result = await deleteCollection(id, false);
@@ -169,9 +201,20 @@ const CollectionPage: React.FC = () => {
                                 <Folder fontSize="large" />
                             </Avatar>
                             <Box>
-                                <Typography variant="h4" component="h1" fontWeight="bold">
-                                    {collection.name}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="h4" component="h1" fontWeight="bold">
+                                        {collection.name}
+                                    </Typography>
+                                    <Tooltip title={t('addTags')}>
+                                        <IconButton
+                                            color="primary"
+                                            onClick={() => setIsTagsModalOpen(true)}
+                                            aria-label="add tags to collection"
+                                        >
+                                            <LocalOffer />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
                                 <Typography variant="subtitle1" color="text.secondary">
                                     {collectionVideos.length === 0
                                         ? `0 ${t('videos')}`
@@ -179,6 +222,13 @@ const CollectionPage: React.FC = () => {
                                             ? `${sortedVideos.length} / ${collectionVideos.length} ${t('videos')}`
                                             : `${collectionVideos.length} ${t('videos')}`}
                                 </Typography>
+                                {collectionTagsList.length > 0 && (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                                        {collectionTagsList.map((tag) => (
+                                            <Chip key={tag} label={tag} size="small" variant="outlined" />
+                                        ))}
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
 
@@ -242,6 +292,13 @@ const CollectionPage: React.FC = () => {
                 videoCount={collectionVideos.length}
             />
 
+            <TagsModal
+                open={isTagsModalOpen}
+                onClose={() => setIsTagsModalOpen(false)}
+                videoTags={collectionTagsList}
+                availableTags={globalAvailableTags ?? []}
+                onSave={handleSaveCollectionTags}
+            />
         </Container>
     );
 };
