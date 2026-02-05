@@ -126,6 +126,8 @@ export const ko = {
   confirmRenameTag: "이름 변경",
   tagRenamedSuccess: "태그 이름이 성공적으로 변경되었습니다",
   tagRenameFailed: "태그 이름 변경 실패",
+  tagConflictCaseInsensitive:
+    "같은 이름의 태그가 이미 있습니다(태그는 대소문자를 구분하지 않습니다).",
   renameTagDescription:
     "태그 이름을 변경하면 현재 이 태그를 사용하는 모든 동영상이 확인되고 업데이트됩니다.",
   enterNewTagName: "'{tag}' 태그의 새 이름을 입력하세요",

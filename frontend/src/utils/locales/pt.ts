@@ -130,6 +130,8 @@ export const pt = {
   confirmRenameTag: "Renomear",
   tagRenamedSuccess: "Tag renomeada com sucesso",
   tagRenameFailed: "Falha ao renomear tag",
+  tagConflictCaseInsensitive:
+    "Já existe uma tag com o mesmo nome (as tags não diferenciam maiúsculas de minúsculas).",
   renameTagDescription:
     "Renomear uma tag verificará e atualizará todos os vídeos que usam atualmente esta tag.",
   enterNewTagName: "Digite o novo nome para a tag '{tag}'",

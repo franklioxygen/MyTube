@@ -130,6 +130,8 @@ export const ja = {
   confirmRenameTag: "変更",
   tagRenamedSuccess: "タグ名が正常に変更されました",
   tagRenameFailed: "タグ名の変更に失敗しました",
+  tagConflictCaseInsensitive:
+    "同じ名前のタグが既に存在します（タグは大文字小文字を区別しません）。",
   renameTagDescription:
     "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
   enterNewTagName: "タグ '{tag}' の新しい名前を入力してください",

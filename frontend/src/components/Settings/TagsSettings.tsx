@@ -18,10 +18,11 @@ interface TagsSettingsProps {
     tags: string[];
     onTagsChange: (tags: string[]) => void;
     onRenameTag?: (oldTag: string, newTag: string) => void;
+    onTagConflict?: () => void;
     isRenaming?: boolean;
 }
 
-const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenameTag, isRenaming = false }) => {
+const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenameTag, onTagConflict, isRenaming = false }) => {
     const { t } = useLanguage();
     const [newTag, setNewTag] = useState('');
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -31,11 +32,22 @@ const TagsSettings: React.FC<TagsSettingsProps> = ({ tags, onTagsChange, onRenam
     // Ensure tags is always an array
     const tagsArray = Array.isArray(tags) ? tags : [];
 
+    const tagExistsCaseInsensitive = (tag: string) =>
+        tagsArray.some((t) => t.toLowerCase() === tag.trim().toLowerCase());
+
     const handleAddTag = () => {
-        if (newTag && !tagsArray.includes(newTag)) {
-            onTagsChange([...tagsArray, newTag]);
+        const trimmed = newTag.trim();
+        if (!trimmed) return;
+        if (tagsArray.includes(trimmed)) {
             setNewTag('');
+            return;
         }
+        if (tagExistsCaseInsensitive(trimmed)) {
+            onTagConflict?.();
+            return;
+        }
+        onTagsChange([...tagsArray, trimmed]);
+        setNewTag('');
     };
 
     const handleDeleteTag = (tagToDelete: string) => {

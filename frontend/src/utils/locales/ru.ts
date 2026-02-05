@@ -129,6 +129,8 @@ export const ru = {
   confirmRenameTag: "Переименовать",
   tagRenamedSuccess: "Тег успешно переименован",
   tagRenameFailed: "Не удалось переименовать тег",
+  tagConflictCaseInsensitive:
+    "Тег с таким именем уже существует (регистр не учитывается).",
   renameTagDescription:
     "Переименование тега приведет к проверке и обновлению всех видео, которые в настоящее время используют этот тег.",
   enterNewTagName: "Введите новое имя для тега '{tag}'",

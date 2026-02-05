@@ -432,6 +432,7 @@ const SettingsPage: React.FC = () => {
                 tags={Array.isArray(settings.tags) ? settings.tags : []}
                 onTagsChange={handleTagsChange}
                 onRenameTag={handleRenameTag}
+                onTagConflict={() => setMessage({ text: t('tagConflictCaseInsensitive'), type: 'error' })}
                 isRenaming={renameTagMutation.isPending}
             />
             {renderMountDirectories()}

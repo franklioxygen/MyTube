@@ -123,6 +123,7 @@ export const zh = {
   confirmRenameTag: "重命名",
   tagRenamedSuccess: "标签重命名成功",
   tagRenameFailed: "标签重命名失败",
+  tagConflictCaseInsensitive: "已存在同名标签（标签不区分大小写）。",
   renameTagDescription: "重命名标签将验证并更新当前使用此标签的所有视频。",
   enterNewTagName: "请输入标签 '{tag}' 的新名称",
   // Database

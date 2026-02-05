@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-    COLLECTIONS_DATA_PATH,
-    STATUS_DATA_PATH,
-    VIDEOS_DATA_PATH,
+  COLLECTIONS_DATA_PATH,
+  STATUS_DATA_PATH,
+  VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
@@ -150,20 +150,39 @@ export const updateSettings = async (
 
   storageService.saveSettings(finalSettings);
 
-  // Check for deleted tags and remove them from all videos
+  // Check for deleted tags and renames (casing-only changes); remove deleted from videos, rename casing in videos
   if (newSettings.tags && Array.isArray(newSettings.tags)) {
-    const oldTags = Array.isArray(existingSettings.tags) ? (existingSettings.tags as string[]) : [];
+    const oldTags = Array.isArray(existingSettings.tags)
+      ? (existingSettings.tags as string[])
+      : [];
     const newTags = newSettings.tags as string[];
-    
-    const deletedTags = oldTags.filter(tag => !newTags.includes(tag));
-    
-    if (deletedTags.length > 0) {
-      // Run asynchronously to not block the response
-      import("../services/tagService").then(({ deleteTagsFromVideos }) => {
-        deleteTagsFromVideos(deletedTags);
-      }).catch(err => {
-        logger.error("Error processing tag deletions:", err);
-      });
+
+    // Deleted = in old but no case-insensitive match in new
+    const deletedTags = oldTags.filter(
+      (old) => !newTags.some((n) => n.toLowerCase() === old.toLowerCase())
+    );
+    // Renamed (casing only) = in old, has case-insensitive match in new, but different string
+    const renamedPairs: [string, string][] = [];
+    for (const old of oldTags) {
+      const newTag = newTags.find((n) => n.toLowerCase() === old.toLowerCase());
+      if (newTag !== undefined && newTag !== old) {
+        renamedPairs.push([old, newTag]);
+      }
+    }
+
+    if (deletedTags.length > 0 || renamedPairs.length > 0) {
+      import("../services/tagService")
+        .then(({ deleteTagsFromVideos, renameTag: renameTagFn }) => {
+          for (const [oldTag, newTag] of renamedPairs) {
+            renameTagFn(oldTag, newTag);
+          }
+          if (deletedTags.length > 0) {
+            deleteTagsFromVideos(deletedTags);
+          }
+        })
+        .catch((err) => {
+          logger.error("Error processing tag deletions/renames:", err);
+        });
     }
   }
 
@@ -305,12 +324,9 @@ export const getCloudflaredStatus = async (
  * Rename a tag
  * Errors are automatically handled by asyncHandler middleware
  */
-export const renameTag = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const renameTag = async (req: Request, res: Response): Promise<void> => {
   const { oldTag, newTag } = req.body;
-  
+
   if (!oldTag || !newTag) {
     res.status(400).json({ error: "oldTag and newTag are required" });
     return;
@@ -330,9 +346,22 @@ export const renameTag = async (
     return;
   }
 
+  // Case-insensitive collision: newTag must not match another existing tag (other than oldTag)
+  const existingSettings = storageService.getSettings();
+  const existingTags = (existingSettings.tags as string[]) || [];
+  const newTagLower = trimmedNewTag.toLowerCase();
+  const collision = existingTags.find(
+    (t) => t.toLowerCase() === newTagLower && t !== trimmedOldTag
+  );
+  if (collision !== undefined) {
+    res.status(400).json({
+      error: `Tag "${trimmedNewTag}" conflicts with existing tag "${collision}" (tags are case-insensitive).`,
+    });
+    return;
+  }
+
   const { renameTag } = await import("../services/tagService");
   const result = renameTag(trimmedOldTag, trimmedNewTag);
-  
+
   res.json({ success: true, result });
 };
-

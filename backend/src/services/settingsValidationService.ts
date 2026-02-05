@@ -1,6 +1,28 @@
+import { ValidationError } from "../errors/DownloadErrors";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
+
+/**
+ * Check if a tags array has any case-insensitive duplicates.
+ * Returns the first conflicting pair [a, b] where a !== b but a.toLowerCase() === b.toLowerCase(), or null.
+ */
+function findCaseInsensitiveTagCollision(
+  tags: string[]
+): [string, string] | null {
+  const seen = new Map<string, string>(); // lower -> first occurrence
+  for (const tag of tags) {
+    const lower = tag.toLowerCase();
+    const first = seen.get(lower);
+    if (first !== undefined && first !== tag) {
+      return [first, tag];
+    }
+    if (!seen.has(lower)) {
+      seen.set(lower, tag);
+    }
+  }
+  return null;
+}
 
 /**
  * Validate and normalize settings values
@@ -40,6 +62,18 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     !validSorts.includes(newSettings.defaultSort)
   ) {
     newSettings.defaultSort = "dateDesc";
+  }
+
+  // Validate tags: no case-insensitive duplicates (e.g. "aaa" and "Aaa" cannot both exist)
+  if (newSettings.tags !== undefined && Array.isArray(newSettings.tags)) {
+    const collision = findCaseInsensitiveTagCollision(newSettings.tags);
+    if (collision) {
+      const [a, b] = collision;
+      throw new ValidationError(
+        `Tags must be unique (case-insensitive). "${a}" and "${b}" conflict.`,
+        "tags"
+      );
+    }
   }
 }
 
@@ -109,7 +143,7 @@ export async function prepareSettingsForSave(
   // Handle password hashing
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = existingSettings.passwordLoginAllowed !== false;
-  
+
   if (prepared.password) {
     // If password login is not allowed, reject password updates
     if (!passwordLoginAllowed) {
@@ -163,5 +197,3 @@ export async function prepareSettingsForSave(
 
   return prepared;
 }
-
-

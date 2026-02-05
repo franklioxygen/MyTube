@@ -130,6 +130,8 @@ export const fr = {
   confirmRenameTag: "Renommer",
   tagRenamedSuccess: "Étiquette renommée avec succès",
   tagRenameFailed: "Échec du renommage de l'étiquette",
+  tagConflictCaseInsensitive:
+    "Une étiquette avec le même nom existe déjà (les étiquettes ne sont pas sensibles à la casse).",
   renameTagDescription:
     "Renommer une étiquette vérifiera et mettra à jour toutes les vidéos qui utilisent actuellement cette étiquette.",
   enterNewTagName: "Entrez le nouveau nom pour l'étiquette '{tag}'",

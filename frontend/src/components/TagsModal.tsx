@@ -61,12 +61,27 @@ const TagsModal: React.FC<TagsModalProps> = ({
         );
     };
 
+    const tagExistsCaseInsensitive = (tag: string, list: string[]) =>
+        list.some((t) => t.toLowerCase() === tag.toLowerCase());
+
     const handleAddNewTag = () => {
         const trimmedTag = newTag.trim();
-        if (trimmedTag && !selectedTags.includes(trimmedTag)) {
-            setSelectedTags(prev => [...prev, trimmedTag]);
+        if (!trimmedTag) return;
+        if (selectedTags.includes(trimmedTag)) {
             setNewTag('');
+            return;
         }
+        if (tagExistsCaseInsensitive(trimmedTag, selectedTags)) {
+            showSnackbar(t('tagConflictCaseInsensitive'), 'error');
+            return;
+        }
+        const effectiveList = globalSettings?.tags && Array.isArray(globalSettings.tags) ? globalSettings.tags : availableTags;
+        if (tagExistsCaseInsensitive(trimmedTag, effectiveList) && !effectiveList.includes(trimmedTag)) {
+            showSnackbar(t('tagConflictCaseInsensitive'), 'error');
+            return;
+        }
+        setSelectedTags(prev => [...prev, trimmedTag]);
+        setNewTag('');
     };
 
     const handleSave = async () => {

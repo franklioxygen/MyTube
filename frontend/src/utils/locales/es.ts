@@ -131,6 +131,8 @@ export const es = {
   confirmRenameTag: "Renombrar",
   tagRenamedSuccess: "Etiqueta renombrada con éxito",
   tagRenameFailed: "Error al renombrar etiqueta",
+  tagConflictCaseInsensitive:
+    "Ya existe una etiqueta con el mismo nombre (las etiquetas no distinguen mayúsculas de minúsculas).",
   renameTagDescription:
     "Renombrar una etiqueta verificará y actualizará todos los videos que usan actualmente esta etiqueta.",
   enterNewTagName: "Ingrese el nuevo nombre para la etiqueta '{tag}'",

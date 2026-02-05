@@ -124,6 +124,8 @@ export const ar = {
   confirmRenameTag: "إعادة تسمية",
   tagRenamedSuccess: "تمت إعادة تسمية العلامة بنجاح",
   tagRenameFailed: "فشل إعادة تسمية العلامة",
+  tagConflictCaseInsensitive:
+    "علامة بنفس الاسم موجودة مسبقاً (العلامات لا تفرق بين الأحرف الكبيرة والصغيرة).",
   renameTagDescription:
     "ستؤدي إعادة تسمية العلامة إلى التحقق من وتحديث جميع مقاطع الفيديو التي تستخدم هذه العلامة حاليًا.",
   enterNewTagName: "أدخل اسمًا جديدًا للعلامة '{tag}'",

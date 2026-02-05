@@ -132,6 +132,8 @@ export const de = {
   confirmRenameTag: "Umbenennen",
   tagRenamedSuccess: "Tag erfolgreich umbenannt",
   tagRenameFailed: "Tag-Umbenennung fehlgeschlagen",
+  tagConflictCaseInsensitive:
+    "Ein Tag mit diesem Namen existiert bereits (Tags sind nicht case-sensitiv).",
   renameTagDescription:
     "Das Umbenennen eines Tags überprüft und aktualisiert alle Videos, die diesen Tag derzeit verwenden.",
   enterNewTagName: "Neuen Namen für Tag '{tag}' eingeben",

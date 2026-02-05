@@ -124,6 +124,8 @@ export const en = {
   confirmRenameTag: "Rename",
   tagRenamedSuccess: "Tag renamed successfully",
   tagRenameFailed: "Failed to rename tag",
+  tagConflictCaseInsensitive:
+    "A tag with the same name already exists (tags are case-insensitive).",
   renameTagDescription:
     "Renaming a tag will verify and update all videos that currently use this tag.",
   enterNewTagName: "Enter new name for tag '{tag}'",
