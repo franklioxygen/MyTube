@@ -4,7 +4,6 @@ import {
     Avatar,
     Box,
     Button,
-    Chip,
     Container,
     Grid,
     IconButton,
@@ -25,12 +24,8 @@ import { usePageTagFilter } from '../contexts/PageTagFilterContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useSettings } from '../hooks/useSettings';
-import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
 
-function normalizeTagValue(value: string): string {
-    return value.trim().toLowerCase();
-}
 
 const CollectionPage: React.FC = () => {
     const { t } = useLanguage();
@@ -38,13 +33,9 @@ const CollectionPage: React.FC = () => {
     const navigate = useNavigate();
     const { showSnackbar } = useSnackbar();
     const { collections, deleteCollection } = useCollection();
-    const { videos, deleteVideo, availableTags: globalAvailableTags } = useVideo();
+    const { videos, deleteVideo, availableTags: globalAvailableTags, updateVideo } = useVideo();
     const { setPageTagFilter } = usePageTagFilter();
     const { data: settings } = useSettings();
-    const { saveMutation } = useSettingsMutations({
-        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
-        setInfoModal: () => {}
-    });
 
     const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
     const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -61,7 +52,7 @@ const CollectionPage: React.FC = () => {
         () => Array.from(new Set(collectionVideos.flatMap(v => v.tags || []))).sort(),
         [collectionVideos]
     );
-    const collectionTagsList = (collection && settings?.collectionTags?.[collection.id]) ?? [];
+    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? false;
 
     const [filterVersion, setFilterVersion] = useState(0);
 
@@ -130,16 +121,24 @@ const CollectionPage: React.FC = () => {
     };
 
     const handleSaveCollectionTags = async (tags: string[]) => {
-        if (!settings || !collection) return;
-        const normalizedTags = Array.from(
-            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
-        );
-        const collectionTags = { ...(settings.collectionTags ?? {}), [collection.id]: normalizedTags };
-        if (normalizedTags.length === 0) {
-            delete collectionTags[collection.id];
+        if (!collection || collectionVideos.length === 0) return;
+
+        try {
+            // Apply tags to all videos in this collection
+            await Promise.all(
+                collectionVideos.map(video => {
+                    // Merge existing tags with new tags
+                    const existingTags = video.tags || [];
+                    const mergedTags = Array.from(new Set([...existingTags, ...tags]));
+                    return updateVideo(video.id, { tags: mergedTags });
+                })
+            );
+            showSnackbar(t('videoUpdated'));
+            setIsTagsModalOpen(false);
+        } catch (error) {
+            console.error('Error adding tags to videos:', error);
+            showSnackbar(t('error'), 'error');
         }
-        await saveMutation.mutateAsync({ ...settings, collectionTags });
-        setIsTagsModalOpen(false);
     };
 
     const handleDeleteCollectionOnly = async () => {
@@ -222,13 +221,6 @@ const CollectionPage: React.FC = () => {
                                             ? `${sortedVideos.length} / ${collectionVideos.length} ${t('videos')}`
                                             : `${collectionVideos.length} ${t('videos')}`}
                                 </Typography>
-                                {collectionTagsList.length > 0 && (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                                        {collectionTagsList.map((tag) => (
-                                            <Chip key={tag} label={tag} size="small" variant="outlined" />
-                                        ))}
-                                    </Box>
-                                )}
                             </Box>
                         </Box>
 
@@ -260,6 +252,7 @@ const CollectionPage: React.FC = () => {
                                             onDeleteVideo={deleteVideo}
                                             showDeleteButton={true}
                                             disableCollectionGrouping={true}
+                                            showTagsOnThumbnail={showTagsOnThumbnail}
                                         />
                                     </Grid>
                                 ))}
@@ -295,7 +288,7 @@ const CollectionPage: React.FC = () => {
             <TagsModal
                 open={isTagsModalOpen}
                 onClose={() => setIsTagsModalOpen(false)}
-                videoTags={collectionTagsList}
+                videoTags={[]}
                 availableTags={globalAvailableTags ?? []}
                 onSave={handleSaveCollectionTags}
             />

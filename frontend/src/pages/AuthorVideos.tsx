@@ -4,7 +4,6 @@ import {
     Avatar,
     Box,
     Button,
-    Chip,
     CircularProgress,
     Container,
     Grid,
@@ -26,28 +25,20 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { useSettings } from '../hooks/useSettings';
-import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { Video } from '../types';
 
-function normalizeTagValue(value: string): string {
-    return value.trim().toLowerCase();
-}
 
 const AuthorVideos: React.FC = () => {
     const { t } = useLanguage();
     const { authorName } = useParams<{ authorName: string }>();
     const authorParam = authorName;
-    const { videos, loading, deleteVideo, availableTags: globalAvailableTags } = useVideo();
+    const { videos, loading, deleteVideo, availableTags: globalAvailableTags, updateVideo } = useVideo();
     const { collections, createCollection, addToCollection } = useCollection();
     const { showSnackbar } = useSnackbar();
     const { setPageTagFilter } = usePageTagFilter();
     const navigate = useNavigate();
     const { data: settings } = useSettings();
-    const { saveMutation } = useSettingsMutations({
-        setMessage: (msg) => msg && showSnackbar(msg.text, msg.type),
-        setInfoModal: () => {}
-    });
 
     const [authorVideos, setAuthorVideos] = useState<Video[]>([]);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -59,8 +50,7 @@ const AuthorVideos: React.FC = () => {
     const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
 
     const authorDisplayName = authorVideos[0]?.author ?? authorParam ?? '';
-    const authorKey = authorDisplayName ? normalizeTagValue(authorDisplayName) : '';
-    const authorTagsList = (authorKey && settings?.authorTags?.[authorKey]) ?? [];
+    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? false;
 
     useEffect(() => {
         if (!authorParam) return;
@@ -147,16 +137,24 @@ const AuthorVideos: React.FC = () => {
     };
 
     const handleSaveAuthorTags = async (tags: string[]) => {
-        if (!settings || !authorKey) return;
-        const normalizedTags = Array.from(
-            new Set(tags.map((tag) => normalizeTagValue(tag)).filter(Boolean))
-        );
-        const authorTags = { ...(settings.authorTags ?? {}), [authorKey]: normalizedTags };
-        if (normalizedTags.length === 0) {
-            delete authorTags[authorKey];
+        if (authorVideos.length === 0) return;
+
+        try {
+            // Apply tags to all videos by this author
+            await Promise.all(
+                authorVideos.map(video => {
+                    // Merge existing tags with new tags
+                    const existingTags = video.tags || [];
+                    const mergedTags = Array.from(new Set([...existingTags, ...tags]));
+                    return updateVideo(video.id, { tags: mergedTags });
+                })
+            );
+            showSnackbar(t('videoUpdated'));
+            setIsTagsModalOpen(false);
+        } catch (error) {
+            console.error('Error adding tags to videos:', error);
+            showSnackbar(t('error'), 'error');
         }
-        await saveMutation.mutateAsync({ ...settings, authorTags });
-        setIsTagsModalOpen(false);
     };
 
     const handleCreateCollectionFromAuthor = async () => {
@@ -361,13 +359,6 @@ const AuthorVideos: React.FC = () => {
                                             ? `${sortedVideos.length} / ${authorVideos.length} ${t('videos')}`
                                             : `${authorVideos.length} ${t('videos')}`}
                                 </Typography>
-                                {authorTagsList.length > 0 && (
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                                        {authorTagsList.map((tag) => (
-                                            <Chip key={tag} label={tag} size="small" variant="outlined" />
-                                        ))}
-                                    </Box>
-                                )}
                             </Box>
                         </Box>
 
@@ -396,6 +387,7 @@ const AuthorVideos: React.FC = () => {
                                         video={video}
                                         onDeleteVideo={deleteVideo}
                                         showDeleteButton={true}
+                                        showTagsOnThumbnail={showTagsOnThumbnail}
                                     />
                                 </Grid>
                             ))}
@@ -440,7 +432,7 @@ const AuthorVideos: React.FC = () => {
             <TagsModal
                 open={isTagsModalOpen}
                 onClose={() => setIsTagsModalOpen(false)}
-                videoTags={authorTagsList}
+                videoTags={[]}
                 availableTags={globalAvailableTags ?? []}
                 onSave={handleSaveAuthorTags}
             />
