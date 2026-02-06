@@ -118,7 +118,7 @@ export const ja = {
   debugModeDescription:
     "コンソールメッセージを表示または非表示にします（更新が必要）",
   pauseOnFocusLoss: "ウィンドウがフォーカスを失ったときに動画を一時停止",
-  playFromBeginning: "動画を最初から再生",
+  playFromBeginning: "常に最初からビデオを再開する",
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
   tags: "タグ",

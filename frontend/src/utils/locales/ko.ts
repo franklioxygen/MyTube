@@ -114,7 +114,7 @@ export const ko = {
   debugMode: "디버그 모드",
   debugModeDescription: "콘솔 메시지 표시 또는 숨기기 (새로 고침 필요)",
   pauseOnFocusLoss: "창이 포커스를 잃으면 동영상 일시 중지",
-  playFromBeginning: "동영상을 처음부터 재생",
+  playFromBeginning: "항상 처음부터 동영상 다시 시작",
   tagsManagement: "태그 관리",
   newTag: "새 태그",
   tags: "태그",

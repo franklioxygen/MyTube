@@ -119,7 +119,7 @@ export const es = {
   debugModeDescription:
     "Mostrar u ocultar mensajes de consola (requiere actualización)",
   pauseOnFocusLoss: "Pausar video cuando la ventana pierde el foco",
-  playFromBeginning: "Reproducir videos desde el principio",
+  playFromBeginning: "Reiniciar siempre los videos desde el principio",
   tagsManagement: "Gestión de Etiquetas",
   newTag: "Nueva Etiqueta",
   tags: "Etiquetas",

@@ -117,7 +117,7 @@ export const ru = {
   debugModeDescription:
     "Показать или скрыть сообщения консоли (требуется обновление)",
   pauseOnFocusLoss: "Пауза при потере фокуса окном",
-  playFromBeginning: "Воспроизводить видео с начала",
+  playFromBeginning: "Всегда перезапускать видео с начала",
   tagsManagement: "Управление тегами",
   newTag: "Новый тег",
   tags: "Теги",

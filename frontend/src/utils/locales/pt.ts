@@ -118,7 +118,7 @@ export const pt = {
   debugModeDescription:
     "Mostrar ou ocultar mensagens do console (requer atualização)",
   pauseOnFocusLoss: "Pausar vídeo quando a janela perder o foco",
-  playFromBeginning: "Reproduzir vídeos do início",
+  playFromBeginning: "Sempre reiniciar vídeos do início",
   tagsManagement: "Gerenciamento de Tags",
   newTag: "Nova Tag",
   tags: "Tags",

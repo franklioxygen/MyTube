@@ -118,7 +118,7 @@ export const fr = {
   debugModeDescription:
     "Afficher ou masquer les messages de la console (nécessite une actualisation)",
   pauseOnFocusLoss: "Mettre la vidéo en pause lorsque la fenêtre perd le focus",
-  playFromBeginning: "Lire les vidéos depuis le début",
+  playFromBeginning: "Toujours redémarrer les vidéos depuis le début",
   tagsManagement: "Gestion des tags",
   newTag: "Nouveau tag",
   tags: "Tags",

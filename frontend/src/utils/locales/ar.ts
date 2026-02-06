@@ -112,7 +112,7 @@ export const ar = {
   debugMode: "وضع التصحيح",
   debugModeDescription: "إظهار أو إخفاء رسائل وحدة التحكم (يتطلب التحديث)",
   pauseOnFocusLoss: "إيقاف الفيديو مؤقتاً عند فقدان نافذة التركيز",
-  playFromBeginning: "تشغيل مقاطع الفيديو من البداية",
+  playFromBeginning: "دائما إعادة تشغيل مقاطع الفيديو من البداية",
   tagsManagement: "إدارة العلامات",
   newTag: "علامة جديدة",
   tags: "العلامات",

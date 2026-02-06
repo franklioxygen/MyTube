@@ -112,7 +112,7 @@ export const en = {
   debugMode: "Debug Mode",
   debugModeDescription: "Show or hide console messages (requires refresh)",
   pauseOnFocusLoss: "Pause video when window loses focus",
-  playFromBeginning: "Play videos from the beginning",
+  playFromBeginning: "Always restart videos from beginning",
   tagsManagement: "Tags Management",
   newTag: "New Tag",
   selectTags: "Select Tags",

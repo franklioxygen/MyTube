@@ -120,7 +120,7 @@ export const de = {
   debugModeDescription:
     "Konsolenmeldungen anzeigen oder ausblenden (erfordert Aktualisierung)",
   pauseOnFocusLoss: "Video pausieren, wenn das Fenster den Fokus verliert",
-  playFromBeginning: "Videos von Anfang an abspielen",
+  playFromBeginning: "Videos immer von Anfang an neu starten",
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
   tags: "Tags",
