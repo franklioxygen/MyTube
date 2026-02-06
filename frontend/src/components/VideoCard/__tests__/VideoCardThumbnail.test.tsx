@@ -168,4 +168,31 @@ describe('VideoCardThumbnail', () => {
         expect(screen.getByText('My Playlist')).toBeInTheDocument();
         expect(screen.getByTestId('FolderIcon')).toBeInTheDocument();
     });
+
+    it('should render tags case-insensitively', () => {
+        const videoWithTags = {
+            ...defaultVideo,
+            tags: ['NewTag1', 'MixedCaseTag']
+        };
+        // availableTags has different casing
+        const availableTags = ['newtag1', 'mixedcasetag', 'other'];
+
+        render(
+            <VideoCardThumbnail
+                video={videoWithTags}
+                isHovered={false}
+                isVideoPlaying={false}
+                setIsVideoPlaying={mockSetIsVideoPlaying}
+                videoRef={mockVideoRef}
+                collectionInfo={defaultCollectionInfo}
+                isNew={false}
+                showTagsOnThumbnail={true}
+                availableTags={availableTags}
+                selectedTags={[]}
+            />
+        );
+
+        expect(screen.getByText('NewTag1')).toBeInTheDocument();
+        expect(screen.getByText('MixedCaseTag')).toBeInTheDocument();
+    });
 });

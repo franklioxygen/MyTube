@@ -88,7 +88,9 @@ const TagsModal: React.FC<TagsModalProps> = ({
         setSaving(true);
 
         try {
-            const newGlobalTags = selectedTags.filter(tag => !availableTags.includes(tag));
+            const newGlobalTags = selectedTags.filter(tag =>
+                !availableTags.some(availableTag => availableTag.toLowerCase() === tag.toLowerCase())
+            );
             if (newGlobalTags.length > 0 && globalSettings) {
                 const currentTags = globalSettings.tags || [];
                 const updatedTags = Array.from(new Set([...currentTags, ...newGlobalTags])).sort();
@@ -123,8 +125,23 @@ const TagsModal: React.FC<TagsModalProps> = ({
     const effectiveAvailableTags = globalSettings?.tags && Array.isArray(globalSettings.tags)
         ? globalSettings.tags
         : (Array.isArray(availableTags) ? availableTags : []);
-    const safeAvailableTags = effectiveAvailableTags;
-    const displayTags = Array.from(new Set([...safeAvailableTags, ...selectedTags])).sort();
+
+    // Deduplicate case-insensitively for display
+    // If "tag1" is available, and "TAG1" is selected, we want to show "TAG1" (as selected).
+    // If "tag1" is available and nothing selected, show "tag1".
+    const uniqueTagsMap = new Map<string, string>();
+
+    // Add available tags first
+    effectiveAvailableTags.forEach(tag => {
+        uniqueTagsMap.set(tag.toLowerCase(), tag);
+    });
+
+    // Override with selected tags (to preserve casing of what's on the video)
+    selectedTags.forEach(tag => {
+        uniqueTagsMap.set(tag.toLowerCase(), tag);
+    });
+
+    const displayTags = Array.from(uniqueTagsMap.values()).sort((a, b) => a.localeCompare(b));
 
     return (
         <Dialog

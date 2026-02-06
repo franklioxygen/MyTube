@@ -29,6 +29,24 @@ const VideoTags: React.FC<VideoTagsProps> = ({ tags, availableTags, onTagsUpdate
                 onOpen={() => setOpen(true)}
                 onClose={() => setOpen(false)}
                 disableCloseOnSelect
+                freeSolo
+                filterOptions={(options, params) => {
+                    const { inputValue } = params;
+                    // Default filter
+                    const filtered = options.filter(option =>
+                        option.toLowerCase().includes(inputValue.toLowerCase())
+                    );
+
+                    // Suggest the creation of a new value if it doesn't match exactly
+                    const isExisting = options.some((option) => inputValue === option);
+                    if (inputValue !== '' && !isExisting) {
+                        // Insert at the beginning to prioritize the user's exact input 
+                        // over a case-insensitive match from the list
+                        filtered.unshift(inputValue);
+                    }
+
+                    return filtered;
+                }}
                 options={allOptions}
                 value={tagsArray}
                 isOptionEqualToValue={(option, value) => option === value}

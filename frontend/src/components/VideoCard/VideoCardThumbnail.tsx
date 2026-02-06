@@ -202,7 +202,9 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 // Filter tags to only show tags that are in availableTags
                 // This ensures that when a tag is removed from settings, it's also removed from the display
                 const availableTagsArray = Array.isArray(availableTags) ? availableTags : [];
-                const filteredTags = video.tags.filter(tag => availableTagsArray.includes(tag));
+                const filteredTags = video.tags.filter(tag =>
+                    availableTagsArray.some(availableTag => availableTag.toLowerCase() === tag.toLowerCase())
+                );
 
                 if (filteredTags.length === 0) return null;
 
