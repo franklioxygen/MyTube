@@ -309,7 +309,7 @@ const VideoPlayer: React.FC = () => {
                     gap: 4,
                     mt: isCinemaMode ? 0 : { xs: 0, md: 4 },
                     gridTemplateColumns: {
-                        xs: '1fr',
+                        xs: 'minmax(0, 1fr)',
                         lg: isCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
                     },
                     gridTemplateAreas: {
