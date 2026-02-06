@@ -1,6 +1,26 @@
 # Change Log
 
 
+## v1.7.107 (2026-02-05)
+
+### Refactor
+
+- refactor: Remove unused code and refactor updating video tags (013f184)
+
+## v1.7.106 (2026-02-05)
+
+### Feat
+
+- feat: Add author & collection tags feature plan (79e522d)
+
+### Style
+
+- style: Improve video player layout and styling (6692773)
+
+### Docs
+
+- docs: Update API endpoints and add video subtitles upload (8b526c0)
+
 ## v1.7.105 (2026-02-04)
 
 ### Feat
