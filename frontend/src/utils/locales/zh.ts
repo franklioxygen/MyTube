@@ -75,7 +75,7 @@ export const zh = {
   togglePasswordVisibility: "切换密码可见性",
   passwordHelper: "留空以保持当前密码，或输入新密码以更改",
   passwordSetHelper: "设置访问应用程序的密码",
-  autoPlay: "自动播放视频",
+  autoPlay: "加载时自动播放视频",
   autoLoop: "自动循环播放",
   maxConcurrent: "最大同时下载数",
   maxConcurrentDescription:
@@ -110,7 +110,8 @@ export const zh = {
   settingsFailed: "保存设置失败",
   debugMode: "调试模式",
   debugModeDescription: "显示或隐藏控制台消息（需要刷新）",
-  pauseOnFocusLoss: "失去焦点时暂停",
+  pauseOnFocusLoss: "窗口失去焦点时暂停视频",
+  playFromBeginning: "从头开始播放视频",
   tagsManagement: "标签管理",
   newTag: "新标签",
   tags: "标签",

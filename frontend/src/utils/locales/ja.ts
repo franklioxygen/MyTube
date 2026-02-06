@@ -81,7 +81,7 @@ export const ja = {
     "現在のパスワードを維持する場合は空欄にし、変更する場合は入力してください",
   passwordSetHelper:
     "アプリケーションにアクセスするためのパスワードを設定します",
-  autoPlay: "動画の自動再生",
+  autoPlay: "読み込み時に動画を自動再生",
   autoLoop: "動画の自動ループ",
   maxConcurrent: "最大同時ダウンロード数",
   maxConcurrentDescription:
@@ -117,7 +117,8 @@ export const ja = {
   debugMode: "デバッグモード",
   debugModeDescription:
     "コンソールメッセージを表示または非表示にします（更新が必要）",
-  pauseOnFocusLoss: "フォーカス喪失時に一時停止",
+  pauseOnFocusLoss: "ウィンドウがフォーカスを失ったときに動画を一時停止",
+  playFromBeginning: "動画を最初から再生",
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
   tags: "タグ",

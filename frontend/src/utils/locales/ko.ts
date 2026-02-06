@@ -78,7 +78,7 @@ export const ko = {
   togglePasswordVisibility: "비밀번호 표시 전환",
   passwordHelper: "현재 비밀번호를 유지하려면 비워 두고, 변경하려면 입력하세요",
   passwordSetHelper: "애플리케이션 액세스를 위한 비밀번호 설정",
-  autoPlay: "동영상 자동 재생",
+  autoPlay: "로드 시 동영상 자동 재생",
   autoLoop: "동영상 자동 반복",
   maxConcurrent: "최대 동시 다운로드 수",
   maxConcurrentDescription:
@@ -113,7 +113,8 @@ export const ko = {
   settingsFailed: "설정 저장 실패",
   debugMode: "디버그 모드",
   debugModeDescription: "콘솔 메시지 표시 또는 숨기기 (새로 고침 필요)",
-  pauseOnFocusLoss: "포커스 손실 시 일시 중지",
+  pauseOnFocusLoss: "창이 포커스를 잃으면 동영상 일시 중지",
+  playFromBeginning: "동영상을 처음부터 재생",
   tagsManagement: "태그 관리",
   newTag: "새 태그",
   tags: "태그",

@@ -30,4 +30,20 @@ describe('VideoDefaultSettings', () => {
 
         expect(mockOnChange).toHaveBeenCalledWith('defaultAutoPlay', true);
     });
+
+    it('should render playFromBeginning switch', () => {
+        render(<VideoDefaultSettings settings={{ playFromBeginning: false } as any} onChange={mockOnChange} />);
+
+        expect(screen.getByText('playFromBeginning')).toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'playFromBeginning' })).not.toBeChecked();
+    });
+
+    it('should toggle playFromBeginning switch', async () => {
+        const user = userEvent.setup();
+        render(<VideoDefaultSettings settings={{ playFromBeginning: false } as any} onChange={mockOnChange} />);
+
+        await user.click(screen.getByLabelText('playFromBeginning'));
+
+        expect(mockOnChange).toHaveBeenCalledWith('playFromBeginning', true);
+    });
 });

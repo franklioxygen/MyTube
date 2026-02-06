@@ -83,7 +83,7 @@ export const de = {
     "Leer lassen, um das aktuelle Passwort beizubehalten, oder eingeben, um es zu ändern",
   passwordSetHelper:
     "Legen Sie ein Passwort für den Zugriff auf die Anwendung fest",
-  autoPlay: "Automatische Wiedergabe",
+  autoPlay: "Videos beim Laden automatisch abspielen",
   autoLoop: "Automatische Schleife",
   maxConcurrent: "Max. gleichzeitige Downloads",
   maxConcurrentDescription:
@@ -119,7 +119,8 @@ export const de = {
   debugMode: "Debug-Modus",
   debugModeDescription:
     "Konsolenmeldungen anzeigen oder ausblenden (erfordert Aktualisierung)",
-  pauseOnFocusLoss: "Pause bei Fokusverlust",
+  pauseOnFocusLoss: "Video pausieren, wenn das Fenster den Fokus verliert",
+  playFromBeginning: "Videos von Anfang an abspielen",
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
   tags: "Tags",

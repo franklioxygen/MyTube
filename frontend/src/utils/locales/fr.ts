@@ -81,7 +81,7 @@ export const fr = {
   passwordHelper:
     "Laisser vide pour conserver le mot de passe actuel, ou taper pour changer",
   passwordSetHelper: "Définir un mot de passe pour accéder à l'application",
-  autoPlay: "Lecture automatique des vidéos",
+  autoPlay: "Lire automatiquement les vidéos au chargement",
   autoLoop: "Boucle automatique des vidéos",
   maxConcurrent: "Téléchargements simultanés max",
   maxConcurrentDescription:
@@ -117,7 +117,8 @@ export const fr = {
   debugMode: "Mode débogage",
   debugModeDescription:
     "Afficher ou masquer les messages de la console (nécessite une actualisation)",
-  pauseOnFocusLoss: "Pause lors de la perte de focus",
+  pauseOnFocusLoss: "Mettre la vidéo en pause lorsque la fenêtre perd le focus",
+  playFromBeginning: "Lire les vidéos depuis le début",
   tagsManagement: "Gestion des tags",
   newTag: "Nouveau tag",
   tags: "Tags",

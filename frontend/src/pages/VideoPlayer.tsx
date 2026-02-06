@@ -108,7 +108,8 @@ const VideoPlayer: React.FC = () => {
         availableTags,
         handleSubtitlesToggle,
         handleLoopToggle,
-        pauseOnFocusLoss
+        pauseOnFocusLoss,
+        playFromBeginning
     } = useVideoPlayerSettings();
 
     const autoPlay = autoPlayNext || settingsAutoPlay;
@@ -294,6 +295,11 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
+    // Determine start time based on settings. 
+    // If playFromBeginning is true, start at 0.
+    // Otherwise, use currentTimeRef (if user navigated back) or saved progress.
+    const startTimeResult = playFromBeginning ? 0 : (currentTimeRef.current > 0 ? currentTimeRef.current : (video.progress ?? 0));
+
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
             {/* Grid layout: xs = stacked (video, info, sidebar); lg + cinema = stacked; lg + normal = video/info left, sidebar right */}
@@ -321,7 +327,7 @@ const VideoPlayer: React.FC = () => {
                         autoLoop={autoLoop}
                         pauseOnFocusLoss={pauseOnFocusLoss}
                         onTimeUpdate={handleTimeUpdate}
-                        startTime={currentTimeRef.current > 0 ? currentTimeRef.current : (video.progress ?? 0)}
+                        startTime={startTimeResult}
                         subtitles={video.subtitles}
                         subtitlesEnabled={subtitlesEnabled}
                         onSubtitlesToggle={handleSubtitlesToggle}

@@ -40,6 +40,7 @@ export interface Settings {
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;
+  playFromBeginning?: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -66,4 +67,5 @@ export const defaultSettings: Settings = {
   pauseOnFocusLoss: false,
   playSoundOnTaskComplete: "",
   showTagsOnThumbnail: true,
+  playFromBeginning: false,
 };

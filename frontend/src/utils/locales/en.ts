@@ -76,7 +76,7 @@ export const en = {
   togglePasswordVisibility: "Toggle password visibility",
   passwordHelper: "Leave empty to keep current password, or type to change",
   passwordSetHelper: "Set a password for accessing the application",
-  autoPlay: "Auto-play Videos",
+  autoPlay: "Auto-play videos on load",
   autoLoop: "Auto-loop Videos",
   maxConcurrent: "Max Concurrent Downloads",
   maxConcurrentDescription:
@@ -111,7 +111,8 @@ export const en = {
   settingsFailed: "Failed to save settings",
   debugMode: "Debug Mode",
   debugModeDescription: "Show or hide console messages (requires refresh)",
-  pauseOnFocusLoss: "Pause on Focus Loss",
+  pauseOnFocusLoss: "Pause video when window loses focus",
+  playFromBeginning: "Play videos from the beginning",
   tagsManagement: "Tags Management",
   newTag: "New Tag",
   selectTags: "Select Tags",

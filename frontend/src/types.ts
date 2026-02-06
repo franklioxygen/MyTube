@@ -110,4 +110,5 @@ export interface Settings {
   preferredAudioLanguage?: string;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
+  playFromBeginning?: boolean;
 }

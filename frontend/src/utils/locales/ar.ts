@@ -76,7 +76,7 @@ export const ar = {
   togglePasswordVisibility: "تبديل رؤية كلمة المرور",
   passwordHelper: "اتركه فارغًا للاحتفاظ بكلمة المرور الحالية، أو اكتب للتغيير",
   passwordSetHelper: "تعيين كلمة مرور للوصول إلى التطبيق",
-  autoPlay: "تشغيل تلقائي للفيديوهات",
+  autoPlay: "تشغيل مقاطع الفيديو تلقائياً عند التحميل",
   autoLoop: "تكرار تلقائي للفيديوهات",
   maxConcurrent: "الحد الأقصى للتحميلات المتزامنة",
   maxConcurrentDescription:
@@ -111,7 +111,8 @@ export const ar = {
   settingsFailed: "فشل حفظ الإعدادات",
   debugMode: "وضع التصحيح",
   debugModeDescription: "إظهار أو إخفاء رسائل وحدة التحكم (يتطلب التحديث)",
-  pauseOnFocusLoss: "إيقاف مؤقت عند فقدان التركيز",
+  pauseOnFocusLoss: "إيقاف الفيديو مؤقتاً عند فقدان نافذة التركيز",
+  playFromBeginning: "تشغيل مقاطع الفيديو من البداية",
   tagsManagement: "إدارة العلامات",
   newTag: "علامة جديدة",
   tags: "العلامات",

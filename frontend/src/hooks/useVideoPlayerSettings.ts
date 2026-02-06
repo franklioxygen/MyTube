@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getApiUrl } from '../utils/apiUrl';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { getApiUrl } from '../utils/apiUrl';
 
 const API_URL = getApiUrl();
 
@@ -39,6 +39,8 @@ export function useVideoPlayerSettings() {
     const autoLoop = settings?.defaultAutoLoop || false;
     const subtitlesEnabled = settings?.subtitlesEnabled ?? true;
     const pauseOnFocusLoss = settings?.pauseOnFocusLoss || false;
+
+    const playFromBeginning = settings?.playFromBeginning || false;
 
     // Subtitle preference mutation
     const subtitlePreferenceMutation = useMutation({
@@ -97,6 +99,7 @@ export function useVideoPlayerSettings() {
         autoLoop,
         subtitlesEnabled,
         pauseOnFocusLoss,
+        playFromBeginning,
         availableTags,
         handleSubtitlesToggle,
         handleLoopToggle

@@ -82,7 +82,7 @@ export const es = {
   passwordHelper:
     "Dejar vacío para mantener la contraseña actual, o escribir para cambiar",
   passwordSetHelper: "Establecer una contraseña para acceder a la aplicación",
-  autoPlay: "Reproducción Automática",
+  autoPlay: "Reproducir videos automáticamente al cargar",
   autoLoop: "Repetición Automática",
   maxConcurrent: "Descargas Simultáneas Máximas",
   maxConcurrentDescription:
@@ -118,7 +118,8 @@ export const es = {
   debugMode: "Modo de Depuración",
   debugModeDescription:
     "Mostrar u ocultar mensajes de consola (requiere actualización)",
-  pauseOnFocusLoss: "Pausar al perder el foco",
+  pauseOnFocusLoss: "Pausar video cuando la ventana pierde el foco",
+  playFromBeginning: "Reproducir videos desde el principio",
   tagsManagement: "Gestión de Etiquetas",
   newTag: "Nueva Etiqueta",
   tags: "Etiquetas",

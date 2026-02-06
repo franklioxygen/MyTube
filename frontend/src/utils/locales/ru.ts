@@ -80,7 +80,7 @@ export const ru = {
   passwordHelper:
     "Оставьте пустым, чтобы сохранить текущий пароль, или введите новый для изменения",
   passwordSetHelper: "Установите пароль для доступа к приложению",
-  autoPlay: "Автовоспроизведение видео",
+  autoPlay: "Автовоспроизведение видео при загрузке",
   autoLoop: "Автоповтор видео",
   maxConcurrent: "Макс. одновременных загрузок",
   maxConcurrentDescription:
@@ -116,7 +116,8 @@ export const ru = {
   debugMode: "Режим отладки",
   debugModeDescription:
     "Показать или скрыть сообщения консоли (требуется обновление)",
-  pauseOnFocusLoss: "Пауза при потере фокуса",
+  pauseOnFocusLoss: "Пауза при потере фокуса окном",
+  playFromBeginning: "Воспроизводить видео с начала",
   tagsManagement: "Управление тегами",
   newTag: "Новый тег",
   tags: "Теги",

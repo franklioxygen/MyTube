@@ -39,13 +39,20 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         !isDeletingRef.current &&
         !isVisitor
       ) {
-        axios
-          .put(`${API_URL}/videos/${videoId}/progress`, {
+        // Use fetch with keepalive to ensure request completes even if tab is closed
+        fetch(`${API_URL}/videos/${videoId}/progress`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
             progress: Math.floor(currentTimeRef.current),
-          })
-          .catch((err) =>
-            console.error("Error saving progress on unmount:", err),
-          );
+          }),
+          keepalive: true,
+          credentials: "include", // Send cookies for authentication
+        }).catch((err) =>
+          console.error("Error saving progress on unmount:", err)
+        );
       }
     };
   }, [videoId, isVisitor]);

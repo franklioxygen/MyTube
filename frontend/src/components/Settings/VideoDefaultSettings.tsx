@@ -30,7 +30,16 @@ const VideoDefaultSettings: React.FC<VideoDefaultSettingsProps> = ({ settings, o
                             onChange={(e) => onChange('pauseOnFocusLoss', e.target.checked)}
                         />
                     }
-                    label={t('pauseOnFocusLoss') || "Pause video when window loses focus"}
+                    label={t('pauseOnFocusLoss')}
+                />
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.playFromBeginning || false}
+                            onChange={(e) => onChange('playFromBeginning', e.target.checked)}
+                        />
+                    }
+                    label={t('playFromBeginning')}
                 />
             </Box>
         </Box>

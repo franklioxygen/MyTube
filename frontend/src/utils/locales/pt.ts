@@ -81,7 +81,7 @@ export const pt = {
   passwordHelper:
     "Deixe em branco para manter a senha atual, ou digite para alterar",
   passwordSetHelper: "Definir uma senha para acessar o aplicativo",
-  autoPlay: "Reprodução Automática de Vídeos",
+  autoPlay: "Reproduzir vídeos automaticamente ao carregar",
   autoLoop: "Repetição Automática de Vídeos",
   maxConcurrent: "Máximo de Downloads Simultâneos",
   maxConcurrentDescription:
@@ -117,7 +117,8 @@ export const pt = {
   debugMode: "Modo de Depuração",
   debugModeDescription:
     "Mostrar ou ocultar mensagens do console (requer atualização)",
-  pauseOnFocusLoss: "Pausar ao perder o foco",
+  pauseOnFocusLoss: "Pausar vídeo quando a janela perder o foco",
+  playFromBeginning: "Reproduzir vídeos do início",
   tagsManagement: "Gerenciamento de Tags",
   newTag: "Nova Tag",
   tags: "Tags",
