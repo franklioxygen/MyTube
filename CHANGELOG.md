@@ -1,6 +1,33 @@
 # Change Log
 
 
+## v1.7.110 (2026-02-06)
+
+### Feat
+
+- feat: Add handling for changing startTime asynchronously (902a558)
+- feat: Add playFromBeginning setting to video player (a628442)
+
+### Style
+
+- style: Update video playback wording in multiple locales (e330770)
+
+## v1.7.109 (2026-02-05)
+
+### Refactor
+
+- refactor: Remove unused code and refactor updating video tags (2f2ee8a)
+
+### Style
+
+- style: Update showTagsOnThumbnail initial state (31d17e7)
+
+## v1.7.108 (2026-02-05)
+
+### Refactor
+
+- refactor: Improve tag handling in AuthorVideos and CollectionPage (f3adb35)
+
 ## v1.7.107 (2026-02-05)
 
 ### Refactor
