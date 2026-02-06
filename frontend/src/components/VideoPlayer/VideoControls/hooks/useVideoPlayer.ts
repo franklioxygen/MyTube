@@ -93,6 +93,26 @@ export const useVideoPlayer = ({
     };
   }, [videoRef]);
 
+  // Handle startTime changes (e.g. async fetch of saved progress)
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement || startTime <= 0) return;
+
+    // If we haven't applied start time yet, or if the video is currently at 0 
+    // (meaning it hasn't continued playing heavily), update the current time.
+    // We check currentTime < 1 to allow for some small playback before the fetch returns,
+    // but avoid jumping if the user has already watched a significant amount.
+    if (!startTimeAppliedRef.current || videoElement.currentTime < 1) {
+      if (typeof videoElement.fastSeek === 'function') {
+        videoElement.fastSeek(startTime);
+      } else {
+        videoElement.currentTime = startTime;
+      }
+      setCurrentTime(startTime);
+      startTimeAppliedRef.current = true;
+    }
+  }, [startTime]);
+
   const handlePlayPause = () => {
     if (videoRef.current) {
       if (isPlaying) {

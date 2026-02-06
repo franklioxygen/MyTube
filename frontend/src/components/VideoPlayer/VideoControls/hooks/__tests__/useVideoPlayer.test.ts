@@ -182,4 +182,30 @@ describe("useVideoPlayer startTime behavior", () => {
     // Should stay at 0, not reset to startTime
     expect(videoElement.currentTime).toBe(0);
   });
+
+  it("should apply startTime when it changes after initial load (async fetch)", () => {
+    // Start with startTime 0
+    const { result, rerender } = renderHook(
+      (props) => useVideoPlayer(props),
+      {
+        initialProps: { src: "test.mp4", startTime: 0 }
+      }
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    // Initial load with startTime 0
+    act(() => {
+      // @ts-expect-error Mock event missing properties
+      result.current.handleCanPlay();
+    });
+
+    expect(videoElement.currentTime).toBe(0);
+
+    // Simulate fetch completing and updating startTime to 45
+    rerender({ src: "test.mp4", startTime: 45 });
+
+    // Should update to new startTime using fastSeek
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
+  });
 });
