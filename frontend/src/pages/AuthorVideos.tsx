@@ -66,6 +66,18 @@ const AuthorVideos: React.FC = () => {
         [authorVideos]
     );
 
+    const commonTags = useMemo(() => {
+        if (authorVideos.length === 0) return [];
+        // Start with tags from first video
+        let intersection = new Set(authorVideos[0].tags || []);
+        // Intersect with rest
+        for (let i = 1; i < authorVideos.length; i++) {
+            const vTags = new Set(authorVideos[i].tags || []);
+            intersection = new Set([...intersection].filter(x => vTags.has(x)));
+        }
+        return Array.from(intersection).sort();
+    }, [authorVideos]);
+
     const [filterVersion, setFilterVersion] = useState(0);
 
     const handleTagToggle = useCallback((tag: string) => {
@@ -136,23 +148,45 @@ const AuthorVideos: React.FC = () => {
         setIsCreateCollectionModalOpen(true);
     };
 
-    const handleSaveAuthorTags = async (tags: string[]) => {
+    const handleSaveAuthorTags = async (newCommonTags: string[]) => {
         if (authorVideos.length === 0) return;
 
         try {
-            // Apply tags to all videos by this author
+            // Find tags to add (in new but not in old common)
+            const tagsToAdd = newCommonTags.filter(tag => !commonTags.includes(tag));
+
+            // Find tags to remove (in old common but not in new)
+            const tagsToRemove = commonTags.filter(tag => !newCommonTags.includes(tag));
+
+            if (tagsToAdd.length === 0 && tagsToRemove.length === 0) {
+                setIsTagsModalOpen(false);
+                return;
+            }
+
+            // Apply changes to all videos by this author
             await Promise.all(
-                authorVideos.map(video => {
-                    // Merge existing tags with new tags
-                    const existingTags = video.tags || [];
-                    const mergedTags = Array.from(new Set([...existingTags, ...tags]));
-                    return updateVideo(video.id, { tags: mergedTags });
+                authorVideos.map(async video => {
+                    let currentTags = video.tags || [];
+
+                    // Add new tags
+                    if (tagsToAdd.length > 0) {
+                        currentTags = Array.from(new Set([...currentTags, ...tagsToAdd]));
+                    }
+
+                    // Remove tags
+                    if (tagsToRemove.length > 0) {
+                        currentTags = currentTags.filter(tag => !tagsToRemove.includes(tag));
+                    }
+
+                    if (JSON.stringify(video.tags) !== JSON.stringify(currentTags)) {
+                        await updateVideo(video.id, { tags: currentTags });
+                    }
                 })
             );
             showSnackbar(t('videoUpdated'));
             setIsTagsModalOpen(false);
         } catch (error) {
-            console.error('Error adding tags to videos:', error);
+            console.error('Error updating tags:', error);
             showSnackbar(t('error'), 'error');
         }
     };
@@ -432,7 +466,7 @@ const AuthorVideos: React.FC = () => {
             <TagsModal
                 open={isTagsModalOpen}
                 onClose={() => setIsTagsModalOpen(false)}
-                videoTags={[]}
+                videoTags={commonTags}
                 availableTags={globalAvailableTags ?? []}
                 onSave={handleSaveAuthorTags}
             />
