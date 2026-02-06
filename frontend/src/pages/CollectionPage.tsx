@@ -64,7 +64,7 @@ const CollectionPage: React.FC = () => {
         }
         return Array.from(intersection).sort();
     }, [collectionVideos]);
-    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? false;
+    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? true;
 
     const [filterVersion, setFilterVersion] = useState(0);
 

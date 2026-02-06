@@ -50,7 +50,7 @@ const AuthorVideos: React.FC = () => {
     const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
 
     const authorDisplayName = authorVideos[0]?.author ?? authorParam ?? '';
-    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? false;
+    const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? true;
 
     useEffect(() => {
         if (!authorParam) return;

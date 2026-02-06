@@ -69,6 +69,7 @@ const WHITELISTED_SETTINGS = [
   "preferredAudioLanguage",
   "authorTags",
   "collectionTags",
+  "showTagsOnThumbnail",
 ];
 
 export function saveSettings(newSettings: Record<string, any>): void {

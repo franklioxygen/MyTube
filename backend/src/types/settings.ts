@@ -39,6 +39,7 @@ export interface Settings {
   preferredAudioLanguage?: string;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
+  showTagsOnThumbnail?: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -64,4 +65,5 @@ export const defaultSettings: Settings = {
   videoColumns: 4,
   pauseOnFocusLoss: false,
   playSoundOnTaskComplete: "",
+  showTagsOnThumbnail: true,
 };
