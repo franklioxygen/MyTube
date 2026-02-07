@@ -131,7 +131,7 @@ describe('Header (Visitor)', () => {
         const onSubmit = vi.fn();
         renderHeader({ onSubmit });
 
-        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
+        const input = screen.getByPlaceholderText('enterSearchTerm');
 
         // Try to submit a URL
         fireEvent.change(input, { target: { value: 'https://youtube.com/watch?v=visitorBlock' } });
@@ -158,7 +158,7 @@ describe('Header (Visitor)', () => {
 
         renderHeader({ onSubmit });
 
-        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
+        const input = screen.getByPlaceholderText('enterSearchTerm');
 
         // Try to submit a search term
         fireEvent.change(input, { target: { value: 'funny cats' } });
