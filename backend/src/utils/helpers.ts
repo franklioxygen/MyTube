@@ -99,6 +99,35 @@ export function trimBilibiliUrl(url: string): string {
   }
 }
 
+const YOUTUBE_AUTHOR_PATH_PREFIXES = ["channel", "user", "c"] as const;
+
+function getYouTubeAuthorBasePath(segments: string[]): string | null {
+  if (segments.length === 0) return null;
+  if (segments[0]?.startsWith("@")) return `/${segments[0]}`;
+  const isChannelLike =
+    YOUTUBE_AUTHOR_PATH_PREFIXES.includes(
+      segments[0] as (typeof YOUTUBE_AUTHOR_PATH_PREFIXES)[number]
+    ) && segments.length >= 2;
+  return isChannelLike ? `/${segments[0]}/${segments[1]}` : null;
+}
+
+/**
+ * Normalize YouTube author/channel URL by stripping tab path segments.
+ * e.g. https://www.youtube.com/@huzeyfekurt/featured → https://www.youtube.com/@huzeyfekurt
+ * Handles @handle, /channel/ID, /user/name, /c/name.
+ */
+export function normalizeYouTubeAuthorUrl(url: string): string {
+  try {
+    if (!url.includes("youtube.com")) return url;
+    const u = new URL(url);
+    const segments = u.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
+    const basePath = getYouTubeAuthorBasePath(segments);
+    return basePath ? `${u.origin}${basePath}` : url;
+  } catch {
+    return url;
+  }
+}
+
 // Helper function to extract video ID from Bilibili URL
 export function extractBilibiliVideoId(url: string): string | null {
   // Extract BV ID from URL - works for both desktop and mobile URLs

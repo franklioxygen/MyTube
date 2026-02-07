@@ -4,7 +4,11 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { subscriptions } from "../db/schema";
 import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
-import { extractBilibiliMid, isBilibiliSpaceUrl } from "../utils/helpers";
+import {
+  extractBilibiliMid,
+  isBilibiliSpaceUrl,
+  normalizeYouTubeAuthorUrl,
+} from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
   downloadSingleBilibiliPart,
@@ -78,6 +82,7 @@ export class SubscriptionService {
         }
       }
     } else if (authorUrl.includes("youtube.com")) {
+      authorUrl = normalizeYouTubeAuthorUrl(authorUrl);
       platform = "YouTube";
 
       // If author name not provided, try to get it from channel URL using yt-dlp

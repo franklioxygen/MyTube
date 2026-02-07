@@ -10,6 +10,7 @@ import {
     getDomainFromUrl,
     isBilibiliUrl,
     isValidUrl,
+    normalizeYouTubeAuthorUrl,
     resolveShortUrl,
     sanitizeFilename,
     trimBilibiliUrl
@@ -41,6 +42,51 @@ describe('Helpers', () => {
 
     it('should return false for other URLs', () => {
       expect(isBilibiliUrl('https://youtube.com')).toBe(false);
+    });
+  });
+
+  describe('normalizeYouTubeAuthorUrl', () => {
+    it('should strip /featured from @handle URLs', () => {
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/@huzeyfekurt/featured')
+      ).toBe('https://www.youtube.com/@huzeyfekurt');
+    });
+
+    it('should strip /videos, /playlists, /streams, /shorts from @handle URLs', () => {
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/@channel/videos')
+      ).toBe('https://www.youtube.com/@channel');
+      expect(
+        normalizeYouTubeAuthorUrl('https://youtube.com/@user/playlists')
+      ).toBe('https://youtube.com/@user');
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/@name/streams')
+      ).toBe('https://www.youtube.com/@name');
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/@name/shorts')
+      ).toBe('https://www.youtube.com/@name');
+    });
+
+    it('should leave @handle-only URL unchanged', () => {
+      const url = 'https://www.youtube.com/@huzeyfekurt';
+      expect(normalizeYouTubeAuthorUrl(url)).toBe(url);
+    });
+
+    it('should normalize /channel/ID and /user/name and /c/name with trailing path', () => {
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/channel/UCxxx/videos')
+      ).toBe('https://www.youtube.com/channel/UCxxx');
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/user/name/featured')
+      ).toBe('https://www.youtube.com/user/name');
+      expect(
+        normalizeYouTubeAuthorUrl('https://www.youtube.com/c/MyChannel/streams')
+      ).toBe('https://www.youtube.com/c/MyChannel');
+    });
+
+    it('should return non-YouTube URLs unchanged', () => {
+      const url = 'https://space.bilibili.com/123';
+      expect(normalizeYouTubeAuthorUrl(url)).toBe(url);
     });
   });
 

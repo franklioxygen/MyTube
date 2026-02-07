@@ -4,7 +4,10 @@ import { continuousDownloadService } from "../services/continuousDownloadService
 import { checkPlaylist } from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
-import { isBilibiliUrl } from "../utils/helpers";
+import {
+  isBilibiliUrl,
+  normalizeYouTubeAuthorUrl,
+} from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
 import {
@@ -33,8 +36,10 @@ export const createSubscription = async (
     throw new ValidationError("URL and interval are required", "body");
   }
 
+  const normalizedUrl = normalizeYouTubeAuthorUrl(url);
+
   const subscription = await subscriptionService.subscribe(
-    url,
+    normalizedUrl,
     parseInt(interval),
     authorName
   );
@@ -43,7 +48,7 @@ export const createSubscription = async (
   if (downloadAllPrevious) {
     try {
       await continuousDownloadService.createTask(
-        url,
+        normalizedUrl,
         subscription.author,
         subscription.platform,
         subscription.id
