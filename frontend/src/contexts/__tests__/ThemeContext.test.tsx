@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeContextProvider, useThemeContext } from '../ThemeContext';
 
@@ -53,7 +53,7 @@ describe('ThemeContext', () => {
 
     it('should throw error when used outside provider', () => {
         // Suppress console.error for this test
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
         expect(() => {
             renderHook(() => useThemeContext());
@@ -66,6 +66,12 @@ describe('ThemeContext', () => {
         mockMatchMedia.mockReturnValue({
             matches: false,
             media: '(prefers-color-scheme: dark)',
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
         } as MediaQueryList);
 
         const { result } = renderHook(() => useThemeContext(), {
@@ -79,6 +85,12 @@ describe('ThemeContext', () => {
         mockMatchMedia.mockReturnValue({
             matches: true,
             media: '(prefers-color-scheme: dark)',
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
         } as MediaQueryList);
 
         const { result } = renderHook(() => useThemeContext(), {
@@ -135,7 +147,7 @@ describe('ThemeContext', () => {
     it('should save theme to localStorage on change', async () => {
         // Start with light theme
         localStorageMock.setItem('themeMode', 'light');
-        
+
         const { result } = renderHook(() => useThemeContext(), {
             wrapper: ThemeContextProvider
         });
@@ -149,7 +161,7 @@ describe('ThemeContext', () => {
 
         // Verify state changed
         expect(result.current.mode).toBe('dark');
-        
+
         // Wait for useEffect to save to localStorage
         await waitFor(() => {
             expect(localStorageMock.getItem('themeMode')).toBe('dark');

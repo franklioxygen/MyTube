@@ -301,6 +301,54 @@ server: {
 
 这已在项目中配置，因此不应出现此错误。如果您使用自定义 Vite 配置，请确保包含此配置。
 
+## 从源码（标签）部署后的升级
+
+如果您是通过从 [发布标签](https://github.com/franklioxygen/MyTube/tags) 下载并解压源码来部署 MyTube（例如 **v1.7.112**），请按以下步骤升级。
+
+### 1. 检查是否有新版本
+
+- 在应用内：页脚或设置中可能会显示更新提示及最新版本的链接。
+- 或调用 API：`GET /api/system/version` 会返回 `currentVersion`、`latestVersion`、`releaseUrl` 和 `hasUpdate`。
+
+### 2. 下载新版本
+
+- 打开 [标签页](https://github.com/franklioxygen/MyTube/tags)，选择要升级到的标签（如最新标签）。
+- 下载该标签的源码压缩包（**Source code (zip)** 或 **Source code (tar.gz)**）。
+- 将压缩包解压到**新**目录（如 `mytube-new`），先不要覆盖当前正在运行的安装目录。
+
+### 3. 保留数据与配置
+
+在替换应用前，请确保保留：
+
+- **数据库与应用数据**：`backend/data/`（包含 `mytube.db` 等）。
+- **上传/视频文件**：`backend/uploads/`（或您配置的上传路径）。
+- **环境配置**：`backend/.env` 以及 `frontend/.env`（或 `.env.local`）中的配置。
+
+请备份上述内容或记下路径，以便升级后恢复。
+
+### 4. 用新源码替换应用
+
+- 停止正在运行的 MyTube 进程。
+- 用新解压的源码**替换**部署目录中的应用程序文件（或将部署目录指向新解压的目录）。
+- 将保留的**数据与配置**复制回去：
+  - 恢复或保留 `backend/data/` 和 `backend/uploads/`。
+  - 恢复 `backend/.env` 及前端环境配置文件。
+
+**不要**用新压缩包里的空目录覆盖现有的 `backend/data/` 或 `backend/uploads/`。
+
+### 5. 重新安装依赖、构建并启动
+
+在升级后的**项目根目录**执行：
+
+```bash
+npm run install:all
+npm run build
+```
+
+然后按您平时的方式启动应用（例如在根目录执行 `npm run start`，或分别启动后端并托管前端）。若新版本包含数据库变更，启动时会自动执行迁移。
+
+**简要说明**：下载新标签源码 → 保留 `backend/data`、`backend/uploads` 和 `.env` 文件 → 用新代码替换其余部分 → `npm run install:all` → `npm run build` → 启动应用。
+
 ## 下一步
 
 - 阅读 [API 端点](api-endpoints.md) 文档

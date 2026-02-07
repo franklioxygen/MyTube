@@ -301,6 +301,54 @@ server: {
 
 This is already configured in the project, so the error should not occur. If you're using a custom Vite config, make sure to include this configuration.
 
+## Upgrading when deployed from source (tags)
+
+If you deployed MyTube by downloading and extracting source code from a [release tag](https://github.com/franklioxygen/MyTube/tags) (e.g. **v1.7.112**), upgrade as follows.
+
+### 1. Check for a new version
+
+- In the app: the footer or Settings may show an update notice and a link to the latest release when one is available.
+- Or call the API: `GET /api/system/version` returns `currentVersion`, `latestVersion`, `releaseUrl`, and `hasUpdate`.
+
+### 2. Download the new version
+
+- Open the [tags page](https://github.com/franklioxygen/MyTube/tags) and pick the tag you want (e.g. the latest).
+- Download the source archive (**Source code (zip)** or **Source code (tar.gz)**) for that tag.
+- Extract the archive to a **new** directory (e.g. `mytube-new`); do not overwrite your running app yet.
+
+### 3. Preserve your data and config
+
+Before replacing your app, ensure you keep:
+
+- **Database and app data**: `backend/data/` (contains `mytube.db` and other data).
+- **Uploads/videos**: `backend/uploads/` (or your configured upload path).
+- **Environment**: `backend/.env` and `frontend/.env` (or `.env.local`) with your settings.
+
+Back these up or note their paths so you can restore them after upgrading.
+
+### 4. Replace the app with the new source
+
+- Stop the running MyTube process.
+- Replace the **application files** in your deployment directory with the contents of the new extracted source (or point your deployment at the new directory).
+- Copy your saved **data and config** back:
+  - Restore or keep `backend/data/` and `backend/uploads/` in place.
+  - Restore `backend/.env` and frontend env files.
+
+Do **not** overwrite `backend/data/` or `backend/uploads/` with the new archive’s empty folders.
+
+### 5. Reinstall dependencies, build, and start
+
+From the **project root** of the upgraded source:
+
+```bash
+npm run install:all
+npm run build
+```
+
+Then start the app as you normally do (e.g. `npm run start` from the root, or run backend and serve frontend separately). The database will be migrated automatically on startup if the new version includes schema changes.
+
+**Summary:** Download the new tag’s source → keep `backend/data`, `backend/uploads`, and `.env` files → replace the rest with the new code → `npm run install:all` → `npm run build` → start the app.
+
 ## Next Steps
 
 - Read the [API Endpoints](api-endpoints.md) documentation

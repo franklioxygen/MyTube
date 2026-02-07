@@ -37,6 +37,12 @@ vi.mock('../../contexts/LanguageContext', () => {
     };
 });
 
+vi.mock('../../contexts/ThemeContext', () => ({
+    useThemeContext: () => ({
+        setPreference: vi.fn(),
+    }),
+}));
+
 vi.mock('../../contexts/DownloadContext', () => ({
     useDownload: vi.fn(() => ({
         activeDownloads: [],

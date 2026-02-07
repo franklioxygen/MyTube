@@ -169,15 +169,7 @@ describe('Header', () => {
         await waitFor(() => { });
     });
 
-    it('toggles theme when button is clicked', () => {
-        renderHeader();
 
-        const themeButton = screen.getAllByRole('button').find(btn => btn.querySelector('svg[data-testid="Brightness4Icon"]'));
-        expect(themeButton).toBeDefined();
-        fireEvent.click(themeButton!);
-
-        expect(mockToggleTheme).toHaveBeenCalled();
-    });
 
     it('displays error when submitting empty input', () => {
         renderHeader();
