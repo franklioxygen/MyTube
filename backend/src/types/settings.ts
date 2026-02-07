@@ -41,6 +41,7 @@ export interface Settings {
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;
   playFromBeginning?: boolean;
+  theme?: 'light' | 'dark' | 'system';
 }
 
 export const defaultSettings: Settings = {
@@ -50,6 +51,7 @@ export const defaultSettings: Settings = {
   defaultAutoLoop: false,
   maxConcurrentDownloads: 3,
   language: "en",
+  theme: "system",
   defaultSort: "dateDesc",
   cloudDriveEnabled: false,
   openListApiUrl: "",

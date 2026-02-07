@@ -38,6 +38,7 @@ import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
 import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useThemeContext } from '../contexts/ThemeContext';
 import { useSettings } from '../hooks/useSettings';
 import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
@@ -86,6 +87,7 @@ const SettingsPage: React.FC = () => {
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,
         language: 'en',
+        theme: 'system',
         tags: [],
         cloudDriveEnabled: false,
         openListApiUrl: '',
@@ -105,6 +107,7 @@ const SettingsPage: React.FC = () => {
         defaultSort: 'dateDesc',
         preferredAudioLanguage: ''
     });
+    const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
     const [currentTab, setCurrentTab] = useState(0);
@@ -256,6 +259,9 @@ const SettingsPage: React.FC = () => {
         if (field === 'language') {
             setLanguage(value as Language);
         }
+        if (field === 'theme') {
+            setPreference(value as any);
+        }
         triggerGlow();
     };
 
@@ -308,6 +314,7 @@ const SettingsPage: React.FC = () => {
     const renderBasicSettingsContent = () => (
         <BasicSettings
             language={settings.language}
+            theme={settings.theme}
             websiteName={settings.websiteName}
             onChange={(field, value) => handleChange(field as keyof Settings, value)}
         />

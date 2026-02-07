@@ -1,8 +1,7 @@
-import { Brightness4, Brightness7, Download, Settings } from '@mui/icons-material';
+import { Download, Settings } from '@mui/icons-material';
 import { Badge, Box, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { useThemeContext } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import DownloadsMenu from './DownloadsMenu';
 import ManageMenu from './ManageMenu';
 import { DownloadInfo } from './types';
@@ -30,7 +29,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     onManageClose,
     hasActiveSubscriptions = false
 }) => {
-    const { mode: currentThemeMode, toggleTheme } = useThemeContext();
+    // const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -56,10 +55,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     />
                 </>
             )}
-            
-            <IconButton onClick={toggleTheme} color="inherit">
+
+            {/* <IconButton onClick={toggleTheme} color="inherit">
                 {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-            </IconButton>
+            </IconButton> */}
 
             {!isMobile && (
                 <Tooltip title={t('manage')} disableHoverListener={isTouch}>
@@ -74,7 +73,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             <ManageMenu
                 anchorEl={manageAnchorEl}
                 onClose={onManageClose}
-                hasActiveSubscriptions={hasActiveSubscriptions}
             />
         </Box>
     );

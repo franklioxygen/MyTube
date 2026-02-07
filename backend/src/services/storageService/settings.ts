@@ -71,6 +71,7 @@ const WHITELISTED_SETTINGS = [
   "collectionTags",
   "showTagsOnThumbnail",
   "playFromBeginning",
+  "theme",
 ];
 
 export function saveSettings(newSettings: Record<string, any>): void {

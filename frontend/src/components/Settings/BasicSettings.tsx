@@ -2,14 +2,16 @@ import { Box, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { ThemePreference } from '../../contexts/ThemeContext';
 
 interface BasicSettingsProps {
     language: string;
+    theme?: ThemePreference;
     websiteName?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, onChange }) => {
+const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, websiteName, onChange }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -36,6 +38,21 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, websiteName, on
                         <MenuItem value="ar">العربية (Arabic)</MenuItem>
                         <MenuItem value="pt">Português (Portuguese)</MenuItem>
                         <MenuItem value="ru">Русский (Russian)</MenuItem>
+                    </Select>
+                </FormControl>
+
+                <FormControl fullWidth>
+                    <InputLabel id="theme-select-label">{t('theme')}</InputLabel>
+                    <Select
+                        labelId="theme-select-label"
+                        id="theme-select"
+                        value={theme || 'system'}
+                        label={t('theme')}
+                        onChange={(e) => onChange('theme', e.target.value)}
+                    >
+                        <MenuItem value="light">{t('themeLight')}</MenuItem>
+                        <MenuItem value="dark">{t('themeDark')}</MenuItem>
+                        <MenuItem value="system">{t('themeSystem')}</MenuItem>
                     </Select>
                 </FormControl>
 

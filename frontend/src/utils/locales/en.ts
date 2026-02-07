@@ -50,6 +50,10 @@ export const en = {
   language: "Language",
   websiteName: "Website Name",
   websiteNameHelper: "{current}/{max} characters (Default: {default})",
+  theme: "Theme",
+  themeLight: "Always Light",
+  themeDark: "Always Dark",
+  themeSystem: "Match System",
   tmdbApiKey: "TMDB API Key",
   tmdbApiKeyHelper:
     "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",

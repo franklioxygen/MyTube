@@ -111,4 +111,5 @@ export interface Settings {
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   playFromBeginning?: boolean;
+  theme?: 'light' | 'dark' | 'system';
 }
