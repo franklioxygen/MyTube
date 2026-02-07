@@ -9,6 +9,7 @@ export const ko = {
     "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.",
   uploadVideo: "동영상 업로드",
   enterUrlOrSearchTerm: "동영상 URL 또는 검색어 입력",
+  enterSearchTerm: "검색어 입력",
   manageVideos: "동영상 관리",
   instruction: "설명서",
 
@@ -54,6 +55,7 @@ export const ko = {
   themeLight: "항상 라이트",
   themeDark: "항상 다크",
   themeSystem: "시스템 설정 따름",
+  showThemeButtonInHeader: "헤더에 테마 버튼 표시",
   websiteName: "웹사이트 이름",
   websiteNameHelper: "{current}/{max} 자 (기본값: {default})",
   tmdbApiKey: "TMDB API 키",

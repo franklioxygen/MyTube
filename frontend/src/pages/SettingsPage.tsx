@@ -88,6 +88,7 @@ const SettingsPage: React.FC = () => {
         maxConcurrentDownloads: 3,
         language: 'en',
         theme: 'system',
+        showThemeButton: true,
         tags: [],
         cloudDriveEnabled: false,
         openListApiUrl: '',
@@ -315,6 +316,7 @@ const SettingsPage: React.FC = () => {
         <BasicSettings
             language={settings.language}
             theme={settings.theme}
+            showThemeButton={settings.showThemeButton}
             websiteName={settings.websiteName}
             onChange={(field, value) => handleChange(field as keyof Settings, value)}
         />

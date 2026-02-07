@@ -10,6 +10,7 @@ export const fr = {
     "Une erreur inattendue s'est produite. Veuillez réessayer.",
   uploadVideo: "Mettre en ligne une vidéo",
   enterUrlOrSearchTerm: "Entrez l'URL de la vidéo ou le terme de recherche",
+  enterSearchTerm: "Entrez le terme de recherche",
   manageVideos: "Gérer les vidéos",
   instruction: "Instructions",
 
@@ -55,6 +56,7 @@ export const fr = {
   themeLight: "Toujours clair",
   themeDark: "Toujours sombre",
   themeSystem: "Thème du système",
+  showThemeButtonInHeader: "Afficher le bouton de thème dans l'en-tête",
   websiteName: "Nom du site web",
   websiteNameHelper: "{current}/{max} caractères (Défaut: {default})",
   tmdbApiKey: "Clé API TMDB",

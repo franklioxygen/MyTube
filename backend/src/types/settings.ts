@@ -42,6 +42,7 @@ export interface Settings {
   showTagsOnThumbnail?: boolean;
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
+  showThemeButton?: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -70,4 +71,5 @@ export const defaultSettings: Settings = {
   playSoundOnTaskComplete: "",
   showTagsOnThumbnail: true,
   playFromBeginning: false,
+  showThemeButton: true,
 };

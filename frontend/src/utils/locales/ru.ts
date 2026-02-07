@@ -10,6 +10,7 @@ export const ru = {
     "Произошла непредвиденная ошибка. Пожалуйста, попробуйте снова.",
   uploadVideo: "Загрузить видео",
   enterUrlOrSearchTerm: "Введите URL видео или поисковый запрос",
+  enterSearchTerm: "Введите поисковый запрос",
   manageVideos: "Управление видео",
   instruction: "Инструкция",
 
@@ -53,7 +54,8 @@ export const ru = {
   theme: "Тема",
   themeLight: "Всегда светлая",
   themeDark: "Всегда темная",
-  themeSystem: "Системная",
+  themeSystem: "Как в системе",
+  showThemeButtonInHeader: "Показывать кнопку темы в заголовке",
   websiteName: "Название веб-сайта",
   websiteNameHelper: "{current}/{max} символов (По умолчанию: {default})",
   tmdbApiKey: "Ключ API TMDB",

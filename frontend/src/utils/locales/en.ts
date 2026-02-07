@@ -8,6 +8,8 @@ export const en = {
   unexpectedErrorOccurred: "An unexpected error occurred. Please try again.",
   uploadVideo: "Upload Video",
   enterUrlOrSearchTerm: "Enter video URL or search term",
+  enterSearchTerm: "Enter search term",
+
   manageVideos: "Manage Videos",
   instruction: "Instruction",
 
@@ -54,6 +56,7 @@ export const en = {
   themeLight: "Always Light",
   themeDark: "Always Dark",
   themeSystem: "Match System",
+  showThemeButtonInHeader: "Show theme button in header",
   tmdbApiKey: "TMDB API Key",
   tmdbApiKeyHelper:
     "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",

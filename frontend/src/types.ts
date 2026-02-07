@@ -112,4 +112,5 @@ export interface Settings {
   collectionTags?: Record<string, string[]>;
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
+  showThemeButton?: boolean;
 }

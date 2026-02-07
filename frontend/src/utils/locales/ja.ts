@@ -9,6 +9,7 @@ export const ja = {
     "予期しないエラーが発生しました。もう一度お試しください。",
   uploadVideo: "動画をアップロード",
   enterUrlOrSearchTerm: "動画のURLまたは検索語を入力",
+  enterSearchTerm: "検索語を入力",
   manageVideos: "動画の管理",
   instruction: "説明書",
 
@@ -54,6 +55,7 @@ export const ja = {
   themeLight: "常にライト",
   themeDark: "常にダーク",
   themeSystem: "システムに合わせる",
+  showThemeButtonInHeader: "ヘッダーにテーマボタンを表示",
   websiteName: "ウェブサイト名",
   websiteNameHelper: "{current}/{max} 文字 (デフォルト: {default})",
   tmdbApiKey: "TMDB APIキー",

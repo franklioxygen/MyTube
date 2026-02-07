@@ -11,6 +11,7 @@ import {
     useTheme
 } from '@mui/material';
 import { FormEvent } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface SearchInputProps {
@@ -35,6 +36,8 @@ const SearchInput: React.FC<SearchInputProps> = ({
     onSubmit
 }) => {
     const { t } = useLanguage();
+    const { userRole } = useAuth();
+    const isVisitor = userRole === 'visitor';
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -57,7 +60,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
             <TextField
                 fullWidth
                 variant="outlined"
-                placeholder={t('enterUrlOrSearchTerm')}
+                placeholder={isVisitor ? t('enterSearchTerm') : t('enterUrlOrSearchTerm')}
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 disabled={isSubmitting}

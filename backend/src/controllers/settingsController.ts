@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import {
-  COLLECTIONS_DATA_PATH,
-  STATUS_DATA_PATH,
-  VIDEOS_DATA_PATH,
+    COLLECTIONS_DATA_PATH,
+    STATUS_DATA_PATH,
+    VIDEOS_DATA_PATH,
 } from "../config/paths";
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";

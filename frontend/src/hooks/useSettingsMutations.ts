@@ -40,11 +40,12 @@ export function useSettingsMutations({
     },
     onSuccess: (_, newSettings) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
-      // Invalidate settings query to refresh available tags
+      // Update settings cache immediately so Header and other consumers react without waiting for refetch
+      queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
+        old ? { ...old, ...newSettings } : (newSettings as Settings)
+      );
+      // Invalidate to refetch from server and keep cache in sync
       queryClient.invalidateQueries({ queryKey: ["settings"] });
-      // If tags were changed, invalidate videos query to refresh video data
-      // This ensures that when tags are removed from settings, videos are refreshed
-      // and the backend's processTagDeletions changes are reflected in the UI
       if (newSettings.tags !== undefined) {
         queryClient.invalidateQueries({ queryKey: ["videos"] });
       }

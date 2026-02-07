@@ -1,7 +1,8 @@
-import { Download, Settings } from '@mui/icons-material';
+import { Brightness4, Brightness7, Download, Settings } from '@mui/icons-material';
 import { Badge, Box, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useThemeContext } from '../../contexts/ThemeContext';
 import DownloadsMenu from './DownloadsMenu';
 import ManageMenu from './ManageMenu';
 import { DownloadInfo } from './types';
@@ -16,6 +17,7 @@ interface ActionButtonsProps {
     onManageClick: (event: React.MouseEvent<HTMLElement>) => void;
     onManageClose: () => void;
     hasActiveSubscriptions?: boolean;
+    showThemeButton?: boolean;
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -27,9 +29,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     onDownloadsClose,
     onManageClick,
     onManageClose,
-    hasActiveSubscriptions = false
+    hasActiveSubscriptions = false,
+    showThemeButton = true
 }) => {
-    // const { mode: currentThemeMode, toggleTheme } = useThemeContext();
+    const { mode: currentThemeMode, toggleTheme } = useThemeContext();
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -56,9 +59,13 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 </>
             )}
 
-            {/* <IconButton onClick={toggleTheme} color="inherit">
-                {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-            </IconButton> */}
+            {showThemeButton && (
+                <Tooltip title={t('theme')} disableHoverListener={isTouch}>
+                    <IconButton onClick={toggleTheme} color="inherit">
+                        {currentThemeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                    </IconButton>
+                </Tooltip>
+            )}
 
             {!isMobile && (
                 <Tooltip title={t('manage')} disableHoverListener={isTouch}>

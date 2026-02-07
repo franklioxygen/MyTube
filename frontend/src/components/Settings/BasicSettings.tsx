@@ -1,4 +1,4 @@
-import { Box, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material';
+import { Box, FormControl, FormControlLabel, InputLabel, MenuItem, Select, Switch, TextField } from '@mui/material';
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -7,11 +7,12 @@ import { ThemePreference } from '../../contexts/ThemeContext';
 interface BasicSettingsProps {
     language: string;
     theme?: ThemePreference;
+    showThemeButton?: boolean;
     websiteName?: string;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, websiteName, onChange }) => {
+const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, showThemeButton = true, websiteName, onChange }) => {
     const { t } = useLanguage();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
@@ -55,6 +56,19 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ language, theme, websiteN
                         <MenuItem value="system">{t('themeSystem')}</MenuItem>
                     </Select>
                 </FormControl>
+
+                {!isVisitor && (
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={showThemeButton !== false}
+                                onChange={(e) => onChange('showThemeButton', e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label={t('showThemeButtonInHeader')}
+                    />
+                )}
 
                 {!isVisitor && (
                     <>

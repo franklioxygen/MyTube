@@ -8,6 +8,7 @@ export const ar = {
   unexpectedErrorOccurred: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
   uploadVideo: "رفع فيديو",
   enterUrlOrSearchTerm: "أدخل رابط الفيديو أو كلمة البحث",
+  enterSearchTerm: "أدخل مصطلح البحث",
   manageVideos: "إدارة الفيديوهات",
   instruction: "تعليمات",
 
@@ -52,6 +53,7 @@ export const ar = {
   themeLight: "فاتح دائماً",
   themeDark: "داكن دائماً",
   themeSystem: "محاذاة النظام",
+  showThemeButtonInHeader: "إظهار زر السمة في الترويسة",
   websiteName: "اسم الموقع",
   websiteNameHelper: "{current}/{max} أحرف (الافتراضي: {default})",
   tmdbApiKey: "مفتاح API الخاص بـ TMDB",

@@ -10,6 +10,7 @@ export const de = {
     "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
   uploadVideo: "Video Hochladen",
   enterUrlOrSearchTerm: "Video-URL oder Suchbegriff eingeben",
+  enterSearchTerm: "Suchbegriff eingeben",
   manageVideos: "Videos Verwalten",
   instruction: "Anleitung",
 
@@ -55,6 +56,7 @@ export const de = {
   themeLight: "Immer Hell",
   themeDark: "Immer Dunkel",
   themeSystem: "Systemstandard",
+  showThemeButtonInHeader: "Design-Button in der Kopfzeile anzeigen",
   websiteName: "Website-Name",
   websiteNameHelper: "{current}/{max} Zeichen (Standard: {default})",
   tmdbApiKey: "TMDB API-Schlüssel",

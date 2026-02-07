@@ -9,7 +9,8 @@ export const es = {
   unexpectedErrorOccurred:
     "Ocurrió un error inesperado. Por favor, inténtelo de nuevo.",
   uploadVideo: "Subir Video",
-  enterUrlOrSearchTerm: "Introduce la URL del video o término de búsqueda",
+  enterUrlOrSearchTerm: "Introducir URL de video o término de búsqueda",
+  enterSearchTerm: "Introducir término de búsqueda",
   manageVideos: "Gestionar Videos",
   instruction: "Instrucciones",
 
@@ -54,7 +55,8 @@ export const es = {
   theme: "Tema",
   themeLight: "Siempre Claro",
   themeDark: "Siempre Oscuro",
-  themeSystem: "Igualar al Sistema",
+  themeSystem: "Sistema",
+  showThemeButtonInHeader: "Mostrar botón de tema en el encabezado",
   websiteName: "Nombre del sitio web",
   websiteNameHelper: "{current}/{max} caracteres (Predeterminado: {default})",
   tmdbApiKey: "Clave API de TMDB",

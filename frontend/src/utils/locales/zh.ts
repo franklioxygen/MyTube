@@ -7,7 +7,8 @@ export const zh = {
   pleaseEnterUrlOrSearchTerm: "请输入视频链接或搜索关键词",
   unexpectedErrorOccurred: "发生意外错误，请重试",
   uploadVideo: "上传视频",
-  enterUrlOrSearchTerm: "输入视频链接或搜索关键词",
+  enterUrlOrSearchTerm: "输入视频链接或搜索词",
+  enterSearchTerm: "输入搜索词",
   manageVideos: "管理视频",
   instruction: "使用说明",
 
@@ -52,6 +53,7 @@ export const zh = {
   themeLight: "始终浅色",
   themeDark: "始终深色",
   themeSystem: "跟随系统",
+  showThemeButtonInHeader: "在页眉显示主题按钮",
   websiteName: "网站名称",
   websiteNameHelper: "{current}/{max} 字符 (默认: {default})",
   tmdbApiKey: "TMDB API 密钥",

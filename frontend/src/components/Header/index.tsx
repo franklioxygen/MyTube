@@ -18,6 +18,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { usePageTagFilterOptional } from '../../contexts/PageTagFilterContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
+import { useSettings } from '../../hooks/useSettings';
 import { getApiUrl } from '../../utils/apiUrl';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
@@ -41,9 +42,10 @@ const Header: React.FC<HeaderProps> = ({
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [manageAnchorEl, setManageAnchorEl] = useState<null | HTMLElement>(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-    const [websiteName, setWebsiteName] = useState('MyTube');
+    const [websiteNameState, setWebsiteNameState] = useState('MyTube');
     const [isScrolled, setIsScrolled] = useState<boolean>(false);
-    const [infiniteScroll, setInfiniteScroll] = useState<boolean>(false);
+    const [infiniteScrollState, setInfiniteScrollState] = useState<boolean>(false);
+    const [showThemeButtonState, setShowThemeButtonState] = useState<boolean>(true);
     const [hasActiveSubscriptions, setHasActiveSubscriptions] = useState<boolean>(false);
     const navigate = useNavigate();
     const location = useLocation();
@@ -51,8 +53,16 @@ const Header: React.FC<HeaderProps> = ({
     const { mode: themeMode } = useThemeContext();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
-    const { userRole } = useAuth();
+    const { userRole, isAuthenticated } = useAuth();
+    const { data: settingsData } = useSettings();
     const isVisitor = userRole === 'visitor';
+
+    // Use settings from query when authenticated (reactive to save); otherwise use state from one-time fetch
+    const websiteName = (isAuthenticated && settingsData)
+        ? (settingsData.websiteName?.trim() || 'MyTube')
+        : (websiteNameState?.trim() || 'MyTube');
+    const infiniteScroll = (isAuthenticated && settingsData) ? (settingsData.infiniteScroll ?? false) : infiniteScrollState;
+    const showThemeButton = (isAuthenticated && settingsData) ? (settingsData.showThemeButton !== false) : showThemeButtonState;
     const { availableTags, selectedTags, handleTagToggle } = useVideo();
     const pageTagFilter = usePageTagFilterOptional()?.pageTagFilter ?? null;
     const effectiveTags = pageTagFilter ?? {
@@ -112,18 +122,22 @@ const Header: React.FC<HeaderProps> = ({
         };
     }, [isVisitor]);
 
+    // Fetch settings only when not authenticated (authenticated users get reactive data from useSettings)
     useEffect(() => {
-        // Fetch settings to get website name and infinite scroll setting
+        if (isAuthenticated) return;
         const fetchSettings = async () => {
             try {
                 const API_URL = getApiUrl();
                 const response = await import('axios').then(axios => axios.default.get(`${API_URL}/settings`));
                 if (response.data) {
                     if (response.data.websiteName) {
-                        setWebsiteName(response.data.websiteName);
+                        setWebsiteNameState(response.data.websiteName);
                     }
                     if (typeof response.data.infiniteScroll !== 'undefined') {
-                        setInfiniteScroll(response.data.infiniteScroll);
+                        setInfiniteScrollState(response.data.infiniteScroll);
+                    }
+                    if (typeof response.data.showThemeButton !== 'undefined') {
+                        setShowThemeButtonState(response.data.showThemeButton);
                     }
                 }
             } catch (error) {
@@ -131,7 +145,7 @@ const Header: React.FC<HeaderProps> = ({
             }
         };
         fetchSettings();
-    }, []);
+    }, [isAuthenticated]);
 
     // Scroll detection - for mobile always, for desktop when infinite scroll is enabled on home page
     useEffect(() => {
@@ -324,6 +338,7 @@ const Header: React.FC<HeaderProps> = ({
                                                 onManageClick={handleManageClick}
                                                 onManageClose={handleManageClose}
                                                 hasActiveSubscriptions={hasActiveSubscriptions}
+                                                showThemeButton={showThemeButton}
                                             />
                                             <IconButton onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                                                 <MenuIcon />
@@ -358,6 +373,7 @@ const Header: React.FC<HeaderProps> = ({
                                                 onManageClick={handleManageClick}
                                                 onManageClose={handleManageClose}
                                                 hasActiveSubscriptions={hasActiveSubscriptions}
+                                                showThemeButton={showThemeButton}
                                             />
                                         </Box>
                                     </>
