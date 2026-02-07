@@ -1,6 +1,18 @@
 # Change Log
 
 
+## v1.7.112 (2026-02-06)
+
+### Style
+
+- style: Update gridTemplateColumns value in VideoPlayer (7c5a70f)
+
+## v1.7.111 (2026-02-06)
+
+### Style
+
+- style: Improve tag filtering for case-insensitive display (231e281)
+
 ## v1.7.110 (2026-02-06)
 
 ### Feat
