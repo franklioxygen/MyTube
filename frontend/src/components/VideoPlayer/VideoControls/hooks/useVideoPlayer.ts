@@ -27,6 +27,8 @@ export const useVideoPlayer = ({
   const videoSrcRef = useRef<string>("");
   // Track if startTime has been applied for this video source
   const startTimeAppliedRef = useRef<boolean>(false);
+  // Track last applied startTime so we apply again when it updates (e.g. progress loaded after initial render)
+  const lastAppliedStartTimeRef = useRef<number>(-1);
 
   // Memory management: Clean up video source when component unmounts or src changes
   useEffect(() => {
@@ -47,6 +49,7 @@ export const useVideoPlayer = ({
       setIsSeeking(false);
       // Reset startTime flag for new video
       startTimeAppliedRef.current = false;
+      lastAppliedStartTimeRef.current = -1;
     }
 
     if (src) {
@@ -55,6 +58,7 @@ export const useVideoPlayer = ({
       // Reset flag when setting new source (for initial load)
       if (!previousSrc) {
         startTimeAppliedRef.current = false;
+        lastAppliedStartTimeRef.current = -1;
       }
     }
 
@@ -94,22 +98,27 @@ export const useVideoPlayer = ({
   }, [videoRef]);
 
   // Handle startTime changes (e.g. async fetch of saved progress)
+  // When startTime updates from 0 to a positive value (e.g. video.progress loaded after initial render),
+  // we must apply it even if the video has already started playing from 0.
   useEffect(() => {
     const videoElement = videoRef.current;
     if (!videoElement || startTime <= 0) return;
 
-    // If we haven't applied start time yet, or if the video is currently at 0 
-    // (meaning it hasn't continued playing heavily), update the current time.
-    // We check currentTime < 1 to allow for some small playback before the fetch returns,
-    // but avoid jumping if the user has already watched a significant amount.
-    if (!startTimeAppliedRef.current || videoElement.currentTime < 1) {
-      if (typeof videoElement.fastSeek === 'function') {
+    const startTimeJustArrived = lastAppliedStartTimeRef.current < 0 || lastAppliedStartTimeRef.current === 0;
+    const shouldApply =
+      !startTimeAppliedRef.current ||
+      videoElement.currentTime < 1 ||
+      (startTimeJustArrived && startTime > 0) ||
+      lastAppliedStartTimeRef.current !== startTime;
+
+    if (shouldApply) {
+      if (typeof videoElement.fastSeek === "function") {
         videoElement.fastSeek(startTime);
-      } else {
-        videoElement.currentTime = startTime;
       }
+      videoElement.currentTime = startTime;
       setCurrentTime(startTime);
       startTimeAppliedRef.current = true;
+      lastAppliedStartTimeRef.current = startTime;
     }
   }, [startTime]);
 
@@ -202,6 +211,7 @@ export const useVideoPlayer = ({
       e.currentTarget.currentTime = startTime;
       setCurrentTime(startTime);
       startTimeAppliedRef.current = true;
+      lastAppliedStartTimeRef.current = startTime;
     }
     if (onLoadedMetadata) {
       onLoadedMetadata(videoDuration);
@@ -226,15 +236,18 @@ export const useVideoPlayer = ({
       }
     }
 
-    // Only apply startTime once per video load (not on every canplay after seeks)
+    // Apply startTime when not yet applied or when it updated (e.g. progress loaded after first paint)
     if (
       startTime > 0 &&
-      videoElement.currentTime === 0 &&
-      !startTimeAppliedRef.current
+      (!startTimeAppliedRef.current || lastAppliedStartTimeRef.current !== startTime)
     ) {
+      if (typeof videoElement.fastSeek === "function") {
+        videoElement.fastSeek(startTime);
+      }
       videoElement.currentTime = startTime;
       setCurrentTime(startTime);
       startTimeAppliedRef.current = true;
+      lastAppliedStartTimeRef.current = startTime;
     }
   }, [duration, startTime]);
 

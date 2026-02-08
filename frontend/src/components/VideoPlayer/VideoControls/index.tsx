@@ -170,15 +170,31 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     return (
         <Box
             ref={fullscreen.videoContainerRef}
-            sx={{ width: '100%', bgcolor: 'black', borderRadius: { xs: 0, sm: 2 }, overflow: 'hidden', boxShadow: 4, position: 'relative' }}
+            sx={{
+                width: '100%',
+                bgcolor: 'black',
+                borderRadius: { xs: 0, sm: 2 },
+                overflow: 'hidden',
+                boxShadow: 4,
+                position: 'relative',
+                ...(fullscreen.isFullscreen && {
+                    width: '100vw',
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 0
+                })
+            }}
         >
-            <VideoElement
-                videoRef={videoPlayer.videoRef}
-                src={src}
-                poster={poster}
-                isLoading={loading.isLoading}
-                loadError={loading.loadError}
-                subtitles={subtitles}
+            <Box sx={{ position: 'relative', flex: fullscreen.isFullscreen ? 1 : undefined, minHeight: fullscreen.isFullscreen ? 0 : undefined }}>
+                <VideoElement
+                    videoRef={videoPlayer.videoRef}
+                    src={src}
+                    poster={poster}
+                    isLoading={loading.isLoading}
+                    loadError={loading.loadError}
+                    isFullscreen={fullscreen.isFullscreen}
+                    subtitles={subtitles}
                 onClick={videoPlayer.handlePlayPause}
                 onPlay={videoPlayer.handlePlay}
                 onPause={videoPlayer.handlePause}
@@ -195,10 +211,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 onSeeking={videoPlayer.handleSeeking}
                 onSeeked={videoPlayer.handleSeeked}
                 onSubtitleInit={subtitlesHook.initializeSubtitles}
-            />
+                />
+            </Box>
 
-            <ControlsOverlay
-                isFullscreen={fullscreen.isFullscreen}
+            <Box sx={{ flexShrink: 0 }}>
+                <ControlsOverlay
+                    isFullscreen={fullscreen.isFullscreen}
                 controlsVisible={fullscreen.controlsVisible}
                 isPlaying={videoPlayer.isPlaying}
                 currentTime={videoPlayer.currentTime}
@@ -241,7 +259,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 })()}
                 onUploadSubtitle={onUploadSubtitle}
                 onDeleteSubtitle={onDeleteSubtitle}
-            />
+                />
+            </Box>
         </Box>
     );
 };

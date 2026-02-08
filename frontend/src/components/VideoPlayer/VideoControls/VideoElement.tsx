@@ -10,6 +10,7 @@ interface VideoElementProps {
     poster?: string;
     isLoading: boolean;
     loadError: string | null;
+    isFullscreen?: boolean;
     subtitles: Array<{ language: string; filename: string; path: string }>;
     onClick: () => void;
     onPlay: () => void;
@@ -35,6 +36,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
     poster,
     isLoading,
     loadError,
+    isFullscreen = false,
     subtitles,
     onClick,
     onPlay,
@@ -88,11 +90,21 @@ const VideoElement: React.FC<VideoElementProps> = ({
     return (
         <Box
             sx={{
-                maxHeight: 'calc(100vh - 180px)',
-                width: '100%',
-                aspectRatio: '16/9',
-                position: 'relative',
-                display: 'block'
+                ...(isFullscreen
+                    ? {
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          minHeight: 0
+                      }
+                    : {
+                          maxHeight: 'calc(100vh - 180px)',
+                          width: '100%',
+                          aspectRatio: '16/9',
+                          position: 'relative',
+                          display: 'block'
+                      })
             }}
         >
             {/* Scoped style for centering subtitles */}
@@ -167,7 +179,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: isFullscreen ? 'cover' : 'contain',
                     display: 'block',
                     cursor: 'pointer'
                 }}

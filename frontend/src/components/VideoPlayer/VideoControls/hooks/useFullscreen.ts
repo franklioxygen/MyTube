@@ -105,14 +105,15 @@ export const useFullscreen = (
   }, [isFullscreen]);
 
   const handleToggleFullscreen = () => {
-    const videoContainer = videoRef.current?.parentElement;
+    // Use the container that wraps both video and controls so controls stay visible in fullscreen
+    const container = videoContainerRef.current;
     const videoElement = videoRef.current;
 
-    if (!videoContainer || !videoElement) return;
+    if (!container || !videoElement) return;
 
     if (!document.fullscreenElement) {
-      if (videoContainer.requestFullscreen) {
-        videoContainer.requestFullscreen().catch((err) => {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch((err) => {
           console.error(
             `Error attempting to enable fullscreen: ${err.message}`
           );
