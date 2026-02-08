@@ -459,12 +459,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
     const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
 
-    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean) => {
+    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => {
         try {
             await axios.post(`${API_URL}/subscriptions`, {
                 url: subscribeUrl,
                 interval,
-                downloadAllPrevious
+                downloadAllPrevious,
+                downloadShorts
             });
             showSnackbar(t('subscribedSuccessfully'));
             setShowSubscribeModal(false);
@@ -582,9 +583,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
-    const handleSubscribeConfirm = (interval: number, downloadAllPrevious: boolean) => {
+    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => {
         if (subscribeMode === 'video') {
-            handleSubscribe(interval, downloadAllPrevious);
+            await handleSubscribe(interval, downloadAllPrevious, downloadShorts);
         } else {
             performSubscribePlaylists(interval, downloadAllPrevious);
         }

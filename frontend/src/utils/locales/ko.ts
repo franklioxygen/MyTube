@@ -620,6 +620,7 @@ export const ko = {
   minutes: "분",
   never: "없음",
   downloadAllPreviousVideos: "이 작가의 모든 이전 동영상 다운로드",
+  downloadShorts: "Shorts 다운로드",
   downloadAllPreviousWarning:
     "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
   downloadAllPreviousVideosInPlaylists: "재생 목록의 이전 동영상 다운로드",

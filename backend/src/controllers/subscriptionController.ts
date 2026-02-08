@@ -5,8 +5,8 @@ import { checkPlaylist } from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
 import {
-  isBilibiliUrl,
-  normalizeYouTubeAuthorUrl,
+    isBilibiliUrl,
+    normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successMessage } from "../utils/response";
@@ -24,12 +24,15 @@ export const createSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url, interval, authorName, downloadAllPrevious } = req.body;
+  const { url, interval, authorName, downloadAllPrevious, downloadShorts: rawDownloadShorts } =
+    req.body;
+  const downloadShorts = Boolean(rawDownloadShorts);
   logger.info("Creating subscription:", {
     url,
     interval,
     authorName,
     downloadAllPrevious,
+    downloadShorts,
   });
 
   if (!url || !interval) {
@@ -41,7 +44,8 @@ export const createSubscription = async (
   const subscription = await subscriptionService.subscribe(
     normalizedUrl,
     parseInt(interval),
-    authorName
+    authorName,
+    downloadShorts
   );
 
   // If user wants to download all previous videos, create a continuous download task
@@ -56,6 +60,31 @@ export const createSubscription = async (
       logger.info(
         `Created continuous download task for subscription ${subscription.id}`
       );
+
+      // If user also wants to download previous Shorts (YouTube only)
+      if (
+        downloadShorts &&
+        (subscription.platform === "YouTube" ||
+          normalizedUrl.includes("youtube.com"))
+      ) {
+        // Create a separate task for Shorts with /shorts appended to URL
+        let shortsUrl = normalizedUrl;
+        if (shortsUrl.endsWith("/")) {
+          shortsUrl = `${shortsUrl}shorts`;
+        } else {
+          shortsUrl = `${shortsUrl}/shorts`;
+        }
+
+        await continuousDownloadService.createTask(
+          shortsUrl,
+          `${subscription.author} (Shorts)`,
+          subscription.platform,
+          subscription.id
+        );
+        logger.info(
+          `Created continuous download task for Shorts for subscription ${subscription.id}`
+        );
+      }
     } catch (error) {
       logger.error(
         "Error creating continuous download task:",

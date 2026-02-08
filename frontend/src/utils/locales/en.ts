@@ -632,6 +632,7 @@ export const en = {
   minutes: "minutes",
   never: "Never",
   downloadAllPreviousVideos: "Download all previous videos from this author",
+  downloadShorts: "Download Shorts",
   downloadAllPreviousWarning:
     "Warning: This will download all previous videos from this author. This may consume significant storage space and could trigger bot detection mechanisms that may result in temporary or permanent bans from the platform. Use at your own risk.",
   downloadAllPreviousVideosInPlaylists: "Download previous videos in playlists",

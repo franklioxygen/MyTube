@@ -6,6 +6,7 @@ import { YtDlpDownloader } from '../../services/downloaders/YtDlpDownloader';
 import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
 import { subscriptionService } from '../../services/subscriptionService';
+import { executeYtDlpJson } from '../../utils/ytDlpUtils';
 
 // Test setup
 vi.mock('../../db', () => ({
@@ -88,16 +89,17 @@ describe('SubscriptionService', () => {
       const url = 'https://www.youtube.com/@testuser';
       // Mock empty result for "where" check (no existing sub)
       // Since we use the same builder for everything, we just rely on it returning empty array by default
-      // But insert needs to return something? Typically insert returns result object.
-      // But the code doesn't use the insert result, just awaits it.
+      // Mock insert result?
+      (executeYtDlpJson as any).mockResolvedValue({ uploader: 'User' });
       
-      const result = await subscriptionService.subscribe(url, 60);
+      const result = await subscriptionService.subscribe(url, 60, undefined, true);
 
       expect(result).toMatchObject({
         id: 'test-uuid',
-        author: '@testuser',
+        author: 'User',
         platform: 'YouTube',
-        interval: 60
+        interval: 60,
+        downloadShorts: 1
       });
       expect(db.insert).toHaveBeenCalled();
       expect(mockBuilder.values).toHaveBeenCalled();
@@ -119,8 +121,9 @@ describe('SubscriptionService', () => {
 
     it('should throw DuplicateError if already subscribed', async () => {
       const url = 'https://www.youtube.com/@testuser';
-      // Mock existing subscription
       mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'existing' }]).then(cb);
+
+      (executeYtDlpJson as any).mockResolvedValue({ uploader: 'User' });
 
       await expect(subscriptionService.subscribe(url, 60))
         .rejects.toThrow(DuplicateError);
@@ -187,16 +190,8 @@ describe('SubscriptionService', () => {
       mockBuilder.then = (cb: any) => {
         callCount++;
         if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
-        if (callCount === 2) return Promise.resolve([sub]).then(cb); // verify existence
-        
-        // Step 2: Update lastCheck *before* download
-        if (callCount === 3) return Promise.resolve([sub]).then(cb); // verify existence before lastCheck update
-        // callCount 4 is the update itself (returns undefined usually or result)
-        
-        // Step 4: Update subscription record after download
-        if (callCount === 5) return Promise.resolve([sub]).then(cb); // verify existence before final update
-        
-        return Promise.resolve(undefined).then(cb); // subsequent updates
+        if (callCount > 1) return Promise.resolve([sub]).then(cb); // verify existence, updates etc.
+        return Promise.resolve([]).then(cb); // subsequents return array
       };
 
       // Mock getting latest video
@@ -216,6 +211,39 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+    it('should check and download Shorts if enabled', async () => {
+      const sub = {
+        id: 'sub-shorts',
+        author: 'User',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'same-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short'
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        return Promise.resolve([sub]).then(cb);
+      };
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('new-short');
+      
+      (downloadService.downloadYouTubeVideo as any)
+          .mockResolvedValueOnce({ videoData: { id: 'vid-short', title: 'New Short' } });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(YtDlpDownloader.getLatestShortsUrl).toHaveBeenCalled();
+      expect(downloadService.downloadYouTubeVideo).toHaveBeenCalledWith('new-short');
+      expect(db.update).toHaveBeenCalled();
+    });
+
     it('should skip if no new video', async () => {
       const sub = {
         id: 'sub-1',
@@ -231,9 +259,9 @@ describe('SubscriptionService', () => {
       mockBuilder.then = (cb: any) => {
         callCount++;
         if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
-        if (callCount === 2) return Promise.resolve([sub]).then(cb); // verify existence
-        if (callCount === 3) return Promise.resolve([sub]).then(cb); // verify existence before update
-        return Promise.resolve(undefined).then(cb); // updates
+        if (callCount === 2) return Promise.resolve([sub]).then(cb); // verify existence (lastCheck)
+        if (callCount === 3) return Promise.resolve([sub]).then(cb); // verify existence (update)
+        return Promise.resolve([sub]).then(cb); // updates return row
       };
 
       (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');

@@ -1,10 +1,10 @@
 import { relations } from "drizzle-orm";
 import {
-  foreignKey,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
+    foreignKey,
+    integer,
+    primaryKey,
+    sqliteTable,
+    text,
 } from "drizzle-orm/sqlite-core";
 
 export const videos = sqliteTable("videos", {
@@ -145,6 +145,8 @@ export const subscriptions = sqliteTable("subscriptions", {
   playlistTitle: text("playlist_title"), // Original playlist title
   subscriptionType: text("subscription_type").default("author"), // 'author' or 'playlist'
   collectionId: text("collection_id"), // Reference to collection for auto-adding videos
+  downloadShorts: integer("download_shorts").default(0), // 0 = disabled, 1 = enabled
+  lastShortVideoLink: text("last_short_video_link"),
 });
 
 // Track downloaded video IDs to prevent re-downloading

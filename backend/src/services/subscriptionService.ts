@@ -5,14 +5,14 @@ import { db } from "../db";
 import { subscriptions } from "../db/schema";
 import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import {
-  extractBilibiliMid,
-  isBilibiliSpaceUrl,
-  normalizeYouTubeAuthorUrl,
+    extractBilibiliMid,
+    isBilibiliSpaceUrl,
+    normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
-  downloadSingleBilibiliPart,
-  downloadYouTubeVideo,
+    downloadSingleBilibiliPart,
+    downloadYouTubeVideo,
 } from "./downloadService";
 import { BilibiliDownloader } from "./downloaders/BilibiliDownloader";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
@@ -36,6 +36,10 @@ export interface Subscription {
   playlistTitle?: string;
   subscriptionType?: string; // 'author' or 'playlist'
   collectionId?: string;
+
+  // Shorts support
+  downloadShorts?: number; // 0 or 1
+  lastShortVideoLink?: string;
 }
 
 export class SubscriptionService {
@@ -54,7 +58,8 @@ export class SubscriptionService {
   async subscribe(
     authorUrl: string,
     interval: number,
-    providedAuthorName?: string
+    providedAuthorName?: string,
+    downloadShorts: boolean = false
   ): Promise<Subscription> {
     // Detect platform and validate URL
     let platform: string;
@@ -225,6 +230,7 @@ export class SubscriptionService {
       createdAt: Date.now(),
       platform,
       paused: 0,
+      downloadShorts: downloadShorts ? 1 : 0,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -753,6 +759,78 @@ export class SubscriptionService {
             if (updateResult.length === 0) {
               logger.warn(
                 `Failed to update lastCheck for subscription ${sub.id} (${sub.author}) - no rows affected`
+              );
+            }
+          }
+
+          // Check for Shorts if enabled
+          if (sub.downloadShorts === 1 && sub.platform === "YouTube") {
+            try {
+              const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
+                sub.authorUrl
+              );
+
+              if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
+                logger.info(
+                  `New short found for ${sub.author}: ${latestShortUrl}`
+                );
+
+                // Download the short
+                try {
+                  const downloadResult = await downloadYouTubeVideo(
+                    latestShortUrl
+                  );
+
+                  // Add to download history on success
+                  const videoData =
+                    downloadResult?.videoData || downloadResult || {};
+                  storageService.addDownloadHistoryItem({
+                    id: uuidv4(),
+                    title: videoData.title || `New short from ${sub.author}`,
+                    author: videoData.author || sub.author,
+                    sourceUrl: latestShortUrl,
+                    finishedAt: Date.now(),
+                    status: "success",
+                    videoPath: videoData.videoPath,
+                    thumbnailPath: videoData.thumbnailPath,
+                    videoId: videoData.id,
+                    subscriptionId: sub.id,
+                  });
+
+                  // Update subscription record with new short link
+                  await db
+                    .update(subscriptions)
+                    .set({
+                      lastShortVideoLink: latestShortUrl,
+                      downloadCount: (sub.downloadCount || 0) + 1,
+                    })
+                    .where(eq(subscriptions.id, sub.id));
+
+                  logger.debug(
+                    `Successfully processed short for ${sub.author}: ${latestShortUrl}`
+                  );
+                } catch (downloadError: unknown) {
+                  logger.error(
+                    `Error downloading subscription short for ${sub.author}:`,
+                    downloadError instanceof Error ? downloadError : new Error(String(downloadError))
+                  );
+
+                  storageService.addDownloadHistoryItem({
+                    id: uuidv4(),
+                    title: `Short from ${sub.author}`,
+                    author: sub.author,
+                    sourceUrl: latestShortUrl,
+                    finishedAt: Date.now(),
+                    status: "failed",
+                    error: downloadError instanceof Error ? downloadError.message : "Download failed",
+                    subscriptionId: sub.id,
+                  });
+                }
+              }
+            } catch (shortsError) {
+              logger.error(
+                `Error checking shorts for ${sub.author}:`,
+                shortsError
               );
             }
           }

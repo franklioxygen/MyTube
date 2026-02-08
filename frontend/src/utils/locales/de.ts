@@ -647,6 +647,7 @@ export const de = {
   never: "Nie",
   downloadAllPreviousVideos:
     "Alle vorherigen Videos dieses Autors herunterladen",
+  downloadShorts: "Shorts herunterladen",
   downloadAllPreviousWarning:
     "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
   downloadAllPreviousVideosInPlaylists:

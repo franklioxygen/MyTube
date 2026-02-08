@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getApiUrl } from '../utils/apiUrl';
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Video } from "../types";
+import { getApiUrl } from '../utils/apiUrl';
 import { validateUrlForOpen } from "../utils/urlValidation";
 
 const API_URL = getApiUrl();
@@ -154,7 +154,8 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   // Handle subscribe confirmation
   const handleSubscribeConfirm = async (
     interval: number,
-    downloadAllPrevious: boolean
+    downloadAllPrevious: boolean,
+    downloadShorts: boolean
   ) => {
     if (!authorChannelUrl || !video) return;
 
@@ -164,6 +165,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
         interval,
         authorName: video.author,
         downloadAllPrevious,
+        downloadShorts,
       });
       showSnackbar(t("subscribedSuccessfully"));
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });

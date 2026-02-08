@@ -640,6 +640,7 @@ export const pt = {
   minutes: "minutos",
   never: "Nunca",
   downloadAllPreviousVideos: "Baixar todos os vídeos anteriores deste autor",
+  downloadShorts: "Baixar Shorts",
   downloadAllPreviousWarning:
     "Aviso: Isso baixará todos os vídeos anteriores deste autor. Isso pode consumir um espaço de armazenamento significativo e pode acionar mecanismos de detecção de bots que podem resultar em proibições temporárias ou permanentes da plataforma. Use por sua conta e risco.",
   downloadAllPreviousVideosInPlaylists: "Baixar vídeos anteriores em playlists",

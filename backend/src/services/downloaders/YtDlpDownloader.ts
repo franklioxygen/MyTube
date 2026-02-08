@@ -30,6 +30,12 @@ export class YtDlpDownloader extends BaseDownloader {
     return getLatestVideoUrl(channelUrl);
   }
 
+  // Get the latest Shorts URL from a channel
+  static async getLatestShortsUrl(channelUrl: string): Promise<string | null> {
+    const { getLatestShortsUrl } = await import("./ytdlp/ytdlpChannel");
+    return getLatestShortsUrl(channelUrl);
+  }
+
   // Implementation of IDownloader.downloadVideo
   async downloadVideo(url: string, options?: DownloadOptions): Promise<Video> {
     return YtDlpDownloader.downloadVideo(

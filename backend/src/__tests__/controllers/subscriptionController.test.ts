@@ -1,18 +1,21 @@
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createSubscription,
-  deleteSubscription,
-  getSubscriptions,
+    createSubscription,
+    deleteSubscription,
+    getSubscriptions,
 } from "../../controllers/subscriptionController";
 import { ValidationError } from "../../errors/DownloadErrors";
+import { continuousDownloadService } from "../../services/continuousDownloadService";
 import { subscriptionService } from "../../services/subscriptionService";
 import { logger } from "../../utils/logger";
 
 vi.mock("../../services/subscriptionService");
+vi.mock("../../services/continuousDownloadService");
 vi.mock("../../utils/logger", () => ({
   logger: {
     info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
@@ -38,13 +41,18 @@ describe("SubscriptionController", () => {
 
   describe("createSubscription", () => {
     it("should create a subscription", async () => {
-      req.body = { url: "https://www.youtube.com/@testuser", interval: 60 };
+      req.body = {
+        url: "https://www.youtube.com/@testuser",
+        interval: 60,
+        downloadShorts: true,
+      };
       const mockSubscription = {
         id: "sub-123",
         url: "https://www.youtube.com/@testuser",
         interval: 60,
         author: "@testuser",
         platform: "YouTube",
+        downloadShorts: 1,
       };
       (subscriptionService.subscribe as any).mockResolvedValue(
         mockSubscription
@@ -56,14 +64,55 @@ describe("SubscriptionController", () => {
         url: "https://www.youtube.com/@testuser",
         interval: 60,
         authorName: undefined,
+        downloadAllPrevious: undefined,
+        downloadShorts: true,
       });
       expect(subscriptionService.subscribe).toHaveBeenCalledWith(
         "https://www.youtube.com/@testuser",
         60,
-        undefined
+        undefined,
+        true
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(mockSubscription);
+    });
+
+    it("should create backfill tasks when downloadAllPrevious and downloadShorts are true", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@testuser",
+        interval: 60,
+        downloadAllPrevious: true,
+        downloadShorts: true,
+      };
+      const mockSubscription = {
+        id: "sub-123",
+        url: "https://www.youtube.com/@testuser",
+        interval: 60,
+        author: "@testuser",
+        platform: "YouTube",
+      };
+      (subscriptionService.subscribe as any).mockResolvedValue(
+        mockSubscription
+      );
+      (continuousDownloadService.createTask as any).mockResolvedValue(undefined);
+
+      await createSubscription(req as Request, res as Response);
+
+      expect(continuousDownloadService.createTask).toHaveBeenCalledTimes(2);
+      expect(continuousDownloadService.createTask).toHaveBeenNthCalledWith(
+        1,
+        "https://www.youtube.com/@testuser",
+        "@testuser",
+        "YouTube",
+        "sub-123"
+      );
+      expect(continuousDownloadService.createTask).toHaveBeenNthCalledWith(
+        2,
+        "https://www.youtube.com/@testuser/shorts",
+        "@testuser (Shorts)",
+        "YouTube",
+        "sub-123"
+      );
     });
 
     it("should throw ValidationError when URL is missing", async () => {

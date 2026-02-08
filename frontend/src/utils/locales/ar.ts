@@ -616,6 +616,7 @@ export const ar = {
   minutes: "دقائق",
   never: "أبداً",
   downloadAllPreviousVideos: "تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف",
+  downloadShorts: "تنزيل Shorts",
   downloadAllPreviousWarning:
     "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
   downloadAllPreviousVideosInPlaylists:

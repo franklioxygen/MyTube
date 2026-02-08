@@ -19,7 +19,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface SubscribeModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (interval: number, downloadAllPrevious: boolean) => void;
+    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => void;
     authorName?: string;
     url: string;
     title?: string;
@@ -38,9 +38,10 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60); // Default 60 minutes
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
+    const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
 
     const handleConfirm = () => {
-        onConfirm(interval, downloadAllPrevious);
+        onConfirm(interval, downloadAllPrevious, downloadShorts);
         onClose();
     };
 
@@ -89,6 +90,15 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     onChange={(e) => setInterval(Number(e.target.value))}
                     inputProps={{ min: 1 }}
                     sx={{ mb: 2 }}
+                />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={downloadShorts}
+                            onChange={(e) => setDownloadShorts(e.target.checked)}
+                        />
+                    }
+                    label={t('downloadShorts') || "Download Shorts"}
                 />
                 <FormControlLabel
                     control={

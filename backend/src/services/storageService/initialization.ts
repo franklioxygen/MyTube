@@ -2,13 +2,13 @@ import { eq } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  AVATARS_DIR,
-  DATA_DIR,
-  IMAGES_DIR,
-  STATUS_DATA_PATH,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    AVATARS_DIR,
+    DATA_DIR,
+    IMAGES_DIR,
+    STATUS_DATA_PATH,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../../config/paths";
 import { db, sqlite } from "../../db";
 import { downloads, videos } from "../../db/schema";
@@ -245,6 +245,30 @@ export function initializeStorage(): void {
           .prepare("ALTER TABLE subscriptions ADD COLUMN collection_id TEXT")
           .run();
         logger.info("Migration successful: collection_id added.");
+      }
+
+      if (!subscriptionsColumns.includes("download_shorts")) {
+        logger.info(
+          "Migrating database: Adding download_shorts column to subscriptions table..."
+        );
+        sqlite
+          .prepare(
+            "ALTER TABLE subscriptions ADD COLUMN download_shorts INTEGER DEFAULT 0"
+          )
+          .run();
+        logger.info("Migration successful: download_shorts added.");
+      }
+
+      if (!subscriptionsColumns.includes("last_short_video_link")) {
+        logger.info(
+          "Migrating database: Adding last_short_video_link column to subscriptions table..."
+        );
+        sqlite
+          .prepare(
+            "ALTER TABLE subscriptions ADD COLUMN last_short_video_link TEXT"
+          )
+          .run();
+        logger.info("Migration successful: last_short_video_link added.");
       }
     } catch (subscriptionsError) {
       // Subscriptions table might not exist yet, ignore error

@@ -53,9 +53,9 @@ describe('SubscribeModal', () => {
         const user = userEvent.setup();
         render(<SubscribeModal {...defaultProps} />);
 
-        // Defaults: 60, false
+        // Defaults: 60, false, false
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(60, false);
+        expect(mockOnConfirm).toHaveBeenCalledWith(60, false, false);
         expect(mockOnClose).toHaveBeenCalled();
     });
 
@@ -67,9 +67,10 @@ describe('SubscribeModal', () => {
         await user.clear(intervalInput);
         await user.type(intervalInput, '30');
         await user.click(screen.getByLabelText('downloadAllPreviousVideos'));
+        await user.click(screen.getByLabelText('downloadShorts'));
 
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(30, true);
+        expect(mockOnConfirm).toHaveBeenCalledWith(30, true, true);
     });
 
     it('should call onClose when cancel clicked', async () => {

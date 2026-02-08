@@ -634,6 +634,7 @@ export const ja = {
   minutes: "分",
   never: "なし",
   downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",
+  downloadShorts: "Shortsをダウンロード",
   downloadAllPreviousWarning:
     "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
   downloadAllPreviousVideosInPlaylists:
