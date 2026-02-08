@@ -1,6 +1,54 @@
 # Change Log
 
 
+## v1.7.117 (2026-02-08)
+
+### Feat
+
+- feat: Add conditional rendering for 'Download Shorts' option (95fd044)
+- feat: Add optional avatar click functionality (2de3cc7)
+- feat: Add isFullscreen prop to VideoElement (751e92c)
+
+## v1.7.116 (2026-02-08)
+
+### Refactor
+
+- refactor: Update folder structure and comments in Chinese files (b0f2b02)
+
+## v1.7.115 (2026-02-07)
+
+### Feat
+
+- feat: Add support for downloading Shorts in subscriptions (1db3b4c)
+
+### Fix
+
+- fix: Update placeholder text in HeaderVisitor.test.tsx (bc09c80)
+
+### Style
+
+- style: Update code formatting and alignment (609150e)
+
+## v1.7.114 (2026-02-07)
+
+### Feat
+
+- feat: Add normalizeYouTubeAuthorUrl function (fb6c29f)
+
+## v1.7.113 (2026-02-07)
+
+### Feat
+
+- feat: Add theme setting to user preferences (5a946f8)
+
+### Style
+
+- style: Update gridTemplateColumns value in VideoPlayer (325de32)
+
+### Test
+
+- test: Add tests for toggling theme in Header component (61cad14)
+
 ## v1.7.112 (2026-02-06)
 
 ### Style
