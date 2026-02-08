@@ -16,6 +16,7 @@ interface VideoInfoProps {
     onTitleSave: (newTitle: string) => Promise<void>;
     onRatingChange: (newRating: number) => Promise<void>;
     onAuthorClick: () => void;
+    onAvatarClick?: () => void;
     onAddToCollection: () => void;
     onDelete: () => void;
     isDeleting: boolean;
@@ -35,6 +36,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     onTitleSave,
     onRatingChange,
     onAuthorClick,
+    onAvatarClick,
     onAddToCollection,
     onDelete,
     isDeleting,
@@ -110,6 +112,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                     author={video.author}
                     date={video.date}
                     onAuthorClick={onAuthorClick}
+                    onAvatarClick={onAvatarClick}
                     source={video.source}
                     isSubscribed={isSubscribed}
                     onSubscribe={onSubscribe}

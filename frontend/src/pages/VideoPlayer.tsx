@@ -181,6 +181,13 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
+    // Handle avatar click - always navigate to internal author page
+    const handleAvatarClick = () => {
+        if (video?.author) {
+            navigate(`/author/${encodeURIComponent(video.author)}`);
+        }
+    };
+
     // Handle unsubscribe with confirmation modal
     const handleUnsubscribe = () => {
         if (!subscriptionId) return;
@@ -362,6 +369,7 @@ const VideoPlayer: React.FC = () => {
                         onTitleSave={handleSaveTitle}
                         onRatingChange={handleRatingChange}
                         onAuthorClick={handleAuthorClick}
+                        onAvatarClick={handleAvatarClick}
                         onAddToCollection={handleAddToCollection}
                         onDelete={handleDelete}
                         isDeleting={deleteMutation.isPending}

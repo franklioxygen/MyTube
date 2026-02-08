@@ -9,6 +9,7 @@ interface VideoAuthorInfoProps {
     author: string;
     date: string | undefined;
     onAuthorClick: () => void;
+    onAvatarClick?: () => void;
     source?: 'youtube' | 'bilibili' | 'local' | 'missav';
     isSubscribed?: boolean;
     onSubscribe?: () => void;
@@ -33,6 +34,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     author, 
     date, 
     onAuthorClick,
+    onAvatarClick,
     source,
     isSubscribed,
     onSubscribe,
@@ -65,7 +67,7 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
                     cursor: 'pointer',
                     '&:hover': { opacity: 0.8 }
                 }}
-                onClick={onAuthorClick}
+                onClick={onAvatarClick || onAuthorClick}
             >
                 {author ? author.charAt(0).toUpperCase() : 'A'}
             </Avatar>
