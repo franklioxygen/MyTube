@@ -2,15 +2,16 @@
 
 ```
 mytube/
-├── backend/                           # Express.js backend (TypeScript)
-│   ├── src/                           # Source code
-│   │   ├── __tests__/                 # Test files
-│   │   ├── config/                    # Configuration (paths, etc.)
-│   │   ├── controllers/               # Route controllers
+├── backend/                           # Express backend (TypeScript)
+│   ├── src/
+│   │   ├── __tests__/                 # Unit/integration tests
+│   │   ├── config/                    # Path and runtime config
+│   │   ├── controllers/               # HTTP controllers
 │   │   │   ├── cleanupController.ts
 │   │   │   ├── cloudStorageController.ts
 │   │   │   ├── collectionController.ts
 │   │   │   ├── cookieController.ts
+│   │   │   ├── databaseBackupController.ts
 │   │   │   ├── downloadController.ts
 │   │   │   ├── hookController.ts
 │   │   │   ├── passkeyController.ts
@@ -22,31 +23,30 @@ mytube/
 │   │   │   ├── videoController.ts
 │   │   │   ├── videoDownloadController.ts
 │   │   │   └── videoMetadataController.ts
-│   │   ├── db/                        # Drizzle ORM + SQLite
-│   │   ├── errors/                    # Custom error classes
-│   │   ├── middleware/                # Express middleware
-│   │   │   ├── authMiddleware.ts
-│   │   │   ├── roleBasedAuthMiddleware.ts
-│   │   │   ├── roleBasedSettingsMiddleware.ts
-│   │   │   └── errorHandler.ts
-│   │   ├── routes/                    # Route definitions
-│   │   │   ├── api.ts                 # Main API routes
-│   │   │   └── settingsRoutes.ts      # Settings-specific routes
-│   │   ├── scripts/                   # Utility scripts (VTT cleanup, rescans)
+│   │   ├── db/                        # Drizzle schema + migration runner
+│   │   ├── errors/                    # Custom error types
+│   │   ├── middleware/                # Auth/role/error middlewares
+│   │   ├── routes/                    # API route registration
+│   │   ├── scripts/                   # Internal maintenance scripts
 │   │   ├── services/                  # Business logic
-│   │   │   ├── cloudStorage/          # Cloud storage helpers and cache
-│   │   │   ├── continuousDownload/    # Subscription task engine
-│   │   │   ├── downloaders/           # Platform downloaders (yt-dlp, Bilibili, MissAV)
-│   │   │   ├── storageService/        # Modular storage service
-│   │   │   └── *.ts                   # Other services (auth, metadata, etc.)
-│   │   ├── utils/                     # Shared utilities
-│   │   ├── server.ts                  # Server bootstrap
-│   │   └── version.ts                 # Version info
-│   ├── bgutil-ytdlp-pot-provider/     # PO Token provider plugin
-│   ├── data/                          # Runtime data (db, hooks, backups)
-│   ├── drizzle/                       # Database migrations
-│   ├── uploads/                       # Media storage (videos, images, subtitles, cache)
-│   ├── scripts/                       # Maintenance scripts (reset-password, migrate, verify)
+│   │   │   ├── cloudStorage/          # Cloud drive upload/sign/cache utilities
+│   │   │   ├── continuousDownload/    # Continuous task processing
+│   │   │   ├── downloaders/           # Provider download implementations
+│   │   │   │   ├── bilibili/
+│   │   │   │   └── ytdlp/
+│   │   │   ├── storageService/        # File/DB storage modules
+│   │   │   └── *.ts                   # Auth, subscription, metadata, etc.
+│   │   ├── types/                     # Shared TS type declarations
+│   │   ├── utils/                     # Shared helpers
+│   │   ├── server.ts                  # App bootstrap
+│   │   └── version.ts                 # App version info
+│   ├── bgutil-ytdlp-pot-provider/     # yt-dlp PO token helper project
+│   ├── data/                          # Backend runtime data (DB, hooks, cookies)
+│   ├── drizzle/                       # SQL migration files
+│   ├── uploads/                       # Backend media files and caches
+│   ├── scripts/                       # CLI maintenance scripts
+│   ├── dist/                          # Compiled backend output
+│   ├── coverage/                      # Test coverage output
 │   ├── Dockerfile
 │   ├── drizzle.config.ts
 │   ├── nodemon.json
@@ -54,19 +54,21 @@ mytube/
 │   ├── tsconfig.json
 │   └── vitest.config.ts
 ├── frontend/                          # React frontend (Vite + TypeScript)
-│   ├── src/                           # Source code
-│   │   ├── __tests__/                 # Test files
-│   │   ├── assets/                    # Static assets
-│   │   ├── components/                # UI components by feature
-│   │   ├── contexts/                  # React Context state
-│   │   ├── hooks/                     # Custom hooks (player, settings, data)
-│   │   ├── pages/                     # Route pages
-│   │   ├── utils/                     # API client, helpers, i18n
+│   ├── src/
+│   │   ├── __tests__/                 # App-level tests
+│   │   ├── assets/                    # Static assets (logo, sounds, etc.)
+│   │   ├── components/                # UI components (Header, Settings, VideoPlayer...)
+│   │   ├── contexts/                  # Global state providers
+│   │   ├── hooks/                     # Data-fetching and UI logic hooks
+│   │   ├── pages/                     # Route-level pages
+│   │   ├── utils/                     # API helpers, i18n, formatting
 │   │   ├── App.tsx
 │   │   ├── main.tsx
 │   │   ├── theme.ts
 │   │   └── version.ts
-│   ├── public/                        # Public assets
+│   ├── public/                        # Public static files
+│   ├── scripts/                       # Frontend utility scripts (e.g. waitForBackend)
+│   ├── dist/                          # Frontend build output
 │   ├── Dockerfile
 │   ├── entrypoint.sh
 │   ├── nginx.conf
@@ -74,45 +76,56 @@ mytube/
 │   ├── tsconfig.json
 │   ├── tsconfig.node.json
 │   └── vite.config.js
+├── chrome-extension/                  # Browser extension source
 ├── documents/                         # Documentation (EN/ZH)
-├── docker-compose.yml                 # Compose for standard deployments
-├── docker-compose.host-network.yml    # Host-network compose for OpenWrt/iStoreOS
+│   ├── en/
+│   └── zh/
+├── codeql-db/                         # CodeQL database (analysis artifact)
+├── codeql-reports/                    # CodeQL report output
+├── data/                              # Optional runtime data (if backend started from repo root)
+├── uploads/                           # Optional runtime media (if backend started from repo root)
+├── stacks/                            # Deployment stack examples
+├── docker-compose.yml
+├── docker-compose.host-network.yml
 ├── README.md
 ├── README-zh.md
-└── package.json                       # Root scripts
+└── package.json                       # Root task runner scripts
 ```
 
 ## Architecture Overview
 
 ### Backend Architecture
 
-The backend follows a **layered architecture** pattern:
+The backend uses a layered design:
 
-1. **Routes** (`routes/`): Define API endpoints and map them to controllers
-2. **Controllers** (`controllers/`): HTTP request/response handling
-3. **Services** (`services/`): Business logic (downloaders, storage, cloud, subscriptions)
-4. **Database** (`db/`): Drizzle ORM + SQLite
-5. **Utilities** (`utils/`): Shared helpers and infrastructure
+1. **Routes** (`backend/src/routes/`): Define endpoints and map to controllers.
+2. **Controllers** (`backend/src/controllers/`): Validate request input and shape HTTP responses.
+3. **Services** (`backend/src/services/`): Core business logic for downloading, subscriptions, cloud sync, storage, auth, and metadata.
+4. **Storage Layer**:
+   - **Database** (`backend/src/db/`, `backend/drizzle/`) via Drizzle + SQLite.
+   - **Filesystem** (`backend/uploads/`, `backend/data/`) for media and runtime state.
+5. **Middleware + Utils** (`backend/src/middleware/`, `backend/src/utils/`): Auth, role control, error handling, shared helpers.
 
 ### Frontend Architecture
 
-The frontend follows a **component-based architecture**:
+The frontend is organized by UI responsibility:
 
-1. **Pages** (`pages/`): Top-level route components
-2. **Components** (`components/`): Feature-oriented UI building blocks
-3. **Contexts** (`contexts/`): React Context global state
-4. **Hooks** (`hooks/`): Reusable logic and data access
-5. **Utils** (`utils/`): API client, formatting, and i18n helpers
+1. **Pages** (`frontend/src/pages/`): Route-level screens.
+2. **Components** (`frontend/src/components/`): Reusable feature components.
+3. **Contexts** (`frontend/src/contexts/`): Cross-page state management.
+4. **Hooks** (`frontend/src/hooks/`): Shared behavior for fetching/state/interaction.
+5. **Utils** (`frontend/src/utils/`): API wrappers, i18n strings, formatting and media helpers.
 
-### Database Schema
+### Database Schema (Key Tables)
 
-Key tables include:
+Defined in `backend/src/db/schema.ts`:
 
-- `videos`: Video metadata and file paths
-- `collections`: Video collections/playlists
-- `collection_videos`: Many-to-many relationship between videos and collections
-- `subscriptions`: Channel/creator subscriptions
-- `downloads`: Active download queue
-- `download_history`: Completed download history
-- `video_downloads`: Tracks downloaded videos to prevent duplicates
-- `settings`: Application configuration
+- `videos`: Video metadata, paths, tags, playback data.
+- `collections`: Collection metadata.
+- `collection_videos`: Many-to-many mapping between collections and videos.
+- `settings`: Key-value app settings store.
+- `downloads`: Active/queued download status.
+- `download_history`: Historical download records.
+- `subscriptions`: Author/playlist subscription definitions.
+- `video_downloads`: Source-level de-duplication tracking.
+- `continuous_download_tasks`: Long-running background download task records.
