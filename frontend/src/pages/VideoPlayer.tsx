@@ -438,6 +438,7 @@ const VideoPlayer: React.FC = () => {
                 onConfirm={handleSubscribeConfirm}
                 authorName={video?.author}
                 url={authorChannelUrl || ''}
+                source={video?.source}
             />
         </Container>
     );

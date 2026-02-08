@@ -80,4 +80,18 @@ describe('SubscribeModal', () => {
         await user.click(screen.getByText('cancel'));
         expect(mockOnClose).toHaveBeenCalled();
     });
+    it('should show download shorts option for youtube', () => {
+        render(<SubscribeModal {...defaultProps} source="youtube" />);
+        expect(screen.getByText('downloadShorts')).toBeInTheDocument();
+    });
+
+    it('should hide download shorts option for bilibili', () => {
+        render(<SubscribeModal {...defaultProps} source="bilibili" />);
+        expect(screen.queryByText('downloadShorts')).not.toBeInTheDocument();
+    });
+
+    it('should show download shorts option when source is undefined', () => {
+        render(<SubscribeModal {...defaultProps} />);
+        expect(screen.getByText('downloadShorts')).toBeInTheDocument();
+    });
 });

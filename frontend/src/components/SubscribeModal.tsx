@@ -22,6 +22,7 @@ interface SubscribeModalProps {
     onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => void;
     authorName?: string;
     url: string;
+    source?: string;
     title?: string;
     description?: string;
 }
@@ -32,6 +33,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     onConfirm,
     authorName,
     url,
+    source,
     title,
     description
 }) => {
@@ -91,15 +93,17 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     inputProps={{ min: 1 }}
                     sx={{ mb: 2 }}
                 />
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={downloadShorts}
-                            onChange={(e) => setDownloadShorts(e.target.checked)}
-                        />
-                    }
-                    label={t('downloadShorts') || "Download Shorts"}
-                />
+                {source !== 'bilibili' && (
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={downloadShorts}
+                                onChange={(e) => setDownloadShorts(e.target.checked)}
+                            />
+                        }
+                        label={t('downloadShorts') || "Download Shorts"}
+                    />
+                )}
                 <FormControlLabel
                     control={
                         <Checkbox
