@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AlertModal from '../components/AlertModal';
 import ChannelSubscribeChoiceModal from '../components/ChannelSubscribeChoiceModal';
@@ -7,15 +6,13 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import SubscribeModal from '../components/SubscribeModal';
 import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import { INFO_SOUNDS } from '../utils/sounds';
 import { useAuth } from './AuthContext';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
-
-const API_URL = getApiUrl();
 const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -92,7 +89,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const { data: downloadStatus } = useQuery({
         queryKey: ['downloadStatus'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/download-status`);
+            const response = await api.get('/download-status');
             return response.data;
         },
         // Only query when authenticated to avoid 401 errors on login page
@@ -123,17 +120,6 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const activeDownloads = React.useMemo(() => downloadStatus.activeDownloads || [], [downloadStatus.activeDownloads]);
     const queuedDownloads = React.useMemo(() => downloadStatus.queuedDownloads || [], [downloadStatus.queuedDownloads]);
-
-    // Debug log to see what data we're receiving
-    useEffect(() => {
-        if (activeDownloads.length > 0) {
-            activeDownloads.forEach((d: any) => {
-                if (d.progress !== undefined || d.speed) {
-                    console.log(`[Frontend] Download ${d.id}: progress=${d.progress}, speed=${d.speed}, totalSize=${d.totalSize}`);
-                }
-            });
-        }
-    }, [activeDownloads]);
 
     // Bilibili multi-part video state
     const [showBilibiliPartsModal, setShowBilibiliPartsModal] = useState<boolean>(false);
@@ -169,7 +155,6 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         currentDownloadIdsRef.current = newIds;
 
         if (hasCompleted) {
-            console.log('Download completed, refreshing videos');
             fetchVideos();
 
             // Play task complete sound if enabled
@@ -204,7 +189,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             if (playlistRegex.test(videoUrl) && !skipCollectionCheck) {
                 setIsCheckingParts(true);
                 try {
-                    const playlistResponse = await axios.get(`${API_URL}/check-playlist`, {
+                    const playlistResponse = await api.get('/check-playlist', {
                         params: { url: videoUrl }
                     });
 
@@ -262,15 +247,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     // Only check for collection/series if not explicitly skipped
                     if (!skipCollectionCheck) {
                         // First, check if it's a collection or series
-                        const collectionResponse = await axios.get(`${API_URL}/check-bilibili-collection`, {
+                        const collectionResponse = await api.get('/check-bilibili-collection', {
                             params: { url: videoUrl }
                         });
 
                         if (collectionResponse.data.success && collectionResponse.data.type !== 'none') {
                             // It's a collection or series
                             const { type, title, count, id, mid } = collectionResponse.data;
-
-                            console.log(`Detected Bilibili ${type}:`, title, `with ${count} videos`);
 
                             setBilibiliPartsInfo({
                                 videosNumber: count,
@@ -288,7 +271,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     // If not a collection/series (or check was skipped), check if it has multiple parts
                     // Only check if not explicitly skipped
                     if (!skipPartsCheck) {
-                        const partsResponse = await axios.get(`${API_URL}/check-bilibili-parts`, {
+                        const partsResponse = await api.get('/check-bilibili-parts', {
                             params: { url: videoUrl }
                         });
 
@@ -315,7 +298,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Normal download flow
-            const response = await axios.post(`${API_URL}/download`, {
+            const response = await api.post('/download', {
                 youtubeUrl: videoUrl,
                 forceDownload: forceDownload
             });
@@ -371,7 +354,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             // Handle playlist/collection/subscription - create subscription and/or download task
             if (isSubscribable && subscribeInfo) {
                 // If subscribing, use the subscription endpoint (works for both playlists and collections)
-                const response = await axios.post(`${API_URL}/subscriptions/playlist`, {
+                const response = await api.post('/subscriptions/playlist', {
                     playlistUrl: bilibiliPartsInfo.url,
                     interval: subscribeInfo.interval,
                     collectionName: collectionName || bilibiliPartsInfo.title,
@@ -394,7 +377,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
             // Handle playlist without subscription - create continuous download task
             if (isPlaylist) {
-                const response = await axios.post(`${API_URL}/subscriptions/tasks/playlist`, {
+                const response = await api.post('/subscriptions/tasks/playlist', {
                     playlistUrl: bilibiliPartsInfo.url,
                     collectionName: collectionName || bilibiliPartsInfo.title
                 });
@@ -412,7 +395,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Handle collection/series without subscription - regular download
-            const response = await axios.post(`${API_URL}/download`, {
+            const response = await api.post('/download', {
                 youtubeUrl: bilibiliPartsInfo.url,
                 downloadAllParts: !isCollection, // Only set this for multi-part videos
                 downloadCollection: isCollection, // Set this for collections/series
@@ -461,7 +444,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleSubscribe = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => {
         try {
-            await axios.post(`${API_URL}/subscriptions`, {
+            await api.post('/subscriptions', {
                 url: subscribeUrl,
                 interval,
                 downloadAllPrevious,
@@ -483,7 +466,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleConfirmChannelPlaylists = async () => {
         try {
-            const response = await axios.post(`${API_URL}/downloads/channel-playlists`, {
+            const response = await api.post('/downloads/channel-playlists', {
                 url: channelPlaylistsUrl
             });
             showSnackbar(response.data.message || t('downloadStartedSuccessfully'));
@@ -521,7 +504,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Call the new endpoint to subscribe to all playlists
-            const response = await axios.post(`${API_URL}/subscriptions/channel-playlists`, {
+            const response = await api.post('/subscriptions/channel-playlists', {
                 url: playlistsUrl,
                 interval: interval,
                 downloadAllPrevious: downloadAllPrevious

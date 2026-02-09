@@ -272,6 +272,35 @@ describe('SubscriptionService', () => {
       // Should still update lastCheck
       expect(db.update).toHaveBeenCalled();
     });
+
+    it('should skip shorts when subscription is deleted before lastCheck update', async () => {
+      const sub = {
+        id: 'sub-deleted',
+        author: 'User',
+        platform: 'YouTube',
+        authorUrl: 'url',
+        lastCheck: 0,
+        interval: 10,
+        lastVideoLink: 'same-link',
+        downloadShorts: 1,
+        lastShortVideoLink: 'old-short'
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([]).then(cb); // update lastCheck returns 0 rows
+        return Promise.resolve([]).then(cb);
+      };
+
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(YtDlpDownloader.getLatestShortsUrl).not.toHaveBeenCalled();
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+    });
   });
 
   describe('checkChannelPlaylists', () => {

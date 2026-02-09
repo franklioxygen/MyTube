@@ -114,48 +114,79 @@ export const formatFilenames = async (
 };
 
 /**
- * Update application settings
+ * Handle settings updates
  * Errors are automatically handled by asyncHandler middleware
  */
-export const updateSettings = async (
+type SettingsUpdateMode = "replace" | "patch";
+
+const hasOwnSetting = (
+  settings: Partial<Settings>,
+  key: keyof Settings
+): boolean => Object.prototype.hasOwnProperty.call(settings, key);
+
+const persistSettingsUpdate = async (
   req: Request,
-  res: Response
+  res: Response,
+  mode: SettingsUpdateMode
 ): Promise<void> => {
-  const newSettings: Partial<Settings> = req.body;
-  const existingSettings = storageService.getSettings();
-  const mergedSettings = settingsValidationService.mergeSettings(
-    existingSettings,
+  const incomingSettings: Partial<Settings> = { ...(req.body || {}) };
+  const existingSettingsRaw = storageService.getSettings();
+  const existingSettings = settingsValidationService.mergeSettings(
+    existingSettingsRaw,
     {}
   );
 
-  // Permission control is now handled by roleBasedSettingsMiddleware
+  // Permission control is handled by roleBasedSettingsMiddleware
+  settingsValidationService.validateSettings(incomingSettings);
 
-  // Validate settings
-  settingsValidationService.validateSettings(newSettings);
+  const preparedSettings = await settingsValidationService.prepareSettingsForSave(
+    existingSettings,
+    incomingSettings,
+    passwordService.hashPassword,
+    { preserveUnsetFields: mode === "replace" }
+  );
 
-  // Prepare settings for saving (password hashing, tags, etc.)
-  const preparedSettings =
-    await settingsValidationService.prepareSettingsForSave(
-      mergedSettings,
-      newSettings,
-      passwordService.hashPassword
-    );
+  // Never persist plaintext password fields from request body.
+  const sanitizedIncoming: Partial<Settings> = { ...incomingSettings };
+  delete sanitizedIncoming.password;
+  delete sanitizedIncoming.visitorPassword;
 
-  // Merge prepared settings with new settings
-  const finalSettings = {
-    ...mergedSettings,
-    ...newSettings,
-    ...preparedSettings,
-  };
+  const settingsToPersist: Partial<Settings> =
+    mode === "replace"
+      ? ({
+          ...existingSettings,
+          ...sanitizedIncoming,
+          ...preparedSettings,
+        } as Settings)
+      : {
+          ...sanitizedIncoming,
+          ...preparedSettings,
+        };
 
-  storageService.saveSettings(finalSettings);
+  // Avoid writing undefined values (saveSettings skips them, but keep payload clean).
+  Object.keys(settingsToPersist).forEach((key) => {
+    const settingKey = key as keyof Settings;
+    if (settingsToPersist[settingKey] === undefined) {
+      delete settingsToPersist[settingKey];
+    }
+  });
+
+  storageService.saveSettings(settingsToPersist as Record<string, unknown>);
+
+  const finalSettings =
+    mode === "replace"
+      ? (settingsToPersist as Settings)
+      : ({ ...existingSettings, ...settingsToPersist } as Settings);
 
   // Check for deleted tags and renames (casing-only changes); remove deleted from videos, rename casing in videos
-  if (newSettings.tags && Array.isArray(newSettings.tags)) {
+  if (
+    hasOwnSetting(settingsToPersist, "tags") &&
+    Array.isArray(settingsToPersist.tags)
+  ) {
     const oldTags = Array.isArray(existingSettings.tags)
       ? (existingSettings.tags as string[])
       : [];
-    const newTags = newSettings.tags as string[];
+    const newTags = settingsToPersist.tags as string[];
 
     // Deleted = in old but no case-insensitive match in new
     const deletedTags = oldTags.filter(
@@ -188,77 +219,74 @@ export const updateSettings = async (
 
   // Check for moveSubtitlesToVideoFolder change
   if (
-    newSettings.moveSubtitlesToVideoFolder !==
-    existingSettings.moveSubtitlesToVideoFolder
+    hasOwnSetting(settingsToPersist, "moveSubtitlesToVideoFolder") &&
+    settingsToPersist.moveSubtitlesToVideoFolder !==
+      existingSettings.moveSubtitlesToVideoFolder &&
+    settingsToPersist.moveSubtitlesToVideoFolder !== undefined
   ) {
-    if (newSettings.moveSubtitlesToVideoFolder !== undefined) {
-      // Run asynchronously
-      const { moveAllSubtitles } = await import("../services/subtitleService");
-      moveAllSubtitles(newSettings.moveSubtitlesToVideoFolder).catch((err) =>
-        logger.error("Error moving subtitles in background:", err)
-      );
-    }
+    // Run asynchronously
+    const { moveAllSubtitles } = await import("../services/subtitleService");
+    moveAllSubtitles(settingsToPersist.moveSubtitlesToVideoFolder).catch(
+      (err) => logger.error("Error moving subtitles in background:", err)
+    );
   }
 
   // Check for moveThumbnailsToVideoFolder change
   if (
-    newSettings.moveThumbnailsToVideoFolder !==
-    existingSettings.moveThumbnailsToVideoFolder
+    hasOwnSetting(settingsToPersist, "moveThumbnailsToVideoFolder") &&
+    settingsToPersist.moveThumbnailsToVideoFolder !==
+      existingSettings.moveThumbnailsToVideoFolder &&
+    settingsToPersist.moveThumbnailsToVideoFolder !== undefined
   ) {
-    if (newSettings.moveThumbnailsToVideoFolder !== undefined) {
-      // Run asynchronously
-      const { moveAllThumbnails } = await import(
-        "../services/thumbnailService"
-      );
-      moveAllThumbnails(newSettings.moveThumbnailsToVideoFolder).catch((err) =>
-        logger.error("Error moving thumbnails in background:", err)
-      );
-    }
+    // Run asynchronously
+    const { moveAllThumbnails } = await import("../services/thumbnailService");
+    moveAllThumbnails(settingsToPersist.moveThumbnailsToVideoFolder).catch(
+      (err) => logger.error("Error moving thumbnails in background:", err)
+    );
   }
 
   // Handle Cloudflare Tunnel settings changes
-  // Only process changes if the values were explicitly provided (not undefined)
   const cloudflaredEnabledChanged =
-    newSettings.cloudflaredTunnelEnabled !== undefined &&
-    newSettings.cloudflaredTunnelEnabled !==
+    hasOwnSetting(settingsToPersist, "cloudflaredTunnelEnabled") &&
+    settingsToPersist.cloudflaredTunnelEnabled !==
       existingSettings.cloudflaredTunnelEnabled;
   const cloudflaredTokenChanged =
-    newSettings.cloudflaredToken !== undefined &&
-    newSettings.cloudflaredToken !== existingSettings.cloudflaredToken;
+    hasOwnSetting(settingsToPersist, "cloudflaredToken") &&
+    settingsToPersist.cloudflaredToken !== existingSettings.cloudflaredToken;
 
   if (cloudflaredEnabledChanged || cloudflaredTokenChanged) {
     // If we are enabling it (or it was enabled and config changed)
-    if (newSettings.cloudflaredTunnelEnabled) {
+    if (finalSettings.cloudflaredTunnelEnabled) {
       // Determine port
       const port = process.env.PORT ? parseInt(process.env.PORT) : 5551;
 
       const shouldRestart = existingSettings.cloudflaredTunnelEnabled;
 
       if (shouldRestart) {
-        // If it was already enabled, we need to restart to apply changes (Token -> No Token, or vice versa)
-        if (newSettings.cloudflaredToken) {
-          cloudflaredService.restart(newSettings.cloudflaredToken);
+        // If it was already enabled, restart to apply changes (token/no-token swap)
+        if (finalSettings.cloudflaredToken) {
+          cloudflaredService.restart(finalSettings.cloudflaredToken);
         } else {
           cloudflaredService.restart(undefined, port);
         }
       } else {
-        // It was disabled, now enabling -> just start
-        if (newSettings.cloudflaredToken) {
-          cloudflaredService.start(newSettings.cloudflaredToken);
+        // It was disabled, now enabling -> start
+        if (finalSettings.cloudflaredToken) {
+          cloudflaredService.start(finalSettings.cloudflaredToken);
         } else {
           cloudflaredService.start(undefined, port);
         }
       }
     } else if (cloudflaredEnabledChanged) {
-      // Only stop if explicitly disabled (not if it was undefined)
+      // Only stop if explicitly disabled
       cloudflaredService.stop();
     }
   }
 
   // Handle allowedHosts changes - write to .env.local for Vite
   const allowedHostsChanged =
-    newSettings.allowedHosts !== undefined &&
-    newSettings.allowedHosts !== existingSettings.allowedHosts;
+    hasOwnSetting(settingsToPersist, "allowedHosts") &&
+    settingsToPersist.allowedHosts !== existingSettings.allowedHosts;
 
   if (allowedHostsChanged) {
     try {
@@ -271,8 +299,8 @@ export const updateSettings = async (
         throw new Error("Invalid path: path traversal detected");
       }
 
-      // Sanitize allowedHosts to prevent injection (remove newlines and other dangerous chars)
-      const sanitizedHosts = (newSettings.allowedHosts || "")
+      // Sanitize allowedHosts to prevent injection (remove newlines and dangerous chars)
+      const sanitizedHosts = (finalSettings.allowedHosts || "")
         .replace(/[\r\n]/g, "")
         .replace(/[^\w\s.,-]/g, "");
 
@@ -291,13 +319,15 @@ export const updateSettings = async (
   }
 
   // Apply settings immediately where possible
-  if (finalSettings.maxConcurrentDownloads !== undefined) {
+  if (
+    hasOwnSetting(settingsToPersist, "maxConcurrentDownloads") &&
+    finalSettings.maxConcurrentDownloads !== undefined
+  ) {
     downloadManager.setMaxConcurrentDownloads(
       finalSettings.maxConcurrentDownloads
     );
   }
 
-  // Return format expected by frontend: { success: true, settings: {...} }
   res.json({
     success: true,
     settings: {
@@ -306,6 +336,26 @@ export const updateSettings = async (
       visitorPassword: undefined,
     },
   });
+};
+
+/**
+ * Update application settings (legacy full-update semantics)
+ */
+export const updateSettings = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  await persistSettingsUpdate(req, res, "replace");
+};
+
+/**
+ * Patch application settings (field-level update semantics)
+ */
+export const patchSettings = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  await persistSettingsUpdate(req, res, "patch");
 };
 
 /**

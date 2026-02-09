@@ -21,6 +21,7 @@ import { useDownload } from '../contexts/DownloadContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useVideo } from '../contexts/VideoContext';
 import { formatDuration } from '../utils/formatUtils';
+import { getRandomSeed, sortVideos, SortOption, validateSortOption } from '../utils/videoSort';
 
 const SearchPage: React.FC = () => {
     const { t } = useLanguage();
@@ -41,10 +42,10 @@ const SearchPage: React.FC = () => {
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     // Initialize sort option from URL or default
-    const sortOptionP = searchParams.get('sort') || 'dateDesc';
+    const sortOptionP = validateSortOption(searchParams.get('sort'), 'dateDesc');
     const seedP = parseInt(searchParams.get('seed') || '0', 10);
 
-    const [sortOption, setSortOption] = useState<string>(sortOptionP);
+    const [sortOption, setSortOption] = useState<SortOption>(sortOptionP);
     const [shuffleSeed, setShuffleSeed] = useState<number>(seedP);
     const [sortAnchorEl, setSortAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -57,7 +58,7 @@ const SearchPage: React.FC = () => {
     }, [query, contextSearchTerm, handleSearch]);
 
     useEffect(() => {
-        const currentSort = searchParams.get('sort') || 'dateDesc';
+        const currentSort = validateSortOption(searchParams.get('sort'), 'dateDesc');
         const currentSeed = parseInt(searchParams.get('seed') || '0', 10);
         setSortOption(currentSort);
         setShuffleSeed(currentSeed);
@@ -69,16 +70,15 @@ const SearchPage: React.FC = () => {
 
     const handleSortClose = (option?: string) => {
         if (option) {
+            const validatedOption = validateSortOption(option, 'dateDesc');
             setSearchParams((prev: URLSearchParams) => {
                 const newParams = new URLSearchParams(prev);
 
-                if (option === 'random') {
+                if (validatedOption === 'random') {
                     newParams.set('sort', 'random');
-                    // Always generate a new seed when clicking 'random'
-                    const newSeed = Math.floor(Math.random() * 1000000);
-                    newParams.set('seed', newSeed.toString());
+                    newParams.set('seed', getRandomSeed().toString());
                 } else {
-                    newParams.set('sort', option);
+                    newParams.set('sort', validatedOption);
                     newParams.delete('seed');
                 }
                 return newParams;
@@ -111,36 +111,7 @@ const SearchPage: React.FC = () => {
     const hasYouTubeResults = searchResults && searchResults.length > 0;
 
     const sortedLocalSearchResults = useMemo(() => {
-        if (!localSearchResults) return [];
-        const result = [...localSearchResults];
-        switch (sortOption) {
-            case 'dateDesc':
-                return result.sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime());
-            case 'dateAsc':
-                return result.sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
-            case 'viewsDesc':
-                return result.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-            case 'viewsAsc':
-                return result.sort((a, b) => (a.viewCount || 0) - (b.viewCount || 0));
-            case 'nameAsc':
-                return result.sort((a, b) => a.title.localeCompare(b.title));
-            case 'random':
-                // Use a seeded predictable random sort
-                return result.map(v => {
-                    // Simple hash function for stability with seed
-                    let h = 0x811c9dc5;
-                    const s = v.id + shuffleSeed;
-                    for (let i = 0; i < s.length; i++) {
-                        h ^= s.charCodeAt(i);
-                        h = Math.imul(h, 0x01000193);
-                    }
-                    return { v, score: h >>> 0 };
-                })
-                    .sort((a, b) => a.score - b.score)
-                    .map(item => item.v);
-            default:
-                return result;
-        }
+        return sortVideos(localSearchResults, sortOption, shuffleSeed);
     }, [localSearchResults, sortOption, shuffleSeed]);
 
     return (

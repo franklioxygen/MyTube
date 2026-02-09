@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { scanFiles } from '../../controllers/scanController';
+import { scanFiles, scanMountDirectories } from '../../controllers/scanController';
 import * as storageService from '../../services/storageService';
 
 vi.mock('../../services/storageService');
@@ -11,6 +11,7 @@ vi.mock('../../services/tmdbService', () => ({
 vi.mock('fs-extra', () => ({
   default: {
     existsSync: vi.fn(),
+    pathExists: vi.fn(),
     readdirSync: vi.fn(),
     statSync: vi.fn(),
     readdir: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('fs-extra', () => ({
     remove: vi.fn(), // Added remove for fs.removeSync mock check if used
   },
   existsSync: vi.fn(),
+  pathExists: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
   readdir: vi.fn(),
@@ -67,22 +69,20 @@ describe('ScanController', () => {
   describe('scanFiles', () => {
     it('should scan files and add new videos', async () => {
       (storageService.getVideos as any).mockReturnValue([]);
-      (fs.existsSync as any).mockReturnValue(true);
-      // Mock async readdir instead of readdirSync
-      (fs.readdir as any).mockResolvedValue(['video.mp4']);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockResolvedValue([
+        {
+          name: 'video.mp4',
+          isDirectory: () => false,
+          isSymbolicLink: () => false,
+        },
+      ]);
       (fs.stat as any).mockResolvedValue({
         isDirectory: () => false,
         birthtime: new Date(),
         size: 1024,
       });
-      // Also mock readdirSync for getFilesRecursively if it's still used
-      (fs.readdirSync as any).mockReturnValue(['video.mp4']);
-      (fs.statSync as any).mockReturnValue({
-        isDirectory: () => false,
-        birthtime: new Date(),
-        size: 1024,
-      });
-      
+
       // Mock execFileSafe from security utils
       const security = await import('../../utils/security');
       (security.execFileSafe as any).mockResolvedValue({ stdout: '120', stderr: '' });
@@ -107,6 +107,62 @@ describe('ScanController', () => {
       } catch (error: any) {
         expect(error.message).toBe('Error');
       }
+    });
+
+    it('should refresh metadata when file size changes at same path', async () => {
+      (storageService.getVideos as any).mockReturnValue([
+        {
+          id: 'existing-video-id',
+          title: 'Old Title',
+          videoPath: '/videos/video.mp4',
+          fileSize: '100',
+        },
+      ]);
+      (fs.pathExists as any).mockResolvedValue(true);
+      (fs.readdir as any).mockResolvedValue([
+        {
+          name: 'video.mp4',
+          isDirectory: () => false,
+          isSymbolicLink: () => false,
+        },
+      ]);
+      (fs.stat as any).mockResolvedValue({
+        isDirectory: () => false,
+        birthtime: new Date(),
+        size: 1024,
+      });
+
+      const security = await import('../../utils/security');
+      (security.execFileSafe as any).mockResolvedValue({ stdout: '120', stderr: '' });
+
+      await scanFiles(req as Request, res as Response);
+
+      expect(storageService.saveVideo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'existing-video-id',
+          videoPath: '/videos/video.mp4',
+          fileSize: '1024',
+        }),
+      );
+    });
+  });
+
+  describe('scanMountDirectories', () => {
+    it('should reject relative mount directories', async () => {
+      req = {
+        body: {
+          directories: ['../unsafe/path'],
+        },
+      };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          invalidDirectories: ['../unsafe/path'],
+        }),
+      );
     });
   });
 });

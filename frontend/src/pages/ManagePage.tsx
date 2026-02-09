@@ -8,13 +8,12 @@ import {
     Typography
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
 import { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import DeleteCollectionModal from '../components/DeleteCollectionModal';
 import CollectionsTable from '../components/ManagePage/CollectionsTable';
 import VideosTable from '../components/ManagePage/VideosTable';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useCollection } from '../contexts/CollectionContext';
@@ -23,8 +22,6 @@ import { useSnackbar } from '../contexts/SnackbarContext';
 import { useVideo } from '../contexts/VideoContext';
 import { Collection, Video } from '../types';
 import { formatSize } from '../utils/formatUtils';
-
-const API_URL = getApiUrl();
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -71,7 +68,7 @@ const ManagePage: React.FC = () => {
     // Scan files mutation
     const scanMutation = useMutation({
         mutationFn: async () => {
-            const res = await axios.post(`${API_URL}/scan-files`);
+            const res = await api.post('/scan-files');
             return res.data;
         },
         onSuccess: (data) => {

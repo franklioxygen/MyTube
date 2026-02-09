@@ -209,7 +209,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                                         if (e.key === 'Escape') handleCancelEdit();
                                                     }}
                                                     disabled={isSaving}
-                                                    inputProps={{ maxLength: 200 }}
+                                                    slotProps={{ htmlInput: { maxLength: 200 } }}
                                                 />
                                                 <IconButton
                                                     size="small"

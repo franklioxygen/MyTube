@@ -42,8 +42,8 @@ import {
     getCloudflaredStatus,
     getSettings,
     migrateData,
+    patchSettings,
     renameTag,
-    updateSettings,
 } from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
 
@@ -51,7 +51,7 @@ const router = express.Router();
 const upload = multer({ dest: os.tmpdir() });
 
 router.get("/", asyncHandler(getSettings));
-router.post("/", asyncHandler(updateSettings));
+router.patch("/", asyncHandler(patchSettings));
 router.post("/migrate", asyncHandler(migrateData));
 router.post("/delete-legacy", asyncHandler(deleteLegacyData));
 router.post("/format-filenames", asyncHandler(formatFilenames));

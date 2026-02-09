@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteLegacyData, getSettings, migrateData, updateSettings } from '../../controllers/settingsController';
+import { deleteLegacyData, getSettings, migrateData, patchSettings, updateSettings } from '../../controllers/settingsController';
 import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
@@ -89,6 +89,39 @@ describe('SettingsController', () => {
       req.body = { itemsPerPage: 20 };
       await updateSettings(req as Request, res as Response);
       expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ itemsPerPage: 20 }));
+    });
+  });
+
+  describe('patchSettings', () => {
+    it('should persist only changed fields', async () => {
+      req.body = { theme: 'light' };
+      (storageService.getSettings as any).mockReturnValue({
+        theme: 'dark',
+        language: 'en',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: 'light' })
+      );
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.language).toBeUndefined();
+      expect(savedPayload.maxConcurrentDownloads).toBeUndefined();
+      expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('should hash password and never persist plaintext password', async () => {
+      req.body = { password: 'pass' };
+      (storageService.getSettings as any).mockReturnValue({});
+      const passwordService = await import('../../services/passwordService');
+      (passwordService.hashPassword as any).mockResolvedValue('hashed');
+
+      await patchSettings(req as Request, res as Response);
+
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.password).toBe('hashed');
+      expect(savedPayload.password).not.toBe('pass');
     });
   });
 

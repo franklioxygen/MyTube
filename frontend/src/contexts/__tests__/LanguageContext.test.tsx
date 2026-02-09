@@ -42,7 +42,7 @@ describe('LanguageContext', () => {
 
         // Default Settings Mock
         mockedAxios.get.mockResolvedValue({ data: { language: 'en' } });
-        mockedAxios.post.mockResolvedValue({});
+        mockedAxios.patch.mockResolvedValue({});
 
         // Simulate authenticated user
         Object.defineProperty(document, 'cookie', {
@@ -95,9 +95,6 @@ describe('LanguageContext', () => {
             expect(result.current.language).toBe('en');
         });
 
-        // Mock getting current settings for the merge update
-        mockedAxios.get.mockResolvedValueOnce({ data: { theme: 'dark', language: 'en' } });
-
         await act(async () => {
             await result.current.setLanguage('de');
         });
@@ -105,11 +102,10 @@ describe('LanguageContext', () => {
         expect(result.current.language).toBe('de');
         expect(localStorage.getItem('mytube_language')).toBe('de');
 
-        expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect(mockedAxios.patch).toHaveBeenCalledWith(
             expect.stringContaining('/settings'),
             expect.objectContaining({
-                language: 'de',
-                theme: 'dark'
+                language: 'de'
             })
         );
     });

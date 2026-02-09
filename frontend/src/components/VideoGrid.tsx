@@ -37,6 +37,16 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     onDeleteVideo,
     showTagsOnThumbnail
 }) => {
+    const firstVideoCollectionMap = useMemo(() => {
+        const map = new Map<string, Collection>();
+        for (const collection of collections) {
+            const firstVideoId = collection.videos[0];
+            if (!firstVideoId || map.has(firstVideoId)) continue;
+            map.set(firstVideoId, collection);
+        }
+        return map;
+    }, [collections]);
+
     // Components for VirtuosoGrid - MUST be defined before any conditional returns
     // Using useMemo to create stable component references
     // These components must work with virtualization - avoid forcing all items to render
@@ -104,7 +114,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         }
 
         // In collections mode, check if this video is the first in a collection
-        const collection = collections.find(c => c.videos[0] === video.id);
+        const collection = firstVideoCollectionMap.get(video.id);
 
         if (collection) {
             return (
@@ -161,7 +171,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 }
 
                 // In collections mode, check if this video is the first in a collection
-                const collection = collections.find(c => c.videos[0] === video.id);
+                const collection = firstVideoCollectionMap.get(video.id);
 
                 // If it is, render CollectionCard
                 if (collection) {

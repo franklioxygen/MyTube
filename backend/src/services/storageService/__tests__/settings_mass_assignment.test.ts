@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../../db';
-import { saveSettings } from '../settings';
+import { invalidateSettingsCache, saveSettings } from '../settings';
 
 // Mock DB
 vi.mock('../../../db', () => ({
@@ -13,6 +13,7 @@ vi.mock('../../../db', () => ({
 describe('settings mass assignment protection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        invalidateSettingsCache();
         
         // Setup chaining for db.insert().values().onConflictDoUpdate().run()
         const mockRun = vi.fn();

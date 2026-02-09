@@ -239,15 +239,27 @@ describe('StorageService', () => {
 
   describe('getDownloadStatus', () => {
     it('should return download status', () => {
-      const mockDownloads = [
+      const activeDownloads = [
         { id: '1', title: 'Active', status: 'active' },
+      ];
+      const queuedDownloads = [
         { id: '2', title: 'Queued', status: 'queued' },
       ];
-      (db.select as any).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          all: vi.fn().mockReturnValue(mockDownloads),
-        }),
-      });
+      (db.select as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              all: vi.fn().mockReturnValue(activeDownloads),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              all: vi.fn().mockReturnValue(queuedDownloads),
+            }),
+          }),
+        });
       (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
           run: vi.fn(),
@@ -979,4 +991,3 @@ describe('StorageService', () => {
     });
   });
 });
-

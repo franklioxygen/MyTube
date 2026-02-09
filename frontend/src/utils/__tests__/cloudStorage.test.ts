@@ -47,7 +47,7 @@ describe('cloudStorage', () => {
 
             const result = await cloudStorage.getCloudStorageSignedUrl('video.mp4');
             expect(result).toBe(mockUrl);
-            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/api/cloud/signed-url'), expect.any(Object));
+            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/cloud/signed-url'), expect.any(Object));
         });
 
         it('should handle API failure', async () => {
@@ -99,4 +99,3 @@ describe('cloudStorage', () => {
         });
     });
 });
-

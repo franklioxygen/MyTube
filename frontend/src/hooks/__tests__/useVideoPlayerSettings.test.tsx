@@ -76,7 +76,7 @@ describe('useVideoPlayerSettings', () => {
             data: { subtitlesEnabled: true },
         });
         // Mutation response
-        (axios.post as any).mockResolvedValue({
+        (axios.patch as any).mockResolvedValue({
             data: { success: true, settings: { subtitlesEnabled: false } },
         });
 
@@ -89,7 +89,7 @@ describe('useVideoPlayerSettings', () => {
         });
 
         await waitFor(() => expect(result.current.subtitlesEnabled).toBe(false));
-        expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/settings'), expect.objectContaining({
+        expect(axios.patch).toHaveBeenCalledWith(expect.stringContaining('/settings'), expect.objectContaining({
             subtitlesEnabled: false
         }));
     });
@@ -100,7 +100,7 @@ describe('useVideoPlayerSettings', () => {
             data: { defaultAutoLoop: false },
         });
         // Mutation response
-        (axios.post as any).mockResolvedValue({
+        (axios.patch as any).mockResolvedValue({
             data: { success: true, settings: { defaultAutoLoop: true } },
         });
 
@@ -113,14 +113,14 @@ describe('useVideoPlayerSettings', () => {
         });
 
         await waitFor(() => expect(result.current.autoLoop).toBe(true));
-        expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/settings'), expect.objectContaining({
+        expect(axios.patch).toHaveBeenCalledWith(expect.stringContaining('/settings'), expect.objectContaining({
             defaultAutoLoop: true
         }));
     });
 
     it('should show snackbar on error', async () => {
         (axios.get as any).mockResolvedValue({ data: {} });
-        (axios.post as any).mockRejectedValue(new Error('Network error'));
+        (axios.patch as any).mockRejectedValue(new Error('Network error'));
 
         const { result } = renderHook(() => useVideoPlayerSettings(), { wrapper });
 

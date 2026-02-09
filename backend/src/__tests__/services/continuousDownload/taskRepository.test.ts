@@ -129,6 +129,23 @@ describe('TaskRepository', () => {
     expect(task).toBeNull();
   });
 
+  it('getTaskStatus should return status when task exists', async () => {
+    mockBuilder.then = (cb: any) =>
+      Promise.resolve([{ status: 'paused' }]).then(cb);
+
+    const status = await taskRepository.getTaskStatus('1');
+
+    expect(status).toBe('paused');
+  });
+
+  it('getTaskStatus should return null when task not found', async () => {
+    mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+
+    const status = await taskRepository.getTaskStatus('missing');
+
+    expect(status).toBeNull();
+  });
+
   it('updateProgress should update stats', async () => {
     await taskRepository.updateProgress('1', { downloadedCount: 5 });
     

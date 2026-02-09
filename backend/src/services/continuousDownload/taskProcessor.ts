@@ -49,6 +49,13 @@ function extractVideoData(
 const PROCESSING_DELAY_MS = 1000; // Delay between video processing iterations
 const SLOT_POLL_INTERVAL_MS = 1000; // Polling interval for download slot availability
 
+type TaskProgressState = {
+  downloadedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  currentVideoIndex: number;
+};
+
 /**
  * Service for processing continuous download tasks
  */
@@ -67,6 +74,9 @@ export class TaskProcessor {
     task: ContinuousDownloadTask,
     cachedVideoUrls?: string[]
   ): Promise<void> {
+    const progressState = this.createProgressState(task);
+    const maxConcurrentDownloads = this.resolveMaxConcurrentDownloads();
+
     // For large playlists, use incremental fetching to save memory
     // Check if it's a playlist (likely to be large)
     const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
@@ -101,8 +111,8 @@ export class TaskProcessor {
     // Process videos one by one
     for (let i = task.currentVideoIndex; i < totalVideos; i++) {
       // Check if task was cancelled or paused - check EVERY iteration
-      const currentTask = await this.taskRepository.getTaskById(task.id);
-      if (!currentTask || currentTask.status !== "active") {
+      const currentTaskStatus = await this.taskRepository.getTaskStatus(task.id);
+      if (currentTaskStatus !== "active") {
         logger.info(`Task ${task.id} was cancelled or paused`);
         break;
       }
@@ -156,8 +166,10 @@ export class TaskProcessor {
 
       // Double-check status right before starting video download
       // This prevents starting a new download if task was paused between iterations
-      const taskBeforeDownload = await this.taskRepository.getTaskById(task.id);
-      if (!taskBeforeDownload || taskBeforeDownload.status !== "active") {
+      const taskStatusBeforeDownload = await this.taskRepository.getTaskStatus(
+        task.id
+      );
+      if (taskStatusBeforeDownload !== "active") {
         logger.info(
           `Task ${task.id} was cancelled or paused before starting video download`
         );
@@ -171,7 +183,13 @@ export class TaskProcessor {
       );
 
       try {
-        await this.processVideo(task, videoUrl, i, taskBeforeDownload);
+        await this.processVideo(
+          task,
+          videoUrl,
+          i,
+          progressState,
+          maxConcurrentDownloads
+        );
       } catch (downloadError: any) {
         // Check if error is due to task being paused/cancelled
         const isPauseOrCancel =
@@ -206,25 +224,22 @@ export class TaskProcessor {
           subscriptionId: task.subscriptionId,
         });
 
-        // Update task progress
-        const currentTaskAfterError = await this.taskRepository.getTaskById(
+        const taskStatusAfterError = await this.taskRepository.getTaskStatus(
           task.id
         );
-        if (
-          currentTaskAfterError &&
-          currentTaskAfterError.status === "active"
-        ) {
-          await this.taskRepository.updateProgress(task.id, {
-            failedCount: (currentTaskAfterError.failedCount || 0) + 1,
-            currentVideoIndex: i + 1,
-          });
+        if (taskStatusAfterError === "active") {
+          progressState.failedCount += 1;
+          progressState.currentVideoIndex = i + 1;
+          await this.persistProgress(task.id, progressState);
         }
       }
 
       // Check status again after video processing completes
       // This ensures we stop immediately if task was paused during the download
-      const taskAfterDownload = await this.taskRepository.getTaskById(task.id);
-      if (!taskAfterDownload || taskAfterDownload.status !== "active") {
+      const taskStatusAfterDownload = await this.taskRepository.getTaskStatus(
+        task.id
+      );
+      if (taskStatusAfterDownload !== "active") {
         logger.info(
           `Task ${task.id} was cancelled or paused after video download`
         );
@@ -314,18 +329,19 @@ export class TaskProcessor {
     task: ContinuousDownloadTask,
     videoUrl: string,
     videoIndex: number,
-    currentTask: ContinuousDownloadTask
+    progressState: TaskProgressState,
+    maxConcurrentDownloads: number
   ): Promise<void> {
     // Check status one more time right before starting the download
     // This is the last chance to abort before a potentially long download operation
-    const taskStatusCheck = await this.taskRepository.getTaskById(task.id);
-    if (!taskStatusCheck || taskStatusCheck.status !== "active") {
+    const taskStatusCheck = await this.taskRepository.getTaskStatus(task.id);
+    if (taskStatusCheck !== "active") {
       logger.info(
         `Task ${task.id} was cancelled or paused, aborting video download`
       );
       throw new Error(
         `Task ${task.id} is not active (status: ${
-          taskStatusCheck?.status || "not found"
+          taskStatusCheck || "not found"
         })`
       );
     }
@@ -334,19 +350,14 @@ export class TaskProcessor {
     const existingVideo = storageService.getVideoBySourceUrl(videoUrl);
     if (existingVideo) {
       logger.debug(`Video ${videoUrl} already exists, skipping`);
-      // Fetch latest task state to avoid race conditions
-      const latestTask = await this.taskRepository.getTaskById(task.id);
-      if (latestTask) {
-        await this.taskRepository.updateProgress(task.id, {
-          skippedCount: (latestTask.skippedCount || 0) + 1,
-          currentVideoIndex: videoIndex + 1,
-        });
-      }
+      progressState.skippedCount += 1;
+      progressState.currentVideoIndex = videoIndex + 1;
+      await this.persistProgress(task.id, progressState);
       return;
     }
 
     // Wait for an available download slot before starting
-    await this.waitForDownloadSlot(task.id);
+    await this.waitForDownloadSlot(task.id, maxConcurrentDownloads);
 
     // Generate download ID and register active download
     const downloadId = uuidv4();
@@ -422,16 +433,9 @@ export class TaskProcessor {
         }
       }
 
-      // Update task progress - fetch latest state to avoid race conditions
-      const latestTaskForUpdate = await this.taskRepository.getTaskById(
-        task.id
-      );
-      if (latestTaskForUpdate) {
-        await this.taskRepository.updateProgress(task.id, {
-          downloadedCount: (latestTaskForUpdate.downloadedCount || 0) + 1,
-          currentVideoIndex: videoIndex + 1,
-        });
-      }
+      progressState.downloadedCount += 1;
+      progressState.currentVideoIndex = videoIndex + 1;
+      await this.persistProgress(task.id, progressState);
     } finally {
       // Always remove from active downloads when done (success or failure)
       storageService.removeActiveDownload(downloadId);
@@ -441,21 +445,21 @@ export class TaskProcessor {
   /**
    * Wait for an available download slot based on maxConcurrentDownloads setting
    */
-  private async waitForDownloadSlot(taskId: string): Promise<void> {
-    const settings = storageService.getSettings();
-    const maxConcurrent = settings.maxConcurrentDownloads || 3;
-
+  private async waitForDownloadSlot(
+    taskId: string,
+    maxConcurrent: number
+  ): Promise<void> {
     // Poll until a slot is available
     while (true) {
       // Check if task was cancelled or paused while waiting
-      const currentTask = await this.taskRepository.getTaskById(taskId);
-      if (!currentTask || currentTask.status !== "active") {
+      const currentTaskStatus = await this.taskRepository.getTaskStatus(taskId);
+      if (currentTaskStatus !== "active") {
         logger.info(
           `Task ${taskId} was cancelled or paused while waiting for download slot`
         );
         throw new Error(
           `Task ${taskId} is not active (status: ${
-            currentTask?.status || "not found"
+            currentTaskStatus || "not found"
           })`
         );
       }
@@ -482,5 +486,35 @@ export class TaskProcessor {
         setTimeout(resolve, SLOT_POLL_INTERVAL_MS)
       );
     }
+  }
+
+  private createProgressState(task: ContinuousDownloadTask): TaskProgressState {
+    return {
+      downloadedCount: task.downloadedCount || 0,
+      skippedCount: task.skippedCount || 0,
+      failedCount: task.failedCount || 0,
+      currentVideoIndex: task.currentVideoIndex || 0,
+    };
+  }
+
+  private resolveMaxConcurrentDownloads(): number {
+    const settings = storageService.getSettings();
+    const maxConcurrent = Number(settings.maxConcurrentDownloads);
+    if (Number.isFinite(maxConcurrent) && maxConcurrent > 0) {
+      return Math.floor(maxConcurrent);
+    }
+    return 3;
+  }
+
+  private async persistProgress(
+    taskId: string,
+    progressState: TaskProgressState
+  ): Promise<void> {
+    await this.taskRepository.updateProgress(taskId, {
+      downloadedCount: progressState.downloadedCount,
+      skippedCount: progressState.skippedCount,
+      failedCount: progressState.failedCount,
+      currentVideoIndex: progressState.currentVideoIndex,
+    });
   }
 }

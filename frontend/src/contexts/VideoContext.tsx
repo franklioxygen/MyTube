@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-
-const API_URL = getApiUrl();
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
 interface VideoContextType {
@@ -60,10 +57,8 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: videosRaw = [], isLoading: videosLoading, error: videosError, refetch: refetchVideos } = useQuery({
         queryKey: ['videos'],
         queryFn: async () => {
-            console.log('Fetching videos from:', `${API_URL}/videos`);
             try {
-                const response = await axios.get(`${API_URL}/videos`);
-                console.log('Videos fetch success');
+                const response = await api.get('/videos');
                 return response.data as Video[];
             } catch (err) {
                 console.error('Videos fetch failed:', err);
@@ -100,7 +95,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: settingsData } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await api.get('/settings');
             return response.data;
         },
         // Only query when authenticated to avoid 401 errors on login page
@@ -154,7 +149,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const deleteVideoMutation = useMutation({
         mutationFn: async ({ id }: { id: string; options?: { showSnackbar?: boolean } }) => {
-            await axios.delete(`${API_URL}/videos/${id}`);
+            await api.delete(`/videos/${id}`);
             return id;
         },
         onSuccess: (id, variables) => {
@@ -272,7 +267,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setYoutubeLoading(true);
 
                 try {
-                    const response = await axios.get(`${API_URL}/search`, {
+                    const response = await api.get('/search', {
                         params: { query },
                         signal: signal
                     });
@@ -332,7 +327,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const limit = 8;
             const offset = currentCount + 1;
 
-            const response = await axios.get(`${API_URL}/search`, {
+            const response = await api.get('/search', {
                 params: {
                     query: searchTerm,
                     limit,
@@ -380,7 +375,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const refreshThumbnailMutation = useMutation({
         mutationFn: async (id: string) => {
-            const response = await axios.post(`${API_URL}/videos/${id}/refresh-thumbnail`);
+            const response = await api.post(`/videos/${id}/refresh-thumbnail`);
             return { id, data: response.data };
         },
         onSuccess: ({ id, data }) => {
@@ -414,7 +409,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const updateVideoMutation = useMutation({
         mutationFn: async ({ id, updates }: { id: string; updates: Partial<Video> }) => {
-            const response = await axios.put(`${API_URL}/videos/${id}`, updates);
+            const response = await api.put(`/videos/${id}`, updates);
             return { id, updates, data: response.data };
         },
         onSuccess: ({ id, updates, data }) => {
@@ -451,7 +446,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const incrementView = async (id: string) => {
         try {
-            const res = await axios.post(`${API_URL}/videos/${id}/view`);
+            const res = await api.post(`/videos/${id}/view`);
             if (res.data.success) {
                 queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                     old ? old.map(video =>

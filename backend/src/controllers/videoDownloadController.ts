@@ -65,7 +65,7 @@ export const checkVideoDownloadStatus = async (
   }
 
   // Process URL: extract from text, resolve shortened URLs, extract source video ID
-  const { sourceVideoId } = await processVideoUrl(validatedUrl);
+  const { sourceVideoId, platform } = await processVideoUrl(validatedUrl);
 
   if (!sourceVideoId) {
     // Return object directly for backward compatibility (frontend expects response.data.found)
@@ -75,7 +75,7 @@ export const checkVideoDownloadStatus = async (
 
   // Check if video was previously downloaded
   const downloadCheck =
-    storageService.checkVideoDownloadBySourceId(sourceVideoId);
+    storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
 
   if (downloadCheck.found) {
     // Verify video exists if status is "exists"
@@ -184,7 +184,7 @@ export const downloadVideo = async (
     // Check if video was previously downloaded (skip for collections/multi-part)
     if (sourceVideoId && !downloadAllParts && !downloadCollection) {
       const downloadCheck =
-        storageService.checkVideoDownloadBySourceId(sourceVideoId);
+        storageService.checkVideoDownloadBySourceId(sourceVideoId, platform);
 
       // Get settings to check dontSkipDeletedVideo
       const settings = storageService.getSettings();

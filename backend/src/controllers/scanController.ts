@@ -1,4 +1,3 @@
-import { execFile } from "child_process";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -14,483 +13,467 @@ import {
   validateImagePath,
 } from "../utils/security";
 
-// Recursive function to get all files in a directory (restricted to VIDEOS_DIR)
-const getFilesRecursively = (dir: string): string[] => {
-  // Validate directory path to prevent path traversal
-  const safeDir = resolveSafePath(dir, VIDEOS_DIR);
-  let results: string[] = [];
-  const list = fs.readdirSync(safeDir);
+const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
+const DEFAULT_SCAN_FILE_CONCURRENCY = 3;
 
-  list.forEach((file) => {
-    // Validate file path to prevent path traversal
-    const filePath = path.join(safeDir, file);
-    // Ensure the file path is still within the allowed directory
-    if (!filePath.startsWith(safeDir + path.sep) && filePath !== safeDir) {
-      logger.warn(`Skipping file outside allowed directory: ${filePath}`);
-      return;
-    }
-    const stat = fs.statSync(filePath);
+const SCAN_FILE_CONCURRENCY = (() => {
+  const configured = Number(
+    process.env.SCAN_FILE_CONCURRENCY || DEFAULT_SCAN_FILE_CONCURRENCY
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_SCAN_FILE_CONCURRENCY;
+})();
 
-    if (stat && stat.isDirectory()) {
-      results = results.concat(getFilesRecursively(filePath));
-    } else {
-      results.push(filePath);
+type ProcessDirectoryOptions = {
+  isMountDirectory?: boolean;
+  scannedFiles?: string[];
+};
+
+type ExistingVideoSnapshot = {
+  id: string;
+  fileSize?: string;
+};
+
+type ProcessFileResult = "added" | "updated" | "skipped";
+
+type TmdbMetadata = Awaited<ReturnType<typeof scrapeMetadataFromTMDB>>;
+
+type ThumbnailResolution = {
+  filename?: string;
+  path?: string;
+  url?: string;
+};
+
+const runWithConcurrencyLimit = async <T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>
+): Promise<void> => {
+  if (items.length === 0) {
+    return;
+  }
+
+  const effectiveLimit = Math.max(1, Math.min(limit, items.length));
+  let nextIndex = 0;
+
+  const workers = Array.from({ length: effectiveLimit }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      await worker(items[currentIndex]);
     }
   });
 
-  return results;
+  await Promise.all(workers);
 };
 
-// Recursive function to get all files from a mount directory (no VIDEOS_DIR restriction)
-// Still validates that path is absolute and doesn't contain traversal sequences
-const getFilesRecursivelyFromMount = (dir: string): string[] => {
-  // Validate that directory is absolute and doesn't contain path traversal
+// Recursive function to get all files in a directory (restricted to VIDEOS_DIR)
+const getFilesRecursively = async (dir: string): Promise<string[]> => {
+  const safeDir = resolveSafePath(dir, VIDEOS_DIR);
+  const entries = await fs.readdir(safeDir, { withFileTypes: true });
+
+  const nestedResults = await Promise.all(
+    entries.map(async (entry) => {
+      const filePath = path.join(safeDir, entry.name);
+
+      if (!filePath.startsWith(safeDir + path.sep) && filePath !== safeDir) {
+        logger.warn(`Skipping file outside allowed directory: ${filePath}`);
+        return [] as string[];
+      }
+
+      if (entry.isSymbolicLink()) {
+        logger.warn(`Skipping symlink during scan: ${filePath}`);
+        return [] as string[];
+      }
+
+      if (entry.isDirectory()) {
+        return getFilesRecursively(filePath);
+      }
+
+      return [filePath];
+    })
+  );
+
+  return nestedResults.flat();
+};
+
+const validateMountDirectory = (dir: string): string => {
   if (!path.isAbsolute(dir)) {
     throw new Error(`Mount directory must be an absolute path: ${dir}`);
   }
 
-  // Check for path traversal sequences
-  if (dir.includes("..")) {
+  if (dir.includes("..") || dir.includes("\0")) {
     throw new Error(`Path traversal detected in mount directory: ${dir}`);
   }
 
-  // Resolve and normalize the path
   const resolvedDir = path.resolve(path.normalize(dir));
-
-  // Ensure it's still absolute after resolution
   if (!path.isAbsolute(resolvedDir)) {
     throw new Error(`Invalid mount directory path: ${resolvedDir}`);
   }
 
-  // Check if directory exists
-  if (!fs.existsSync(resolvedDir)) {
+  return resolvedDir;
+};
+
+// Recursive function to get all files from a mount directory (no VIDEOS_DIR restriction)
+const getFilesRecursivelyFromMount = async (
+  dir: string,
+  rootDir?: string
+): Promise<string[]> => {
+  const resolvedDir = validateMountDirectory(dir);
+  const safeRoot = rootDir ? validateMountDirectory(rootDir) : resolvedDir;
+
+  if (
+    !resolvedDir.startsWith(`${safeRoot}${path.sep}`) &&
+    resolvedDir !== safeRoot
+  ) {
+    logger.warn(`Skipping directory outside mount root: ${resolvedDir}`);
+    return [];
+  }
+
+  if (!(await fs.pathExists(resolvedDir))) {
     logger.warn(`Mount directory does not exist: ${resolvedDir}`);
     return [];
   }
 
-  let results: string[] = [];
-  try {
-    const list = fs.readdirSync(resolvedDir);
+  const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
 
-    list.forEach((file) => {
-      const filePath = path.join(resolvedDir, file);
+  const nestedResults = await Promise.all(
+    entries.map(async (entry) => {
+      const filePath = path.join(resolvedDir, entry.name);
 
-      // Ensure the file path is still within the mount directory (prevent symlink attacks)
       if (
-        !filePath.startsWith(resolvedDir + path.sep) &&
+        !filePath.startsWith(`${resolvedDir}${path.sep}`) &&
         filePath !== resolvedDir
       ) {
         logger.warn(`Skipping file outside mount directory: ${filePath}`);
-        return;
+        return [] as string[];
       }
 
-      try {
-        const stat = fs.statSync(filePath);
-
-        if (stat && stat.isDirectory()) {
-          results = results.concat(getFilesRecursivelyFromMount(filePath));
-        } else {
-          results.push(filePath);
-        }
-      } catch (err) {
-        logger.warn(`Error accessing file ${filePath}: ${err}`);
+      if (entry.isSymbolicLink()) {
+        logger.warn(`Skipping symlink during mount scan: ${filePath}`);
+        return [] as string[];
       }
-    });
-  } catch (err) {
-    logger.error(`Error reading mount directory ${resolvedDir}: ${err}`);
-    throw err;
-  }
 
-  return results;
+      if (entry.isDirectory()) {
+        return getFilesRecursivelyFromMount(filePath, safeRoot);
+      }
+
+      return [filePath];
+    })
+  );
+
+  return nestedResults.flat();
 };
 
-/**
- * Scan files in videos directory and sync with database
- * Errors are automatically handled by asyncHandler middleware
- */
-export const scanFiles = async (
-  _req: Request,
-  res: Response,
-): Promise<void> => {
-  logger.info("Starting file scan...");
-
-  // 1. Get all existing videos from DB
-  const existingVideos = storageService.getVideos();
-  const existingPaths = new Set<string>();
-  const existingFilenames = new Set<string>();
-
-  // Track deleted videos
-  let deletedCount = 0;
-  const videosToDelete: string[] = [];
-
-  // Check for missing files
-  for (const v of existingVideos) {
-    if (v.videoPath) existingPaths.add(v.videoPath);
-    if (v.videoFilename) {
-      existingFilenames.add(v.videoFilename);
-    }
+const buildVideoWebPath = (
+  filePath: string,
+  normalizedDirectory: string,
+  isMountDirectory: boolean
+): string => {
+  if (isMountDirectory) {
+    return `mount:${path.resolve(path.normalize(filePath))}`;
   }
 
-  // 2. Recursively scan VIDEOS_DIR
-  if (!fs.existsSync(VIDEOS_DIR)) {
-    res
-      .status(200)
-      .json(
-        successResponse(
-          { addedCount: 0, deletedCount: 0 },
-          "Videos directory does not exist",
-        ),
-      );
-    return;
-  }
+  const relativePath = path.relative(normalizedDirectory, filePath);
+  return `/videos/${relativePath.split(path.sep).join("/")}`;
+};
 
-  const allFiles = getFilesRecursively(VIDEOS_DIR);
-  const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
-  const actualFilesOnDisk = new Set<string>(); // Stores filenames (basename)
-  const actualFullPathsOnDisk = new Set<string>(); // Stores full absolute paths
-
-  for (const filePath of allFiles) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (videoExtensions.includes(ext)) {
-      actualFilesOnDisk.add(path.basename(filePath));
-      actualFullPathsOnDisk.add(filePath);
-    }
-  }
-
-  // Now check for missing videos
-  for (const v of existingVideos) {
-    if (v.videoFilename) {
-      // If the filename is not found in ANY of the scanned files, it is missing.
-      if (!actualFilesOnDisk.has(v.videoFilename)) {
-        logger.info(`Video missing: ${v.title} (${v.videoFilename})`);
-        videosToDelete.push(v.id);
-      }
-    } else {
-      // No filename? That's a bad record.
-      logger.warn(`Video record corrupted (no filename): ${v.title}`);
-      videosToDelete.push(v.id);
-    }
-  }
-
-  // Delete missing videos
-  for (const id of videosToDelete) {
-    if (storageService.deleteVideo(id)) {
-      deletedCount++;
-    }
-  }
-  logger.info(`Deleted ${deletedCount} missing videos.`);
-
-  let addedCount = 0;
-
-  // 3. Process each file (Add new ones)
-  for (const filePath of allFiles) {
-    const ext = path.extname(filePath).toLowerCase();
-    if (!videoExtensions.includes(ext)) continue;
-
-    const filename = path.basename(filePath);
-    const relativePath = path.relative(VIDEOS_DIR, filePath);
-    const webPath = `/videos/${relativePath.split(path.sep).join("/")}`;
-
-    // Check if exists in DB by original filename
-    if (existingFilenames.has(filename)) {
-      continue;
-    }
-
-    const stats = fs.statSync(filePath);
-
-    // Skip 0-byte files to prevent importing empty/incomplete videos
-    if (stats.size === 0) {
-      logger.warn(`Skipping 0-byte video file: ${filePath}`);
-      continue;
-    }
-
-    const createdDate = stats.birthtime;
-    const fileSize = stats.size.toString();
-
-    // Extract title from filename
-    const originalTitle = path.parse(filename).name;
-    const dateString = createdDate
-      .toISOString()
-      .split("T")[0]
-      .replace(/-/g, "");
-
-    // Try to scrape metadata and poster from TMDB first to get director/author
-    let tmdbMetadata = null;
-    let tempThumbnailFilename = `${formatVideoFilename(originalTitle, "Admin", dateString)}.jpg`;
-    try {
-      tmdbMetadata = await scrapeMetadataFromTMDB(
-        filename,
-        tempThumbnailFilename,
-      );
-    } catch (error) {
-      logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
-    }
-
-    // Use director from TMDB metadata as author, fallback to "Admin"
-    const author = tmdbMetadata?.director || "Admin";
-
-    // Use original title for database (for display purposes)
-    // The title should be readable, not sanitized like filenames
-    const displayTitle = originalTitle || "Untitled Video";
-
-    // Check if the original filename already exists in DB (to avoid duplicates)
-    if (existingFilenames.has(filename)) {
-      logger.info(`Skipping file "${filename}" - already exists in database`);
-      continue;
-    }
-
-    logger.info(`Found new video file: ${relativePath}`);
-    const videoId = (Date.now() + Math.floor(Math.random() * 10000)).toString();
-
-    // Generate thumbnail filename based on original filename (without extension)
-    const thumbnailBaseName = path.parse(filename).name;
-    const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
-
-    // Use scraped title if available, otherwise use original title
-    const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
-    const finalDescription = tmdbMetadata?.description;
-
-    // Generate thumbnail with temporary name first (only if TMDB didn't provide one)
-    const tempThumbnailPath = path.join(
-      IMAGES_DIR,
-      `${path.parse(filename).name}.jpg`,
-    );
-
-    // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
-    if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
-      try {
-        // Validate paths before using them
-        const validatedFilePath = resolveSafePath(filePath, VIDEOS_DIR);
-        const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
-
-        // Use execFileSafe to prevent command injection
-        await execFileSafe("ffmpeg", [
-          "-i",
-          validatedFilePath,
-          "-ss",
-          "00:00:00",
-          "-vframes",
-          "1",
-          validatedThumbnailPath,
-        ]);
-      } catch (error) {
-        logger.error("Error generating thumbnail:", error);
-        // Continue without thumbnail - don't block the scan
-      }
-    }
-
-    // Get duration
-    let duration = undefined;
-    try {
-      // Validate path before using it
-      const validatedFilePath = resolveSafePath(filePath, VIDEOS_DIR);
-
-      // Use execFileSafe to prevent command injection
-      const { stdout } = await execFileSafe("ffprobe", [
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        validatedFilePath,
-      ]);
-
-      const durationOutput = stdout.trim();
-      if (durationOutput) {
-        const durationSec = parseFloat(durationOutput);
-        if (!isNaN(durationSec)) {
-          duration = Math.round(durationSec).toString();
-        }
-      }
-    } catch (err) {
-      logger.error("Error getting duration:", err);
-    }
-
-    // Keep original video filename - don't rename
-    const finalVideoFilename = filename;
-    const finalVideoPath = filePath;
-    const finalWebPath = webPath;
-
-    // Handle thumbnail file - prioritize TMDB poster if available
-    // Use TMDB-generated filename if available, otherwise use pre-generated one
-    const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename;
-    let finalThumbnailFilename = newThumbnailFilename;
-    let finalThumbnailPathValue: string | undefined;
-    let finalThumbnailUrl: string | undefined;
-
-    // If TMDB provided a poster, use it
+const getSafeFilePathForProcessing = (
+  filePath: string,
+  isMountDirectory: boolean
+): string | null => {
+  if (isMountDirectory) {
     if (
-      tmdbMetadata?.thumbnailPath &&
-      tmdbMetadata.thumbnailPath.startsWith("/images/")
+      !path.isAbsolute(filePath) ||
+      filePath.includes("..") ||
+      filePath.includes("\0")
     ) {
-      // Use the filename/path from TMDB metadata (it already includes the correct path)
-      if (tmdbThumbnailFilename) {
-        // tmdbThumbnailFilename is the relative path from IMAGES_DIR (may include subdirectory)
-        const tmdbFilePath = path.join(
-          IMAGES_DIR,
-          tmdbThumbnailFilename.replace(/\//g, path.sep),
-        );
-        if (fs.existsSync(tmdbFilePath)) {
-          finalThumbnailFilename = path.basename(tmdbThumbnailFilename);
-          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-          finalThumbnailUrl =
-            tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-          logger.info(
-            `Using TMDB poster for "${filename}" (saved as: ${tmdbThumbnailFilename})`,
-          );
-        } else {
-          // File doesn't exist at expected location, but use metadata path anyway
-          finalThumbnailFilename = path.basename(tmdbMetadata.thumbnailPath);
-          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-          finalThumbnailUrl =
-            tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-          logger.warn(
-            `TMDB poster path doesn't exist, using metadata path: ${tmdbMetadata.thumbnailPath}`,
-          );
-        }
-      } else {
-        // No filename in metadata, extract from thumbnailPath
-        const pathFromMetadata = tmdbMetadata.thumbnailPath.replace(
-          "/images/",
-          "",
-        );
-        finalThumbnailFilename = path.basename(pathFromMetadata);
-        finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-        finalThumbnailUrl =
-          tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-        logger.info(
-          `Using TMDB poster path from metadata: ${tmdbMetadata.thumbnailPath}`,
-        );
-      }
-    } else {
-      // Otherwise, handle the ffmpeg-generated thumbnail
-      const targetThumbnailPath = path.join(IMAGES_DIR, finalThumbnailFilename);
-      try {
-        if (fs.existsSync(tempThumbnailPath)) {
-          if (
-            fs.existsSync(targetThumbnailPath) &&
-            tempThumbnailPath !== targetThumbnailPath
-          ) {
-            // If target exists, remove the temp one
-            fs.removeSync(tempThumbnailPath);
-            logger.warn(
-              `Thumbnail filename already exists: ${finalThumbnailFilename}, using existing`,
-            );
-          } else if (tempThumbnailPath !== targetThumbnailPath) {
-            // Rename the thumbnail file
-            fs.moveSync(tempThumbnailPath, targetThumbnailPath);
-            logger.info(
-              `Renamed thumbnail file to "${finalThumbnailFilename}"`,
-            );
-          }
-          finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
-          finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
-        }
-      } catch (renameError) {
-        logger.error(`Error renaming thumbnail file: ${renameError}`);
-        // Use temp filename if rename fails
-        if (fs.existsSync(tempThumbnailPath)) {
-          finalThumbnailFilename = path.basename(tempThumbnailPath);
-          finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
-          finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
-        }
-      }
+      logger.warn(`Skipping unsafe mount path: ${filePath}`);
+      return null;
     }
 
-    // Use production year January 1st for scraped videos, otherwise use created date
-    let finalDateString: string;
-    if (tmdbMetadata?.year) {
-      // Use production year January 1st (YYYY0101 format)
-      finalDateString = `${tmdbMetadata.year}0101`;
-    } else {
-      // Use created date year January 1st if no TMDB year, or fallback to actual created date
-      const createdYear = createdDate.getFullYear();
-      finalDateString = `${createdYear}0101`;
+    return path.resolve(path.normalize(filePath));
+  }
+
+  try {
+    return resolveSafePath(filePath, VIDEOS_DIR);
+  } catch {
+    logger.warn(`Skipping unsafe local path: ${filePath}`);
+    return null;
+  }
+};
+
+const extractDuration = async (
+  safeFilePath: string
+): Promise<string | undefined> => {
+  try {
+    const { stdout } = await execFileSafe("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      safeFilePath,
+    ]);
+
+    const durationOutput = stdout.trim();
+    if (!durationOutput) {
+      return undefined;
     }
 
-    // For createdAt, use production year January 1st if TMDB year is available, otherwise use file created date
-    let finalCreatedAt: Date;
-    if (tmdbMetadata?.year) {
-      // Create date object for production year January 1st
-      const productionYear = parseInt(tmdbMetadata.year, 10);
-      if (!isNaN(productionYear)) {
-        finalCreatedAt = new Date(productionYear, 0, 1); // January 1st (month 0)
-      } else {
-        finalCreatedAt = createdDate;
-      }
-    } else {
-      finalCreatedAt = createdDate;
+    const durationSec = parseFloat(durationOutput);
+    if (Number.isNaN(durationSec)) {
+      return undefined;
     }
 
-    const newVideo = {
-      id: videoId,
-      title: finalDisplayTitle,
-      author: author,
-      description: finalDescription,
-      source: "local",
-      sourceUrl: "",
-      videoFilename: finalVideoFilename,
-      videoPath: finalWebPath,
-      thumbnailFilename: finalThumbnailPathValue
-        ? finalThumbnailFilename
-        : undefined,
-      thumbnailPath: finalThumbnailPathValue,
-      thumbnailUrl: finalThumbnailUrl,
-      rating: tmdbMetadata?.rating,
-      createdAt: finalCreatedAt.toISOString(),
-      addedAt: new Date().toISOString(),
-      date: finalDateString,
-      duration: duration,
-      fileSize: fileSize,
-    };
+    return Math.round(durationSec).toString();
+  } catch (error) {
+    logger.error("Error getting duration:", error);
+    return undefined;
+  }
+};
 
-    storageService.saveVideo(newVideo);
-    addedCount++;
+const maybeGenerateThumbnail = async (
+  safeFilePath: string,
+  tempThumbnailPath: string
+): Promise<void> => {
+  try {
+    const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
+    await execFileSafe("ffmpeg", [
+      "-i",
+      safeFilePath,
+      "-ss",
+      "00:00:00",
+      "-vframes",
+      "1",
+      validatedThumbnailPath,
+    ]);
+  } catch (error) {
+    logger.error("Error generating thumbnail:", error);
+  }
+};
 
-    // Check if video is in a subfolder
-    const dirName = path.dirname(relativePath);
-    if (dirName !== ".") {
-      const collectionName = dirName.split(path.sep)[0];
+const resolveThumbnail = async (
+  filename: string,
+  tmdbMetadata: TmdbMetadata,
+  tempThumbnailPath: string,
+  fallbackThumbnailFilename: string
+): Promise<ThumbnailResolution> => {
+  const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename as
+    | string
+    | undefined;
 
-      let collectionId: string | undefined;
-      const allCollections = storageService.getCollections();
-      const existingCollection = allCollections.find(
-        (c) => c.title === collectionName || c.name === collectionName,
+  if (
+    tmdbMetadata?.thumbnailPath &&
+    tmdbMetadata.thumbnailPath.startsWith("/images/")
+  ) {
+    if (tmdbThumbnailFilename) {
+      const tmdbFilePath = validateImagePath(
+        path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep))
       );
 
-      if (existingCollection) {
-        collectionId = existingCollection.id;
-      } else {
-        collectionId = (
-          Date.now() + Math.floor(Math.random() * 10000)
-        ).toString();
-        const newCollection = {
-          id: collectionId,
-          title: collectionName,
-          name: collectionName,
-          videos: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        storageService.saveCollection(newCollection);
-        logger.info(`Created new collection from folder: ${collectionName}`);
-      }
-
-      if (collectionId) {
-        storageService.addVideoToCollection(collectionId, newVideo.id);
+      if (await fs.pathExists(tmdbFilePath)) {
         logger.info(
-          `Added video ${newVideo.title} to collection ${collectionName}`,
+          `Using TMDB poster for "${filename}" (saved as: ${tmdbThumbnailFilename})`
+        );
+      } else {
+        logger.warn(
+          `TMDB poster path doesn't exist, using metadata path: ${tmdbMetadata.thumbnailPath}`
         );
       }
+
+      return {
+        filename: path.basename(tmdbThumbnailFilename),
+        path: tmdbMetadata.thumbnailPath,
+        url: tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath,
+      };
+    }
+
+    const pathFromMetadata = tmdbMetadata.thumbnailPath.replace("/images/", "");
+    return {
+      filename: path.basename(pathFromMetadata),
+      path: tmdbMetadata.thumbnailPath,
+      url: tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath,
+    };
+  }
+
+  let finalThumbnailFilename = fallbackThumbnailFilename;
+
+  try {
+    const safeTargetThumbnailPath = validateImagePath(
+      path.join(IMAGES_DIR, finalThumbnailFilename)
+    );
+    const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
+
+    if (await fs.pathExists(safeTempThumbnailPath)) {
+      if (
+        (await fs.pathExists(safeTargetThumbnailPath)) &&
+        safeTempThumbnailPath !== safeTargetThumbnailPath
+      ) {
+        await fs.remove(safeTempThumbnailPath);
+        logger.warn(
+          `Thumbnail filename already exists: ${finalThumbnailFilename}, using existing`
+        );
+      } else if (safeTempThumbnailPath !== safeTargetThumbnailPath) {
+        await fs.move(safeTempThumbnailPath, safeTargetThumbnailPath);
+        logger.info(`Renamed thumbnail file to "${finalThumbnailFilename}"`);
+      }
+
+      return {
+        filename: finalThumbnailFilename,
+        path: `/images/${finalThumbnailFilename}`,
+        url: `/images/${finalThumbnailFilename}`,
+      };
+    }
+  } catch (error) {
+    logger.error(`Error resolving thumbnail file: ${error}`);
+  }
+
+  if (await fs.pathExists(tempThumbnailPath)) {
+    finalThumbnailFilename = path.basename(tempThumbnailPath);
+    return {
+      filename: finalThumbnailFilename,
+      path: `/images/${finalThumbnailFilename}`,
+      url: `/images/${finalThumbnailFilename}`,
+    };
+  }
+
+  return {};
+};
+
+const processSingleVideoFile = async (
+  filePath: string,
+  normalizedDirectory: string,
+  existingVideosByPath: Map<string, ExistingVideoSnapshot>,
+  isMountDirectory: boolean,
+  resolveCollectionId: (collectionName: string) => Promise<string | undefined>
+): Promise<ProcessFileResult> => {
+  const filename = path.basename(filePath);
+  const relativePath = path.relative(normalizedDirectory, filePath);
+  const webPath = buildVideoWebPath(filePath, normalizedDirectory, isMountDirectory);
+
+  const stats = await fs.stat(filePath);
+  if (stats.size === 0) {
+    logger.warn(`Skipping 0-byte video file: ${filePath}`);
+    return "skipped";
+  }
+
+  const createdDate = stats.birthtime;
+  const fileSize = stats.size.toString();
+  const existingVideo = existingVideosByPath.get(webPath);
+  if (existingVideo && existingVideo.fileSize === fileSize) {
+    return "skipped";
+  }
+
+  const replacingVideoId = existingVideo?.id;
+  if (replacingVideoId) {
+    logger.info(`Detected file change at ${webPath}, refreshing metadata`);
+  }
+
+  const originalTitle = path.parse(filename).name;
+  const dateString = createdDate.toISOString().split("T")[0].replace(/-/g, "");
+
+  let tmdbMetadata: TmdbMetadata = null;
+  const tempThumbnailFilename = `${formatVideoFilename(
+    originalTitle,
+    "Admin",
+    dateString
+  )}.jpg`;
+
+  try {
+    tmdbMetadata = await scrapeMetadataFromTMDB(filename, tempThumbnailFilename);
+  } catch (error) {
+    logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
+  }
+
+  logger.info(`Found new video file: ${relativePath}`);
+
+  const displayTitle = originalTitle || "Untitled Video";
+  const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
+  const finalDescription = tmdbMetadata?.description;
+  const author = tmdbMetadata?.director || "Admin";
+
+  const thumbnailBaseName = path.parse(filename).name;
+  const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
+  const tempThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+
+  const safeFilePath = getSafeFilePathForProcessing(filePath, isMountDirectory);
+
+  if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl && safeFilePath) {
+    await maybeGenerateThumbnail(safeFilePath, tempThumbnailPath);
+  }
+
+  const duration = safeFilePath
+    ? await extractDuration(safeFilePath)
+    : undefined;
+
+  const thumbnail = await resolveThumbnail(
+    filename,
+    tmdbMetadata,
+    tempThumbnailPath,
+    newThumbnailFilename
+  );
+
+  let finalDateString: string;
+  if (tmdbMetadata?.year) {
+    finalDateString = `${tmdbMetadata.year}0101`;
+  } else {
+    finalDateString = `${createdDate.getFullYear()}0101`;
+  }
+
+  let finalCreatedAt = createdDate;
+  if (tmdbMetadata?.year) {
+    const productionYear = Number.parseInt(tmdbMetadata.year, 10);
+    if (!Number.isNaN(productionYear)) {
+      finalCreatedAt = new Date(productionYear, 0, 1);
     }
   }
 
-  const message = `Scan complete. Added ${addedCount} new videos. Deleted ${deletedCount} missing videos.`;
-  logger.info(message);
+  const videoId =
+    replacingVideoId ||
+    (Date.now() + Math.floor(Math.random() * 10000)).toString();
 
-  // Return format expected by frontend: { addedCount, deletedCount }
-  res.status(200).json({ addedCount, deletedCount });
+  const newVideo = {
+    id: videoId,
+    title: finalDisplayTitle,
+    author,
+    description: finalDescription,
+    source: "local",
+    sourceUrl: "",
+    videoFilename: filename,
+    videoPath: webPath,
+    thumbnailFilename: thumbnail.path ? thumbnail.filename : undefined,
+    thumbnailPath: thumbnail.path,
+    thumbnailUrl: thumbnail.url,
+    rating: tmdbMetadata?.rating,
+    createdAt: finalCreatedAt.toISOString(),
+    addedAt: new Date().toISOString(),
+    date: finalDateString,
+    duration,
+    fileSize,
+  };
+
+  storageService.saveVideo(newVideo);
+  existingVideosByPath.set(webPath, {
+    id: videoId,
+    fileSize,
+  });
+
+  const dirName = path.dirname(relativePath);
+  if (!replacingVideoId && dirName !== ".") {
+    const collectionName = dirName.split(path.sep)[0];
+    const collectionId = await resolveCollectionId(collectionName);
+
+    if (collectionId) {
+      storageService.addVideoToCollection(collectionId, newVideo.id);
+      logger.info(`Added video ${newVideo.title} to collection ${collectionName}`);
+    }
+  }
+
+  return replacingVideoId ? "updated" : "added";
 };
 
 /**
@@ -499,384 +482,197 @@ export const scanFiles = async (
  */
 const processDirectoryFiles = async (
   directory: string,
-  existingFilenames: Set<string>,
+  existingVideosByPath: Map<string, ExistingVideoSnapshot>,
   videoExtensions: string[],
-  isMountDirectory: boolean = false,
-): Promise<{ addedCount: number; allFiles: string[] }> => {
-  let addedCount = 0;
-  const allFiles: string[] = [];
-
-  // Normalize directory path
+  options: ProcessDirectoryOptions = {}
+): Promise<{ addedCount: number; updatedCount: number; allFiles: string[] }> => {
+  const isMountDirectory = options.isMountDirectory || false;
   const normalizedDirectory = path.resolve(path.normalize(directory));
 
-  if (!fs.existsSync(normalizedDirectory)) {
+  if (!(await fs.pathExists(normalizedDirectory))) {
     logger.warn(`Directory does not exist: ${normalizedDirectory}`);
-    return { addedCount: 0, allFiles: [] };
+    return { addedCount: 0, updatedCount: 0, allFiles: [] };
   }
 
-  try {
-    // Use mount directory function if this is a mount directory scan
-    const files = isMountDirectory
-      ? getFilesRecursivelyFromMount(normalizedDirectory)
-      : getFilesRecursively(normalizedDirectory);
-    allFiles.push(...files);
+  const allFiles =
+    options.scannedFiles ||
+    (isMountDirectory
+      ? await getFilesRecursivelyFromMount(normalizedDirectory)
+      : await getFilesRecursively(normalizedDirectory));
 
-    for (const filePath of files) {
-      const ext = path.extname(filePath).toLowerCase();
-      if (!videoExtensions.includes(ext)) continue;
+  const videoFiles = allFiles.filter((filePath) =>
+    videoExtensions.includes(path.extname(filePath).toLowerCase())
+  );
 
-      const filename = path.basename(filePath);
-      const relativePath = path.relative(normalizedDirectory, filePath);
+  const collectionIdCache = new Map<string, string>();
+  const collectionCreationLocks = new Map<string, Promise<string | undefined>>();
 
-      // Check if exists in DB by original filename
-      if (existingFilenames.has(filename)) {
-        continue;
+  const resolveCollectionId = async (
+    collectionName: string
+  ): Promise<string | undefined> => {
+    const cached = collectionIdCache.get(collectionName);
+    if (cached) {
+      return cached;
+    }
+
+    const inFlight = collectionCreationLocks.get(collectionName);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const createPromise = Promise.resolve().then(() => {
+      const allCollections = storageService.getCollections();
+      const existingCollection = allCollections.find(
+        (collection) =>
+          collection.title === collectionName || collection.name === collectionName
+      );
+
+      if (existingCollection) {
+        collectionIdCache.set(collectionName, existingCollection.id);
+        return existingCollection.id;
       }
 
-      const stats = fs.statSync(filePath);
-
-      // Skip 0-byte files to prevent importing empty/incomplete videos
-      if (stats.size === 0) {
-        logger.warn(`Skipping 0-byte video file: ${filePath}`);
-        continue;
-      }
-
-      const createdDate = stats.birthtime;
-      const fileSize = stats.size.toString();
-
-      // Extract title from filename
-      const originalTitle = path.parse(filename).name;
-      const dateString = createdDate
-        .toISOString()
-        .split("T")[0]
-        .replace(/-/g, "");
-
-      // Try to scrape metadata and poster from TMDB first to get director/author
-      let tmdbMetadata = null;
-      let tempThumbnailFilename = `${formatVideoFilename(originalTitle, "Admin", dateString)}.jpg`;
-      try {
-        tmdbMetadata = await scrapeMetadataFromTMDB(
-          filename,
-          tempThumbnailFilename,
-        );
-      } catch (error) {
-        logger.error(`Error scraping TMDB metadata for "${filename}":`, error);
-      }
-
-      // Use director from TMDB metadata as author, fallback to "Admin"
-      const author = tmdbMetadata?.director || "Admin";
-
-      // Use original title for database (for display purposes)
-      const displayTitle = originalTitle || "Untitled Video";
-
-      logger.info(`Found new video file: ${relativePath}`);
-      const videoId = (
+      const collectionId = (
         Date.now() + Math.floor(Math.random() * 10000)
       ).toString();
 
-      // Generate thumbnail filename based on original filename (without extension)
-      const thumbnailBaseName = path.parse(filename).name;
-      const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
+      storageService.saveCollection({
+        id: collectionId,
+        title: collectionName,
+        name: collectionName,
+        videos: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
 
-      // Use scraped title if available, otherwise use original title
-      const finalDisplayTitle = tmdbMetadata?.title || displayTitle;
-      const finalDescription = tmdbMetadata?.description;
+      logger.info(`Created new collection from folder: ${collectionName}`);
+      collectionIdCache.set(collectionName, collectionId);
+      return collectionId;
+    });
 
-      // Generate thumbnail with temporary name first (only if TMDB didn't provide one)
-      const tempThumbnailPath = path.join(
-        IMAGES_DIR,
-        `${path.parse(filename).name}.jpg`,
-      );
+    collectionCreationLocks.set(collectionName, createPromise);
+    try {
+      return await createPromise;
+    } finally {
+      collectionCreationLocks.delete(collectionName);
+    }
+  };
 
-      // Only generate thumbnail with ffmpeg if TMDB didn't provide a poster
-      if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl) {
-        // For mount directories, validate path differently (must be absolute, no traversal)
-        // For regular directories, use resolveSafePath
-        let safeFilePath: string | null = null;
-        if (isMountDirectory) {
-          // Mount directory: validate it's absolute and doesn't contain traversal
-          if (
-            path.isAbsolute(filePath) &&
-            !filePath.includes("..") &&
-            !filePath.includes("\0")
-          ) {
-            safeFilePath = path.resolve(filePath);
-          } else {
-            logger.warn(
-              `Skipping thumbnail generation for unsafe mount path: ${filePath}`,
-            );
-          }
-        } else {
-          // Regular directory: use resolveSafePath
-          try {
-            safeFilePath = resolveSafePath(filePath, VIDEOS_DIR);
-          } catch (err) {
-            logger.warn(
-              `Skipping thumbnail generation for unsafe path: ${filePath}`,
-            );
-          }
-        }
+  let addedCount = 0;
+  let updatedCount = 0;
 
-        if (safeFilePath) {
-          const safeThumbnailPath = validateImagePath(tempThumbnailPath);
-
-          await new Promise<void>((resolve) => {
-            // Use execFile instead of exec to prevent command injection
-            execFile(
-              "ffmpeg",
-              [
-                "-i",
-                safeFilePath!,
-                "-ss",
-                "00:00:00",
-                "-vframes",
-                "1",
-                safeThumbnailPath,
-              ],
-              (error) => {
-                if (error) {
-                  logger.error("Error generating thumbnail:", error);
-                  resolve();
-                } else {
-                  resolve();
-                }
-              },
-            );
-          });
-        }
-      }
-
-      // Get duration
-      let duration = undefined;
+  await runWithConcurrencyLimit(
+    videoFiles,
+    SCAN_FILE_CONCURRENCY,
+    async (filePath) => {
       try {
-        // For mount directories, validate path differently (must be absolute, no traversal)
-        // For regular directories, use resolveSafePath
-        let safeFilePath: string | null = null;
-        if (isMountDirectory) {
-          // Mount directory: validate it's absolute and doesn't contain traversal
-          if (
-            path.isAbsolute(filePath) &&
-            !filePath.includes("..") &&
-            !filePath.includes("\0")
-          ) {
-            safeFilePath = path.resolve(filePath);
-          } else {
-            logger.warn(
-              `Skipping duration extraction for unsafe mount path: ${filePath}`,
-            );
-          }
-        } else {
-          // Regular directory: use resolveSafePath
-          try {
-            safeFilePath = resolveSafePath(filePath, VIDEOS_DIR);
-          } catch (err) {
-            logger.warn(
-              `Skipping duration extraction for unsafe path: ${filePath}`,
-            );
-          }
-        }
-
-        if (safeFilePath) {
-          const durationOutput = await new Promise<string>(
-            (resolve, reject) => {
-              // Use execFile instead of exec to prevent command injection
-              execFile(
-                "ffprobe",
-                [
-                  "-v",
-                  "error",
-                  "-show_entries",
-                  "format=duration",
-                  "-of",
-                  "default=noprint_wrappers=1:nokey=1",
-                  safeFilePath!,
-                ],
-                (error, stdout, _stderr) => {
-                  if (error) {
-                    reject(error);
-                  } else {
-                    resolve(stdout.toString().trim());
-                  }
-                },
-              );
-            },
-          );
-          if (durationOutput) {
-            const durationSec = parseFloat(durationOutput);
-            if (!isNaN(durationSec)) {
-              duration = Math.round(durationSec).toString();
-            }
-          }
-        }
-      } catch (err) {
-        logger.error("Error getting duration:", err);
-      }
-
-      // Construct web path - use mount: prefix only for mount directories
-      const webPath = isMountDirectory
-        ? `mount:${filePath}`
-        : `/videos/${relativePath}`;
-
-      // Handle thumbnail file - prioritize TMDB poster if available
-      const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename;
-      let finalThumbnailFilename = newThumbnailFilename;
-      let finalThumbnailPathValue: string | undefined;
-      let finalThumbnailUrl: string | undefined;
-
-      // If TMDB provided a poster, use it
-      if (
-        tmdbMetadata?.thumbnailPath &&
-        tmdbMetadata.thumbnailPath.startsWith("/images/")
-      ) {
-        if (tmdbThumbnailFilename) {
-          // Validate path to prevent path traversal
-          const safeTmdbFilePath = validateImagePath(
-            path.join(
-              IMAGES_DIR,
-              tmdbThumbnailFilename.replace(/\//g, path.sep),
-            ),
-          );
-          if (fs.existsSync(safeTmdbFilePath)) {
-            finalThumbnailFilename = path.basename(tmdbThumbnailFilename);
-            finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-            finalThumbnailUrl =
-              tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-          } else {
-            finalThumbnailFilename = path.basename(tmdbMetadata.thumbnailPath);
-            finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-            finalThumbnailUrl =
-              tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-          }
-        } else {
-          const pathFromMetadata = tmdbMetadata.thumbnailPath.replace(
-            "/images/",
-            "",
-          );
-          finalThumbnailFilename = path.basename(pathFromMetadata);
-          finalThumbnailPathValue = tmdbMetadata.thumbnailPath;
-          finalThumbnailUrl =
-            tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath;
-        }
-      } else {
-        // Handle ffmpeg-generated thumbnail
-        // Validate paths to prevent path traversal
-        const safeTargetThumbnailPath = validateImagePath(
-          path.join(IMAGES_DIR, finalThumbnailFilename),
-        );
-        const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
-        try {
-          if (fs.existsSync(safeTempThumbnailPath)) {
-            if (
-              fs.existsSync(safeTargetThumbnailPath) &&
-              safeTempThumbnailPath !== safeTargetThumbnailPath
-            ) {
-              fs.removeSync(safeTempThumbnailPath);
-            } else if (safeTempThumbnailPath !== safeTargetThumbnailPath) {
-              fs.moveSync(safeTempThumbnailPath, safeTargetThumbnailPath);
-            }
-            finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
-            finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
-          }
-        } catch (renameError) {
-          logger.error(`Error renaming thumbnail file: ${renameError}`);
-          if (fs.existsSync(tempThumbnailPath)) {
-            finalThumbnailFilename = path.basename(tempThumbnailPath);
-            finalThumbnailPathValue = `/images/${finalThumbnailFilename}`;
-            finalThumbnailUrl = `/images/${finalThumbnailFilename}`;
-          }
-        }
-      }
-
-      // Use production year January 1st for scraped videos, otherwise use created date
-      let finalDateString: string;
-      if (tmdbMetadata?.year) {
-        finalDateString = `${tmdbMetadata.year}0101`;
-      } else {
-        const createdYear = createdDate.getFullYear();
-        finalDateString = `${createdYear}0101`;
-      }
-
-      // For createdAt, use production year January 1st if TMDB year is available
-      let finalCreatedAt: Date;
-      if (tmdbMetadata?.year) {
-        const productionYear = parseInt(tmdbMetadata.year, 10);
-        if (!isNaN(productionYear)) {
-          finalCreatedAt = new Date(productionYear, 0, 1);
-        } else {
-          finalCreatedAt = createdDate;
-        }
-      } else {
-        finalCreatedAt = createdDate;
-      }
-
-      const newVideo = {
-        id: videoId,
-        title: finalDisplayTitle,
-        author: author,
-        description: finalDescription,
-        source: "local",
-        sourceUrl: "",
-        videoFilename: filename,
-        videoPath: webPath,
-        thumbnailFilename: finalThumbnailPathValue
-          ? finalThumbnailFilename
-          : undefined,
-        thumbnailPath: finalThumbnailPathValue,
-        thumbnailUrl: finalThumbnailUrl,
-        rating: tmdbMetadata?.rating,
-        createdAt: finalCreatedAt.toISOString(),
-        addedAt: new Date().toISOString(),
-        date: finalDateString,
-        duration: duration,
-        fileSize: fileSize,
-      };
-
-      storageService.saveVideo(newVideo);
-      existingFilenames.add(filename); // Mark as added to avoid duplicates
-      addedCount++;
-
-      // Check if video is in a subfolder
-      const dirName = path.dirname(relativePath);
-      if (dirName !== ".") {
-        const collectionName = dirName.split(path.sep)[0];
-
-        let collectionId: string | undefined;
-        const allCollections = storageService.getCollections();
-        const existingCollection = allCollections.find(
-          (c) => c.title === collectionName || c.name === collectionName,
+        const result = await processSingleVideoFile(
+          filePath,
+          normalizedDirectory,
+          existingVideosByPath,
+          isMountDirectory,
+          resolveCollectionId
         );
 
-        if (existingCollection) {
-          collectionId = existingCollection.id;
-        } else {
-          collectionId = (
-            Date.now() + Math.floor(Math.random() * 10000)
-          ).toString();
-          const newCollection = {
-            id: collectionId,
-            title: collectionName,
-            name: collectionName,
-            videos: [],
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          storageService.saveCollection(newCollection);
-          logger.info(`Created new collection from folder: ${collectionName}`);
+        if (result === "added") {
+          addedCount += 1;
+        } else if (result === "updated") {
+          updatedCount += 1;
         }
-
-        if (collectionId) {
-          storageService.addVideoToCollection(collectionId, newVideo.id);
-          logger.info(
-            `Added video ${newVideo.title} to collection ${collectionName}`,
-          );
-        }
+      } catch (error) {
+        logger.error(`Error processing video file ${filePath}:`, error);
       }
     }
-  } catch (error) {
-    logger.error(`Error scanning directory ${directory}:`, error);
+  );
+
+  return { addedCount, updatedCount, allFiles };
+};
+
+/**
+ * Scan files in videos directory and sync with database
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const scanFiles = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  logger.info("Starting file scan...");
+
+  const existingVideos = storageService.getVideos();
+  const existingVideosByPath = new Map<string, ExistingVideoSnapshot>();
+  const videosToDelete: string[] = [];
+
+  for (const video of existingVideos) {
+    if (video.videoPath?.startsWith("/videos/")) {
+      existingVideosByPath.set(video.videoPath, {
+        id: video.id,
+        fileSize: video.fileSize,
+      });
+    }
   }
 
-  return { addedCount, allFiles };
+  if (!(await fs.pathExists(VIDEOS_DIR))) {
+    res
+      .status(200)
+      .json(
+        successResponse(
+          { addedCount: 0, deletedCount: 0 },
+          "Videos directory does not exist"
+        )
+      );
+    return;
+  }
+
+  const allFiles = await getFilesRecursively(VIDEOS_DIR);
+  const actualVideoWebPathsOnDisk = new Set<string>();
+
+  for (const filePath of allFiles) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (!VIDEO_EXTENSIONS.includes(ext)) {
+      continue;
+    }
+
+    const relativePath = path.relative(VIDEOS_DIR, filePath);
+    const webPath = `/videos/${relativePath.split(path.sep).join("/")}`;
+    actualVideoWebPathsOnDisk.add(webPath);
+  }
+
+  for (const video of existingVideos) {
+    if (video.videoPath?.startsWith("/videos/")) {
+      if (!actualVideoWebPathsOnDisk.has(video.videoPath)) {
+        logger.info(`Video missing: ${video.title} (${video.videoPath})`);
+        videosToDelete.push(video.id);
+      }
+    } else if (video.videoFilename && !video.videoPath) {
+      const inferredPath = `/videos/${video.videoFilename}`;
+      if (!actualVideoWebPathsOnDisk.has(inferredPath)) {
+        logger.info(
+          `Video missing (legacy path): ${video.title} (${video.videoFilename})`
+        );
+        videosToDelete.push(video.id);
+      }
+    }
+  }
+
+  let deletedCount = 0;
+  for (const id of videosToDelete) {
+    if (storageService.deleteVideo(id)) {
+      deletedCount += 1;
+    }
+  }
+  logger.info(`Deleted ${deletedCount} missing videos.`);
+
+  const { addedCount, updatedCount } = await processDirectoryFiles(
+    VIDEOS_DIR,
+    existingVideosByPath,
+    VIDEO_EXTENSIONS,
+    { scannedFiles: allFiles }
+  );
+
+  const message = `Scan complete. Added ${addedCount} new videos. Updated ${updatedCount} existing videos. Deleted ${deletedCount} missing videos.`;
+  logger.info(message);
+
+  res.status(200).json({ addedCount, deletedCount });
 };
 
 /**
@@ -885,7 +681,7 @@ const processDirectoryFiles = async (
  */
 export const scanMountDirectories = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   logger.info("Starting mount directories scan...");
 
@@ -898,123 +694,126 @@ export const scanMountDirectories = async (
     return;
   }
 
-  // Filter out empty strings and trim
-  const validDirectories = directories
+  const trimmedDirectories = directories
     .map((dir: string) => dir.trim())
     .filter((dir: string) => dir.length > 0);
 
-  if (validDirectories.length === 0) {
+  if (trimmedDirectories.length === 0) {
     res.status(400).json({ error: "No valid directories provided" });
     return;
   }
 
-  logger.info(
-    `Scanning ${validDirectories.length} mount directory/directories: ${validDirectories.join(", ")}`,
-  );
-
-  // 1. Get all existing videos from DB
-  const existingVideos = storageService.getVideos();
-  const existingFilenames = new Set<string>();
-
-  // Track existing filenames
-  for (const v of existingVideos) {
-    if (v.videoFilename) {
-      existingFilenames.add(v.videoFilename);
+  const validDirectories: string[] = [];
+  const invalidDirectories: string[] = [];
+  for (const directory of trimmedDirectories) {
+    try {
+      validDirectories.push(validateMountDirectory(directory));
+    } catch {
+      invalidDirectories.push(directory);
     }
   }
 
-  const videoExtensions = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
-  let totalAddedCount = 0;
-  const actualFilesOnDisk = new Set<string>();
+  if (invalidDirectories.length > 0) {
+    res.status(400).json({
+      error: "Invalid mount directories detected (must be absolute safe paths)",
+      invalidDirectories,
+    });
+    return;
+  }
 
-  // 2. Scan each directory
+  logger.info(
+    `Scanning ${validDirectories.length} mount directory/directories: ${validDirectories.join(
+      ", "
+    )}`
+  );
+
+  const existingVideos = storageService.getVideos();
+  const existingVideosByPath = new Map<string, ExistingVideoSnapshot>();
+
+  for (const video of existingVideos) {
+    if (video.videoPath) {
+      existingVideosByPath.set(video.videoPath, {
+        id: video.id,
+        fileSize: video.fileSize,
+      });
+    }
+  }
+
+  let totalAddedCount = 0;
+  let totalUpdatedCount = 0;
+  const actualMountPathsOnDisk = new Set<string>();
+
   for (const directory of validDirectories) {
-    const { addedCount, allFiles } = await processDirectoryFiles(
+    const { addedCount, updatedCount, allFiles } = await processDirectoryFiles(
       directory,
-      existingFilenames,
-      videoExtensions,
-      true, // isMountDirectory = true
+      existingVideosByPath,
+      VIDEO_EXTENSIONS,
+      { isMountDirectory: true }
     );
 
     totalAddedCount += addedCount;
+    totalUpdatedCount += updatedCount;
 
-    // Track all found files
     for (const filePath of allFiles) {
       const ext = path.extname(filePath).toLowerCase();
-      if (videoExtensions.includes(ext)) {
-        actualFilesOnDisk.add(path.basename(filePath));
+      if (VIDEO_EXTENSIONS.includes(ext)) {
+        actualMountPathsOnDisk.add(path.resolve(path.normalize(filePath)));
       }
     }
   }
 
-  // 3. Check for missing videos (only those that were in the scanned directories)
-  // Note: We're not deleting videos from the default VIDEOS_DIR, only checking mount directories
   let deletedCount = 0;
   const videosToDelete: string[] = [];
 
-  // Only check videos that might have come from mount directories
-  // We'll check if the videoPath exists in any of the scanned directories
-  // Normalize all directory paths for comparison
-  const normalizedDirectories = validDirectories.map((dir: string) => {
-    try {
-      return path.resolve(path.normalize(dir));
-    } catch {
-      return dir;
+  const normalizedDirectories = validDirectories;
+
+  for (const video of existingVideos) {
+    if (!video.videoPath) {
+      continue;
     }
-  });
 
-  for (const v of existingVideos) {
-    if (v.videoFilename && v.videoPath) {
-      // Extract actual path from mount: prefix if present
-      let actualVideoPath = v.videoPath;
-      if (actualVideoPath.startsWith("mount:")) {
-        actualVideoPath = actualVideoPath.substring(6); // Remove "mount:" prefix
-      }
+    let actualVideoPath = video.videoPath;
+    if (actualVideoPath.startsWith("mount:")) {
+      actualVideoPath = actualVideoPath.substring(6);
+    }
 
-      // Normalize video path and check if it's within any scanned directory
-      let normalizedVideoPath: string;
-      try {
-        normalizedVideoPath = path.resolve(path.normalize(actualVideoPath));
-      } catch {
-        continue; // Skip if path can't be normalized
-      }
+    let normalizedVideoPath: string;
+    try {
+      normalizedVideoPath = path.resolve(path.normalize(actualVideoPath));
+    } catch {
+      continue;
+    }
 
-      // Check if this video path is within any of the scanned directories
-      const isInScannedDirectory = normalizedDirectories.some(
-        (normalizedDir: string) => {
-          try {
-            // Check if video path starts with the directory path
-            // This works because we've normalized both paths
-            return (
-              normalizedVideoPath.startsWith(normalizedDir + path.sep) ||
-              normalizedVideoPath === normalizedDir
-            );
-          } catch {
-            return false;
-          }
-        },
+    const isInScannedDirectory = normalizedDirectories.some((dir: string) => {
+      return (
+        normalizedVideoPath === dir ||
+        normalizedVideoPath.startsWith(`${dir}${path.sep}`)
       );
+    });
 
-      if (isInScannedDirectory && !actualFilesOnDisk.has(v.videoFilename)) {
-        logger.info(
-          `Video missing from mount directory: ${v.title} (${v.videoFilename})`,
-        );
-        videosToDelete.push(v.id);
-      }
+    if (!isInScannedDirectory) {
+      continue;
+    }
+
+    if (!actualMountPathsOnDisk.has(normalizedVideoPath)) {
+      logger.info(`Mount video missing: ${video.title} (${video.videoPath})`);
+      videosToDelete.push(video.id);
     }
   }
 
-  // Delete missing videos
   for (const id of videosToDelete) {
     if (storageService.deleteVideo(id)) {
-      deletedCount++;
+      deletedCount += 1;
     }
   }
-  logger.info(`Deleted ${deletedCount} missing videos from mount directories.`);
 
-  const message = `Mount directories scan complete. Added ${totalAddedCount} new videos. Deleted ${deletedCount} missing videos.`;
-  logger.info(message);
+  logger.info(
+    `Mount scan complete. Added ${totalAddedCount} new videos. Updated ${totalUpdatedCount} existing videos. Deleted ${deletedCount} missing videos.`
+  );
 
-  // Return format expected by frontend: { addedCount, deletedCount }
-  res.status(200).json({ addedCount: totalAddedCount, deletedCount });
+  res.status(200).json({
+    addedCount: totalAddedCount,
+    deletedCount,
+    scannedDirectories: validDirectories.length,
+  });
 };

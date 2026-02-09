@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
 import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
@@ -8,14 +8,33 @@ import { DownloadHistoryItem, Video, VideoDownloadCheckResult } from "./types";
  * Check if a video has been downloaded before by its source video ID
  */
 export function checkVideoDownloadBySourceId(
-  sourceVideoId: string
+  sourceVideoId: string,
+  platform?: string
 ): VideoDownloadCheckResult {
   try {
-    const record = db
+    const records = db
       .select()
       .from(videoDownloads)
-      .where(eq(videoDownloads.sourceVideoId, sourceVideoId))
-      .get();
+      .where(
+        platform
+          ? and(
+              eq(videoDownloads.sourceVideoId, sourceVideoId),
+              eq(videoDownloads.platform, platform)
+            )
+          : eq(videoDownloads.sourceVideoId, sourceVideoId)
+      )
+      .all();
+
+    const record = records
+      .slice()
+      .sort((left, right) => {
+        const leftRank = left.status === "exists" ? 0 : 1;
+        const rightRank = right.status === "exists" ? 0 : 1;
+        if (leftRank !== rightRank) {
+          return leftRank - rightRank;
+        }
+        return (right.downloadedAt || 0) - (left.downloadedAt || 0);
+      })[0];
 
     if (record) {
       return {
@@ -88,10 +107,42 @@ export function recordVideoDownload(
   author?: string
 ): void {
   try {
-    const id = `${platform}-${sourceVideoId}-${Date.now()}`;
+    // Keep a single canonical row per (sourceVideoId, platform) to prevent drift/duplicates.
+    // We update the existing row when present; otherwise create a deterministic id.
+    const existingRecord = db
+      .select()
+      .from(videoDownloads)
+      .where(
+        and(
+          eq(videoDownloads.sourceVideoId, sourceVideoId),
+          eq(videoDownloads.platform, platform)
+        )
+      )
+      .get();
+
+    if (existingRecord) {
+      db.update(videoDownloads)
+        .set({
+          sourceUrl,
+          platform,
+          videoId,
+          title,
+          author,
+          status: "exists",
+          deletedAt: null,
+        })
+        .where(eq(videoDownloads.id, existingRecord.id))
+        .run();
+      logger.info(
+        `Updated video download record: ${title || sourceVideoId} (${platform})`
+      );
+      return;
+    }
+
+    const deterministicId = `${platform}:${sourceVideoId}`;
     db.insert(videoDownloads)
       .values({
-        id,
+        id: deterministicId,
         sourceVideoId,
         sourceUrl,
         platform,
@@ -104,6 +155,8 @@ export function recordVideoDownload(
       .onConflictDoUpdate({
         target: videoDownloads.id,
         set: {
+          sourceUrl,
+          platform,
           videoId,
           title,
           author,
@@ -112,9 +165,7 @@ export function recordVideoDownload(
         },
       })
       .run();
-    logger.info(
-      `Recorded video download: ${title || sourceVideoId} (${platform})`
-    );
+    logger.info(`Recorded video download: ${title || sourceVideoId} (${platform})`);
   } catch (error) {
     logger.error(
       "Error recording video download",
@@ -154,9 +205,17 @@ export function updateVideoDownloadRecord(
   sourceVideoId: string,
   newVideoId: string,
   title?: string,
-  author?: string
+  author?: string,
+  platform?: string
 ): void {
   try {
+    const updateCondition = platform
+      ? and(
+          eq(videoDownloads.sourceVideoId, sourceVideoId),
+          eq(videoDownloads.platform, platform)
+        )
+      : eq(videoDownloads.sourceVideoId, sourceVideoId);
+
     db.update(videoDownloads)
       .set({
         videoId: newVideoId,
@@ -165,7 +224,7 @@ export function updateVideoDownloadRecord(
         status: "exists",
         deletedAt: null,
       })
-      .where(eq(videoDownloads.sourceVideoId, sourceVideoId))
+      .where(updateCondition)
       .run();
     logger.info(`Updated video download record: ${title || sourceVideoId}`);
   } catch (error) {

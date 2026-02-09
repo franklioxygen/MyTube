@@ -1,9 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { createContext, useContext, useState } from 'react';
-import { getApiUrl } from '../utils/apiUrl';
-
-const API_URL = getApiUrl();
+import { api } from '../utils/apiClient';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -28,9 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         queryFn: async () => {
             try {
                 // Check if login is enabled in settings
-                const response = await axios.get(`${API_URL}/settings`, {
-                    withCredentials: true
-                });
+                const response = await api.get('/settings');
                 const { loginEnabled, isPasswordSet } = response.data;
 
                 // Login is required if loginEnabled is true (regardless of password or passkey)
@@ -133,9 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         try {
             // Call backend logout endpoint to clear HTTP-only cookies
-            await axios.post(`${API_URL}/settings/logout`, {}, {
-                withCredentials: true
-            });
+            await api.post('/settings/logout', {});
         } catch (error) {
             console.error('Error during logout:', error);
             // Continue with logout even if backend call fails

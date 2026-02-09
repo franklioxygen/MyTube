@@ -1,9 +1,7 @@
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { getApiUrl } from '../utils/apiUrl';
-
-const API_URL = getApiUrl();
+import { Settings } from '../types';
+import { api } from '../utils/apiClient';
 
 interface HomeSettings {
     isSidebarOpen: boolean;
@@ -25,7 +23,12 @@ interface UseHomeSettingsReturn extends HomeSettings {
     handleSidebarToggle: () => Promise<void>;
 }
 
-export const useHomeSettings = (): UseHomeSettingsReturn => {
+interface UseHomeSettingsParams {
+    settings?: Settings;
+    settingsLoading?: boolean;
+}
+
+export const useHomeSettings = ({ settings, settingsLoading = false }: UseHomeSettingsParams = {}): UseHomeSettingsReturn => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
     const [infiniteScroll, setInfiniteScroll] = useState(false);
@@ -35,47 +38,38 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
     const [showTagsOnThumbnail, setShowTagsOnThumbnail] = useState(true);
     const { isAuthenticated } = useAuth();
 
-    // Fetch settings on mount (only when authenticated)
+    // Sync local home settings state from shared settings query
     useEffect(() => {
         if (!isAuthenticated) {
             setSettingsLoaded(true);
             return;
         }
 
-        const fetchSettings = async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`);
-                if (response.data) {
-                    if (typeof response.data.homeSidebarOpen !== 'undefined') {
-                        setIsSidebarOpen(response.data.homeSidebarOpen);
-                    }
-                    if (typeof response.data.itemsPerPage !== 'undefined') {
-                        setItemsPerPage(response.data.itemsPerPage);
-                    }
-                    if (typeof response.data.infiniteScroll !== 'undefined') {
-                        setInfiniteScroll(response.data.infiniteScroll);
-                    }
-                    if (typeof response.data.videoColumns !== 'undefined') {
-                        setVideoColumns(response.data.videoColumns);
-                    }
-                    if (typeof response.data.defaultSort !== 'undefined') {
-                        setDefaultSort(response.data.defaultSort);
-                    }
-                    if (typeof response.data.showTagsOnThumbnail !== 'undefined') {
-                        setShowTagsOnThumbnail(response.data.showTagsOnThumbnail);
-                    }
-                }
-            } catch (error: any) {
-                // Silently handle 401 errors (expected when not authenticated)
-                if (error?.response?.status !== 401) {
-                    console.error('Failed to fetch settings:', error);
-                }
-            } finally {
-                setSettingsLoaded(true);
+        if (settingsLoading) return;
+
+        if (settings) {
+            if (typeof settings.homeSidebarOpen !== 'undefined') {
+                setIsSidebarOpen(settings.homeSidebarOpen);
             }
-        };
-        fetchSettings();
-    }, [isAuthenticated]);
+            if (typeof settings.itemsPerPage !== 'undefined') {
+                setItemsPerPage(settings.itemsPerPage);
+            }
+            if (typeof settings.infiniteScroll !== 'undefined') {
+                setInfiniteScroll(settings.infiniteScroll);
+            }
+            if (typeof settings.videoColumns !== 'undefined') {
+                setVideoColumns(settings.videoColumns);
+            }
+            if (typeof settings.defaultSort !== 'undefined') {
+                setDefaultSort(settings.defaultSort);
+            }
+            if (typeof settings.showTagsOnThumbnail !== 'undefined') {
+                setShowTagsOnThumbnail(settings.showTagsOnThumbnail);
+            }
+        }
+
+        setSettingsLoaded(true);
+    }, [isAuthenticated, settingsLoading, settings]);
 
     const handleSidebarToggle = async () => {
         const newState = !isSidebarOpen;
@@ -87,10 +81,7 @@ export const useHomeSettings = (): UseHomeSettingsReturn => {
         }
 
         try {
-            const response = await axios.get(`${API_URL}/settings`);
-            const currentSettings = response.data;
-            await axios.post(`${API_URL}/settings`, {
-                ...currentSettings,
+            await api.patch('/settings', {
                 homeSidebarOpen: newState
             });
         } catch (error: any) {

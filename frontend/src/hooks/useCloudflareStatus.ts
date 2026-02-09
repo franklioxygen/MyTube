@@ -1,8 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getApiUrl } from '../utils/apiUrl';
-import axios from "axios";
-
-const API_URL = getApiUrl();
+import { api } from "../utils/apiClient";
 
 interface CloudflareStatus {
   isRunning: boolean;
@@ -15,14 +12,7 @@ export const useCloudflareStatus = (enabled: boolean = true) => {
   return useQuery<CloudflareStatus>({
     queryKey: ["cloudflaredStatus"],
     queryFn: async () => {
-      if (!enabled)
-        return {
-          isRunning: false,
-          tunnelId: null,
-          accountTag: null,
-          publicUrl: null,
-        };
-      const res = await axios.get(`${API_URL}/settings/cloudflared/status`);
+      const res = await api.get("/settings/cloudflared/status");
       return res.data;
     },
     enabled: !!enabled,

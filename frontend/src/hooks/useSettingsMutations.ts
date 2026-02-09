@@ -1,12 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Settings } from "../types";
-import { getApiUrl } from "../utils/apiUrl";
+import { api } from "../utils/apiClient";
 import { generateTimestamp } from "../utils/formatUtils";
 import { InfoModalState } from "./useSettingsModals";
-
-const API_URL = getApiUrl();
 
 interface UseSettingsMutationsProps {
   setMessage: (
@@ -17,6 +14,64 @@ interface UseSettingsMutationsProps {
   ) => void;
   setInfoModal: (modal: InfoModalState) => void;
 }
+
+interface SaveSettingsMutationResult {
+  skipped: boolean;
+  patchPayload: Partial<Settings>;
+}
+
+const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  if (
+    typeof a === "object" &&
+    a !== null &&
+    typeof b === "object" &&
+    b !== null
+  ) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  return false;
+};
+
+const buildSettingsPatchPayload = (
+  newSettings: Settings,
+  currentSettings?: Settings
+): Partial<Settings> => {
+  const normalized = { ...newSettings } as Record<string, unknown>;
+
+  // Empty password means unchanged in current UI behavior.
+  if (!normalized.password) {
+    delete normalized.password;
+  }
+  if (!normalized.visitorPassword) {
+    delete normalized.visitorPassword;
+  }
+
+  // Backend derives these flags; they are not writable settings.
+  delete normalized.isPasswordSet;
+  delete normalized.isVisitorPasswordSet;
+
+  if (!currentSettings) {
+    // Without a baseline we should not submit a full settings object.
+    return {};
+  }
+
+  const patchPayload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(normalized)) {
+    const previousValue = (currentSettings as Record<string, unknown>)[key];
+    if (!areSettingValuesEqual(value, previousValue)) {
+      patchPayload[key] = value;
+    }
+  }
+
+  return patchPayload as Partial<Settings>;
+};
 
 /**
  * Custom hook to manage all settings-related API mutations
@@ -30,23 +85,42 @@ export function useSettingsMutations({
 
   // Save settings mutation
   const saveMutation = useMutation({
-    mutationFn: async (newSettings: Settings) => {
-      // Only send password if it has been changed (is not empty)
-      const settingsToSend = { ...newSettings };
-      if (!settingsToSend.password) {
-        delete settingsToSend.password;
+    mutationFn: async (newSettings: Settings): Promise<SaveSettingsMutationResult> => {
+      let currentSettings = queryClient.getQueryData<Settings>(["settings"]);
+      if (!currentSettings) {
+        const latestSettings = await api.get("/settings");
+        currentSettings = latestSettings.data as Settings;
+        queryClient.setQueryData(["settings"], currentSettings);
       }
-      await axios.post(`${API_URL}/settings`, settingsToSend);
+      const patchPayload = buildSettingsPatchPayload(newSettings, currentSettings);
+
+      if (Object.keys(patchPayload).length === 0) {
+        return {
+          skipped: true,
+          patchPayload,
+        };
+      }
+
+      await api.patch("/settings", patchPayload);
+
+      return {
+        skipped: false,
+        patchPayload,
+      };
     },
-    onSuccess: (_, newSettings) => {
+    onSuccess: (result, newSettings) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
+
+      const changedSettings = result?.patchPayload ?? newSettings;
       // Update settings cache immediately so Header and other consumers react without waiting for refetch
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
-        old ? { ...old, ...newSettings } : (newSettings as Settings)
+        old ? { ...old, ...changedSettings } : ({ ...newSettings } as Settings)
       );
-      // Invalidate to refetch from server and keep cache in sync
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      if (newSettings.tags !== undefined) {
+      // Skip refetch when no fields changed.
+      if (!result?.skipped) {
+        queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
+      if (changedSettings.tags !== undefined) {
         queryClient.invalidateQueries({ queryKey: ["videos"] });
       }
     },
@@ -65,7 +139,7 @@ export function useSettingsMutations({
   // Migrate data mutation
   const migrateMutation = useMutation({
     mutationFn: async () => {
-      const res = await axios.post(`${API_URL}/settings/migrate`);
+      const res = await api.post("/settings/migrate");
       return res.data.results;
     },
     onSuccess: (results) => {
@@ -121,7 +195,7 @@ export function useSettingsMutations({
   // Cleanup temp files mutation
   const cleanupMutation = useMutation({
     mutationFn: async () => {
-      const res = await axios.post(`${API_URL}/cleanup-temp-files`);
+      const res = await api.post("/cleanup-temp-files");
       return res.data;
     },
     onSuccess: (data) => {
@@ -162,7 +236,7 @@ export function useSettingsMutations({
   // Delete legacy data mutation
   const deleteLegacyMutation = useMutation({
     mutationFn: async () => {
-      const res = await axios.post(`${API_URL}/settings/delete-legacy`);
+      const res = await api.post("/settings/delete-legacy");
       return res.data.results;
     },
     onSuccess: (results) => {
@@ -196,7 +270,7 @@ export function useSettingsMutations({
   // Format legacy filenames mutation
   const formatFilenamesMutation = useMutation({
     mutationFn: async () => {
-      const res = await axios.post(`${API_URL}/settings/format-filenames`);
+      const res = await api.post("/settings/format-filenames");
       return res.data.results;
     },
     onSuccess: (results) => {
@@ -243,7 +317,7 @@ export function useSettingsMutations({
   // Export database mutation
   const exportDatabaseMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.get(`${API_URL}/settings/export-database`, {
+      const response = await api.get("/settings/export-database", {
         responseType: "blob",
       });
       return response;
@@ -285,8 +359,8 @@ export function useSettingsMutations({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await axios.post(
-        `${API_URL}/settings/import-database`,
+      const response = await api.post(
+        "/settings/import-database",
         formData,
         {
           headers: {
@@ -320,9 +394,7 @@ export function useSettingsMutations({
   // Cleanup backup databases mutation
   const cleanupBackupDatabasesMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.post(
-        `${API_URL}/settings/cleanup-backup-databases`
-      );
+      const response = await api.post("/settings/cleanup-backup-databases");
       return response.data;
     },
     onSuccess: (data) => {
@@ -346,7 +418,7 @@ export function useSettingsMutations({
   const { data: lastBackupInfo, refetch: refetchLastBackupInfo } = useQuery({
     queryKey: ["lastBackupInfo"],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/settings/last-backup-info`);
+      const response = await api.get("/settings/last-backup-info");
       return response.data;
     },
     refetchInterval: 60000, // Refetch every 60 seconds (reduced frequency)
@@ -357,9 +429,7 @@ export function useSettingsMutations({
   // Restore from last backup mutation
   const restoreFromLastBackupMutation = useMutation({
     mutationFn: async () => {
-      const response = await axios.post(
-        `${API_URL}/settings/restore-from-last-backup`
-      );
+      const response = await api.post("/settings/restore-from-last-backup");
       return response.data;
     },
     onSuccess: () => {
@@ -394,7 +464,7 @@ export function useSettingsMutations({
       oldTag: string;
       newTag: string;
     }) => {
-      await axios.post(`${API_URL}/settings/tags/rename`, { oldTag, newTag });
+      await api.post("/settings/tags/rename", { oldTag, newTag });
       return { oldTag, newTag };
     },
     onSuccess: () => {

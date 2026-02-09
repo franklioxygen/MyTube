@@ -19,7 +19,7 @@ import { usePageTagFilterOptional } from '../../contexts/PageTagFilterContext';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useSettings } from '../../hooks/useSettings';
-import { getApiUrl } from '../../utils/apiUrl';
+import { api } from '../../utils/apiClient';
 import ActionButtons from './ActionButtons';
 import Logo from './Logo';
 import MobileMenu from './MobileMenu';
@@ -77,10 +77,6 @@ const Header: React.FC<HeaderProps> = ({
     const isCollectionPage = location.pathname.startsWith('/collection/');
     const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
 
-    useEffect(() => {
-        console.log('Header props:', { activeDownloads, queuedDownloads });
-    }, [activeDownloads, queuedDownloads]);
-
     // Check for active subscriptions and tasks
     useEffect(() => {
         if (isVisitor) {
@@ -90,13 +86,10 @@ const Header: React.FC<HeaderProps> = ({
 
         const checkActiveSubscriptions = async () => {
             try {
-                const API_URL = getApiUrl();
-                const axios = await import('axios');
-
                 // Fetch subscriptions and tasks
                 const [subscriptionsRes, tasksRes] = await Promise.all([
-                    axios.default.get(`${API_URL}/subscriptions`).catch(() => ({ data: [] })),
-                    axios.default.get(`${API_URL}/subscriptions/tasks`).catch(() => ({ data: [] }))
+                    api.get('/subscriptions').catch(() => ({ data: [] })),
+                    api.get('/subscriptions/tasks').catch(() => ({ data: [] }))
                 ]);
 
                 const subscriptions = subscriptionsRes.data || [];
@@ -127,8 +120,7 @@ const Header: React.FC<HeaderProps> = ({
         if (isAuthenticated) return;
         const fetchSettings = async () => {
             try {
-                const API_URL = getApiUrl();
-                const response = await import('axios').then(axios => axios.default.get(`${API_URL}/settings`));
+                const response = await api.get('/settings');
                 if (response.data) {
                     if (response.data.websiteName) {
                         setWebsiteNameState(response.data.websiteName);
@@ -463,4 +455,3 @@ const Header: React.FC<HeaderProps> = ({
 };
 
 export default Header;
-

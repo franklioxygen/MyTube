@@ -9,6 +9,18 @@ import * as schema from "./schema";
 fs.ensureDirSync(DATA_DIR);
 
 const dbPath = path.join(DATA_DIR, "mytube.db");
+const DB_RETRY_BASE_DELAY_MS = 250;
+const DB_RETRY_BACKOFF_MULTIPLIER = 2;
+
+function sleepWithoutBusySpin(delayMs: number): void {
+  if (delayMs <= 0) {
+    return;
+  }
+
+  // better-sqlite3 connection opening is synchronous; use Atomics.wait to avoid CPU busy-spin.
+  const signal = new Int32Array(new SharedArrayBuffer(4));
+  Atomics.wait(signal, 0, 0, delayMs);
+}
 
 /**
  * Configure SQLite database for compatibility with NTFS and other FUSE-based filesystems
@@ -38,9 +50,10 @@ export function configureDatabase(db: Database.Database): void {
  * This helps handle cases where the database file is on NFS/SMB mounts
  */
 function createDatabaseConnection(
-  retries = 3,
-  delay = 1000
+  retries = 3
 ): Database.Database {
+  let lastError: unknown;
+  let delayMs = DB_RETRY_BASE_DELAY_MS;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       // Ensure the database file exists (better-sqlite3 will create it if it doesn't exist)
@@ -48,14 +61,6 @@ function createDatabaseConnection(
       if (!fs.existsSync(dbPath)) {
         // Touch the file to ensure it exists before opening
         fs.ensureFileSync(dbPath);
-        // Small delay to ensure file system has synced (important for network filesystems)
-        if (attempt < retries) {
-          // Use synchronous sleep for initial connection
-          const start = Date.now();
-          while (Date.now() - start < delay) {
-            // Busy wait
-          }
-        }
       }
 
       const db = new Database(dbPath);
@@ -65,19 +70,20 @@ function createDatabaseConnection(
       if (error.code === "SQLITE_BUSY" || error.code === "SQLITE_LOCKED") {
         if (attempt < retries) {
           console.warn(
-            `Database connection attempt ${attempt} failed (${error.code}), retrying in ${delay}ms...`
+            `Database connection attempt ${attempt} failed (${error.code}), retrying in ${delayMs}ms...`
           );
-          const start = Date.now();
-          while (Date.now() - start < delay) {
-            // Busy wait
-          }
-          delay *= 2; // Exponential backoff
+          lastError = error;
+          sleepWithoutBusySpin(delayMs);
+          delayMs *= DB_RETRY_BACKOFF_MULTIPLIER;
           continue;
         }
       }
       // If it's not a busy/locked error, or we've exhausted retries, throw
       throw error;
     }
+  }
+  if (lastError instanceof Error) {
+    throw lastError;
   }
   throw new Error("Failed to create database connection after retries");
 }

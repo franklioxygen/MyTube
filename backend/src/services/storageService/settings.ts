@@ -3,7 +3,40 @@ import { settings } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
 
+const SETTINGS_CACHE_TTL_MS = 30 * 1000;
+const SHOULD_USE_SETTINGS_CACHE =
+  process.env.NODE_ENV !== "test" && process.env.VITEST !== "true";
+
+let settingsCache: Record<string, any> | null = null;
+let settingsCacheUpdatedAt = 0;
+
+function cloneSettingsMap(source: Record<string, any>): Record<string, any> {
+  try {
+    return structuredClone(source);
+  } catch {
+    return { ...source };
+  }
+}
+
+function isSettingsCacheFresh(now: number): boolean {
+  return (
+    SHOULD_USE_SETTINGS_CACHE &&
+    settingsCache !== null &&
+    now - settingsCacheUpdatedAt < SETTINGS_CACHE_TTL_MS
+  );
+}
+
+export function invalidateSettingsCache(): void {
+  settingsCache = null;
+  settingsCacheUpdatedAt = 0;
+}
+
 export function getSettings(): Record<string, any> {
+  const now = Date.now();
+  if (isSettingsCacheFresh(now) && settingsCache) {
+    return cloneSettingsMap(settingsCache);
+  }
+
   try {
     const allSettings = db.select().from(settings).all();
     const settingsMap: Record<string, any> = {};
@@ -16,12 +49,21 @@ export function getSettings(): Record<string, any> {
       }
     }
 
-    return settingsMap;
+    if (SHOULD_USE_SETTINGS_CACHE) {
+      settingsCache = settingsMap;
+      settingsCacheUpdatedAt = now;
+    }
+
+    return cloneSettingsMap(settingsMap);
   } catch (error) {
     logger.error(
       "Error getting settings",
       error instanceof Error ? error : new Error(String(error))
     );
+    // Return stale cache as a fallback if available
+    if (settingsCache) {
+      return cloneSettingsMap(settingsCache);
+    }
     // Return empty object for backward compatibility
     return {};
   }
@@ -103,6 +145,7 @@ export function saveSettings(newSettings: Record<string, any>): void {
           .run();
       }
     });
+    invalidateSettingsCache();
   } catch (error) {
     logger.error(
       "Error saving settings",

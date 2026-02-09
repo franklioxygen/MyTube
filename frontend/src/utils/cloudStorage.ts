@@ -1,4 +1,5 @@
-import axios, { AxiosError } from "axios";
+import { AxiosError, isAxiosError } from "axios";
+import { api } from "./apiClient";
 import { getBackendUrl } from "./apiUrl";
 
 // Use centralized backend URL helper
@@ -41,7 +42,7 @@ export const extractCloudFilename = (path: string): string => {
  * Check if an error is retryable (network errors, timeouts, 5xx errors)
  */
 function isRetryableError(error: unknown): boolean {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const axiosError = error as AxiosError;
     // Retry on network errors (no response) or timeouts
     if (!axiosError.response) {
@@ -127,16 +128,13 @@ export const getCloudStorageSignedUrl = async (
       // Retry loop
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
-          const response = await axios.get(
-            `${BACKEND_URL}/api/cloud/signed-url`,
-            {
-              params: {
-                filename,
-                type,
-              },
-              timeout: REQUEST_TIMEOUT,
-            }
-          );
+          const response = await api.get("/cloud/signed-url", {
+            params: {
+              filename,
+              type,
+            },
+            timeout: REQUEST_TIMEOUT,
+          });
 
           if (response.data?.success && response.data?.url) {
             // Cache the successful result
@@ -159,7 +157,7 @@ export const getCloudStorageSignedUrl = async (
             // Non-retryable error (4xx client errors), don't retry
             console.warn(
               `Failed to get cloud storage signed URL (non-retryable): ${filename}`,
-              axios.isAxiosError(error) ? error.response?.status : error
+              isAxiosError(error) ? error.response?.status : error
             );
             return null;
           }
@@ -174,7 +172,7 @@ export const getCloudStorageSignedUrl = async (
       }
 
       // All retries exhausted
-      const errorMessage = axios.isAxiosError(lastError)
+      const errorMessage = isAxiosError(lastError)
         ? lastError.code === "ECONNABORTED" ||
           lastError.message.includes("timeout")
           ? "Request timeout"

@@ -8,21 +8,18 @@ import {
     Typography
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useState } from 'react';
 import BatchDownloadModal from '../../components/BatchDownloadModal';
 import UploadModal from '../../components/UploadModal';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
+import { api } from '../../utils/apiClient';
 import { ActiveDownloadsTab } from './ActiveDownloadsTab';
 import { CustomTabPanel } from './CustomTabPanel';
-import { getApiUrl } from '../../utils/apiUrl';
 import { DownloadHistoryItem } from './HistoryItem';
 import { HistoryTab } from './HistoryTab';
 import { QueueTab } from './QueueTab';
-
-const API_URL = getApiUrl();
 
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();
@@ -55,7 +52,7 @@ const DownloadPage: React.FC = () => {
     const { data: history = [] } = useQuery({
         queryKey: ['downloadHistory'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/downloads/history`);
+            const response = await api.get('/downloads/history');
             return response.data;
         },
         // Only poll when tab is active (downloads tab)
@@ -71,7 +68,7 @@ const DownloadPage: React.FC = () => {
     // Cancel download mutation
     const cancelMutation = useMutation({
         mutationFn: async (id: string) => {
-            await axios.post(`${API_URL}/downloads/cancel/${id}`);
+            await api.post(`/downloads/cancel/${id}`);
         },
         onMutate: async (id: string) => {
             await queryClient.cancelQueries({ queryKey: ['downloadStatus'] });
@@ -107,7 +104,7 @@ const DownloadPage: React.FC = () => {
     // Remove from queue mutation
     const removeFromQueueMutation = useMutation({
         mutationFn: async (id: string) => {
-            await axios.delete(`${API_URL}/downloads/queue/${id}`);
+            await api.delete(`/downloads/queue/${id}`);
         },
         onSuccess: () => {
             showSnackbar(t('removedFromQueue') || 'Removed from queue');
@@ -125,7 +122,7 @@ const DownloadPage: React.FC = () => {
     // Clear queue mutation
     const clearQueueMutation = useMutation({
         mutationFn: async () => {
-            await axios.delete(`${API_URL}/downloads/queue`);
+            await api.delete('/downloads/queue');
         },
         onSuccess: () => {
             showSnackbar(t('queueCleared') || 'Queue cleared');
@@ -143,7 +140,7 @@ const DownloadPage: React.FC = () => {
     // Remove from history mutation
     const removeFromHistoryMutation = useMutation({
         mutationFn: async (id: string) => {
-            await axios.delete(`${API_URL}/downloads/history/${id}`);
+            await api.delete(`/downloads/history/${id}`);
         },
         onSuccess: () => {
             showSnackbar(t('removedFromHistory') || 'Removed from history');
@@ -185,7 +182,7 @@ const DownloadPage: React.FC = () => {
         setDownloadingItems(prev => new Set(prev).add(sourceUrl));
 
         try {
-            const response = await axios.post(`${API_URL}/download`, {
+            const response = await api.post('/download', {
                 youtubeUrl: sourceUrl,
                 forceDownload: true
             });
@@ -211,7 +208,7 @@ const DownloadPage: React.FC = () => {
     // Clear history mutation
     const clearHistoryMutation = useMutation({
         mutationFn: async () => {
-            await axios.delete(`${API_URL}/downloads/history`);
+            await api.delete('/downloads/history');
         },
         onSuccess: () => {
             showSnackbar(t('historyCleared') || 'History cleared');
@@ -328,4 +325,3 @@ const DownloadPage: React.FC = () => {
 };
 
 export default DownloadPage;
-

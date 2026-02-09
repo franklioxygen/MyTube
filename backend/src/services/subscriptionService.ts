@@ -45,6 +45,7 @@ export interface Subscription {
 export class SubscriptionService {
   private static instance: SubscriptionService;
   private checkTask: ScheduledTask | null = null;
+  private isCheckingSubscriptions = false;
 
   private constructor() {}
 
@@ -327,7 +328,7 @@ export class SubscriptionService {
    */
   async checkChannelPlaylists(sub: Subscription): Promise<void> {
     try {
-      console.log(`Checking channel playlists for ${sub.author}...`);
+      logger.info(`Checking channel playlists for ${sub.author}...`);
 
       const {
         executeYtDlpJson,
@@ -365,6 +366,13 @@ export class SubscriptionService {
       // For now keep existing name.
 
       let newSubscriptionsCount = 0;
+      const existingSubscriptions = await this.listSubscriptions();
+      const subscribedUrls = new Set(
+        existingSubscriptions.map((item) => item.authorUrl)
+      );
+      const settings = storageService.getSettings();
+      const saveAuthorFilesToCollection =
+        settings.saveAuthorFilesToCollection || false;
 
       // Process each playlist
       for (const entry of result.entries) {
@@ -376,22 +384,11 @@ export class SubscriptionService {
           .replace(/[\/\\:*?"<>|]/g, "-")
           .trim();
 
-        // Check if already subscribed to this playlist
-        const existing = await this.listSubscriptions();
-        const alreadySubscribed = existing.some(
-          (s) => s.authorUrl === playlistUrl
-        );
-
-        if (alreadySubscribed) {
+        if (subscribedUrls.has(playlistUrl)) {
           continue;
         }
 
         logger.info(`Watcher found new playlist: ${title} (${playlistUrl})`);
-
-        // Check settings to see if we should save to author collection instead of playlist collection
-        const settings = storageService.getSettings();
-        const saveAuthorFilesToCollection =
-          settings.saveAuthorFilesToCollection || false;
 
         let collectionId: string | null = null;
 
@@ -450,6 +447,7 @@ export class SubscriptionService {
             sub.platform,
             collectionId
           );
+          subscribedUrls.add(playlistUrl);
           newSubscriptionsCount++;
         } catch (error) {
           logger.error(`Error auto-subscribing to playlist ${title}:`, error);
@@ -491,9 +489,7 @@ export class SubscriptionService {
     );
 
     // Delete the subscription
-    const result = await db
-      .delete(subscriptions)
-      .where(eq(subscriptions.id, id));
+    await db.delete(subscriptions).where(eq(subscriptions.id, id));
 
     // Verify deletion succeeded
     const verifyDeleted = await db
@@ -559,216 +555,194 @@ export class SubscriptionService {
   }
 
   async checkSubscriptions(): Promise<void> {
-    // console.log('Checking subscriptions...'); // Too verbose
-    const allSubs = await this.listSubscriptions();
+    if (this.isCheckingSubscriptions) {
+      logger.debug("Subscription check already running, skipping this tick");
+      return;
+    }
 
-    for (const sub of allSubs) {
-      // Verify subscription still exists (in case it was deleted during processing)
-      const stillExists = await db
-        .select()
-        .from(subscriptions)
-        .where(eq(subscriptions.id, sub.id))
-        .limit(1);
+    this.isCheckingSubscriptions = true;
+    try {
+      const allSubs = await this.listSubscriptions();
 
-      if (stillExists.length === 0) {
-        logger.debug(
-          `Skipping deleted subscription: ${sub.id} (${sub.author})`
-        );
-        continue; // Subscription was deleted, skip it
-      }
-
-      // Skip if paused
-      if (sub.paused) {
-        // We can log this at debug level to avoid spamming logs
-        logger.debug(`Skipping paused subscription: ${sub.id} (${sub.author})`);
-        continue;
-      }
-
-      const now = Date.now();
-      const lastCheck = sub.lastCheck || 0;
-      const intervalMs = sub.interval * 60 * 1000;
-
-      if (now - lastCheck >= intervalMs) {
-        try {
-          console.log(
-            `Checking subscription for ${sub.author} (${sub.platform})...`
+      for (const sub of allSubs) {
+        // Skip if paused
+        if (sub.paused) {
+          // We can log this at debug level to avoid spamming logs
+          logger.debug(
+            `Skipping paused subscription: ${sub.id} (${sub.author})`
           );
+          continue;
+        }
+
+        const now = Date.now();
+        const lastCheck = sub.lastCheck || 0;
+        const intervalMs = sub.interval * 60 * 1000;
+
+        if (now - lastCheck >= intervalMs) {
+          try {
+            logger.info(
+              `Checking subscription for ${sub.author} (${sub.platform})...`
+            );
 
           // 1. Fetch latest video link based on platform and subscription type
-          if (sub.subscriptionType === "channel_playlists") {
-            await this.checkChannelPlaylists(sub);
-            continue; // Watcher handled, move to next subscription
-          }
-
-          const isPlaylistSubscription = sub.subscriptionType === "playlist";
-          const latestVideoUrl = isPlaylistSubscription
-            ? await this.getLatestPlaylistVideoUrl(sub.authorUrl, sub.platform)
-            : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
-
-          if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
-            console.log(`New video found for ${sub.author}: ${latestVideoUrl}`);
-
-            // 2. Update lastCheck *before* download to prevent concurrent processing
-            // Re-verify subscription exists before updating
-            const subscriptionStillExists = await db
-              .select()
-              .from(subscriptions)
-              .where(eq(subscriptions.id, sub.id))
-              .limit(1);
-
-            if (subscriptionStillExists.length === 0) {
-              logger.warn(
-                `Subscription ${sub.id} (${sub.author}) was deleted during processing, skipping update`
-              );
-              continue;
+            if (sub.subscriptionType === "channel_playlists") {
+              await this.checkChannelPlaylists(sub);
+              continue; // Watcher handled, move to next subscription
             }
 
-            // Update lastCheck immediately to lock this subscription for this interval
-            await db
-              .update(subscriptions)
-              .set({
-                lastCheck: now,
-              })
-              .where(eq(subscriptions.id, sub.id));
+            const isPlaylistSubscription = sub.subscriptionType === "playlist";
+            const latestVideoUrl = isPlaylistSubscription
+              ? await this.getLatestPlaylistVideoUrl(
+                  sub.authorUrl,
+                  sub.platform
+                )
+              : await this.getLatestVideoUrl(sub.authorUrl, sub.platform);
 
-            // 3. Download the video
-            let downloadResult: any;
-            try {
-              if (sub.platform === "Bilibili") {
-                downloadResult = await downloadSingleBilibiliPart(
-                  latestVideoUrl,
-                  1,
-                  1,
-                  ""
-                );
-              } else {
-                downloadResult = await downloadYouTubeVideo(latestVideoUrl);
-              }
+            if (latestVideoUrl && latestVideoUrl !== sub.lastVideoLink) {
+              logger.info(`New video found for ${sub.author}: ${latestVideoUrl}`);
 
-              // Add to download history on success
-              const videoData =
-                downloadResult?.videoData || downloadResult || {};
-              storageService.addDownloadHistoryItem({
-                id: uuidv4(),
-                title: videoData.title || `New video from ${sub.author}`,
-                author: videoData.author || sub.author,
-                sourceUrl: latestVideoUrl,
-                finishedAt: Date.now(),
-                status: "success",
-                videoPath: videoData.videoPath,
-                thumbnailPath: videoData.thumbnailPath,
-                videoId: videoData.id,
-                subscriptionId: sub.id,
-              });
-
-              // For playlist subscriptions, add video to the associated collection
-              if (isPlaylistSubscription && sub.collectionId && videoData.id) {
-                try {
-                  storageService.addVideoToCollection(
-                    sub.collectionId,
-                    videoData.id
-                  );
-                  logger.info(
-                    `Added video ${videoData.id} to collection ${sub.collectionId} from playlist subscription`
-                  );
-                } catch (collectionError) {
-                  logger.error(
-                    `Error adding video to collection ${sub.collectionId}:`,
-                    collectionError
-                  );
-                  // Don't fail the subscription check if collection add fails
-                }
-              }
-
-              // 4. Update subscription record with new video link and stats on success
-              // Re-verify subscription exists before final update (race condition protection)
-              const subscriptionStillExistsAfterDownload = await db
-                .select()
-                .from(subscriptions)
+              // 2. Update lastCheck *before* download to prevent concurrent processing
+              // If no rows were updated, the subscription was removed concurrently.
+              const lockResult = await db
+                .update(subscriptions)
+                .set({
+                  lastCheck: now,
+                })
                 .where(eq(subscriptions.id, sub.id))
-                .limit(1);
+                .returning({ id: subscriptions.id });
 
-              if (subscriptionStillExistsAfterDownload.length === 0) {
+              if (lockResult.length === 0) {
                 logger.warn(
-                  `Subscription ${sub.id} (${sub.author}) was deleted after download completed, skipping final update`
+                  `Subscription ${sub.id} (${sub.author}) was deleted during processing, skipping download`
                 );
                 continue;
               }
 
+              // 3. Download the video
+              let downloadResult: any;
+              try {
+                if (sub.platform === "Bilibili") {
+                  downloadResult = await downloadSingleBilibiliPart(
+                    latestVideoUrl,
+                    1,
+                    1,
+                    ""
+                  );
+                } else {
+                  downloadResult = await downloadYouTubeVideo(latestVideoUrl);
+                }
+
+                // Add to download history on success
+                const videoData =
+                  downloadResult?.videoData || downloadResult || {};
+                storageService.addDownloadHistoryItem({
+                  id: uuidv4(),
+                  title: videoData.title || `New video from ${sub.author}`,
+                  author: videoData.author || sub.author,
+                  sourceUrl: latestVideoUrl,
+                  finishedAt: Date.now(),
+                  status: "success",
+                  videoPath: videoData.videoPath,
+                  thumbnailPath: videoData.thumbnailPath,
+                  videoId: videoData.id,
+                  subscriptionId: sub.id,
+                });
+
+                // For playlist subscriptions, add video to the associated collection
+                if (isPlaylistSubscription && sub.collectionId && videoData.id) {
+                  try {
+                    storageService.addVideoToCollection(
+                      sub.collectionId,
+                      videoData.id
+                    );
+                    logger.info(
+                      `Added video ${videoData.id} to collection ${sub.collectionId} from playlist subscription`
+                    );
+                  } catch (collectionError) {
+                    logger.error(
+                      `Error adding video to collection ${sub.collectionId}:`,
+                      collectionError
+                    );
+                    // Don't fail the subscription check if collection add fails
+                  }
+                }
+
+                // 4. Update subscription record with new video link and stats on success
+                const updateResult = await db
+                  .update(subscriptions)
+                  .set({
+                    lastVideoLink: latestVideoUrl,
+                    downloadCount: (sub.downloadCount || 0) + 1,
+                  })
+                  .where(eq(subscriptions.id, sub.id))
+                  .returning({ id: subscriptions.id });
+
+                if (updateResult.length === 0) {
+                  logger.warn(
+                    `Subscription ${sub.id} (${sub.author}) was deleted after download completed`
+                  );
+                  continue;
+                } else {
+                  logger.debug(
+                    `Successfully processed subscription ${sub.id} (${sub.author})`
+                  );
+                }
+              } catch (downloadError: any) {
+                logger.error(
+                  `Error downloading subscription video for ${sub.author}:`,
+                  downloadError
+                );
+
+                // Add to download history on failure
+                storageService.addDownloadHistoryItem({
+                  id: uuidv4(),
+                  title: `Video from ${sub.author}`,
+                  author: sub.author,
+                  sourceUrl: latestVideoUrl,
+                  finishedAt: Date.now(),
+                  status: "failed",
+                  error: downloadError.message || "Download failed",
+                  subscriptionId: sub.id,
+                });
+
+                // Note: We already updated lastCheck, so we won't retry until next interval.
+                // This acts as a "backoff" preventing retry loops for broken downloads.
+              }
+            } else {
+              // Just update lastCheck.
               const updateResult = await db
                 .update(subscriptions)
-                .set({
-                  lastVideoLink: latestVideoUrl,
-                  downloadCount: (sub.downloadCount || 0) + 1,
-                })
+                .set({ lastCheck: now })
                 .where(eq(subscriptions.id, sub.id))
-                .returning();
+                .returning({ id: subscriptions.id });
 
               if (updateResult.length === 0) {
-                logger.error(
-                  `Failed to update subscription ${sub.id} (${sub.author}) after successful download - no rows affected`
+                logger.warn(
+                  `Subscription ${sub.id} (${sub.author}) was deleted before lastCheck update`
                 );
-              } else {
-                logger.debug(
-                  `Successfully processed subscription ${sub.id} (${sub.author})`
-                );
+                continue;
               }
-            } catch (downloadError: any) {
-              console.error(
-                `Error downloading subscription video for ${sub.author}:`,
-                downloadError
-              );
-
-              // Add to download history on failure
-              storageService.addDownloadHistoryItem({
-                id: uuidv4(),
-                title: `Video from ${sub.author}`,
-                author: sub.author,
-                sourceUrl: latestVideoUrl,
-                finishedAt: Date.now(),
-                status: "failed",
-                error: downloadError.message || "Download failed",
-                subscriptionId: sub.id,
-              });
-
-              // Note: We already updated lastCheck, so we won't retry until next interval.
-              // This acts as a "backoff" preventing retry loops for broken downloads.
-            }
-          } else {
-            // Just update lastCheck
-            // Re-verify subscription exists before updating (race condition protection)
-            const subscriptionStillExists = await db
-              .select()
-              .from(subscriptions)
-              .where(eq(subscriptions.id, sub.id))
-              .limit(1);
-
-            if (subscriptionStillExists.length === 0) {
-              logger.debug(
-                `Subscription ${sub.id} (${sub.author}) was deleted during check, skipping update`
-              );
-              continue;
             }
 
-            const updateResult = await db
-              .update(subscriptions)
-              .set({ lastCheck: now })
-              .where(eq(subscriptions.id, sub.id))
-              .returning();
+            // Check for Shorts if enabled
+            if (sub.downloadShorts === 1 && sub.platform === "YouTube") {
+              const shortCheckSubscription = await db
+                .select({ id: subscriptions.id })
+                .from(subscriptions)
+                .where(eq(subscriptions.id, sub.id))
+                .limit(1);
 
-            if (updateResult.length === 0) {
-              logger.warn(
-                `Failed to update lastCheck for subscription ${sub.id} (${sub.author}) - no rows affected`
-              );
-            }
-          }
+              if (shortCheckSubscription.length === 0) {
+                logger.debug(
+                  `Skipping shorts check for deleted subscription: ${sub.id} (${sub.author})`
+                );
+                continue;
+              }
 
-          // Check for Shorts if enabled
-          if (sub.downloadShorts === 1 && sub.platform === "YouTube") {
-            try {
-              const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
-                sub.authorUrl
-              );
+              try {
+                const latestShortUrl = await YtDlpDownloader.getLatestShortsUrl(
+                  sub.authorUrl
+                );
 
               if (latestShortUrl && latestShortUrl !== sub.lastShortVideoLink) {
                 logger.info(
@@ -827,20 +801,23 @@ export class SubscriptionService {
                   });
                 }
               }
-            } catch (shortsError) {
-              logger.error(
-                `Error checking shorts for ${sub.author}:`,
-                shortsError
-              );
+              } catch (shortsError) {
+                logger.error(
+                  `Error checking shorts for ${sub.author}:`,
+                  shortsError
+                );
+              }
             }
+          } catch (error) {
+            logger.error(
+              `Error checking subscription for ${sub.author}:`,
+              error
+            );
           }
-        } catch (error) {
-          console.error(
-            `Error checking subscription for ${sub.author}:`,
-            error
-          );
         }
       }
+    } finally {
+      this.isCheckingSubscriptions = false;
     }
   }
 
@@ -850,9 +827,11 @@ export class SubscriptionService {
     }
     // Run every minute
     this.checkTask = cron.schedule("* * * * *", () => {
-      this.checkSubscriptions();
+      this.checkSubscriptions().catch((error) => {
+        logger.error("Subscription scheduler tick failed:", error);
+      });
     });
-    console.log("Subscription scheduler started (node-cron).");
+    logger.info("Subscription scheduler started (node-cron).");
   }
 
   // Helper to get latest video URL based on platform

@@ -1,13 +1,10 @@
 import { CheckCircle, CloudUpload, Delete, ErrorOutline } from '@mui/icons-material';
 import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
-import { getApiUrl } from '../../utils/apiUrl';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { api } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
-
-const API_URL = getApiUrl();
 
 interface CookieSettingsProps {
     onSuccess: (message: string) => void;
@@ -30,7 +27,7 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
         formData.append('file', file);
 
         try {
-            await axios.post(`${API_URL}/settings/upload-cookies`, formData, {
+            await api.post('/settings/upload-cookies', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -46,7 +43,7 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
     const { data: cookieStatus, refetch: refetchCookieStatus, isLoading } = useQuery({
         queryKey: ['cookieStatus'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/check-cookies`);
+            const response = await api.get('/settings/check-cookies');
             return response.data;
         }
     });
@@ -59,7 +56,7 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async () => {
-            const response = await axios.post(`${API_URL}/settings/delete-cookies`);
+            const response = await api.post('/settings/delete-cookies');
             return response.data;
         },
         onSuccess: () => {

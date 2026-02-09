@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { getApiUrl } from '../utils/apiUrl';
-
-const API_URL = getApiUrl();
+import { api } from '../utils/apiClient';
+import { stableQueryConfig } from '../utils/queryConfig';
 
 /**
  * Custom hook to manage video player settings (subtitles, loop, auto-play)
@@ -20,9 +18,10 @@ export function useVideoPlayerSettings() {
     const { data: settings } = useQuery({
         queryKey: ['settings'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await api.get('/settings');
             return response.data;
         },
+        ...stableQueryConfig,
         // Only query when authenticated to avoid 401 errors
         enabled: isAuthenticated,
         retry: (failureCount, error: any) => {
@@ -45,9 +44,8 @@ export function useVideoPlayerSettings() {
     // Subtitle preference mutation
     const subtitlePreferenceMutation = useMutation({
         mutationFn: async (enabled: boolean) => {
-            const response = await axios.post(`${API_URL}/settings`, { 
-                ...settings, 
-                subtitlesEnabled: enabled 
+            const response = await api.patch('/settings', {
+                subtitlesEnabled: enabled
             });
             return response.data;
         },
@@ -66,9 +64,8 @@ export function useVideoPlayerSettings() {
     // Loop preference mutation
     const loopPreferenceMutation = useMutation({
         mutationFn: async (enabled: boolean) => {
-            const response = await axios.post(`${API_URL}/settings`, { 
-                ...settings, 
-                defaultAutoLoop: enabled 
+            const response = await api.patch('/settings', {
+                defaultAutoLoop: enabled
             });
             return response.data;
         },

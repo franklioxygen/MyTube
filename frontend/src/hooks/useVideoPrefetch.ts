@@ -1,11 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { getApiUrl } from '../utils/apiUrl';
-import axios from "axios";
 import { useCallback, useEffect, useRef } from "react";
 import { Video } from "../types";
+import { api } from "../utils/apiClient";
 import { getFileUrl, isCloudStoragePath } from "../utils/cloudStorage";
-
-const API_URL = getApiUrl();
 
 interface UseVideoPrefetchProps {
   videoId: string;
@@ -31,7 +28,7 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     queryClient.prefetchQuery({
       queryKey: ["video", videoId],
       queryFn: async () => {
-        const response = await axios.get(`${API_URL}/videos/${videoId}`);
+        const response = await api.get(`/videos/${videoId}`);
         return response.data;
       },
       staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes

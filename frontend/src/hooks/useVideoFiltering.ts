@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { Collection, Video } from "../types";
 import { ViewMode } from "./useViewMode";
 
+const EMPTY_TAG_SET = new Set<string>();
+
 function normalizeTag(value: string | undefined | null): string {
   if (value == null) return "";
   return String(value).trim().toLowerCase();
@@ -12,41 +14,49 @@ function normalizeTagList(tags: string[] | undefined | null): string[] {
   return tags.map(normalizeTag).filter((tag) => tag.length > 0);
 }
 
+function hasAllSelectedTags(
+  tagSet: Set<string>,
+  normalizedSelectedTags: string[]
+): boolean {
+  for (const tag of normalizedSelectedTags) {
+    if (!tagSet.has(tag)) return false;
+  }
+  return true;
+}
+
 function videoMatchesTags(
   video: Video,
   normalizedSelectedTags: string[],
-  authorTags?: Record<string, string[]>,
-  collectionTags?: Record<string, string[]>,
-  collections?: Collection[]
+  videoTagSetById: Map<string, Set<string>>,
+  authorTagSetByAuthor: Map<string, Set<string>>,
+  collectionTagSetById: Map<string, Set<string>>,
+  collectionIdsByVideoId: Map<string, string[]>
 ): boolean {
   if (normalizedSelectedTags.length === 0) return true;
 
-  const videoTagsNormalized = normalizeTagList(video.tags);
-  const videoTagSet = new Set(videoTagsNormalized);
-  const matchByVideoTags =
-    normalizedSelectedTags.length > 0 &&
-    normalizedSelectedTags.every((t) => videoTagSet.has(t));
-  if (matchByVideoTags) return true;
+  const videoTagSet = videoTagSetById.get(video.id) ?? EMPTY_TAG_SET;
+  if (hasAllSelectedTags(videoTagSet, normalizedSelectedTags)) return true;
 
   const authorKey = normalizeTag(video.author);
-  const authorTagList = normalizeTagList(authorTags?.[authorKey]);
-  const authorTagSet = new Set(authorTagList);
-  const matchByAuthorTags = normalizedSelectedTags.every((t) =>
-    authorTagSet.has(t)
-  );
-  if (matchByAuthorTags) return true;
+  const authorTagSet = authorTagSetByAuthor.get(authorKey);
+  if (
+    authorTagSet &&
+    hasAllSelectedTags(authorTagSet, normalizedSelectedTags)
+  ) {
+    return true;
+  }
 
-  if (collections && collectionTags) {
-    const matchByCollectionTags = collections.some(
-      (c) => {
-        if (!c.videos.includes(video.id)) return false;
-        const collectionTagSet = new Set(
-          normalizeTagList(collectionTags[c.id])
-        );
-        return normalizedSelectedTags.every((t) => collectionTagSet.has(t));
-      }
-    );
-    if (matchByCollectionTags) return true;
+  const collectionIds = collectionIdsByVideoId.get(video.id);
+  if (!collectionIds) return false;
+
+  for (const collectionId of collectionIds) {
+    const collectionTagSet = collectionTagSetById.get(collectionId);
+    if (
+      collectionTagSet &&
+      hasAllSelectedTags(collectionTagSet, normalizedSelectedTags)
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -81,15 +91,69 @@ export const useVideoFiltering = ({
     [selectedTags]
   );
 
+  const videoById = useMemo(
+    () => new Map(videoArray.map((video) => [video.id, video])),
+    [videoArray]
+  );
+
+  const videoTagSetById = useMemo(
+    () =>
+      new Map(
+        videoArray.map((video) => [video.id, new Set(normalizeTagList(video.tags))])
+      ),
+    [videoArray]
+  );
+
+  const authorTagSetByAuthor = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    if (!authorTags) return map;
+
+    for (const [author, tags] of Object.entries(authorTags)) {
+      map.set(normalizeTag(author), new Set(normalizeTagList(tags)));
+    }
+    return map;
+  }, [authorTags]);
+
+  const collectionTagSetById = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    if (!collectionTags) return map;
+
+    for (const [collectionId, tags] of Object.entries(collectionTags)) {
+      map.set(collectionId, new Set(normalizeTagList(tags)));
+    }
+    return map;
+  }, [collectionTags]);
+
+  const collectionIdsByVideoId = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const collection of collections) {
+      for (const videoId of collection.videos) {
+        const existing = map.get(videoId);
+        if (existing) {
+          existing.push(collection.id);
+        } else {
+          map.set(videoId, [collection.id]);
+        }
+      }
+    }
+    return map;
+  }, [collections]);
+
+  const firstVideoIdSet = useMemo(
+    () => new Set(collections.map((collection) => collection.videos[0]).filter(Boolean)),
+    [collections]
+  );
+
   return useMemo(() => {
     if (viewMode === "all-videos") {
       return videoArray.filter((video) =>
         videoMatchesTags(
           video,
           normalizedSelectedTags,
-          authorTags,
-          collectionTags,
-          collections
+          videoTagSetById,
+          authorTagSetByAuthor,
+          collectionTagSetById,
+          collectionIdsByVideoId
         )
       );
     }
@@ -101,9 +165,10 @@ export const useVideoFiltering = ({
           return videoMatchesTags(
             video,
             normalizedSelectedTags,
-            authorTags,
-            collectionTags,
-            collections
+            videoTagSetById,
+            authorTagSetByAuthor,
+            collectionTagSetById,
+            collectionIdsByVideoId
           );
         })
         .sort((a, b) => (b.lastPlayedAt || 0) - (a.lastPlayedAt || 0));
@@ -111,27 +176,22 @@ export const useVideoFiltering = ({
 
     // Collections mode: show first video of each collection that has any matching video
     if (normalizedSelectedTags.length === 0) {
-      return videoArray.filter((video) => {
-        const videoCollections = collections.filter((c) =>
-          c.videos.includes(video.id)
-        );
-        if (videoCollections.length === 0) return false;
-        return videoCollections.some((c) => c.videos[0] === video.id);
-      });
+      return videoArray.filter((video) => firstVideoIdSet.has(video.id));
     }
 
     const collectionIdsWithMatch = new Set<string>();
     for (const collection of collections) {
       for (const videoId of collection.videos) {
-        const video = videoArray.find((v) => v.id === videoId);
+        const video = videoById.get(videoId);
         if (
           video &&
           videoMatchesTags(
             video,
             normalizedSelectedTags,
-            authorTags,
-            collectionTags,
-            collections
+            videoTagSetById,
+            authorTagSetByAuthor,
+            collectionTagSetById,
+            collectionIdsByVideoId
           )
         ) {
           collectionIdsWithMatch.add(collection.id);
@@ -140,21 +200,26 @@ export const useVideoFiltering = ({
       }
     }
 
-    return videoArray.filter((video) => {
-      const videoCollections = collections.filter((c) =>
-        c.videos.includes(video.id)
-      );
-      if (videoCollections.length === 0) return false;
-      return videoCollections.some(
-        (c) => collectionIdsWithMatch.has(c.id) && c.videos[0] === video.id
-      );
-    });
+    if (collectionIdsWithMatch.size === 0) return [];
+
+    const matchingFirstVideoIds = new Set<string>();
+    for (const collection of collections) {
+      if (!collectionIdsWithMatch.has(collection.id)) continue;
+      const firstVideoId = collection.videos[0];
+      if (firstVideoId) matchingFirstVideoIds.add(firstVideoId);
+    }
+
+    return videoArray.filter((video) => matchingFirstVideoIds.has(video.id));
   }, [
     viewMode,
     videoArray,
     normalizedSelectedTags,
     collections,
-    authorTags,
-    collectionTags,
+    videoById,
+    videoTagSetById,
+    authorTagSetByAuthor,
+    collectionTagSetById,
+    collectionIdsByVideoId,
+    firstVideoIdSet,
   ]);
 };

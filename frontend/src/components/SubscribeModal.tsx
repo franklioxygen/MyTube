@@ -90,7 +90,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     variant="outlined"
                     value={interval}
                     onChange={(e) => setInterval(Number(e.target.value))}
-                    inputProps={{ min: 1 }}
+                    slotProps={{ htmlInput: { min: 1 } }}
                     sx={{ mb: 2 }}
                 />
                 {source !== 'bilibili' && (

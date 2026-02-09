@@ -267,17 +267,21 @@ const VideosTable: React.FC<VideosTableProps> = ({
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell padding="checkbox">
-                                    <Checkbox
-                                        color="primary"
-                                        indeterminate={selectedVideoIds.length > 0 && selectedVideoIds.length < displayedVideos.length}
-                                        checked={displayedVideos.length > 0 && selectedVideoIds.length === displayedVideos.length}
-                                        onChange={handleSelectAll}
-                                        inputProps={{
-                                            'aria-label': 'select all videos',
-                                        }}
-                                    />
-                                </TableCell>
+                                {!isVisitor && (
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            color="primary"
+                                            indeterminate={selectedVideoIds.length > 0 && selectedVideoIds.length < displayedVideos.length}
+                                            checked={displayedVideos.length > 0 && selectedVideoIds.length === displayedVideos.length}
+                                            onChange={handleSelectAll}
+                                            slotProps={{
+                                                input: {
+                                                    'aria-label': 'select all videos',
+                                                },
+                                            }}
+                                        />
+                                    </TableCell>
+                                )}
                                 <TableCell>{t('thumbnail')}</TableCell>
                                 <TableCell>
                                     <TableSortLabel
@@ -312,16 +316,20 @@ const VideosTable: React.FC<VideosTableProps> = ({
                         <TableBody>
                             {displayedVideos.map(video => (
                                 <TableRow key={video.id} hover selected={selectedVideoIds.includes(video.id)}>
-                                    <TableCell padding="checkbox">
-                                        <Checkbox
-                                            color="primary"
-                                            checked={selectedVideoIds.includes(video.id)}
-                                            onChange={(event) => handleSelectOne(event, video.id)}
-                                            inputProps={{
-                                                'aria-label': `select video ${video.title}`,
-                                            }}
-                                        />
-                                    </TableCell>
+                                    {!isVisitor && (
+                                        <TableCell padding="checkbox">
+                                            <Checkbox
+                                                color="primary"
+                                                checked={selectedVideoIds.includes(video.id)}
+                                                onChange={(event) => handleSelectOne(event, video.id)}
+                                                slotProps={{
+                                                    input: {
+                                                        'aria-label': `select video ${video.title}`,
+                                                    },
+                                                }}
+                                            />
+                                        </TableCell>
+                                    )}
                                     <TableCell sx={{ width: 140 }}>
                                         <Box sx={{ position: 'relative', width: 120, height: 68 }}>
                                             <Link to={`/video/${video.id}`} style={{ display: 'block', width: '100%', height: '100%' }}>

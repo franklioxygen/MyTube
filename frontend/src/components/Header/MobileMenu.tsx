@@ -1,12 +1,10 @@
 import { Logout, Settings, VideoLibrary } from '@mui/icons-material';
 import { Box, Button, Collapse, Divider, Stack } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useSettings } from '../../hooks/useSettings';
 import { Collection, Video } from '../../types';
-import { getApiUrl } from '../../utils/apiUrl';
 import AuthorsList from '../AuthorsList';
 import Collections from '../Collections';
 import TagsList from '../TagsList';
@@ -51,24 +49,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 }) => {
     const { t } = useLanguage();
     const { logout } = useAuth();
-
     const navigate = useNavigate();
-    const API_URL = getApiUrl();
-
-    // Check if login is enabled
-    const { data: settingsData } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
-                return response.data;
-            } catch {
-                return null;
-            }
-        },
-        retry: 1,
-        retryDelay: 1000,
-    });
+    const { data: settingsData } = useSettings();
 
     const loginEnabled = settingsData?.loginEnabled || false;
 
@@ -165,4 +147,3 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
 };
 
 export default MobileMenu;
-

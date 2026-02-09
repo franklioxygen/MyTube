@@ -102,8 +102,8 @@ export const roleBasedSettingsMiddleware = (
       return;
     }
 
-    // For POST requests, check if it's authentication or CloudFlare settings
-    if (req.method === "POST") {
+    // For write requests, allow only auth endpoints and CloudFlare settings updates.
+    if (req.method === "POST" || req.method === "PATCH") {
       // Allow verify-password requests (including verify-admin-password and verify-visitor-password)
       if (
         req.path.includes("/verify-password") ||
@@ -162,7 +162,7 @@ export const roleBasedSettingsMiddleware = (
       return;
     }
 
-    // Block all other write operations (PUT, DELETE, PATCH)
+    // Block all other write operations (PUT, DELETE, etc.)
     res.status(403).json({
       success: false,
       error: "Visitor role: Write operations are not allowed.",

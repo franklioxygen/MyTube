@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { getApiUrl } from '../utils/apiUrl';
-import axios from 'axios';
+import { api } from '../utils/apiClient';
 import { Video } from '../types';
-
-const API_URL = getApiUrl();
 
 interface UseVideoQueriesProps {
     videoId: string | undefined;
@@ -19,7 +16,7 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     const { data: video, isLoading: loading, error } = useQuery({
         queryKey: ['video', videoId],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/videos/${videoId}`);
+            const response = await api.get(`/videos/${videoId}`);
             return response.data;
         },
         initialData: () => {
@@ -33,7 +30,7 @@ export function useVideoQueries({ videoId, videos, showComments }: UseVideoQueri
     const { data: comments = [], isLoading: loadingComments } = useQuery({
         queryKey: ['comments', videoId],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/videos/${videoId}/comments`);
+            const response = await api.get(`/videos/${videoId}/comments`);
             return response.data;
         },
         enabled: showComments && !!videoId

@@ -130,68 +130,93 @@ export function mergeSettings(
   return { ...defaultSettings, ...existingSettings, ...newSettings };
 }
 
+interface PrepareSettingsOptions {
+  // For legacy full-save semantics, preserve unspecified values.
+  // For PATCH semantics, only include explicitly changed fields.
+  preserveUnsetFields?: boolean;
+}
+
 /**
  * Prepare settings for saving (handle password, tags, CloudFlare settings)
  */
 export async function prepareSettingsForSave(
   existingSettings: Settings,
   newSettings: Partial<Settings>,
-  hashPassword: (password: string) => Promise<string>
+  hashPassword: (password: string) => Promise<string>,
+  options: PrepareSettingsOptions = {}
 ): Promise<Partial<Settings>> {
-  const prepared = { ...newSettings };
+  const prepared: Partial<Settings> = {};
+  const preserveUnsetFields = options.preserveUnsetFields ?? true;
+  const hasField = <K extends keyof Settings>(field: K): boolean =>
+    Object.prototype.hasOwnProperty.call(newSettings, field);
 
   // Handle password hashing
   // Check if password login is allowed (defaults to true for backward compatibility)
-  const passwordLoginAllowed = existingSettings.passwordLoginAllowed !== false;
+  const passwordLoginAllowed =
+    hasField("passwordLoginAllowed")
+      ? newSettings.passwordLoginAllowed !== false
+      : existingSettings.passwordLoginAllowed !== false;
 
-  if (prepared.password) {
-    // If password login is not allowed, reject password updates
-    if (!passwordLoginAllowed) {
-      // Remove password from prepared settings to prevent update
-      delete prepared.password;
-      logger.warn("Password update rejected: password login is not allowed");
+  if (hasField("password")) {
+    if (newSettings.password) {
+      // If password login is not allowed, reject password updates
+      if (!passwordLoginAllowed) {
+        logger.warn("Password update rejected: password login is not allowed");
+      } else {
+        prepared.password = await hashPassword(newSettings.password);
+      }
     } else {
-      // If password is provided and allowed, hash it
-      prepared.password = await hashPassword(prepared.password);
+      // Empty password means "unchanged" for current UI flows.
+      if (preserveUnsetFields) {
+        prepared.password = existingSettings.password;
+      }
     }
-  } else {
-    // If password is empty/not provided, keep existing password
+  } else if (preserveUnsetFields) {
     prepared.password = existingSettings.password;
   }
 
   // Handle visitor password hashing
-  if (prepared.visitorPassword) {
-    prepared.visitorPassword = await hashPassword(prepared.visitorPassword);
-  } else {
+  if (hasField("visitorPassword")) {
+    if (newSettings.visitorPassword) {
+      prepared.visitorPassword = await hashPassword(newSettings.visitorPassword);
+    } else if (preserveUnsetFields) {
+      prepared.visitorPassword = existingSettings.visitorPassword;
+    }
+  } else if (preserveUnsetFields) {
     prepared.visitorPassword = existingSettings.visitorPassword;
   }
 
   // Handle tags
   const oldTags: string[] = existingSettings.tags || [];
-  if (prepared.tags === undefined) {
-    // Preserve existing tags by not including tags in the save
-    delete prepared.tags;
+  if (!hasField("tags")) {
+    if (preserveUnsetFields) {
+      prepared.tags = existingSettings.tags;
+    }
   } else if (
-    Array.isArray(prepared.tags) &&
-    prepared.tags.length === 0 &&
+    Array.isArray(newSettings.tags) &&
+    newSettings.tags.length === 0 &&
     oldTags.length > 0
   ) {
-    // Empty array sent but existing tags exist - preserve them
-    delete prepared.tags;
+    // Empty array sent but existing tags exist - preserve them for legacy full-save mode.
+    // For PATCH mode, keep it omitted to avoid accidental mass deletion.
+    if (preserveUnsetFields) {
+      prepared.tags = existingSettings.tags;
+    }
   } else {
     // Process tag deletions
-    processTagDeletions(oldTags, prepared.tags);
+    processTagDeletions(oldTags, newSettings.tags);
+    prepared.tags = newSettings.tags;
   }
 
   // Preserve CloudFlare settings if not explicitly provided
-  if (prepared.cloudflaredTunnelEnabled === undefined) {
+  if (preserveUnsetFields && !hasField("cloudflaredTunnelEnabled")) {
     prepared.cloudflaredTunnelEnabled =
       existingSettings.cloudflaredTunnelEnabled;
   }
-  if (prepared.cloudflaredToken === undefined) {
+  if (preserveUnsetFields && !hasField("cloudflaredToken")) {
     prepared.cloudflaredToken = existingSettings.cloudflaredToken;
   }
-  if (prepared.allowedHosts === undefined) {
+  if (preserveUnsetFields && !hasField("allowedHosts")) {
     prepared.allowedHosts = existingSettings.allowedHosts;
   }
 

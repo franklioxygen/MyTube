@@ -1,11 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
-import { getApiUrl } from "../utils/apiUrl";
-
-const API_URL = getApiUrl();
+import { api, apiClient } from "../utils/apiClient";
 
 interface UseVideoProgressProps {
   videoId: string | undefined;
@@ -23,6 +20,10 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
   const lastProgressSave = useRef<number>(0);
   const currentTimeRef = useRef<number>(0);
   const isDeletingRef = useRef<boolean>(false);
+  const getApiRequestUrl = (path: string) => {
+    const baseURL = (apiClient.defaults.baseURL as string | undefined) || "/api";
+    return `${baseURL.replace(/\/$/, "")}${path}`;
+  };
 
   // Reset hasViewed when video changes
   useEffect(() => {
@@ -40,7 +41,7 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         !isVisitor
       ) {
         // Use fetch with keepalive to ensure request completes even if tab is closed
-        fetch(`${API_URL}/videos/${videoId}/progress`, {
+        fetch(getApiRequestUrl(`/videos/${videoId}/progress`), {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -63,8 +64,8 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     // Increment view count after 10 seconds
     if (currentTime > 10 && !hasViewed && videoId && !isVisitor) {
       setHasViewed(true);
-      axios
-        .post(`${API_URL}/videos/${videoId}/view`)
+      api
+        .post(`/videos/${videoId}/view`)
         .then((res) => {
           if (res.data.success && video) {
             queryClient.setQueryData(
@@ -81,8 +82,8 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     const now = Date.now();
     if (now - lastProgressSave.current > 5000 && videoId && !isVisitor) {
       lastProgressSave.current = now;
-      axios
-        .put(`${API_URL}/videos/${videoId}/progress`, {
+      api
+        .put(`/videos/${videoId}/progress`, {
           progress: Math.floor(currentTime),
         })
         .catch((err) => console.error("Error saving progress:", err));

@@ -183,7 +183,7 @@ const BilibiliPartsModal: React.FC<BilibiliPartsModalProps> = ({
                                     onChange={(e) => setSubscriptionInterval(Math.max(1, parseInt(e.target.value) || 60))}
                                     disabled={isLoading}
                                     size="small"
-                                    inputProps={{ min: 1 }}
+                                    slotProps={{ htmlInput: { min: 1 } }}
                                     helperText={t('subscribePlaylistDescription')}
                                     sx={{ width: 200 }}
                                 />

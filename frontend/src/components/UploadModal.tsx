@@ -1,5 +1,4 @@
 import { CloudUpload } from '@mui/icons-material';
-import { getApiUrl } from '../utils/apiUrl';
 import {
     Box,
     Button,
@@ -14,11 +13,9 @@ import {
     Typography
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-
-const API_URL = getApiUrl();
+import { api } from '../utils/apiClient';
 
 interface UploadModalProps {
     open: boolean;
@@ -46,7 +43,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
 
     const uploadMutation = useMutation({
         mutationFn: async (formData: FormData) => {
-            await axios.post(`${API_URL}/upload`, formData, {
+            await api.post('/upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

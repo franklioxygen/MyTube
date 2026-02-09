@@ -17,7 +17,6 @@ import {
 } from '@mui/material';
 import TextField from '@mui/material/TextField';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -44,32 +43,10 @@ import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { Settings } from '../types';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { Language } from '../utils/translations';
-
-const API_URL = getApiUrl();
-
-// TabPanel component - defined outside SettingsPage to prevent re-mounting on every render
-interface TabPanelProps {
-    children?: React.ReactNode;
-    index: number;
-    value: number;
-}
-
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`settings-tabpanel-${index}`}
-            aria-labelledby={`settings-tab-${index}`}
-        >
-            {value === index && <Box sx={{ py: 3, px: 3 }}>{children}</Box>}
-        </div>
-    );
-};
 
 const SettingsPage: React.FC = () => {
     const { t, setLanguage } = useLanguage();
@@ -140,11 +117,7 @@ const SettingsPage: React.FC = () => {
     const isSticky = useStickyButton(observerTarget);
 
     // Fetch settings
-    const { data: settingsData, refetch } = useSettings();
-
-    useEffect(() => {
-        refetch();
-    }, [refetch]);
+    const { data: settingsData } = useSettings();
 
     // Handle initial tab selection from URL and scrolling
     useEffect(() => {
@@ -209,7 +182,7 @@ const SettingsPage: React.FC = () => {
     const scanMountDirectoriesMutation = useMutation({
         mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
             // Send directories to the API
-            const res = await axios.post(`${API_URL}/scan-mount-directories`, { directories });
+            const res = await api.post('/scan-mount-directories', { directories });
             // Return scan results along with mountDirectoriesText for saving
             return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
         },
@@ -565,6 +538,30 @@ const SettingsPage: React.FC = () => {
         ] : [])
     ];
 
+    const renderDesktopTabContent = () => {
+        if (currentTab === 0) return renderBasicSettingsContent();
+        if (isVisitor) return null;
+
+        switch (currentTab) {
+            case 1:
+                return renderInterfaceDisplayContent();
+            case 2:
+                return renderSecurityAccessContent();
+            case 3:
+                return renderVideoPlaybackContent();
+            case 4:
+                return renderDownloadStorageContent();
+            case 5:
+                return renderContentManagementContent();
+            case 6:
+                return renderDataManagementContent();
+            case 7:
+                return renderAdvancedContent();
+            default:
+                return null;
+        }
+    };
+
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -590,42 +587,9 @@ const SettingsPage: React.FC = () => {
                             ))}
                         </Tabs>
                     </Box>
-
-                    <TabPanel value={currentTab} index={0}>
-                        {renderBasicSettingsContent()}
-                    </TabPanel>
-
-                    {!isVisitor && (
-                        <>
-                            <TabPanel value={currentTab} index={1}>
-                                {renderInterfaceDisplayContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={2}>
-                                {renderSecurityAccessContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={3}>
-                                {renderVideoPlaybackContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={4}>
-                                {renderDownloadStorageContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={5}>
-                                {renderContentManagementContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={6}>
-                                {renderDataManagementContent()}
-                            </TabPanel>
-
-                            <TabPanel value={currentTab} index={7}>
-                                {renderAdvancedContent()}
-                            </TabPanel>
-                        </>
-                    )}
+                    <Box sx={{ py: 3, px: 3 }}>
+                        {renderDesktopTabContent()}
+                    </Box>
                 </Box>
             ) : (
                 /* Mobile: Collapsible Sections View */

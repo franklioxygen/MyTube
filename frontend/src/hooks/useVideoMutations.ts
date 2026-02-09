@@ -1,12 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { useVideo } from "../contexts/VideoContext";
 import { Video } from "../types";
-import { getApiUrl } from "../utils/apiUrl";
-
-const API_URL = getApiUrl();
+import { api } from "../utils/apiClient";
 
 interface UseVideoMutationsProps {
   videoId: string | undefined;
@@ -28,7 +25,7 @@ export function useVideoMutations({
   // Rating mutation
   const ratingMutation = useMutation({
     mutationFn: async (newValue: number) => {
-      await axios.post(`${API_URL}/videos/${videoId}/rate`, {
+      await api.post(`/videos/${videoId}/rate`, {
         rating: newValue,
       });
       return newValue;
@@ -43,7 +40,7 @@ export function useVideoMutations({
   // Title mutation
   const titleMutation = useMutation({
     mutationFn: async (newTitle: string) => {
-      const response = await axios.put(`${API_URL}/videos/${videoId}`, {
+      const response = await api.put(`/videos/${videoId}`, {
         title: newTitle,
       });
       return response.data;
@@ -64,7 +61,7 @@ export function useVideoMutations({
   // Tags mutation
   const tagsMutation = useMutation({
     mutationFn: async (newTags: string[]) => {
-      const response = await axios.put(`${API_URL}/videos/${videoId}`, {
+      const response = await api.put(`/videos/${videoId}`, {
         tags: newTags,
       });
       return response.data;
@@ -84,7 +81,7 @@ export function useVideoMutations({
   // Visibility mutation
   const visibilityMutation = useMutation({
     mutationFn: async (visibility: number) => {
-      const response = await axios.put(`${API_URL}/videos/${videoId}`, {
+      const response = await api.put(`/videos/${videoId}`, {
         visibility,
       });
       return response.data;
@@ -137,8 +134,8 @@ export function useVideoMutations({
         formData.append("language", language);
       }
 
-      const response = await axios.post(
-        `${API_URL}/videos/${videoId}/subtitles`,
+      const response = await api.post(
+        `/videos/${videoId}/subtitles`,
         formData,
         {
           headers: {
@@ -196,7 +193,7 @@ export function useVideoMutations({
       }>;
     }) => {
       const next = currentSubtitles.filter((_, i) => i !== index);
-      await axios.put(`${API_URL}/videos/${videoId}`, { subtitles: next });
+      await api.put(`/videos/${videoId}`, { subtitles: next });
       return { index, next };
     },
     onSuccess: (payload) => {

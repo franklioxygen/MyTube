@@ -1,10 +1,6 @@
-import axios from 'axios';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
-
-import { getApiUrl } from '../utils/apiUrl';
-
-const API_URL = getApiUrl();
+import { api } from '../utils/apiClient';
 
 interface LanguageContextType {
     language: Language;
@@ -57,7 +53,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const fetchSettings = async () => {
         try {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await api.get('/settings');
             if (response.data.language) {
                 const backendLanguage = response.data.language as Language;
                 setLanguageState(backendLanguage);
@@ -89,16 +85,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Always try to save to backend so language persists across browsers
         // (backend accepts when login is disabled, or when cookies are sent; 401 is ignored)
         try {
-            // We need to fetch current settings first to not overwrite other settings
-            // Or ideally the backend supports partial updates, but our controller expects full object usually
-            // Let's fetch first to be safe
-            const response = await axios.get(`${API_URL}/settings`);
-            const currentSettings = response.data;
-
-            await axios.post(`${API_URL}/settings`, {
-                ...currentSettings,
-                language: lang
-            });
+            await api.patch('/settings', { language: lang });
         } catch (error: any) {
             // Silently handle 401 errors (expected when not authenticated)
             // Language is already saved to localStorage, so UI will update correctly

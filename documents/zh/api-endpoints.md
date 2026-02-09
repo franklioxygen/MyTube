@@ -96,7 +96,7 @@
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)
-- `POST /api/settings` - 更新设置
+- `PATCH /api/settings` - 部分更新设置
   - 请求体: 部分设置对象
 - `POST /api/settings/migrate` - 将旧版 JSON 数据迁移至 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧版 JSON 数据文件

@@ -38,7 +38,7 @@ export {
 } from "./videoDownloadTracking";
 
 // Settings
-export { getSettings, saveSettings } from "./settings";
+export { getSettings, invalidateSettingsCache, saveSettings } from "./settings";
 
 // Videos
 export {

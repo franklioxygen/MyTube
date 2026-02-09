@@ -1,11 +1,10 @@
 import { CheckCircle, CloudUpload, Delete, ErrorOutline } from '@mui/icons-material';
 import { Alert, Box, Button, CircularProgress, Grid, Paper, Typography } from '@mui/material';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
-import { getApiUrl } from '../../utils/apiUrl';
+import { api } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
 import PasswordModal from '../PasswordModal';
 
@@ -13,8 +12,6 @@ interface HookSettingsProps {
     settings: Settings;
     onChange: (field: keyof Settings, value: any) => void;
 }
-
-const API_URL = getApiUrl();
 
 const HookSettings: React.FC<HookSettingsProps> = () => {
     const { t } = useLanguage();
@@ -28,7 +25,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
     const { data: hookStatus, refetch: refetchHooks, isLoading } = useQuery({
         queryKey: ['hookStatus'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/hooks/status`);
+            const response = await api.get('/settings/hooks/status');
             return response.data as Record<string, boolean>;
         }
     });
@@ -37,7 +34,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         mutationFn: async ({ hookName, file }: { hookName: string; file: File }) => {
             const formData = new FormData();
             formData.append('file', file);
-            await axios.post(`${API_URL}/settings/hooks/${hookName}`, formData, {
+            await api.post(`/settings/hooks/${hookName}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
         },
@@ -62,7 +59,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
 
     const deleteMutation = useMutation({
         mutationFn: async (hookName: string) => {
-            await axios.delete(`${API_URL}/settings/hooks/${hookName}`);
+            await api.delete(`/settings/hooks/${hookName}`);
         },
         onSuccess: () => {
             refetchHooks();
@@ -92,7 +89,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         setIsVerifying(true);
         setPasswordError(undefined);
         try {
-            await axios.post(`${API_URL}/settings/verify-password`, { password });
+            await api.post('/settings/verify-password', { password });
             setShowPasswordModal(false);
             if (pendingUpload) {
                 uploadMutation.mutate(pendingUpload);

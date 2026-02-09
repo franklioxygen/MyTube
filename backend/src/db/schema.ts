@@ -5,6 +5,7 @@ import {
     primaryKey,
     sqliteTable,
     text,
+    uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 export const videos = sqliteTable("videos", {
@@ -150,18 +151,26 @@ export const subscriptions = sqliteTable("subscriptions", {
 });
 
 // Track downloaded video IDs to prevent re-downloading
-export const videoDownloads = sqliteTable("video_downloads", {
-  id: text("id").primaryKey(), // Unique identifier
-  sourceVideoId: text("source_video_id").notNull(), // Video ID from source (YouTube ID, Bilibili BV ID, etc.)
-  sourceUrl: text("source_url").notNull(), // Original source URL
-  platform: text("platform").notNull(), // YouTube, Bilibili, MissAV, etc.
-  videoId: text("video_id"), // Reference to local video ID (null if deleted)
-  title: text("title"), // Video title for display
-  author: text("author"), // Video author
-  status: text("status").notNull().default("exists"), // 'exists' or 'deleted'
-  downloadedAt: integer("downloaded_at").notNull(), // Timestamp of first download
-  deletedAt: integer("deleted_at"), // Timestamp when video was deleted (nullable)
-});
+export const videoDownloads = sqliteTable(
+  "video_downloads",
+  {
+    id: text("id").primaryKey(), // Unique identifier
+    sourceVideoId: text("source_video_id").notNull(), // Video ID from source (YouTube ID, Bilibili BV ID, etc.)
+    sourceUrl: text("source_url").notNull(), // Original source URL
+    platform: text("platform").notNull(), // YouTube, Bilibili, MissAV, etc.
+    videoId: text("video_id"), // Reference to local video ID (null if deleted)
+    title: text("title"), // Video title for display
+    author: text("author"), // Video author
+    status: text("status").notNull().default("exists"), // 'exists' or 'deleted'
+    downloadedAt: integer("downloaded_at").notNull(), // Timestamp of first download
+    deletedAt: integer("deleted_at"), // Timestamp when video was deleted (nullable)
+  },
+  (table) => ({
+    sourceVideoPlatformUnique: uniqueIndex(
+      "video_downloads_source_video_id_platform_uidx"
+    ).on(table.sourceVideoId, table.platform),
+  })
+);
 
 // Track continuous download tasks for downloading all previous videos from an author
 export const continuousDownloadTasks = sqliteTable(

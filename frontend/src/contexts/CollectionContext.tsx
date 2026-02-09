@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { createContext, useContext } from 'react';
 import { Collection } from '../types';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
-
-const API_URL = getApiUrl();
 
 interface CollectionContextType {
     collections: Collection[];
@@ -39,7 +36,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const { data: collections = [], refetch: fetchCollectionsQuery } = useQuery({
         queryKey: ['collections'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/collections`);
+            const response = await api.get('/collections');
             return response.data as Collection[];
         },
         // Only query when authenticated to avoid 401 errors on login page
@@ -60,7 +57,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const createCollectionMutation = useMutation({
         mutationFn: async ({ name, videoId }: { name: string, videoId: string }) => {
-            const response = await axios.post(`${API_URL}/collections`, {
+            const response = await api.post('/collections', {
                 name,
                 videoId
             });
@@ -85,7 +82,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const addToCollectionMutation = useMutation({
         mutationFn: async ({ collectionId, videoId }: { collectionId: string, videoId: string }) => {
-            const response = await axios.put(`${API_URL}/collections/${collectionId}`, {
+            const response = await api.put(`/collections/${collectionId}`, {
                 videoId,
                 action: "add"
             });
@@ -115,7 +112,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             );
 
             await Promise.all(collectionsWithVideo.map(collection =>
-                axios.put(`${API_URL}/collections/${collection.id}`, {
+                api.put(`/collections/${collection.id}`, {
                     videoId,
                     action: "remove"
                 })
@@ -132,7 +129,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const deleteCollectionMutation = useMutation({
         mutationFn: async ({ collectionId, deleteVideos }: { collectionId: string, deleteVideos: boolean }) => {
-            await axios.delete(`${API_URL}/collections/${collectionId}`, {
+            await api.delete(`/collections/${collectionId}`, {
                 params: { deleteVideos: deleteVideos ? 'true' : 'false' }
             });
             return { collectionId, deleteVideos };
@@ -161,7 +158,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const updateCollectionMutation = useMutation({
         mutationFn: async ({ id, name }: { id: string, name: string }) => {
-            const response = await axios.put(`${API_URL}/collections/${id}`, { name });
+            const response = await api.put(`/collections/${id}`, { name });
             return response.data;
         },
         onSuccess: () => {

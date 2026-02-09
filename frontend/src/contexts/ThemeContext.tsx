@@ -1,8 +1,7 @@
 import { CssBaseline, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
-import axios from 'axios';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import getTheme from '../theme';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -14,7 +13,6 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-const API_URL = getApiUrl();
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useThemeContext = () => {
@@ -41,7 +39,7 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const fetchSettings = async () => {
         try {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await api.get('/settings');
             if (response.data.theme) {
                 const backendTheme = response.data.theme as ThemePreference;
                 setPreferenceState(backendTheme);
@@ -73,12 +71,7 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
         // Sync with backend
         try {
-            // Fetch current settings first to merge
-            const response = await axios.get(`${API_URL}/settings`);
-            const currentSettings = response.data;
-
-            await axios.post(`${API_URL}/settings`, {
-                ...currentSettings,
+            await api.patch('/settings', {
                 theme: newPreference
             });
         } catch (error: any) {

@@ -362,14 +362,18 @@ class DownloadManager {
           if (sourceVideoId) {
             // Check if this is a re-download of previously deleted video
             const existingRecord =
-              storageService.checkVideoDownloadBySourceId(sourceVideoId);
+              storageService.checkVideoDownloadBySourceId(
+                sourceVideoId,
+                platform
+              );
             if (existingRecord.found && existingRecord.status === "deleted") {
               // Update existing record
               storageService.updateVideoDownloadRecord(
                 sourceVideoId,
                 videoData.id,
                 finalTitle || task.title,
-                videoData.author
+                videoData.author,
+                platform
               );
             } else if (!existingRecord.found) {
               // New download, create record

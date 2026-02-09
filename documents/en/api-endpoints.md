@@ -96,7 +96,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)
-- `POST /api/settings` - Update settings
+- `PATCH /api/settings` - Partially update settings
   - Body: partial settings object
 - `POST /api/settings/migrate` - Migrate legacy JSON data to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files

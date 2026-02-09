@@ -8,12 +8,10 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { getApiUrl } from '../../utils/apiUrl';
+import { useSettings } from '../../hooks/useSettings';
 
 interface ManageMenuProps {
     anchorEl: HTMLElement | null;
@@ -29,22 +27,7 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
     const { logout } = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const API_URL = getApiUrl();
-
-    // Check if login is enabled
-    const { data: settingsData } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            try {
-                const response = await axios.get(`${API_URL}/settings`, { timeout: 5000 });
-                return response.data;
-            } catch {
-                return null;
-            }
-        },
-        retry: 1,
-        retryDelay: 1000,
-    });
+    const { data: settingsData } = useSettings();
 
     const loginEnabled = settingsData?.loginEnabled || false;
 
@@ -109,4 +92,3 @@ const ManageMenu: React.FC<ManageMenuProps> = ({
 };
 
 export default ManageMenu;
-

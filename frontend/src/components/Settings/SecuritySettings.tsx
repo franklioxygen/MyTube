@@ -1,18 +1,15 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
-import { getApiUrl } from '../../utils/apiUrl';
 import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
+import { api } from '../../utils/apiClient';
 import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import AlertModal from '../AlertModal';
 import ConfirmationModal from '../ConfirmationModal';
-
-const API_URL = getApiUrl();
 
 interface SecuritySettingsProps {
     settings: Settings;
@@ -36,7 +33,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     const { data: passkeysData, refetch: refetchPasskeys } = useQuery({
         queryKey: ['passkeys-exists'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings/passkeys/exists`);
+            const response = await api.get('/settings/passkeys/exists');
             return response.data;
         },
     });
@@ -56,7 +53,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
 
             // Step 1: Get registration options
-            const optionsResponse = await axios.post(`${API_URL}/settings/passkeys/register`, {
+            const optionsResponse = await api.post('/settings/passkeys/register', {
                 userName: 'MyTube User',
             });
             const { options, challenge } = optionsResponse.data;
@@ -65,7 +62,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
             const attestationResponse = await startRegistration(options);
 
             // Step 3: Verify registration
-            const verifyResponse = await axios.post(`${API_URL}/settings/passkeys/register/verify`, {
+            const verifyResponse = await api.post('/settings/passkeys/register/verify', {
                 body: attestationResponse,
                 challenge,
             });
@@ -75,7 +72,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
             }
         },
         onSuccess: () => {
-            refetchPasskeys();
             refetchPasskeys();
             showAlert(t('success'), t('passkeyCreated') || 'Passkey created successfully');
         },
@@ -106,7 +102,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
     // Remove passkeys mutation
     const removePasskeysMutation = useMutation({
         mutationFn: async () => {
-            await axios.delete(`${API_URL}/settings/passkeys`);
+            await api.delete('/settings/passkeys');
         },
         onSuccess: () => {
             refetchPasskeys();

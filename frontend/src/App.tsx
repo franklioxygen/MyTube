@@ -1,6 +1,7 @@
 import { Box, CircularProgress } from '@mui/material';
 import { Suspense, lazy, useEffect } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
 import Footer from './components/Footer';
 import Header from './components/Header';
@@ -13,6 +14,7 @@ import { SnackbarProvider } from './contexts/SnackbarContext';
 import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
 import { useSettings } from './hooks/useSettings';
+import { defaultQueryConfig } from './utils/queryConfig';
 const BilibiliPartsModal = lazy(() => import('./components/BilibiliPartsModal'));
 const AuthorVideos = lazy(() => import('./pages/AuthorVideos'));
 const CollectionPage = lazy(() => import('./pages/CollectionPage'));
@@ -156,18 +158,13 @@ function AppContent() {
     );
 }
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
 // Configure QueryClient with memory management settings
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            // Cache data for 5 minutes by default
-            staleTime: 5 * 60 * 1000,
+            ...defaultQueryConfig,
             // Keep unused data in cache for 10 minutes before garbage collection
-            gcTime: 10 * 60 * 1000, // Previously called cacheTime
-            // Retry failed requests 3 times instead of default
-            retry: 3,
+            gcTime: 10 * 60 * 1000,
             // Refetch on window focus only if data is stale
             refetchOnWindowFocus: false,
             // Don't refetch on reconnect by default

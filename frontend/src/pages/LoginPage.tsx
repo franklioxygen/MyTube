@@ -19,7 +19,6 @@ import {
 } from '@mui/material';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import logo from '../assets/logo.svg';
 import AlertModal from '../components/AlertModal';
@@ -27,13 +26,8 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
-
-// Get API URL using centralized helper function
-// In dev mode, uses relative path to leverage Vite proxy
-// In production or when VITE_API_URL is explicitly set, uses that value
-const API_URL = getApiUrl();
 
 const LoginPage: React.FC = () => {
     const [visitorPassword, setVisitorPassword] = useState('');
@@ -59,7 +53,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['healthCheck'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/password-enabled`, { timeout: 5000, withCredentials: true });
+                const response = await api.get('/settings/password-enabled', { timeout: 5000 });
                 return response.data;
             } catch (error: any) {
                 // Handle 401 errors (expected when not authenticated)
@@ -108,7 +102,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['passkeys-exists'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/passkeys/exists`, { timeout: 5000, withCredentials: true });
+                const response = await api.get('/settings/passkeys/exists', { timeout: 5000 });
                 return response.data;
             } catch (error: any) {
                 // Handle 401 or 429 errors gracefully
@@ -139,7 +133,7 @@ const LoginPage: React.FC = () => {
         queryKey: ['resetPasswordCooldown'],
         queryFn: async () => {
             try {
-                const response = await axios.get(`${API_URL}/settings/reset-password-cooldown`, { timeout: 5000, withCredentials: true });
+                const response = await api.get('/settings/reset-password-cooldown', { timeout: 5000 });
                 return response.data;
             } catch (error: any) {
                 // Handle 401 or 429 errors gracefully
@@ -238,7 +232,7 @@ const LoginPage: React.FC = () => {
 
     const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-admin-password`, { password: passwordToVerify }, { withCredentials: true });
+            const response = await api.post('/settings/verify-admin-password', { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
@@ -285,7 +279,7 @@ const LoginPage: React.FC = () => {
 
     const visitorLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await axios.post(`${API_URL}/settings/verify-visitor-password`, { password: passwordToVerify }, { withCredentials: true });
+            const response = await api.post('/settings/verify-visitor-password', { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
@@ -337,7 +331,7 @@ const LoginPage: React.FC = () => {
 
     const resetPasswordMutation = useMutation({
         mutationFn: async () => {
-            const response = await axios.post(`${API_URL}/settings/reset-password`, {}, { withCredentials: true });
+            const response = await api.post('/settings/reset-password');
             return response.data;
         },
         onSuccess: () => {
@@ -369,17 +363,17 @@ const LoginPage: React.FC = () => {
 
 
             // Step 1: Get authentication options
-            const optionsResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate`, {}, { withCredentials: true });
+            const optionsResponse = await api.post('/settings/passkeys/authenticate');
             const { options, challenge } = optionsResponse.data;
 
             // Step 2: Start authentication with browser
             const assertionResponse = await startAuthentication(options);
 
             // Step 3: Verify authentication
-            const verifyResponse = await axios.post(`${API_URL}/settings/passkeys/authenticate/verify`, {
+            const verifyResponse = await api.post('/settings/passkeys/authenticate/verify', {
                 body: assertionResponse,
                 challenge,
-            }, { withCredentials: true });
+            });
 
             if (!verifyResponse.data.success) {
                 throw new Error('Passkey authentication failed');

@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Video } from "../types";
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from "../utils/apiClient";
 import { validateUrlForOpen } from "../utils/urlValidation";
-
-const API_URL = getApiUrl();
 
 interface UseVideoSubscriptionsProps {
   video: Video | undefined;
@@ -27,7 +24,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   const { data: subscriptions = [] } = useQuery({
     queryKey: ["subscriptions"],
     queryFn: async () => {
-      const response = await axios.get(`${API_URL}/subscriptions`);
+      const response = await api.get("/subscriptions");
       return response.data;
     },
   });
@@ -44,12 +41,9 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
       }
 
       try {
-        const response = await axios.get(
-          `${API_URL}/videos/author-channel-url`,
-          {
-            params: { sourceUrl: video.sourceUrl },
-          }
-        );
+        const response = await api.get("/videos/author-channel-url", {
+          params: { sourceUrl: video.sourceUrl },
+        });
 
         if (response.data.success && response.data.channelUrl) {
           setAuthorChannelUrl(response.data.channelUrl);
@@ -160,7 +154,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
     if (!authorChannelUrl || !video) return;
 
     try {
-      await axios.post(`${API_URL}/subscriptions`, {
+      await api.post("/subscriptions", {
         url: authorChannelUrl,
         interval,
         authorName: video.author,
@@ -191,7 +185,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   // Unsubscribe mutation
   const unsubscribeMutation = useMutation({
     mutationFn: async (subId: string) => {
-      await axios.delete(`${API_URL}/subscriptions/${subId}`);
+      await api.delete(`/subscriptions/${subId}`);
     },
     onSuccess: () => {
       showSnackbar(t("unsubscribedSuccessfully"));

@@ -95,6 +95,29 @@ export class TaskRepository {
   }
 
   /**
+   * Get task status only (lightweight query for hot polling paths)
+   */
+  async getTaskStatus(
+    id: string
+  ): Promise<"active" | "paused" | "completed" | "cancelled" | null> {
+    const result = await db
+      .select({ status: continuousDownloadTasks.status })
+      .from(continuousDownloadTasks)
+      .where(eq(continuousDownloadTasks.id, id))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return result[0].status as
+      | "active"
+      | "paused"
+      | "completed"
+      | "cancelled";
+  }
+
+  /**
    * Update task status to cancelled
    */
   async cancelTask(id: string): Promise<void> {
@@ -248,4 +271,3 @@ export class TaskRepository {
     };
   }
 }
-

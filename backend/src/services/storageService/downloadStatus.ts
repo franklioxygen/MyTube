@@ -1,8 +1,56 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { downloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadInfo, DownloadStatus } from "./types";
+
+const ACTIVE_DOWNLOAD_STALE_MS = 24 * 60 * 60 * 1000;
+const ACTIVE_DOWNLOAD_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+let lastActiveCleanupAt = 0;
+
+type DownloadRow = {
+  id: string;
+  title: string;
+  timestamp: number | null;
+  filename: string | null;
+  totalSize: string | null;
+  downloadedSize: string | null;
+  progress: number | null;
+  speed: string | null;
+  sourceUrl: string | null;
+  type: string | null;
+};
+
+function mapDownloadRow(download: DownloadRow): DownloadInfo {
+  return {
+    id: download.id,
+    title: download.title,
+    timestamp: download.timestamp || 0,
+    filename: download.filename || undefined,
+    totalSize: download.totalSize || undefined,
+    downloadedSize: download.downloadedSize || undefined,
+    progress:
+      download.progress !== null && download.progress !== undefined
+        ? download.progress
+        : undefined,
+    speed: download.speed || undefined,
+    sourceUrl: download.sourceUrl || undefined,
+    type: download.type || undefined,
+  };
+}
+
+function cleanupStaleActiveDownloadsIfNeeded(now: number): void {
+  if (now - lastActiveCleanupAt < ACTIVE_DOWNLOAD_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastActiveCleanupAt = now;
+  const threshold = now - ACTIVE_DOWNLOAD_STALE_MS;
+  db.delete(downloads)
+    .where(and(lt(downloads.timestamp, threshold), eq(downloads.status, "active")))
+    .run();
+}
 
 export function addActiveDownload(id: string, title: string): void {
   try {
@@ -75,13 +123,19 @@ export function updateActiveDownloadTitle(id: string, title: string): void {
 
 export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
   try {
-    // Transaction to clear old queued and add new ones
-    db.transaction(() => {
-      // First, remove all existing queued downloads
-      db.delete(downloads).where(eq(downloads.status, "queued")).run();
+    const latestQueuedById = new Map<string, DownloadInfo>();
+    for (const queuedDownload of queuedDownloads) {
+      latestQueuedById.set(queuedDownload.id, queuedDownload);
+    }
 
-      // Then insert new ones
-      for (const download of queuedDownloads) {
+    db.transaction(() => {
+      const existingQueued = db
+        .select({ id: downloads.id })
+        .from(downloads)
+        .where(eq(downloads.status, "queued"))
+        .all();
+
+      for (const download of latestQueuedById.values()) {
         db.insert(downloads)
           .values({
             id: download.id,
@@ -103,6 +157,22 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
           })
           .run();
       }
+
+      const latestIds = new Set(latestQueuedById.keys());
+      const staleQueuedIds = existingQueued
+        .map((item) => item.id)
+        .filter((id) => !latestIds.has(id));
+
+      if (staleQueuedIds.length > 0) {
+        db.delete(downloads)
+          .where(
+            and(
+              eq(downloads.status, "queued"),
+              inArray(downloads.id, staleQueuedIds)
+            )
+          )
+          .run();
+      }
     });
   } catch (error) {
     logger.error("Error setting queued downloads", error instanceof Error ? error : new Error(String(error)));
@@ -112,43 +182,21 @@ export function setQueuedDownloads(queuedDownloads: DownloadInfo[]): void {
 
 export function getDownloadStatus(): DownloadStatus {
   try {
-    // Clean up stale ACTIVE downloads (older than 24 hours) - preserve queued downloads
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    db.delete(downloads)
-      .where(
-        and(lt(downloads.timestamp, oneDayAgo), eq(downloads.status, "active"))
-      )
-      .run();
+    cleanupStaleActiveDownloadsIfNeeded(Date.now());
 
-    const allDownloads = db.select().from(downloads).all();
+    const activeDownloads = db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.status, "active"))
+      .all()
+      .map(mapDownloadRow);
 
-    const activeDownloads = allDownloads
-      .filter((d) => d.status === "active")
-      .map((d) => ({
-        id: d.id,
-        title: d.title,
-        timestamp: d.timestamp || 0,
-        filename: d.filename || undefined,
-        totalSize: d.totalSize || undefined,
-        downloadedSize: d.downloadedSize || undefined,
-        progress:
-          d.progress !== null && d.progress !== undefined
-            ? d.progress
-            : undefined,
-        speed: d.speed || undefined,
-        sourceUrl: d.sourceUrl || undefined,
-        type: d.type || undefined,
-      }));
-
-    const queuedDownloads = allDownloads
-      .filter((d) => d.status === "queued")
-      .map((d) => ({
-        id: d.id,
-        title: d.title,
-        timestamp: d.timestamp || 0,
-        sourceUrl: d.sourceUrl || undefined,
-        type: d.type || undefined,
-      }));
+    const queuedDownloads = db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.status, "queued"))
+      .all()
+      .map(mapDownloadRow);
 
     return { activeDownloads, queuedDownloads };
   } catch (error) {
@@ -160,31 +208,16 @@ export function getDownloadStatus(): DownloadStatus {
 
 export function getActiveDownload(id: string): DownloadInfo | undefined {
   try {
-    const results = db
+    const download = db
       .select()
       .from(downloads)
-      .where(eq(downloads.id, id))
-      .all();
-      
-    const download = results[0];
-    
-    if (download && download.status === "active") {
-      return {
-        id: download.id,
-        title: download.title,
-        timestamp: download.timestamp || 0,
-        filename: download.filename || undefined,
-        totalSize: download.totalSize || undefined,
-        downloadedSize: download.downloadedSize || undefined,
-        progress:
-          download.progress !== null && download.progress !== undefined
-            ? download.progress
-            : undefined,
-        speed: download.speed || undefined,
-        sourceUrl: download.sourceUrl || undefined,
-        type: download.type || undefined,
-      };
+      .where(and(eq(downloads.id, id), eq(downloads.status, "active")))
+      .get();
+
+    if (download) {
+      return mapDownloadRow(download);
     }
+
     return undefined;
   } catch (error) {
     logger.error(

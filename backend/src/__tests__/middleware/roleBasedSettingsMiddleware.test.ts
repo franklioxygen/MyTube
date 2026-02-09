@@ -80,4 +80,38 @@ describe('roleBasedSettingsMiddleware Security', () => {
 
     expect(next).toHaveBeenCalled();
   });
+
+  it('should ALLOW visitor PATCH for cloudflare-only update', () => {
+    req = {
+      method: "PATCH",
+      path: "/",
+      url: "/",
+      body: { cloudflaredTunnelEnabled: true, cloudflaredToken: "token" },
+      user: { role: "visitor" } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('should BLOCK visitor PATCH for non-cloudflare settings update', () => {
+    req = {
+      method: "PATCH",
+      path: "/",
+      url: "/",
+      body: { theme: "dark" },
+      user: { role: "visitor" } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('Only reading settings and updating CloudFlare settings is allowed'),
+    }));
+  });
 });

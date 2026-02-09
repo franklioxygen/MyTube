@@ -15,16 +15,13 @@ import {
     Typography
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import React, { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
-import { getApiUrl } from '../utils/apiUrl';
+import { api } from '../utils/apiClient';
 import { TranslationKey } from '../utils/translations';
-
-const API_URL = getApiUrl();
 
 interface Subscription {
     id: string;
@@ -79,7 +76,7 @@ const SubscriptionsPage: React.FC = () => {
     const { data: subscriptions = [], refetch: refetchSubscriptions } = useQuery({
         queryKey: ['subscriptions'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/subscriptions`);
+            const response = await api.get('/subscriptions');
             return response.data as Subscription[];
         },
         refetchInterval: 30000, // Refetch every 30 seconds (less frequent)
@@ -90,7 +87,7 @@ const SubscriptionsPage: React.FC = () => {
     const { data: tasks = [], refetch: refetchTasks } = useQuery({
         queryKey: ['subscriptionTasks'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/subscriptions/tasks`);
+            const response = await api.get('/subscriptions/tasks');
             return response.data as ContinuousDownloadTask[];
         },
         // Only poll when there are active tasks
@@ -117,7 +114,7 @@ const SubscriptionsPage: React.FC = () => {
         if (!selectedSubscription) return;
 
         try {
-            await axios.delete(`${API_URL}/subscriptions/${selectedSubscription.id}`);
+            await api.delete(`/subscriptions/${selectedSubscription.id}`);
             showSnackbar(t('unsubscribedSuccessfully'));
             refetchSubscriptions();
         } catch (error) {
@@ -143,7 +140,7 @@ const SubscriptionsPage: React.FC = () => {
         if (!selectedTask) return;
 
         try {
-            await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}`);
+            await api.delete(`/subscriptions/tasks/${selectedTask.id}`);
             showSnackbar(t('taskCancelled'));
             refetchTasks();
         } catch (error) {
@@ -164,7 +161,7 @@ const SubscriptionsPage: React.FC = () => {
         if (!selectedTask) return;
 
         try {
-            await axios.delete(`${API_URL}/subscriptions/tasks/${selectedTask.id}/delete`);
+            await api.delete(`/subscriptions/tasks/${selectedTask.id}/delete`);
             showSnackbar(t('taskDeleted'));
             refetchTasks();
         } catch (error) {
@@ -182,7 +179,7 @@ const SubscriptionsPage: React.FC = () => {
 
     const handleConfirmClearFinished = async () => {
         try {
-            await axios.delete(`${API_URL}/subscriptions/tasks/clear-finished`);
+            await api.delete('/subscriptions/tasks/clear-finished');
             showSnackbar(t('tasksCleared'));
             refetchTasks();
         } catch (error) {
@@ -195,7 +192,7 @@ const SubscriptionsPage: React.FC = () => {
 
     const handlePauseSubscription = async (id: string) => {
         try {
-            await axios.put(`${API_URL}/subscriptions/${id}/pause`);
+            await api.put(`/subscriptions/${id}/pause`);
             showSnackbar(t('subscriptionPaused'));
             refetchSubscriptions();
         } catch (error) {
@@ -206,7 +203,7 @@ const SubscriptionsPage: React.FC = () => {
 
     const handleResumeSubscription = async (id: string) => {
         try {
-            await axios.put(`${API_URL}/subscriptions/${id}/resume`);
+            await api.put(`/subscriptions/${id}/resume`);
             showSnackbar(t('subscriptionResumed'));
             refetchSubscriptions();
         } catch (error) {
@@ -217,7 +214,7 @@ const SubscriptionsPage: React.FC = () => {
 
     const handlePauseTask = async (task: ContinuousDownloadTask) => {
         try {
-            await axios.put(`${API_URL}/subscriptions/tasks/${task.id}/pause`);
+            await api.put(`/subscriptions/tasks/${task.id}/pause`);
             showSnackbar(t('taskPaused'));
             refetchTasks();
         } catch (error) {
@@ -228,7 +225,7 @@ const SubscriptionsPage: React.FC = () => {
 
     const handleResumeTask = async (task: ContinuousDownloadTask) => {
         try {
-            await axios.put(`${API_URL}/subscriptions/tasks/${task.id}/resume`);
+            await api.put(`/subscriptions/tasks/${task.id}/resume`);
             showSnackbar(t('taskResumed'));
             refetchTasks();
         } catch (error) {

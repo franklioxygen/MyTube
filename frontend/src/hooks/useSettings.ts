@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { Settings } from '../types';
-import { getApiUrl } from '../utils/apiUrl';
 import { useAuth } from '../contexts/AuthContext';
-
-const API_URL = getApiUrl();
+import { api } from '../utils/apiClient';
+import { stableQueryConfig } from '../utils/queryConfig';
 
 export const useSettings = () => {
     const { isAuthenticated } = useAuth();
@@ -12,9 +10,10 @@ export const useSettings = () => {
     return useQuery<Settings>({
         queryKey: ['settings'],
         queryFn: async () => {
-            const response = await axios.get(`${API_URL}/settings`);
+            const response = await api.get('/settings');
             return response.data;
         },
+        ...stableQueryConfig,
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
         retry: (failureCount, error: any) => {

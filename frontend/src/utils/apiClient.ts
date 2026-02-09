@@ -16,73 +16,87 @@ import { getApiUrl } from "./apiUrl";
 // In production or when VITE_API_URL is explicitly set, uses that value
 const API_URL = getApiUrl();
 
-// Create axios instance with default configuration
-const apiClient: AxiosInstance = axios.create({
-  baseURL: API_URL,
-  timeout: 30000, // 30 seconds default timeout
-  withCredentials: true, // Required for HTTP-only cookies
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+// Create axios instance with safe fallback for mocked test environments.
+const createdClient =
+  typeof axios.create === "function"
+    ? axios.create({
+        baseURL: API_URL,
+        timeout: 30000, // 30 seconds default timeout
+        withCredentials: true, // Required for HTTP-only cookies
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+    : null;
+
+const apiClient: AxiosInstance =
+  (createdClient as AxiosInstance | null) ??
+  (axios as unknown as AxiosInstance);
 
 /**
  * Request interceptor - can be used for adding auth tokens, logging, etc.
  * Note: Authentication is now handled via HTTP-only cookies, so no Authorization header is needed
  */
-apiClient.interceptors.request.use(
-  (config) => {
-    // Cookies are automatically sent with requests when withCredentials: true
-    // No need to manually add Authorization header
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+if (apiClient?.interceptors?.request?.use) {
+  apiClient.interceptors.request.use(
+    (config) => {
+      // Cookies are automatically sent with requests when withCredentials: true
+      // No need to manually add Authorization header
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+}
 
 /**
  * Response interceptor - handles common error patterns
  */
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
-  (error: AxiosError) => {
-    // Handle common error cases
-    if (error.response) {
-      // Server responded with error status
-      const status = error.response.status;
-      const data = error.response.data as any;
+if (apiClient?.interceptors?.response?.use) {
+  apiClient.interceptors.response.use(
+    (response: AxiosResponse) => {
+      return response;
+    },
+    (error: AxiosError) => {
+      // Handle common error cases
+      if (error.response) {
+        // Server responded with error status
+        const status = error.response.status;
+        const data = error.response.data as any;
 
-      // Handle specific error cases
-      if (status === 401) {
-        // Unauthorized - could trigger logout or redirect
-        console.error("Unauthorized request:", error.config?.url);
-      } else if (status === 403) {
-        // Forbidden
-        console.error("Forbidden request:", error.config?.url);
-      } else if (status === 404) {
-        // Not found
-        console.error("Resource not found:", error.config?.url);
-      } else if (status === 429) {
-        // Too many requests
-        console.error("Rate limited:", error.config?.url);
-      } else if (status >= 500) {
-        // Server error
-        console.error("Server error:", error.config?.url, data);
+        // Handle specific error cases
+        if (status === 401) {
+          // Unauthorized - could trigger logout or redirect
+          console.error("Unauthorized request:", error.config?.url);
+        } else if (status === 403) {
+          // Forbidden
+          console.error("Forbidden request:", error.config?.url);
+        } else if (status === 404) {
+          // Not found
+          console.error("Resource not found:", error.config?.url);
+        } else if (status === 429) {
+          // Too many requests
+          console.error("Rate limited:", error.config?.url);
+        } else if (status >= 500) {
+          // Server error
+          console.error("Server error:", error.config?.url, data);
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error(
+          "Network error - no response received:",
+          error.config?.url
+        );
+      } else {
+        // Something else happened
+        console.error("Request setup error:", error.message);
       }
-    } else if (error.request) {
-      // Request was made but no response received
-      console.error("Network error - no response received:", error.config?.url);
-    } else {
-      // Something else happened
-      console.error("Request setup error:", error.message);
-    }
 
-    return Promise.reject(error);
-  }
-);
+      return Promise.reject(error);
+    }
+  );
+}
 
 /**
  * Type-safe API response wrapper
@@ -161,6 +175,9 @@ export const api = {
     url: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
+    if (config === undefined) {
+      return apiClient.get<T>(url);
+    }
     return apiClient.get<T>(url, config);
   },
 
@@ -172,7 +189,13 @@ export const api = {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
-    return apiClient.post<T>(url, data, config);
+    if (config !== undefined) {
+      return apiClient.post<T>(url, data, config);
+    }
+    if (data !== undefined) {
+      return apiClient.post<T>(url, data);
+    }
+    return apiClient.post<T>(url);
   },
 
   /**
@@ -183,7 +206,13 @@ export const api = {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
-    return apiClient.put<T>(url, data, config);
+    if (config !== undefined) {
+      return apiClient.put<T>(url, data, config);
+    }
+    if (data !== undefined) {
+      return apiClient.put<T>(url, data);
+    }
+    return apiClient.put<T>(url);
   },
 
   /**
@@ -194,7 +223,13 @@ export const api = {
     data?: any,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
-    return apiClient.patch<T>(url, data, config);
+    if (config !== undefined) {
+      return apiClient.patch<T>(url, data, config);
+    }
+    if (data !== undefined) {
+      return apiClient.patch<T>(url, data);
+    }
+    return apiClient.patch<T>(url);
   },
 
   /**
@@ -204,6 +239,9 @@ export const api = {
     url: string,
     config?: AxiosRequestConfig
   ): Promise<AxiosResponse<T>> => {
+    if (config === undefined) {
+      return apiClient.delete<T>(url);
+    }
     return apiClient.delete<T>(url, config);
   },
 };

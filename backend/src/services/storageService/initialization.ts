@@ -16,6 +16,86 @@ import { MigrationError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
 import { findVideoFile } from "./fileHelpers";
 
+type VideoDownloadDuplicateGroup = {
+  sourceVideoId: string;
+  platform: string;
+  count: number;
+};
+
+type VideoDownloadRecord = {
+  id: string;
+  status: string;
+  downloadedAt: number | null;
+};
+
+function deduplicateVideoDownloadsBySourceAndPlatform(): void {
+  const duplicateGroups = sqlite
+    .prepare(
+      `
+      SELECT
+        source_video_id AS sourceVideoId,
+        platform,
+        COUNT(*) AS count
+      FROM video_downloads
+      GROUP BY source_video_id, platform
+      HAVING COUNT(*) > 1
+      `
+    )
+    .all() as VideoDownloadDuplicateGroup[];
+
+  if (duplicateGroups.length === 0) {
+    return;
+  }
+
+  logger.warn(
+    `Found ${duplicateGroups.length} duplicated video_downloads groups, deduplicating before unique index migration`
+  );
+
+  const getRecordsStatement = sqlite.prepare(
+    `
+    SELECT
+      id,
+      status,
+      downloaded_at AS downloadedAt
+    FROM video_downloads
+    WHERE source_video_id = ? AND platform = ?
+    ORDER BY
+      CASE WHEN status = 'exists' THEN 0 ELSE 1 END ASC,
+      COALESCE(downloaded_at, 0) DESC,
+      id ASC
+    `
+  );
+
+  const deleteDuplicatesStatement = sqlite.prepare(
+    `
+    DELETE FROM video_downloads
+    WHERE source_video_id = ? AND platform = ? AND id <> ?
+    `
+  );
+
+  for (const group of duplicateGroups) {
+    const records = getRecordsStatement.all(
+      group.sourceVideoId,
+      group.platform
+    ) as VideoDownloadRecord[];
+
+    if (records.length <= 1) {
+      continue;
+    }
+
+    const keepRecord = records[0];
+    const deletedCount = deleteDuplicatesStatement.run(
+      group.sourceVideoId,
+      group.platform,
+      keepRecord.id
+    ).changes;
+
+    logger.warn(
+      `Deduplicated video_downloads (${group.sourceVideoId}, ${group.platform}), kept ${keepRecord.id}, removed ${deletedCount} records`
+    );
+  }
+}
+
 // Initialize storage directories and files
 export function initializeStorage(): void {
   fs.ensureDirSync(UPLOADS_DIR);
@@ -302,6 +382,12 @@ export function initializeStorage(): void {
 
     // Create indexes for video_downloads
     try {
+      deduplicateVideoDownloadsBySourceAndPlatform();
+      sqlite
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS video_downloads_source_video_id_platform_uidx ON video_downloads (source_video_id, platform)`
+        )
+        .run();
       sqlite
         .prepare(
           `CREATE INDEX IF NOT EXISTS video_downloads_source_video_id_idx ON video_downloads (source_video_id)`

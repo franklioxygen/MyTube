@@ -7,6 +7,9 @@ import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
+const TMDB_SEARCH_CACHE_MAX_ENTRIES = 500;
+const TMDB_SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
+const TMDB_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 // Whitelist of allowed hosts for image downloads to prevent SSRF
 const ALLOWED_IMAGE_HOSTS = ["image.tmdb.org"];
@@ -83,6 +86,80 @@ export interface ParsedFilename {
   quality?: string; // 1080p, 720p, etc.
   source?: string; // WEB-DL, BluRay, etc.
 }
+
+type MultiStrategySearchResult = {
+  result: TMDBMovieResult | TMDBTVResult | null;
+  mediaType: "movie" | "tv" | null;
+  strategy: string;
+  director?: string;
+};
+
+type CacheEntry<T> = {
+  value: T;
+  expiresAt: number;
+};
+
+const tmdbSearchCache = new Map<string, CacheEntry<MultiStrategySearchResult>>();
+const tmdbSearchInFlight = new Map<string, Promise<MultiStrategySearchResult>>();
+
+const getCachedValue = <T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string
+): T | undefined => {
+  const cached = cache.get(key);
+  if (!cached) {
+    return undefined;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return undefined;
+  }
+
+  return cached.value;
+};
+
+const setCachedValue = <T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  ttlMs: number,
+  maxEntries: number
+): void => {
+  cache.set(key, {
+    value,
+    expiresAt: Date.now() + ttlMs,
+  });
+
+  if (cache.size <= maxEntries) {
+    return;
+  }
+
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey) {
+    cache.delete(oldestKey);
+  }
+};
+
+const buildSearchCacheKey = (
+  parsed: ParsedFilename,
+  apiKey: string,
+  language?: string
+): string => {
+  const normalizedTitles = parsed.titles
+    .map((title) => title.trim().toLowerCase())
+    .sort();
+
+  return JSON.stringify({
+    titles: normalizedTitles,
+    year: parsed.year ?? null,
+    season: parsed.season ?? null,
+    episode: parsed.episode ?? null,
+    isTVShow: parsed.isTVShow,
+    language: mapLanguageToTMDB(language),
+    apiKey,
+  });
+};
 
 /**
  * Enhanced filename parser that extracts multiple titles, year from anywhere,
@@ -950,16 +1027,11 @@ async function downloadPoster(
  * Tries multiple titles and search strategies to find best match
  * Supports language parameter for localized results
  */
-async function searchTMDBMultiStrategy(
+async function searchTMDBMultiStrategyUncached(
   parsed: ParsedFilename,
   apiKey: string,
   language?: string
-): Promise<{
-  result: TMDBMovieResult | TMDBTVResult | null;
-  mediaType: "movie" | "tv" | null;
-  strategy: string;
-  director?: string;
-}> {
+): Promise<MultiStrategySearchResult> {
   const titles = parsed.titles.length > 0 ? parsed.titles : ["Unknown"];
 
   logger.info(
@@ -1178,6 +1250,50 @@ async function searchTMDBMultiStrategy(
 
   logger.info(`[TMDB Multi-Strategy] All strategies failed for filename`);
   return { result: null, mediaType: null, strategy: "all-failed" };
+}
+
+async function searchTMDBMultiStrategy(
+  parsed: ParsedFilename,
+  apiKey: string,
+  language?: string
+): Promise<MultiStrategySearchResult> {
+  const cacheKey = buildSearchCacheKey(parsed, apiKey, language);
+  const cached = getCachedValue(tmdbSearchCache, cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const inFlight = tmdbSearchInFlight.get(cacheKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const searchPromise = (async () => {
+    const searchResult = await searchTMDBMultiStrategyUncached(
+      parsed,
+      apiKey,
+      language
+    );
+    const ttl = searchResult.result
+      ? TMDB_SEARCH_CACHE_TTL_MS
+      : TMDB_NEGATIVE_CACHE_TTL_MS;
+
+    setCachedValue(
+      tmdbSearchCache,
+      cacheKey,
+      searchResult,
+      ttl,
+      TMDB_SEARCH_CACHE_MAX_ENTRIES
+    );
+    return searchResult;
+  })();
+
+  tmdbSearchInFlight.set(cacheKey, searchPromise);
+  try {
+    return await searchPromise;
+  } finally {
+    tmdbSearchInFlight.delete(cacheKey);
+  }
 }
 
 /**

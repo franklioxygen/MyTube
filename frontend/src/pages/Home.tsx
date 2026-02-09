@@ -32,7 +32,7 @@ const Home: React.FC = () => {
         deleteVideos
     } = useVideo();
     const { collections } = useCollection();
-    const { data: settings } = useSettings();
+    const { data: settings, isLoading: settingsLoading } = useSettings();
     const [_searchParams, setSearchParams] = useSearchParams();
     const [isDeleteFilteredOpen, setIsDeleteFilteredOpen] = useState(false);
 
@@ -47,7 +47,10 @@ const Home: React.FC = () => {
         showTagsOnThumbnail,
         settingsLoaded,
         handleSidebarToggle
-    } = useHomeSettings();
+    } = useHomeSettings({
+        settings,
+        settingsLoading
+    });
     const gridProps = useGridLayout({ isSidebarOpen, videoColumns });
 
     // Add default empty array to ensure videos is always an array

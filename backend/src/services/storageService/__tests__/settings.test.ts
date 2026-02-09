@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../../../db';
 import { DatabaseError } from '../../../errors/DownloadErrors';
 import { logger } from '../../../utils/logger';
-import { getSettings, saveSettings } from '../settings';
+import { getSettings, invalidateSettingsCache, saveSettings } from '../settings';
 
 // Mock DB and Logger
 vi.mock('../../../db', () => ({
@@ -26,6 +26,7 @@ vi.mock('../../../utils/logger', () => ({
 describe('storageService settings', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        invalidateSettingsCache();
         
         // Setup chianing for db.select().from().all()
         const mockAll = vi.fn();

@@ -4,8 +4,6 @@ import App from './App';
 import './index.css';
 import VERSION from './version';
 
-import { SnackbarProvider } from './contexts/SnackbarContext';
-
 import ConsoleManager from './utils/consoleManager';
 
 // Initialize console manager
@@ -18,9 +16,7 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
     createRoot(rootElement).render(
         <StrictMode>
-            <SnackbarProvider>
-                <App />
-            </SnackbarProvider>
+            <App />
         </StrictMode>,
     );
 }

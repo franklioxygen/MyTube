@@ -43,6 +43,7 @@ describe('TaskProcessor', () => {
 
     mockTaskRepository = {
       getTaskById: vi.fn().mockResolvedValue(mockTask),
+      getTaskStatus: vi.fn().mockResolvedValue('active'),
       updateTotalVideos: vi.fn().mockResolvedValue(undefined),
       updateProgress: vi.fn().mockResolvedValue(undefined),
       completeTask: vi.fn().mockResolvedValue(undefined),
@@ -119,6 +120,7 @@ describe('TaskProcessor', () => {
      // Then validation check at the end should also see 'cancelled' and not complete.
      
      // Override the default mock implementation to always return cancelled for this test
+     mockTaskRepository.getTaskStatus.mockResolvedValue('cancelled');
      mockTaskRepository.getTaskById.mockResolvedValue({ ...mockTask, status: 'cancelled' });
 
      const videoUrls = ['http://vid1', 'http://vid2'];

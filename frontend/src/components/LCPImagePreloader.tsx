@@ -59,7 +59,7 @@ export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) 
                 // Silently handle preload failures - this is just an optimization
                 // The actual image will still be loaded by the VideoCard component
                 // Log error in development mode for debugging
-                if (process.env.NODE_ENV === 'development') {
+                if (import.meta.env.DEV) {
                     console.warn('LCPImagePreloader: Failed to preload thumbnail:', thumbnailUrl, error);
                 }
                 // Remove the failed preload link to avoid keeping invalid references
