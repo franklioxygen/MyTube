@@ -56,10 +56,10 @@ describe('databaseBackupService', () => {
             (fs.existsSync as any).mockReturnValue(true);
             (fs.statSync as any).mockReturnValue({ mtimeMs: 1000 });
             
-            databaseBackupService.importDatabase('/tmp/new.db');
+            databaseBackupService.importDatabase(Buffer.from('sqlite-bytes'));
 
             expect(fs.copyFileSync).toHaveBeenCalledTimes(2); // Backup + Import
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/new.db');
+            expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('import-'));
         });
     });
 

@@ -36,6 +36,8 @@ describe('MissAVDownloader', () => {
     it('should extract author from domain name', async () => {
       const mockPage = {
         goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
         content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"><meta property="og:image" content="http://test.com/img.jpg"></head><body></body></html>'),
         close: vi.fn(),
       };
@@ -54,6 +56,8 @@ describe('MissAVDownloader', () => {
     it('should extract author from domain name for 123av', async () => {
       const mockPage = {
         goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
         content: vi.fn().mockResolvedValue('<html><head><meta property="og:title" content="Test Title"></head><body></body></html>'),
         close: vi.fn(),
       };
@@ -67,6 +71,31 @@ describe('MissAVDownloader', () => {
       const info = await MissAVDownloader.getVideoInfo(url);
 
       expect(info.author).toBe('123av.com');
+    });
+
+    it('should navigate using the matched allowlisted origin for missav.ai', async () => {
+      const mockPage = {
+        goto: vi.fn(),
+        waitForNavigation: vi.fn().mockResolvedValue(undefined),
+        evaluate: vi.fn().mockResolvedValue(undefined),
+        content: vi
+          .fn()
+          .mockResolvedValue(
+            '<html><head><meta property="og:title" content="Test Title"></head><body></body></html>',
+          ),
+      };
+      const mockBrowser = {
+        newPage: vi.fn().mockResolvedValue(mockPage),
+        close: vi.fn(),
+      };
+      (puppeteer.launch as any).mockResolvedValue(mockBrowser);
+
+      await MissAVDownloader.getVideoInfo('https://missav.ai/en/fc2-ppv-1627274');
+
+      expect(mockPage.goto).toHaveBeenCalledWith(
+        'https://missav.ai',
+        expect.any(Object),
+      );
     });
 
     it('should block URLs with explicit port before browser launch', async () => {

@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     extractBilibiliMid,
@@ -16,8 +15,6 @@ import {
     sanitizeFilename,
     trimBilibiliUrl
 } from '../../utils/helpers';
-
-vi.mock('axios');
 
 describe('Helpers', () => {
   describe('isValidUrl', () => {
@@ -123,37 +120,17 @@ describe('Helpers', () => {
       vi.clearAllMocks();
     });
 
-    it('should resolve shortened URL', async () => {
-      const mockResponse = {
-        request: {
-          res: {
-            responseUrl: 'https://www.bilibili.com/video/BV1xx411c7mD',
-          },
-        },
-      };
-      (axios.head as any).mockResolvedValue(mockResponse);
-
+    it('should normalize and return whitelisted short URL', async () => {
       const result = await resolveShortUrl('https://b23.tv/example');
-      expect(result).toBe('https://www.bilibili.com/video/BV1xx411c7mD');
+      expect(result).toBe('https://b23.tv/example');
     });
 
-    it('should return original URL if resolution fails', async () => {
-      (axios.head as any).mockRejectedValue(new Error('Network error'));
-
+    it('should return normalized short URL without outbound resolution', async () => {
       const result = await resolveShortUrl('https://b23.tv/fail');
       expect(result).toBe('https://b23.tv/fail');
     });
 
-    it('should return original short URL if redirected host is not allowed', async () => {
-      const mockResponse = {
-        request: {
-          res: {
-            responseUrl: 'https://evil.example/video/1',
-          },
-        },
-      };
-      (axios.head as any).mockResolvedValue(mockResponse);
-
+    it('should keep short URL path unchanged', async () => {
       const result = await resolveShortUrl('https://b23.tv/example');
       expect(result).toBe('https://b23.tv/example');
     });
@@ -166,16 +143,7 @@ describe('Helpers', () => {
       await expect(resolveShortUrl('https://user:pass@b23.tv/example')).rejects.toThrow('Invalid URL');
     });
 
-    it('should return original short URL when resolved URL has explicit port', async () => {
-      const mockResponse = {
-        request: {
-          res: {
-            responseUrl: 'https://www.bilibili.com:8443/video/BV1xx411c7mD',
-          },
-        },
-      };
-      (axios.head as any).mockResolvedValue(mockResponse);
-
+    it('should return normalized short URL with explicit path', async () => {
       const result = await resolveShortUrl('https://b23.tv/example');
       expect(result).toBe('https://b23.tv/example');
     });

@@ -1,7 +1,5 @@
 
 import { Request, Response } from 'express';
-import os from 'os';
-import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as databaseBackupController from '../../controllers/databaseBackupController';
 import * as databaseBackupService from '../../services/databaseBackupService';
@@ -45,18 +43,19 @@ describe('databaseBackupController', () => {
 
     describe('importDatabase', () => {
         it('should import database successfully', async () => {
-            mockReq.file = { path: path.join(os.tmpdir(), 'upload.db'), originalname: 'backup.db' } as any;
+            const fileBuffer = Buffer.from('sqlite-bytes');
+            mockReq.file = { buffer: fileBuffer, originalname: 'backup.db' } as any;
 
             await databaseBackupController.importDatabase(mockReq as Request, mockRes as Response);
 
-            expect(databaseBackupService.importDatabase).toHaveBeenCalledWith(path.join(os.tmpdir(), 'upload.db'));
+            expect(databaseBackupService.importDatabase).toHaveBeenCalledWith(fileBuffer);
             expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
                 success: true
             }));
         });
 
         it('should throw error for invalid extension', async () => {
-            mockReq.file = { path: path.join(os.tmpdir(), 'upload.txt'), originalname: 'backup.txt' } as any;
+            mockReq.file = { buffer: Buffer.from('invalid'), originalname: 'backup.txt' } as any;
 
             await expect(databaseBackupController.importDatabase(mockReq as Request, mockRes as Response))
                 .rejects.toThrow('Only .db files are allowed');

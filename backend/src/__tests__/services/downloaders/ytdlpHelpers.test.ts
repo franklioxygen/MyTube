@@ -16,35 +16,58 @@ describe("ytdlpHelpers", () => {
   });
 
   describe("extractXiaoHongShuAuthor", () => {
-    it("should extract author on allowed XiaoHongShu URL", async () => {
+    it("should extract author nickname from profile html using uploader_id", async () => {
       (axios.get as any).mockResolvedValue({
-        data: '{"nickname":"test-author"}',
+        data: `
+          <script>
+            window.__INITIAL_STATE__={"user":{"userId":"676255a3000000001801484c","nickname":"虾仁不眨眼","nickName":"虾仁不眨眼"}}
+          </script>
+        `,
       });
 
       const author = await extractXiaoHongShuAuthor(
         "https://www.xiaohongshu.com/explore/123",
+        "676255a3000000001801484c",
       );
 
-      expect(author).toBe("test-author");
+      expect(author).toBe("虾仁不眨眼");
       expect(axios.get).toHaveBeenCalledTimes(1);
+      expect(axios.get).toHaveBeenCalledWith(
+        "https://www.xiaohongshu.com/user/profile/676255a3000000001801484c",
+        expect.any(Object),
+      );
     });
 
-    it("should block URL with credentials", async () => {
+    it("should return null and avoid request when uploader_id is invalid", async () => {
       const author = await extractXiaoHongShuAuthor(
-        "https://user:pass@www.xiaohongshu.com/explore/123",
+        "https://www.xiaohongshu.com/explore/123",
+        "invalid-id-with-slash/..",
       );
 
       expect(author).toBeNull();
       expect(axios.get).not.toHaveBeenCalled();
     });
 
-    it("should block URL with explicit port", async () => {
+    it("should return null when uploader_id is missing", async () => {
       const author = await extractXiaoHongShuAuthor(
-        "https://www.xiaohongshu.com:8443/explore/123",
+        "https://www.xiaohongshu.com/explore/123",
       );
 
       expect(author).toBeNull();
       expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it("should decode escaped unicode nickname", async () => {
+      (axios.get as any).mockResolvedValue({
+        data: '{"user":{"userId":"676255a3000000001801484c","nickname":"\\u867e\\u4ec1\\u4e0d\\u7728\\u773c"}}',
+      });
+
+      const author = await extractXiaoHongShuAuthor(
+        "https://www.xiaohongshu.com/explore/123",
+        "676255a3000000001801484c",
+      );
+
+      expect(author).toBe("虾仁不眨眼");
     });
   });
 });

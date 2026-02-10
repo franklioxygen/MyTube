@@ -1,14 +1,10 @@
 import fs from "fs-extra";
-import os from "os";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
-import { isPathWithinDirectories } from "../utils/security";
 
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
-const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
-const RESOLVED_TEMP_UPLOAD_DIRS = TEMP_UPLOAD_DIRS.map((dir) => path.resolve(dir));
 
 /**
  * Check if cookies file exists
@@ -19,37 +15,24 @@ export function checkCookies(): { exists: boolean } {
 
 /**
  * Upload cookies file
- * @param tempFilePath - Path to the temporary uploaded file
+ * @param fileBuffer - Uploaded file bytes
  */
-export function uploadCookies(tempFilePath: string): void {
+export function uploadCookies(fileBuffer: Buffer): void {
+  if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+    throw new ValidationError("Invalid uploaded file", "file");
+  }
+
+  const targetPath = path.resolve(COOKIES_PATH);
+  const tempPath = `${targetPath}.tmp`;
+
   try {
-    const resolvedTempPath = path.resolve(tempFilePath);
-    const isAllowedTempPath = isPathWithinDirectories(
-      resolvedTempPath,
-      RESOLVED_TEMP_UPLOAD_DIRS,
-    );
-    if (!isAllowedTempPath) {
-      throw new ValidationError("Invalid temp file path", "file");
-    }
-
-    const targetPath = path.resolve(COOKIES_PATH);
-
-    // Move the file to the target location
-    fs.moveSync(resolvedTempPath, targetPath, { overwrite: true });
+    fs.ensureDirSync(path.dirname(targetPath));
+    fs.writeFileSync(tempPath, fileBuffer);
+    fs.moveSync(tempPath, targetPath, { overwrite: true });
     logger.info(`Cookies uploaded and saved to ${targetPath}`);
   } catch (error: any) {
-    // Clean up temp file if it exists
-    try {
-      const resolvedTempPath = path.resolve(tempFilePath);
-      const isAllowedTempPath = isPathWithinDirectories(
-        resolvedTempPath,
-        RESOLVED_TEMP_UPLOAD_DIRS,
-      );
-      if (isAllowedTempPath && fs.existsSync(resolvedTempPath)) {
-        fs.unlinkSync(resolvedTempPath);
-      }
-    } catch {
-      // Ignore cleanup path validation failures.
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
     }
     throw error;
   }

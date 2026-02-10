@@ -28,9 +28,47 @@ app.disable("x-powered-by");
 
 const authLimiter = configureRateLimiting(app);
 
+const DEFAULT_ALLOWED_CORS_ORIGINS = [
+  "http://localhost:5556",
+  "http://127.0.0.1:5556",
+] as const;
+
+function getAllowedCorsOrigins(): string[] {
+  const fromEnv = (process.env.CORS_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return fromEnv.length > 0 ? fromEnv : [...DEFAULT_ALLOWED_CORS_ORIGINS];
+}
+
+function normalizeOrigin(origin: string): string | null {
+  try {
+    const parsed = new URL(origin);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return null;
+  }
+}
+
+const allowedCorsOrigins = getAllowedCorsOrigins();
+
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const normalizedOrigin = normalizeOrigin(origin);
+      if (
+        normalizedOrigin &&
+        allowedCorsOrigins.includes(normalizedOrigin)
+      ) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked origin: ${origin}`));
+    },
     credentials: true,
   })
 );

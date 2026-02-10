@@ -1,5 +1,4 @@
-import axios from "axios";
-import { buildAllowlistedHttpUrl, isHostnameAllowed } from "./security";
+import { isHostnameAllowed } from "./security";
 
 const YOUTUBE_HOSTNAMES = ["youtube.com", "youtu.be"] as const;
 const BILIBILI_HOSTNAMES = ["bilibili.com", "b23.tv", "bili2233.cn"] as const;
@@ -17,11 +16,9 @@ const MISSAV_HOSTNAMES = [
 const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
 
 const ALLOWED_BILIBILI_SHORTENER_HOSTNAMES = ["b23.tv", "bili2233.cn"] as const;
-const ALLOWED_BILIBILI_RESOLVED_HOSTNAMES = [
-  "bilibili.com",
-  "b23.tv",
-  "bili2233.cn",
-] as const;
+const REQUEST_HOST_OUTPUT_MAP: Record<string, string> = {
+  "bilibili.com": "www.bilibili.com",
+};
 
 function parseUrlSafe(url: string): URL | null {
   try {
@@ -52,7 +49,41 @@ function buildSafeRequestUrl(
   url: string,
   allowedHostnames: readonly string[],
 ): string {
-  return buildAllowlistedHttpUrl(url, allowedHostnames);
+  const parsedUrl = new URL(url);
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new Error(
+      `Invalid protocol: ${parsedUrl.protocol}. Only http and https are allowed.`,
+    );
+  }
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  const normalizedHostname = parsedUrl.hostname.toLowerCase();
+  const canonicalAllowedHost = allowedHostnames.find((allowedHost) => {
+    const normalizedAllowedHost = allowedHost.toLowerCase();
+    return (
+      normalizedHostname === normalizedAllowedHost ||
+      normalizedHostname.endsWith(`.${normalizedAllowedHost}`)
+    );
+  });
+  if (!canonicalAllowedHost) {
+    throw new Error(
+      `SSRF protection: Hostname ${parsedUrl.hostname} is not in the URL allow-list.`,
+    );
+  }
+
+  const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+  if (pathSegments.some((segment) => segment === "..")) {
+    throw new Error("SSRF protection: Path traversal is not allowed in URL path.");
+  }
+
+  const safePath = parsedUrl.pathname || "/";
+  const outputHost =
+    REQUEST_HOST_OUTPUT_MAP[canonicalAllowedHost] ?? canonicalAllowedHost;
+  return `https://${outputHost}${safePath}${parsedUrl.search}`;
 }
 
 // Helper function to check if a string is a valid URL
@@ -113,37 +144,10 @@ export async function resolveShortUrl(url: string): Promise<string> {
       url,
       ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
     );
-    const requestUrl = new URL(safeShortUrl);
-    const normalizedHostname = requestUrl.hostname.toLowerCase();
-    const isShortenerHost = ALLOWED_BILIBILI_SHORTENER_HOSTNAMES.some(
-      (allowed) =>
-        normalizedHostname === allowed ||
-        normalizedHostname.endsWith(`.${allowed}`),
+    console.log(
+      `Short URL host is allowed. Returning normalized URL without outbound resolution: ${safeShortUrl}`,
     );
-    if (
-      !isShortenerHost ||
-      requestUrl.username ||
-      requestUrl.password ||
-      requestUrl.port
-    ) {
-      throw new Error("Invalid short URL host");
-    }
-
-    // Make a HEAD request to follow redirects
-    const response = await axios.head(requestUrl.toString(), {
-      maxRedirects: 5,
-      validateStatus: null,
-    });
-
-    // Get the final URL after redirects and validate it
-    const resolvedUrl = response.request?.res?.responseUrl || safeShortUrl;
-    const safeResolvedUrl = buildSafeRequestUrl(
-      resolvedUrl,
-      ALLOWED_BILIBILI_RESOLVED_HOSTNAMES,
-    );
-    console.log(`Resolved to: ${safeResolvedUrl}`);
-
-    return safeResolvedUrl;
+    return safeShortUrl;
   } catch (error: any) {
     console.error(`Error resolving shortened URL: ${error.message}`);
     // If validation fails, return original URL only if it's already validated

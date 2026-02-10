@@ -25,17 +25,25 @@ describe('cookieService', () => {
     });
 
     describe('uploadCookies', () => {
-        it('should move file to destination', () => {
-            cookieService.uploadCookies('/tmp/cookies.txt');
-            expect(fs.moveSync).toHaveBeenCalledWith('/tmp/cookies.txt', expect.stringContaining('cookies.txt'), { overwrite: true });
+        it('should write and move uploaded buffer to destination', () => {
+            cookieService.uploadCookies(Buffer.from('cookie-data'));
+            expect(fs.writeFileSync).toHaveBeenCalledWith(
+                expect.stringContaining('cookies.txt.tmp'),
+                expect.any(Buffer)
+            );
+            expect(fs.moveSync).toHaveBeenCalledWith(
+                expect.stringContaining('cookies.txt.tmp'),
+                expect.stringContaining('cookies.txt'),
+                { overwrite: true }
+            );
         });
 
-        it('should cleanup temp file on error', () => {
+        it('should cleanup temporary file on error', () => {
             (fs.moveSync as any).mockImplementation(() => { throw new Error('Move failed'); });
             (fs.existsSync as any).mockReturnValue(true);
 
-            expect(() => cookieService.uploadCookies('/tmp/cookies.txt')).toThrow('Move failed');
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/cookies.txt');
+            expect(() => cookieService.uploadCookies(Buffer.from('cookie-data'))).toThrow('Move failed');
+            expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('cookies.txt.tmp'));
         });
     });
 

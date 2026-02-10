@@ -40,9 +40,27 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
       true // Enable retry without format restrictions if format error occurs
     );
 
+    let author =
+      info.uploader && info.uploader !== "Unknown"
+        ? info.uploader
+        : getDomainFromUrl(url);
+
+    if (
+      (!info.uploader || info.uploader === "Unknown") &&
+      info.extractor === "XiaoHongShu"
+    ) {
+      const customAuthor = await extractXiaoHongShuAuthor(
+        url,
+        info.uploader_id,
+      );
+      if (customAuthor) {
+        author = customAuthor;
+      }
+    }
+
     return {
       title: info.title || "Video",
-      author: (info.uploader && info.uploader !== "Unknown") ? info.uploader : getDomainFromUrl(url),
+      author,
       date:
         info.upload_date ||
         new Date().toISOString().slice(0, 10).replace(/-/g, ""),
@@ -72,7 +90,10 @@ export async function extractVideoMetadata(videoUrl: string, info: any) {
     (!info.uploader || info.uploader === "Unknown") &&
     info.extractor === "XiaoHongShu"
   ) {
-    const customAuthor = await extractXiaoHongShuAuthor(videoUrl);
+    const customAuthor = await extractXiaoHongShuAuthor(
+      videoUrl,
+      info.uploader_id,
+    );
     if (customAuthor) {
       videoAuthor = customAuthor;
     }
@@ -94,4 +115,3 @@ export async function extractVideoMetadata(videoUrl: string, info: any) {
     source,
   };
 }
-

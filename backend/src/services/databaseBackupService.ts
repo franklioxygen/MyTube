@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
+import crypto from "crypto";
 import fs from "fs-extra";
-import os from "os";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { reinitializeDatabase as reinitDb, sqlite } from "../db";
@@ -8,14 +8,11 @@ import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { generateTimestamp } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
-  isPathWithinDirectories,
   isPathWithinDirectory,
   resolveSafePath,
 } from "../utils/security";
 const dbPath = path.join(DATA_DIR, "mytube.db");
 const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
-const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
-const RESOLVED_TEMP_UPLOAD_DIRS = TEMP_UPLOAD_DIRS.map((dir) => path.resolve(dir));
 const RESOLVED_DATA_DIR = path.resolve(DATA_DIR);
 const RESOLVED_DB_PATH = path.resolve(dbPath);
 
@@ -125,24 +122,29 @@ export function exportDatabase(): string {
 
 /**
  * Import database from backup file
- * @param tempFilePath - Path to the temporary uploaded file
+ * @param fileBuffer - Uploaded SQLite database bytes
  */
-export function importDatabase(tempFilePath: string): void {
-  const resolvedTempPath = path.resolve(tempFilePath);
-  const isAllowedTempPath = isPathWithinDirectories(
-    resolvedTempPath,
-    RESOLVED_TEMP_UPLOAD_DIRS,
-  );
-  if (!isAllowedTempPath) {
-    throw new ValidationError("Invalid temporary database file path", "file");
+export function importDatabase(fileBuffer: Buffer): void {
+  if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+    throw new ValidationError("Invalid uploaded database file", "file");
   }
+
+  const tempFilename = `import-${Date.now()}-${crypto
+    .randomBytes(8)
+    .toString("hex")}.db.tmp`;
+  const tempImportPath = resolveSafePath(
+    path.join(DATA_DIR, tempFilename),
+    DATA_DIR,
+  );
   const isSafeDbPath = isPathWithinDirectory(RESOLVED_DB_PATH, RESOLVED_DATA_DIR);
   if (!isSafeDbPath) {
     throw new ValidationError("Invalid database path", "file");
   }
 
+  fs.writeFileSync(tempImportPath, fileBuffer);
+
   // Validate the uploaded file is a valid SQLite database
-  validateDatabase(resolvedTempPath);
+  validateDatabase(tempImportPath);
 
   // Create backup of current database before import
   const backupPath = createBackup();
@@ -153,16 +155,11 @@ export function importDatabase(tempFilePath: string): void {
     logger.info("Closed current database connection for import");
 
     // Simply copy the uploaded file to replace the database
-    fs.copyFileSync(resolvedTempPath, RESOLVED_DB_PATH);
+    fs.copyFileSync(tempImportPath, RESOLVED_DB_PATH);
     logger.info(`Database file replaced successfully`);
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
-
-    // Clean up uploaded temp file
-    if (fs.existsSync(resolvedTempPath)) {
-      fs.unlinkSync(resolvedTempPath);
-    }
   } catch (error: any) {
     // Restore backup if import failed
     if (fs.existsSync(backupPath)) {
@@ -182,15 +179,6 @@ export function importDatabase(tempFilePath: string): void {
       }
     }
 
-    // Clean up uploaded temp file if it exists
-    if (fs.existsSync(resolvedTempPath)) {
-      try {
-        fs.unlinkSync(resolvedTempPath);
-      } catch (e) {
-        logger.error("Error cleaning up temp file:", e);
-      }
-    }
-
     // Log the actual error for debugging
     logger.error(
       "Database import failed:",
@@ -198,6 +186,14 @@ export function importDatabase(tempFilePath: string): void {
     );
 
     throw error;
+  } finally {
+    if (fs.existsSync(tempImportPath)) {
+      try {
+        fs.unlinkSync(tempImportPath);
+      } catch (e) {
+        logger.error("Error cleaning up temp file:", e);
+      }
+    }
   }
 }
 

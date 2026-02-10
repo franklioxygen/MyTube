@@ -67,6 +67,7 @@ vi.mock("multer", () => {
     array: vi.fn(),
   }));
   (multer as any).diskStorage = vi.fn(() => ({}));
+  (multer as any).memoryStorage = vi.fn(() => ({}));
   return { default: multer };
 });
 

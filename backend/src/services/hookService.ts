@@ -1,11 +1,10 @@
 import child_process from "child_process";
 import fs from "fs";
-import os from "os";
 import path from "path";
 import util from "util";
 import { HOOKS_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
-import { isPathWithinDirectories, isPathWithinDirectory } from "../utils/security";
+import { isPathWithinDirectory } from "../utils/security";
 
 export interface HookContext {
   taskId: string;
@@ -45,19 +44,6 @@ export class HookService {
       throw new Error("Invalid hook path");
     }
     return hookPath;
-  }
-
-  private static getSafeUploadPath(filePath: string): string {
-    const resolvedPath = path.resolve(filePath);
-    const allowedTmpDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
-    const isAllowedTempPath = isPathWithinDirectories(
-      resolvedPath,
-      allowedTmpDirs,
-    );
-    if (!isAllowedTempPath) {
-      throw new Error("Invalid upload path");
-    }
-    return resolvedPath;
   }
 
   /**
@@ -112,15 +98,14 @@ export class HookService {
   /**
    * Upload a hook script
    */
-  static uploadHook(hookName: string, filePath: string): void {
+  static uploadHook(hookName: string, fileContent: Buffer): void {
     this.initialize();
     const destPath = this.getSafeHookPath(hookName);
-    const safeUploadPath = this.getSafeUploadPath(filePath);
+    if (!Buffer.isBuffer(fileContent) || fileContent.length === 0) {
+      throw new Error("Invalid upload content");
+    }
     
-    // Move and rename the uploaded file
-    fs.copyFileSync(safeUploadPath, destPath);
-    // Cleanup original upload
-    fs.unlinkSync(safeUploadPath);
+    fs.writeFileSync(destPath, fileContent);
     
     // Make executable
     fs.chmodSync(destPath, "755");

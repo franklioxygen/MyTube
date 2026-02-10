@@ -9,9 +9,6 @@ import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
-  buildAllowlistedHttpUrl,
-} from "../../utils/security";
-import {
   flagsToArgs,
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
@@ -23,21 +20,102 @@ import { Video } from "../storageService";
 import { BaseDownloader, DownloadOptions, VideoInfo } from "./BaseDownloader";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
+const ALLOWED_MISSAV_LANGUAGE_SEGMENTS = new Set(["en", "ja", "zh", "ko"]);
+const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
+  "missav.com": "https://missav.com",
+  "missav.ai": "https://missav.ai",
+  "missav.ws": "https://missav.ws",
+  "missav.live": "https://missav.live",
+  "123av.com": "https://123av.com",
+  "123av.ai": "https://123av.ai",
+  "123av.ws": "https://123av.ws",
+  "njavtv.com": "https://njavtv.com",
+};
 
-/** Hostnames allowed for MissAV/123av requests. Subdomains (e.g. www.) are allowed. */
-const ALLOWED_MISSAV_HOSTNAMES = [
-  "missav.com",
-  "missav.ai",
-  "missav.ws",
-  "missav.live",
-  "123av.com",
-  "123av.ai",
-  "123av.ws",
-  "njavtv.com",
-] as const;
+function getCanonicalMissAvHost(hostname: string): string | null {
+  const normalized = hostname.toLowerCase();
 
-function buildSafeMissAvRequestUrl(url: string): string {
-  return buildAllowlistedHttpUrl(url, ALLOWED_MISSAV_HOSTNAMES);
+  if (normalized === "missav.com" || normalized.endsWith(".missav.com")) {
+    return "missav.com";
+  }
+  if (normalized === "missav.ai" || normalized.endsWith(".missav.ai")) {
+    return "missav.ai";
+  }
+  if (normalized === "missav.ws" || normalized.endsWith(".missav.ws")) {
+    return "missav.ws";
+  }
+  if (normalized === "missav.live" || normalized.endsWith(".missav.live")) {
+    return "missav.live";
+  }
+  if (normalized === "123av.com" || normalized.endsWith(".123av.com")) {
+    return "123av.com";
+  }
+  if (normalized === "123av.ai" || normalized.endsWith(".123av.ai")) {
+    return "123av.ai";
+  }
+  if (normalized === "123av.ws" || normalized.endsWith(".123av.ws")) {
+    return "123av.ws";
+  }
+  if (normalized === "njavtv.com" || normalized.endsWith(".njavtv.com")) {
+    return "njavtv.com";
+  }
+
+  return null;
+}
+
+function buildSafeMissAvNavigationTarget(url: string): {
+  origin: string;
+  path: string;
+} {
+  const parsedUrl = new URL(url);
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new Error(`Unsupported protocol for MissAV URL: ${parsedUrl.protocol}`);
+  }
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  const canonicalHost = getCanonicalMissAvHost(parsedUrl.hostname);
+  if (!canonicalHost) {
+    throw new Error(`SSRF protection: Hostname ${parsedUrl.hostname} is not allowed.`);
+  }
+
+  const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+  if (pathSegments.some((segment) => segment === "..")) {
+    throw new Error("SSRF protection: Path traversal is not allowed in URL path.");
+  }
+
+  const videoId = pathSegments[pathSegments.length - 1];
+  if (!videoId || !/^[a-zA-Z0-9_-]{2,120}$/.test(videoId)) {
+    throw new Error(
+      `SSRF protection: Invalid MissAV video path in URL: ${parsedUrl.pathname}`,
+    );
+  }
+
+  const maybeLanguage = pathSegments[pathSegments.length - 2]?.toLowerCase();
+  const normalizedLanguage =
+    maybeLanguage && ALLOWED_MISSAV_LANGUAGE_SEGMENTS.has(maybeLanguage)
+      ? maybeLanguage
+      : null;
+
+  const encodedVideoId = encodeURIComponent(videoId);
+  const safePath = normalizedLanguage
+    ? `/${normalizedLanguage}/${encodedVideoId}`
+    : `/${encodedVideoId}`;
+
+  const safeOrigin = MISSAV_NAVIGATION_ORIGINS[canonicalHost];
+  if (!safeOrigin) {
+    throw new Error(
+      `SSRF protection: Hostname ${canonicalHost} has no allowed navigation origin.`,
+    );
+  }
+
+  return {
+    origin: safeOrigin,
+    path: safePath,
+  };
 }
 
 export class MissAVDownloader extends BaseDownloader {
@@ -49,10 +127,11 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      const safeRequestUrl = buildSafeMissAvRequestUrl(url);
+      const { origin: safeRequestOrigin, path: safeRequestPath } =
+        buildSafeMissAvNavigationTarget(url);
 
       logger.info(
-        `Fetching page content for ${safeRequestUrl} with Puppeteer...`,
+        `Fetching page content for ${safeRequestOrigin}${safeRequestPath} with Puppeteer...`,
       );
 
       const USER_AGENT =
@@ -69,26 +148,19 @@ export class MissAVDownloader extends BaseDownloader {
       });
       const page = await browser.newPage();
 
-      const gotoUrl = new URL(safeRequestUrl);
-      const normalizedHostname = gotoUrl.hostname.toLowerCase();
-      const isAllowedHostname = ALLOWED_MISSAV_HOSTNAMES.some(
-        (allowed) =>
-          normalizedHostname === allowed ||
-          normalizedHostname.endsWith(`.${allowed}`),
-      );
-      if (
-        !isAllowedHostname ||
-        gotoUrl.username ||
-        gotoUrl.password ||
-        gotoUrl.port
-      ) {
-        throw new Error("SSRF protection: blocked unsafe navigation URL.");
-      }
-
-      await page.goto(gotoUrl.toString(), {
-        waitUntil: "networkidle2",
+      await page.goto(safeRequestOrigin, {
+        waitUntil: "domcontentloaded",
         timeout: 60000,
       });
+      await Promise.all([
+        page.waitForNavigation({
+          waitUntil: "networkidle2",
+          timeout: 60000,
+        }),
+        page.evaluate((targetPath) => {
+          window.location.assign(targetPath);
+        }, safeRequestPath),
+      ]);
 
       const html = await page.content();
       await browser.close();
@@ -97,8 +169,13 @@ export class MissAVDownloader extends BaseDownloader {
       const pageTitle = $('meta[property="og:title"]').attr("content");
       const ogImage = $('meta[property="og:image"]').attr("content");
 
-      const urlObj = new URL(safeRequestUrl);
-      const author = urlObj.hostname.replace("www.", "");
+      let author = "missav.com";
+      try {
+        const urlObj = new URL(url);
+        author = urlObj.hostname.replace("www.", "");
+      } catch {
+        // Keep default author on malformed URL.
+      }
 
       return {
         title: pageTitle || "MissAV Video",
@@ -108,8 +185,13 @@ export class MissAVDownloader extends BaseDownloader {
       };
     } catch (error) {
       logger.error("Error fetching MissAV video info:", error);
-      const urlObj = new URL(url);
-      const author = urlObj.hostname.replace("www.", "");
+      let author = "missav.com";
+      try {
+        const urlObj = new URL(url);
+        author = urlObj.hostname.replace("www.", "");
+      } catch {
+        // Use default author for malformed URL fallback.
+      }
 
       return {
         title: "MissAV Video",
@@ -159,8 +241,8 @@ export class MissAVDownloader extends BaseDownloader {
       const USER_AGENT =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-      // Validate URL against allow-list to prevent SSRF (hostname + path traversal)
-      const safeRequestUrl = buildSafeMissAvRequestUrl(url);
+      const { origin: safeRequestOrigin, path: safeRequestPath } =
+        buildSafeMissAvNavigationTarget(url);
 
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
@@ -187,27 +269,23 @@ export class MissAVDownloader extends BaseDownloader {
         }
       });
 
-      logger.info("Navigating to:", safeRequestUrl);
-      const gotoUrl = new URL(safeRequestUrl);
-      const normalizedHostname = gotoUrl.hostname.toLowerCase();
-      const isAllowedHostname = ALLOWED_MISSAV_HOSTNAMES.some(
-        (allowed) =>
-          normalizedHostname === allowed ||
-          normalizedHostname.endsWith(`.${allowed}`),
+      logger.info(
+        "Navigating to:",
+        `${safeRequestOrigin}${safeRequestPath}`,
       );
-      if (
-        !isAllowedHostname ||
-        gotoUrl.username ||
-        gotoUrl.password ||
-        gotoUrl.port
-      ) {
-        throw new Error("SSRF protection: blocked unsafe navigation URL.");
-      }
-
-      await page.goto(gotoUrl.toString(), {
-        waitUntil: "networkidle2",
+      await page.goto(safeRequestOrigin, {
+        waitUntil: "domcontentloaded",
         timeout: 60000,
       });
+      await Promise.all([
+        page.waitForNavigation({
+          waitUntil: "networkidle2",
+          timeout: 60000,
+        }),
+        page.evaluate((targetPath) => {
+          window.location.assign(targetPath);
+        }, safeRequestPath),
+      ]);
 
       const html = await page.content();
       await browser.close();

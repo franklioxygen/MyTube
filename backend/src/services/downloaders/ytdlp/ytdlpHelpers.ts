@@ -1,67 +1,123 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
-import {
-  buildAllowlistedHttpUrl,
-} from "../../../utils/security";
 
-const ALLOWED_XIAOHONGSHU_HOSTNAMES = ["xiaohongshu.com", "xhslink.com"] as const;
+const XIAOHONGSHU_PROFILE_ORIGIN = "https://www.xiaohongshu.com";
+const XIAOHONGSHU_UPLOADER_ID_PATTERN = /^[a-zA-Z0-9]{16,64}$/;
 
-function buildSafeXiaoHongShuRequestUrl(url: string): string {
-  return buildAllowlistedHttpUrl(url, ALLOWED_XIAOHONGSHU_HOSTNAMES);
+function getSafeUploaderId(rawUploaderId: unknown): string | null {
+  if (typeof rawUploaderId !== "string") {
+    return null;
+  }
+  const normalized = rawUploaderId.trim();
+  if (!XIAOHONGSHU_UPLOADER_ID_PATTERN.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+function escapeRegex(source: string): string {
+  return source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function decodeEscapedJsonString(raw: string): string {
+  try {
+    return JSON.parse(`"${raw}"`);
+  } catch {
+    return raw
+      .replace(/\\"/g, "\"")
+      .replace(/\\\\/g, "\\")
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) =>
+        String.fromCharCode(parseInt(hex, 16)),
+      );
+  }
+}
+
+function normalizeNickname(raw: string): string | null {
+  const decoded = decodeEscapedJsonString(raw)
+    .replace(/\0/g, "")
+    .trim();
+  if (!decoded || decoded.length > 80) {
+    return null;
+  }
+  return decoded;
+}
+
+function extractNicknameFromProfileHtml(
+  html: string,
+  uploaderId: string,
+): string | null {
+  const escapedUploaderId = escapeRegex(uploaderId);
+  const patterns = [
+    new RegExp(
+      `"userId":"${escapedUploaderId}"[\\s\\S]{0,500}?"nickname":"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`,
+      "i",
+    ),
+    new RegExp(
+      `"userId":"${escapedUploaderId}"[\\s\\S]{0,500}?"nickName":"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`,
+      "i",
+    ),
+    /"nickname":"([^"\\]*(?:\\.[^"\\]*)*)"/i,
+    /"nickName":"([^"\\]*(?:\\.[^"\\]*)*)"/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (!match || !match[1]) {
+      continue;
+    }
+    const nickname = normalizeNickname(match[1]);
+    if (nickname) {
+      return nickname;
+    }
+  }
+
+  return null;
 }
 
 /**
  * Helper function to extract author from XiaoHongShu page when yt-dlp doesn't provide it
  */
 export async function extractXiaoHongShuAuthor(
-  url: string
+  url: string,
+  uploaderId?: string | null,
 ): Promise<string | null> {
   try {
-    const safeRequestUrl = buildSafeXiaoHongShuRequestUrl(url);
-
-    const requestUrl = new URL(safeRequestUrl);
-    const normalizedHostname = requestUrl.hostname.toLowerCase();
-    const isAllowedHostname = ALLOWED_XIAOHONGSHU_HOSTNAMES.some(
-      (allowed) =>
-        normalizedHostname === allowed ||
-        normalizedHostname.endsWith(`.${allowed}`),
-    );
-    if (
-      !isAllowedHostname ||
-      requestUrl.username ||
-      requestUrl.password ||
-      requestUrl.port
-    ) {
-      throw new Error("SSRF protection: blocked unsafe XiaoHongShu URL.");
+    const safeUploaderId = getSafeUploaderId(uploaderId);
+    if (!safeUploaderId) {
+      logger.info(
+        `Skipping XiaoHongShu author extraction for URL: ${url}. Missing/invalid uploader_id.`,
+      );
+      return null;
     }
 
-    logger.info("Attempting to extract XiaoHongShu author from webpage...");
-    const response = await axios.get(requestUrl.toString(), {
+    const profileUrl = `${XIAOHONGSHU_PROFILE_ORIGIN}/user/profile/${safeUploaderId}`;
+    logger.info(
+      `Attempting XiaoHongShu author extraction from profile for uploader_id: ${safeUploaderId}`,
+    );
+
+    const response = await axios.get(profileUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Referer: XIAOHONGSHU_PROFILE_ORIGIN,
       },
       timeout: 10000,
     });
 
-    const html = response.data;
-
-    // Try to find author name in the JSON data embedded in the page
-    // XiaoHongShu embeds data in window.__INITIAL_STATE__
-    const match = html.match(/"nickname":"([^"]+)"/);
-    if (match && match[1]) {
-      logger.info("Found XiaoHongShu author:", match[1]);
-      return match[1];
+    const html = typeof response.data === "string" ? response.data : "";
+    if (!html) {
+      return null;
     }
 
-    // Alternative: try to find in user info
-    const userMatch = html.match(/"user":\{[^}]*"nickname":"([^"]+)"/);
-    if (userMatch && userMatch[1]) {
-      logger.info("Found XiaoHongShu author (user):", userMatch[1]);
-      return userMatch[1];
+    const nickname = extractNicknameFromProfileHtml(html, safeUploaderId);
+    if (nickname) {
+      logger.info(`Extracted XiaoHongShu author nickname: ${nickname}`);
+      return nickname;
     }
 
-    logger.info("Could not extract XiaoHongShu author from webpage");
+    logger.info(
+      `Could not extract XiaoHongShu nickname from profile for uploader_id: ${safeUploaderId}`,
+    );
     return null;
   } catch (error) {
     logger.error("Error extracting XiaoHongShu author:", error);

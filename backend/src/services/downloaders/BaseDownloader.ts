@@ -1,7 +1,7 @@
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
-import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
+import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
   isCancellationError,
@@ -58,6 +58,7 @@ export abstract class BaseDownloader implements IDownloader {
       const safeSavePath = resolveSafePathInDirectories(savePath, [
         VIDEOS_DIR,
         IMAGES_DIR,
+        AVATARS_DIR,
       ]);
       logger.info("Downloading thumbnail from:", thumbnailUrl);
       if (axiosConfig.proxy || axiosConfig.httpAgent) {

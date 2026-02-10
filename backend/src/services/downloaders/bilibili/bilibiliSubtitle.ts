@@ -6,7 +6,6 @@ import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
-  isPathWithinDirectories,
   resolveSafePath,
 } from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
@@ -17,7 +16,7 @@ import { getCookieHeader } from "./bilibiliCookie";
 export async function downloadSubtitles(
   videoUrl: string,
   baseFilename: string,
-  subtitleDir: string,
+  _subtitleDir: string,
   subtitlePathPrefix: string,
   axiosConfig: any = {}
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
@@ -102,15 +101,12 @@ export async function downloadSubtitles(
     const savedSubtitles = [];
 
     // Ensure subtitles directory exists
-    const resolvedSubtitleDir = path.resolve(subtitleDir);
-    const allowedSubtitleDirs = [path.resolve(SUBTITLES_DIR), path.resolve(VIDEOS_DIR)];
-    const isAllowedSubtitleDir = isPathWithinDirectories(
-      resolvedSubtitleDir,
-      allowedSubtitleDirs,
-    );
-    if (!isAllowedSubtitleDir) {
-      throw new Error("Invalid subtitle directory path");
-    }
+    const normalizedPrefix = subtitlePathPrefix.replace(/\\/g, "/");
+    const useVideoRoot = normalizedPrefix.startsWith("/videos");
+    const resolvedSubtitleDir = useVideoRoot
+      ? path.resolve(VIDEOS_DIR)
+      : path.resolve(SUBTITLES_DIR);
+    const safePathPrefix = useVideoRoot ? "/videos" : "/subtitles";
     fs.ensureDirSync(resolvedSubtitleDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
@@ -155,7 +151,7 @@ export async function downloadSubtitles(
           savedSubtitles.push({
             language: lang,
             filename: subFilename,
-            path: `${subtitlePathPrefix}/${subFilename}`,
+            path: `${safePathPrefix}/${subFilename}`,
           });
         } else {
           logger.warn(`Failed to convert subtitle to VTT format for ${lang}`);

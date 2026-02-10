@@ -1,11 +1,7 @@
 import { Request, Response } from "express";
-import path from "path";
-import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as databaseBackupService from "../services/databaseBackupService";
 import { generateTimestamp } from "../utils/helpers";
-import { validatePathWithinDirectory } from "../utils/security";
-import { DATA_DIR } from "../config/paths";
 import { successMessage } from "../utils/response";
 
 /**
@@ -46,30 +42,11 @@ export const importDatabase = async (
     throw new ValidationError("Only .db files are allowed", "file");
   }
 
-  // Validate file path to prevent path traversal
-  // Multer uploads to a temp directory, but we should still validate
-  let safeFilePath: string;
-  try {
-    const resolvedPath = path.resolve(req.file.path);
-    if (!resolvedPath || !resolvedPath.includes(path.sep)) {
-      throw new ValidationError("Invalid file path", "file");
-    }
-    
-    // Validate path is within system temp directory to prevent path traversal
-    const tempDir = os.tmpdir();
-    if (!validatePathWithinDirectory(resolvedPath, tempDir)) {
-      throw new ValidationError("Invalid file path: path traversal detected", "file");
-    }
-    
-    safeFilePath = resolvedPath;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
-    }
-    throw new ValidationError("Invalid file path", "file");
+  if (!req.file.buffer || req.file.buffer.length === 0) {
+    throw new ValidationError("Uploaded file is empty", "file");
   }
 
-  databaseBackupService.importDatabase(safeFilePath);
+  databaseBackupService.importDatabase(req.file.buffer);
 
   res.json(
     successMessage(

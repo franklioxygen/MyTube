@@ -123,13 +123,20 @@ const AuthorVideos: React.FC = () => {
 
         setIsDeleting(true);
         try {
-            // Delete all videos for this author
-            // Use showSnackbar: false to avoid spamming the user with notifications
-            await Promise.all(
-                authorVideos.map(video =>
-                    deleteVideo(video.id, { showSnackbar: false })
-                )
-            );
+            // Delete videos sequentially so backend "last video" cleanup (e.g. avatar) runs reliably.
+            const videosToDelete = [...authorVideos];
+            let hasFailure = false;
+
+            for (const video of videosToDelete) {
+                const result = await deleteVideo(video.id, { showSnackbar: false });
+                if (!result.success) {
+                    hasFailure = true;
+                }
+            }
+
+            if (hasFailure) {
+                throw new Error('Some videos failed to delete');
+            }
 
             showSnackbar(t('authorDeletedSuccessfully'));
             // Navigate back to home or safe page

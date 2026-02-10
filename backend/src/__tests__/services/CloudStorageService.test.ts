@@ -115,8 +115,10 @@ describe("CloudStorageService", () => {
       expect(axios.put).toHaveBeenCalled();
       expect(stdoutWriteSpy).toHaveBeenCalled();
       const logOutput = stdoutWriteSpy.mock.calls
-        .map((call) => String(call[0]))
-        .find((line) => line.includes("[CloudStorage] Starting upload for video: Test Video"));
+        .map((call: unknown[]) => String(call[0]))
+        .find((line: string) =>
+          line.includes("[CloudStorage] Starting upload for video: Test Video"),
+        );
       expect(logOutput).toBeDefined();
     });
 

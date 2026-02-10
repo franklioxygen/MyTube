@@ -1,11 +1,7 @@
 import { Request, Response } from "express";
-import fs from "fs";
-import path from "path";
-import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
 import { successMessage } from "../utils/response";
-import { isPathWithinDirectories } from "../utils/security";
 
 /**
  * Upload hook script
@@ -32,62 +28,28 @@ export const uploadHook = async (
     throw new ValidationError("Invalid hook name", "name");
   }
 
-  // Validate file path to prevent path traversal
-  // Multer uploads to a temp directory, but we should still validate
-  let safeFilePath: string;
-  try {
-    const resolvedPath = path.resolve(req.file.path);
-    const allowedTempDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
-    const isAllowedTempPath = isPathWithinDirectories(
-      resolvedPath,
-      allowedTempDirs,
-    );
-    if (!isAllowedTempPath) {
-      throw new ValidationError(
-        "Invalid file path: path traversal detected",
-        "file"
-      );
-    }
-    safeFilePath = resolvedPath;
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
-    }
-    throw new ValidationError("Invalid file path", "file");
+  if (!req.file.buffer || req.file.buffer.length === 0) {
+    throw new ValidationError("Uploaded file is empty", "file");
   }
 
   // Scan for risk commands
-  const riskCommand = scanForRiskCommands(safeFilePath);
+  const riskCommand = scanForRiskCommands(req.file.buffer.toString("utf-8"));
   if (riskCommand) {
-    // Delete the file immediately - safeFilePath is validated above
-    fs.unlinkSync(safeFilePath);
     throw new ValidationError(
       `Risk command detected: ${riskCommand}. Upload rejected.`,
       "file"
     );
   }
 
-  HookService.uploadHook(name, safeFilePath);
+  HookService.uploadHook(name, req.file.buffer);
   res.json(successMessage(`Hook ${name} uploaded successfully`));
 };
 
 /**
  * Scan file for risk commands
- * @param filePath - Path to file (must be validated before calling this function)
+ * @param content - Hook script content
  */
-const scanForRiskCommands = (filePath: string): string | null => {
-  const resolvedPath = path.resolve(filePath);
-  const allowedTempDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
-  const isAllowedTempPath = isPathWithinDirectories(
-    resolvedPath,
-    allowedTempDirs,
-  );
-  if (!isAllowedTempPath) {
-    throw new ValidationError("Invalid file path", "file");
-  }
-
-  const content = fs.readFileSync(resolvedPath, "utf-8");
-
+const scanForRiskCommands = (content: string): string | null => {
   // List of risky patterns
   // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
   // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
