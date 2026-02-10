@@ -19,12 +19,14 @@ describe('Logger', () => {
     });
 
     it('should log info messages', () => {
+        const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
         const testLogger = new Logger(LogLevel.INFO);
         testLogger.info('test message');
-        expect(consoleSpy.log).toHaveBeenCalled();
-        const [prefix, message] = consoleSpy.log.mock.calls[0];
-        expect(prefix).toContain('[INFO]');
-        expect(message).toBe('test message');
+        expect(stdoutSpy).toHaveBeenCalled();
+        const output = stdoutSpy.mock.calls[0][0] as string;
+        expect(output).toContain('[INFO]');
+        expect(output).toContain('test message');
+        stdoutSpy.mockRestore();
     });
 
     it('should not log debug messages if level is INFO', () => {

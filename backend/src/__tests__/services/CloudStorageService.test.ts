@@ -1,6 +1,6 @@
 import axios from "axios";
 import fs from "fs-extra";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudStorageService } from "../../services/CloudStorageService";
 import * as storageService from "../../services/storageService";
 
@@ -25,12 +25,18 @@ describe("CloudStorageService", () => {
   const callContainsText = (call: any[], text: string): boolean =>
     call.some((arg) => typeof arg === "string" && arg.includes(text));
 
+  let stdoutWriteSpy: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    console.log = vi.fn();
+    stdoutWriteSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     console.error = vi.fn();
     // Ensure axios.put is properly mocked
     (axios.put as any) = vi.fn();
+  });
+
+  afterEach(() => {
+    stdoutWriteSpy.mockRestore();
   });
 
   describe("uploadVideo", () => {
@@ -107,11 +113,11 @@ describe("CloudStorageService", () => {
       await CloudStorageService.uploadVideo(mockVideoData);
 
       expect(axios.put).toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalled();
-      const logCall = (console.log as any).mock.calls.find((call: any[]) =>
-        callContainsText(call, "[CloudStorage] Starting upload for video: Test Video")
-      );
-      expect(logCall).toBeDefined();
+      expect(stdoutWriteSpy).toHaveBeenCalled();
+      const logOutput = stdoutWriteSpy.mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes("[CloudStorage] Starting upload for video: Test Video"));
+      expect(logOutput).toBeDefined();
     });
 
     it("should upload thumbnail when path exists", async () => {
