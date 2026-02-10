@@ -28,80 +28,76 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
     const { showSnackbar } = useSnackbar();
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
 
-    const fallbackCopy = (text: string) => {
+    const fallbackCopy = (text: string): boolean => {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.setAttribute('readonly', '');
+        textArea.setAttribute('aria-hidden', 'true');
+
+        // Keep in viewport for mobile Safari selection reliability.
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '1px';
+        textArea.style.height = '1px';
+        textArea.style.padding = '0';
+        textArea.style.border = '0';
+        textArea.style.outline = '0';
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
+        textArea.style.zIndex = '-1';
+
+        document.body.appendChild(textArea);
+
         try {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-
-            // Ensure strictly hidden but selectable
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "0";
-            textArea.style.opacity = "0";
-            textArea.setAttribute('readonly', '');
-
-            document.body.appendChild(textArea);
-
-            // iOS-specific selection
-            if (navigator.userAgent.match(/ipad|iphone/i)) {
-                const range = document.createRange();
-                range.selectNodeContents(textArea);
-                const selection = window.getSelection();
-                if (selection) {
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                }
-                textArea.setSelectionRange(0, 999999);
-            } else {
-                textArea.select();
-            }
+            textArea.focus({ preventScroll: true });
+            textArea.select();
+            textArea.setSelectionRange(0, text.length);
 
             const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
+            const selectedLength = (textArea.selectionEnd ?? 0) - (textArea.selectionStart ?? 0);
 
-            if (successful) {
-                showSnackbar(t('linkCopied'), 'success');
-            } else {
-                throw new Error('execCommand returned false');
-            }
-        } catch (err) {
-            console.error('Fallback copy failed:', err);
-            // Final fallback: show URL in snackbar/alert for manual copy
-            showSnackbar(`${t('copyFailed')}: ${text}`, 'error');
+            return successful && selectedLength > 0;
+        } catch (error) {
+            console.warn('Fallback copy failed:', error);
+            return false;
+        } finally {
+            document.body.removeChild(textArea);
         }
     };
 
-    const handleCopyLink = async (e: React.MouseEvent, url: string) => {
+    const handleCopyLink = async (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
         e.preventDefault();
-        
+        e.stopPropagation();
+
+        const value = url.trim();
+        if (!value) {
+            showSnackbar(t('copyFailed'), 'error');
+            return;
+        }
+
         // 1. Try modern Clipboard API (if secure context)
-        // Wrap everything in try-catch since accessing navigator.clipboard might throw
         try {
-            // Check if clipboard API is available
-            const hasClipboardAPI = typeof navigator !== 'undefined' && 
-                                    navigator.clipboard && 
-                                    typeof window !== 'undefined' && 
-                                    window.isSecureContext;
-            
-            if (hasClipboardAPI && navigator.clipboard.writeText) {
-                try {
-                    await navigator.clipboard.writeText(url);
-                    showSnackbar(t('linkCopied'), 'success');
-                    return;
-                } catch (error) {
-                    console.warn('Clipboard writeText failed:', error);
-                    // If writeText fails, try fallback
-                    fallbackCopy(url);
-                    return;
-                }
+            if (
+                typeof navigator !== 'undefined' &&
+                typeof window !== 'undefined' &&
+                window.isSecureContext &&
+                navigator.clipboard?.writeText
+            ) {
+                await navigator.clipboard.writeText(value);
+                showSnackbar(t('linkCopied'), 'success');
+                return;
             }
         } catch (error) {
-            // If accessing navigator.clipboard throws, use fallback
-            console.warn('Clipboard API not available:', error);
+            console.warn('Clipboard writeText failed:', error);
         }
 
         // 2. Fallback for non-secure context or older browsers
-        fallbackCopy(url);
+        if (fallbackCopy(value)) {
+            showSnackbar(t('linkCopied'), 'success');
+        } else {
+            showSnackbar(`${t('copyFailed')}: ${value}`, 'error');
+        }
     };
 
     return (
@@ -210,4 +206,3 @@ const VideoMetadata: React.FC<VideoMetadataProps> = ({
 };
 
 export default VideoMetadata;
-
