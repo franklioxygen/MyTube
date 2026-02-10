@@ -6,7 +6,7 @@ import {
   cleanupSubtitleFiles,
   cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
-import { formatVideoFilename } from "../../../utils/helpers";
+import { formatVideoFilename, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import {
@@ -132,10 +132,7 @@ export async function downloadVideo(
     channelUrl = info.channel_url || info.uploader_url || null;
 
     // Try to get channel URL using yt-dlp if not available in info
-    if (
-      !channelUrl &&
-      (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be"))
-    ) {
+    if (!channelUrl && isYouTubeUrl(videoUrl)) {
       logger.info("Channel URL not in info, fetching using yt-dlp...");
       channelUrl = await getChannelUrlFromVideo(videoUrl, networkConfig);
       logger.info("Channel URL fetched:", channelUrl);
@@ -349,10 +346,7 @@ export async function downloadVideo(
     let authorAvatarPath: string | null = null;
     const platform = source === "youtube" ? "youtube" : "generic";
 
-    if (
-      channelUrl &&
-      (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be"))
-    ) {
+    if (channelUrl && isYouTubeUrl(videoUrl)) {
       logger.info("Downloading author avatar from channel:", {
         channelUrl: channelUrl,
         author: videoAuthor,

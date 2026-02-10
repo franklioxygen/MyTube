@@ -4,6 +4,11 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { safeRemove } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
+import {
+  resolveSafePath,
+  resolveSafePathInDirectories,
+  sanitizePathSegment,
+} from "../../../utils/security";
 
 export interface FilePaths {
   videoPath: string;
@@ -58,16 +63,20 @@ export function prepareFilePaths(
   const videoFilename = `${safeBaseFilename}.${mergeOutputFormat}`;
   const thumbnailFilename = `${safeBaseFilename}.jpg`;
 
+  const safeCollectionName = collectionName
+    ? sanitizePathSegment(collectionName)
+    : "";
+
   // Determine directories based on collection name
-  const videoDir = collectionName
-    ? path.join(VIDEOS_DIR, collectionName)
+  const videoDir = safeCollectionName
+    ? resolveSafePath(path.join(VIDEOS_DIR, safeCollectionName), VIDEOS_DIR)
     : VIDEOS_DIR;
   const imageDir = moveThumbnailsToVideoFolder
-    ? collectionName
-      ? path.join(VIDEOS_DIR, collectionName)
+    ? safeCollectionName
+      ? resolveSafePath(path.join(VIDEOS_DIR, safeCollectionName), VIDEOS_DIR)
       : VIDEOS_DIR
-    : collectionName
-      ? path.join(IMAGES_DIR, collectionName)
+    : safeCollectionName
+      ? resolveSafePath(path.join(IMAGES_DIR, safeCollectionName), IMAGES_DIR)
       : IMAGES_DIR;
 
   // Ensure directories exist
@@ -75,8 +84,11 @@ export function prepareFilePaths(
   fs.ensureDirSync(imageDir);
 
   // Set full paths for video and thumbnail
-  const videoPath = path.join(videoDir, videoFilename);
-  const thumbnailPath = path.join(imageDir, thumbnailFilename);
+  const videoPath = resolveSafePath(path.join(videoDir, videoFilename), videoDir);
+  const thumbnailPath = resolveSafePath(
+    path.join(imageDir, thumbnailFilename),
+    imageDir
+  );
 
   return {
     videoPath,
@@ -112,9 +124,15 @@ export function moveVideoFile(
   videoFile: string,
   videoPath: string
 ): void {
-  const tempVideoPath = path.join(tempDir, videoFile);
-  fs.moveSync(tempVideoPath, videoPath, { overwrite: true });
-  logger.info("Moved video file to:", videoPath);
+  const safeTempDir = resolveSafePathInDirectories(tempDir, [VIDEOS_DIR]);
+  const safeVideoFilename = path.basename(videoFile);
+  const tempVideoPath = resolveSafePath(
+    path.join(safeTempDir, safeVideoFilename),
+    safeTempDir
+  );
+  const safeVideoPath = resolveSafePathInDirectories(videoPath, [VIDEOS_DIR]);
+  fs.moveSync(tempVideoPath, safeVideoPath, { overwrite: true });
+  logger.info("Moved video file to:", safeVideoPath);
 }
 
 /**
@@ -141,24 +159,41 @@ export function renameFilesWithMetadata(
   const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
   // Rename the files (use same directories as before)
-  const newVideoPath = path.join(videoDir, newVideoFilename);
-  const newThumbnailPath = path.join(imageDir, newThumbnailFilename);
+  const safeVideoDir = resolveSafePathInDirectories(videoDir, [VIDEOS_DIR]);
+  const safeImageDir = resolveSafePathInDirectories(imageDir, [
+    IMAGES_DIR,
+    VIDEOS_DIR,
+  ]);
+  const safeVideoPath = resolveSafePathInDirectories(videoPath, [VIDEOS_DIR]);
+  const safeThumbnailPath = resolveSafePathInDirectories(thumbnailPath, [
+    IMAGES_DIR,
+    VIDEOS_DIR,
+  ]);
 
-  if (fs.existsSync(videoPath)) {
-    fs.renameSync(videoPath, newVideoPath);
+  const newVideoPath = resolveSafePath(
+    path.join(safeVideoDir, newVideoFilename),
+    safeVideoDir
+  );
+  const newThumbnailPath = resolveSafePath(
+    path.join(safeImageDir, newThumbnailFilename),
+    safeImageDir
+  );
+
+  if (fs.existsSync(safeVideoPath)) {
+    fs.renameSync(safeVideoPath, newVideoPath);
     logger.info("Renamed video file to:", newVideoFilename);
   } else {
-    logger.info("Video file not found at:", videoPath);
+    logger.info("Video file not found at:", safeVideoPath);
     throw new Error("Video file not found after download");
   }
 
   let finalThumbnailFilename = newThumbnailFilename;
-  if (thumbnailSaved && fs.existsSync(thumbnailPath)) {
-    fs.renameSync(thumbnailPath, newThumbnailPath);
+  if (thumbnailSaved && fs.existsSync(safeThumbnailPath)) {
+    fs.renameSync(safeThumbnailPath, newThumbnailPath);
     logger.info("Renamed thumbnail file to:", newThumbnailFilename);
   } else {
     // If thumbnail wasn't saved or doesn't exist, use original filename
-    finalThumbnailFilename = path.basename(thumbnailPath);
+    finalThumbnailFilename = path.basename(safeThumbnailPath);
   }
 
   return {

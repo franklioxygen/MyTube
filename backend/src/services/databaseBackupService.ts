@@ -1,13 +1,16 @@
 import Database from "better-sqlite3";
 import fs from "fs-extra";
+import os from "os";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { reinitializeDatabase as reinitDb, sqlite } from "../db";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { generateTimestamp } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { resolveSafePath, resolveSafePathInDirectories } from "../utils/security";
 const dbPath = path.join(DATA_DIR, "mytube.db");
 const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
+const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
 
 /**
  * Validate that a file is a valid SQLite database
@@ -53,7 +56,7 @@ function getBackupFiles(): Array<{
     const match = file.match(backupPattern);
     if (match) {
       const timestamp = match[1];
-      const filePath = path.join(DATA_DIR, file);
+      const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
       const stats = fs.statSync(filePath);
       backupFiles.push({
         filename: file,
@@ -74,7 +77,7 @@ function getBackupFiles(): Array<{
  */
 function createBackup(): string {
   const backupFilename = `mytube-backup-${generateTimestamp()}.db.backup`;
-  const backupPath = path.join(DATA_DIR, backupFilename);
+  const backupPath = resolveSafePath(path.join(DATA_DIR, backupFilename), DATA_DIR);
 
   if (fs.existsSync(dbPath)) {
     fs.copyFileSync(dbPath, backupPath);
@@ -110,8 +113,13 @@ export function exportDatabase(): string {
  * @param tempFilePath - Path to the temporary uploaded file
  */
 export function importDatabase(tempFilePath: string): void {
+  const safeTempFilePath = resolveSafePathInDirectories(
+    tempFilePath,
+    TEMP_UPLOAD_DIRS
+  );
+
   // Validate the uploaded file is a valid SQLite database
-  validateDatabase(tempFilePath);
+  validateDatabase(safeTempFilePath);
 
   // Create backup of current database before import
   const backupPath = createBackup();
@@ -122,15 +130,15 @@ export function importDatabase(tempFilePath: string): void {
     logger.info("Closed current database connection for import");
 
     // Simply copy the uploaded file to replace the database
-    fs.copyFileSync(tempFilePath, dbPath);
+    fs.copyFileSync(safeTempFilePath, dbPath);
     logger.info(`Database file replaced successfully`);
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
 
     // Clean up uploaded temp file
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
+    if (fs.existsSync(safeTempFilePath)) {
+      fs.unlinkSync(safeTempFilePath);
     }
   } catch (error: any) {
     // Restore backup if import failed
@@ -144,9 +152,9 @@ export function importDatabase(tempFilePath: string): void {
     }
 
     // Clean up uploaded temp file if it exists
-    if (fs.existsSync(tempFilePath)) {
+    if (fs.existsSync(safeTempFilePath)) {
       try {
-        fs.unlinkSync(tempFilePath);
+        fs.unlinkSync(safeTempFilePath);
       } catch (e) {
         logger.error("Error cleaning up temp file:", e);
       }
@@ -237,7 +245,7 @@ export function cleanupBackupDatabases(): {
 
     for (const file of files) {
       if (backupPattern.test(file)) {
-        const filePath = path.join(DATA_DIR, file);
+        const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
         try {
           fs.unlinkSync(filePath);
           deletedCount++;

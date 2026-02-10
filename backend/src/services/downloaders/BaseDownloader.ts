@@ -1,6 +1,7 @@
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
+import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import {
   isCancellationError,
@@ -8,6 +9,7 @@ import {
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import { resolveSafePathInDirectories } from "../../utils/security";
 import { Video } from "../storageService";
 
 export interface VideoInfo {
@@ -53,13 +55,17 @@ export abstract class BaseDownloader implements IDownloader {
     axiosConfig: any = {}
   ): Promise<boolean> {
     try {
+      const safeSavePath = resolveSafePathInDirectories(savePath, [
+        VIDEOS_DIR,
+        IMAGES_DIR,
+      ]);
       logger.info("Downloading thumbnail from:", thumbnailUrl);
       if (axiosConfig.proxy || axiosConfig.httpAgent) {
         logger.debug("Using proxy for thumbnail download");
       }
 
       // Ensure directory exists
-      fs.ensureDirSync(path.dirname(savePath));
+      fs.ensureDirSync(path.dirname(safeSavePath));
 
       const response = await axios({
         method: "GET",
@@ -69,12 +75,12 @@ export abstract class BaseDownloader implements IDownloader {
         ...axiosConfig,
       });
 
-      const writer = fs.createWriteStream(savePath);
+      const writer = fs.createWriteStream(safeSavePath);
       response.data.pipe(writer);
 
       return new Promise<boolean>((resolve, reject) => {
         writer.on("finish", () => {
-          logger.info("Thumbnail saved to:", savePath);
+          logger.info("Thumbnail saved to:", safeSavePath);
           resolve(true);
         });
         writer.on("error", (err) => {

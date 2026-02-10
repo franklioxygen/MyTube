@@ -1,10 +1,48 @@
 import { logger } from "../../../utils/logger";
+import { isYouTubeUrl } from "../../../utils/helpers";
 import {
     executeYtDlpJson,
     getNetworkConfigFromUserConfig,
     getUserYtDlpConfig,
 } from "../../../utils/ytDlpUtils";
 import { getProviderScript } from "./ytdlpHelpers";
+
+function buildYouTubeTabUrl(channelUrl: string, tab: "videos" | "shorts"): string {
+  if (!isYouTubeUrl(channelUrl)) {
+    return channelUrl;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(channelUrl);
+  } catch {
+    return channelUrl;
+  }
+
+  const normalizedPath = parsedUrl.pathname.replace(/\/+$/, "");
+  const segments = normalizedPath.split("/").filter(Boolean);
+  if (segments.length === 0) {
+    return channelUrl;
+  }
+
+  const firstSegment = segments[0];
+  const isChannelLikePath =
+    firstSegment.startsWith("@") ||
+    firstSegment === "channel" ||
+    firstSegment === "c" ||
+    firstSegment === "user";
+
+  if (!isChannelLikePath) {
+    return channelUrl;
+  }
+
+  const lastSegment = segments[segments.length - 1];
+  const hasKnownTab =
+    lastSegment === "videos" || lastSegment === "shorts" || lastSegment === "streams";
+  const baseSegments = hasKnownTab ? segments.slice(0, -1) : segments;
+  const basePath = `/${baseSegments.join("/")}`;
+  return `${parsedUrl.origin}${basePath}/${tab}${parsedUrl.search}`;
+}
 
 /**
  * Get the latest video URL from a channel
@@ -21,23 +59,9 @@ export async function getLatestVideoUrl(
     const PROVIDER_SCRIPT = getProviderScript();
 
     // Append /videos to channel URL to ensure we get videos and not the channel tab
-    let targetUrl = channelUrl;
-    if (
-      channelUrl.includes("youtube.com/") &&
-      !channelUrl.includes("/videos") &&
-      !channelUrl.includes("/shorts") &&
-      !channelUrl.includes("/streams")
-    ) {
-      // Check if it looks like a channel URL
-      if (
-        channelUrl.includes("/@") ||
-        channelUrl.includes("/channel/") ||
-        channelUrl.includes("/c/") ||
-        channelUrl.includes("/user/")
-      ) {
-        targetUrl = `${channelUrl}/videos`;
-        logger.info("Modified channel URL to:", targetUrl);
-      }
+    const targetUrl = buildYouTubeTabUrl(channelUrl, "videos");
+    if (targetUrl !== channelUrl) {
+      logger.info("Modified channel URL to:", targetUrl);
     }
 
     // Use yt-dlp to get the first video in the channel (playlist)
@@ -100,19 +124,7 @@ export async function getLatestShortsUrl(
     const PROVIDER_SCRIPT = getProviderScript();
 
     // Construct Shorts URL
-    let targetUrl = channelUrl;
-    if (channelUrl.includes("youtube.com/")) {
-      // Remove existing paths if present to ensure we append /shorts correctly
-      targetUrl = channelUrl.replace(/\/videos$/, "").replace(/\/streams$/, "");
-      
-      if (!targetUrl.includes("/shorts")) {
-         if (targetUrl.endsWith("/")) {
-            targetUrl = `${targetUrl}shorts`;
-         } else {
-            targetUrl = `${targetUrl}/shorts`;
-         }
-      }
-    }
+    const targetUrl = buildYouTubeTabUrl(channelUrl, "shorts");
 
     logger.info("Fetching Shorts from:", targetUrl);
 

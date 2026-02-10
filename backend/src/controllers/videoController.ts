@@ -7,8 +7,14 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import {
+  resolveSafePath,
+  resolveSafePathInDirectories,
+  sanitizePathSegment,
+} from "../utils/security";
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -425,7 +431,7 @@ export const getAuthorChannelUrl = async (
     }
 
     // If not in database, fetch it (for YouTube)
-    if (sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) {
+    if (isYouTubeUrl(sourceUrl)) {
       const {
         executeYtDlpJson,
         getNetworkConfigFromUserConfig,
@@ -451,7 +457,7 @@ export const getAuthorChannelUrl = async (
     }
 
     // Check if it's a Bilibili URL
-    if (sourceUrl.includes("bilibili.com") || sourceUrl.includes("b23.tv")) {
+    if (isBilibiliUrl(sourceUrl)) {
       // If we have the video in database, try to get channelUrl from there first
       // (already checked above, but this is for clarity)
       if (existingVideo && existingVideo.channelUrl) {
@@ -533,14 +539,29 @@ export const uploadSubtitle = async (
   const video = storageService.getVideoById(id);
   if (!video) {
     // Clean up the uploaded file if video doesn't exist
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (req.file) {
+      try {
+        const safeUploadedPath = resolveSafePathInDirectories(req.file.path, [
+          SUBTITLES_DIR,
+          VIDEOS_DIR,
+          "/tmp",
+        ]);
+        if (fs.existsSync(safeUploadedPath)) {
+          fs.unlinkSync(safeUploadedPath);
+        }
+      } catch {
+        // Ignore cleanup path validation errors for already-missing/invalid temp paths.
+      }
     }
     throw new NotFoundError("Video", id);
   }
 
-  let sourcePath = req.file.path;
-  let filename = req.file.filename;
+  let sourcePath = resolveSafePathInDirectories(req.file.path, [
+    SUBTITLES_DIR,
+    VIDEOS_DIR,
+    "/tmp",
+  ]);
+  let filename = path.basename(req.file.filename);
 
   // Convert ASS/SSA to VTT for HTML5 <track> playback (browsers don't support ASS natively)
   if (/\.(ass|ssa)$/i.test(filename)) {
@@ -551,7 +572,9 @@ export const uploadSubtitle = async (
       } & (() => NodeJS.ReadWriteStream);
       return typeof m.default === "function" ? m.default : m;
     })();
-    const vttPath = sourcePath.replace(/\.(ass|ssa)$/i, ".vtt");
+    const sourceDir = path.dirname(sourcePath);
+    const vttFilename = `${path.parse(filename).name}.vtt`;
+    const vttPath = resolveSafePath(path.join(sourceDir, vttFilename), sourceDir);
     try {
       await new Promise<void>((resolve, reject) => {
         const readStream = fs.createReadStream(sourcePath);
@@ -589,14 +612,14 @@ export const uploadSubtitle = async (
     // videoPath is like /videos/Folder/video.mp4 or /videos/video.mp4
     const cleanPath = video.videoPath.replace(/^\/videos\//, "");
     const dirName = path.dirname(cleanPath);
-    const normalizedDir = path.normalize(dirName);
-    // Reject path traversal
-    if (
-      normalizedDir &&
-      normalizedDir !== "." &&
-      !normalizedDir.includes("..")
-    ) {
-      relativeVideoDir = normalizedDir;
+    if (dirName && dirName !== "." && !path.isAbsolute(dirName)) {
+      const safeSegments = dirName
+        .split(/[\\/]+/)
+        .map((segment) => sanitizePathSegment(segment))
+        .filter(Boolean);
+      if (safeSegments.length > 0) {
+        relativeVideoDir = path.join(...safeSegments);
+      }
     }
   }
 
@@ -604,16 +627,17 @@ export const uploadSubtitle = async (
     if (moveSubtitlesToVideoFolder) {
       // Move to VIDEO folder: uploads/videos/Collection/filename
       const videoDir = relativeVideoDir
-        ? path.join(VIDEOS_DIR, relativeVideoDir)
+        ? resolveSafePath(path.join(VIDEOS_DIR, relativeVideoDir), VIDEOS_DIR)
         : VIDEOS_DIR;
 
       fs.ensureDirSync(videoDir);
-      const targetPath = path.join(videoDir, filename);
+      const targetPath = resolveSafePath(path.join(videoDir, filename), videoDir);
 
       fs.moveSync(sourcePath, targetPath, { overwrite: true });
 
+      const relativeWebDir = relativeVideoDir.split(path.sep).join("/");
       if (relativeVideoDir) {
-        finalWebPath = `/videos/${relativeVideoDir}/${filename}`;
+        finalWebPath = `/videos/${relativeWebDir}/${filename}`;
       } else {
         finalWebPath = `/videos/${filename}`;
       }
@@ -621,13 +645,17 @@ export const uploadSubtitle = async (
       // Move to SUBTITLE folder: uploads/subtitles/Collection/filename (Mirroring)
       // If relativeVideoDir exists, move it into that subfolder in subtitles
       if (relativeVideoDir) {
-        const targetDir = path.join(SUBTITLES_DIR, relativeVideoDir);
+        const targetDir = resolveSafePath(
+          path.join(SUBTITLES_DIR, relativeVideoDir),
+          SUBTITLES_DIR
+        );
         fs.ensureDirSync(targetDir);
-        const targetPath = path.join(targetDir, filename);
+        const targetPath = resolveSafePath(path.join(targetDir, filename), targetDir);
 
         fs.moveSync(sourcePath, targetPath, { overwrite: true });
 
-        finalWebPath = `/subtitles/${relativeVideoDir}/${filename}`;
+        const relativeWebDir = relativeVideoDir.split(path.sep).join("/");
+        finalWebPath = `/subtitles/${relativeWebDir}/${filename}`;
       } else {
         // Keep in default location (root of subtitles dir), but path needs to be correct
         // Multer put it in SUBTITLES_DIR already

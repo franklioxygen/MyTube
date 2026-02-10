@@ -1,4 +1,8 @@
-import { extractBilibiliVideoId, isBilibiliUrl } from "../utils/helpers";
+import {
+  extractBilibiliVideoId,
+  isBilibiliUrl,
+  isMissAVUrl,
+} from "../utils/helpers";
 import { VideoInfo } from "./downloaders/BaseDownloader";
 import {
   BilibiliCollectionCheckResult,
@@ -219,11 +223,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
     if (videoId) {
       return BilibiliDownloader.getVideoInfo(videoId);
     }
-  } else if (
-    url.includes("missav") ||
-    url.includes("123av") ||
-    url.includes("njavtv")
-  ) {
+  } else if (isMissAVUrl(url)) {
     return MissAVDownloader.getVideoInfo(url);
   }
 

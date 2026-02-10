@@ -1,5 +1,7 @@
 import axios from "axios";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { logger } from "../../../utils/logger";
+import { resolveSafePathInDirectories } from "../../../utils/security";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { BilibiliVideoInfo } from "./types";
 
@@ -122,9 +124,14 @@ export async function getVideoDuration(
  */
 export function getFileSize(filePath: string): string | undefined {
   try {
+    const safeFilePath = resolveSafePathInDirectories(filePath, [
+      VIDEOS_DIR,
+      IMAGES_DIR,
+      SUBTITLES_DIR,
+    ]);
     const fs = require("fs-extra");
-    if (fs.existsSync(filePath)) {
-      const stats = fs.statSync(filePath);
+    if (fs.existsSync(safeFilePath)) {
+      const stats = fs.statSync(safeFilePath);
       return stats.size.toString();
     }
   } catch (e) {

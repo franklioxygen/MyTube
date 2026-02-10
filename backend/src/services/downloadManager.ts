@@ -59,11 +59,15 @@ class DownloadManager {
       const queuedDownloads = status.queuedDownloads;
 
       if (queuedDownloads && queuedDownloads.length > 0) {
-        console.log(`Restoring ${queuedDownloads.length} queued downloads...`);
+        console.log("Restoring queued downloads...", queuedDownloads.length);
 
         for (const download of queuedDownloads) {
           if (download.sourceUrl && download.type) {
-            console.log(`Restoring task: ${sanitizeLogMessage(download.title)} (${sanitizeLogMessage(download.id)})`);
+            console.log(
+              "Restoring task:",
+              sanitizeLogMessage(download.title),
+              sanitizeLogMessage(download.id),
+            );
 
             // Reconstruct the download function
             const downloadFn = createDownloadTask(
@@ -84,9 +88,9 @@ class DownloadManager {
               sourceUrl: download.sourceUrl,
               type: download.type,
               resolve: (val) =>
-                console.log(`Restored task ${sanitizeLogMessage(download.id)} completed`, val),
+                console.log("Restored task completed", sanitizeLogMessage(download.id), val),
               reject: (err) =>
-                console.error(`Restored task ${sanitizeLogMessage(download.id)} failed`, err),
+                console.error("Restored task failed", sanitizeLogMessage(download.id), err),
             };
 
             this.queue.push(task);
@@ -156,14 +160,22 @@ class DownloadManager {
     // Check active tasks
     const activeTask = this.activeTasks.get(id);
     if (activeTask) {
-      console.log(`Updating active task title: ${sanitizeLogMessage(id)} -> ${sanitizeLogMessage(title)}`);
+      console.log(
+        "Updating active task title:",
+        sanitizeLogMessage(id),
+        sanitizeLogMessage(title),
+      );
       activeTask.title = title;
       storageService.updateActiveDownloadTitle(id, title);
     } else {
       // Check queued tasks
       const queuedTask = this.queue.find((t) => t.id === id);
       if (queuedTask) {
-        console.log(`Updating queued task title: ${sanitizeLogMessage(id)} -> ${sanitizeLogMessage(title)}`);
+        console.log(
+          "Updating queued task title:",
+          sanitizeLogMessage(id),
+          sanitizeLogMessage(title),
+        );
         queuedTask.title = title;
         this.updateQueuedDownloads();
       }
@@ -177,7 +189,11 @@ class DownloadManager {
   cancelDownload(id: string): void {
     const task = this.activeTasks.get(id);
     if (task) {
-      console.log(`Cancelling active download: ${sanitizeLogMessage(task.title)} (${sanitizeLogMessage(id)})`);
+      console.log(
+        "Cancelling active download:",
+        sanitizeLogMessage(task.title),
+        sanitizeLogMessage(id),
+      );
       task.cancelled = true;
 
       // Call the cancel function if available
@@ -185,7 +201,11 @@ class DownloadManager {
         try {
           task.cancelFn();
         } catch (error) {
-          console.error(`Error calling cancel function for ${sanitizeLogMessage(id)}:`, error);
+          console.error(
+            "Error calling cancel function for download:",
+            sanitizeLogMessage(id),
+            error,
+          );
         }
       }
 
@@ -224,7 +244,7 @@ class DownloadManager {
       // Check if it's in the queue and remove it
       const inQueue = this.queue.some((t) => t.id === id);
       if (inQueue) {
-        console.log(`Removing queued download: ${sanitizeLogMessage(id)}`);
+        console.log("Removing queued download:", sanitizeLogMessage(id));
         this.removeFromQueue(id);
       }
     }
@@ -290,7 +310,11 @@ class DownloadManager {
     }
 
     try {
-      console.log(`Starting download: ${sanitizeLogMessage(task.title)} (${sanitizeLogMessage(task.id)})`);
+      console.log(
+        "Starting download:",
+        sanitizeLogMessage(task.title),
+        sanitizeLogMessage(task.id),
+      );
 
       // Execute hook
       await HookService.executeHook("task_before_start", {
@@ -323,7 +347,9 @@ class DownloadManager {
       }
 
       console.log(
-        `Download finished for ${task.title}. Result title: ${videoData.title}`
+        "Download finished for task",
+        sanitizeLogMessage(task.title),
+        sanitizeLogMessage(videoData.title),
       );
 
       // Determine best title
@@ -416,9 +442,13 @@ class DownloadManager {
     } catch (error) {
       // Check if this is a cancellation - handle differently
       if (isCancelledError(error)) {
-        console.log(`Download cancelled: ${sanitizeLogMessage(task.title)}`);
+        console.log("Download cancelled:", sanitizeLogMessage(task.title));
       } else {
-        console.error(`Error downloading ${sanitizeLogMessage(task.title)}:`, error);
+        console.error(
+          "Error downloading task:",
+          sanitizeLogMessage(task.title),
+          error,
+        );
       }
 
       // Download failed

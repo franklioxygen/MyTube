@@ -1,14 +1,10 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { VIDEOS_DIR } from '../../config/paths';
 import { cleanupVideoArtifacts } from '../../utils/downloadUtils';
 
-// Mock path for testing
-const TEST_DIR = path.join(__dirname, 'temp_cleanup_artifacts_test');
-
-vi.mock('../config/paths', () => ({
-  VIDEOS_DIR: TEST_DIR
-}));
+const TEST_DIR = path.join(VIDEOS_DIR, 'temp_cleanup_artifacts_test');
 
 describe('cleanupVideoArtifacts', () => {
   beforeEach(async () => {

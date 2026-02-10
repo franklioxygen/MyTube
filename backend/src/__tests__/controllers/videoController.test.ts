@@ -47,6 +47,9 @@ vi.mock("../../utils/security", () => ({
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn((url: string) => url.includes("bilibili") ? "BV1xx" : null),
   isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
+  isBilibiliShortUrl: vi.fn((url: string) => url.includes("b23.tv")),
+  isMissAVUrl: vi.fn((url: string) => url.includes("missav")),
+  isYouTubeUrl: vi.fn((url: string) => url.includes("youtube") || url.includes("youtu.be")),
   isValidUrl: vi.fn((url: string) => url.startsWith("http")),
   processVideoUrl: vi.fn(async (url: string) => ({
     videoUrl: url,

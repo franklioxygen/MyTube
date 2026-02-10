@@ -21,7 +21,10 @@ describe('Logger', () => {
     it('should log info messages', () => {
         const testLogger = new Logger(LogLevel.INFO);
         testLogger.info('test message');
-        expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining('[INFO] test message'));
+        expect(consoleSpy.log).toHaveBeenCalled();
+        const [prefix, message] = consoleSpy.log.mock.calls[0];
+        expect(prefix).toContain('[INFO]');
+        expect(message).toBe('test message');
     });
 
     it('should not log debug messages if level is INFO', () => {
@@ -33,6 +36,9 @@ describe('Logger', () => {
     it('should log error messages', () => {
         const testLogger = new Logger(LogLevel.INFO);
         testLogger.error('error message');
-        expect(consoleSpy.error).toHaveBeenCalledWith(expect.stringContaining('[ERROR] error message'));
+        expect(consoleSpy.error).toHaveBeenCalled();
+        const [prefix, message] = consoleSpy.error.mock.calls[0];
+        expect(prefix).toContain('[ERROR]');
+        expect(message).toBe('error message');
     });
 });

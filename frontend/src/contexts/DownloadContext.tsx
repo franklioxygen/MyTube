@@ -74,6 +74,23 @@ const getStoredDownloadStatus = () => {
     }
 };
 
+const isBilibiliUrl = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        return (
+            hostname === 'bilibili.com' ||
+            hostname.endsWith('.bilibili.com') ||
+            hostname === 'b23.tv' ||
+            hostname.endsWith('.b23.tv') ||
+            hostname === 'bili2233.cn' ||
+            hostname.endsWith('.bili2233.cn')
+        );
+    } catch {
+        return false;
+    }
+};
+
 export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { showSnackbar } = useSnackbar();
     const { t } = useLanguage();
@@ -241,7 +258,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
 
             // Check if it's a Bilibili URL
-            if (videoUrl.includes('bilibili.com') || videoUrl.includes('b23.tv')) {
+            if (isBilibiliUrl(videoUrl)) {
                 setIsCheckingParts(true);
                 try {
                     // Only check for collection/series if not explicitly skipped

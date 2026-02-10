@@ -4,6 +4,7 @@ import path from "path";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
+import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
@@ -144,7 +145,7 @@ export async function executeYtDlpJson(
   // Add Node.js runtime for YouTube n challenge solving.
   // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
   // Node.js is already available in the container and provides a stable alternative.
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  if (isYouTubeUrl(url)) {
     args.push("--js-runtime", "node");
   }
 
@@ -292,7 +293,7 @@ export async function getChannelUrlFromVideo(
   }
 
   // Add Node.js runtime for YouTube
-  if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+  if (isYouTubeUrl(videoUrl)) {
     args.push("--js-runtime", "node");
   }
 
@@ -364,7 +365,7 @@ export async function downloadChannelAvatar(
   }
 
   // Add Node.js runtime for YouTube
-  if (channelUrl.includes("youtube.com") || channelUrl.includes("youtu.be")) {
+  if (isYouTubeUrl(channelUrl)) {
     args.push("--js-runtime", "node");
   }
 
@@ -385,7 +386,7 @@ export async function downloadChannelAvatar(
       if (code !== 0) {
         console.warn(`Failed to download channel avatar: ${stderr}`);
         // For Bilibili, this might be expected - log but don't fail completely
-        if (channelUrl.includes("bilibili.com")) {
+        if (isBilibiliUrl(channelUrl)) {
           console.warn(`Bilibili channel avatar download may not be supported by yt-dlp`);
         }
         resolve(false);
@@ -466,7 +467,7 @@ export function executeYtDlpSpawn(
   // Add Node.js runtime for YouTube n challenge solving.
   // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
   // Node.js is already available in the container and provides a stable alternative.
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  if (isYouTubeUrl(url)) {
     args.push("--js-runtime", "node");
   }
 
@@ -620,8 +621,7 @@ export function getUserYtDlpConfig(url?: string): Record<string, any> {
 
       // If proxy is restricted to YouTube only, and we have a non-YouTube URL
       if (proxyOnlyYoutube && url) {
-        const isYoutube =
-          url.includes("youtube.com") || url.includes("youtu.be");
+        const isYoutube = isYouTubeUrl(url);
         if (!isYoutube) {
           console.log(
             "Proxy restricted to YouTube only. Removing proxy settings for:",

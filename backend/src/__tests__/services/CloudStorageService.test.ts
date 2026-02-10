@@ -22,6 +22,9 @@ vi.mock("fs-extra");
 vi.mock("../../services/storageService");
 
 describe("CloudStorageService", () => {
+  const callContainsText = (call: any[], text: string): boolean =>
+    call.some((arg) => typeof arg === "string" && arg.includes(text));
+
   beforeEach(() => {
     vi.clearAllMocks();
     console.log = vi.fn();
@@ -106,7 +109,7 @@ describe("CloudStorageService", () => {
       expect(axios.put).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalled();
       const logCall = (console.log as any).mock.calls.find((call: any[]) =>
-        call[0]?.includes("[CloudStorage] Starting upload for video: Test Video")
+        callContainsText(call, "[CloudStorage] Starting upload for video: Test Video")
       );
       expect(logCall).toBeDefined();
     });
@@ -228,7 +231,7 @@ describe("CloudStorageService", () => {
 
       expect(console.error).toHaveBeenCalled();
       const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
-        call[0]?.includes("[CloudStorage] Video file not found: /videos/missing.mp4")
+        callContainsText(call, "[CloudStorage] Video file not found: /videos/missing.mp4")
       );
       expect(errorCall).toBeDefined();
       // Metadata will still be uploaded even if video is missing
@@ -276,10 +279,18 @@ describe("CloudStorageService", () => {
 
       expect(console.error).toHaveBeenCalled();
       const errorCall = (console.error as any).mock.calls.find((call: any[]) =>
-        call[0]?.includes("[CloudStorage] Upload failed for Test Video:")
+        callContainsText(call, "[CloudStorage] Upload failed for Test Video:")
       );
       expect(errorCall).toBeDefined();
-      expect(errorCall[1]).toBeInstanceOf(Error);
+      expect(
+        errorCall.some(
+          (arg: any) =>
+            typeof arg === "object" &&
+            arg !== null &&
+            typeof arg.message === "string" &&
+            arg.message.includes("Upload failed")
+        )
+      ).toBe(true);
     });
 
     it("should sanitize filename for metadata", async () => {

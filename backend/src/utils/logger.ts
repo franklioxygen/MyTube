@@ -52,11 +52,14 @@ export class Logger {
   private sanitizeArgs(args: any[]): any[] {
     return args.map((arg) => {
       if (typeof arg === "string") {
-        return sanitizeLogMessage(arg);
+        return redactSensitive(sanitizeLogMessage(arg));
       }
       if (arg instanceof Error) {
-        // Errors are safe to log as-is, but sanitize the message
-        return arg;
+        // Keep only safe error metadata to avoid leaking stack or sensitive content.
+        return {
+          name: sanitizeLogMessage(arg.name),
+          message: redactSensitive(sanitizeLogMessage(arg.message)),
+        };
       }
       if (typeof arg === "object" && arg !== null) {
         // For objects, try to sanitize string values
@@ -79,7 +82,7 @@ export class Logger {
                   const value = obj[key];
                   result[key] =
                     typeof value === "string"
-                      ? sanitizeLogMessage(value)
+                      ? redactSensitive(sanitizeLogMessage(value))
                       : typeof value === "object" && value !== null
                       ? sanitizeObject(value)
                       : value;
@@ -102,9 +105,9 @@ export class Logger {
    */
   debug(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.DEBUG) {
-      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.debug(`[${this.formatTimestamp()}] [DEBUG] ${sanitizedMessage}`, ...sanitizedArgs);
+      console.debug(`[${this.formatTimestamp()}] [DEBUG]`, sanitizedMessage, ...sanitizedArgs);
     }
   }
 
@@ -113,9 +116,9 @@ export class Logger {
    */
   info(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.INFO) {
-      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.log(`[${this.formatTimestamp()}] [INFO] ${sanitizedMessage}`, ...sanitizedArgs);
+      console.log(`[${this.formatTimestamp()}] [INFO]`, sanitizedMessage, ...sanitizedArgs);
     }
   }
 
@@ -124,9 +127,9 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.WARN) {
-      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.warn(`[${this.formatTimestamp()}] [WARN] ${sanitizedMessage}`, ...sanitizedArgs);
+      console.warn(`[${this.formatTimestamp()}] [WARN]`, sanitizedMessage, ...sanitizedArgs);
     }
   }
 
@@ -139,15 +142,22 @@ export class Logger {
   error(message: string, error?: Error | unknown, ...args: any[]): void {
     if (this.level <= LogLevel.ERROR) {
       const timestamp = this.formatTimestamp();
-      const sanitizedMessage = sanitizeLogMessage(message);
+      const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
       if (error instanceof Error) {
-        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, error, ...sanitizedArgs);
+        const safeError = {
+          name: sanitizeLogMessage(error.name),
+          message: redactSensitive(sanitizeLogMessage(error.message)),
+        };
+        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, safeError, ...sanitizedArgs);
       } else if (error !== undefined) {
-        const sanitizedError = typeof error === "string" ? sanitizeLogMessage(error) : error;
-        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, sanitizedError, ...sanitizedArgs);
+        const sanitizedError =
+          typeof error === "string"
+            ? redactSensitive(sanitizeLogMessage(error))
+            : this.sanitizeArgs([error])[0];
+        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, sanitizedError, ...sanitizedArgs);
       } else {
-        console.error(`[${timestamp}] [ERROR] ${sanitizedMessage}`, ...sanitizedArgs);
+        console.error(`[${timestamp}] [ERROR]`, sanitizedMessage, ...sanitizedArgs);
       }
     }
   }

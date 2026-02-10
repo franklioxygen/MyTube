@@ -3,13 +3,30 @@
  */
 
 import fs from "fs-extra";
+import os from "os";
 import path from "path";
-import { VIDEOS_DIR } from "../config/paths";
+import {
+  DATA_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
+} from "../config/paths";
 import {
   DownloadCancelledError,
   isAnyCancellationError,
 } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import { sanitizeLogMessage } from "./logger";
+import { validatePathWithinDirectories } from "./security";
+
+const SAFE_REMOVE_ALLOWED_DIRS = [
+  VIDEOS_DIR,
+  IMAGES_DIR,
+  SUBTITLES_DIR,
+  DATA_DIR,
+  os.tmpdir(),
+  "/tmp",
+];
 
 /**
  * Check if a download was cancelled by checking if it's still in active downloads
@@ -284,6 +301,17 @@ export async function safeRemove(
   retryCount: number = 3,
   initialDelay: number = 500
 ): Promise<void> {
+  const resolvedPath = path.resolve(pathToRemove);
+  if (
+    !validatePathWithinDirectories(resolvedPath, SAFE_REMOVE_ALLOWED_DIRS)
+  ) {
+    console.error(
+      "Refusing to remove path outside allowed directories:",
+      sanitizeLogMessage(resolvedPath),
+    );
+    return;
+  }
+
   // Initial delay to allow processes to release locks
   if (initialDelay > 0) {
     await new Promise((resolve) => setTimeout(resolve, initialDelay));
@@ -291,15 +319,17 @@ export async function safeRemove(
 
   for (let i = 0; i < retryCount; i++) {
     try {
-      if (fs.existsSync(pathToRemove)) {
-        await fs.remove(pathToRemove);
+      if (fs.existsSync(resolvedPath)) {
+        await fs.remove(resolvedPath);
       }
       return;
     } catch (err) {
       if (i === retryCount - 1) {
         console.error(
-          `Failed to remove ${pathToRemove} after ${retryCount} attempts:`,
-          err
+          "Failed to remove path after retry attempts:",
+          sanitizeLogMessage(resolvedPath),
+          retryCount,
+          err,
         );
       } else {
         // Linear backoff

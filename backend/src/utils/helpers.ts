@@ -1,12 +1,52 @@
 import axios from "axios";
 import { isHostnameAllowed, validateUrlWithAllowlist } from "./security";
 
+const YOUTUBE_HOSTNAMES = ["youtube.com", "youtu.be"] as const;
+const BILIBILI_HOSTNAMES = ["bilibili.com", "b23.tv", "bili2233.cn"] as const;
+const BILIBILI_SPACE_HOSTNAMES = ["space.bilibili.com"] as const;
+const MISSAV_HOSTNAMES = [
+  "missav.com",
+  "missav.ai",
+  "missav.ws",
+  "missav.live",
+  "123av.com",
+  "123av.ai",
+  "123av.ws",
+  "njavtv.com",
+] as const;
+const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
+
 const ALLOWED_BILIBILI_SHORTENER_HOSTNAMES = ["b23.tv", "bili2233.cn"] as const;
 const ALLOWED_BILIBILI_RESOLVED_HOSTNAMES = [
   "bilibili.com",
   "b23.tv",
   "bili2233.cn",
 ] as const;
+
+function parseUrlSafe(url: string): URL | null {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
+}
+
+function hasAllowedHostname(
+  url: string,
+  allowedHostnames: readonly string[],
+): boolean {
+  const parsedUrl = parseUrlSafe(url);
+  if (!parsedUrl) {
+    return false;
+  }
+
+  // Reject credentials/port at the classifier level to avoid unsafe edge cases.
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    return false;
+  }
+
+  return isHostnameAllowed(parsedUrl.hostname, allowedHostnames);
+}
 
 function buildSafeRequestUrl(
   url: string,
@@ -42,12 +82,28 @@ export function isValidUrl(string: string): boolean {
 
 // Helper function to check if a URL is from Bilibili
 export function isBilibiliUrl(url: string): boolean {
-  return url.includes("bilibili.com") || url.includes("b23.tv");
+  return hasAllowedHostname(url, BILIBILI_HOSTNAMES);
 }
 
 // Helper function to check if a URL is a Bilibili space/author URL
 export function isBilibiliSpaceUrl(url: string): boolean {
-  return url.includes("space.bilibili.com");
+  return hasAllowedHostname(url, BILIBILI_SPACE_HOSTNAMES);
+}
+
+export function isBilibiliShortUrl(url: string): boolean {
+  return hasAllowedHostname(url, ALLOWED_BILIBILI_SHORTENER_HOSTNAMES);
+}
+
+export function isYouTubeUrl(url: string): boolean {
+  return hasAllowedHostname(url, YOUTUBE_HOSTNAMES);
+}
+
+export function isMissAVUrl(url: string): boolean {
+  return hasAllowedHostname(url, MISSAV_HOSTNAMES);
+}
+
+export function isTwitterUrl(url: string): boolean {
+  return hasAllowedHostname(url, TWITTER_HOSTNAMES);
 }
 
 // Helper function to extract URL from text that might contain a title and URL
@@ -152,7 +208,7 @@ function getYouTubeAuthorBasePath(segments: string[]): string | null {
  */
 export function normalizeYouTubeAuthorUrl(url: string): string {
   try {
-    if (!url.includes("youtube.com")) return url;
+    if (!isYouTubeUrl(url)) return url;
     const u = new URL(url);
     const segments = u.pathname.replace(/\/+$/, "").split("/").filter(Boolean);
     const basePath = getYouTubeAuthorBasePath(segments);
@@ -251,15 +307,11 @@ export function extractSourceVideoId(url: string): {
     return { id: extractBilibiliVideoId(url), platform: "bilibili" };
   }
 
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  if (isYouTubeUrl(url)) {
     return { id: extractYouTubeVideoId(url), platform: "youtube" };
   }
 
-  if (
-    url.includes("missav") ||
-    url.includes("123av") ||
-    url.includes("njavtv")
-  ) {
+  if (isMissAVUrl(url)) {
     return { id: extractMissAVVideoId(url), platform: "missav" };
   }
 
@@ -283,7 +335,7 @@ export async function processVideoUrl(input: string): Promise<{
   let videoUrl = extractUrlFromText(input);
 
   // Resolve shortened URLs (like b23.tv)
-  if (videoUrl.includes("b23.tv")) {
+  if (isBilibiliShortUrl(videoUrl)) {
     videoUrl = await resolveShortUrl(videoUrl);
   }
 

@@ -1,10 +1,13 @@
 import fs from "fs-extra";
+import os from "os";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
+import { resolveSafePathInDirectories } from "../utils/security";
 
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
 
 /**
  * Check if cookies file exists
@@ -19,13 +22,26 @@ export function checkCookies(): { exists: boolean } {
  */
 export function uploadCookies(tempFilePath: string): void {
   try {
+    const safeTempFilePath = resolveSafePathInDirectories(
+      tempFilePath,
+      TEMP_UPLOAD_DIRS
+    );
+
     // Move the file to the target location
-    fs.moveSync(tempFilePath, COOKIES_PATH, { overwrite: true });
+    fs.moveSync(safeTempFilePath, COOKIES_PATH, { overwrite: true });
     logger.info(`Cookies uploaded and saved to ${COOKIES_PATH}`);
   } catch (error: any) {
     // Clean up temp file if it exists
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
+    try {
+      const safeTempFilePath = resolveSafePathInDirectories(
+        tempFilePath,
+        TEMP_UPLOAD_DIRS
+      );
+      if (fs.existsSync(safeTempFilePath)) {
+        fs.unlinkSync(safeTempFilePath);
+      }
+    } catch {
+      // Ignore cleanup path validation failures.
     }
     throw error;
   }
@@ -41,5 +57,4 @@ export function deleteCookies(): void {
     throw new NotFoundError("Cookies file", "cookies.txt");
   }
 }
-
 

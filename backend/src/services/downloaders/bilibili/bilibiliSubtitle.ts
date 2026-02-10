@@ -1,9 +1,14 @@
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
+import { SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
+import {
+  resolveSafePath,
+  resolveSafePathInDirectories,
+} from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
 
 /**
@@ -97,7 +102,11 @@ export async function downloadSubtitles(
     const savedSubtitles = [];
 
     // Ensure subtitles directory exists
-    fs.ensureDirSync(subtitleDir);
+    const safeSubtitleDir = resolveSafePathInDirectories(subtitleDir, [
+      SUBTITLES_DIR,
+      VIDEOS_DIR,
+    ]);
+    fs.ensureDirSync(safeSubtitleDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
     for (const sub of subtitlesData) {
@@ -130,7 +139,10 @@ export async function downloadSubtitles(
 
         if (vttContent) {
           const subFilename = `${baseFilename}.${lang}.vtt`;
-          const subPath = path.join(subtitleDir, subFilename);
+          const subPath = resolveSafePath(
+            path.join(safeSubtitleDir, subFilename),
+            safeSubtitleDir
+          );
 
           fs.writeFileSync(subPath, vttContent);
           logger.info(`Saved subtitle file: ${subPath}`);

@@ -1,4 +1,5 @@
 import * as storageService from "../../../services/storageService";
+import { isTwitterUrl, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { getUserYtDlpConfig } from "../../../utils/ytDlpUtils";
 import { getProviderScript } from "./ytdlpHelpers";
@@ -69,15 +70,14 @@ export function prepareDownloadFlags(
   const formatSortValue = userFormatSort || userFormatSort2;
 
   // Check if this is a Twitter/X URL - always use mp4 for Safari compatibility
-  const isTwitterUrl =
-    videoUrl.includes("x.com") || videoUrl.includes("twitter.com");
+  const twitterUrl = isTwitterUrl(videoUrl);
 
   // Determine merge output format: use user's choice or default to mp4
   // However, if user is sorting by resolution (likely demanding 4K/VP9), default to WebM
   // because VP9/AV1 in MP4 (mp4v2) is often problematic for Safari/QuickTime.
   // Exception: Twitter/X always uses mp4 for Safari compatibility
   let defaultMergeFormat = "mp4";
-  if (!isTwitterUrl && formatSortValue && formatSortValue.includes("res")) {
+  if (!twitterUrl && formatSortValue && formatSortValue.includes("res")) {
     // Use WebM for high-res (likely VP9/AV1) as it's supported by Safari 14+ and Chrome
     // But skip this for Twitter/X to ensure Safari compatibility
     defaultMergeFormat = "webm";
@@ -109,7 +109,7 @@ export function prepareDownloadFlags(
   }
 
   // Add Twitter/X specific flags - always use MP4 with H.264 for Safari compatibility
-  if (isTwitterUrl) {
+  if (twitterUrl) {
     // Force MP4 format with H.264 codec for Safari compatibility
     // Twitter/X videos should use MP4 container regardless of resolution
     if (!config.f && !config.format) {
@@ -124,7 +124,7 @@ export function prepareDownloadFlags(
 
   // Add YouTube specific flags if it's a YouTube URL
   // Always apply preferred formats for YouTube to ensure codec compatibility (H.264/AAC for Safari)
-  if (videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be")) {
+  if (isYouTubeUrl(videoUrl)) {
     // If the user hasn't specified a format (-f), but HAS specified a sorting order (-S),
     // we should assume they want to prioritize their sort order (e.g. resolution) over
     // our default strictly-compatible codec constraints.

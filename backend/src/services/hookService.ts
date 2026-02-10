@@ -1,9 +1,11 @@
 import child_process from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import util from "util";
 import { HOOKS_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
+import { resolveSafePathInDirectories } from "../utils/security";
 
 export interface HookContext {
   taskId: string;
@@ -27,6 +29,29 @@ export class HookService {
     }
   }
 
+  private static sanitizeHookName(hookName: string): string {
+    const safeName = hookName.trim();
+    if (!safeName || !/^[a-zA-Z0-9_-]+$/.test(safeName)) {
+      throw new Error("Invalid hook name");
+    }
+    return safeName;
+  }
+
+  private static getSafeHookPath(hookName: string): string {
+    const safeName = this.sanitizeHookName(hookName);
+    return resolveSafePathInDirectories(
+      path.join(HOOKS_DIR, `${safeName}.sh`),
+      [HOOKS_DIR],
+    );
+  }
+
+  private static getSafeUploadPath(filePath: string): string {
+    return resolveSafePathInDirectories(path.resolve(filePath), [
+      os.tmpdir(),
+      "/tmp",
+    ]);
+  }
+
   /**
    * Execute a hook script if it exists
    */
@@ -35,14 +60,15 @@ export class HookService {
     context: Record<string, string | undefined>
   ): Promise<void> {
     try {
-      const hookPath = path.join(HOOKS_DIR, `${eventName}.sh`);
+      const safeEventName = this.sanitizeHookName(eventName);
+      const hookPath = this.getSafeHookPath(safeEventName);
 
       if (!fs.existsSync(hookPath)) {
         return;
       }
 
       logger.info(
-        `[HookService] Executing hook: ${eventName} (${hookPath})`
+        `[HookService] Executing hook: ${safeEventName} (${hookPath})`
       );
 
       // Ensure the script is executable
@@ -61,13 +87,13 @@ export class HookService {
       const { stdout, stderr } = await execPromise(`bash "${hookPath}"`, { env });
       
       if (stdout && stdout.trim()) {
-        logger.info(`[HookService] ${eventName} stdout: ${stdout.trim()}`);
+        logger.info(`[HookService] ${safeEventName} stdout: ${stdout.trim()}`);
       }
       if (stderr && stderr.trim()) {
-        logger.warn(`[HookService] ${eventName} stderr: ${stderr.trim()}`);
+        logger.warn(`[HookService] ${safeEventName} stderr: ${stderr.trim()}`);
       }
 
-      logger.info(`[HookService] Hook ${eventName} executed successfully.`);
+      logger.info(`[HookService] Hook ${safeEventName} executed successfully.`);
     } catch (error: any) {
       logger.error(
         `[HookService] Error executing hook ${eventName}: ${error.message}`
@@ -80,12 +106,13 @@ export class HookService {
    */
   static uploadHook(hookName: string, filePath: string): void {
     this.initialize();
-    const destPath = path.join(HOOKS_DIR, `${hookName}.sh`);
+    const destPath = this.getSafeHookPath(hookName);
+    const safeUploadPath = this.getSafeUploadPath(filePath);
     
     // Move and rename the uploaded file
-    fs.copyFileSync(filePath, destPath);
+    fs.copyFileSync(safeUploadPath, destPath);
     // Cleanup original upload
-    fs.unlinkSync(filePath);
+    fs.unlinkSync(safeUploadPath);
     
     // Make executable
     fs.chmodSync(destPath, "755");
@@ -96,7 +123,7 @@ export class HookService {
    * Delete a hook script
    */
   static deleteHook(hookName: string): boolean {
-    const hookPath = path.join(HOOKS_DIR, `${hookName}.sh`);
+    const hookPath = this.getSafeHookPath(hookName);
     if (fs.existsSync(hookPath)) {
       fs.unlinkSync(hookPath);
       logger.info(`[HookService] Deleted hook script: ${hookPath}`);
@@ -118,7 +145,7 @@ export class HookService {
     ];
     
     return hooks.reduce((acc, hook) => {
-      acc[hook] = fs.existsSync(path.join(HOOKS_DIR, `${hook}.sh`));
+      acc[hook] = fs.existsSync(this.getSafeHookPath(hook));
       return acc;
     }, {} as Record<string, boolean>);
   }

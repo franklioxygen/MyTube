@@ -6,6 +6,7 @@ import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
 import {
     isBilibiliUrl,
+    isYouTubeUrl,
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -65,7 +66,7 @@ export const createSubscription = async (
       if (
         downloadShorts &&
         (subscription.platform === "YouTube" ||
-          normalizedUrl.includes("youtube.com"))
+          isYouTubeUrl(normalizedUrl))
       ) {
         // Create a separate task for Shorts with /shorts appended to URL
         let shortsUrl = normalizedUrl;

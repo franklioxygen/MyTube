@@ -4,7 +4,10 @@ import os from "os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { deleteHook, getHookStatus, uploadHook } from "../../controllers/hookController";
 import { HookService } from "../../services/hookService";
-import { validatePathWithinDirectory } from "../../utils/security";
+import {
+  resolveSafePathInDirectories,
+  validatePathWithinDirectory,
+} from "../../utils/security";
 
 // Mock dependencies
 vi.mock("fs");
@@ -14,6 +17,7 @@ vi.mock("fs");
 vi.mock("os");
 vi.mock("../../services/hookService");
 vi.mock("../../utils/security", () => ({
+  resolveSafePathInDirectories: vi.fn((path: string) => path),
   validatePathWithinDirectory: vi.fn(),
 }));
 
@@ -38,6 +42,9 @@ describe("HookController", () => {
         } as unknown as Response;
 
         vi.mocked(os.tmpdir).mockReturnValue("/tmp");
+        vi.mocked(resolveSafePathInDirectories).mockImplementation(
+          (inputPath: string) => inputPath
+        );
         vi.mocked(validatePathWithinDirectory).mockReturnValue(true);
     });
 
@@ -83,7 +90,9 @@ describe("HookController", () => {
         it("should throw if path traversal detected", async () => {
              req.params = { name: "task_success" };
              req.file = { path: "/tmp/upload" } as any;
-             vi.mocked(validatePathWithinDirectory).mockReturnValue(false);
+             vi.mocked(resolveSafePathInDirectories).mockImplementation(() => {
+               throw new Error("unsafe path");
+             });
 
              await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Invalid file path");
         });

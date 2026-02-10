@@ -4,7 +4,10 @@ import path from "path";
 import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
-import { validatePathWithinDirectory } from "../utils/security";
+import {
+  resolveSafePathInDirectories,
+  validatePathWithinDirectory,
+} from "../utils/security";
 import { successMessage } from "../utils/response";
 
 /**
@@ -36,20 +39,19 @@ export const uploadHook = async (
   // Multer uploads to a temp directory, but we should still validate
   let safeFilePath: string;
   try {
-    // Resolve the path and ensure it's within expected upload directories
-    // Note: multer typically uses system temp directory, so we validate the path exists
     const resolvedPath = path.resolve(req.file.path);
-    if (!resolvedPath || !resolvedPath.includes(path.sep)) {
-      throw new ValidationError("Invalid file path", "file");
+    safeFilePath = resolveSafePathInDirectories(resolvedPath, [
+      os.tmpdir(),
+      "/tmp",
+    ]);
+
+    // Keep a conservative additional guard for analyzer visibility.
+    if (!validatePathWithinDirectory(safeFilePath, os.tmpdir()) && !validatePathWithinDirectory(safeFilePath, "/tmp")) {
+      throw new ValidationError(
+        "Invalid file path: path traversal detected",
+        "file"
+      );
     }
-    
-    // Validate path is within system temp directory to prevent path traversal
-    const tempDir = os.tmpdir();
-    if (!validatePathWithinDirectory(resolvedPath, tempDir)) {
-      throw new ValidationError("Invalid file path: path traversal detected", "file");
-    }
-    
-    safeFilePath = resolvedPath;
   } catch (error) {
     if (error instanceof ValidationError) {
       throw error;

@@ -9,6 +9,7 @@ import {
     formatVideoFilename,
     getDomainFromUrl,
     isBilibiliUrl,
+    isYouTubeUrl,
     isValidUrl,
     normalizeYouTubeAuthorUrl,
     resolveShortUrl,
@@ -42,6 +43,23 @@ describe('Helpers', () => {
 
     it('should return false for other URLs', () => {
       expect(isBilibiliUrl('https://youtube.com')).toBe(false);
+    });
+
+    it('should return false for URLs with credentials or explicit ports', () => {
+      expect(isBilibiliUrl('https://user:pass@www.bilibili.com/video/BV1xx')).toBe(false);
+      expect(isBilibiliUrl('https://www.bilibili.com:8443/video/BV1xx')).toBe(false);
+    });
+  });
+
+  describe('isYouTubeUrl', () => {
+    it('should return true for normal YouTube URLs', () => {
+      expect(isYouTubeUrl('https://www.youtube.com/watch?v=abc123')).toBe(true);
+      expect(isYouTubeUrl('https://youtu.be/abc123')).toBe(true);
+    });
+
+    it('should return false for URLs with credentials or explicit ports', () => {
+      expect(isYouTubeUrl('https://user:pass@youtube.com/watch?v=abc123')).toBe(false);
+      expect(isYouTubeUrl('https://youtube.com:8443/watch?v=abc123')).toBe(false);
     });
   });
 

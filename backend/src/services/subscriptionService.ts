@@ -7,6 +7,7 @@ import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import {
     extractBilibiliMid,
     isBilibiliSpaceUrl,
+    isYouTubeUrl,
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -87,7 +88,7 @@ export class SubscriptionService {
           authorName = `Bilibili User ${mid}`;
         }
       }
-    } else if (authorUrl.includes("youtube.com")) {
+    } else if (isYouTubeUrl(authorUrl)) {
       authorUrl = normalizeYouTubeAuthorUrl(authorUrl);
       platform = "YouTube";
 

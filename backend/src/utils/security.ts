@@ -179,6 +179,53 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
 }
 
 /**
+ * Validates that a file path is within at least one allowed directory
+ */
+export function validatePathWithinDirectories(
+  filePath: string,
+  allowedDirs: string[],
+): boolean {
+  if (!Array.isArray(allowedDirs) || allowedDirs.length === 0) {
+    return false;
+  }
+  return allowedDirs.some((allowedDir) =>
+    validatePathWithinDirectory(filePath, allowedDir),
+  );
+}
+
+/**
+ * Safely resolves a file path within one of the allowed directories
+ * Throws an error if the path is outside all allowed directories
+ */
+export function resolveSafePathInDirectories(
+  filePath: string,
+  allowedDirs: string[],
+): string {
+  const resolvedPath = path.resolve(filePath);
+  if (!validatePathWithinDirectories(resolvedPath, allowedDirs)) {
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
+  }
+  return resolvedPath;
+}
+
+/**
+ * Sanitizes a single path segment (e.g. filename, collection name)
+ * by removing traversal sequences and separators.
+ */
+export function sanitizePathSegment(segment: string): string {
+  if (typeof segment !== "string") {
+    return "";
+  }
+  return segment
+    .replace(/\0/g, "")
+    .replace(/\.\./g, "")
+    .replace(/[\/\\]/g, "")
+    .trim();
+}
+
+/**
  * Validates that a file path is within the videos directory
  */
 export function validateVideoPath(filePath: string): string {

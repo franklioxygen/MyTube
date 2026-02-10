@@ -5,7 +5,10 @@ import * as downloadService from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import {
   extractBilibiliVideoId,
+  isBilibiliShortUrl,
   isBilibiliUrl,
+  isMissAVUrl,
+  isYouTubeUrl,
   isValidUrl,
   processVideoUrl,
   resolveShortUrl,
@@ -209,18 +212,11 @@ export const downloadVideo = async (
     // Determine initial title for the download task
     let initialTitle = "Pending...";
     // We purposefully delay title fetching to the background task to make the API response instant
-    if (
-      resolvedUrl.includes("youtube.com") ||
-      resolvedUrl.includes("youtu.be")
-    ) {
+    if (isYouTubeUrl(resolvedUrl)) {
       initialTitle = "YouTube Video";
     } else if (isBilibiliUrl(resolvedUrl)) {
       initialTitle = "Bilibili Video";
-    } else if (
-      resolvedUrl.includes("missav") ||
-      resolvedUrl.includes("123av") ||
-      resolvedUrl.includes("njavtv")
-    ) {
+    } else if (isMissAVUrl(resolvedUrl)) {
       initialTitle = "MissAV Video";
     }
 
@@ -472,11 +468,7 @@ export const downloadVideo = async (
             );
           }
         }
-      } else if (
-        downloadUrl.includes("missav") ||
-        downloadUrl.includes("123av") ||
-        downloadUrl.includes("njavtv")
-      ) {
+      } else if (isMissAVUrl(downloadUrl)) {
         // MissAV/123av/njavtv download
         const videoData = await downloadService.downloadMissAVVideo(
           downloadUrl,
@@ -497,11 +489,7 @@ export const downloadVideo = async (
 
     // Determine type
     let type = "youtube";
-    if (
-      resolvedUrl.includes("missav") ||
-      resolvedUrl.includes("123av") ||
-      resolvedUrl.includes("njavtv")
-    ) {
+    if (isMissAVUrl(resolvedUrl)) {
       type = "missav";
     } else if (isBilibiliUrl(resolvedUrl)) {
       type = "bilibili";
@@ -594,7 +582,7 @@ export const checkBilibiliParts = async (
 
   // Resolve shortened URLs (like b23.tv)
   let videoUrl = url;
-  if (videoUrl.includes("b23.tv")) {
+  if (isBilibiliShortUrl(videoUrl)) {
     videoUrl = await resolveShortUrl(videoUrl);
     logger.info("Resolved shortened URL to:", videoUrl);
   }
@@ -635,7 +623,7 @@ export const checkBilibiliCollection = async (
 
   // Resolve shortened URLs (like b23.tv)
   let videoUrl = url;
-  if (videoUrl.includes("b23.tv")) {
+  if (isBilibiliShortUrl(videoUrl)) {
     videoUrl = await resolveShortUrl(videoUrl);
     logger.info("Resolved shortened URL to:", videoUrl);
   }
@@ -674,7 +662,7 @@ export const checkPlaylist = async (
   const playlistUrl = url;
 
   // For YouTube, validate that it has a playlist parameter
-  if (playlistUrl.includes("youtube.com") || playlistUrl.includes("youtu.be")) {
+  if (isYouTubeUrl(playlistUrl)) {
     const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
     if (!playlistRegex.test(playlistUrl)) {
       throw new ValidationError(

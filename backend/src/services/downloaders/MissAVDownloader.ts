@@ -595,24 +595,47 @@ export class MissAVDownloader extends BaseDownloader {
   ): string | null {
     if (urls.length === 0) return null;
 
+    const getUrlParts = (input: string): { hostname: string; pathname: string } => {
+      try {
+        const parsedUrl = new URL(input);
+        return {
+          hostname: parsedUrl.hostname.toLowerCase(),
+          pathname: parsedUrl.pathname,
+        };
+      } catch {
+        return { hostname: "", pathname: "" };
+      }
+    };
+
     const sortedUrls = [...urls].sort((a, b) => {
+      const aParts = getUrlParts(a);
+      const bParts = getUrlParts(b);
+
       // 1. Priority: surrit.com
-      const aIsSurrit = a.includes("surrit.com");
-      const bIsSurrit = b.includes("surrit.com");
+      const aIsSurrit =
+        aParts.hostname === "surrit.com" ||
+        aParts.hostname.endsWith(".surrit.com");
+      const bIsSurrit =
+        bParts.hostname === "surrit.com" ||
+        bParts.hostname.endsWith(".surrit.com");
       if (aIsSurrit && !bIsSurrit) return -1;
       if (!aIsSurrit && bIsSurrit) return 1;
 
       // 2. Priority: Master playlist (playlist.m3u8 specifically for surrit, or general master)
       // We generally prefer master playlists because they contain all variants, allowing yt-dlp to pick the best.
       // The previous logic penalized master playlists without explicit resolution, which caused issues.
-      const aIsMaster = a.includes("/playlist.m3u8") || a.includes("/master/");
-      const bIsMaster = b.includes("/playlist.m3u8") || b.includes("/master/");
+      const aIsMaster =
+        aParts.pathname.endsWith("/playlist.m3u8") ||
+        aParts.pathname.includes("/master/");
+      const bIsMaster =
+        bParts.pathname.endsWith("/playlist.m3u8") ||
+        bParts.pathname.includes("/master/");
 
       // If we are strictly comparing surrit URLs (both are surrit), we prefer the master playlist
       // because it's the "cleanest" source.
       if (aIsSurrit && bIsSurrit) {
-        const aIsPlaylistM3u8 = a.includes("playlist.m3u8");
-        const bIsPlaylistM3u8 = b.includes("playlist.m3u8");
+        const aIsPlaylistM3u8 = aParts.pathname.includes("playlist.m3u8");
+        const bIsPlaylistM3u8 = bParts.pathname.includes("playlist.m3u8");
         if (aIsPlaylistM3u8 && !bIsPlaylistM3u8) return -1;
         if (!aIsPlaylistM3u8 && bIsPlaylistM3u8) return 1;
       }
