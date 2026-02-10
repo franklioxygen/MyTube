@@ -78,6 +78,9 @@ export const ja = {
   allowPasswordLoginHelper:
     "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
   allowResetPassword: "パスワードリセットを許可",
+  fastRetryMode: "クイックリトライモード",
+  fastRetryModeDesc: '待機時間: 5秒, 5秒, 10秒, 30秒, 1分, 3分 (最大3分)',
+  normalRetryModeDesc: '待機時間: 5秒, 5秒, 10秒, 30秒, 1分, 3分, 10分, 2時間, 6時間 (最大24時間)',
   allowResetPasswordHelper:
     "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
   password: "パスワード",

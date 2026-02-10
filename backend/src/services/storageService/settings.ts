@@ -115,6 +115,7 @@ const WHITELISTED_SETTINGS = [
   "playFromBeginning",
   "theme",
   "showThemeButton",
+  "fastRetryMode",
 ];
 
 export function saveSettings(newSettings: Record<string, any>): void {

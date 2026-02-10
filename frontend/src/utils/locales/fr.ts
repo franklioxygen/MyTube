@@ -79,6 +79,9 @@ export const fr = {
   allowPasswordLoginHelper:
     "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
   allowResetPassword: "Autoriser la réinitialisation du mot de passe",
+  fastRetryMode: "Mode de tentative rapide",
+  fastRetryModeDesc: "Temps d'attente : 5s, 5s, 10s, 30s, 1m, 3m (max 3m)",
+  normalRetryModeDesc: "Temps d'attente : 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)",
   allowResetPasswordHelper:
     "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",
   password: "Mot de passe",

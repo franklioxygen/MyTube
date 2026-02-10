@@ -80,6 +80,9 @@ export const es = {
   allowPasswordLoginHelper:
     "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
   allowResetPassword: "Permitir Restablecer Contraseña",
+  fastRetryMode: "Modo de reintento rápido",
+  fastRetryModeDesc: 'Tiempos de espera: 5s, 5s, 10s, 30s, 1m, 3m (máx. 3m)',
+  normalRetryModeDesc: 'Tiempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx. 24h)',
   allowResetPasswordHelper:
     "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
   password: "Contraseña",

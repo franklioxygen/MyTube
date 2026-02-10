@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
+import { getSettings } from "./storageService/settings";
 
 interface LoginAttemptData {
   failedAttempts: number;
@@ -24,13 +25,35 @@ const WAIT_TIMES: Record<number, number> = {
   9: 6 * 60 * 60 * 1000, // 6 hours
 };
 
+
+
+// Fast retry wait times
+const FAST_RETRY_WAIT_TIMES: Record<number, number> = {
+  1: 5 * 1000, // 5 seconds
+  2: 5 * 1000, // 5 seconds
+  3: 10 * 1000, // 10 seconds
+  4: 30 * 1000, // 30 seconds
+  5: 60 * 1000, // 1 minute
+  6: 3 * 60 * 1000, // 3 minutes
+};
+
 const MAX_WAIT_TIME = 24 * 60 * 60 * 1000; // 24 hours for 10+ attempts
+const FAST_RETRY_MAX_WAIT_TIME = 3 * 60 * 1000; // 3 minutes for 6+ attempts
 
 /**
  * Get wait time in milliseconds for a given number of failed attempts
  */
 function getWaitTime(attempts: number): number {
   if (attempts <= 0) return 0;
+
+  const settings = getSettings();
+  const isFastRetry = settings.fastRetryMode;
+
+  if (isFastRetry) {
+    if (attempts >= 7) return FAST_RETRY_MAX_WAIT_TIME;
+    return FAST_RETRY_WAIT_TIMES[attempts] || FAST_RETRY_MAX_WAIT_TIME;
+  }
+
   if (attempts >= 10) return MAX_WAIT_TIME;
   return WAIT_TIMES[attempts] || MAX_WAIT_TIME;
 }

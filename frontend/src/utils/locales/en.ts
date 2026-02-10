@@ -76,6 +76,9 @@ export const en = {
   allowPasswordLoginHelper:
     "When disabled, password login is not available. You must have at least one passkey to disable password login.",
   allowResetPassword: "Allow Reset Password",
+  fastRetryMode: "Quick Retry Mode",
+  fastRetryModeDesc: 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m (max 3m)',
+  normalRetryModeDesc: 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)',
   allowResetPasswordHelper:
     "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
   password: "Password",

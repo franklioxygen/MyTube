@@ -80,6 +80,9 @@ export const de = {
   allowPasswordLoginHelper:
     "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
   allowResetPassword: "Passwort zurücksetzen zulassen",
+  fastRetryMode: "Schneller Wiederholungsmodus",
+  fastRetryModeDesc: 'Wartezeiten: 5s, 5s, 10s, 30s, 1m, 3m (max. 3m)',
+  normalRetryModeDesc: 'Wartezeiten: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max. 24h)',
   allowResetPasswordHelper:
     "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
   password: "Passwort",

@@ -43,6 +43,7 @@ export interface Settings {
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
+  fastRetryMode?: boolean;
 }
 
 export const defaultSettings: Settings = {

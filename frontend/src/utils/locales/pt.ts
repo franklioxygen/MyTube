@@ -79,6 +79,9 @@ export const pt = {
   allowPasswordLoginHelper:
     "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
   allowResetPassword: "Permitir Redefinir Senha",
+  fastRetryMode: "Modo de Tentativa Rápida",
+  fastRetryModeDesc: 'Tempos de espera: 5s, 5s, 10s, 30s, 1m, 3m (máx 3m)',
+  normalRetryModeDesc: 'Tempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx 24h)',
   allowResetPasswordHelper:
     "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
   password: "Senha",
