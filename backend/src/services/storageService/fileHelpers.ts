@@ -2,19 +2,15 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
+import {
+  isPathWithinDirectories,
+  sanitizePathSegment,
+} from "../../utils/security";
 import { Collection } from "./types";
 
-/**
- * Sanitizes a filename or collection name to prevent path traversal attacks
- * Removes path separators and dangerous sequences
- */
-function sanitizePathComponent(component: string): string {
-  // Remove path traversal sequences and path separators
-  return component
-    .replace(/\.\./g, "") // Remove parent directory references
-    .replace(/[\/\\]/g, "") // Remove path separators
-    .trim();
-}
+const ALLOWED_STORAGE_DIRS = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR].map((dir) =>
+  path.resolve(dir)
+);
 
 /**
  * Validates that a path is within the allowed directories (Videos, Images, Subtitles)
@@ -22,11 +18,7 @@ function sanitizePathComponent(component: string): string {
  */
 function validateSafePath(targetPath: string): string {
   const resolvedPath = path.resolve(targetPath);
-  const allowedDirs = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR].map((d) =>
-    path.resolve(d)
-  );
-
-  const isSafe = allowedDirs.some((dir) => resolvedPath.startsWith(dir));
+  const isSafe = isPathWithinDirectories(resolvedPath, ALLOWED_STORAGE_DIRS);
 
   if (!isSafe) {
     throw new Error(
@@ -43,7 +35,7 @@ export function findVideoFile(
 ): string | null {
   try {
     // Sanitize filename to prevent path traversal
-    const sanitizedFilename = sanitizePathComponent(filename);
+    const sanitizedFilename = sanitizePathSegment(filename);
     if (!sanitizedFilename) {
       logger.warn(`Invalid filename provided: ${filename}`);
       return null;
@@ -62,10 +54,10 @@ export function findVideoFile(
     }
 
     for (const collection of collections) {
-      const collectionName = collection.name || collection.title;
-      if (collectionName) {
-        // Sanitize collection name to prevent path traversal
-        const sanitizedName = sanitizePathComponent(collectionName);
+        const collectionName = collection.name || collection.title;
+        if (collectionName) {
+          // Sanitize collection name to prevent path traversal
+          const sanitizedName = sanitizePathSegment(collectionName);
         if (!sanitizedName) {
           // Skip if sanitization removed everything
           continue;
@@ -101,7 +93,7 @@ export function findImageFile(
 ): string | null {
   try {
     // Sanitize filename to prevent path traversal
-    const sanitizedFilename = sanitizePathComponent(filename);
+    const sanitizedFilename = sanitizePathSegment(filename);
     if (!sanitizedFilename) {
       logger.warn(`Invalid filename provided: ${filename}`);
       return null;
@@ -120,10 +112,10 @@ export function findImageFile(
     }
 
     for (const collection of collections) {
-      const collectionName = collection.name || collection.title;
-      if (collectionName) {
-        // Sanitize collection name to prevent path traversal
-        const sanitizedName = sanitizePathComponent(collectionName);
+        const collectionName = collection.name || collection.title;
+        if (collectionName) {
+          // Sanitize collection name to prevent path traversal
+          const sanitizedName = sanitizePathSegment(collectionName);
         if (!sanitizedName) {
           // Skip if sanitization removed everything
           continue;

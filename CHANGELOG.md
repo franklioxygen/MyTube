@@ -1,6 +1,50 @@
 # Change Log
 
 
+## Unreleased (2026-02-10)
+
+### Refactor
+
+- refactor: mass security refactor and fix (e2a49ad)
+- refactor: mass security refactor and fix (9bfac72)
+- refactor: mass security refactor and fix (c9b6dff)
+- refactor: Improve fallbackCopy function for copying text (c18b56e)
+
+### Fix
+
+- fix: Improve SSRF protection in MissAVDownloader (a5fcc4c)
+- fix: backend/package.json & backend/package-lock.json to reduce vulnerabilities (7eee9f7)
+
+### Test
+
+- test: Update test to check for stdout output instead of console (21858fd)
+
+### Chore
+
+- chore: upgrade axios to 1.13.5 (27cab5b)
+
+## v1.8.1 (2026-02-10)
+
+### Feat
+
+- feat: Add tab functionality to ManagePage (dda8cf0)
+- feat: Add functionality to refresh all file sizes (89bed0e)
+- feat: Implement fast retry mode for login attempts (025a835)
+
+### Style
+
+- style: Improve grid layout comments and structure (3ea2c68)
+
+### Build
+
+- build(deps): bump axios from 1.13.2 to 1.13.5 in /frontend (da99e6d)
+
+## v1.8.0 (2026-02-09)
+
+### Refactor
+
+- refactor: mass optimize and fix (763ce6b)
+
 ## v1.7.117 (2026-02-08)
 
 ### Feat

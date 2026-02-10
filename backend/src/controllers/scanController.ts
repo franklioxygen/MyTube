@@ -9,6 +9,7 @@ import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
   execFileSafe,
+  isPathWithinDirectory,
   resolveSafePath,
   validateImagePath,
 } from "../utils/security";
@@ -78,7 +79,7 @@ const getFilesRecursively = async (dir: string): Promise<string[]> => {
     entries.map(async (entry) => {
       const filePath = path.join(safeDir, entry.name);
 
-      if (!filePath.startsWith(safeDir + path.sep) && filePath !== safeDir) {
+      if (!isPathWithinDirectory(filePath, safeDir)) {
         logger.warn(`Skipping file outside allowed directory: ${filePath}`);
         return [] as string[];
       }
@@ -124,10 +125,7 @@ const getFilesRecursivelyFromMount = async (
   const resolvedDir = validateMountDirectory(dir);
   const safeRoot = rootDir ? validateMountDirectory(rootDir) : resolvedDir;
 
-  if (
-    !resolvedDir.startsWith(`${safeRoot}${path.sep}`) &&
-    resolvedDir !== safeRoot
-  ) {
+  if (!isPathWithinDirectory(resolvedDir, safeRoot)) {
     logger.warn(`Skipping directory outside mount root: ${resolvedDir}`);
     return [];
   }
@@ -143,10 +141,7 @@ const getFilesRecursivelyFromMount = async (
     entries.map(async (entry) => {
       const filePath = path.join(resolvedDir, entry.name);
 
-      if (
-        !filePath.startsWith(`${resolvedDir}${path.sep}`) &&
-        filePath !== resolvedDir
-      ) {
+      if (!isPathWithinDirectory(filePath, resolvedDir)) {
         logger.warn(`Skipping file outside mount directory: ${filePath}`);
         return [] as string[];
       }
