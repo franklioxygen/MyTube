@@ -48,6 +48,10 @@ router.post(
   asyncHandler(videoMetadataController.refreshThumbnail)
 );
 router.post(
+  "/videos/refresh-file-sizes",
+  asyncHandler(videoMetadataController.refreshAllFileSizes)
+);
+router.post(
   "/videos/:id/view",
   asyncHandler(videoMetadataController.incrementViewCount)
 );

@@ -53,5 +53,18 @@ describe('metadataService', () => {
 
             expect(db.update).toHaveBeenCalled();
         });
+
+        it('should skip temporary artifact files during backfill', async () => {
+            const mockVideos = [
+                { id: '1', title: 'Temp Vid', videoPath: '/videos/some.video.temp.webm', duration: null },
+                { id: '2', title: 'Normal Vid', videoPath: '/videos/normal.mp4', duration: null }
+            ];
+            (db.select().from(undefined as any).all as any).mockResolvedValue(mockVideos);
+            (fs.existsSync as any).mockReturnValue(true);
+
+            await metadataService.backfillDurations();
+
+            expect(db.update).toHaveBeenCalledTimes(1);
+        });
     });
 });

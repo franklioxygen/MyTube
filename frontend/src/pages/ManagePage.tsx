@@ -29,7 +29,7 @@ const ManagePage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
-    const { videos, deleteVideo, refreshThumbnail, updateVideo } = useVideo();
+    const { videos, deleteVideo, refreshThumbnail, updateVideo, fetchVideos } = useVideo();
     const { collections, deleteCollection, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -78,6 +78,35 @@ const ManagePage: React.FC = () => {
         },
         onError: (error: any) => {
             showSnackbar(`${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.details || error.message}`);
+        }
+    });
+
+    const refreshFileSizesMutation = useMutation({
+        mutationFn: async () => {
+            const res = await api.post('/videos/refresh-file-sizes');
+            return res.data;
+        },
+        onSuccess: async (data) => {
+            await fetchVideos();
+
+            const updatedCount = data?.updatedCount ?? 0;
+            const skippedCount = data?.skippedCount ?? 0;
+            const failedCount = data?.failedCount ?? 0;
+
+            const successMsg = t('refreshFileSizesSuccess').replace('{count}', updatedCount.toString());
+            let message = successMsg;
+
+            if (failedCount > 0) {
+                message += t('refreshFileSizesFailed').replace('{count}', failedCount.toString());
+            } else if (skippedCount > 0) {
+                message += t('refreshFileSizesSkipped').replace('{count}', skippedCount.toString());
+            }
+
+            showSnackbar(message);
+        },
+        onError: (error: any) => {
+            const errorDetails = error.response?.data?.details || error.message;
+            showSnackbar(t('refreshFileSizesError').replace('{error}', errorDetails));
         }
     });
 
@@ -313,6 +342,8 @@ const ManagePage: React.FC = () => {
                 deletingId={deletingId}
                 onRefreshThumbnail={handleRefreshThumbnail}
                 refreshingId={refreshingId}
+                onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
+                isRefreshingFileSizes={refreshFileSizesMutation.isPending}
                 onUpdateVideo={updateVideo}
             />
         </Container>

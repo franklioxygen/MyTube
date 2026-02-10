@@ -84,6 +84,8 @@ interface VideosTableProps {
     deletingId: string | null;
     onRefreshThumbnail: (id: string) => void;
     refreshingId: string | null;
+    onRefreshFileSizes: () => void;
+    isRefreshingFileSizes: boolean;
     onUpdateVideo: (id: string, data: Partial<Video>) => Promise<any>;
 }
 
@@ -103,6 +105,8 @@ const VideosTable: React.FC<VideosTableProps> = ({
     deletingId,
     onRefreshThumbnail,
     refreshingId,
+    onRefreshFileSizes,
+    isRefreshingFileSizes,
     onUpdateVideo
 }) => {
     const { t } = useLanguage();
@@ -302,13 +306,33 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>
-                                    <TableSortLabel
-                                        active={orderBy === 'fileSize'}
-                                        direction={orderBy === 'fileSize' ? order : 'asc'}
-                                        onClick={() => onSort('fileSize')}
-                                    >
-                                        {t('size')}
-                                    </TableSortLabel>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        {!isVisitor && (
+                                            <Tooltip title={t('refresh') || 'Refresh'} disableHoverListener={isTouch}>
+                                                <span>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={onRefreshFileSizes}
+                                                        disabled={isRefreshingFileSizes}
+                                                        aria-label="Refresh all file sizes"
+                                                    >
+                                                        {isRefreshingFileSizes ? (
+                                                            <CircularProgress size={16} />
+                                                        ) : (
+                                                            <Refresh sx={{ fontSize: 18 }} />
+                                                        )}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        )}
+                                        <TableSortLabel
+                                            active={orderBy === 'fileSize'}
+                                            direction={orderBy === 'fileSize' ? order : 'asc'}
+                                            onClick={() => onSort('fileSize')}
+                                        >
+                                            {t('size')}
+                                        </TableSortLabel>
+                                    </Box>
                                 </TableCell>
                                 {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                             </TableRow>

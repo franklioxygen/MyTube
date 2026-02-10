@@ -341,6 +341,10 @@ export const pt = {
   actions: "Ações",
   deleteCollection: "Excluir Coleção",
   deleteVideo: "Excluir Vídeo",
+  refreshFileSizesSuccess: "Tamanhos de arquivo atualizados. {count} vídeos atualizados.",
+  refreshFileSizesFailed: " {count} falhas.",
+  refreshFileSizesSkipped: " {count} inalterados ou indisponíveis.",
+  refreshFileSizesError: "Falha ao atualizar tamanhos de arquivo: {error}",
   noVideosFoundMatching:
     "Nenhum vídeo encontrado correspondente à sua pesquisa.",
   refreshThumbnail: "Atualizar miniatura",

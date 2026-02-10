@@ -7,6 +7,12 @@ import { videos } from "../db/schema";
 import { ExecutionError, FileError } from "../errors/DownloadErrors";
 import { execFileSafe, validateVideoPath } from "../utils/security";
 
+const TEMPORARY_VIDEO_ARTIFACT_PATTERN = /(\.temp\.)|(\.part$)|(\.ytdl$)|(\.f\d+\.)/i;
+
+const isTemporaryVideoArtifact = (filePath: string): boolean => {
+  return TEMPORARY_VIDEO_ARTIFACT_PATTERN.test(path.basename(filePath));
+};
+
 export const getVideoDuration = async (
   filePath: string,
 ): Promise<number | null> => {
@@ -76,6 +82,10 @@ export const backfillDurations = async () => {
 
       if (!fs.existsSync(fsPath)) {
         // console.warn(`File not found: ${fsPath}`); // Reduce noise
+        continue;
+      }
+
+      if (isTemporaryVideoArtifact(fsPath)) {
         continue;
       }
 

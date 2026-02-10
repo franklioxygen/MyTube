@@ -150,6 +150,105 @@ export const refreshThumbnail = async (
   });
 };
 
+const resolveVideoPathForFileSize = (
+  video: storageService.Video
+): string | null => {
+  if (video.videoPath?.startsWith("cloud:")) {
+    return null;
+  }
+
+  if (video.videoPath?.startsWith("mount:")) {
+    const rawPath = video.videoPath.substring(6);
+    if (
+      !rawPath ||
+      !path.isAbsolute(rawPath) ||
+      rawPath.includes("..") ||
+      rawPath.includes("\0")
+    ) {
+      return null;
+    }
+
+    return path.resolve(path.normalize(rawPath));
+  }
+
+  if (video.videoPath?.startsWith("/videos/")) {
+    const relativePath = video.videoPath.replace(/^\/videos\//, "");
+    const localPath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
+    return validateVideoPath(localPath);
+  }
+
+  if (video.videoFilename) {
+    const localPath = path.join(VIDEOS_DIR, video.videoFilename);
+    return validateVideoPath(localPath);
+  }
+
+  return null;
+};
+
+/**
+ * Refresh all video file sizes from disk
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const refreshAllFileSizes = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const videos = storageService.getVideos();
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+
+  for (const video of videos) {
+    let resolvedPath: string | null = null;
+
+    try {
+      resolvedPath = resolveVideoPathForFileSize(video);
+    } catch (error) {
+      logger.warn(`Skipping invalid video path for ${video.id}`, error);
+      skippedCount += 1;
+      continue;
+    }
+
+    if (!resolvedPath) {
+      skippedCount += 1;
+      continue;
+    }
+
+    try {
+      const exists = await fs.pathExists(resolvedPath);
+      if (!exists) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const stats = await fs.stat(resolvedPath);
+      if (!stats.isFile()) {
+        skippedCount += 1;
+        continue;
+      }
+
+      const latestFileSize = stats.size.toString();
+      if (video.fileSize !== latestFileSize) {
+        storageService.updateVideo(video.id, { fileSize: latestFileSize });
+        updatedCount += 1;
+      } else {
+        skippedCount += 1;
+      }
+    } catch (error) {
+      failedCount += 1;
+      logger.warn(`Failed to refresh file size for video ${video.id}`, error);
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    totalCount: videos.length,
+    updatedCount,
+    skippedCount,
+    failedCount,
+  });
+};
+
 /**
  * Increment view count
  * Errors are automatically handled by asyncHandler middleware

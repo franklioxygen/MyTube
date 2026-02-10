@@ -54,6 +54,8 @@ describe('VideosTable', () => {
         deletingId: null,
         onRefreshThumbnail: vi.fn(),
         refreshingId: null,
+        onRefreshFileSizes: vi.fn(),
+        isRefreshingFileSizes: false,
         onUpdateVideo: vi.fn(),
     };
 
@@ -103,6 +105,17 @@ describe('VideosTable', () => {
         // Let's import within.
     });
 
+    it('should call onRefreshFileSizes when file size refresh button clicked', () => {
+        render(
+            <BrowserRouter>
+                <VideosTable {...defaultProps} />
+            </BrowserRouter>
+        );
+
+        fireEvent.click(screen.getByLabelText('Refresh all file sizes'));
+        expect(defaultProps.onRefreshFileSizes).toHaveBeenCalledTimes(1);
+    });
+
     it('should handle inline editing cancellation', async () => {
         render(
             <BrowserRouter>
@@ -120,5 +133,4 @@ describe('VideosTable', () => {
         expect(screen.getByText(/videos.*\(2\).*3.*KB/i)).toBeInTheDocument();
     });
 });
-
 
