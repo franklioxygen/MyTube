@@ -1,7 +1,7 @@
 # Change Log
 
 
-## Unreleased (2026-02-10)
+## v1.8.2 (2026-02-10)
 
 ### Refactor
 

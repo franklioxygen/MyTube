@@ -1,8 +1,8 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FileError } from '../../errors/DownloadErrors';
 import { SUBTITLES_DIR, VIDEOS_DIR } from '../../config/paths';
+import { FileError } from '../../errors/DownloadErrors';
 import * as storageService from '../../services/storageService';
 import { moveAllSubtitles } from '../../services/subtitleService';
 
@@ -23,6 +23,7 @@ vi.mock('../../services/storageService');
 vi.mock('../../config/paths', () => ({
   SUBTITLES_DIR: '/test/subtitles',
   VIDEOS_DIR: '/test/videos',
+  IMAGES_DIR: '/test/images',
   DATA_DIR: '/test/data',
 }));
 

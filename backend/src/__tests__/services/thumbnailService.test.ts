@@ -22,6 +22,7 @@ vi.mock('../../services/storageService');
 vi.mock('../../config/paths', () => ({
   IMAGES_DIR: '/test/images',
   VIDEOS_DIR: '/test/videos',
+  SUBTITLES_DIR: '/test/subtitles',
   DATA_DIR: '/test/data',
 }));
 
