@@ -7,10 +7,17 @@ import { reinitializeDatabase as reinitDb, sqlite } from "../db";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { generateTimestamp } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { resolveSafePath, resolveSafePathInDirectories } from "../utils/security";
+import {
+  isPathWithinDirectories,
+  isPathWithinDirectory,
+  resolveSafePath,
+} from "../utils/security";
 const dbPath = path.join(DATA_DIR, "mytube.db");
 const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
 const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
+const RESOLVED_TEMP_UPLOAD_DIRS = TEMP_UPLOAD_DIRS.map((dir) => path.resolve(dir));
+const RESOLVED_DATA_DIR = path.resolve(DATA_DIR);
+const RESOLVED_DB_PATH = path.resolve(dbPath);
 
 /**
  * Validate that a file is a valid SQLite database
@@ -78,13 +85,21 @@ function getBackupFiles(): Array<{
 function createBackup(): string {
   const backupFilename = `mytube-backup-${generateTimestamp()}.db.backup`;
   const backupPath = resolveSafePath(path.join(DATA_DIR, backupFilename), DATA_DIR);
-
-  if (fs.existsSync(dbPath)) {
-    fs.copyFileSync(dbPath, backupPath);
-    logger.info(`Created backup of current database at ${backupPath}`);
+  const resolvedBackupPath = path.resolve(backupPath);
+  const isSafeBackupPath = isPathWithinDirectory(
+    resolvedBackupPath,
+    RESOLVED_DATA_DIR,
+  );
+  if (!isSafeBackupPath) {
+    throw new ValidationError("Invalid backup file path", "file");
   }
 
-  return backupPath;
+  if (fs.existsSync(dbPath)) {
+    fs.copyFileSync(RESOLVED_DB_PATH, resolvedBackupPath);
+    logger.info(`Created backup of current database at ${resolvedBackupPath}`);
+  }
+
+  return resolvedBackupPath;
 }
 
 /**
@@ -113,13 +128,21 @@ export function exportDatabase(): string {
  * @param tempFilePath - Path to the temporary uploaded file
  */
 export function importDatabase(tempFilePath: string): void {
-  const safeTempFilePath = resolveSafePathInDirectories(
-    tempFilePath,
-    TEMP_UPLOAD_DIRS
+  const resolvedTempPath = path.resolve(tempFilePath);
+  const isAllowedTempPath = isPathWithinDirectories(
+    resolvedTempPath,
+    RESOLVED_TEMP_UPLOAD_DIRS,
   );
+  if (!isAllowedTempPath) {
+    throw new ValidationError("Invalid temporary database file path", "file");
+  }
+  const isSafeDbPath = isPathWithinDirectory(RESOLVED_DB_PATH, RESOLVED_DATA_DIR);
+  if (!isSafeDbPath) {
+    throw new ValidationError("Invalid database path", "file");
+  }
 
   // Validate the uploaded file is a valid SQLite database
-  validateDatabase(safeTempFilePath);
+  validateDatabase(resolvedTempPath);
 
   // Create backup of current database before import
   const backupPath = createBackup();
@@ -130,21 +153,29 @@ export function importDatabase(tempFilePath: string): void {
     logger.info("Closed current database connection for import");
 
     // Simply copy the uploaded file to replace the database
-    fs.copyFileSync(safeTempFilePath, dbPath);
+    fs.copyFileSync(resolvedTempPath, RESOLVED_DB_PATH);
     logger.info(`Database file replaced successfully`);
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
 
     // Clean up uploaded temp file
-    if (fs.existsSync(safeTempFilePath)) {
-      fs.unlinkSync(safeTempFilePath);
+    if (fs.existsSync(resolvedTempPath)) {
+      fs.unlinkSync(resolvedTempPath);
     }
   } catch (error: any) {
     // Restore backup if import failed
     if (fs.existsSync(backupPath)) {
       try {
-        fs.copyFileSync(backupPath, dbPath);
+        const resolvedBackupPath = path.resolve(backupPath);
+        const isSafeBackupPath = isPathWithinDirectory(
+          resolvedBackupPath,
+          RESOLVED_DATA_DIR,
+        );
+        if (!isSafeBackupPath) {
+          throw new ValidationError("Invalid backup file path", "file");
+        }
+        fs.copyFileSync(resolvedBackupPath, RESOLVED_DB_PATH);
         logger.info("Restored database from backup after failed import");
       } catch (restoreError) {
         logger.error("Failed to restore database from backup:", restoreError);
@@ -152,9 +183,9 @@ export function importDatabase(tempFilePath: string): void {
     }
 
     // Clean up uploaded temp file if it exists
-    if (fs.existsSync(safeTempFilePath)) {
+    if (fs.existsSync(resolvedTempPath)) {
       try {
-        fs.unlinkSync(safeTempFilePath);
+        fs.unlinkSync(resolvedTempPath);
       } catch (e) {
         logger.error("Error cleaning up temp file:", e);
       }
@@ -207,9 +238,17 @@ export function restoreFromLastBackup(): void {
 
   const lastBackup = backupFiles[0];
   const backupPath = lastBackup.filePath;
+  const resolvedBackupPath = path.resolve(backupPath);
+  const isSafeBackupPath = isPathWithinDirectory(
+    resolvedBackupPath,
+    RESOLVED_DATA_DIR,
+  );
+  if (!isSafeBackupPath) {
+    throw new ValidationError("Invalid backup file path", "file");
+  }
 
   // Validate the backup file is a valid SQLite database
-  validateDatabase(backupPath);
+  validateDatabase(resolvedBackupPath);
 
   // Create backup of current database before restore
   createBackup();
@@ -219,7 +258,7 @@ export function restoreFromLastBackup(): void {
   logger.info("Closed current database connection for restore");
 
   // Copy the backup file to replace the database
-  fs.copyFileSync(backupPath, dbPath);
+  fs.copyFileSync(resolvedBackupPath, RESOLVED_DB_PATH);
   logger.info(
     `Database file restored successfully from ${lastBackup.filename}`
   );

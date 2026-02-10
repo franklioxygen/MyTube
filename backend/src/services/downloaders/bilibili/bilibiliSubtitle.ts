@@ -6,8 +6,8 @@ import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
+  isPathWithinDirectories,
   resolveSafePath,
-  resolveSafePathInDirectories,
 } from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
 
@@ -102,11 +102,16 @@ export async function downloadSubtitles(
     const savedSubtitles = [];
 
     // Ensure subtitles directory exists
-    const safeSubtitleDir = resolveSafePathInDirectories(subtitleDir, [
-      SUBTITLES_DIR,
-      VIDEOS_DIR,
-    ]);
-    fs.ensureDirSync(safeSubtitleDir);
+    const resolvedSubtitleDir = path.resolve(subtitleDir);
+    const allowedSubtitleDirs = [path.resolve(SUBTITLES_DIR), path.resolve(VIDEOS_DIR)];
+    const isAllowedSubtitleDir = isPathWithinDirectories(
+      resolvedSubtitleDir,
+      allowedSubtitleDirs,
+    );
+    if (!isAllowedSubtitleDir) {
+      throw new Error("Invalid subtitle directory path");
+    }
+    fs.ensureDirSync(resolvedSubtitleDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
     for (const sub of subtitlesData) {
@@ -140,8 +145,8 @@ export async function downloadSubtitles(
         if (vttContent) {
           const subFilename = `${baseFilename}.${lang}.vtt`;
           const subPath = resolveSafePath(
-            path.join(safeSubtitleDir, subFilename),
-            safeSubtitleDir
+            path.join(resolvedSubtitleDir, subFilename),
+            resolvedSubtitleDir
           );
 
           fs.writeFileSync(subPath, vttContent);

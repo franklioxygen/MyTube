@@ -4,26 +4,25 @@
  * Script to directly reset password and enable password login in the database
  * 
  * Usage:
- *   npm run reset-password [new-password]
+ *   npm run reset-password <new-password>
  *   or
- *   ts-node scripts/reset-password.ts [new-password]
- * 
- * If no password is provided, a random 8-character password will be generated.
+ *   ts-node scripts/reset-password.ts <new-password>
+ *
+ * A password argument is required. This script does not generate or print
+ * passwords to avoid clear-text credential exposure in logs/terminals.
  * The script will:
  *   1. Hash the password using bcrypt
  *   2. Update the password in the settings table
  *   3. Set passwordLoginAllowed to true
  *   4. Set loginEnabled to true
- *   5. Display the new password (if generated)
+ *   5. Never display the password value
  * 
  * Examples:
- *   npm run reset-password                    # Generate random password
  *   npm run reset-password mynewpassword123   # Set specific password
  */
 
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import dotenv from "dotenv";
@@ -58,15 +57,6 @@ function configureDatabase(db: Database.Database): void {
 }
 
 /**
- * Generate a random password
- */
-function generateRandomPassword(length: number = 8): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const randomBytes = crypto.randomBytes(length);
-  return Array.from(randomBytes, (byte) => chars.charAt(byte % chars.length)).join("");
-}
-
-/**
  * Hash a password using bcrypt
  */
 async function hashPassword(password: string): Promise<string> {
@@ -77,7 +67,7 @@ async function hashPassword(password: string): Promise<string> {
 /**
  * Main function to reset password and enable password login
  */
-async function resetPassword(newPassword?: string): Promise<void> {
+async function resetPassword(newPassword: string): Promise<void> {
   // Check if database exists
   if (!fs.existsSync(dbPath)) {
     console.error(`Error: Database not found at ${dbPath}`);
@@ -85,9 +75,7 @@ async function resetPassword(newPassword?: string): Promise<void> {
     process.exit(1);
   }
 
-  // Generate password if not provided
-  const password = newPassword || generateRandomPassword(8);
-  const isGenerated = !newPassword;
+  const password = newPassword;
 
   // Hash the password
   console.log("Hashing password...");
@@ -127,15 +115,7 @@ async function resetPassword(newPassword?: string): Promise<void> {
     console.log("✓ Password login enabled");
     console.log("✓ Login enabled");
 
-    if (isGenerated) {
-      console.log("\n" + "=".repeat(50));
-      console.log("NEW PASSWORD (save this securely):");
-      console.log(password);
-      console.log("=".repeat(50));
-      console.log("\n⚠️  This password will not be shown again!");
-    } else {
-      console.log("\n✓ Password has been set to the provided value");
-    }
+    console.log("\n✓ Password has been set to the provided value");
   } catch (error) {
     console.error("Error updating database:", error);
     process.exit(1);
@@ -147,6 +127,12 @@ async function resetPassword(newPassword?: string): Promise<void> {
 // Parse command line arguments
 const args = process.argv.slice(2);
 const providedPassword = args[0];
+
+if (!providedPassword) {
+  console.error("Error: Missing password argument.");
+  console.error("Usage: npm run reset-password <new-password>");
+  process.exit(1);
+}
 
 // Run the script
 resetPassword(providedPassword).catch((error) => {

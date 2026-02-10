@@ -100,6 +100,20 @@ export class Logger {
     });
   }
 
+  private formatArg(arg: unknown): string {
+    if (typeof arg === "string") {
+      return arg;
+    }
+    if (arg === null || arg === undefined) {
+      return String(arg);
+    }
+    try {
+      return JSON.stringify(arg);
+    } catch {
+      return String(arg);
+    }
+  }
+
   /**
    * Log debug messages (most verbose)
    */
@@ -116,9 +130,14 @@ export class Logger {
    */
   info(message: string, ...args: any[]): void {
     if (this.level <= LogLevel.INFO) {
+      const timestamp = this.formatTimestamp();
       const sanitizedMessage = redactSensitive(sanitizeLogMessage(message));
       const sanitizedArgs = this.sanitizeArgs(args);
-      console.log(`[${this.formatTimestamp()}] [INFO]`, sanitizedMessage, ...sanitizedArgs);
+      const serializedArgs = sanitizedArgs.map((arg) => this.formatArg(arg));
+      const line = [`[${timestamp}] [INFO]`, sanitizedMessage, ...serializedArgs]
+        .join(" ")
+        .trim();
+      process.stdout.write(`${line}\n`);
     }
   }
 

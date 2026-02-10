@@ -9,7 +9,34 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
 
 const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_do_not_use_in_production";
 const JWT_EXPIRES_IN = "24h";
-const COOKIE_NAME = "mytube_auth_token";
+const SESSION_COOKIE_NAME = "mytube_auth_session";
+const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface AuthSession {
+  payload: UserPayload;
+  expiresAt: number;
+}
+
+const authSessions = new Map<string, AuthSession>();
+
+function pruneExpiredSessions(): void {
+  const now = Date.now();
+  for (const [sessionId, session] of authSessions.entries()) {
+    if (session.expiresAt <= now) {
+      authSessions.delete(sessionId);
+    }
+  }
+}
+
+function createSession(payload: UserPayload): string {
+  pruneExpiredSessions();
+  const sessionId = uuidv4();
+  authSessions.set(sessionId, {
+    payload,
+    expiresAt: Date.now() + SESSION_MAX_AGE_MS,
+  });
+  return sessionId;
+}
 
 export interface UserPayload {
   role: "admin" | "visitor";
@@ -38,37 +65,38 @@ export const verifyToken = (token: string): UserPayload | null => {
 };
 
 /**
- * Set HTTP-only cookie with authentication token
- * This is more secure than storing tokens in localStorage as it's not accessible to JavaScript
+ * Resolve a session cookie to a user payload.
+ */
+export const getUserPayloadFromSession = (
+  sessionId: string,
+): UserPayload | null => {
+  if (!sessionId) {
+    return null;
+  }
+
+  pruneExpiredSessions();
+  const session = authSessions.get(sessionId);
+  if (!session) {
+    return null;
+  }
+
+  return session.payload;
+};
+
+/**
+ * Set HTTP-only cookie with opaque server-side session id
+ * This avoids storing sensitive auth material in clear-text client cookies.
  */
 export const setAuthCookie = (res: Response, token: string, role: "admin" | "visitor"): void => {
-  // Calculate expiration time (24 hours in milliseconds)
-  const maxAge = 24 * 60 * 60 * 1000;
-  
-  // Set HTTP-only cookie (not accessible to JavaScript, preventing XSS attacks)
-  // SameSite=Lax allows for better usability while maintaining CSRF protection
-  // Secure flag is optional (env var) to allow potential HTTP usage in private networks
-  // Note: The token is a JWT (JSON Web Token) which is designed to be transmitted and stored.
-  // JWT tokens are signed and contain user role information, but are not considered sensitive
-  // in the same way as passwords. Passwords are hashed using bcrypt and never stored in plain text.
+  const payload = verifyToken(token) ?? { role, id: uuidv4() };
+  const sessionId = createSession(payload);
   const isSecure = process.env.SECURE_COOKIES === "true";
-  
-  res.cookie(COOKIE_NAME, token, {
+
+  res.cookie(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true, // Not accessible to JavaScript, preventing XSS attacks
     secure: isSecure, // Only sent over HTTPS if explicitly configured
     sameSite: "lax", // Better persistence across navigations
-    maxAge: maxAge, // 24 hours
-    path: "/", // Available for all paths
-  });
-  
-  // Also set role in a separate cookie (non-HTTP-only for frontend to read)
-  // Note: This cookie is not sensitive (only contains role: "admin" or "visitor")
-  // and is needed by the frontend for UI rendering. The role value is not sensitive data.
-  res.cookie("mytube_role", role, {
-    httpOnly: false, // Frontend needs to read this for UI rendering
-    secure: isSecure,
-    sameSite: "lax",
-    maxAge: maxAge,
+    maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   });
 };
@@ -77,23 +105,25 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
  * Clear authentication cookies
  */
 export const clearAuthCookie = (res: Response): void => {
-  res.clearCookie(COOKIE_NAME, {
+  const isSecure = process.env.SECURE_COOKIES === "true";
+  res.clearCookie(SESSION_COOKIE_NAME, {
     httpOnly: true,
-    secure: process.env.SECURE_COOKIES === "true",
+    secure: isSecure,
     sameSite: "lax",
     path: "/",
   });
+  // Legacy cleanup for older clients.
   res.clearCookie("mytube_role", {
     httpOnly: false,
-    secure: process.env.SECURE_COOKIES === "true",
+    secure: isSecure,
     sameSite: "lax",
     path: "/",
   });
 };
 
 /**
- * Get cookie name for authentication token
+ * Get cookie name for authentication session id
  */
 export const getAuthCookieName = (): string => {
-  return COOKIE_NAME;
+  return SESSION_COOKIE_NAME;
 };

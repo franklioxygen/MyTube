@@ -7,6 +7,48 @@ import {
 } from "../config/paths";
 
 /**
+ * Checks if a path is inside (or equal to) an allowed directory.
+ * Both inputs are resolved before comparison.
+ */
+export function isPathWithinDirectory(
+  pathToCheck: string,
+  allowedDir: string,
+): boolean {
+  if (
+    !pathToCheck ||
+    typeof pathToCheck !== "string" ||
+    !allowedDir ||
+    typeof allowedDir !== "string"
+  ) {
+    return false;
+  }
+
+  const resolvedPath = path.resolve(pathToCheck);
+  const resolvedAllowedDir = path.resolve(allowedDir);
+  return (
+    resolvedPath === resolvedAllowedDir ||
+    resolvedPath.startsWith(`${resolvedAllowedDir}${path.sep}`)
+  );
+}
+
+/**
+ * Checks if a path is inside at least one allowed directory.
+ */
+export function isPathWithinDirectories(
+  pathToCheck: string,
+  allowedDirs: readonly string[],
+): boolean {
+  if (!Array.isArray(allowedDirs) || allowedDirs.length === 0) {
+    return false;
+  }
+
+  const resolvedPath = path.resolve(pathToCheck);
+  return allowedDirs.some((allowedDir) =>
+    isPathWithinDirectory(resolvedPath, allowedDir),
+  );
+}
+
+/**
  * Validates that a file path is within an allowed directory
  * Prevents path traversal attacks
  */
@@ -379,6 +421,32 @@ export function validateUrlWithAllowlist(
   }
 
   return url;
+}
+
+/**
+ * Builds a normalized http/https URL string after allow-list validation.
+ * Result intentionally excludes credentials and explicit ports.
+ */
+export function buildAllowlistedHttpUrl(
+  url: string,
+  allowedHostnames: readonly string[],
+): string {
+  const validatedUrl = validateUrlWithAllowlist(url, allowedHostnames);
+  const parsedUrl = new URL(validatedUrl);
+
+  if (!isHostnameAllowed(parsedUrl.hostname, allowedHostnames)) {
+    throw new Error(
+      `SSRF protection: Hostname ${parsedUrl.hostname} is not in the allow-list.`,
+    );
+  }
+
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
 }
 
 /**

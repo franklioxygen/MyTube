@@ -9,8 +9,7 @@ import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
-  isHostnameAllowed,
-  validateUrlWithAllowlist,
+  buildAllowlistedHttpUrl,
 } from "../../utils/security";
 import {
   flagsToArgs,
@@ -38,22 +37,7 @@ const ALLOWED_MISSAV_HOSTNAMES = [
 ] as const;
 
 function buildSafeMissAvRequestUrl(url: string): string {
-  const validatedUrl = validateUrlWithAllowlist(url, ALLOWED_MISSAV_HOSTNAMES);
-  const parsedUrl = new URL(validatedUrl);
-
-  if (!isHostnameAllowed(parsedUrl.hostname, ALLOWED_MISSAV_HOSTNAMES)) {
-    throw new Error(
-      `SSRF protection: Hostname ${parsedUrl.hostname} is not allowed for MissAV requests.`,
-    );
-  }
-
-  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
-    throw new Error(
-      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
-    );
-  }
-
-  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
+  return buildAllowlistedHttpUrl(url, ALLOWED_MISSAV_HOSTNAMES);
 }
 
 export class MissAVDownloader extends BaseDownloader {
@@ -85,7 +69,23 @@ export class MissAVDownloader extends BaseDownloader {
       });
       const page = await browser.newPage();
 
-      await page.goto(safeRequestUrl, {
+      const gotoUrl = new URL(safeRequestUrl);
+      const normalizedHostname = gotoUrl.hostname.toLowerCase();
+      const isAllowedHostname = ALLOWED_MISSAV_HOSTNAMES.some(
+        (allowed) =>
+          normalizedHostname === allowed ||
+          normalizedHostname.endsWith(`.${allowed}`),
+      );
+      if (
+        !isAllowedHostname ||
+        gotoUrl.username ||
+        gotoUrl.password ||
+        gotoUrl.port
+      ) {
+        throw new Error("SSRF protection: blocked unsafe navigation URL.");
+      }
+
+      await page.goto(gotoUrl.toString(), {
         waitUntil: "networkidle2",
         timeout: 60000,
       });
@@ -188,7 +188,23 @@ export class MissAVDownloader extends BaseDownloader {
       });
 
       logger.info("Navigating to:", safeRequestUrl);
-      await page.goto(safeRequestUrl, {
+      const gotoUrl = new URL(safeRequestUrl);
+      const normalizedHostname = gotoUrl.hostname.toLowerCase();
+      const isAllowedHostname = ALLOWED_MISSAV_HOSTNAMES.some(
+        (allowed) =>
+          normalizedHostname === allowed ||
+          normalizedHostname.endsWith(`.${allowed}`),
+      );
+      if (
+        !isAllowedHostname ||
+        gotoUrl.username ||
+        gotoUrl.password ||
+        gotoUrl.port
+      ) {
+        throw new Error("SSRF protection: blocked unsafe navigation URL.");
+      }
+
+      await page.goto(gotoUrl.toString(), {
         waitUntil: "networkidle2",
         timeout: 60000,
       });

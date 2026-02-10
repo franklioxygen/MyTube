@@ -1,32 +1,13 @@
 import axios from "axios";
 import { logger } from "../../../utils/logger";
 import {
-  isHostnameAllowed,
-  validateUrlWithAllowlist,
+  buildAllowlistedHttpUrl,
 } from "../../../utils/security";
 
 const ALLOWED_XIAOHONGSHU_HOSTNAMES = ["xiaohongshu.com", "xhslink.com"] as const;
 
 function buildSafeXiaoHongShuRequestUrl(url: string): string {
-  const validatedUrl = validateUrlWithAllowlist(
-    url,
-    ALLOWED_XIAOHONGSHU_HOSTNAMES,
-  );
-  const parsedUrl = new URL(validatedUrl);
-
-  if (!isHostnameAllowed(parsedUrl.hostname, ALLOWED_XIAOHONGSHU_HOSTNAMES)) {
-    throw new Error(
-      `SSRF protection: Hostname ${parsedUrl.hostname} is not allowed for XiaoHongShu requests.`,
-    );
-  }
-
-  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
-    throw new Error(
-      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
-    );
-  }
-
-  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
+  return buildAllowlistedHttpUrl(url, ALLOWED_XIAOHONGSHU_HOSTNAMES);
 }
 
 /**
@@ -37,9 +18,25 @@ export async function extractXiaoHongShuAuthor(
 ): Promise<string | null> {
   try {
     const safeRequestUrl = buildSafeXiaoHongShuRequestUrl(url);
-    
+
+    const requestUrl = new URL(safeRequestUrl);
+    const normalizedHostname = requestUrl.hostname.toLowerCase();
+    const isAllowedHostname = ALLOWED_XIAOHONGSHU_HOSTNAMES.some(
+      (allowed) =>
+        normalizedHostname === allowed ||
+        normalizedHostname.endsWith(`.${allowed}`),
+    );
+    if (
+      !isAllowedHostname ||
+      requestUrl.username ||
+      requestUrl.password ||
+      requestUrl.port
+    ) {
+      throw new Error("SSRF protection: blocked unsafe XiaoHongShu URL.");
+    }
+
     logger.info("Attempting to extract XiaoHongShu author from webpage...");
-    const response = await axios.get(safeRequestUrl, {
+    const response = await axios.get(requestUrl.toString(), {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

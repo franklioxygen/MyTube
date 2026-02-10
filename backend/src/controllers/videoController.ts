@@ -11,8 +11,8 @@ import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
+  isPathWithinDirectories,
   resolveSafePath,
-  resolveSafePathInDirectories,
   sanitizePathSegment,
 } from "../utils/security";
 
@@ -537,16 +537,19 @@ export const uploadSubtitle = async (
 
   // Find the video first
   const video = storageService.getVideoById(id);
+  const allowedUploadDirs = [
+    path.resolve(SUBTITLES_DIR),
+    path.resolve(VIDEOS_DIR),
+    path.resolve("/tmp"),
+  ];
+  const isAllowedUploadPath = (candidatePath: string): boolean =>
+    isPathWithinDirectories(candidatePath, allowedUploadDirs);
   if (!video) {
     // Clean up the uploaded file if video doesn't exist
     if (req.file) {
       try {
-        const safeUploadedPath = resolveSafePathInDirectories(req.file.path, [
-          SUBTITLES_DIR,
-          VIDEOS_DIR,
-          "/tmp",
-        ]);
-        if (fs.existsSync(safeUploadedPath)) {
+        const safeUploadedPath = path.resolve(req.file.path);
+        if (isAllowedUploadPath(safeUploadedPath) && fs.existsSync(safeUploadedPath)) {
           fs.unlinkSync(safeUploadedPath);
         }
       } catch {
@@ -556,11 +559,11 @@ export const uploadSubtitle = async (
     throw new NotFoundError("Video", id);
   }
 
-  let sourcePath = resolveSafePathInDirectories(req.file.path, [
-    SUBTITLES_DIR,
-    VIDEOS_DIR,
-    "/tmp",
-  ]);
+  let sourcePath = path.resolve(req.file.path);
+  const isAllowedSourcePath = isAllowedUploadPath(sourcePath);
+  if (!isAllowedSourcePath) {
+    throw new ValidationError("Invalid subtitle file path", "file");
+  }
   let filename = path.basename(req.file.filename);
 
   // Convert ASS/SSA to VTT for HTML5 <track> playback (browsers don't support ASS natively)
@@ -576,6 +579,11 @@ export const uploadSubtitle = async (
     const vttFilename = `${path.parse(filename).name}.vtt`;
     const vttPath = resolveSafePath(path.join(sourceDir, vttFilename), sourceDir);
     try {
+      const isAllowedConversionSource = isAllowedUploadPath(sourcePath);
+      if (!isAllowedConversionSource) {
+        throw new ValidationError("Invalid subtitle file path", "file");
+      }
+
       await new Promise<void>((resolve, reject) => {
         const readStream = fs.createReadStream(sourcePath);
         const writeStream = fs.createWriteStream(vttPath);
@@ -626,6 +634,11 @@ export const uploadSubtitle = async (
   try {
     if (moveSubtitlesToVideoFolder) {
       // Move to VIDEO folder: uploads/videos/Collection/filename
+      const isAllowedMoveSource = isAllowedUploadPath(sourcePath);
+      if (!isAllowedMoveSource) {
+        throw new ValidationError("Invalid subtitle source path", "file");
+      }
+
       const videoDir = relativeVideoDir
         ? resolveSafePath(path.join(VIDEOS_DIR, relativeVideoDir), VIDEOS_DIR)
         : VIDEOS_DIR;
@@ -645,6 +658,11 @@ export const uploadSubtitle = async (
       // Move to SUBTITLE folder: uploads/subtitles/Collection/filename (Mirroring)
       // If relativeVideoDir exists, move it into that subfolder in subtitles
       if (relativeVideoDir) {
+        const isAllowedMoveSource = isAllowedUploadPath(sourcePath);
+        if (!isAllowedMoveSource) {
+          throw new ValidationError("Invalid subtitle source path", "file");
+        }
+
         const targetDir = resolveSafePath(
           path.join(SUBTITLES_DIR, relativeVideoDir),
           SUBTITLES_DIR

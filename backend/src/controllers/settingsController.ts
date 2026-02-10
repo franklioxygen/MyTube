@@ -20,7 +20,7 @@ import { logger } from "../utils/logger";
  * Note: Returns data directly for backward compatibility with frontend
  */
 export const getSettings = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
   const settings = storageService.getSettings();
@@ -43,6 +43,7 @@ export const getSettings = async (
     ...safeSettings,
     isPasswordSet: !!password,
     isVisitorPasswordSet: !!visitorPassword,
+    authenticatedRole: req.user?.role ?? null,
   });
 };
 

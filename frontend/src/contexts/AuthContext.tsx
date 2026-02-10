@@ -26,31 +26,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 // Check if login is enabled in settings
                 const response = await api.get('/settings');
-                const { loginEnabled, isPasswordSet } = response.data;
+                const { loginEnabled, isPasswordSet, authenticatedRole } = response.data;
 
                 // Login is required if loginEnabled is true (regardless of password or passkey)
                 if (!loginEnabled || !isPasswordSet) {
                     setLoginRequired(false);
                     setIsAuthenticated(true);
+                    setUserRole(authenticatedRole === 'admin' || authenticatedRole === 'visitor' ? authenticatedRole : null);
                 } else {
                     setLoginRequired(true);
-                    // Check if already authenticated via HTTP-only cookie
-                    // Read role from cookie (non-HTTP-only cookie set by backend)
-                    const roleCookie = document.cookie
-                        .split('; ')
-                        .find(row => row.startsWith('mytube_role='));
-
-                    if (roleCookie) {
-                        const role = roleCookie.split('=')[1] as 'admin' | 'visitor';
-                        if (role === 'admin' || role === 'visitor') {
-                            setIsAuthenticated(true);
-                            setUserRole(role);
-                        } else {
-                            setIsAuthenticated(false);
-                            setUserRole(null);
-                        }
+                    if (authenticatedRole === 'admin' || authenticatedRole === 'visitor') {
+                        setIsAuthenticated(true);
+                        setUserRole(authenticatedRole);
                     } else {
-                        // No role cookie means not authenticated
                         setIsAuthenticated(false);
                         setUserRole(null);
                     }
@@ -64,29 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setUserRole(null);
                     return null;
                 }
-                // Handle 429 errors (rate limited) - use cached cookie state if available
+                // Handle 429 errors (rate limited) without overriding current auth state
                 if (error?.response?.status === 429) {
-                    // Check cookie to determine auth state without making another request
-                    const roleCookie = document.cookie
-                        .split('; ')
-                        .find(row => row.startsWith('mytube_role='));
-
-                    if (roleCookie) {
-                        const role = roleCookie.split('=')[1] as 'admin' | 'visitor';
-                        if (role === 'admin' || role === 'visitor') {
-                            setIsAuthenticated(true);
-                            setUserRole(role);
-                            setLoginRequired(true);
-                        } else {
-                            setIsAuthenticated(false);
-                            setUserRole(null);
-                            setLoginRequired(true);
-                        }
-                    } else {
-                        setIsAuthenticated(false);
-                        setUserRole(null);
-                        setLoginRequired(true);
-                    }
+                    setLoginRequired(true);
                     return null;
                 }
                 // For other errors, log but don't break the flow
@@ -121,10 +89,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Clear local state immediately
         setIsAuthenticated(false);
         setUserRole(null);
-
-        // Clear role cookie from frontend (it's not HTTP-only, so we can clear it)
-        // This prevents the auth check from seeing the cookie before backend clears it
-        document.cookie = 'mytube_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 
         try {
             // Call backend logout endpoint to clear HTTP-only cookies

@@ -4,10 +4,11 @@ import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
-import { resolveSafePathInDirectories } from "../utils/security";
+import { isPathWithinDirectories } from "../utils/security";
 
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 const TEMP_UPLOAD_DIRS = [os.tmpdir(), "/tmp"];
+const RESOLVED_TEMP_UPLOAD_DIRS = TEMP_UPLOAD_DIRS.map((dir) => path.resolve(dir));
 
 /**
  * Check if cookies file exists
@@ -22,23 +23,30 @@ export function checkCookies(): { exists: boolean } {
  */
 export function uploadCookies(tempFilePath: string): void {
   try {
-    const safeTempFilePath = resolveSafePathInDirectories(
-      tempFilePath,
-      TEMP_UPLOAD_DIRS
+    const resolvedTempPath = path.resolve(tempFilePath);
+    const isAllowedTempPath = isPathWithinDirectories(
+      resolvedTempPath,
+      RESOLVED_TEMP_UPLOAD_DIRS,
     );
+    if (!isAllowedTempPath) {
+      throw new ValidationError("Invalid temp file path", "file");
+    }
+
+    const targetPath = path.resolve(COOKIES_PATH);
 
     // Move the file to the target location
-    fs.moveSync(safeTempFilePath, COOKIES_PATH, { overwrite: true });
-    logger.info(`Cookies uploaded and saved to ${COOKIES_PATH}`);
+    fs.moveSync(resolvedTempPath, targetPath, { overwrite: true });
+    logger.info(`Cookies uploaded and saved to ${targetPath}`);
   } catch (error: any) {
     // Clean up temp file if it exists
     try {
-      const safeTempFilePath = resolveSafePathInDirectories(
-        tempFilePath,
-        TEMP_UPLOAD_DIRS
+      const resolvedTempPath = path.resolve(tempFilePath);
+      const isAllowedTempPath = isPathWithinDirectories(
+        resolvedTempPath,
+        RESOLVED_TEMP_UPLOAD_DIRS,
       );
-      if (fs.existsSync(safeTempFilePath)) {
-        fs.unlinkSync(safeTempFilePath);
+      if (isAllowedTempPath && fs.existsSync(resolvedTempPath)) {
+        fs.unlinkSync(resolvedTempPath);
       }
     } catch {
       // Ignore cleanup path validation failures.
@@ -51,10 +59,10 @@ export function uploadCookies(tempFilePath: string): void {
  * Delete cookies file
  */
 export function deleteCookies(): void {
-  if (fs.existsSync(COOKIES_PATH)) {
-    fs.unlinkSync(COOKIES_PATH);
+  const safeCookiesPath = path.resolve(COOKIES_PATH);
+  if (fs.existsSync(safeCookiesPath)) {
+    fs.unlinkSync(safeCookiesPath);
   } else {
     throw new NotFoundError("Cookies file", "cookies.txt");
   }
 }
-

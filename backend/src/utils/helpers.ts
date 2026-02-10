@@ -1,5 +1,5 @@
 import axios from "axios";
-import { isHostnameAllowed, validateUrlWithAllowlist } from "./security";
+import { buildAllowlistedHttpUrl, isHostnameAllowed } from "./security";
 
 const YOUTUBE_HOSTNAMES = ["youtube.com", "youtu.be"] as const;
 const BILIBILI_HOSTNAMES = ["bilibili.com", "b23.tv", "bili2233.cn"] as const;
@@ -52,22 +52,7 @@ function buildSafeRequestUrl(
   url: string,
   allowedHostnames: readonly string[],
 ): string {
-  const validatedUrl = validateUrlWithAllowlist(url, allowedHostnames);
-  const parsedUrl = new URL(validatedUrl);
-
-  if (!isHostnameAllowed(parsedUrl.hostname, allowedHostnames)) {
-    throw new Error(
-      `SSRF protection: Hostname ${parsedUrl.hostname} is not in the URL allow-list.`,
-    );
-  }
-
-  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
-    throw new Error(
-      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
-    );
-  }
-
-  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
+  return buildAllowlistedHttpUrl(url, allowedHostnames);
 }
 
 // Helper function to check if a string is a valid URL
@@ -128,9 +113,24 @@ export async function resolveShortUrl(url: string): Promise<string> {
       url,
       ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
     );
+    const requestUrl = new URL(safeShortUrl);
+    const normalizedHostname = requestUrl.hostname.toLowerCase();
+    const isShortenerHost = ALLOWED_BILIBILI_SHORTENER_HOSTNAMES.some(
+      (allowed) =>
+        normalizedHostname === allowed ||
+        normalizedHostname.endsWith(`.${allowed}`),
+    );
+    if (
+      !isShortenerHost ||
+      requestUrl.username ||
+      requestUrl.password ||
+      requestUrl.port
+    ) {
+      throw new Error("Invalid short URL host");
+    }
 
     // Make a HEAD request to follow redirects
-    const response = await axios.head(safeShortUrl, {
+    const response = await axios.head(requestUrl.toString(), {
       maxRedirects: 5,
       validateStatus: null,
     });

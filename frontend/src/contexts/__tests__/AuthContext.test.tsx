@@ -99,11 +99,9 @@ describe('AuthContext', () => {
         });
     });
 
-    it('should check local storage for existing auth', async () => {
-        // Set role cookie to simulate authenticated state
-        document.cookie = 'mytube_role=admin';
+    it('should use authenticatedRole from settings response', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true }
+            data: { loginEnabled: true, isPasswordSet: true, authenticatedRole: 'admin' }
         });
 
         renderWithProviders(<TestComponent />);
@@ -144,10 +142,8 @@ describe('AuthContext', () => {
     });
 
     it('should handle logout', async () => {
-        // Set role cookie to simulate authenticated state
-        document.cookie = 'mytube_role=admin';
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true }
+            data: { loginEnabled: true, isPasswordSet: true, authenticatedRole: 'admin' }
         });
         mockedAxios.post = vi.fn().mockResolvedValue({});
         const user = userEvent.setup();

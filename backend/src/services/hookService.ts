@@ -5,7 +5,7 @@ import path from "path";
 import util from "util";
 import { HOOKS_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
-import { resolveSafePathInDirectories } from "../utils/security";
+import { isPathWithinDirectories, isPathWithinDirectory } from "../utils/security";
 
 export interface HookContext {
   taskId: string;
@@ -39,17 +39,25 @@ export class HookService {
 
   private static getSafeHookPath(hookName: string): string {
     const safeName = this.sanitizeHookName(hookName);
-    return resolveSafePathInDirectories(
-      path.join(HOOKS_DIR, `${safeName}.sh`),
-      [HOOKS_DIR],
-    );
+    const resolvedHooksDir = path.resolve(HOOKS_DIR);
+    const hookPath = path.resolve(resolvedHooksDir, `${safeName}.sh`);
+    if (!isPathWithinDirectory(hookPath, resolvedHooksDir)) {
+      throw new Error("Invalid hook path");
+    }
+    return hookPath;
   }
 
   private static getSafeUploadPath(filePath: string): string {
-    return resolveSafePathInDirectories(path.resolve(filePath), [
-      os.tmpdir(),
-      "/tmp",
-    ]);
+    const resolvedPath = path.resolve(filePath);
+    const allowedTmpDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
+    const isAllowedTempPath = isPathWithinDirectories(
+      resolvedPath,
+      allowedTmpDirs,
+    );
+    if (!isAllowedTempPath) {
+      throw new Error("Invalid upload path");
+    }
+    return resolvedPath;
   }
 
   /**

@@ -4,11 +4,8 @@ import path from "path";
 import os from "os";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
-import {
-  resolveSafePathInDirectories,
-  validatePathWithinDirectory,
-} from "../utils/security";
 import { successMessage } from "../utils/response";
+import { isPathWithinDirectories } from "../utils/security";
 
 /**
  * Upload hook script
@@ -40,18 +37,18 @@ export const uploadHook = async (
   let safeFilePath: string;
   try {
     const resolvedPath = path.resolve(req.file.path);
-    safeFilePath = resolveSafePathInDirectories(resolvedPath, [
-      os.tmpdir(),
-      "/tmp",
-    ]);
-
-    // Keep a conservative additional guard for analyzer visibility.
-    if (!validatePathWithinDirectory(safeFilePath, os.tmpdir()) && !validatePathWithinDirectory(safeFilePath, "/tmp")) {
+    const allowedTempDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
+    const isAllowedTempPath = isPathWithinDirectories(
+      resolvedPath,
+      allowedTempDirs,
+    );
+    if (!isAllowedTempPath) {
       throw new ValidationError(
         "Invalid file path: path traversal detected",
         "file"
       );
     }
+    safeFilePath = resolvedPath;
   } catch (error) {
     if (error instanceof ValidationError) {
       throw error;
@@ -79,8 +76,17 @@ export const uploadHook = async (
  * @param filePath - Path to file (must be validated before calling this function)
  */
 const scanForRiskCommands = (filePath: string): string | null => {
-  // filePath is validated before this function is called
-  const content = fs.readFileSync(filePath, "utf-8");
+  const resolvedPath = path.resolve(filePath);
+  const allowedTempDirs = [path.resolve(os.tmpdir()), path.resolve("/tmp")];
+  const isAllowedTempPath = isPathWithinDirectories(
+    resolvedPath,
+    allowedTempDirs,
+  );
+  if (!isAllowedTempPath) {
+    throw new ValidationError("Invalid file path", "file");
+  }
+
+  const content = fs.readFileSync(resolvedPath, "utf-8");
 
   // List of risky patterns
   // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
