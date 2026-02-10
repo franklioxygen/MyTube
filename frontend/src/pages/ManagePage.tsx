@@ -5,6 +5,8 @@ import {
     Box,
     Button,
     Container,
+    Tab,
+    Tabs,
     Typography
 } from '@mui/material';
 import { useMutation } from '@tanstack/react-query';
@@ -25,6 +27,7 @@ import { formatSize } from '../utils/formatUtils';
 
 const ManagePage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const [tabValue, setTabValue] = useState(0);
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
@@ -212,6 +215,10 @@ const ManagePage: React.FC = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+        setTabValue(newValue);
+    };
+
     const confirmDeleteVideo = async () => {
         if (!videoToDelete) return;
 
@@ -309,43 +316,83 @@ const ManagePage: React.FC = () => {
                 cancelText={t('cancel') || 'Cancel'}
             />
 
-            <CollectionsTable
-                displayedCollections={displayedCollections}
-                totalCollectionsCount={collections.length}
-                onDelete={confirmDeleteCollection}
-                onUpdate={async (id, name) => {
-                    const result = await updateCollection(id, name);
-                    if (!result.success) throw new Error(result.error);
-                }}
-                page={collectionPage}
-                totalPages={totalCollectionPages}
-                onPageChange={handleCollectionPageChange}
-                getCollectionSize={getCollectionSize}
-                orderBy={collectionOrderBy}
-                order={collectionOrder}
-                onSort={handleCollectionRequestSort}
-            />
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs
+                    value={tabValue}
+                    onChange={handleTabChange}
+                    aria-label="manage content tabs"
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
+                >
+                    <Tab
+                        label={`${t('collections')} (${collections.length})`}
+                        id="manage-tab-0"
+                        aria-controls="manage-tabpanel-0"
+                    />
+                    <Tab
+                        label={`${t('videos')} (${filteredVideos.length})`}
+                        id="manage-tab-1"
+                        aria-controls="manage-tabpanel-1"
+                    />
+                </Tabs>
+            </Box>
 
-            <VideosTable
-                displayedVideos={displayedVideos}
-                totalVideosCount={filteredVideos.length}
-                totalSize={totalSize}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                orderBy={orderBy}
-                order={order}
-                onSort={handleRequestSort}
-                page={videoPage}
-                totalPages={totalVideoPages}
-                onPageChange={handleVideoPageChange}
-                onDeleteClick={handleDelete}
-                deletingId={deletingId}
-                onRefreshThumbnail={handleRefreshThumbnail}
-                refreshingId={refreshingId}
-                onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
-                isRefreshingFileSizes={refreshFileSizesMutation.isPending}
-                onUpdateVideo={updateVideo}
-            />
+            <div
+                role="tabpanel"
+                hidden={tabValue !== 0}
+                id="manage-tabpanel-0"
+                aria-labelledby="manage-tab-0"
+            >
+                {tabValue === 0 && (
+                    <CollectionsTable
+                        displayedCollections={displayedCollections}
+                        totalCollectionsCount={collections.length}
+                        onDelete={confirmDeleteCollection}
+                        onUpdate={async (id, name) => {
+                            const result = await updateCollection(id, name);
+                            if (!result.success) throw new Error(result.error);
+                        }}
+                        page={collectionPage}
+                        totalPages={totalCollectionPages}
+                        onPageChange={handleCollectionPageChange}
+                        getCollectionSize={getCollectionSize}
+                        orderBy={collectionOrderBy}
+                        order={collectionOrder}
+                        onSort={handleCollectionRequestSort}
+                    />
+                )}
+            </div>
+
+            <div
+                role="tabpanel"
+                hidden={tabValue !== 1}
+                id="manage-tabpanel-1"
+                aria-labelledby="manage-tab-1"
+            >
+                {tabValue === 1 && (
+                    <VideosTable
+                        displayedVideos={displayedVideos}
+                        totalVideosCount={filteredVideos.length}
+                        totalSize={totalSize}
+                        searchTerm={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        orderBy={orderBy}
+                        order={order}
+                        onSort={handleRequestSort}
+                        page={videoPage}
+                        totalPages={totalVideoPages}
+                        onPageChange={handleVideoPageChange}
+                        onDeleteClick={handleDelete}
+                        deletingId={deletingId}
+                        onRefreshThumbnail={handleRefreshThumbnail}
+                        refreshingId={refreshingId}
+                        onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
+                        isRefreshingFileSizes={refreshFileSizesMutation.isPending}
+                        onUpdateVideo={updateVideo}
+                    />
+                )}
+            </div>
         </Container>
     );
 };
