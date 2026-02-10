@@ -309,7 +309,7 @@ const VideoPlayer: React.FC = () => {
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
-            {/* Grid layout: xs = stacked (video, info, sidebar); lg + cinema = stacked; lg + normal = video/info left, sidebar right */}
+            {/* Grid layout: xs = stacked; lg + cinema = stacked; lg + normal = main column + sidebar */}
             <Box
                 sx={{
                     display: 'grid',
@@ -320,13 +320,13 @@ const VideoPlayer: React.FC = () => {
                         lg: isCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
                     },
                     gridTemplateAreas: {
-                        xs: '"video" "info" "sidebar"',
-                        lg: isCinemaMode ? '"video" "info" "sidebar"' : '"video sidebar" "info sidebar"'
+                        xs: '"main" "sidebar"',
+                        lg: isCinemaMode ? '"main" "sidebar"' : '"main sidebar"'
                     }
                 }}
             >
-                {/* Video Player Section */}
-                <Box sx={{ gridArea: 'video' }}>
+                {/* Main Column: Video + Info + Comments */}
+                <Box sx={{ gridArea: 'main' }}>
                     <VideoControls
                         src={(videoUrl || video?.sourceUrl) || null}
                         poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
@@ -354,44 +354,42 @@ const VideoPlayer: React.FC = () => {
                             });
                         }}
                     />
-                </Box>
 
-                {/* Video Info & Comments Section */}
-                <Box sx={{
-                    gridArea: 'info',
-                    px: { xs: 2, md: 0 },
-                    maxWidth: isCinemaMode ? '1200px' : 'none',
-                    mx: isCinemaMode ? 'auto' : 0,
-                    width: '100%'
-                }}>
-                    <VideoInfo
-                        video={video}
-                        onTitleSave={handleSaveTitle}
-                        onRatingChange={handleRatingChange}
-                        onAuthorClick={handleAuthorClick}
-                        onAvatarClick={handleAvatarClick}
-                        onAddToCollection={handleAddToCollection}
-                        onDelete={handleDelete}
-                        isDeleting={deleteMutation.isPending}
-                        deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
-                        videoCollections={videoCollections}
-                        onCollectionClick={handleCollectionClick}
-                        availableTags={availableTags}
-                        onTagsUpdate={handleUpdateTags}
-                        isSubscribed={isSubscribed}
-                        onSubscribe={handleSubscribe}
-                        onUnsubscribe={handleUnsubscribe}
-                        onToggleVisibility={handleToggleVisibility}
-                    />
-
-                    {(video.source === 'youtube' || video.source === 'bilibili') && (
-                        <CommentsSection
-                            comments={comments}
-                            loading={loadingComments}
-                            showComments={showComments}
-                            onToggleComments={handleToggleComments}
+                    <Box sx={{
+                        px: { xs: 2, md: 0 },
+                        maxWidth: isCinemaMode ? '1200px' : 'none',
+                        mx: isCinemaMode ? 'auto' : 0,
+                        width: '100%'
+                    }}>
+                        <VideoInfo
+                            video={video}
+                            onTitleSave={handleSaveTitle}
+                            onRatingChange={handleRatingChange}
+                            onAuthorClick={handleAuthorClick}
+                            onAvatarClick={handleAvatarClick}
+                            onAddToCollection={handleAddToCollection}
+                            onDelete={handleDelete}
+                            isDeleting={deleteMutation.isPending}
+                            deleteError={deleteMutation.error ? (deleteMutation.error as any).message || t('deleteFailed') : null}
+                            videoCollections={videoCollections}
+                            onCollectionClick={handleCollectionClick}
+                            availableTags={availableTags}
+                            onTagsUpdate={handleUpdateTags}
+                            isSubscribed={isSubscribed}
+                            onSubscribe={handleSubscribe}
+                            onUnsubscribe={handleUnsubscribe}
+                            onToggleVisibility={handleToggleVisibility}
                         />
-                    )}
+
+                        {(video.source === 'youtube' || video.source === 'bilibili') && (
+                            <CommentsSection
+                                comments={comments}
+                                loading={loadingComments}
+                                showComments={showComments}
+                                onToggleComments={handleToggleComments}
+                            />
+                        )}
+                    </Box>
                 </Box>
 
                 {/* Sidebar Section */}
