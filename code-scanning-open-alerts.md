@@ -1,0 +1,97 @@
+# GitHub Code Scanning Open Alerts
+
+- Repository: franklioxygen/MyTube
+- Retrieved at: 2026-02-10 19:57 UTC
+- Total open alerts: 88
+- Severity breakdown: critical=4, high=81, medium=3, low=0
+
+| Alert | Severity | Rule | Location | Link |
+|---|---|---|---|---|
+| #160 | medium | `js/cors-permissive-configuration` | `backend/src/server.ts:33` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/160) |
+| #159 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpChannel.ts:104` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/159) |
+| #158 | high | `js/incomplete-url-substring-sanitization` | `backend/src/controllers/subscriptionController.ts:68` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/158) |
+| #157 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/helpers.ts:121` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/157) |
+| #156 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/subscriptionService.ts:90` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/156) |
+| #155 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:628` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/155) |
+| #154 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:628` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/154) |
+| #153 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:613` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/153) |
+| #152 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:613` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/152) |
+| #151 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:570` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/151) |
+| #150 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:570` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/150) |
+| #149 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:566` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/149) |
+| #148 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:558` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/148) |
+| #147 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:557` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/147) |
+| #146 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:537` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/146) |
+| #145 | high | `js/path-injection` | `backend/src/controllers/videoController.ts:536` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/145) |
+| #144 | medium | `actions/missing-workflow-permissions` | `.github/workflows/publish.yml:18` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/144) |
+| #143 | critical | `js/request-forgery` | `backend/src/services/downloaders/MissAVDownloader.ts:176` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/143) |
+| #142 | critical | `js/request-forgery` | `backend/src/services/downloaders/MissAVDownloader.ts:70` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/142) |
+| #141 | high | `js/incomplete-url-substring-sanitization` | `backend/src/controllers/videoDownloadController.ts:213` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/141) |
+| #138 | critical | `js/request-forgery` | `backend/src/services/downloaders/ytdlp/ytdlpHelpers.ts:16` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/138) |
+| #135 | high | `js/tainted-format-string` | `backend/src/utils/logger.ts:148` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/135) |
+| #134 | high | `js/tainted-format-string` | `backend/src/utils/logger.ts:145` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/134) |
+| #133 | high | `js/tainted-format-string` | `backend/src/services/downloadManager.ts:188` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/133) |
+| #132 | high | `js/path-injection` | `backend/src/controllers/hookController.ts:81` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/132) |
+| #131 | high | `js/path-injection` | `backend/src/controllers/hookController.ts:64` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/131) |
+| #130 | high | `js/clear-text-storage-of-sensitive-data` | `backend/src/services/authService.ts:56` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/130) |
+| #129 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:150` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/129) |
+| #128 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:148` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/128) |
+| #127 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:145` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/127) |
+| #126 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:129` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/126) |
+| #125 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:118` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/125) |
+| #124 | high | `js/clear-text-logging` | `backend/src/utils/logger.ts:118` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/124) |
+| #122 | high | `js/clear-text-storage-of-sensitive-data` | `backend/src/services/authService.ts:67` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/122) |
+| #114 | critical | `js/request-forgery` | `backend/src/utils/helpers.ts:46` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/114) |
+| #110 | high | `js/tainted-format-string` | `backend/src/utils/downloadUtils.ts:301` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/110) |
+| #94 | high | `js/path-injection` | `backend/src/utils/downloadUtils.ts:295` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/94) |
+| #93 | high | `js/path-injection` | `backend/src/utils/downloadUtils.ts:294` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/93) |
+| #89 | high | `js/path-injection` | `backend/src/services/hookService.ts:88` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/89) |
+| #88 | high | `js/path-injection` | `backend/src/services/hookService.ts:86` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/88) |
+| #87 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliSubtitle.ts:135` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/87) |
+| #86 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliSubtitle.ts:100` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/86) |
+| #85 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliMetadata.ts:127` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/85) |
+| #84 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliMetadata.ts:126` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/84) |
+| #83 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:189` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/83) |
+| #82 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:185` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/82) |
+| #81 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:157` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/81) |
+| #80 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:157` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/80) |
+| #79 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:156` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/79) |
+| #78 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:148` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/78) |
+| #77 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:148` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/77) |
+| #76 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:147` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/76) |
+| #75 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:116` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/75) |
+| #74 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:75` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/74) |
+| #73 | high | `js/path-injection` | `backend/src/services/downloaders/bilibili/bilibiliFileManager.ts:74` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/73) |
+| #72 | high | `js/path-injection` | `backend/src/services/downloaders/BaseDownloader.ts:72` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/72) |
+| #71 | high | `js/path-injection` | `backend/src/services/downloaders/BaseDownloader.ts:62` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/71) |
+| #70 | high | `js/path-injection` | `backend/src/services/databaseBackupService.ts:149` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/70) |
+| #69 | high | `js/path-injection` | `backend/src/services/databaseBackupService.ts:147` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/69) |
+| #68 | high | `js/path-injection` | `backend/src/services/databaseBackupService.ts:133` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/68) |
+| #67 | high | `js/path-injection` | `backend/src/services/databaseBackupService.ts:132` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/67) |
+| #66 | high | `js/path-injection` | `backend/src/services/databaseBackupService.ts:125` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/66) |
+| #65 | high | `js/path-injection` | `backend/src/services/cookieService.ts:28` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/65) |
+| #64 | high | `js/path-injection` | `backend/src/services/cookieService.ts:27` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/64) |
+| #63 | high | `js/path-injection` | `backend/src/services/cookieService.ts:23` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/63) |
+| #33 | high | `js/incomplete-url-substring-sanitization` | `frontend/src/contexts/DownloadContext.tsx:244` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/33) |
+| #32 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:624` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/32) |
+| #31 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:469` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/31) |
+| #30 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:388` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/30) |
+| #29 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:367` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/29) |
+| #28 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:295` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/28) |
+| #27 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/ytDlpUtils.ts:147` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/27) |
+| #26 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/helpers.ts:220` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/26) |
+| #25 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/helpers.ts:21` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/25) |
+| #24 | high | `js/incomplete-url-substring-sanitization` | `backend/src/utils/helpers.ts:16` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/24) |
+| #22 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpVideo.ts:354` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/22) |
+| #21 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpVideo.ts:137` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/21) |
+| #20 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpConfig.ts:127` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/20) |
+| #19 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpConfig.ts:73` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/19) |
+| #18 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpConfig.ts:73` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/18) |
+| #17 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/ytdlp/ytdlpChannel.ts:26` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/17) |
+| #16 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/MissAVDownloader.ts:586` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/16) |
+| #15 | high | `js/incomplete-url-substring-sanitization` | `backend/src/services/downloaders/MissAVDownloader.ts:585` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/15) |
+| #14 | high | `js/incomplete-url-substring-sanitization` | `backend/src/controllers/videoDownloadController.ts:677` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/14) |
+| #12 | high | `js/incomplete-url-substring-sanitization` | `backend/src/controllers/videoController.ts:454` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/12) |
+| #11 | high | `js/incomplete-url-substring-sanitization` | `backend/src/controllers/videoController.ts:428` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/11) |
+| #2 | high | `js/clear-text-logging` | `backend/scripts/reset-password.ts:133` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/2) |
+| #1 | medium | `actions/missing-workflow-permissions` | `.github/workflows/master.yml:11` | [Open](https://github.com/franklioxygen/MyTube/security/code-scanning/1) |

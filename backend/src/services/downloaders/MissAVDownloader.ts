@@ -8,7 +8,10 @@ import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
-import { validateUrlWithAllowlist } from "../../utils/security";
+import {
+  isHostnameAllowed,
+  validateUrlWithAllowlist,
+} from "../../utils/security";
 import {
   flagsToArgs,
   getAxiosProxyConfig,
@@ -34,6 +37,25 @@ const ALLOWED_MISSAV_HOSTNAMES = [
   "njavtv.com",
 ] as const;
 
+function buildSafeMissAvRequestUrl(url: string): string {
+  const validatedUrl = validateUrlWithAllowlist(url, ALLOWED_MISSAV_HOSTNAMES);
+  const parsedUrl = new URL(validatedUrl);
+
+  if (!isHostnameAllowed(parsedUrl.hostname, ALLOWED_MISSAV_HOSTNAMES)) {
+    throw new Error(
+      `SSRF protection: Hostname ${parsedUrl.hostname} is not allowed for MissAV requests.`,
+    );
+  }
+
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
+}
+
 export class MissAVDownloader extends BaseDownloader {
   // Implementation of IDownloader.getVideoInfo
   async getVideoInfo(url: string): Promise<VideoInfo> {
@@ -43,14 +65,10 @@ export class MissAVDownloader extends BaseDownloader {
   // Get video info without downloading (Static wrapper)
   static async getVideoInfo(url: string): Promise<VideoInfo> {
     try {
-      // Validate URL against allow-list to prevent SSRF (hostname + path traversal)
-      const validatedUrl = validateUrlWithAllowlist(
-        url,
-        ALLOWED_MISSAV_HOSTNAMES,
-      );
+      const safeRequestUrl = buildSafeMissAvRequestUrl(url);
 
       logger.info(
-        `Fetching page content for ${validatedUrl} with Puppeteer...`,
+        `Fetching page content for ${safeRequestUrl} with Puppeteer...`,
       );
 
       const USER_AGENT =
@@ -67,7 +85,7 @@ export class MissAVDownloader extends BaseDownloader {
       });
       const page = await browser.newPage();
 
-      await page.goto(validatedUrl, {
+      await page.goto(safeRequestUrl, {
         waitUntil: "networkidle2",
         timeout: 60000,
       });
@@ -79,7 +97,7 @@ export class MissAVDownloader extends BaseDownloader {
       const pageTitle = $('meta[property="og:title"]').attr("content");
       const ogImage = $('meta[property="og:image"]').attr("content");
 
-      const urlObj = new URL(url);
+      const urlObj = new URL(safeRequestUrl);
       const author = urlObj.hostname.replace("www.", "");
 
       return {
@@ -142,10 +160,7 @@ export class MissAVDownloader extends BaseDownloader {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
       // Validate URL against allow-list to prevent SSRF (hostname + path traversal)
-      const validatedUrl = validateUrlWithAllowlist(
-        url,
-        ALLOWED_MISSAV_HOSTNAMES,
-      );
+      const safeRequestUrl = buildSafeMissAvRequestUrl(url);
 
       logger.info("Launching Puppeteer to extract m3u8 URL...");
 
@@ -172,8 +187,8 @@ export class MissAVDownloader extends BaseDownloader {
         }
       });
 
-      logger.info("Navigating to:", validatedUrl);
-      await page.goto(validatedUrl, {
+      logger.info("Navigating to:", safeRequestUrl);
+      await page.goto(safeRequestUrl, {
         waitUntil: "networkidle2",
         timeout: 60000,
       });

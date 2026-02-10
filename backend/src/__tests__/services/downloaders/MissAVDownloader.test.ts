@@ -68,5 +68,19 @@ describe('MissAVDownloader', () => {
 
       expect(info.author).toBe('123av.com');
     });
+
+    it('should block URLs with explicit port before browser launch', async () => {
+      const info = await MissAVDownloader.getVideoInfo('https://missav.com:8443/test-video');
+
+      expect(info.title).toBe('MissAV Video');
+      expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+
+    it('should block URLs with credentials before browser launch', async () => {
+      const info = await MissAVDownloader.getVideoInfo('https://user:pass@missav.com/test-video');
+
+      expect(info.title).toBe('MissAV Video');
+      expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
   });
 });

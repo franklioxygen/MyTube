@@ -279,7 +279,7 @@ export function validateUrl(url: string): string {
  * Allowed hostnames are exact (e.g. "missav.com") or subdomains (e.g. "www.missav.com").
  * Comparison is case-insensitive; hostname is normalized to lowercase.
  */
-function isHostnameAllowed(
+export function isHostnameAllowed(
   hostname: string,
   allowedHostnames: readonly string[],
 ): boolean {

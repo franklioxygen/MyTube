@@ -1,5 +1,34 @@
 import axios from "axios";
-import { validateUrl } from "./security";
+import { isHostnameAllowed, validateUrlWithAllowlist } from "./security";
+
+const ALLOWED_BILIBILI_SHORTENER_HOSTNAMES = ["b23.tv", "bili2233.cn"] as const;
+const ALLOWED_BILIBILI_RESOLVED_HOSTNAMES = [
+  "bilibili.com",
+  "b23.tv",
+  "bili2233.cn",
+] as const;
+
+function buildSafeRequestUrl(
+  url: string,
+  allowedHostnames: readonly string[],
+): string {
+  const validatedUrl = validateUrlWithAllowlist(url, allowedHostnames);
+  const parsedUrl = new URL(validatedUrl);
+
+  if (!isHostnameAllowed(parsedUrl.hostname, allowedHostnames)) {
+    throw new Error(
+      `SSRF protection: Hostname ${parsedUrl.hostname} is not in the URL allow-list.`,
+    );
+  }
+
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.port) {
+    throw new Error(
+      "SSRF protection: URLs with credentials or explicit ports are not allowed.",
+    );
+  }
+
+  return `${parsedUrl.protocol}//${parsedUrl.hostname}${parsedUrl.pathname}${parsedUrl.search}`;
+}
 
 // Helper function to check if a string is a valid URL
 export function isValidUrl(string: string): boolean {
@@ -39,26 +68,31 @@ export async function resolveShortUrl(url: string): Promise<string> {
   try {
     console.log(`Resolving shortened URL: ${url}`);
 
-    // Validate URL to prevent SSRF attacks
-    const validatedUrl = validateUrl(url);
+    const safeShortUrl = buildSafeRequestUrl(
+      url,
+      ALLOWED_BILIBILI_SHORTENER_HOSTNAMES,
+    );
 
     // Make a HEAD request to follow redirects
-    const response = await axios.head(validatedUrl, {
+    const response = await axios.head(safeShortUrl, {
       maxRedirects: 5,
       validateStatus: null,
     });
 
     // Get the final URL after redirects and validate it
-    const resolvedUrl = response.request.res.responseUrl || validatedUrl;
-    const validatedResolvedUrl = validateUrl(resolvedUrl);
-    console.log(`Resolved to: ${validatedResolvedUrl}`);
+    const resolvedUrl = response.request?.res?.responseUrl || safeShortUrl;
+    const safeResolvedUrl = buildSafeRequestUrl(
+      resolvedUrl,
+      ALLOWED_BILIBILI_RESOLVED_HOSTNAMES,
+    );
+    console.log(`Resolved to: ${safeResolvedUrl}`);
 
-    return validatedResolvedUrl;
+    return safeResolvedUrl;
   } catch (error: any) {
     console.error(`Error resolving shortened URL: ${error.message}`);
     // If validation fails, return original URL only if it's already validated
     try {
-      return validateUrl(url);
+      return buildSafeRequestUrl(url, ALLOWED_BILIBILI_SHORTENER_HOSTNAMES);
     } catch {
       throw new Error(`Invalid URL: ${url}`);
     }

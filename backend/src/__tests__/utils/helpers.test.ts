@@ -125,6 +125,42 @@ describe('Helpers', () => {
       const result = await resolveShortUrl('https://b23.tv/fail');
       expect(result).toBe('https://b23.tv/fail');
     });
+
+    it('should return original short URL if redirected host is not allowed', async () => {
+      const mockResponse = {
+        request: {
+          res: {
+            responseUrl: 'https://evil.example/video/1',
+          },
+        },
+      };
+      (axios.head as any).mockResolvedValue(mockResponse);
+
+      const result = await resolveShortUrl('https://b23.tv/example');
+      expect(result).toBe('https://b23.tv/example');
+    });
+
+    it('should reject non-whitelisted short URL hosts', async () => {
+      await expect(resolveShortUrl('https://example.com/test')).rejects.toThrow('Invalid URL');
+    });
+
+    it('should reject short URL with credentials', async () => {
+      await expect(resolveShortUrl('https://user:pass@b23.tv/example')).rejects.toThrow('Invalid URL');
+    });
+
+    it('should return original short URL when resolved URL has explicit port', async () => {
+      const mockResponse = {
+        request: {
+          res: {
+            responseUrl: 'https://www.bilibili.com:8443/video/BV1xx411c7mD',
+          },
+        },
+      };
+      (axios.head as any).mockResolvedValue(mockResponse);
+
+      const result = await resolveShortUrl('https://b23.tv/example');
+      expect(result).toBe('https://b23.tv/example');
+    });
   });
 
   describe('trimBilibiliUrl', () => {
