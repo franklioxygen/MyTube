@@ -1,6 +1,12 @@
 # Change Log
 
 
+## v1.8.3 (2026-02-10)
+
+### Feat
+
+- feat: Add support for legacy plaintext password migration (4f87663)
+
 ## v1.8.2 (2026-02-10)
 
 ### Refactor
