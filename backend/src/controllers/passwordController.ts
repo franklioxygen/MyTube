@@ -7,12 +7,15 @@ import * as passwordService from "../services/passwordService";
  * Errors are automatically handled by asyncHandler middleware
  */
 export const getPasswordEnabled = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
   const result = passwordService.isPasswordEnabled();
   // Return format expected by frontend: { enabled: boolean, waitTime?: number }
-  res.json(result);
+  res.json({
+    ...result,
+    authenticatedRole: req.user?.role ?? null,
+  });
 };
 
 /**

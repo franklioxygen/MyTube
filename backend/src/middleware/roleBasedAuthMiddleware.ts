@@ -28,7 +28,8 @@ const isPublicEndpoint = (req: Request): boolean => {
   if (
     path.includes("/password-enabled") ||
     path.includes("/reset-password-cooldown") ||
-    path.includes("/reset-password")
+    path.includes("/reset-password") ||
+    path.includes("/passkeys/exists")
   ) {
     return true;
   }

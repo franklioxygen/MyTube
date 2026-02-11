@@ -53,6 +53,17 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const fetchSettings = async () => {
         try {
+            const statusResponse = await api.get('/settings/password-enabled');
+            const authenticatedRole = statusResponse.data?.authenticatedRole;
+            const canReadSettings =
+                statusResponse.data?.loginRequired === false ||
+                authenticatedRole === 'admin' ||
+                authenticatedRole === 'visitor';
+
+            if (!canReadSettings) {
+                return;
+            }
+
             const response = await api.get('/settings');
             if (response.data.language) {
                 const backendLanguage = response.data.language as Language;
@@ -65,8 +76,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
                 }
             }
         } catch (error: any) {
-            // Silently handle 401 errors (expected when not authenticated)
-            if (error?.response?.status !== 401) {
+            // Silently handle auth-related failures when not authenticated
+            if (error?.response?.status !== 401 && error?.response?.status !== 403) {
                 console.error('Error fetching settings for language:', error);
             }
             // If backend fails, keep using localStorage value

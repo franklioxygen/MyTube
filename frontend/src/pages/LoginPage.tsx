@@ -368,7 +368,9 @@ const LoginPage: React.FC = () => {
             const { options, challenge } = optionsResponse.data;
 
             // Step 2: Start authentication with browser
-            const assertionResponse = await startAuthentication(options);
+            const assertionResponse = await startAuthentication({
+                optionsJSON: options,
+            });
 
             // Step 3: Verify authentication
             const verifyResponse = await api.post('/settings/passkeys/authenticate/verify', {

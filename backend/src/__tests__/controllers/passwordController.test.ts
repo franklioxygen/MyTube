@@ -26,14 +26,18 @@ describe('passwordController', () => {
   });
 
   describe('getPasswordEnabled', () => {
-    it('should return result from service', async () => {
+    it('should return result from service with authenticatedRole', async () => {
       const mockResult = { enabled: true, waitTime: undefined };
       (passwordService.isPasswordEnabled as any).mockReturnValue(mockResult);
+      mockReq.user = { role: 'visitor' } as any;
 
       await passwordController.getPasswordEnabled(mockReq as Request, mockRes as Response);
 
       expect(passwordService.isPasswordEnabled).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(mockResult);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        ...mockResult,
+        authenticatedRole: 'visitor',
+      });
     });
   });
 

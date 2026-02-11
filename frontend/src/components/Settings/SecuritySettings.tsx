@@ -59,7 +59,9 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
             const { options, challenge } = optionsResponse.data;
 
             // Step 2: Start registration with browser
-            const attestationResponse = await startRegistration(options);
+            const attestationResponse = await startRegistration({
+                optionsJSON: options,
+            });
 
             // Step 3: Verify registration
             const verifyResponse = await api.post('/settings/passkeys/register/verify', {

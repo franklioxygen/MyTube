@@ -39,6 +39,17 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const fetchSettings = async () => {
         try {
+            const statusResponse = await api.get('/settings/password-enabled');
+            const authenticatedRole = statusResponse.data?.authenticatedRole;
+            const canReadSettings =
+                statusResponse.data?.loginRequired === false ||
+                authenticatedRole === 'admin' ||
+                authenticatedRole === 'visitor';
+
+            if (!canReadSettings) {
+                return;
+            }
+
             const response = await api.get('/settings');
             if (response.data.theme) {
                 const backendTheme = response.data.theme as ThemePreference;
@@ -46,8 +57,8 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 localStorage.setItem('themeMode', backendTheme);
             }
         } catch (error: any) {
-            // Silently handle 401 errors or other fetch failures
-            if (error?.response?.status !== 401) {
+            // Silently handle auth-related failures when not authenticated
+            if (error?.response?.status !== 401 && error?.response?.status !== 403) {
                 console.error('Error fetching settings for theme:', error);
             }
         }

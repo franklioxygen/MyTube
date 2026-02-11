@@ -24,37 +24,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         queryKey: ['authSettings'],
         queryFn: async () => {
             try {
-                // Check if login is enabled in settings
-                const response = await api.get('/settings');
-                const { loginEnabled, isPasswordSet, authenticatedRole } = response.data;
+                // Public endpoint: returns whether login is required and (if session exists) the authenticated role.
+                const response = await api.get('/settings/password-enabled');
+                const { loginRequired, authenticatedRole } = response.data ?? {};
+                const requiresLogin = loginRequired !== false;
+                setLoginRequired(requiresLogin);
 
-                // Login is required if loginEnabled is true (regardless of password or passkey)
-                if (!loginEnabled || !isPasswordSet) {
-                    setLoginRequired(false);
+                if (!requiresLogin) {
                     setIsAuthenticated(true);
-                    setUserRole(authenticatedRole === 'admin' || authenticatedRole === 'visitor' ? authenticatedRole : null);
-                } else {
-                    setLoginRequired(true);
-                    if (authenticatedRole === 'admin' || authenticatedRole === 'visitor') {
-                        setIsAuthenticated(true);
-                        setUserRole(authenticatedRole);
-                    } else {
-                        setIsAuthenticated(false);
-                        setUserRole(null);
-                    }
+                    setUserRole(
+                        authenticatedRole === 'admin' || authenticatedRole === 'visitor'
+                            ? authenticatedRole
+                            : null
+                    );
+                    return response.data;
                 }
-                return response.data;
-            } catch (error: any) {
-                // Handle 401 errors (expected when not authenticated)
-                if (error?.response?.status === 401) {
-                    setLoginRequired(true);
+
+                if (authenticatedRole === 'admin' || authenticatedRole === 'visitor') {
+                    setIsAuthenticated(true);
+                    setUserRole(authenticatedRole);
+                } else {
                     setIsAuthenticated(false);
                     setUserRole(null);
-                    return null;
                 }
+
+                return response.data;
+            } catch (error: any) {
                 // Handle 429 errors (rate limited) without overriding current auth state
                 if (error?.response?.status === 429) {
                     setLoginRequired(true);
+                    return null;
+                }
+                // Treat unexpected auth probe failures as unauthenticated
+                if (error?.response?.status === 401 || error?.response?.status === 403) {
+                    setLoginRequired(true);
+                    setIsAuthenticated(false);
+                    setUserRole(null);
                     return null;
                 }
                 // For other errors, log but don't break the flow
@@ -63,8 +68,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         },
         retry: (failureCount, error: any) => {
-            // Don't retry on 401 or 429 errors
-            if (error?.response?.status === 401 || error?.response?.status === 429) {
+            // Don't retry on expected auth probe statuses
+            if (error?.response?.status === 401 || error?.response?.status === 403 || error?.response?.status === 429) {
                 return false;
             }
             // Retry other errors once
