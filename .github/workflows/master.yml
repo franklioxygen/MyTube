@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
     
     strategy:
       matrix:
@@ -53,3 +55,29 @@ jobs:
       run: |
         cd backend
         npm run test -- run
+
+    - name: Generate Coverage Reports
+      if: ${{ env.CODACY_PROJECT_TOKEN != '' }}
+      run: |
+        cd backend
+        npm run test:coverage -- --coverage.reporter=lcov
+
+        cd ../frontend
+        npm run test:coverage -- --coverage.reporter=lcov
+
+    - name: Upload Coverage Reports to Codacy
+      if: ${{ env.CODACY_PROJECT_TOKEN != '' }}
+      run: |
+        bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
+          --partial \
+          --force-coverage-parser lcov \
+          --prefix backend \
+          -r backend/coverage/lcov.info
+
+        bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
+          --partial \
+          --force-coverage-parser lcov \
+          --prefix frontend \
+          -r frontend/coverage/lcov.info
+
+        bash <(curl -Ls https://coverage.codacy.com/get.sh) final
