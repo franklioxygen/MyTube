@@ -71,13 +71,13 @@ jobs:
         bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
           --partial \
           --force-coverage-parser lcov \
-          --prefix backend \
+          --prefix backend/ \
           -r backend/coverage/lcov.info
 
         bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
           --partial \
           --force-coverage-parser lcov \
-          --prefix frontend \
+          --prefix frontend/ \
           -r frontend/coverage/lcov.info
 
         bash <(curl -Ls https://coverage.codacy.com/get.sh) final

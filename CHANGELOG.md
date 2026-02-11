@@ -1,6 +1,18 @@
 # Change Log
 
 
+## v1.8.7 (2026-02-11)
+
+### Feat
+
+- feat: Add script to prepare Lizard config file (f398fb0)
+
+## v1.8.6 (2026-02-11)
+
+### Refactor
+
+- refactor: reduce complexity (3e89abc)
+
 ## v1.8.5 (2026-02-11)
 
 ### Feat
