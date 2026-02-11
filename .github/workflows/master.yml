@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: read
     env:
+      CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
       CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
     
     strategy:
@@ -57,7 +58,7 @@ jobs:
         npm run test -- run
 
     - name: Generate Coverage Reports
-      if: ${{ env.CODACY_PROJECT_TOKEN != '' }}
+      if: ${{ env.CODACY_API_TOKEN != '' || env.CODACY_PROJECT_TOKEN != '' }}
       run: |
         cd backend
         npm run test:coverage -- --coverage.reporter=lcov
@@ -66,8 +67,27 @@ jobs:
         npm run test:coverage -- --coverage.reporter=lcov
 
     - name: Upload Coverage Reports to Codacy
-      if: ${{ env.CODACY_PROJECT_TOKEN != '' }}
+      if: ${{ env.CODACY_API_TOKEN != '' || env.CODACY_PROJECT_TOKEN != '' }}
       run: |
+        set -euo pipefail
+
+        CODACY_TOKEN="${CODACY_API_TOKEN:-$CODACY_PROJECT_TOKEN}"
+        REPO_OWNER="${GITHUB_REPOSITORY_OWNER}"
+        REPO_NAME="${GITHUB_REPOSITORY#*/}"
+
+        if curl --silent --show-error --fail -H "api-token: ${CODACY_TOKEN}" https://api.codacy.com/api/v3/user > /dev/null; then
+          echo "Using Codacy account token mode."
+          export CODACY_API_TOKEN="${CODACY_TOKEN}"
+          export CODACY_ORGANIZATION_PROVIDER="gh"
+          export CODACY_USERNAME="${REPO_OWNER}"
+          export CODACY_PROJECT_NAME="${REPO_NAME}"
+          unset CODACY_PROJECT_TOKEN
+        else
+          echo "Using Codacy project token mode."
+          export CODACY_PROJECT_TOKEN="${CODACY_TOKEN}"
+          unset CODACY_API_TOKEN CODACY_ORGANIZATION_PROVIDER CODACY_USERNAME CODACY_PROJECT_NAME
+        fi
+
         bash <(curl -Ls https://coverage.codacy.com/get.sh) report \
           --partial \
           --force-coverage-parser lcov \
