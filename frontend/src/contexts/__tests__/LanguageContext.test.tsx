@@ -40,8 +40,20 @@ describe('LanguageContext', () => {
             writable: true
         });
 
-        // Default Settings Mock
-        mockedAxios.get.mockResolvedValue({ data: { language: 'en' } });
+        // Default mocks: authenticated admin who can read settings
+        mockedAxios.get.mockImplementation((url) => {
+            if (typeof url === 'string') {
+                if (url.includes('/settings/password-enabled')) {
+                    return Promise.resolve({
+                        data: { loginRequired: false, authenticatedRole: 'admin' }
+                    });
+                }
+                if (url.includes('/settings')) {
+                    return Promise.resolve({ data: { language: 'en' } });
+                }
+            }
+            return Promise.resolve({ data: {} });
+        });
         mockedAxios.patch.mockResolvedValue({});
 
         // Simulate authenticated user
@@ -71,7 +83,20 @@ describe('LanguageContext', () => {
     });
 
     it('should fetch language from backend on mount', async () => {
-        mockedAxios.get.mockResolvedValueOnce({ data: { language: 'fr' } });
+        // Set up mocks: password-enabled returns authenticated, settings returns 'fr'
+        mockedAxios.get.mockImplementation((url) => {
+            if (typeof url === 'string') {
+                if (url.includes('/settings/password-enabled')) {
+                    return Promise.resolve({
+                        data: { loginRequired: false, authenticatedRole: 'admin' }
+                    });
+                }
+                if (url.includes('/settings')) {
+                    return Promise.resolve({ data: { language: 'fr' } });
+                }
+            }
+            return Promise.resolve({ data: {} });
+        });
 
         const { result } = renderHook(() => useLanguage(), {
             wrapper: LanguageProvider

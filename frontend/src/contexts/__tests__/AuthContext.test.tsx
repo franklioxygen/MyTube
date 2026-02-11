@@ -58,9 +58,9 @@ describe('AuthContext', () => {
     });
 
     it('should initialize with default authentication state', async () => {
-        // Mock default settings: login required, password set
+        // Mock default settings: login required, no authenticated role
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true }
+            data: { loginRequired: true }
         });
 
         renderWithProviders(<TestComponent />);
@@ -75,7 +75,7 @@ describe('AuthContext', () => {
 
     it('should automatically authenticate if login is not enabled', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: false, isPasswordSet: true }
+            data: { loginRequired: false }
         });
 
         renderWithProviders(<TestComponent />);
@@ -88,7 +88,7 @@ describe('AuthContext', () => {
 
     it('should automatically authenticate if password is not set', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: false }
+            data: { loginRequired: false }
         });
 
         renderWithProviders(<TestComponent />);
@@ -101,7 +101,7 @@ describe('AuthContext', () => {
 
     it('should use authenticatedRole from settings response', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true, authenticatedRole: 'admin' }
+            data: { loginRequired: true, authenticatedRole: 'admin' }
         });
 
         renderWithProviders(<TestComponent />);
@@ -113,7 +113,7 @@ describe('AuthContext', () => {
 
     it('should require login if settings say so and no stored auth', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true }
+            data: { loginRequired: true }
         });
 
         renderWithProviders(<TestComponent />);
@@ -126,7 +126,7 @@ describe('AuthContext', () => {
 
     it('should handle login', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true }
+            data: { loginRequired: true }
         });
         const user = userEvent.setup();
 
@@ -143,7 +143,7 @@ describe('AuthContext', () => {
 
     it('should handle logout', async () => {
         mockedAxios.get.mockResolvedValueOnce({
-            data: { loginEnabled: true, isPasswordSet: true, authenticatedRole: 'admin' }
+            data: { loginRequired: true, authenticatedRole: 'admin' }
         });
         mockedAxios.post = vi.fn().mockResolvedValue({});
         const user = userEvent.setup();

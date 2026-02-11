@@ -1,6 +1,19 @@
 # Change Log
 
 
+## v1.8.5 (2026-02-11)
+
+### Feat
+
+- feat: Add VersionInfo component for displaying version info (7abe7cb)
+- feat: Enhance passwordController and roleBasedAuthMiddleware tests (2acdb9c)
+
+## v1.8.4 (2026-02-11)
+
+### Feat
+
+- feat(server): add CORS support with configurable options (cdeedfd)
+
 ## v1.8.3 (2026-02-10)
 
 ### Feat

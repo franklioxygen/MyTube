@@ -3,10 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from '../AuthContext';
 import { LanguageProvider } from '../LanguageContext';
 import { SnackbarProvider } from '../SnackbarContext';
 import { VideoProvider, useVideo } from '../VideoContext';
-import { AuthProvider } from '../AuthContext';
 
 // Mock axios
 vi.mock('axios');
@@ -51,21 +51,33 @@ describe('VideoContext', () => {
             },
             writable: true
         });
+    });
 
-        // Default mocks
+    /**
+     * Helper to set up axios mocks so that:
+     * - AuthContext's /settings/password-enabled call returns an authenticated admin
+     * - LanguageContext's /settings/password-enabled and /settings calls return sensibly
+     * - Video-specific URL mocks are applied on top
+     */
+    const setupDefaultMocks = (videoData: any[] = []) => {
         mockedAxios.get.mockImplementation((url) => {
-            if (url.includes('/videos')) return Promise.resolve({ data: [] });
-            if (url.includes('/settings')) return Promise.resolve({ data: { tags: [] } });
+            if (typeof url === 'string') {
+                // AuthContext & LanguageContext both call this endpoint
+                if (url.includes('/settings/password-enabled')) {
+                    return Promise.resolve({
+                        data: { loginRequired: false, authenticatedRole: 'admin' }
+                    });
+                }
+                if (url.includes('/videos')) return Promise.resolve({ data: videoData });
+                if (url.includes('/settings')) return Promise.resolve({ data: { tags: [], language: 'en' } });
+            }
             return Promise.resolve({ data: {} });
         });
-    });
+    };
 
     it('should fetch videos on mount', async () => {
         const mockVideos = [{ id: '1', title: 'Test Video', author: 'Test Author' }];
-        mockedAxios.get.mockImplementation((url) => {
-            if (url.includes('/videos')) return Promise.resolve({ data: mockVideos });
-            return Promise.resolve({ data: {} });
-        });
+        setupDefaultMocks(mockVideos);
 
         const { result } = renderHook(() => useVideo(), { wrapper: createWrapper() });
 
@@ -76,10 +88,7 @@ describe('VideoContext', () => {
 
     it('should delete a video', async () => {
         const mockVideos = [{ id: '1', title: 'Video 1' }];
-        mockedAxios.get.mockImplementation((url) => {
-            if (url.includes('/videos')) return Promise.resolve({ data: mockVideos });
-            return Promise.resolve({ data: {} });
-        });
+        setupDefaultMocks(mockVideos);
 
         const { result } = renderHook(() => useVideo(), { wrapper: createWrapper() });
 
@@ -102,8 +111,15 @@ describe('VideoContext', () => {
         ];
 
         mockedAxios.get.mockImplementation((url) => {
-            if (url.includes('/videos')) return Promise.resolve({ data: mockVideos });
-            if (url.includes('/settings')) return Promise.resolve({ data: { showYoutubeSearch: false } }); // Disable YT search for this test
+            if (typeof url === 'string') {
+                if (url.includes('/settings/password-enabled')) {
+                    return Promise.resolve({
+                        data: { loginRequired: false, authenticatedRole: 'admin' }
+                    });
+                }
+                if (url.includes('/videos')) return Promise.resolve({ data: mockVideos });
+                if (url.includes('/settings')) return Promise.resolve({ data: { showYoutubeSearch: false, language: 'en' } });
+            }
             return Promise.resolve({ data: {} });
         });
 
@@ -121,10 +137,7 @@ describe('VideoContext', () => {
 
     it('should increment view count', async () => {
         const mockVideos = [{ id: '1', title: 'V1', viewCount: 0 }];
-        mockedAxios.get.mockImplementation((url) => {
-            if (url.includes('/videos')) return Promise.resolve({ data: mockVideos });
-            return Promise.resolve({ data: {} });
-        });
+        setupDefaultMocks(mockVideos);
 
         const { result } = renderHook(() => useVideo(), { wrapper: createWrapper() });
         await waitFor(() => expect(result.current.videos).toHaveLength(1));
