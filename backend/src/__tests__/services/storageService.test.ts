@@ -3,63 +3,35 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, sqlite } from '../../db';
 import * as storageService from '../../services/storageService';
 
+function createSelectFromMock() {
+  return {
+    where: vi.fn().mockReturnValue({ get: vi.fn(), all: vi.fn().mockReturnValue([]) }),
+    leftJoin: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue([]) }),
+      all: vi.fn().mockReturnValue([]),
+    }),
+    orderBy: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue([]) }),
+    all: vi.fn().mockReturnValue([]),
+  };
+}
+
 vi.mock('../../db', () => {
   const runFn = vi.fn();
   const valuesFn = vi.fn().mockReturnValue({
-    onConflictDoUpdate: vi.fn().mockReturnValue({
-      run: runFn,
-    }),
+    onConflictDoUpdate: vi.fn().mockReturnValue({ run: runFn }),
     run: runFn,
   });
-  const insertFn = vi.fn().mockReturnValue({
-    values: valuesFn,
-  });
-  
-  // Mock for db.delete().where().run() pattern
-  const deleteWhereRun = vi.fn().mockReturnValue({ run: runFn });
+  const insertFn = vi.fn().mockReturnValue({ values: valuesFn });
   const deleteMock = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ run: runFn }) });
-  
-  // Mock for db.select().from().all() pattern - returns array by default
-  const selectFromAll = vi.fn().mockReturnValue([]);
-  const selectFromOrderByAll = vi.fn().mockReturnValue([]);
-  const selectFromWhereGet = vi.fn();
-  const selectFromWhereAll = vi.fn().mockReturnValue([]);
-  const selectFromLeftJoinWhereAll = vi.fn().mockReturnValue([]);
-  const selectFromLeftJoinAll = vi.fn().mockReturnValue([]);
-  
-  const updateSetRun = vi.fn();
-  const updateSet = vi.fn().mockReturnValue({
-    where: vi.fn().mockReturnValue({
-      run: updateSetRun,
-    }),
-  });
-  const updateMock = vi.fn().mockReturnValue({
-    set: updateSet,
-  });
+  const updateSet = vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ run: vi.fn() }) });
+  const updateMock = vi.fn().mockReturnValue({ set: updateSet });
 
   return {
     db: {
       insert: insertFn,
       update: updateMock,
       delete: deleteMock,
-      select: vi.fn().mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            get: selectFromWhereGet,
-            all: selectFromWhereAll,
-          }),
-          leftJoin: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              all: selectFromLeftJoinWhereAll,
-            }),
-            all: selectFromLeftJoinAll,
-          }),
-          orderBy: vi.fn().mockReturnValue({
-            all: selectFromOrderByAll,
-          }),
-          all: selectFromAll,
-        }),
-      }),
+      select: vi.fn().mockReturnValue({ from: vi.fn().mockReturnValue(createSelectFromMock()) }),
       transaction: vi.fn((cb) => cb()),
     },
     sqlite: {
@@ -68,8 +40,8 @@ vi.mock('../../db', () => {
         run: vi.fn().mockReturnValue({ changes: 0 }),
       }),
     },
-    downloads: {}, // Mock downloads table
-    videos: {}, // Mock videos table
+    downloads: {},
+    videos: {},
   };
 });
 
@@ -80,36 +52,10 @@ vi.mock('fs-extra');
 describe('StorageService', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    // Reset mocks to default behavior
-    (db.select as any).mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          get: vi.fn(),
-          all: vi.fn().mockReturnValue([]),
-        }),
-        leftJoin: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            all: vi.fn().mockReturnValue([]),
-          }),
-          all: vi.fn().mockReturnValue([]),
-        }),
-        orderBy: vi.fn().mockReturnValue({
-          all: vi.fn().mockReturnValue([]),
-        }),
-        all: vi.fn().mockReturnValue([]),
-      }),
-    });
-    (db.delete as any).mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        run: vi.fn(),
-      }),
-    });
+    (db.select as any).mockReturnValue({ from: vi.fn().mockReturnValue(createSelectFromMock()) });
+    (db.delete as any).mockReturnValue({ where: vi.fn().mockReturnValue({ run: vi.fn() }) });
     (db.update as any).mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          run: vi.fn(),
-        }),
-      }),
+      set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ run: vi.fn() }) }),
     });
     (sqlite.prepare as any).mockReturnValue({
       all: vi.fn().mockReturnValue([]),
@@ -117,39 +63,23 @@ describe('StorageService', () => {
     });
   });
 
+  function setupInitMocks() {
+    (fs.existsSync as any).mockReturnValue(false);
+    (db.delete as any).mockReturnValue({ where: vi.fn().mockReturnValue({ run: vi.fn() }) });
+    (db.select as any).mockReturnValue({
+      from: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue([]) }),
+    });
+  }
+
   describe('initializeStorage', () => {
     it('should ensure directories exist', () => {
-      (fs.existsSync as any).mockReturnValue(false);
-      // Mock db.delete(downloads).where().run() for clearing active downloads
-      (db.delete as any).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          run: vi.fn(),
-        }),
-      });
-      // Mock db.select().from(videos).all() for populating fileSize
-      (db.select as any).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          all: vi.fn().mockReturnValue([]), // Return empty array for allVideos
-        }),
-      });
+      setupInitMocks();
       storageService.initializeStorage();
       expect(fs.ensureDirSync).toHaveBeenCalledTimes(6);
     });
 
     it('should create status.json if not exists', () => {
-      (fs.existsSync as any).mockReturnValue(false);
-      // Mock db.delete(downloads).where().run() for clearing active downloads
-      (db.delete as any).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          run: vi.fn(),
-        }),
-      });
-      // Mock db.select().from(videos).all() for populating fileSize
-      (db.select as any).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          all: vi.fn().mockReturnValue([]), // Return empty array for allVideos
-        }),
-      });
+      setupInitMocks();
       storageService.initializeStorage();
       expect(fs.writeFileSync).toHaveBeenCalled();
     });
@@ -385,21 +315,23 @@ describe('StorageService', () => {
 
   describe('getActiveDownload', () => {
     it('should return mapped active download when found', () => {
+      const mockActiveDownload = {
+        id: 'active-1',
+        title: 'Running',
+        timestamp: 1700000000000,
+        filename: 'file.mp4',
+        totalSize: '100',
+        downloadedSize: '50',
+        progress: 50,
+        speed: '1MB/s',
+        sourceUrl: 'https://example.com/video',
+        type: 'youtube',
+      };
+
       (db.select as any).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            get: vi.fn().mockReturnValue({
-              id: 'active-1',
-              title: 'Running',
-              timestamp: 1700000000000,
-              filename: 'file.mp4',
-              totalSize: '100',
-              downloadedSize: '50',
-              progress: 50,
-              speed: '1MB/s',
-              sourceUrl: 'https://example.com/video',
-              type: 'youtube',
-            }),
+            get: vi.fn().mockReturnValue(mockActiveDownload),
           }),
         }),
       });
@@ -833,59 +765,6 @@ describe('StorageService', () => {
         }),
       } as any);
 
-      // 4. getSettings (called by deleteVideo -> moveAllFilesFromCollection -> moveThumbnailFromCollection if move fails or logic changes)
-      // Actually deleteVideo just calls fs.unlinkSync, wait.
-      // deleteVideo calls deleteCollectionWithFiles? No.
-      // deleteCollectionAndVideos calls deleteVideo.
-      // deleteVideo calls: getVideoById, fs.unlinkSync, db.delete(videos), removeVideoFromCollection(implicit?)
-      // Wait, deleteVideo implementation:
-      // const video = getVideoById(id);
-      // ... defines paths ...
-      // if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
-      // ...
-      // db.delete(videos).where(...).run();
-      // It does NOT call getSettings.
-      
-      // However, previous run failure showed:
-      // TypeError: __vite_ssr_import_0__.db.select(...).from(...).all is not a function
-      // at getSettings ... at moveThumbnailFromCollection ... at moveAllFilesFromCollection ... at deleteCollectionWithFiles
-      
-      // So deleteCollectionWithFiles failed. deleteCollectionAndVideos passed?
-      // Let's look at the log again if possible.
-      // "src/__tests__/services/storageService.test.ts > StorageService > deleteCollectionWithFiles > should delete collection and files" FAILED.
-      // "src/__tests__/services/storageService.test.ts > StorageService > deleteCollectionAndVideos > should delete collection and all videos" PASSED?
-      // Log line 364: "stdout | ... deleteCollectionAndVideos > should delete collection and all videos"
-      // line 365: "Marked video download as deleted: v1"
-      // It seems it passed or at least ran further.
-      
-      // Let's just fix deleteCollectionWithFiles first. The above edit handled it. 
-      // I will leave this one alone if I'm not sure, but to be safe, I should probably check if getSettings is called.
-      // deleteVideo doesn't call moveAllFilesFromCollection.
-      // So deleteCollectionAndVideos should be fine WITHOUT the extra mock if it logic is simple.
-      
-      // But wait, I am already in the replace_file_content tool, so I must return something or cancel.
-      // I will just add the comment or minor touch to be safe, or actually I should cancel this specific edit if I don't need it.
-      // But I can't cancel easily. I will just add a dummy verify step or just same content.
-      // Actually, looking at previous failure:
-      // "stderr | ... addVideoToCollection > should add video and move files" FAILED.
-      // "Error getting settings ... at moveThumbnailToCollection"
-      
-      // So `addVideoToCollection` needs fixing too. `deleteCollectionAndVideos` might be fine.
-      
-      // Retrying logic: 
-      // tests needing getSettings mock:
-      // 1. deleteCollectionWithFiles (calls moveAllFilesFromCollection)
-      // 2. addVideoToCollection (calls moveAllFilesToCollection)
-      // 3. removeVideoFromCollection (calls moveAllFilesFromCollection) - not explicitly tested in detail here? tested implicitly?
-      
-      // I will update addVideoToCollection mocks here.
-
-      // 4. deleteVideo -> db.delete(videos)
-      (db.delete as any).mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          run: vi.fn().mockReturnValue({ changes: 1 }),
-        }),
-      });
 
       // 5. deleteCollection -> db.delete(collections)
       (db.delete as any).mockReturnValue({

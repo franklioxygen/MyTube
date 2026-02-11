@@ -1,32 +1,32 @@
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  cancelContinuousDownloadTask,
-  clearFinishedTasks,
-  createPlaylistSubscription,
-  createPlaylistTask,
-  createSubscription,
-  deleteContinuousDownloadTask,
-  deleteSubscription,
-  getContinuousDownloadTasks,
-  getSubscriptions,
-  pauseContinuousDownloadTask,
-  pauseSubscription,
-  resumeContinuousDownloadTask,
-  resumeSubscription,
-  subscribeChannelPlaylists,
+    cancelContinuousDownloadTask,
+    clearFinishedTasks,
+    createPlaylistSubscription,
+    createPlaylistTask,
+    createSubscription,
+    deleteContinuousDownloadTask,
+    deleteSubscription,
+    getContinuousDownloadTasks,
+    getSubscriptions,
+    pauseContinuousDownloadTask,
+    pauseSubscription,
+    resumeContinuousDownloadTask,
+    resumeSubscription,
+    subscribeChannelPlaylists,
 } from "../../controllers/subscriptionController";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { continuousDownloadService } from "../../services/continuousDownloadService";
 import { checkPlaylist } from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
 import { subscriptionService } from "../../services/subscriptionService";
-import {
-  executeYtDlpJson,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
-} from "../../utils/ytDlpUtils";
 import { logger } from "../../utils/logger";
+import {
+    executeYtDlpJson,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+} from "../../utils/ytDlpUtils";
 
 vi.mock("../../services/subscriptionService", () => ({
   subscriptionService: {
@@ -450,31 +450,20 @@ describe("SubscriptionController", () => {
       ).rejects.toThrow("No playlists found");
     });
 
-    it("should subscribe playlists, skip duplicates, and create watcher", async () => {
+    function setupChannelPlaylistsMocks() {
       req.body = {
         url: "https://www.youtube.com/@channel",
         interval: 60,
         downloadAllPrevious: true,
       };
-
       (executeYtDlpJson as any).mockResolvedValue({
         uploader: "My Channel",
         entries: [
-          {
-            id: "PL_ONE",
-            url: "https://www.youtube.com/playlist?list=PL_ONE",
-            title: "Playlist One",
-          },
-          {
-            id: "PL_TWO",
-            url: "https://www.youtube.com/playlist?list=PL_TWO",
-            title: "Playlist Two",
-          },
+          { id: "PL_ONE", url: "https://www.youtube.com/playlist?list=PL_ONE", title: "Playlist One" },
+          { id: "PL_TWO", url: "https://www.youtube.com/playlist?list=PL_TWO", title: "Playlist Two" },
         ],
       });
-      (storageService.getSettings as any).mockReturnValue({
-        saveAuthorFilesToCollection: false,
-      });
+      (storageService.getSettings as any).mockReturnValue({ saveAuthorFilesToCollection: false });
       (storageService.getCollectionByName as any)
         .mockReturnValueOnce(null)
         .mockReturnValueOnce({ id: "existing-col-2", name: "Playlist Two" });
@@ -489,33 +478,31 @@ describe("SubscriptionController", () => {
       (continuousDownloadService.createPlaylistTask as any).mockResolvedValue({
         id: "created-task-1",
       });
+    }
 
+    it("should subscribe new playlists and skip duplicates", async () => {
+      setupChannelPlaylistsMocks();
       await subscribeChannelPlaylists(req as Request, res as Response);
 
       expect(subscriptionService.subscribePlaylist).toHaveBeenCalledTimes(1);
       expect(subscriptionService.subscribePlaylist).toHaveBeenCalledWith(
         "https://www.youtube.com/playlist?list=PL_ONE",
-        60,
-        "Playlist One",
-        "PL_ONE",
-        "My Channel",
-        "YouTube",
+        60, "Playlist One", "PL_ONE", "My Channel", "YouTube",
         expect.any(String)
       );
       expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledTimes(1);
+    });
+
+    it("should create watcher and respond with counts", async () => {
+      setupChannelPlaylistsMocks();
+      await subscribeChannelPlaylists(req as Request, res as Response);
+
       expect(subscriptionService.subscribeChannelPlaylistsWatcher).toHaveBeenCalledWith(
-        "https://www.youtube.com/@channel/playlists",
-        60,
-        "My Channel",
-        "YouTube"
+        "https://www.youtube.com/@channel/playlists", 60, "My Channel", "YouTube"
       );
       expect(status).toHaveBeenCalledWith(201);
       expect(json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          subscribedCount: 1,
-          skippedCount: 1,
-          errorCount: 0,
-        })
+        expect.objectContaining({ subscribedCount: 1, skippedCount: 1, errorCount: 0 })
       );
     });
 

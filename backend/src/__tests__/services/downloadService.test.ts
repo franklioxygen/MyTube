@@ -3,18 +3,18 @@ import * as downloadService from "../../services/downloadService";
 import { BilibiliDownloader } from "../../services/downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "../../services/downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
-import {
-  executeYtDlpJson,
-  getNetworkConfigFromUserConfig,
-  getUserYtDlpConfig,
-} from "../../utils/ytDlpUtils";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import {
-  extractBilibiliVideoId,
-  isBilibiliUrl,
-  isMissAVUrl,
+    extractBilibiliVideoId,
+    isBilibiliUrl,
+    isMissAVUrl,
 } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import {
+    executeYtDlpJson,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+} from "../../utils/ytDlpUtils";
 
 vi.mock("../../services/downloaders/BilibiliDownloader");
 vi.mock("../../services/downloaders/YtDlpDownloader");
@@ -52,65 +52,39 @@ describe("downloadService", () => {
   });
 
   describe("wrapper calls", () => {
-    it("delegates bilibili download helpers", async () => {
+    it("delegates bilibili download and check calls", async () => {
       await downloadService.downloadBilibiliVideo("u", "vp", "tp", "d1");
       await downloadService.checkBilibiliVideoParts("bv1");
       await downloadService.checkBilibiliCollectionOrSeries("bv1");
       await downloadService.getBilibiliCollectionVideos(1, 2);
       await downloadService.getBilibiliSeriesVideos(3, 4);
+
+      expect(BilibiliDownloader.downloadVideo).toHaveBeenCalledWith(
+        "u", "vp", "tp", "d1", undefined
+      );
+      expect(BilibiliDownloader.checkVideoParts).toHaveBeenCalledWith("bv1");
+      expect(BilibiliDownloader.checkCollectionOrSeries).toHaveBeenCalledWith("bv1");
+      expect(BilibiliDownloader.getCollectionVideos).toHaveBeenCalledWith(1, 2);
+      expect(BilibiliDownloader.getSeriesVideos).toHaveBeenCalledWith(3, 4);
+    });
+
+    it("delegates bilibili part and collection downloads", async () => {
       await downloadService.downloadSingleBilibiliPart(
-        "u",
-        2,
-        5,
-        "series",
-        "d2",
-        undefined,
-        "collection"
+        "u", 2, 5, "series", "d2", undefined, "collection"
       );
       await downloadService.downloadBilibiliCollection({} as any, "c", "d3");
       await downloadService.downloadRemainingBilibiliParts(
-        "u",
-        2,
-        5,
-        "series",
-        "cid",
-        "d4"
+        "u", 2, 5, "series", "cid", "d4"
       );
 
-      expect(BilibiliDownloader.downloadVideo).toHaveBeenCalledWith(
-        "u",
-        "vp",
-        "tp",
-        "d1",
-        undefined
-      );
-      expect(BilibiliDownloader.checkVideoParts).toHaveBeenCalledWith("bv1");
-      expect(BilibiliDownloader.checkCollectionOrSeries).toHaveBeenCalledWith(
-        "bv1"
-      );
-      expect(BilibiliDownloader.getCollectionVideos).toHaveBeenCalledWith(1, 2);
-      expect(BilibiliDownloader.getSeriesVideos).toHaveBeenCalledWith(3, 4);
       expect(BilibiliDownloader.downloadSinglePart).toHaveBeenCalledWith(
-        "u",
-        2,
-        5,
-        "series",
-        "d2",
-        undefined,
-        "collection"
+        "u", 2, 5, "series", "d2", undefined, "collection"
       );
       expect(BilibiliDownloader.downloadCollection).toHaveBeenCalledWith(
-        {},
-        "c",
-        "d3"
+        {}, "c", "d3"
       );
       expect(BilibiliDownloader.downloadRemainingParts).toHaveBeenCalledWith(
-        "u",
-        2,
-        5,
-        "series",
-        "cid",
-        "d4"
+        "u", 2, 5, "series", "cid", "d4"
       );
     });
 
