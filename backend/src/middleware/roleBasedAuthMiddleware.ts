@@ -33,6 +33,11 @@ const isPublicEndpoint = (req: Request): boolean => {
     return true;
   }
 
+  // Allow logout endpoint (can be called without auth)
+  if (path.includes("/logout")) {
+    return true;
+  }
+
   return false;
 };
 
@@ -81,6 +86,12 @@ export const roleBasedAuthMiddleware = (
         req.path.includes("/settings/passkeys/authenticate") ||
         req.url.includes("/settings/passkeys/authenticate")
       ) {
+        next();
+        return;
+      }
+
+      // Allow logout endpoint
+      if (req.path.includes("/logout") || req.url.includes("/logout")) {
         next();
         return;
       }

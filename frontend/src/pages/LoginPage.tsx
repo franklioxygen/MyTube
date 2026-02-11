@@ -23,6 +23,7 @@ import React, { useEffect, useState } from 'react';
 import logo from '../assets/logo.svg';
 import AlertModal from '../components/AlertModal';
 import ConfirmationModal from '../components/ConfirmationModal';
+import VersionInfo from '../components/VersionInfo';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
@@ -457,110 +458,233 @@ const LoginPage: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Container component="main" maxWidth="xs">
-                <Box
-                    sx={{
-                        marginTop: 8,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                    }}
-                >
-                    {isCheckingConnection ? (
-                        // Loading state while checking backend connection
-                        <>
-                            <CircularProgress sx={{ mb: 2 }} />
-                            <Typography variant="body1" color="text.secondary">
-                                {t('checkingConnection') || 'Checking connection...'}
-                            </Typography>
-                        </>
-                    ) : isConnectionError ? (
-                        // Backend connection error state
-                        <>
-                            <Avatar sx={{ m: 1, bgcolor: 'error.main', width: 56, height: 56 }}>
-                                <ErrorOutline fontSize="large" />
-                            </Avatar>
-                            <Typography component="h1" variant="h5" sx={{ mt: 2, mb: 1 }}>
-                                {t('connectionError') || 'Connection Error'}
-                            </Typography>
-                            <Alert severity="error" sx={{ mt: 2, mb: 2, width: '100%' }}>
-                                {t('backendConnectionFailed') || 'Unable to connect to the server. Please check if the backend is running and port is open, then try again.'}
-                            </Alert>
-                            <Button
-                                variant="contained"
-                                onClick={() => retryConnection()}
-                                sx={{ mt: 2 }}
-                            >
-                                {t('retry') || 'Retry'}
-                            </Button>
-                        </>
-                    ) : (
-                        // Normal login form
-                        <>
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                                <img src={logo} alt="Logo" height={48} />
-                                <Box sx={{ ml: 1.5, display: 'flex', flexDirection: 'column' }}>
-                                    <Typography variant="h4" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
-                                        {websiteName}
-                                    </Typography>
-                                    {websiteName !== 'MyTube' && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', lineHeight: 1.2, mt: 0.25 }}>
-                                            Powered by MyTube
-                                        </Typography>
-                                    )}
-                                </Box>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                                <LockOutlined sx={{ color: 'text.primary' }} />
-                                <Typography component="h1" variant="h5">
-                                    {t('signIn')}
+            <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+                <Container component="main" maxWidth="xs" sx={{ flex: 1 }}>
+                    <Box
+                        sx={{
+                            marginTop: 8,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                        }}
+                    >
+                        {isCheckingConnection ? (
+                            // Loading state while checking backend connection
+                            <>
+                                <CircularProgress sx={{ mb: 2 }} />
+                                <Typography variant="body1" color="text.secondary">
+                                    {t('checkingConnection') || 'Checking connection...'}
                                 </Typography>
-                            </Box>
-                            <Box sx={{ mt: 1, width: '100%' }}>
-                                {showVisitorTab && (
-                                    <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                                        <Tabs value={activeTab} onChange={(_: React.SyntheticEvent, newValue: number) => setActiveTab(newValue)} aria-label="login tabs" variant="fullWidth">
-                                            <Tab label={t('admin') || 'Admin'} id="login-tab-0" aria-controls="login-tabpanel-0" />
-                                            <Tab label={t('visitorUser') || 'Visitor'} id="login-tab-1" aria-controls="login-tabpanel-1" />
-                                        </Tabs>
-                                    </Box>
-                                )}
-
-                                {/* Admin Tab Panel (and default view when visitor tab is not shown) */}
-                                <div
-                                    role="tabpanel"
-                                    hidden={showVisitorTab && activeTab !== 0}
-                                    id="login-tabpanel-0"
-                                    aria-labelledby="login-tab-0"
+                            </>
+                        ) : isConnectionError ? (
+                            // Backend connection error state
+                            <>
+                                <Avatar sx={{ m: 1, bgcolor: 'error.main', width: 56, height: 56 }}>
+                                    <ErrorOutline fontSize="large" />
+                                </Avatar>
+                                <Typography component="h1" variant="h5" sx={{ mt: 2, mb: 1 }}>
+                                    {t('connectionError') || 'Connection Error'}
+                                </Typography>
+                                <Alert severity="error" sx={{ mt: 2, mb: 2, width: '100%' }}>
+                                    {t('backendConnectionFailed') || 'Unable to connect to the server. Please check if the backend is running and port is open, then try again.'}
+                                </Alert>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => retryConnection()}
+                                    sx={{ mt: 2 }}
                                 >
-                                    {(showVisitorTab ? activeTab === 0 : true) && (
-                                        <>
-                                            {passwordLoginAllowed && (
-                                                <Box component="form" onSubmit={handleSubmit} noValidate>
+                                    {t('retry') || 'Retry'}
+                                </Button>
+                            </>
+                        ) : (
+                            // Normal login form
+                            <>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                                    <img src={logo} alt="Logo" height={48} />
+                                    <Box sx={{ ml: 1.5, display: 'flex', flexDirection: 'column' }}>
+                                        <Typography variant="h4" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+                                            {websiteName}
+                                        </Typography>
+                                        {websiteName !== 'MyTube' && (
+                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', lineHeight: 1.2, mt: 0.25 }}>
+                                                Powered by MyTube
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                                    <LockOutlined sx={{ color: 'text.primary' }} />
+                                    <Typography component="h1" variant="h5">
+                                        {t('signIn')}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ mt: 1, width: '100%' }}>
+                                    {showVisitorTab && (
+                                        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                                            <Tabs value={activeTab} onChange={(_: React.SyntheticEvent, newValue: number) => setActiveTab(newValue)} aria-label="login tabs" variant="fullWidth">
+                                                <Tab label={t('admin') || 'Admin'} id="login-tab-0" aria-controls="login-tabpanel-0" />
+                                                <Tab label={t('visitorUser') || 'Visitor'} id="login-tab-1" aria-controls="login-tabpanel-1" />
+                                            </Tabs>
+                                        </Box>
+                                    )}
+
+                                    {/* Admin Tab Panel (and default view when visitor tab is not shown) */}
+                                    <div
+                                        role="tabpanel"
+                                        hidden={showVisitorTab && activeTab !== 0}
+                                        id="login-tabpanel-0"
+                                        aria-labelledby="login-tab-0"
+                                    >
+                                        {(showVisitorTab ? activeTab === 0 : true) && (
+                                            <>
+                                                {passwordLoginAllowed && (
+                                                    <Box component="form" onSubmit={handleSubmit} noValidate>
+                                                        <TextField
+                                                            margin="normal"
+                                                            required
+                                                            fullWidth
+                                                            name="password"
+                                                            label={t('password') || 'Admin Password'}
+                                                            type={showPassword ? 'text' : 'password'}
+                                                            id="password"
+                                                            autoComplete="current-password"
+                                                            value={password}
+                                                            onChange={(e) => setPassword(e.target.value)}
+                                                            autoFocus={!showVisitorTab || activeTab === 0}
+                                                            disabled={waitTime > 0 || adminLoginMutation.isPending}
+                                                            helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                                            slotProps={{
+                                                                input: {
+                                                                    endAdornment: (
+                                                                        <InputAdornment position="end">
+                                                                            <IconButton
+                                                                                aria-label={t('togglePasswordVisibility')}
+                                                                                onClick={() => setShowPassword(!showPassword)}
+                                                                                edge="end"
+                                                                            >
+                                                                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                                            </IconButton>
+                                                                        </InputAdornment>
+                                                                    )
+                                                                }
+                                                            }}
+                                                        />
+                                                        <Button
+                                                            type="submit"
+                                                            fullWidth
+                                                            variant="contained"
+                                                            sx={{ mt: 3, mb: 2 }}
+                                                            disabled={adminLoginMutation.isPending || waitTime > 0}
+                                                        >
+                                                            {adminLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                        </Button>
+                                                    </Box>
+                                                )}
+
+                                                {passwordLoginAllowed && passkeysExist && (
+                                                    <>
+                                                        <Divider sx={{ my: 2 }}>OR</Divider>
+                                                        <Button
+                                                            fullWidth
+                                                            variant="outlined"
+                                                            startIcon={<Fingerprint />}
+                                                            onClick={handlePasskeyLogin}
+                                                            sx={{ mb: 2 }}
+                                                            disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                        >
+                                                            {passkeyLoginMutation.isPending
+                                                                ? (t('authenticating') || 'Authenticating...')
+                                                                : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                        </Button>
+                                                    </>
+                                                )}
+
+                                                {!passwordLoginAllowed && passkeysExist && (
+                                                    <Button
+                                                        fullWidth
+                                                        variant="contained"
+                                                        startIcon={<Fingerprint />}
+                                                        onClick={handlePasskeyLogin}
+                                                        sx={{ mt: 3, mb: 2 }}
+                                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
+                                                    >
+                                                        {passkeyLoginMutation.isPending
+                                                            ? (t('authenticating') || 'Authenticating...')
+                                                            : (t('loginWithPasskey') || 'Login with Passkey')}
+                                                    </Button>
+                                                )}
+
+                                                {allowResetPassword && (
+                                                    <Button
+                                                        fullWidth
+                                                        variant="outlined"
+                                                        startIcon={<Refresh />}
+                                                        onClick={() => setShowResetModal(true)}
+                                                        sx={{ mb: 2 }}
+                                                        disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
+                                                    >
+                                                        {resetPasswordCooldown > 0
+                                                            ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
+                                                            : t('resetPassword')}
+                                                    </Button>
+                                                )}
+
+                                                {!allowResetPassword && passwordLoginAllowed && (
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
+                                                        <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
+                                                            <IconButton
+                                                                onClick={() => showAlert(
+                                                                    t('resetPassword') || 'Reset Password',
+                                                                    t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
+                                                                )}
+                                                                color="primary"
+                                                                sx={{
+                                                                    '&:hover': {
+                                                                        backgroundColor: 'action.hover'
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <InfoOutlined />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </Box>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Visitor Tab Panel */}
+                                    {showVisitorTab && (
+                                        <div
+                                            role="tabpanel"
+                                            hidden={activeTab !== 1}
+                                            id="login-tabpanel-1"
+                                            aria-labelledby="login-tab-1"
+                                        >
+                                            {activeTab === 1 && (
+                                                <Box component="form" onSubmit={handleVisitorSubmit} noValidate>
                                                     <TextField
                                                         margin="normal"
                                                         required
                                                         fullWidth
-                                                        name="password"
-                                                        label={t('password') || 'Admin Password'}
-                                                        type={showPassword ? 'text' : 'password'}
-                                                        id="password"
-                                                        autoComplete="current-password"
-                                                        value={password}
-                                                        onChange={(e) => setPassword(e.target.value)}
-                                                        autoFocus={!showVisitorTab || activeTab === 0}
-                                                        disabled={waitTime > 0 || adminLoginMutation.isPending}
-                                                        helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                                        name="visitorPassword"
+                                                        label={t('visitorPassword') || 'Visitor Password'}
+                                                        type={showVisitorPassword ? 'text' : 'password'}
+                                                        id="visitorPassword"
+                                                        value={visitorPassword}
+                                                        onChange={(e) => setVisitorPassword(e.target.value)}
+                                                        autoFocus={activeTab === 1}
+                                                        disabled={waitTime > 0 || visitorLoginMutation.isPending}
                                                         slotProps={{
                                                             input: {
                                                                 endAdornment: (
                                                                     <InputAdornment position="end">
                                                                         <IconButton
                                                                             aria-label={t('togglePasswordVisibility')}
-                                                                            onClick={() => setShowPassword(!showPassword)}
+                                                                            onClick={() => setShowVisitorPassword(!showVisitorPassword)}
                                                                             edge="end"
                                                                         >
-                                                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                                                            {showVisitorPassword ? <VisibilityOff /> : <Visibility />}
                                                                         </IconButton>
                                                                     </InputAdornment>
                                                                 )
@@ -572,153 +696,35 @@ const LoginPage: React.FC = () => {
                                                         fullWidth
                                                         variant="contained"
                                                         sx={{ mt: 3, mb: 2 }}
-                                                        disabled={adminLoginMutation.isPending || waitTime > 0}
+                                                        disabled={visitorLoginMutation.isPending || waitTime > 0}
                                                     >
-                                                        {adminLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                        {visitorLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
                                                     </Button>
                                                 </Box>
                                             )}
-
-                                            {passwordLoginAllowed && passkeysExist && (
-                                                <>
-                                                    <Divider sx={{ my: 2 }}>OR</Divider>
-                                                    <Button
-                                                        fullWidth
-                                                        variant="outlined"
-                                                        startIcon={<Fingerprint />}
-                                                        onClick={handlePasskeyLogin}
-                                                        sx={{ mb: 2 }}
-                                                        disabled={passkeyLoginMutation.isPending || waitTime > 0}
-                                                    >
-                                                        {passkeyLoginMutation.isPending
-                                                            ? (t('authenticating') || 'Authenticating...')
-                                                            : (t('loginWithPasskey') || 'Login with Passkey')}
-                                                    </Button>
-                                                </>
-                                            )}
-
-                                            {!passwordLoginAllowed && passkeysExist && (
-                                                <Button
-                                                    fullWidth
-                                                    variant="contained"
-                                                    startIcon={<Fingerprint />}
-                                                    onClick={handlePasskeyLogin}
-                                                    sx={{ mt: 3, mb: 2 }}
-                                                    disabled={passkeyLoginMutation.isPending || waitTime > 0}
-                                                >
-                                                    {passkeyLoginMutation.isPending
-                                                        ? (t('authenticating') || 'Authenticating...')
-                                                        : (t('loginWithPasskey') || 'Login with Passkey')}
-                                                </Button>
-                                            )}
-
-                                            {allowResetPassword && (
-                                                <Button
-                                                    fullWidth
-                                                    variant="outlined"
-                                                    startIcon={<Refresh />}
-                                                    onClick={() => setShowResetModal(true)}
-                                                    sx={{ mb: 2 }}
-                                                    disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
-                                                >
-                                                    {resetPasswordCooldown > 0
-                                                        ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
-                                                        : t('resetPassword')}
-                                                </Button>
-                                            )}
-
-                                            {!allowResetPassword && passwordLoginAllowed && (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
-                                                    <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
-                                                        <IconButton
-                                                            onClick={() => showAlert(
-                                                                t('resetPassword') || 'Reset Password',
-                                                                t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
-                                                            )}
-                                                            color="primary"
-                                                            sx={{
-                                                                '&:hover': {
-                                                                    backgroundColor: 'action.hover'
-                                                                }
-                                                            }}
-                                                        >
-                                                            <InfoOutlined />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            )}
-                                        </>
+                                        </div>
                                     )}
-                                </div>
-
-                                {/* Visitor Tab Panel */}
-                                {showVisitorTab && (
-                                    <div
-                                        role="tabpanel"
-                                        hidden={activeTab !== 1}
-                                        id="login-tabpanel-1"
-                                        aria-labelledby="login-tab-1"
-                                    >
-                                        {activeTab === 1 && (
-                                            <Box component="form" onSubmit={handleVisitorSubmit} noValidate>
-                                                <TextField
-                                                    margin="normal"
-                                                    required
-                                                    fullWidth
-                                                    name="visitorPassword"
-                                                    label={t('visitorPassword') || 'Visitor Password'}
-                                                    type={showVisitorPassword ? 'text' : 'password'}
-                                                    id="visitorPassword"
-                                                    value={visitorPassword}
-                                                    onChange={(e) => setVisitorPassword(e.target.value)}
-                                                    autoFocus={activeTab === 1}
-                                                    disabled={waitTime > 0 || visitorLoginMutation.isPending}
-                                                    slotProps={{
-                                                        input: {
-                                                            endAdornment: (
-                                                                <InputAdornment position="end">
-                                                                    <IconButton
-                                                                        aria-label={t('togglePasswordVisibility')}
-                                                                        onClick={() => setShowVisitorPassword(!showVisitorPassword)}
-                                                                        edge="end"
-                                                                    >
-                                                                        {showVisitorPassword ? <VisibilityOff /> : <Visibility />}
-                                                                    </IconButton>
-                                                                </InputAdornment>
-                                                            )
-                                                        }
-                                                    }}
-                                                />
-                                                <Button
-                                                    type="submit"
-                                                    fullWidth
-                                                    variant="contained"
-                                                    sx={{ mt: 3, mb: 2 }}
-                                                    disabled={visitorLoginMutation.isPending || waitTime > 0}
-                                                >
-                                                    {visitorLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('visitorSignIn') || 'Visitor Sign In')}
-                                                </Button>
-                                            </Box>
+                                    <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
+                                        {waitTime > 0 && (
+                                            <Alert severity="warning" sx={{ width: '100%' }}>
+                                                {t('waitTimeMessage').replace('{time}', formatWaitTime(waitTime))}
+                                            </Alert>
                                         )}
-                                    </div>
-                                )}
-                                <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
-                                    {waitTime > 0 && (
-                                        <Alert severity="warning" sx={{ width: '100%' }}>
-                                            {t('waitTimeMessage').replace('{time}', formatWaitTime(waitTime))}
-                                        </Alert>
-                                    )}
-                                    {error && waitTime === 0 && (
-                                        <Alert severity="error" sx={{ width: '100%' }}>
-                                            {error}
-                                        </Alert>
-                                    )}
+                                        {error && waitTime === 0 && (
+                                            <Alert severity="error" sx={{ width: '100%' }}>
+                                                {error}
+                                            </Alert>
+                                        )}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </Box>
+                </Container>
+                <Box sx={{ pb: 3, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <VersionInfo showUpdateBadge={false} />
                 </Box>
-            </Container>
+            </Box>
             <ConfirmationModal
                 isOpen={showResetModal}
                 onClose={() => setShowResetModal(false)}
