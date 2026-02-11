@@ -89,4 +89,95 @@ describe('useHomePagination', () => {
         const newParams = callback(params);
         expect(newParams.get('page')).toBe('1');
     });
+
+    it('should go to previous page on ArrowLeft keyboard', () => {
+        mockSearchParams.set('page', '2');
+        renderHook(() => useHomePagination({
+            sortedVideos: mockVideos,
+            itemsPerPage: 10,
+            infiniteScroll: false,
+            selectedTags: []
+        }));
+
+        act(() => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        });
+
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const callback = mockSetSearchParams.mock.calls[0][0];
+        const params = new URLSearchParams('page=2');
+        const newParams = callback(params);
+        expect(newParams.get('page')).toBe('1');
+        expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    });
+
+    it('should go to next page on ArrowRight keyboard', () => {
+        mockSearchParams.set('page', '1');
+        renderHook(() => useHomePagination({
+            sortedVideos: mockVideos,
+            itemsPerPage: 10,
+            infiniteScroll: false,
+            selectedTags: []
+        }));
+
+        act(() => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        });
+
+        expect(mockSetSearchParams).toHaveBeenCalled();
+        const callback = mockSetSearchParams.mock.calls[0][0];
+        const params = new URLSearchParams('page=1');
+        const newParams = callback(params);
+        expect(newParams.get('page')).toBe('2');
+    });
+
+    it('should ignore keyboard pagination when infiniteScroll is enabled', () => {
+        renderHook(() => useHomePagination({
+            sortedVideos: mockVideos,
+            itemsPerPage: 10,
+            infiniteScroll: true,
+            selectedTags: []
+        }));
+
+        act(() => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        });
+
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
+
+    it('should ignore keyboard pagination when focused on input fields', () => {
+        renderHook(() => useHomePagination({
+            sortedVideos: mockVideos,
+            itemsPerPage: 10,
+            infiniteScroll: false,
+            selectedTags: []
+        }));
+
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        });
+
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+        document.body.removeChild(input);
+    });
+
+    it('should ignore keyboard pagination when there is only one page', () => {
+        const fewVideos = mockVideos.slice(0, 5);
+        renderHook(() => useHomePagination({
+            sortedVideos: fewVideos,
+            itemsPerPage: 10,
+            infiniteScroll: false,
+            selectedTags: []
+        }));
+
+        act(() => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        });
+
+        expect(mockSetSearchParams).not.toHaveBeenCalled();
+    });
 });

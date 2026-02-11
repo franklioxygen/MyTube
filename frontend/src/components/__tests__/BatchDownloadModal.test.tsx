@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import BatchDownloadModal from '../BatchDownloadModal';
 
@@ -21,22 +20,22 @@ describe('BatchDownloadModal', () => {
         expect(screen.getByPlaceholderText(/youtube\.com/)).toBeInTheDocument();
     });
 
-    it('should call onClose when cancel is clicked', async () => {
-        const user = userEvent.setup();
+    it('should call onClose when cancel is clicked', () => {
         render(<BatchDownloadModal {...defaultProps} />);
 
-        await user.click(screen.getByText('cancel'));
+        fireEvent.click(screen.getByText('cancel'));
         expect(defaultProps.onClose).toHaveBeenCalled();
     });
 
-    it('should split urls and call onConfirm', async () => {
-        const user = userEvent.setup();
+    it('should split urls and call onConfirm', () => {
         render(<BatchDownloadModal {...defaultProps} />);
 
         const input = screen.getByRole('textbox');
-        await user.type(input, 'http://url1.com{enter}https://url2.com');
+        fireEvent.change(input, {
+            target: { value: 'http://url1.com\nhttps://url2.com' }
+        });
 
-        await user.click(screen.getByText('addToQueue'));
+        fireEvent.click(screen.getByText('addToQueue'));
 
         expect(defaultProps.onConfirm).toHaveBeenCalledWith([
             'http://url1.com',
@@ -51,12 +50,11 @@ describe('BatchDownloadModal', () => {
         expect(button).toBeDisabled();
     });
 
-    it('should enable confirm button when input has text', async () => {
-        const user = userEvent.setup();
+    it('should enable confirm button when input has text', () => {
         render(<BatchDownloadModal {...defaultProps} />);
 
         const input = screen.getByRole('textbox');
-        await user.type(input, 'test');
+        fireEvent.change(input, { target: { value: 'test' } });
 
         const button = screen.getByText('addToQueue').closest('button');
         expect(button).not.toBeDisabled();

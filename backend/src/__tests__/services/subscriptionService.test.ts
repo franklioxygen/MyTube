@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import cron from 'node-cron';
 import { db } from '../../db';
 import { DuplicateError, ValidationError } from '../../errors/DownloadErrors';
 import { BilibiliDownloader } from '../../services/downloaders/BilibiliDownloader';
@@ -357,6 +358,176 @@ describe('SubscriptionService', () => {
 
       // Verify saveCollection was NOT called
       expect(storageService.saveCollection).not.toHaveBeenCalled();
+      subscribeSpy.mockRestore();
+    });
+  });
+
+  describe('playlist and watcher subscriptions', () => {
+    it('should create playlist subscription with display name', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+
+      const result = await subscriptionService.subscribePlaylist(
+        'https://youtube.com/playlist?list=pl1',
+        60,
+        'Playlist 1',
+        'pl1',
+        'Channel A',
+        'YouTube',
+        'col-1'
+      );
+
+      expect(result).toMatchObject({
+        author: 'Playlist 1 - Channel A',
+        subscriptionType: 'playlist',
+        collectionId: 'col-1',
+      });
+      expect(db.insert).toHaveBeenCalled();
+    });
+
+    it('should return existing channel watcher subscription if already exists', async () => {
+      const existing = {
+        id: 'existing-watcher',
+        author: 'Channel',
+        authorUrl: 'https://youtube.com/@channel/playlists',
+      };
+      mockBuilder.then = (cb: any) => Promise.resolve([existing]).then(cb);
+
+      const result = await subscriptionService.subscribeChannelPlaylistsWatcher(
+        'https://youtube.com/@channel/playlists',
+        120,
+        'Channel',
+        'YouTube'
+      );
+
+      expect(result).toEqual(existing);
+      expect(db.insert).not.toHaveBeenCalled();
+    });
+
+    it('should create channel watcher subscription when missing', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+
+      const result = await subscriptionService.subscribeChannelPlaylistsWatcher(
+        'https://youtube.com/@new/playlists',
+        30,
+        'New Channel',
+        'YouTube'
+      );
+
+      expect(result).toMatchObject({
+        author: 'New Channel',
+        subscriptionType: 'channel_playlists',
+      });
+      expect(db.insert).toHaveBeenCalled();
+    });
+  });
+
+  describe('subscription state management', () => {
+    it('should throw when unsubscribe verification fails', async () => {
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([{ id: 'sub1', author: 'A', platform: 'YouTube' }]).then(cb);
+        if (callCount === 2) return Promise.resolve(undefined).then(cb);
+        return Promise.resolve([{ id: 'sub1' }]).then(cb);
+      };
+
+      await expect(subscriptionService.unsubscribe('sub1')).rejects.toThrow(
+        'Failed to delete subscription sub1'
+      );
+    });
+
+    it('should pause and resume subscription', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'sub1', author: 'A' }]).then(cb);
+
+      await subscriptionService.pauseSubscription('sub1');
+      await subscriptionService.resumeSubscription('sub1');
+
+      expect(db.update).toHaveBeenCalled();
+    });
+
+    it('should throw if pause/resume target does not exist', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
+
+      await expect(subscriptionService.pauseSubscription('missing')).rejects.toThrow(
+        'Subscription missing not found'
+      );
+      await expect(subscriptionService.resumeSubscription('missing')).rejects.toThrow(
+        'Subscription missing not found'
+      );
+    });
+
+    it('should list subscriptions from database', async () => {
+      const subs = [{ id: 's1', author: 'A' }];
+      mockBuilder.then = (cb: any) => Promise.resolve(subs).then(cb);
+
+      const result = await subscriptionService.listSubscriptions();
+      expect(result).toEqual(subs);
+    });
+  });
+
+  describe('scheduler and helper methods', () => {
+    it('should skip checkSubscriptions when already running', async () => {
+      (subscriptionService as any).isCheckingSubscriptions = true;
+      await subscriptionService.checkSubscriptions();
+      (subscriptionService as any).isCheckingSubscriptions = false;
+
+      expect(db.select).not.toHaveBeenCalled();
+    });
+
+    it('should stop old scheduler task before starting a new one', () => {
+      const oldStop = vi.fn();
+      (subscriptionService as any).checkTask = { stop: oldStop };
+
+      subscriptionService.startScheduler();
+
+      expect(oldStop).toHaveBeenCalled();
+      expect(cron.schedule).toHaveBeenCalledWith('* * * * *', expect.any(Function));
+    });
+
+    it('should resolve latest playlist URL from first entry id', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({
+        entries: [{ id: 'abc123' }],
+      });
+
+      const youtubeUrl = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+        'https://youtube.com/playlist?list=xyz',
+        'YouTube'
+      );
+      const bilibiliUrl = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+        'https://www.bilibili.com/medialist/play/1',
+        'Bilibili'
+      );
+
+      expect(youtubeUrl).toBe('https://www.youtube.com/watch?v=abc123');
+      expect(bilibiliUrl).toBe('https://www.bilibili.com/video/abc123');
+    });
+
+    it('should return null when latest playlist lookup throws', async () => {
+      (executeYtDlpJson as any).mockRejectedValue(new Error('playlist lookup failed'));
+
+      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+        'https://youtube.com/playlist?list=xyz',
+        'YouTube'
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('should choose latest video resolver based on platform', async () => {
+      (BilibiliDownloader.getLatestVideoUrl as any).mockResolvedValue('https://bilibili.com/video/BV1x');
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('https://youtube.com/watch?v=1');
+
+      const bilibili = await (subscriptionService as any).getLatestVideoUrl(
+        'https://space.bilibili.com/123',
+        'Bilibili'
+      );
+      const youtube = await (subscriptionService as any).getLatestVideoUrl(
+        'https://youtube.com/@channel',
+        'YouTube'
+      );
+
+      expect(bilibili).toBe('https://bilibili.com/video/BV1x');
+      expect(youtube).toBe('https://youtube.com/watch?v=1');
     });
   });
 });

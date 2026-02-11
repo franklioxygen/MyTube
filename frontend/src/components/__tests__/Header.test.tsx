@@ -169,6 +169,45 @@ describe('Header', () => {
         await waitFor(() => { });
     });
 
+    it('redirects URL submission to search when backend marks it as search term', async () => {
+        const onSubmit = vi.fn().mockResolvedValue({ success: false, isSearchTerm: true });
+        renderHeader({ onSubmit });
+
+        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: 'https://example.com/maybe-search' } });
+        fireEvent.submit(input.closest('form')!);
+
+        await waitFor(() => {
+            expect(onSubmit).toHaveBeenCalledWith('https://example.com/maybe-search');
+            expect(input.value).toBe('');
+        });
+    });
+
+    it('shows backend error message when URL processing fails', async () => {
+        const onSubmit = vi.fn().mockResolvedValue({ success: false, error: 'backendFailed' });
+        renderHeader({ onSubmit });
+
+        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
+        fireEvent.change(input, { target: { value: 'https://example.com/fail' } });
+        fireEvent.submit(input.closest('form')!);
+
+        expect(await screen.findByText('backendFailed')).toBeInTheDocument();
+    });
+
+    it('falls back to unexpected error message when submit throws', async () => {
+        const onSubmit = vi.fn().mockRejectedValue(new Error('network boom'));
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+        renderHeader({ onSubmit });
+
+        const input = screen.getByPlaceholderText('enterUrlOrSearchTerm');
+        fireEvent.change(input, { target: { value: 'https://example.com/throw' } });
+        fireEvent.submit(input.closest('form')!);
+
+        expect(await screen.findByText('unexpectedErrorOccurred')).toBeInTheDocument();
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        consoleErrorSpy.mockRestore();
+    });
+
 
 
     it('displays error when submitting empty input', () => {

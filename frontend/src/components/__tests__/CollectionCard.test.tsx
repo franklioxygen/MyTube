@@ -163,5 +163,18 @@ describe('CollectionCard', () => {
         // Should still render with available videos
         expect(screen.getByText(/Test Collection/i)).toBeInTheDocument();
     });
-});
 
+    it('falls back to placeholder thumbnail when image load fails', () => {
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <CollectionCard collection={mockCollection} videos={mockVideos} />
+            </ThemeProvider>
+        );
+
+        const image = screen.getByAltText('Video 1') as HTMLImageElement;
+        fireEvent.error(image);
+
+        expect(image.src).toContain('https://via.placeholder.com/240x180?text=No+Thumbnail');
+    });
+});

@@ -46,4 +46,13 @@ describe('VideoDefaultSettings', () => {
 
         expect(mockOnChange).toHaveBeenCalledWith('playFromBeginning', true);
     });
+
+    it('should toggle pauseOnFocusLoss switch', async () => {
+        const user = userEvent.setup();
+        render(<VideoDefaultSettings settings={{ pauseOnFocusLoss: false } as any} onChange={mockOnChange} />);
+
+        await user.click(screen.getByLabelText('pauseOnFocusLoss'));
+
+        expect(mockOnChange).toHaveBeenCalledWith('pauseOnFocusLoss', true);
+    });
 });

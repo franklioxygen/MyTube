@@ -60,6 +60,20 @@ describe('databaseBackupController', () => {
             await expect(databaseBackupController.importDatabase(mockReq as Request, mockRes as Response))
                 .rejects.toThrow('Only .db files are allowed');
         });
+
+        it('should throw error when no file is uploaded', async () => {
+            mockReq.file = undefined as any;
+
+            await expect(databaseBackupController.importDatabase(mockReq as Request, mockRes as Response))
+                .rejects.toThrow('No file uploaded');
+        });
+
+        it('should throw error for empty uploaded file', async () => {
+            mockReq.file = { buffer: Buffer.alloc(0), originalname: 'backup.db' } as any;
+
+            await expect(databaseBackupController.importDatabase(mockReq as Request, mockRes as Response))
+                .rejects.toThrow('Uploaded file is empty');
+        });
     });
 
     describe('cleanupBackupDatabases', () => {
@@ -77,6 +91,23 @@ describe('databaseBackupController', () => {
                  success: true,
                  deleted: 1
              }));
+        });
+
+        it('should return no-op message when no files are cleaned', async () => {
+            (databaseBackupService.cleanupBackupDatabases as any).mockReturnValue({
+                deleted: 0,
+                failed: 0,
+                errors: []
+            });
+
+            await databaseBackupController.cleanupBackupDatabases(mockReq as Request, mockRes as Response);
+
+            expect(mockRes.json).toHaveBeenCalledWith({
+                success: true,
+                message: 'No backup database files found to clean up.',
+                deleted: 0,
+                failed: 0
+            });
         });
     });
 

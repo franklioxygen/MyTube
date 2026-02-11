@@ -70,4 +70,11 @@ describe('VolumeControl', () => {
         fireEvent.mouseLeave(root);
         expect(defaultProps.onMouseLeave).toHaveBeenCalled();
     });
+
+    it('should call onVolumeChange when slider value changes', () => {
+        render(<VolumeControl {...defaultProps} showVolumeSlider={true} />);
+        const slider = screen.getByRole('slider');
+        fireEvent.change(slider, { target: { value: '35' } });
+        expect(defaultProps.onVolumeChange).toHaveBeenCalled();
+    });
 });

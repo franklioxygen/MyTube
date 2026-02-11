@@ -137,6 +137,32 @@ describe('useVideoSort', () => {
         expect(onSortChange).toHaveBeenCalledWith('viewsDesc');
     });
 
+    it('should set sort anchor on handleSortClick', () => {
+        const { result } = renderHook(() => useVideoSort({ videos: mockVideos }), {
+            wrapper: MemoryRouter,
+        });
+
+        act(() => {
+            result.current.handleSortClick({
+                currentTarget: document.createElement('button'),
+            } as any);
+        });
+
+        expect(result.current.sortAnchorEl).not.toBeNull();
+    });
+
+    it('should handle random option in handleSortClose', () => {
+        const { result } = renderHook(() => useVideoSort({ videos: mockVideos }), {
+            wrapper: MemoryRouter,
+        });
+
+        act(() => {
+            result.current.handleSortClose('random');
+        });
+
+        expect(result.current.sortOption).toBe('random');
+    });
+
     it('should handle empty videos', () => {
         const { result } = renderHook(() => useVideoSort({ videos: [] }), {
             wrapper: MemoryRouter,

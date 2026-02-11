@@ -17,7 +17,8 @@ vi.mock('../../contexts/LanguageContext', () => ({
                 cancel: 'Cancel',
                 save: 'Save',
                 saving: 'Saving...',
-                failedToSaveTags: 'Failed to save tags'
+                failedToSaveTags: 'Failed to save tags',
+                tagConflictCaseInsensitive: 'Tag conflict (case-insensitive)',
             };
             return translations[key] || key;
         },
@@ -34,14 +35,18 @@ vi.mock('../../contexts/SnackbarContext', () => ({
 const mockSaveMutation = {
     mutateAsync: vi.fn(),
 };
+let capturedMutationHandlers: any;
 
 vi.mock('../../hooks/useSettingsMutations', () => ({
-    useSettingsMutations: () => ({
+    useSettingsMutations: (handlers: any) => {
+        capturedMutationHandlers = handlers;
+        return {
         saveMutation: mockSaveMutation,
-    }),
+        };
+    },
 }));
 
-const mockSettings = {
+let mockSettings: any = {
     tags: ['Tag1', 'Tag2', 'Tag3'],
 };
 
@@ -59,17 +64,27 @@ describe('TagsModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        capturedMutationHandlers = undefined;
+        mockSettings = { tags: ['Tag1', 'Tag2', 'Tag3'] };
     });
 
-    const renderComponent = (open: boolean = true) => {
+    const renderComponent = ({
+        open = true,
+        videoTags = defaultVideoTags,
+        availableTags = defaultAvailableTags,
+    }: {
+        open?: boolean;
+        videoTags?: string[];
+        availableTags?: string[];
+    } = {}) => {
         const theme = createTheme();
         return render(
             <ThemeProvider theme={theme}>
                 <TagsModal
                     open={open}
                     onClose={mockOnClose}
-                    videoTags={defaultVideoTags}
-                    availableTags={defaultAvailableTags}
+                    videoTags={videoTags}
+                    availableTags={availableTags}
                     onSave={mockOnSave}
                 />
             </ThemeProvider>
@@ -87,7 +102,7 @@ describe('TagsModal', () => {
     });
 
     it('does not render when closed', () => {
-        renderComponent(false);
+        renderComponent({ open: false });
         expect(screen.queryByText('Select Tags')).not.toBeInTheDocument();
     });
 
@@ -123,6 +138,65 @@ describe('TagsModal', () => {
         });
     });
 
+    it('adds a tag when Enter is pressed', async () => {
+        renderComponent();
+
+        const input = screen.getByLabelText('New Tag');
+        fireEvent.change(input, { target: { value: 'FromEnter' } });
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        expect(screen.getByText('FromEnter')).toBeInTheDocument();
+    });
+
+    it('removes an already selected tag when clicked again', async () => {
+        renderComponent();
+
+        fireEvent.click(screen.getByText('Tag1'));
+        fireEvent.click(screen.getByText('Save'));
+
+        await waitFor(() => {
+            expect(mockOnSave).toHaveBeenCalledWith([]);
+        });
+    });
+
+    it('clears input and skips when exact duplicate tag is added', () => {
+        renderComponent();
+
+        const input = screen.getByLabelText('New Tag') as HTMLInputElement;
+        fireEvent.change(input, { target: { value: 'Tag1' } });
+        fireEvent.click(screen.getByText('Add'));
+
+        expect(input.value).toBe('');
+        expect(mockShowSnackbar).not.toHaveBeenCalled();
+    });
+
+    it('shows error for case-insensitive duplicate in selected tags', () => {
+        renderComponent();
+
+        const input = screen.getByLabelText('New Tag');
+        fireEvent.change(input, { target: { value: 'tag1' } });
+        fireEvent.click(screen.getByText('Add'));
+
+        expect(mockShowSnackbar).toHaveBeenCalledWith('Tag conflict (case-insensitive)', 'error');
+    });
+
+    it('shows error for case-insensitive duplicate in global tags', () => {
+        renderComponent({ videoTags: [], availableTags: ['Tag1'] });
+
+        const input = screen.getByLabelText('New Tag');
+        fireEvent.change(input, { target: { value: 'tag1' } });
+        fireEvent.click(screen.getByText('Add'));
+
+        expect(mockShowSnackbar).toHaveBeenCalledWith('Tag conflict (case-insensitive)', 'error');
+    });
+
+    it('uses availableTags fallback when global settings tags are invalid', async () => {
+        mockSettings = { tags: 'not-an-array' };
+        renderComponent({ videoTags: [], availableTags: ['TagA'] });
+
+        expect(screen.getByText('TagA')).toBeInTheDocument();
+    });
+
     it('updates global settings when adding a new tag that is not available globally', async () => {
         renderComponent();
 
@@ -140,6 +214,14 @@ describe('TagsModal', () => {
         });
 
         expect(mockOnSave).toHaveBeenCalled();
+    });
+
+    it('wires settings mutation message callback to snackbar', () => {
+        renderComponent();
+
+        capturedMutationHandlers.setMessage({ text: 'Updated', type: 'success' });
+
+        expect(mockShowSnackbar).toHaveBeenCalledWith('Updated', 'success');
     });
 
     it('calls onClose when Cancel is clicked', () => {

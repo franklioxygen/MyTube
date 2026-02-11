@@ -169,6 +169,14 @@ describe('StorageService', () => {
       storageService.addActiveDownload('id', 'title');
       expect(mockRun).toHaveBeenCalled();
     });
+
+    it('should handle insert errors gracefully', () => {
+      (db.insert as any).mockImplementation(() => {
+        throw new Error('Insert failed');
+      });
+
+      expect(() => storageService.addActiveDownload('id', 'title')).not.toThrow();
+    });
   });
 
   describe('updateActiveDownload', () => {
@@ -235,15 +243,71 @@ describe('StorageService', () => {
       (db.transaction as any).mockImplementation(() => { throw new Error('Transaction failed'); });
       expect(() => storageService.setQueuedDownloads([])).not.toThrow();
     });
+
+    it('should remove stale queued downloads that are no longer present', () => {
+      const mockInsertRun = vi.fn();
+      (db.insert as any).mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            run: mockInsertRun,
+          }),
+        }),
+      });
+
+      const mockDeleteRun = vi.fn();
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: mockDeleteRun,
+        }),
+      });
+
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([
+              { id: 'stay-id' },
+              { id: 'stale-id' },
+            ]),
+          }),
+        }),
+      });
+
+      storageService.setQueuedDownloads([{ id: 'stay-id', title: 'keep', timestamp: 1 } as any]);
+      expect(mockDeleteRun).toHaveBeenCalled();
+    });
   });
 
   describe('getDownloadStatus', () => {
     it('should return download status', () => {
       const activeDownloads = [
-        { id: '1', title: 'Active', status: 'active' },
+        {
+          id: '1',
+          title: 'Active',
+          status: 'active',
+          progress: 25,
+          timestamp: 123,
+          filename: null,
+          totalSize: null,
+          downloadedSize: null,
+          speed: null,
+          sourceUrl: null,
+          type: null,
+        },
       ];
       const queuedDownloads = [
-        { id: '2', title: 'Queued', status: 'queued' },
+        {
+          id: '2',
+          title: 'Queued',
+          status: 'queued',
+          progress: null,
+          timestamp: null,
+          filename: null,
+          totalSize: null,
+          downloadedSize: null,
+          speed: null,
+          sourceUrl: null,
+          type: null,
+        },
       ];
       (db.select as any)
         .mockReturnValueOnce({
@@ -269,6 +333,103 @@ describe('StorageService', () => {
       const status = storageService.getDownloadStatus();
       expect(status.activeDownloads).toHaveLength(1);
       expect(status.queuedDownloads).toHaveLength(1);
+      expect(status.activeDownloads[0].progress).toBe(25);
+    });
+
+    it('should skip stale cleanup when called within cleanup interval', () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1);
+      const deleteSpy = vi.fn();
+      (db.delete as any).mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: deleteSpy,
+        }),
+      });
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue([]),
+          }),
+        }),
+      });
+
+      storageService.getDownloadStatus();
+      expect(deleteSpy).not.toHaveBeenCalled();
+      nowSpy.mockRestore();
+    });
+
+    it('should return empty status when querying fails', () => {
+      (db.select as any).mockImplementation(() => {
+        throw new Error('Select failed');
+      });
+
+      const status = storageService.getDownloadStatus();
+      expect(status).toEqual({ activeDownloads: [], queuedDownloads: [] });
+    });
+  });
+
+  describe('updateActiveDownloadTitle', () => {
+    it('should update only title field via updateActiveDownload', () => {
+      const mockRun = vi.fn();
+      const setSpy = vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          run: mockRun,
+        }),
+      });
+      (db.update as any).mockReturnValue({ set: setSpy });
+
+      storageService.updateActiveDownloadTitle('video-id', 'new title');
+      expect(setSpy).toHaveBeenCalled();
+      expect(mockRun).toHaveBeenCalled();
+    });
+  });
+
+  describe('getActiveDownload', () => {
+    it('should return mapped active download when found', () => {
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({
+              id: 'active-1',
+              title: 'Running',
+              timestamp: 1700000000000,
+              filename: 'file.mp4',
+              totalSize: '100',
+              downloadedSize: '50',
+              progress: 50,
+              speed: '1MB/s',
+              sourceUrl: 'https://example.com/video',
+              type: 'youtube',
+            }),
+          }),
+        }),
+      });
+
+      const result = storageService.getActiveDownload('active-1');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('active-1');
+      expect(result?.progress).toBe(50);
+    });
+
+    it('should return undefined when active download does not exist', () => {
+      (db.select as any).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue(undefined),
+          }),
+        }),
+      });
+
+      const result = storageService.getActiveDownload('missing');
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when querying active download throws', () => {
+      (db.select as any).mockImplementation(() => {
+        throw new Error('boom');
+      });
+
+      const result = storageService.getActiveDownload('error-id');
+      expect(result).toBeUndefined();
     });
   });
 

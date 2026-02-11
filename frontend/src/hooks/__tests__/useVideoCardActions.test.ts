@@ -88,4 +88,22 @@ describe('useVideoCardActions', () => {
 
         expect(mockShowSnackbar).toHaveBeenCalledWith('error', 'error');
     });
+
+    it('should handle delete errors gracefully', async () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+        const mockOnDelete = vi.fn().mockRejectedValue(new Error('delete failed'));
+        const { result } = renderHook(() => useVideoCardActions({
+            video: mockVideo as any,
+            onDeleteVideo: mockOnDelete,
+            showDeleteButton: true
+        }));
+
+        await act(async () => {
+            await result.current.confirmDelete();
+        });
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(result.current.isDeleting).toBe(false);
+        consoleErrorSpy.mockRestore();
+    });
 });

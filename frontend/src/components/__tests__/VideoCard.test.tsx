@@ -56,6 +56,20 @@ const mockPrefetchVideo = vi.fn();
 vi.mock('../../hooks/useVideoPrefetch', () => ({
     useVideoPrefetch: () => ({
         prefetchVideo: mockPrefetchVideo,
+        cardRef: { current: null },
+    }),
+}));
+
+const mockHoverMouseEnter = vi.fn();
+const mockHoverMouseLeave = vi.fn();
+vi.mock('../../hooks/useVideoHoverPreview', () => ({
+    useVideoHoverPreview: () => ({
+        isHovered: false,
+        isVideoPlaying: false,
+        setIsVideoPlaying: vi.fn(),
+        videoRef: { current: null },
+        handleMouseEnter: mockHoverMouseEnter,
+        handleMouseLeave: mockHoverMouseLeave,
     }),
 }));
 
@@ -183,5 +197,20 @@ describe('VideoCard', () => {
 
         expect(screen.queryByText('tag1')).not.toBeInTheDocument();
         expect(screen.queryByText('tag2')).not.toBeInTheDocument();
+    });
+
+    it('triggers hover preview and prefetch on mouse enter', () => {
+        const theme = createTheme();
+        render(
+            <ThemeProvider theme={theme}>
+                <VideoCard video={mockVideo} />
+            </ThemeProvider>
+        );
+
+        const card = screen.getByText('Test Video').closest('.MuiCard-root') as HTMLElement;
+        fireEvent.mouseEnter(card);
+
+        expect(mockHoverMouseEnter).toHaveBeenCalled();
+        expect(mockPrefetchVideo).toHaveBeenCalled();
     });
 });

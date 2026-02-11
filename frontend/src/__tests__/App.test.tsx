@@ -1,7 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
+
+const appTestState = vi.hoisted(() => ({
+    settingsData: {} as any,
+    showBilibiliPartsModal: false,
+    setShowBilibiliPartsModal: vi.fn(),
+}));
 
 // Mock axios
 vi.mock('axios', () => ({
@@ -64,13 +70,24 @@ vi.mock('../contexts/DownloadContext', () => ({
         activeDownloads: [],
         queuedDownloads: [],
         handleVideoSubmit: vi.fn(),
-        showBilibiliPartsModal: false,
-        setShowBilibiliPartsModal: vi.fn(),
+        showBilibiliPartsModal: appTestState.showBilibiliPartsModal,
+        setShowBilibiliPartsModal: appTestState.setShowBilibiliPartsModal,
         bilibiliPartsInfo: { videosNumber: 0, title: '', type: 'video' },
         isCheckingParts: false,
         handleDownloadAllBilibiliParts: vi.fn(),
         handleDownloadCurrentBilibiliPart: vi.fn()
     })
+}));
+
+vi.mock('../hooks/useSettings', () => ({
+    useSettings: () => ({
+        data: appTestState.settingsData
+    })
+}));
+
+vi.mock('../components/BilibiliPartsModal', () => ({
+    default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+        isOpen ? <button onClick={onClose}>close-bilibili-modal</button> : null
 }));
 
 vi.mock('../contexts/LanguageContext', () => ({
@@ -122,6 +139,9 @@ describe('App', () => {
     let queryClient: QueryClient;
 
     beforeEach(() => {
+        appTestState.settingsData = {};
+        appTestState.showBilibiliPartsModal = false;
+        appTestState.setShowBilibiliPartsModal.mockReset();
         queryClient = new QueryClient({
             defaultOptions: {
                 queries: {
@@ -151,5 +171,32 @@ describe('App', () => {
         await waitFor(() => {
             expect(document.body).toBeTruthy();
         });
+    });
+
+    it('sets document title from website settings when provided', async () => {
+        appTestState.settingsData = { websiteName: 'CustomTube' };
+
+        render(
+            <QueryClientProvider client={queryClient}>
+                <App />
+            </QueryClientProvider>
+        );
+
+        await waitFor(() => {
+            expect(document.title).toBe('CustomTube');
+        });
+    });
+
+    it('closes bilibili parts modal through onClose callback', async () => {
+        appTestState.showBilibiliPartsModal = true;
+
+        render(
+            <QueryClientProvider client={queryClient}>
+                <App />
+            </QueryClientProvider>
+        );
+
+        fireEvent.click(await screen.findByText('close-bilibili-modal'));
+        expect(appTestState.setShowBilibiliPartsModal).toHaveBeenCalledWith(false);
     });
 });

@@ -7,6 +7,7 @@ vi.mock('fs-extra');
 vi.mock('../../utils/logger', () => ({
   logger: {
     debug: vi.fn(),
+    warn: vi.fn(),
   },
 }));
 
@@ -77,6 +78,33 @@ describe('cloudStorage pathUtils', () => {
     it('should return null if not found anywhere', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
       const result = resolveAbsolutePath('nonexistent.file');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for empty or invalid relative path', () => {
+      expect(resolveAbsolutePath('' as any)).toBeNull();
+      expect(resolveAbsolutePath(undefined as any)).toBeNull();
+    });
+
+    it('should reject path traversal attempts', () => {
+      expect(resolveAbsolutePath('../secret.txt')).toBeNull();
+      expect(resolveAbsolutePath('videos/../secret.mp4')).toBeNull();
+    });
+
+    it('should return null for missing image path in uploads', () => {
+      vi.mocked(fs.existsSync).mockImplementation((p) => {
+        if (typeof p !== 'string') return false;
+        if (p === path.join(mockCwd, 'data')) return false;
+        return false;
+      });
+
+      const result = resolveAbsolutePath('images/missing.jpg');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for missing subtitle path in uploads', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      const result = resolveAbsolutePath('subtitles/missing.vtt');
       expect(result).toBeNull();
     });
   });

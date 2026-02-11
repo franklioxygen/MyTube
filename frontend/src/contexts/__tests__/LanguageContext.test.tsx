@@ -1,154 +1,217 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import axios from 'axios';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../../utils/apiClient';
+import { loadLocale } from '../../utils/translations';
 import { LanguageProvider, useLanguage } from '../LanguageContext';
-// Mock translations with valid keys found in types (inferred from lint)
-vi.mock('../utils/translations', () => ({
-    translations: {
-        en: { retry: 'Retry' },
-        es: { retry: 'Reintentar' },
-        fr: { retry: 'Réessayer' },
-        de: { retry: 'Wiederholen' }
-    }
+
+vi.mock('../../utils/apiClient', () => ({
+    api: {
+        get: vi.fn(),
+        patch: vi.fn(),
+    },
 }));
 
-// Mock axios
-vi.mock('axios');
-const mockedAxios = vi.mocked(axios, true);
+vi.mock('../../utils/translations', () => ({
+    defaultTranslations: {
+        retry: 'Retry',
+        helloName: 'Hello {name} {name}',
+        error: 'Error',
+    },
+    loadLocale: vi.fn(async () => ({
+        retry: 'Retry',
+        helloName: 'Hello {name} {name}',
+        error: 'Error',
+    })),
+}));
 
+const mockedApi = vi.mocked(api, true);
+const mockedLoadLocale = vi.mocked(loadLocale);
 
+const setLocalStorageMock = ({
+    initial = {},
+    throwOnGet = false,
+    throwOnSet = false,
+}: {
+    initial?: Record<string, string>;
+    throwOnGet?: boolean;
+    throwOnSet?: boolean;
+} = {}) => {
+    const storageMock: Record<string, string> = { ...initial };
+    const localStorageMock = {
+        getItem: vi.fn((key: string) => {
+            if (throwOnGet) {
+                throw new Error('get failed');
+            }
+            return storageMock[key] ?? null;
+        }),
+        setItem: vi.fn((key: string, value: string) => {
+            if (throwOnSet) {
+                throw new Error('set failed');
+            }
+            storageMock[key] = String(value);
+        }),
+        clear: vi.fn(() => {
+            Object.keys(storageMock).forEach((key) => delete storageMock[key]);
+        }),
+        removeItem: vi.fn((key: string) => {
+            delete storageMock[key];
+        }),
+        key: vi.fn(),
+        length: 0,
+    };
+
+    Object.defineProperty(window, 'localStorage', {
+        value: localStorageMock,
+        writable: true,
+        configurable: true,
+    });
+
+    return localStorageMock;
+};
 
 describe('LanguageContext', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        setLocalStorageMock();
 
-        // Mock global localStorage
-        const storageMock: Record<string, string> = {};
-        Object.defineProperty(window, 'localStorage', {
-            value: {
-                getItem: vi.fn((key) => storageMock[key] || null),
-                setItem: vi.fn((key, value) => {
-                    storageMock[key] = value.toString();
-                }),
-                clear: vi.fn(() => {
-                    for (const key in storageMock) delete storageMock[key];
-                }),
-                length: 0,
-                key: vi.fn(),
-                removeItem: vi.fn((key) => delete storageMock[key]),
-            },
-            writable: true
-        });
-
-        // Default mocks: authenticated admin who can read settings
-        mockedAxios.get.mockImplementation((url) => {
-            if (typeof url === 'string') {
-                if (url.includes('/settings/password-enabled')) {
-                    return Promise.resolve({
-                        data: { loginRequired: false, authenticatedRole: 'admin' }
-                    });
-                }
-                if (url.includes('/settings')) {
-                    return Promise.resolve({ data: { language: 'en' } });
-                }
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: true, authenticatedRole: null } });
             }
             return Promise.resolve({ data: {} });
         });
-        mockedAxios.patch.mockResolvedValue({});
-
-        // Simulate authenticated user
-        Object.defineProperty(document, 'cookie', {
-            writable: true,
-            value: 'mytube_role=admin',
-        });
+        mockedApi.patch.mockResolvedValue({ data: { success: true } } as any);
+        mockedLoadLocale.mockResolvedValue({
+            retry: 'Retry',
+            helloName: 'Hello {name} {name}',
+            error: 'Error',
+        } as any);
+        vi.spyOn(console, 'error').mockImplementation(() => { });
     });
 
-    it('should initialize with default language (en) if nothing stored', async () => {
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
 
+    it('initializes with default language when nothing is stored', () => {
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
         expect(result.current.language).toBe('en');
     });
 
-    it('should initialize with stored language', async () => {
-        localStorage.setItem('mytube_language', 'es');
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
+    it('initializes with stored language', async () => {
+        setLocalStorageMock({ initial: { mytube_language: 'es' } });
 
-        await waitFor(() => {
-            expect(result.current.language).toBe('es');
-        });
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+
+        await waitFor(() => expect(result.current.language).toBe('es'));
     });
 
-    it('should fetch language from backend on mount', async () => {
-        // Set up mocks: password-enabled returns authenticated, settings returns 'fr'
-        mockedAxios.get.mockImplementation((url) => {
-            if (typeof url === 'string') {
-                if (url.includes('/settings/password-enabled')) {
-                    return Promise.resolve({
-                        data: { loginRequired: false, authenticatedRole: 'admin' }
-                    });
-                }
-                if (url.includes('/settings')) {
-                    return Promise.resolve({ data: { language: 'fr' } });
-                }
+    it('fetches language from backend when settings can be read', async () => {
+        const localStorageMock = setLocalStorageMock();
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+            }
+            if (url === '/settings') {
+                return Promise.resolve({ data: { language: 'fr' } });
             }
             return Promise.resolve({ data: {} });
         });
 
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
 
-        await waitFor(() => {
-            expect(result.current.language).toBe('fr');
-        });
-
-        expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/settings'));
-        expect(localStorage.getItem('mytube_language')).toBe('fr');
+        await waitFor(() => expect(result.current.language).toBe('fr'));
+        expect(localStorageMock.setItem).toHaveBeenCalledWith('mytube_language', 'fr');
     });
 
-    it('should update language and sync to backend', async () => {
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
+    it('logs when reading localStorage fails', () => {
+        setLocalStorageMock({ throwOnGet: true });
+
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+
+        expect(result.current.language).toBe('en');
+        expect(console.error).toHaveBeenCalledWith(
+            'Error reading language from localStorage:',
+            expect.any(Error)
+        );
+    });
+
+    it('logs when syncing backend language to localStorage fails', async () => {
+        setLocalStorageMock({ throwOnSet: true });
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+            }
+            if (url === '/settings') {
+                return Promise.resolve({ data: { language: 'de' } });
+            }
+            return Promise.resolve({ data: {} });
         });
 
-        // Wait for initial fetch to settle to avoid overwrite
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+
+        await waitFor(() => expect(result.current.language).toBe('de'));
+        expect(console.error).toHaveBeenCalledWith(
+            'Error saving language to localStorage:',
+            expect.any(Error)
+        );
+    });
+
+    it('logs non-auth errors while fetching backend settings', async () => {
+        mockedApi.get.mockRejectedValueOnce({ response: { status: 500 } });
+
+        renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+
         await waitFor(() => {
-            expect(result.current.language).toBe('en');
+            expect(console.error).toHaveBeenCalledWith(
+                'Error fetching settings for language:',
+                expect.anything()
+            );
         });
+    });
+
+    it('updates language and logs localStorage + non-401 patch errors', async () => {
+        setLocalStorageMock({ throwOnSet: true });
+        mockedApi.patch.mockRejectedValueOnce({ response: { status: 500 } });
+
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
 
         await act(async () => {
             await result.current.setLanguage('de');
         });
 
         expect(result.current.language).toBe('de');
-        expect(localStorage.getItem('mytube_language')).toBe('de');
-
-        expect(mockedAxios.patch).toHaveBeenCalledWith(
-            expect.stringContaining('/settings'),
-            expect.objectContaining({
-                language: 'de'
-            })
+        expect(console.error).toHaveBeenCalledWith(
+            'Error saving language to localStorage:',
+            expect.any(Error)
+        );
+        expect(console.error).toHaveBeenCalledWith(
+            'Error saving language setting:',
+            expect.anything()
         );
     });
 
-    it('should translate keys correctly', () => {
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
+    it('translates placeholders using replaceAll fallback loop', () => {
+        const originalDescriptor = Object.getOwnPropertyDescriptor(String.prototype, 'replaceAll');
+        Object.defineProperty(String.prototype, 'replaceAll', {
+            value: undefined,
+            configurable: true,
+            writable: true,
         });
 
-        expect(result.current.t('retry')).toBe('Retry');
+        try {
+            const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+            expect(result.current.t('helloName' as any, { name: 'Alice' })).toBe('Hello Alice Alice');
+        } finally {
+            if (originalDescriptor) {
+                Object.defineProperty(String.prototype, 'replaceAll', originalDescriptor);
+            }
+        }
     });
 
-    it('should handle missing keys gracefully', () => {
-        const { result } = renderHook(() => useLanguage(), {
-            wrapper: LanguageProvider
-        });
-
-        // @ts-expect-error - Testing invalid key
-        expect(result.current.t('non_existent_key')).toBe('non_existent_key');
+    it('throws when useLanguage is called outside provider', () => {
+        expect(() => renderHook(() => useLanguage())).toThrow(
+            'useLanguage must be used within a LanguageProvider'
+        );
     });
 });

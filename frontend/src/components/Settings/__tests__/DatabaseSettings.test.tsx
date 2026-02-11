@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DatabaseSettings from '../DatabaseSettings';
@@ -23,6 +23,8 @@ describe('DatabaseSettings', () => {
         onMoveSubtitlesToVideoFolderChange: vi.fn(),
         moveThumbnailsToVideoFolder: false,
         onMoveThumbnailsToVideoFolderChange: vi.fn(),
+        saveAuthorFilesToCollection: false,
+        onSaveAuthorFilesToCollectionChange: vi.fn(),
     };
 
     beforeEach(() => {
@@ -103,5 +105,64 @@ describe('DatabaseSettings', () => {
         const subtitleSwitch = screen.getByLabelText(/moveSubtitlesToVideoFolderOff/i);
         await user.click(subtitleSwitch);
         expect(defaultProps.onMoveSubtitlesToVideoFolderChange).toHaveBeenCalledWith(true);
+    });
+
+    it('should toggle thumbnail and author file switches', async () => {
+        const user = userEvent.setup();
+        render(<DatabaseSettings {...defaultProps} />);
+
+        const thumbnailSwitch = screen.getByLabelText(/moveThumbnailsToVideoFolderOff/i);
+        await user.click(thumbnailSwitch);
+        expect(defaultProps.onMoveThumbnailsToVideoFolderChange).toHaveBeenCalledWith(true);
+
+        const authorSwitch = screen.getByLabelText(/saveAuthorFilesToCollectionOff/i);
+        await user.click(authorSwitch);
+        expect(defaultProps.onSaveAuthorFilesToCollectionChange).toHaveBeenCalledWith(true);
+    });
+
+    it('should show alert when importing non-db file', async () => {
+        const user = userEvent.setup();
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => { });
+        render(<DatabaseSettings {...defaultProps} />);
+
+        await user.click(screen.getByText('importDatabase'));
+        const invalidFile = new File(['bad'], 'bad.txt', { type: 'text/plain' });
+        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(input, { target: { files: [invalidFile] } });
+
+        expect(alertSpy).toHaveBeenCalledWith('onlyDbFilesAllowed');
+        alertSpy.mockRestore();
+    });
+
+    it('should open, close and confirm restore modal', async () => {
+        const user = userEvent.setup();
+        render(<DatabaseSettings {...defaultProps} />);
+
+        await user.click(screen.getByText('restoreFromLastBackup'));
+        expect(screen.getByText('restoreFromLastBackupWarning')).toBeInTheDocument();
+
+        const closeButton = screen.getByLabelText('close');
+        await user.click(closeButton);
+        await waitFor(() => {
+            expect(screen.queryByText('restoreFromLastBackupWarning')).not.toBeInTheDocument();
+        });
+
+        await user.click(screen.getByText('restoreFromLastBackup'));
+        const restoreButtons = screen.getAllByRole('button', { name: 'restoreFromLastBackup' });
+        await user.click(restoreButtons[restoreButtons.length - 1]);
+        expect(defaultProps.onRestoreFromLastBackup).toHaveBeenCalled();
+    });
+
+    it('should show raw backup timestamp when format is invalid', async () => {
+        const user = userEvent.setup();
+        render(
+            <DatabaseSettings
+                {...defaultProps}
+                lastBackupInfo={{ exists: true, timestamp: 'invalid-format' }}
+            />
+        );
+
+        await user.click(screen.getByText('restoreFromLastBackup'));
+        expect(screen.getByText(/invalid-format/)).toBeInTheDocument();
     });
 });
