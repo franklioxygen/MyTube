@@ -28,6 +28,23 @@ function findCaseInsensitiveTagCollision(
  * Validate and normalize settings values
  */
 export function validateSettings(newSettings: Partial<Settings>): void {
+  if (
+    newSettings.password !== undefined &&
+    typeof newSettings.password !== "string"
+  ) {
+    throw new ValidationError("Password must be a string.", "password");
+  }
+
+  if (
+    newSettings.visitorPassword !== undefined &&
+    typeof newSettings.visitorPassword !== "string"
+  ) {
+    throw new ValidationError(
+      "Visitor password must be a string.",
+      "visitorPassword"
+    );
+  }
+
   // Validate maxConcurrentDownloads
   if (
     newSettings.maxConcurrentDownloads !== undefined &&

@@ -23,9 +23,10 @@ vi.mock('crypto', () => ({
 }));
 
 describe('passwordService', () => {
+  const mockBcryptHash = `$2b$10${'$'}${'a'.repeat(53)}`;
   const mockSettings = {
     loginEnabled: true,
-    password: 'hashedVideoPassword',
+    password: mockBcryptHash,
     hostname: 'test',
     port: 3000
     // add other required settings if needed
@@ -71,7 +72,7 @@ describe('passwordService', () => {
       const result = await passwordService.verifyPassword('correct');
       
       expect(result.success).toBe(true);
-      expect(bcrypt.compare).toHaveBeenCalledWith('correct', 'hashedVideoPassword');
+      expect(bcrypt.compare).toHaveBeenCalledWith('correct', mockBcryptHash);
       expect(loginAttemptService.resetFailedAttempts).toHaveBeenCalled();
     });
 
@@ -102,6 +103,51 @@ describe('passwordService', () => {
       const result = await passwordService.verifyPassword('any');
       
       expect(result.success).toBe(true);
+    });
+
+    it('should support legacy plaintext admin password and migrate it', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        ...mockSettings,
+        password: 'legacy-admin-password',
+      });
+
+      const result = await passwordService.verifyPassword('legacy-admin-password');
+
+      expect(result.success).toBe(true);
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ password: 'hashed_new' }),
+      );
+    });
+
+    it('should return failure instead of throwing when stored password type is invalid', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        ...mockSettings,
+        password: { invalid: true },
+      });
+
+      const result = await passwordService.verifyPassword('any');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Incorrect password');
+    });
+  });
+
+  describe('verifyVisitorPassword', () => {
+    it('should support legacy plaintext visitor password and migrate it', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        ...mockSettings,
+        visitorPassword: 'legacy-visitor-password',
+      });
+
+      const result = await passwordService.verifyVisitorPassword(
+        'legacy-visitor-password',
+      );
+
+      expect(result.success).toBe(true);
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ visitorPassword: 'hashed_new' }),
+      );
     });
   });
 

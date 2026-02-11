@@ -38,6 +38,17 @@ describe("settingsValidationService", () => {
         settingsValidationService.validateSettings({ tags: ["Aaa"] });
       }).not.toThrow();
     });
+
+    it("should throw ValidationError when password fields are non-string", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({ password: true as any });
+      }).toThrow(ValidationError);
+      expect(() => {
+        settingsValidationService.validateSettings({
+          visitorPassword: 123 as any,
+        });
+      }).toThrow(ValidationError);
+    });
   });
 
   describe("mergeSettings", () => {

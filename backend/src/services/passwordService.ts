@@ -5,6 +5,64 @@ import { logger } from "../utils/logger";
 import * as loginAttemptService from "./loginAttemptService";
 import * as storageService from "./storageService";
 
+const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
+
+type PasswordMatchResult = "match" | "legacy_plaintext_match" | "mismatch";
+
+async function compareStoredPassword(
+  inputPassword: string,
+  storedPassword: unknown,
+): Promise<PasswordMatchResult> {
+  if (typeof inputPassword !== "string") {
+    return "mismatch";
+  }
+  if (typeof storedPassword !== "string" || storedPassword.length === 0) {
+    return "mismatch";
+  }
+
+  // Backward compatibility: support legacy plaintext passwords.
+  if (!BCRYPT_HASH_PATTERN.test(storedPassword)) {
+    return inputPassword === storedPassword
+      ? "legacy_plaintext_match"
+      : "mismatch";
+  }
+
+  try {
+    const matched = await bcrypt.compare(inputPassword, storedPassword);
+    return matched ? "match" : "mismatch";
+  } catch (error) {
+    logger.warn(
+      "Password hash comparison failed. Falling back to legacy plaintext comparison.",
+    );
+    return inputPassword === storedPassword
+      ? "legacy_plaintext_match"
+      : "mismatch";
+  }
+}
+
+async function migrateLegacyPasswordHash(
+  key: "password" | "visitorPassword",
+  rawPassword: string,
+  matchResult: PasswordMatchResult,
+): Promise<void> {
+  if (matchResult !== "legacy_plaintext_match") {
+    return;
+  }
+
+  try {
+    const hashedPassword = await hashPassword(rawPassword);
+    storageService.saveSettings({ [key]: hashedPassword });
+    logger.warn(
+      `Detected legacy plaintext ${key}. Automatically migrated to bcrypt hash.`,
+    );
+  } catch (error) {
+    logger.error(
+      `Failed to migrate legacy plaintext ${key}.`,
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+}
+
 /**
  * Check if login is required (loginEnabled is true)
  */
@@ -98,8 +156,16 @@ export async function verifyPassword(
 
   // 1. Check Admin Password
   if (mergedSettings.password) {
-    const isAdminMatch = await bcrypt.compare(password, mergedSettings.password);
-    if (isAdminMatch) {
+    const adminMatchResult = await compareStoredPassword(
+      password,
+      mergedSettings.password,
+    );
+    if (adminMatchResult !== "mismatch") {
+      await migrateLegacyPasswordHash(
+        "password",
+        password,
+        adminMatchResult,
+      );
       loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
@@ -118,12 +184,20 @@ export async function verifyPassword(
   // If password matches visitorPassword, assign visitor role
   const visitorUserEnabled = mergedSettings.visitorUserEnabled !== false;
   if (visitorUserEnabled && mergedSettings.visitorPassword) {
-      const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
-      if (isVisitorMatch) {
-          loginAttemptService.resetFailedAttempts();
-          const token = generateToken({ role: "visitor" });
-          return { success: true, role: "visitor", token };
-      }
+    const visitorMatchResult = await compareStoredPassword(
+      password,
+      mergedSettings.visitorPassword,
+    );
+    if (visitorMatchResult !== "mismatch") {
+      await migrateLegacyPasswordHash(
+        "visitorPassword",
+        password,
+        visitorMatchResult,
+      );
+      loginAttemptService.resetFailedAttempts();
+      const token = generateToken({ role: "visitor" });
+      return { success: true, role: "visitor", token };
+    }
   }
 
   // No match
@@ -177,8 +251,16 @@ export async function verifyAdminPassword(
 
   // Check Admin Password only
   if (mergedSettings.password) {
-    const isAdminMatch = await bcrypt.compare(password, mergedSettings.password);
-    if (isAdminMatch) {
+    const adminMatchResult = await compareStoredPassword(
+      password,
+      mergedSettings.password,
+    );
+    if (adminMatchResult !== "mismatch") {
+      await migrateLegacyPasswordHash(
+        "password",
+        password,
+        adminMatchResult,
+      );
       loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
@@ -253,8 +335,16 @@ export async function verifyVisitorPassword(
 
   // Check Visitor Password only
   if (mergedSettings.visitorPassword) {
-    const isVisitorMatch = await bcrypt.compare(password, mergedSettings.visitorPassword);
-    if (isVisitorMatch) {
+    const visitorMatchResult = await compareStoredPassword(
+      password,
+      mergedSettings.visitorPassword,
+    );
+    if (visitorMatchResult !== "mismatch") {
+      await migrateLegacyPasswordHash(
+        "visitorPassword",
+        password,
+        visitorMatchResult,
+      );
       loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "visitor" });
       return { success: true, role: "visitor", token };
@@ -364,5 +454,4 @@ export async function resetPassword(): Promise<string> {
 
   return newPassword;
 }
-
 
