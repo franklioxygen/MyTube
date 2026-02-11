@@ -13,6 +13,350 @@ export interface PreparedFlags {
   mergeOutputFormat: string;
 }
 
+type UserYtDlpConfig = Record<string, any>;
+interface DownloadFlagContext {
+  flags: YtDlpFlags;
+  config: UserYtDlpConfig;
+  isYouTube: boolean;
+  formatSortValue?: string;
+  youtubeFormat: string;
+  mergeOutputFormat: string;
+}
+
+const DEFAULT_FORMAT =
+  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+const DEFAULT_YOUTUBE_FORMAT =
+  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+const TWITTER_SAFARI_FORMAT =
+  "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+const YOUTUBE_HIGH_RES_FORMAT =
+  "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
+
+function hasUserSpecifiedFormat(config: UserYtDlpConfig): boolean {
+  return Boolean(config.f || config.format);
+}
+
+function resolveDownloadFormats(config: UserYtDlpConfig): {
+  defaultFormat: string;
+  youtubeFormat: string;
+} {
+  if (!hasUserSpecifiedFormat(config)) {
+    return {
+      defaultFormat: DEFAULT_FORMAT,
+      youtubeFormat: DEFAULT_YOUTUBE_FORMAT,
+    };
+  }
+
+  const userFormat = config.f || config.format;
+  logger.info("Using user-specified format:", userFormat);
+  return {
+    defaultFormat: userFormat,
+    youtubeFormat: userFormat,
+  };
+}
+
+function extractUserConfigOptions(
+  config: UserYtDlpConfig,
+): {
+  safeUserConfig: UserYtDlpConfig;
+  formatSortValue: string | undefined;
+  userWriteSubs: any;
+  userWriteAutoSubs: any;
+  userSubLangs: any;
+  userConvertSubs: any;
+  userMergeOutputFormat: string | undefined;
+  networkOptions: UserYtDlpConfig;
+} {
+  const {
+    output: _output,
+    o: _o,
+    f: _f,
+    format: _format,
+    S: userFormatSort,
+    formatSort: userFormatSort2,
+    writeSubs: userWriteSubs,
+    writeAutoSubs: userWriteAutoSubs,
+    subLangs: userSubLangs,
+    convertSubs: userConvertSubs,
+    mergeOutputFormat: userMergeOutputFormat,
+    proxy: _proxy,
+    ...safeUserConfig
+  } = config;
+
+  const networkOptions: UserYtDlpConfig = {};
+  if (config.proxy) {
+    networkOptions.proxy = config.proxy;
+    logger.debug("Preserving proxy in networkOptions:", config.proxy);
+  }
+
+  return {
+    safeUserConfig,
+    formatSortValue: userFormatSort || userFormatSort2,
+    userWriteSubs,
+    userWriteAutoSubs,
+    userSubLangs,
+    userConvertSubs,
+    userMergeOutputFormat,
+    networkOptions,
+  };
+}
+
+function resolveMergeOutputFormat(args: {
+  isTwitter: boolean;
+  formatSortValue?: string;
+  userMergeOutputFormat?: string;
+}): string {
+  const { isTwitter, formatSortValue, userMergeOutputFormat } = args;
+  if (userMergeOutputFormat) {
+    return userMergeOutputFormat;
+  }
+  if (!isTwitter && formatSortValue && formatSortValue.includes("res")) {
+    return "webm";
+  }
+  return "mp4";
+}
+
+function buildBaseFlags(args: {
+  safeUserConfig: UserYtDlpConfig;
+  networkOptions: UserYtDlpConfig;
+  outputPath: string;
+  defaultFormat: string;
+  mergeOutputFormat: string;
+  userWriteSubs: any;
+  userWriteAutoSubs: any;
+  userSubLangs: any;
+  userConvertSubs: any;
+}): YtDlpFlags {
+  const {
+    safeUserConfig,
+    networkOptions,
+    outputPath,
+    defaultFormat,
+    mergeOutputFormat,
+    userWriteSubs,
+    userWriteAutoSubs,
+    userSubLangs,
+    userConvertSubs,
+  } = args;
+
+  return {
+    ...safeUserConfig,
+    ...networkOptions,
+    output: outputPath,
+    format: defaultFormat,
+    mergeOutputFormat,
+    writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
+    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : false,
+    subLangs: userSubLangs !== undefined ? userSubLangs : "all",
+    convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
+    ignoreErrors: true,
+  };
+}
+
+function applyFormatSortIfProvided(
+  flags: YtDlpFlags,
+  formatSortValue?: string,
+): void {
+  if (!formatSortValue) {
+    return;
+  }
+  flags.formatSort = formatSortValue;
+  logger.info("Using user-specified format sort:", formatSortValue);
+}
+
+function applyTwitterFormatIfNeeded(args: {
+  flags: YtDlpFlags;
+  isTwitter: boolean;
+  config: UserYtDlpConfig;
+}): void {
+  const { flags, isTwitter, config } = args;
+  if (!isTwitter) {
+    return;
+  }
+  if (!hasUserSpecifiedFormat(config)) {
+    flags.format = TWITTER_SAFARI_FORMAT;
+  }
+  logger.info("Twitter/X URL detected - using MP4 format for Safari compatibility");
+}
+
+function applyYouTubeFormatIfNeeded(args: {
+  flags: YtDlpFlags;
+  isYouTube: boolean;
+  config: UserYtDlpConfig;
+  formatSortValue?: string;
+  youtubeFormat: string;
+}): void {
+  const { flags, isYouTube, config, formatSortValue, youtubeFormat } = args;
+  if (!isYouTube) {
+    return;
+  }
+  if (!hasUserSpecifiedFormat(config) && formatSortValue) {
+    flags.format = YOUTUBE_HIGH_RES_FORMAT;
+    return;
+  }
+  flags.format = youtubeFormat;
+}
+
+function applyPreferredAudioLanguageIfNeeded(
+  args: {
+    flags: YtDlpFlags;
+    isYouTube: boolean;
+    config: UserYtDlpConfig;
+  },
+): boolean {
+  const { flags, isYouTube, config } = args;
+  if (!isYouTube || hasUserSpecifiedFormat(config)) {
+    return false;
+  }
+
+  const appSettings = storageService.getSettings();
+  const preferredAudioLanguage = appSettings?.preferredAudioLanguage;
+  if (
+    !preferredAudioLanguage ||
+    typeof preferredAudioLanguage !== "string" ||
+    preferredAudioLanguage.trim() === ""
+  ) {
+    return false;
+  }
+
+  const lang = preferredAudioLanguage.trim().replace(/["\\]/g, "");
+  if (lang.length === 0) {
+    return false;
+  }
+
+  flags.format =
+    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[language=${lang}][ext=m4a]/` +
+    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/` +
+    `bestvideo[ext=mp4]+bestaudio[language=${lang}]/` +
+    `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
+  flags.mergeOutputFormat = "mp4";
+  logger.info("Using preferred audio language (MP4/m4a for playback):", lang);
+  return true;
+}
+
+function applyYouTubeExtractorArgsIfNeeded(
+  args: {
+    flags: YtDlpFlags;
+    isYouTube: boolean;
+    config: UserYtDlpConfig;
+  },
+): void {
+  const { flags, isYouTube, config } = args;
+  if (!isYouTube || !config.extractorArgs || !config.extractorArgs.includes("youtube:")) {
+    return;
+  }
+
+  flags.extractorArgs = config.extractorArgs;
+  if (config.extractorArgs.includes("player_client=android")) {
+    flags.addHeader = [
+      "Referer:https://www.youtube.com/",
+      "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    ];
+  }
+}
+
+function appendProviderExtractorArg(flags: YtDlpFlags): void {
+  const providerScript = getProviderScript();
+  if (!providerScript) {
+    return;
+  }
+
+  const providerArg = `youtubepot-bgutilscript:script_path=${providerScript}`;
+  if (flags.extractorArgs) {
+    flags.extractorArgs = `${flags.extractorArgs};${providerArg}`;
+    return;
+  }
+  flags.extractorArgs = providerArg;
+}
+
+function finalizeExtractorArgs(flags: YtDlpFlags): void {
+  if (!flags.extractorArgs) {
+    delete flags.extractorArgs;
+  }
+}
+
+function logProxyPreservation(flags: YtDlpFlags, config: UserYtDlpConfig): void {
+  if (flags.proxy) {
+    logger.debug("Proxy in final flags:", flags.proxy);
+    return;
+  }
+  if (config.proxy) {
+    logger.warn("Proxy was in config but not in final flags. Config proxy:", config.proxy);
+  }
+}
+
+function createDownloadFlagContext(
+  videoUrl: string,
+  outputPath: string,
+  config: UserYtDlpConfig,
+): DownloadFlagContext {
+  const { defaultFormat, youtubeFormat } = resolveDownloadFormats(config);
+  const {
+    safeUserConfig,
+    formatSortValue,
+    userWriteSubs,
+    userWriteAutoSubs,
+    userSubLangs,
+    userConvertSubs,
+    userMergeOutputFormat,
+    networkOptions,
+  } = extractUserConfigOptions(config);
+
+  const isTwitter = isTwitterUrl(videoUrl);
+  const isYouTube = isYouTubeUrl(videoUrl);
+  const mergeOutputFormat = resolveMergeOutputFormat({
+    isTwitter,
+    formatSortValue,
+    userMergeOutputFormat,
+  });
+  const flags = buildBaseFlags({
+    safeUserConfig,
+    networkOptions,
+    outputPath,
+    defaultFormat,
+    mergeOutputFormat,
+    userWriteSubs,
+    userWriteAutoSubs,
+    userSubLangs,
+    userConvertSubs,
+  });
+
+  applyFormatSortIfProvided(flags, formatSortValue);
+  applyTwitterFormatIfNeeded({ flags, isTwitter, config });
+
+  return {
+    flags,
+    config,
+    isYouTube,
+    formatSortValue,
+    youtubeFormat,
+    mergeOutputFormat,
+  };
+}
+
+function applyPostBuildRules(context: DownloadFlagContext): string {
+  const { flags, isYouTube, config, formatSortValue, youtubeFormat } = context;
+  let mergeOutputFormat = context.mergeOutputFormat;
+
+  applyYouTubeFormatIfNeeded({
+    flags,
+    isYouTube,
+    config,
+    formatSortValue,
+    youtubeFormat,
+  });
+
+  if (applyPreferredAudioLanguageIfNeeded({ flags, isYouTube, config })) {
+    mergeOutputFormat = "mp4";
+  }
+
+  applyYouTubeExtractorArgsIfNeeded({ flags, isYouTube, config });
+  appendProviderExtractorArg(flags);
+  finalizeExtractorArgs(flags);
+  logProxyPreservation(flags, config);
+  return mergeOutputFormat;
+}
+
 /**
  * Prepare yt-dlp flags for video download
  */
@@ -21,196 +365,10 @@ export function prepareDownloadFlags(
   outputPath: string,
   userConfig?: any,
 ): PreparedFlags {
-  // Get user's yt-dlp configuration if not provided
-  const config = userConfig || getUserYtDlpConfig(videoUrl);
-
-  // Default format based on user config or fallback
-  let defaultFormat =
-    "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-  let youtubeFormat =
-    "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4][vcodec^=h264]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-
-  // If user specified a format, use it (but still apply MP4 container preference)
-  if (config.f || config.format) {
-    const userFormat = config.f || config.format;
-    defaultFormat = userFormat;
-    youtubeFormat = userFormat;
-    logger.info("Using user-specified format:", userFormat);
-  }
-
-  // Prepare base flags from user config (excluding output options we manage)
-  // Explicitly preserve network-related options like proxy
-  const {
-    output: _output, // Ignore user output template (we manage this)
-    o: _o,
-    f: _f, // Format is handled specially above
-    format: _format,
-    S: userFormatSort, // Format sort is handled specially
-    formatSort: userFormatSort2,
-    // Extract user subtitle preferences (use them if provided)
-    writeSubs: userWriteSubs,
-    writeAutoSubs: userWriteAutoSubs,
-    subLangs: userSubLangs,
-    convertSubs: userConvertSubs,
-    // Extract user merge output format (use it if provided)
-    mergeOutputFormat: userMergeOutputFormat,
-    proxy: _proxy, // Proxy is handled separately in networkOptions to ensure it's preserved
-    ...safeUserConfig
-  } = config;
-
-  // Explicitly preserve proxy and other network options to ensure they're not lost
-  // This is critical for download operations that need proxy settings
-  const networkOptions: Record<string, any> = {};
-  if (config.proxy) {
-    networkOptions.proxy = config.proxy;
-    logger.debug("Preserving proxy in networkOptions:", config.proxy);
-  }
-
-  // Get format sort option if user specified it
-  const formatSortValue = userFormatSort || userFormatSort2;
-
-  // Check if this is a Twitter/X URL - always use mp4 for Safari compatibility
-  const twitterUrl = isTwitterUrl(videoUrl);
-
-  // Determine merge output format: use user's choice or default to mp4
-  // However, if user is sorting by resolution (likely demanding 4K/VP9), default to WebM
-  // because VP9/AV1 in MP4 (mp4v2) is often problematic for Safari/QuickTime.
-  // Exception: Twitter/X always uses mp4 for Safari compatibility
-  let defaultMergeFormat = "mp4";
-  if (!twitterUrl && formatSortValue && formatSortValue.includes("res")) {
-    // Use WebM for high-res (likely VP9/AV1) as it's supported by Safari 14+ and Chrome
-    // But skip this for Twitter/X to ensure Safari compatibility
-    defaultMergeFormat = "webm";
-  }
-  let mergeOutputFormat = userMergeOutputFormat || defaultMergeFormat;
-
-  // Prepare flags - defaults first, then user config to allow overrides
-  // Network options (like proxy) are applied last to ensure they're not overridden
-  // Default: manual subs only in all languages (no auto-subs) to avoid duplicate/repeat subtitle files.
-  // Use ignoreErrors so one failed subtitle (e.g. 429) does not abort the whole download.
-  const flags: YtDlpFlags = {
-    ...safeUserConfig, // Apply user config
-    ...networkOptions, // Explicitly apply network options (proxy, etc.) to ensure they're preserved
-    output: outputPath, // Always use our output path with correct extension
-    format: defaultFormat,
-    // Use user preferences if provided, otherwise use defaults
-    mergeOutputFormat: mergeOutputFormat,
-    writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
-    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : false,
-    subLangs: userSubLangs !== undefined ? userSubLangs : "all",
-    convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
-    ignoreErrors: true, // Continue when a subtitle fails (e.g. HTTP 429); keep video and other subs
-  };
-
-  // Apply format sort if user specified it (e.g., -S res:480)
-  if (formatSortValue) {
-    flags.formatSort = formatSortValue;
-    logger.info("Using user-specified format sort:", formatSortValue);
-  }
-
-  // Add Twitter/X specific flags - always use MP4 with H.264 for Safari compatibility
-  if (twitterUrl) {
-    // Force MP4 format with H.264 codec for Safari compatibility
-    // Twitter/X videos should use MP4 container regardless of resolution
-    if (!config.f && !config.format) {
-      flags.format =
-        "bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-    }
-    // Ensure merge output format is mp4 (already handled above, but log it)
-    logger.info(
-      "Twitter/X URL detected - using MP4 format for Safari compatibility",
-    );
-  }
-
-  // Add YouTube specific flags if it's a YouTube URL
-  // Always apply preferred formats for YouTube to ensure codec compatibility (H.264/AAC for Safari)
-  if (isYouTubeUrl(videoUrl)) {
-    // If the user hasn't specified a format (-f), but HAS specified a sorting order (-S),
-    // we should assume they want to prioritize their sort order (e.g. resolution) over
-    // our default strictly-compatible codec constraints.
-    // This fixes the issue where -S res:2160 fails because the default format restricts to H.264 (max 1080p).
-    if (!config.f && !config.format && formatSortValue) {
-      // Allow any video codec (including VP9/AV1 for 4K), but try to keep audio good
-      // Prioritize VP9 in WebM for Safari 14+ compatibility (AV1 is less supported)
-      flags.format =
-        "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
-    } else {
-      flags.format = youtubeFormat;
-    }
-
-    // Prefer app setting "preferred audio language" when user has not specified a custom format.
-    // Use MP4 + H.264 + M4A so the result is playable in-browser (Safari/Chrome); generic bv+ba
-    // can yield WebM/VP9/Opus which causes MEDIA_ERR_SRC_NOT_SUPPORTED in some players.
-    const appSettings = storageService.getSettings();
-    const preferredAudioLanguage = appSettings?.preferredAudioLanguage;
-    if (
-      !config.f &&
-      !config.format &&
-      preferredAudioLanguage &&
-      typeof preferredAudioLanguage === "string" &&
-      preferredAudioLanguage.trim() !== ""
-    ) {
-      const lang = preferredAudioLanguage.trim().replace(/["\\]/g, "");
-      if (lang.length > 0) {
-        flags.format =
-          `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[language=${lang}][ext=m4a]/` +
-          `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/` +
-          `bestvideo[ext=mp4]+bestaudio[language=${lang}]/` +
-          `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
-        // Force MP4 container so merge succeeds (format is MP4/m4a; WebM would cause "Conversion failed!")
-        flags.mergeOutputFormat = "mp4";
-        mergeOutputFormat = "mp4";
-        logger.info(
-          "Using preferred audio language (MP4/m4a for playback):",
-          lang,
-        );
-      }
-    }
-
-    // Use user's extractor args if provided, otherwise let yt-dlp use its defaults
-    // Modern yt-dlp (2025.11+) has built-in JS challenge solvers that work without PO tokens
-    if (config.extractorArgs && config.extractorArgs.includes("youtube:")) {
-      // User has YouTube-specific args, use them
-      flags.extractorArgs = config.extractorArgs;
-
-      // If user is using android client, add appropriate headers
-      if (config.extractorArgs.includes("player_client=android")) {
-        flags.addHeader = [
-          "Referer:https://www.youtube.com/",
-          "User-Agent:Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-        ];
-      }
-    }
-  }
-
-  // Add provider script if configured
-  // Merge with user's extractorArgs if both exist (using semicolon separator)
-  const PROVIDER_SCRIPT = getProviderScript();
-  if (PROVIDER_SCRIPT) {
-    const providerArg = `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`;
-    if (flags.extractorArgs) {
-      // Merge user extractorArgs with provider script using semicolon separator
-      // yt-dlp supports multiple --extractor-args flags or semicolon-separated values
-      flags.extractorArgs = `${flags.extractorArgs};${providerArg}`;
-    } else {
-      flags.extractorArgs = providerArg;
-    }
-  }
-
-  // Remove the extractorArgs if not needed - let yt-dlp handle it
-  if (!flags.extractorArgs) {
-    delete flags.extractorArgs;
-  }
-
-  // Log proxy in final flags for debugging
-  if (flags.proxy) {
-    logger.debug("Proxy in final flags:", flags.proxy);
-  } else if (config.proxy) {
-    logger.warn(
-      "Proxy was in config but not in final flags. Config proxy:",
-      config.proxy,
-    );
-  }
+  const config = (userConfig || getUserYtDlpConfig(videoUrl) || {}) as UserYtDlpConfig;
+  const context = createDownloadFlagContext(videoUrl, outputPath, config);
+  const mergeOutputFormat = applyPostBuildRules(context);
+  const { flags } = context;
 
   logger.debug("Final yt-dlp flags:", flags);
 

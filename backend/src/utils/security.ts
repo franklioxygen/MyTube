@@ -308,6 +308,29 @@ export function execFileSafe(
   });
 }
 
+const ALLOWED_URL_PROTOCOLS = new Set(["http:", "https:"]);
+const BLOCKED_PRIVATE_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "[::1]",
+]);
+const BLOCKED_PRIVATE_HOST_PREFIXES = [
+  "10.",
+  "192.168.",
+  ...Array.from({ length: 16 }, (_, i) => `172.${i + 16}.`),
+];
+
+function isBlockedPrivateHostname(hostname: string): boolean {
+  if (BLOCKED_PRIVATE_HOSTNAMES.has(hostname)) {
+    return true;
+  }
+  return BLOCKED_PRIVATE_HOST_PREFIXES.some((prefix) =>
+    hostname.startsWith(prefix),
+  );
+}
+
 /**
  * Validates a URL to prevent SSRF attacks
  * Only allows http/https protocols and validates the hostname
@@ -317,7 +340,7 @@ export function validateUrl(url: string): string {
     const urlObj = new URL(url);
 
     // Only allow http and https protocols
-    if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
+    if (!ALLOWED_URL_PROTOCOLS.has(urlObj.protocol)) {
       throw new Error(
         `Invalid protocol: ${urlObj.protocol}. Only http and https are allowed.`,
       );
@@ -325,31 +348,7 @@ export function validateUrl(url: string): string {
 
     // Block private/internal IP addresses
     const hostname = urlObj.hostname;
-    if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "0.0.0.0" ||
-      hostname === "::1" ||
-      hostname.startsWith("192.168.") ||
-      hostname.startsWith("10.") ||
-      hostname.startsWith("172.16.") ||
-      hostname.startsWith("172.17.") ||
-      hostname.startsWith("172.18.") ||
-      hostname.startsWith("172.19.") ||
-      hostname.startsWith("172.20.") ||
-      hostname.startsWith("172.21.") ||
-      hostname.startsWith("172.22.") ||
-      hostname.startsWith("172.23.") ||
-      hostname.startsWith("172.24.") ||
-      hostname.startsWith("172.25.") ||
-      hostname.startsWith("172.26.") ||
-      hostname.startsWith("172.27.") ||
-      hostname.startsWith("172.28.") ||
-      hostname.startsWith("172.29.") ||
-      hostname.startsWith("172.30.") ||
-      hostname.startsWith("172.31.") ||
-      hostname === "[::1]"
-    ) {
+    if (isBlockedPrivateHostname(hostname)) {
       throw new Error(
         `SSRF protection: Blocked access to private/internal IP: ${hostname}`,
       );

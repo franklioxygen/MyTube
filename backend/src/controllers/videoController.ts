@@ -387,6 +387,150 @@ export const updateVideoDetails = async (
   });
 };
 
+type ExistingVideoRecord = { id: string; channelUrl?: string };
+
+const BILIBILI_REQUEST_HEADERS = {
+  Referer: "https://www.bilibili.com",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+};
+
+const VIDEO_CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mkv": "video/x-matroska",
+  ".avi": "video/x-msvideo",
+  ".mov": "video/quicktime",
+  ".m4v": "video/x-m4v",
+  ".flv": "video/x-flv",
+  ".3gp": "video/3gpp",
+};
+
+const getExistingVideoBySourceUrl = (sourceUrl: string): ExistingVideoRecord | null =>
+  (storageService.getVideoBySourceUrl(sourceUrl) as ExistingVideoRecord | null);
+
+const persistChannelUrlForVideo = (
+  existingVideo: ExistingVideoRecord | null,
+  channelUrl: string
+): void => {
+  if (!existingVideo) {
+    return;
+  }
+  storageService.updateVideo(existingVideo.id, { channelUrl });
+};
+
+const getBilibiliApiUrl = (videoId: string): string => {
+  if (videoId.startsWith("BV")) {
+    return `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+  }
+  return `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
+    "av",
+    ""
+  )}`;
+};
+
+const fetchYouTubeChannelUrl = async (sourceUrl: string): Promise<string | null> => {
+  if (!isYouTubeUrl(sourceUrl)) {
+    return null;
+  }
+
+  const { executeYtDlpJson, getNetworkConfigFromUserConfig, getUserYtDlpConfig } =
+    await import("../utils/ytDlpUtils");
+  const userConfig = getUserYtDlpConfig(sourceUrl);
+  const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+  const info = await executeYtDlpJson(sourceUrl, {
+    ...networkConfig,
+    noWarnings: true,
+  });
+
+  return info.channel_url || info.uploader_url || null;
+};
+
+const fetchBilibiliChannelUrl = async (
+  sourceUrl: string
+): Promise<string | null> => {
+  if (!isBilibiliUrl(sourceUrl)) {
+    return null;
+  }
+
+  const { extractBilibiliVideoId } = await import("../utils/helpers");
+  const videoId = extractBilibiliVideoId(sourceUrl);
+  if (!videoId) {
+    return null;
+  }
+
+  try {
+    const axios = (await import("axios")).default;
+    const response = await axios.get(getBilibiliApiUrl(videoId), {
+      headers: BILIBILI_REQUEST_HEADERS,
+    });
+
+    const ownerMid = response?.data?.data?.owner?.mid;
+    if (!ownerMid) {
+      return null;
+    }
+    return `https://space.bilibili.com/${ownerMid}`;
+  } catch (error) {
+    logger.error("Error fetching Bilibili video info:", error);
+    return null;
+  }
+};
+
+const resolveChannelUrl = async (sourceUrl: string): Promise<string | null> => {
+  const youtubeChannelUrl = await fetchYouTubeChannelUrl(sourceUrl);
+  if (youtubeChannelUrl) {
+    return youtubeChannelUrl;
+  }
+  return fetchBilibiliChannelUrl(sourceUrl);
+};
+
+const isMountVideoPath = (videoPath: string | undefined): boolean =>
+  typeof videoPath === "string" && videoPath.startsWith("mount:");
+
+const validateRawMountFilePath = (rawFilePath: string): void => {
+  if (!rawFilePath) {
+    throw new ValidationError("Invalid file path: empty or invalid", "videoPath");
+  }
+  if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
+    throw new ValidationError(
+      "Invalid file path: path traversal detected",
+      "videoPath"
+    );
+  }
+  if (!path.isAbsolute(rawFilePath)) {
+    throw new ValidationError("Invalid file path: must be absolute", "videoPath");
+  }
+};
+
+const resolveMountFilePath = (rawFilePath: string): string => {
+  validateRawMountFilePath(rawFilePath);
+  const filePath = path.resolve(rawFilePath);
+  validateRawMountFilePath(filePath);
+  return filePath;
+};
+
+const assertMountFileExists = (filePath: string): void => {
+  if (!fs.existsSync(filePath)) {
+    throw new NotFoundError("Video file", filePath);
+  }
+  if (!fs.statSync(filePath).isFile()) {
+    throw new ValidationError("Path is not a file", "videoPath");
+  }
+};
+
+const getVideoContentType = (filePath: string): string =>
+  VIDEO_CONTENT_TYPE_BY_EXTENSION[path.extname(filePath).toLowerCase()] ||
+  "video/mp4";
+
+const setMountVideoHeaders = (res: Response, filePath: string): void => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Expose-Headers",
+    "Accept-Ranges, Content-Range, Content-Length"
+  );
+  res.setHeader("Content-Type", getVideoContentType(filePath));
+};
+
 /**
  * Get author channel URL for a video
  * Errors are automatically handled by asyncHandler middleware
@@ -402,98 +546,19 @@ export const getAuthorChannelUrl = async (
   }
 
   try {
-    // First, check if we have the video in the database with a stored channelUrl
-    const existingVideo = storageService.getVideoBySourceUrl(sourceUrl);
-    if (existingVideo && existingVideo.channelUrl) {
-      res
-        .status(200)
-        .json({ success: true, channelUrl: existingVideo.channelUrl });
+    const existingVideo = getExistingVideoBySourceUrl(sourceUrl);
+    if (existingVideo?.channelUrl) {
+      sendData(res, { success: true, channelUrl: existingVideo.channelUrl });
       return;
     }
 
-    // If not in database, fetch it (for YouTube)
-    if (isYouTubeUrl(sourceUrl)) {
-      const {
-        executeYtDlpJson,
-        getNetworkConfigFromUserConfig,
-        getUserYtDlpConfig,
-      } = await import("../utils/ytDlpUtils");
-      const userConfig = getUserYtDlpConfig(sourceUrl);
-      const networkConfig = getNetworkConfigFromUserConfig(userConfig);
-
-      const info = await executeYtDlpJson(sourceUrl, {
-        ...networkConfig,
-        noWarnings: true,
-      });
-
-      const channelUrl = info.channel_url || info.uploader_url || null;
-      if (channelUrl) {
-        // If we have the video in database, update it with the channelUrl
-        if (existingVideo) {
-          storageService.updateVideo(existingVideo.id, { channelUrl });
-        }
-        sendData(res, { success: true, channelUrl });
-        return;
-      }
+    const channelUrl = await resolveChannelUrl(sourceUrl);
+    if (channelUrl) {
+      persistChannelUrlForVideo(existingVideo, channelUrl);
+      sendData(res, { success: true, channelUrl });
+      return;
     }
 
-    // Check if it's a Bilibili URL
-    if (isBilibiliUrl(sourceUrl)) {
-      // If we have the video in database, try to get channelUrl from there first
-      // (already checked above, but this is for clarity)
-      if (existingVideo && existingVideo.channelUrl) {
-        sendData(res, { success: true, channelUrl: existingVideo.channelUrl });
-        return;
-      }
-
-      const axios = (await import("axios")).default;
-      const { extractBilibiliVideoId } = await import("../utils/helpers");
-
-      const videoId = extractBilibiliVideoId(sourceUrl);
-      if (videoId) {
-        try {
-          // Handle both BV and av IDs
-          const isBvId = videoId.startsWith("BV");
-          const apiUrl = isBvId
-            ? `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`
-            : `https://api.bilibili.com/x/web-interface/view?aid=${videoId.replace(
-                "av",
-                ""
-              )}`;
-
-          const response = await axios.get(apiUrl, {
-            headers: {
-              Referer: "https://www.bilibili.com",
-              "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            },
-          });
-
-          if (
-            response.data &&
-            response.data.data &&
-            response.data.data.owner?.mid
-          ) {
-            const mid = response.data.data.owner.mid;
-            const spaceUrl = `https://space.bilibili.com/${mid}`;
-
-            // If we have the video in database, update it with the channelUrl
-            if (existingVideo) {
-              storageService.updateVideo(existingVideo.id, {
-                channelUrl: spaceUrl,
-              });
-            }
-
-            sendData(res, { success: true, channelUrl: spaceUrl });
-            return;
-          }
-        } catch (error) {
-          logger.error("Error fetching Bilibili video info:", error);
-        }
-      }
-    }
-
-    // If we couldn't get the channel URL, return null
     sendData(res, { success: true, channelUrl: null });
   } catch (error) {
     logger.error("Error getting author channel URL:", error);
@@ -713,95 +778,13 @@ export const serveMountVideo = async (
     throw new NotFoundError("Video", id);
   }
 
-  // Check if video is a mount directory video
-  if (!video.videoPath?.startsWith("mount:")) {
+  if (!isMountVideoPath(video.videoPath)) {
     throw new NotFoundError("Video", id);
   }
 
-  // Extract the actual file path (remove "mount:" prefix)
-  const rawFilePath = video.videoPath.substring(6); // Remove "mount:" prefix
-
-  // Validate and sanitize path to prevent path traversal
-  // For mount paths, we need to validate they're safe
-  // Note: mount paths are user-configured, so we validate they don't contain traversal sequences
-  if (!rawFilePath || typeof rawFilePath !== "string") {
-    throw new ValidationError(
-      "Invalid file path: empty or invalid",
-      "videoPath"
-    );
-  }
-
-  if (rawFilePath.includes("..") || rawFilePath.includes("\0")) {
-    throw new ValidationError(
-      "Invalid file path: path traversal detected",
-      "videoPath"
-    );
-  }
-
-  // Additional validation: ensure path is absolute
-  if (!path.isAbsolute(rawFilePath)) {
-    throw new ValidationError(
-      "Invalid file path: must be absolute",
-      "videoPath"
-    );
-  }
-
-  // Resolve the path (should not change absolute paths, but normalizes them)
-  const filePath = path.resolve(rawFilePath);
-
-  // Final validation: ensure resolved path is still absolute and doesn't contain traversal
-  if (
-    !path.isAbsolute(filePath) ||
-    filePath.includes("..") ||
-    filePath.includes("\0")
-  ) {
-    throw new ValidationError(
-      "Invalid file path: path traversal detected",
-      "videoPath"
-    );
-  }
-
-  // Validate path exists and is safe
-  if (!fs.existsSync(filePath)) {
-    throw new NotFoundError("Video file", filePath);
-  }
-
-  // Validate it's a file, not a directory
-  const stats = fs.statSync(filePath);
-  if (!stats.isFile()) {
-    throw new ValidationError("Path is not a file", "videoPath");
-  }
-
-  // Set headers for video streaming (important for Range requests)
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Expose-Headers",
-    "Accept-Ranges, Content-Range, Content-Length"
-  );
-
-  // Determine MIME type based on file extension (case-insensitive)
-  const lowerPath = filePath.toLowerCase();
-  if (lowerPath.endsWith(".mp4")) {
-    res.setHeader("Content-Type", "video/mp4");
-  } else if (lowerPath.endsWith(".webm")) {
-    res.setHeader("Content-Type", "video/webm");
-  } else if (lowerPath.endsWith(".mkv")) {
-    res.setHeader("Content-Type", "video/x-matroska");
-  } else if (lowerPath.endsWith(".avi")) {
-    res.setHeader("Content-Type", "video/x-msvideo");
-  } else if (lowerPath.endsWith(".mov")) {
-    res.setHeader("Content-Type", "video/quicktime");
-  } else if (lowerPath.endsWith(".m4v")) {
-    res.setHeader("Content-Type", "video/x-m4v");
-  } else if (lowerPath.endsWith(".flv")) {
-    res.setHeader("Content-Type", "video/x-flv");
-  } else if (lowerPath.endsWith(".3gp")) {
-    res.setHeader("Content-Type", "video/3gpp");
-  } else {
-    // Default to mp4 for unknown extensions (Safari prefers this)
-    res.setHeader("Content-Type", "video/mp4");
-  }
-
-  // Send the file - Express will handle Range requests automatically
+  const rawFilePath = video.videoPath.substring(6);
+  const filePath = resolveMountFilePath(rawFilePath);
+  assertMountFileExists(filePath);
+  setMountVideoHeaders(res, filePath);
   res.sendFile(filePath);
 };

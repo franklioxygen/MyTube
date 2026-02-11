@@ -125,6 +125,248 @@ const hasOwnSetting = (
   key: keyof Settings
 ): boolean => Object.prototype.hasOwnProperty.call(settings, key);
 
+const sanitizeIncomingSettings = (
+  incomingSettings: Partial<Settings>
+): Partial<Settings> => {
+  const sanitized: Partial<Settings> = { ...incomingSettings };
+  delete sanitized.password;
+  delete sanitized.visitorPassword;
+  return sanitized;
+};
+
+const removeUndefinedSettings = (settings: Partial<Settings>): void => {
+  Object.keys(settings).forEach((key) => {
+    const settingKey = key as keyof Settings;
+    if (settings[settingKey] === undefined) {
+      delete settings[settingKey];
+    }
+  });
+};
+
+const getDeletedTags = (oldTags: string[], newTags: string[]): string[] =>
+  oldTags.filter((old) => !newTags.some((n) => n.toLowerCase() === old.toLowerCase()));
+
+const getRenamedTagPairs = (
+  oldTags: string[],
+  newTags: string[]
+): [string, string][] => {
+  const renamedPairs: [string, string][] = [];
+  for (const oldTag of oldTags) {
+    const newTag = newTags.find((n) => n.toLowerCase() === oldTag.toLowerCase());
+    if (newTag !== undefined && newTag !== oldTag) {
+      renamedPairs.push([oldTag, newTag]);
+    }
+  }
+  return renamedPairs;
+};
+
+const applyTagMutations = (
+  renamedPairs: [string, string][],
+  deletedTags: string[]
+): void => {
+  import("../services/tagService")
+    .then(({ deleteTagsFromVideos, renameTag: renameTagFn }) => {
+      for (const [oldTag, newTag] of renamedPairs) {
+        renameTagFn(oldTag, newTag);
+      }
+      if (deletedTags.length > 0) {
+        deleteTagsFromVideos(deletedTags);
+      }
+    })
+    .catch((err) => {
+      logger.error("Error processing tag deletions/renames:", err);
+    });
+};
+
+const processTagChanges = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): void => {
+  if (
+    !hasOwnSetting(settingsToPersist, "tags") ||
+    !Array.isArray(settingsToPersist.tags)
+  ) {
+    return;
+  }
+
+  const oldTags = Array.isArray(existingSettings.tags)
+    ? (existingSettings.tags as string[])
+    : [];
+  const newTags = settingsToPersist.tags as string[];
+  const deletedTags = getDeletedTags(oldTags, newTags);
+  const renamedPairs = getRenamedTagPairs(oldTags, newTags);
+
+  if (deletedTags.length === 0 && renamedPairs.length === 0) {
+    return;
+  }
+
+  applyTagMutations(renamedPairs, deletedTags);
+};
+
+const moveSubtitlesIfSettingChanged = async (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): Promise<void> => {
+  if (
+    !hasOwnSetting(settingsToPersist, "moveSubtitlesToVideoFolder") ||
+    settingsToPersist.moveSubtitlesToVideoFolder ===
+      existingSettings.moveSubtitlesToVideoFolder ||
+    settingsToPersist.moveSubtitlesToVideoFolder === undefined
+  ) {
+    return;
+  }
+
+  const { moveAllSubtitles } = await import("../services/subtitleService");
+  moveAllSubtitles(settingsToPersist.moveSubtitlesToVideoFolder).catch((err) =>
+    logger.error("Error moving subtitles in background:", err)
+  );
+};
+
+const moveThumbnailsIfSettingChanged = async (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): Promise<void> => {
+  if (
+    !hasOwnSetting(settingsToPersist, "moveThumbnailsToVideoFolder") ||
+    settingsToPersist.moveThumbnailsToVideoFolder ===
+      existingSettings.moveThumbnailsToVideoFolder ||
+    settingsToPersist.moveThumbnailsToVideoFolder === undefined
+  ) {
+    return;
+  }
+
+  const { moveAllThumbnails } = await import("../services/thumbnailService");
+  moveAllThumbnails(settingsToPersist.moveThumbnailsToVideoFolder).catch(
+    (err) => logger.error("Error moving thumbnails in background:", err)
+  );
+};
+
+const didCloudflaredEnabledChange = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): boolean => {
+  if (!hasOwnSetting(settingsToPersist, "cloudflaredTunnelEnabled")) {
+    return false;
+  }
+  return (
+    settingsToPersist.cloudflaredTunnelEnabled !==
+    existingSettings.cloudflaredTunnelEnabled
+  );
+};
+
+const didCloudflaredTokenChange = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>
+): boolean => {
+  if (!hasOwnSetting(settingsToPersist, "cloudflaredToken")) {
+    return false;
+  }
+  return settingsToPersist.cloudflaredToken !== existingSettings.cloudflaredToken;
+};
+
+const getCloudflaredPort = (): number =>
+  process.env.PORT ? parseInt(process.env.PORT) : 5551;
+
+const restartCloudflared = (settings: Settings, port: number): void => {
+  if (settings.cloudflaredToken) {
+    cloudflaredService.restart(settings.cloudflaredToken);
+    return;
+  }
+  cloudflaredService.restart(undefined, port);
+};
+
+const startCloudflared = (settings: Settings, port: number): void => {
+  if (settings.cloudflaredToken) {
+    cloudflaredService.start(settings.cloudflaredToken);
+    return;
+  }
+  cloudflaredService.start(undefined, port);
+};
+
+const applyCloudflaredSettingChanges = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>,
+  finalSettings: Settings
+): void => {
+  const cloudflaredEnabledChanged = didCloudflaredEnabledChange(
+    existingSettings,
+    settingsToPersist
+  );
+  const cloudflaredTokenChanged = didCloudflaredTokenChange(
+    existingSettings,
+    settingsToPersist
+  );
+
+  if (!cloudflaredEnabledChanged && !cloudflaredTokenChanged) {
+    return;
+  }
+
+  if (!finalSettings.cloudflaredTunnelEnabled) {
+    if (cloudflaredEnabledChanged) {
+      cloudflaredService.stop();
+    }
+    return;
+  }
+
+  const port = getCloudflaredPort();
+  if (existingSettings.cloudflaredTunnelEnabled) {
+    restartCloudflared(finalSettings, port);
+    return;
+  }
+
+  startCloudflared(finalSettings, port);
+};
+
+const persistAllowedHostsEnv = (
+  existingSettings: Settings,
+  settingsToPersist: Partial<Settings>,
+  finalSettings: Settings
+): void => {
+  const allowedHostsChanged =
+    hasOwnSetting(settingsToPersist, "allowedHosts") &&
+    settingsToPersist.allowedHosts !== existingSettings.allowedHosts;
+
+  if (!allowedHostsChanged) {
+    return;
+  }
+
+  try {
+    const basePath = path.resolve(__dirname, "../../../frontend");
+    const envLocalPath = path.normalize(path.join(basePath, ".env.local"));
+
+    if (!envLocalPath.startsWith(path.resolve(basePath))) {
+      throw new Error("Invalid path: path traversal detected");
+    }
+
+    const sanitizedHosts = (finalSettings.allowedHosts || "")
+      .replace(/[\r\n]/g, "")
+      .replace(/[^\w\s.,-]/g, "");
+
+    const envContent = `# Auto-generated by MyTube settings\n# Restart dev server for changes to take effect\nVITE_ALLOWED_HOSTS=${sanitizedHosts}\n`;
+    fs.writeFileSync(envLocalPath, envContent, "utf8");
+    logger.info(`Updated VITE_ALLOWED_HOSTS in .env.local: ${sanitizedHosts}`);
+  } catch (error) {
+    logger.warn(
+      "Failed to write allowedHosts to .env.local:",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+};
+
+const applyRuntimeSettingChanges = (
+  settingsToPersist: Partial<Settings>,
+  finalSettings: Settings
+): void => {
+  if (
+    hasOwnSetting(settingsToPersist, "maxConcurrentDownloads") &&
+    finalSettings.maxConcurrentDownloads !== undefined
+  ) {
+    downloadManager.setMaxConcurrentDownloads(
+      finalSettings.maxConcurrentDownloads
+    );
+  }
+};
+
 const persistSettingsUpdate = async (
   req: Request,
   res: Response,
@@ -147,10 +389,7 @@ const persistSettingsUpdate = async (
     { preserveUnsetFields: mode === "replace" }
   );
 
-  // Never persist plaintext password fields from request body.
-  const sanitizedIncoming: Partial<Settings> = { ...incomingSettings };
-  delete sanitizedIncoming.password;
-  delete sanitizedIncoming.visitorPassword;
+  const sanitizedIncoming = sanitizeIncomingSettings(incomingSettings);
 
   const settingsToPersist: Partial<Settings> =
     mode === "replace"
@@ -164,13 +403,7 @@ const persistSettingsUpdate = async (
           ...preparedSettings,
         };
 
-  // Avoid writing undefined values (saveSettings skips them, but keep payload clean).
-  Object.keys(settingsToPersist).forEach((key) => {
-    const settingKey = key as keyof Settings;
-    if (settingsToPersist[settingKey] === undefined) {
-      delete settingsToPersist[settingKey];
-    }
-  });
+  removeUndefinedSettings(settingsToPersist);
 
   storageService.saveSettings(settingsToPersist as Record<string, unknown>);
 
@@ -179,155 +412,16 @@ const persistSettingsUpdate = async (
       ? (settingsToPersist as Settings)
       : ({ ...existingSettings, ...settingsToPersist } as Settings);
 
-  // Check for deleted tags and renames (casing-only changes); remove deleted from videos, rename casing in videos
-  if (
-    hasOwnSetting(settingsToPersist, "tags") &&
-    Array.isArray(settingsToPersist.tags)
-  ) {
-    const oldTags = Array.isArray(existingSettings.tags)
-      ? (existingSettings.tags as string[])
-      : [];
-    const newTags = settingsToPersist.tags as string[];
-
-    // Deleted = in old but no case-insensitive match in new
-    const deletedTags = oldTags.filter(
-      (old) => !newTags.some((n) => n.toLowerCase() === old.toLowerCase())
-    );
-    // Renamed (casing only) = in old, has case-insensitive match in new, but different string
-    const renamedPairs: [string, string][] = [];
-    for (const old of oldTags) {
-      const newTag = newTags.find((n) => n.toLowerCase() === old.toLowerCase());
-      if (newTag !== undefined && newTag !== old) {
-        renamedPairs.push([old, newTag]);
-      }
-    }
-
-    if (deletedTags.length > 0 || renamedPairs.length > 0) {
-      import("../services/tagService")
-        .then(({ deleteTagsFromVideos, renameTag: renameTagFn }) => {
-          for (const [oldTag, newTag] of renamedPairs) {
-            renameTagFn(oldTag, newTag);
-          }
-          if (deletedTags.length > 0) {
-            deleteTagsFromVideos(deletedTags);
-          }
-        })
-        .catch((err) => {
-          logger.error("Error processing tag deletions/renames:", err);
-        });
-    }
-  }
-
-  // Check for moveSubtitlesToVideoFolder change
-  if (
-    hasOwnSetting(settingsToPersist, "moveSubtitlesToVideoFolder") &&
-    settingsToPersist.moveSubtitlesToVideoFolder !==
-      existingSettings.moveSubtitlesToVideoFolder &&
-    settingsToPersist.moveSubtitlesToVideoFolder !== undefined
-  ) {
-    // Run asynchronously
-    const { moveAllSubtitles } = await import("../services/subtitleService");
-    moveAllSubtitles(settingsToPersist.moveSubtitlesToVideoFolder).catch(
-      (err) => logger.error("Error moving subtitles in background:", err)
-    );
-  }
-
-  // Check for moveThumbnailsToVideoFolder change
-  if (
-    hasOwnSetting(settingsToPersist, "moveThumbnailsToVideoFolder") &&
-    settingsToPersist.moveThumbnailsToVideoFolder !==
-      existingSettings.moveThumbnailsToVideoFolder &&
-    settingsToPersist.moveThumbnailsToVideoFolder !== undefined
-  ) {
-    // Run asynchronously
-    const { moveAllThumbnails } = await import("../services/thumbnailService");
-    moveAllThumbnails(settingsToPersist.moveThumbnailsToVideoFolder).catch(
-      (err) => logger.error("Error moving thumbnails in background:", err)
-    );
-  }
-
-  // Handle Cloudflare Tunnel settings changes
-  const cloudflaredEnabledChanged =
-    hasOwnSetting(settingsToPersist, "cloudflaredTunnelEnabled") &&
-    settingsToPersist.cloudflaredTunnelEnabled !==
-      existingSettings.cloudflaredTunnelEnabled;
-  const cloudflaredTokenChanged =
-    hasOwnSetting(settingsToPersist, "cloudflaredToken") &&
-    settingsToPersist.cloudflaredToken !== existingSettings.cloudflaredToken;
-
-  if (cloudflaredEnabledChanged || cloudflaredTokenChanged) {
-    // If we are enabling it (or it was enabled and config changed)
-    if (finalSettings.cloudflaredTunnelEnabled) {
-      // Determine port
-      const port = process.env.PORT ? parseInt(process.env.PORT) : 5551;
-
-      const shouldRestart = existingSettings.cloudflaredTunnelEnabled;
-
-      if (shouldRestart) {
-        // If it was already enabled, restart to apply changes (token/no-token swap)
-        if (finalSettings.cloudflaredToken) {
-          cloudflaredService.restart(finalSettings.cloudflaredToken);
-        } else {
-          cloudflaredService.restart(undefined, port);
-        }
-      } else {
-        // It was disabled, now enabling -> start
-        if (finalSettings.cloudflaredToken) {
-          cloudflaredService.start(finalSettings.cloudflaredToken);
-        } else {
-          cloudflaredService.start(undefined, port);
-        }
-      }
-    } else if (cloudflaredEnabledChanged) {
-      // Only stop if explicitly disabled
-      cloudflaredService.stop();
-    }
-  }
-
-  // Handle allowedHosts changes - write to .env.local for Vite
-  const allowedHostsChanged =
-    hasOwnSetting(settingsToPersist, "allowedHosts") &&
-    settingsToPersist.allowedHosts !== existingSettings.allowedHosts;
-
-  if (allowedHostsChanged) {
-    try {
-      // Write to frontend/.env.local so Vite can read it
-      const basePath = path.resolve(__dirname, "../../../frontend");
-      const envLocalPath = path.normalize(path.join(basePath, ".env.local"));
-
-      // Validate path is within expected directory to prevent path traversal
-      if (!envLocalPath.startsWith(path.resolve(basePath))) {
-        throw new Error("Invalid path: path traversal detected");
-      }
-
-      // Sanitize allowedHosts to prevent injection (remove newlines and dangerous chars)
-      const sanitizedHosts = (finalSettings.allowedHosts || "")
-        .replace(/[\r\n]/g, "")
-        .replace(/[^\w\s.,-]/g, "");
-
-      const envContent = `# Auto-generated by MyTube settings\n# Restart dev server for changes to take effect\nVITE_ALLOWED_HOSTS=${sanitizedHosts}\n`;
-      fs.writeFileSync(envLocalPath, envContent, "utf8");
-      logger.info(
-        `Updated VITE_ALLOWED_HOSTS in .env.local: ${sanitizedHosts}`
-      );
-    } catch (error) {
-      // Non-blocking - log error but don't fail the request
-      logger.warn(
-        "Failed to write allowedHosts to .env.local:",
-        error instanceof Error ? error : new Error(String(error))
-      );
-    }
-  }
-
-  // Apply settings immediately where possible
-  if (
-    hasOwnSetting(settingsToPersist, "maxConcurrentDownloads") &&
-    finalSettings.maxConcurrentDownloads !== undefined
-  ) {
-    downloadManager.setMaxConcurrentDownloads(
-      finalSettings.maxConcurrentDownloads
-    );
-  }
+  processTagChanges(existingSettings, settingsToPersist);
+  await moveSubtitlesIfSettingChanged(existingSettings, settingsToPersist);
+  await moveThumbnailsIfSettingChanged(existingSettings, settingsToPersist);
+  applyCloudflaredSettingChanges(
+    existingSettings,
+    settingsToPersist,
+    finalSettings
+  );
+  persistAllowedHostsEnv(existingSettings, settingsToPersist, finalSettings);
+  applyRuntimeSettingChanges(settingsToPersist, finalSettings);
 
   res.json({
     success: true,
@@ -376,23 +470,15 @@ export const getCloudflaredStatus = async (
  * Errors are automatically handled by asyncHandler middleware
  */
 export const renameTag = async (req: Request, res: Response): Promise<void> => {
-  const { oldTag, newTag } = req.body;
+  const oldTag = typeof req.body?.oldTag === "string" ? req.body.oldTag.trim() : "";
+  const newTag = typeof req.body?.newTag === "string" ? req.body.newTag.trim() : "";
 
   if (!oldTag || !newTag) {
     res.status(400).json({ error: "oldTag and newTag are required" });
     return;
   }
 
-  // Validate that tags are strings and not empty after trimming
-  const trimmedOldTag = typeof oldTag === "string" ? oldTag.trim() : "";
-  const trimmedNewTag = typeof newTag === "string" ? newTag.trim() : "";
-
-  if (!trimmedOldTag || !trimmedNewTag) {
-    res.status(400).json({ error: "oldTag and newTag cannot be empty" });
-    return;
-  }
-
-  if (trimmedOldTag === trimmedNewTag) {
+  if (oldTag === newTag) {
     res.status(400).json({ error: "oldTag and newTag cannot be the same" });
     return;
   }
@@ -400,19 +486,19 @@ export const renameTag = async (req: Request, res: Response): Promise<void> => {
   // Case-insensitive collision: newTag must not match another existing tag (other than oldTag)
   const existingSettings = storageService.getSettings();
   const existingTags = (existingSettings.tags as string[]) || [];
-  const newTagLower = trimmedNewTag.toLowerCase();
+  const newTagLower = newTag.toLowerCase();
   const collision = existingTags.find(
-    (t) => t.toLowerCase() === newTagLower && t !== trimmedOldTag
+    (t) => t.toLowerCase() === newTagLower && t !== oldTag
   );
   if (collision !== undefined) {
     res.status(400).json({
-      error: `Tag "${trimmedNewTag}" conflicts with existing tag "${collision}" (tags are case-insensitive).`,
+      error: `Tag "${newTag}" conflicts with existing tag "${collision}" (tags are case-insensitive).`,
     });
     return;
   }
 
   const { renameTag } = await import("../services/tagService");
-  const result = renameTag(trimmedOldTag, trimmedNewTag);
+  const result = renameTag(oldTag, newTag);
 
   res.json({ success: true, result });
 };

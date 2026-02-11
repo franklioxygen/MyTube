@@ -161,6 +161,343 @@ const buildSearchCacheKey = (
   });
 };
 
+const QUALITY_PATTERN = /\b(\d+p|\d+x\d+|\d+i|4K|8K|2160p|1440p)\b/gi;
+const STANDALONE_RESOLUTION_PATTERN =
+  /\b(1080|720|480|360|240|1440|2160)\b(?![pxi])/gi;
+const REMAINING_QUALITY_PATTERN = /\b\d{3,4}p\b/i;
+const SOURCE_PATTERNS = [
+  /\bWEB-DL\b/i,
+  /\bWEBRip\b/i,
+  /\bWEB\b(?![^\s.])/i,
+  /\bBluRay\b/i,
+  /\bBDRip\b/i,
+  /\bBD\b(?![^\s.])/i,
+  /\bDVD\b/i,
+  /\bDVDRip\b/i,
+  /\bHDTV\b/i,
+  /\bHDRip\b/i,
+  /\bCAM\b/i,
+  /\bTS\b(?![^\s.])/i,
+  /\bTELESYNC\b/i,
+  /\bTELECINE\b/i,
+  /\bR5\b/i,
+  /\bSCR\b/i,
+  /\bSCREENER\b/i,
+];
+const CJK_PATTERN = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]+/g;
+const CJK_TEXT_PATTERN = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/;
+const COMMON_STOPWORD_PATTERN = /^(the|a|an|and|or|of|in|on|at|to|for)$/i;
+const RESOLUTION_SEGMENT_PATTERN = /^\d+p$/i;
+const COMMON_FORMAT_SEGMENT_PATTERN = /^(web|dl|rip|remux|mux)$/i;
+const ALL_CAPS_ACRONYM_PATTERN = /^[A-Z]{2,5}$/;
+const ENGLISH_TITLE_PATTERN = /^[a-zA-Z0-9\s]+$/;
+const METADATA_TERMS = new Set([
+  "web",
+  "dl",
+  "rip",
+  "remux",
+  "mux",
+  "enc",
+  "dec",
+  "hd",
+  "sd",
+  "uhd",
+  "bluray",
+  "bd",
+  "dvd",
+  "hdtv",
+  "cam",
+  "ts",
+  "tc",
+  "r5",
+  "scr",
+  "screener",
+  "h264",
+  "h265",
+  "hevc",
+  "x264",
+  "x265",
+  "av1",
+  "vp9",
+  "aac",
+  "ac3",
+  "dts",
+  "flac",
+  "mp3",
+  "eac3",
+  "truehd",
+  "atmos",
+  "admin",
+  "upload",
+  "download",
+]);
+
+type TVMetadata = {
+  name: string;
+  isTVShow: boolean;
+  season?: number;
+  episode?: number;
+};
+
+function parseTVMetadataPattern(name: string, pattern: RegExp): TVMetadata | null {
+  const match = name.match(pattern);
+  if (!match) {
+    return null;
+  }
+  return {
+    name: match[1].trim(),
+    isTVShow: true,
+    season: parseInt(match[2], 10),
+    episode: parseInt(match[3], 10),
+  };
+}
+
+function extractTVMetadata(name: string): TVMetadata {
+  const patterns = [
+    /^(.+?)\s*[Ss](\d+)[Ee](\d+)/,
+    /^(.+?)\s*[Ss]eason\s*(\d+)\s*[Ee]pisode\s*(\d+)/i,
+  ];
+  for (const pattern of patterns) {
+    const parsed = parseTVMetadataPattern(name, pattern);
+    if (parsed) {
+      return parsed;
+    }
+  }
+  return { name, isTVShow: false };
+}
+
+function extractYearMetadata(name: string): { name: string; year?: number } {
+  const yearMatches = name.match(/\b(19\d{2}|20[0-1]\d|202[0-9])\b/);
+  if (!yearMatches) {
+    return { name };
+  }
+
+  const extractedYear = parseInt(yearMatches[1], 10);
+  if (extractedYear < 1900 || extractedYear > 2100) {
+    return { name };
+  }
+
+  return {
+    name: name.replace(/\b\d{4}\b/, "").trim(),
+    year: extractedYear,
+  };
+}
+
+function extractQualityMetadata(name: string): { name: string; quality?: string } {
+  const qualityMatch = name.match(QUALITY_PATTERN);
+  if (!qualityMatch) {
+    return { name };
+  }
+
+  return {
+    name: name.replace(QUALITY_PATTERN, "").trim(),
+    quality: qualityMatch[0].toUpperCase(),
+  };
+}
+
+function removeStandaloneResolution(name: string): string {
+  return name.replace(STANDALONE_RESOLUTION_PATTERN, "").trim();
+}
+
+function extractSourceMetadata(name: string): { name: string; source?: string } {
+  let remaining = name;
+  let source: string | undefined;
+
+  for (const pattern of SOURCE_PATTERNS) {
+    const sourceMatch = remaining.match(pattern);
+    if (sourceMatch && !source) {
+      source = sourceMatch[0];
+    }
+    remaining = remaining.replace(pattern, "").trim();
+  }
+
+  return { name: remaining, source };
+}
+
+function stripTechnicalMetadata(name: string): string {
+  return name
+    .replace(/\b(H26[45]|HEVC|x26[45]|VP9|AV1|H\.26[45])\b/gi, "")
+    .replace(/\b(AAC|AC3|DTS|FLAC|MP3|Vorbis|EAC3|TrueHD|Atmos)\b/gi, "")
+    .replace(/[-_]?[A-Z][a-zA-Z0-9]{2,}(?:\.[a-zA-Z0-9]+)*\s*$/, "")
+    .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
+    .replace(/\b(Rip|Remux|Mux|Enc|Dec)\b/gi, "")
+    .replace(/\[[^\]]+\]/g, "")
+    .trim();
+}
+
+function collectChineseMatches(name: string): string[] {
+  const chineseMatches: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = CJK_PATTERN.exec(name)) !== null) {
+    const chineseText = match[0].trim();
+    if (chineseText.length >= 2 && !chineseMatches.includes(chineseText)) {
+      chineseMatches.push(chineseText);
+    }
+  }
+
+  CJK_PATTERN.lastIndex = 0;
+  return chineseMatches;
+}
+
+function removeRemainingQualityPattern(name: string): string {
+  return name.replace(REMAINING_QUALITY_PATTERN, "").trim();
+}
+
+function splitTitleSegments(name: string): string[] {
+  return name.split(/[._-]+/).filter((segment) => segment.trim().length > 0);
+}
+
+function isNumericText(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+function isMetadataTerm(value: string): boolean {
+  return METADATA_TERMS.has(value.toLowerCase());
+}
+
+function shouldSkipEnglishSegment(trimmed: string): boolean {
+  if (trimmed.length < 2) return true;
+  if (isNumericText(trimmed)) return true;
+  if (COMMON_STOPWORD_PATTERN.test(trimmed)) return true;
+  if (CJK_TEXT_PATTERN.test(trimmed)) return true;
+  if (isMetadataTerm(trimmed)) return true;
+  if (RESOLUTION_SEGMENT_PATTERN.test(trimmed)) return true;
+  return COMMON_FORMAT_SEGMENT_PATTERN.test(trimmed);
+}
+
+function normalizeEnglishSegment(segment: string): string {
+  return segment.replace(/^\W+|\W+$/g, "").trim();
+}
+
+function shouldKeepEnglishSegment(cleanSegment: string): boolean {
+  return (
+    cleanSegment.length >= 2 &&
+    !/^\d+$/.test(cleanSegment) &&
+    !ALL_CAPS_ACRONYM_PATTERN.test(cleanSegment)
+  );
+}
+
+function extractEnglishWords(segments: string[]): string[] {
+  const englishWords: string[] = [];
+
+  for (const segment of segments) {
+    const trimmed = segment.trim();
+    if (shouldSkipEnglishSegment(trimmed)) {
+      continue;
+    }
+
+    const cleanTitle = normalizeEnglishSegment(trimmed);
+    if (shouldKeepEnglishSegment(cleanTitle)) {
+      englishWords.push(cleanTitle);
+    }
+  }
+
+  return englishWords;
+}
+
+function addCandidate(
+  titleCandidates: string[],
+  seen: Set<string>,
+  candidate: string
+): void {
+  const normalized = candidate.toLowerCase();
+  if (candidate.length < 2 || seen.has(normalized)) {
+    return;
+  }
+  titleCandidates.push(candidate);
+  seen.add(normalized);
+}
+
+function buildEnglishCombinations(
+  englishWords: string[],
+  seen: Set<string>
+): string[] {
+  const combinations: string[] = [];
+
+  if (englishWords.length <= 5 && englishWords.length > 0) {
+    const fullCombined = englishWords.join(" ");
+    if (fullCombined.length >= 4 && !seen.has(fullCombined.toLowerCase())) {
+      combinations.push(fullCombined);
+      seen.add(fullCombined.toLowerCase());
+    }
+  }
+
+  if (englishWords.length < 2) {
+    return combinations;
+  }
+
+  for (let i = 0; i < englishWords.length - 1; i++) {
+    const combined = `${englishWords[i]} ${englishWords[i + 1]}`;
+    if (combined.length >= 4 && !seen.has(combined.toLowerCase())) {
+      combinations.push(combined);
+      seen.add(combined.toLowerCase());
+    }
+  }
+
+  return combinations.sort((a, b) => b.length - a.length);
+}
+
+function appendStandaloneEnglishWords(
+  englishWords: string[],
+  englishCombinations: string[],
+  titleCandidates: string[],
+  seen: Set<string>
+): void {
+  for (const word of englishWords) {
+    const isPartOfCombo = englishCombinations.some((combo) =>
+      combo.toLowerCase().includes(word.toLowerCase())
+    );
+    if (isPartOfCombo || seen.has(word.toLowerCase())) {
+      continue;
+    }
+
+    if (word.length >= 2) {
+      addCandidate(titleCandidates, seen, word);
+    }
+  }
+}
+
+function buildOrderedTitles(titleCandidates: string[]): string[] {
+  const chineseTitles = titleCandidates.filter((title) => CJK_TEXT_PATTERN.test(title));
+  const englishTitles = titleCandidates.filter((title) =>
+    ENGLISH_TITLE_PATTERN.test(title)
+  );
+
+  englishTitles.sort((a, b) => {
+    const aHasSpace = a.includes(" ");
+    const bHasSpace = b.includes(" ");
+    if (aHasSpace && !bHasSpace) return -1;
+    if (!aHasSpace && bHasSpace) return 1;
+    return b.length - a.length;
+  });
+
+  const orderedTitles: string[] = [];
+  const multiWordEnglish = englishTitles.filter((title) => title.includes(" "));
+  const singleWordEnglish = englishTitles.filter((title) => !title.includes(" "));
+
+  orderedTitles.push(...chineseTitles);
+  orderedTitles.push(...multiWordEnglish);
+  orderedTitles.push(...singleWordEnglish);
+
+  if (chineseTitles.length > 0 && englishTitles.length > 0) {
+    const combined = `${chineseTitles[0]} ${englishTitles[0]}`;
+    if (!orderedTitles.includes(combined)) {
+      orderedTitles.splice(chineseTitles.length, 0, combined);
+    }
+  }
+
+  return orderedTitles;
+}
+
+function buildFallbackTitles(cleanName: string, filename: string): string[] {
+  const fallbackTitle = cleanName
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return fallbackTitle ? [fallbackTitle] : [path.parse(filename).name];
+}
+
 /**
  * Enhanced filename parser that extracts multiple titles, year from anywhere,
  * removes quality/format metadata, and handles multi-language filenames
@@ -171,379 +508,64 @@ const buildSearchCacheKey = (
  * - "Game.of.Thrones.S01E01.720p.HDTV.mkv"
  */
 export function parseFilename(filename: string): ParsedFilename {
-  // Remove file extension
-  let nameWithoutExt = path.parse(filename).name;
-  let isTVShow = false;
-  let season: number | undefined;
-  let episode: number | undefined;
-  let year: number | undefined;
-  let quality: string | undefined;
-  let source: string | undefined;
+  const tvMetadata = extractTVMetadata(path.parse(filename).name);
 
-  // Check for TV show format: S01E01 or S1E1 (before other processing)
-  const tvShowMatch = nameWithoutExt.match(/^(.+?)\s*[Ss](\d+)[Ee](\d+)/);
-  if (tvShowMatch) {
-    isTVShow = true;
-    season = parseInt(tvShowMatch[2], 10);
-    episode = parseInt(tvShowMatch[3], 10);
-    nameWithoutExt = tvShowMatch[1].trim();
-  } else {
-    // Check for "Season X Episode Y" format
-    const seasonEpisodeMatch = nameWithoutExt.match(
-      /^(.+?)\s*[Ss]eason\s*(\d+)\s*[Ee]pisode\s*(\d+)/i
-    );
-    if (seasonEpisodeMatch) {
-      isTVShow = true;
-      season = parseInt(seasonEpisodeMatch[2], 10);
-      episode = parseInt(seasonEpisodeMatch[3], 10);
-      nameWithoutExt = seasonEpisodeMatch[1].trim();
-    }
-  }
+  let nameWithoutExt = tvMetadata.name;
+  const yearMetadata = extractYearMetadata(nameWithoutExt);
+  nameWithoutExt = yearMetadata.name;
 
-  // Extract year from anywhere in filename (1900-2100)
-  const yearMatches = nameWithoutExt.match(/\b(19\d{2}|20[0-1]\d|202[0-9])\b/);
-  if (yearMatches) {
-    const extractedYear = parseInt(yearMatches[1], 10);
-    if (extractedYear >= 1900 && extractedYear <= 2100) {
-      year = extractedYear;
-      // Remove year from name for title extraction
-      nameWithoutExt = nameWithoutExt.replace(/\b\d{4}\b/, "").trim();
-    }
-  }
+  const qualityMetadata = extractQualityMetadata(nameWithoutExt);
+  nameWithoutExt = removeStandaloneResolution(qualityMetadata.name);
 
-  // Extract and remove quality info (1080p, 720p, 4K, 2160p, etc.)
-  const qualityPattern = /\b(\d+p|\d+x\d+|\d+i|4K|8K|2160p|1440p)\b/gi;
-  const qualityMatch = nameWithoutExt.match(qualityPattern);
-  if (qualityMatch) {
-    quality = qualityMatch[0].toUpperCase();
-    nameWithoutExt = nameWithoutExt.replace(qualityPattern, "").trim();
-  }
+  const sourceMetadata = extractSourceMetadata(nameWithoutExt);
+  nameWithoutExt = stripTechnicalMetadata(sourceMetadata.name);
 
-  // Also remove standalone resolution numbers (e.g., "1080", "720" when not followed by p)
-  nameWithoutExt = nameWithoutExt
-    .replace(/\b(1080|720|480|360|240|1440|2160)\b(?![pxi])/gi, "")
-    .trim();
+  const chineseMatches = collectChineseMatches(nameWithoutExt);
+  nameWithoutExt = removeRemainingQualityPattern(nameWithoutExt);
 
-  // Extract and remove source/format info (WEB-DL, BluRay, DVD, HDTV, etc.)
-  // Remove these patterns completely - they're not part of the title
-  const sourcePatterns = [
-    /\bWEB-DL\b/i,
-    /\bWEBRip\b/i,
-    /\bWEB\b(?![^\s.])/i, // WEB but not as part of other words
-    /\bBluRay\b/i,
-    /\bBDRip\b/i,
-    /\bBD\b(?![^\s.])/i,
-    /\bDVD\b/i,
-    /\bDVDRip\b/i,
-    /\bHDTV\b/i,
-    /\bHDRip\b/i,
-    /\bCAM\b/i,
-    /\bTS\b(?![^\s.])/i, // TS but not part of other words
-    /\bTELESYNC\b/i,
-    /\bTELECINE\b/i,
-    /\bR5\b/i,
-    /\bSCR\b/i,
-    /\bSCREENER\b/i,
-  ];
-
-  for (const pattern of sourcePatterns) {
-    const sourceMatch = nameWithoutExt.match(pattern);
-    if (sourceMatch && !source) {
-      source = sourceMatch[0];
-    }
-    nameWithoutExt = nameWithoutExt.replace(pattern, "").trim();
-  }
-
-  // Remove codec info (H265, H264, HEVC, x264, x265, AV1, VP9)
-  nameWithoutExt = nameWithoutExt
-    .replace(/\b(H26[45]|HEVC|x26[45]|VP9|AV1|H\.26[45])\b/gi, "")
-    .trim();
-
-  // Remove audio codec info (AAC, AC3, DTS, FLAC, MP3, Vorbis)
-  nameWithoutExt = nameWithoutExt
-    .replace(/\b(AAC|AC3|DTS|FLAC|MP3|Vorbis|EAC3|TrueHD|Atmos)\b/gi, "")
-    .trim();
-
-  // Remove release group names (usually at end after dash: -GroupName or standalone)
-  // Match patterns like: -GroupName, [GroupName], or standalone capitalized words at end
-  nameWithoutExt = nameWithoutExt
-    .replace(/[-_]?[A-Z][a-zA-Z0-9]{2,}(?:\.[a-zA-Z0-9]+)*\s*$/, "")
-    .trim();
-  nameWithoutExt = nameWithoutExt
-    .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
-    .trim();
-
-  // Remove common video format acronyms that might remain
-  nameWithoutExt = nameWithoutExt
-    .replace(/\b(Rip|Remux|Mux|Enc|Dec)\b/gi, "")
-    .trim();
-
-  // Remove bracketed metadata FIRST (like [简中硬字], but preserve year in parentheses)
-  // This ensures we can extract Chinese titles cleanly
-  nameWithoutExt = nameWithoutExt.replace(/\[[^\]]+\]/g, "").trim();
-
-  // Extract Chinese/Unicode titles AFTER removing brackets
-  // Chinese text often appears before English title
-  const chineseMatches: string[] = [];
-  const chinesePattern = /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]+/g;
-  const nameForChineseExtraction = nameWithoutExt;
-  let chineseMatch;
-  while (
-    (chineseMatch = chinesePattern.exec(nameForChineseExtraction)) !== null
-  ) {
-    const chineseText = chineseMatch[0].trim();
-    // Only add substantial Chinese text (not single characters that might be metadata)
-    if (chineseText.length >= 2 && !chineseMatches.includes(chineseText)) {
-      chineseMatches.push(chineseText);
-    }
-  }
-
-  // Remove quality/resolution patterns that might remain
-  nameWithoutExt = nameWithoutExt.replace(/\b\d{3,4}p\b/i, "").trim();
-
-  // Extract multiple title candidates
-  // Split on common separators: dots, dashes, underscores
-  const segments = nameWithoutExt
-    .split(/[._-]+/)
-    .filter((s) => s.trim().length > 0);
-
-  // Identify potential titles (longer segments, non-purely-numeric)
+  const segments = splitTitleSegments(nameWithoutExt);
   const titleCandidates: string[] = [];
-  const seen: Set<string> = new Set();
+  const seen = new Set<string>();
 
-  // Add Chinese titles first (extracted before processing)
   for (const chineseTitle of chineseMatches) {
-    if (chineseTitle.length >= 2 && !seen.has(chineseTitle.toLowerCase())) {
-      titleCandidates.push(chineseTitle);
-      seen.add(chineseTitle.toLowerCase());
-    }
+    addCandidate(titleCandidates, seen, chineseTitle);
   }
 
-  // Process English segments, filtering out metadata and combining title words
-  const englishWords: string[] = [];
-  // Common metadata terms to exclude (not part of titles)
-  const metadataTerms = new Set([
-    "web",
-    "dl",
-    "rip",
-    "remux",
-    "mux",
-    "enc",
-    "dec",
-    "hd",
-    "sd",
-    "uhd",
-    "bluray",
-    "bd",
-    "dvd",
-    "hdtv",
-    "cam",
-    "ts",
-    "tc",
-    "r5",
-    "scr",
-    "screener",
-    "h264",
-    "h265",
-    "hevc",
-    "x264",
-    "x265",
-    "av1",
-    "vp9",
-    "aac",
-    "ac3",
-    "dts",
-    "flac",
-    "mp3",
-    "eac3",
-    "truehd",
-    "atmos",
-    "admin",
-    "upload",
-    "download",
-  ]);
+  const englishWords = extractEnglishWords(segments);
+  const englishCombinations = buildEnglishCombinations(englishWords, seen);
 
-  for (const segment of segments) {
-    const trimmed = segment.trim();
-    const lowerTrimmed = trimmed.toLowerCase();
-
-    // Skip purely numeric segments, very short segments, or common non-title words
-    if (
-      trimmed.length < 2 ||
-      /^\d+$/.test(trimmed) ||
-      /^(the|a|an|and|or|of|in|on|at|to|for)$/i.test(trimmed) ||
-      /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/.test(trimmed) || // Skip if contains Chinese (already handled)
-      metadataTerms.has(lowerTrimmed) || // Skip metadata terms
-      /^\d+p$/i.test(trimmed) || // Skip quality like "1080p" that might have slipped through
-      /^(web|dl|rip|remux|mux)$/i.test(trimmed) // Skip common format terms
-    ) {
-      continue;
-    }
-
-    // Clean up the segment
-    let cleanTitle = trimmed
-      .replace(/^\W+|\W+$/g, "") // Remove leading/trailing non-word chars
-      .trim();
-
-    // Additional check: skip if it's clearly metadata (all caps short word, numbers, etc.)
-    if (
-      cleanTitle.length >= 2 &&
-      !/^\d+$/.test(cleanTitle) &&
-      !/^[A-Z]{2,5}$/.test(cleanTitle) // Skip all-caps acronyms (likely metadata)
-    ) {
-      englishWords.push(cleanTitle);
-    }
+  for (const combination of englishCombinations) {
+    addCandidate(titleCandidates, seen, combination);
   }
 
-  // Combine consecutive short English words (like "Keep" + "Cool" = "Keep Cool")
-  // First, try all combinations (prioritize longer, more complete titles)
-  const englishCombinations: string[] = [];
-  const maxSingleWordLength = 8; // Words longer than this are likely complete standalone titles
+  appendStandaloneEnglishWords(
+    englishWords,
+    englishCombinations,
+    titleCandidates,
+    seen
+  );
 
-  if (englishWords.length > 0) {
-    // Try full combination first (most complete)
-    if (englishWords.length <= 5) {
-      const fullCombined = englishWords.join(" ");
-      if (!seen.has(fullCombined.toLowerCase()) && fullCombined.length >= 4) {
-        englishCombinations.push(fullCombined);
-        seen.add(fullCombined.toLowerCase());
-      }
-    }
-
-    // Try consecutive pairs (like "Keep.Cool" = "Keep Cool")
-    if (englishWords.length >= 2) {
-      for (let i = 0; i < englishWords.length - 1; i++) {
-        const combined = `${englishWords[i]} ${englishWords[i + 1]}`;
-        if (!seen.has(combined.toLowerCase()) && combined.length >= 4) {
-          englishCombinations.push(combined);
-          seen.add(combined.toLowerCase());
-        }
-      }
-    }
-
-    // Sort combinations by length (longer = better, likely more complete)
-    englishCombinations.sort((a, b) => b.length - a.length);
-
-    // Add combinations to title candidates (before individual words)
-    // These are higher priority because they're more complete titles
-    for (const combo of englishCombinations) {
-      if (!titleCandidates.includes(combo)) {
-        titleCandidates.push(combo);
-      }
-    }
-
-    // Then add individual words as fallback (only shorter words that aren't already in combinations)
-    // Skip words that are part of combinations (already included)
-    for (const word of englishWords) {
-      // Check if word is already part of a combination
-      const isPartOfCombo = englishCombinations.some((combo) =>
-        combo.toLowerCase().includes(word.toLowerCase())
-      );
-
-      // Only add standalone if it's a longer word OR it's not part of any combination
-      if (!isPartOfCombo && !seen.has(word.toLowerCase())) {
-        // Add shorter words too (they might be searched individually if combo fails)
-        if (word.length <= maxSingleWordLength && word.length >= 2) {
-          titleCandidates.push(word);
-          seen.add(word.toLowerCase());
-        } else if (word.length > maxSingleWordLength) {
-          // Longer words are definitely standalone titles
-          titleCandidates.push(word);
-          seen.add(word.toLowerCase());
-        }
-      }
-    }
-  }
-
-  // Reorder titles by priority: longer/combined titles first, Chinese titles prioritized
-  if (titleCandidates.length > 0) {
-    const chineseTitles = titleCandidates.filter((t) =>
-      /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]/.test(t)
-    );
-    const englishTitles = titleCandidates.filter((t) =>
-      /^[a-zA-Z0-9\s]+$/.test(t)
-    );
-
-    // Sort English titles by length (longer = more likely to be complete)
-    // Prioritize multi-word titles (containing spaces) over single words
-    englishTitles.sort((a, b) => {
-      const aHasSpace = a.includes(" ");
-      const bHasSpace = b.includes(" ");
-      if (aHasSpace && !bHasSpace) return -1; // Multi-word first
-      if (!aHasSpace && bHasSpace) return 1;
-      return b.length - a.length; // Then by length
-    });
-
-    // Build ordered list: Chinese first, then longer/multi-word English titles, then shorter
-    const orderedTitles: string[] = [];
-
-    // Add Chinese titles first (highest priority)
-    if (chineseTitles.length > 0) {
-      orderedTitles.push(...chineseTitles);
-    }
-
-    // Add multi-word English combinations first (before single words)
-    const multiWordEnglish = englishTitles.filter((t) => t.includes(" "));
-    const singleWordEnglish = englishTitles.filter((t) => !t.includes(" "));
-
-    if (multiWordEnglish.length > 0) {
-      orderedTitles.push(...multiWordEnglish);
-    }
-
-    // Then add single-word English titles (as fallback)
-    if (singleWordEnglish.length > 0) {
-      orderedTitles.push(...singleWordEnglish);
-    }
-
-    // Also try combined title (common pattern: Chinese + English)
-    if (chineseTitles.length > 0 && englishTitles.length > 0) {
-      // Use the first (best) English title - which should be the longest/multi-word
-      const bestEnglishTitle = englishTitles[0];
-      const combined = `${chineseTitles[0]} ${bestEnglishTitle}`;
-      if (!orderedTitles.includes(combined)) {
-        // Insert combined title right after Chinese titles
-        orderedTitles.splice(chineseTitles.length, 0, combined);
-      }
-    }
-
-    return {
-      titles: orderedTitles.length > 0 ? orderedTitles : titleCandidates,
-      year,
-      season,
-      episode,
-      isTVShow,
-      quality,
-      source,
-    };
-  }
-
-  // Fallback: combine remaining segments or use as-is
   if (titleCandidates.length === 0) {
-    // Last resort: use cleaned filename
-    const fallbackTitle = nameWithoutExt
-      .replace(/[._-]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
     return {
-      titles: fallbackTitle ? [fallbackTitle] : [path.parse(filename).name],
-      year,
-      season,
-      episode,
-      isTVShow,
-      quality,
-      source,
+      titles: buildFallbackTitles(nameWithoutExt, filename),
+      year: yearMetadata.year,
+      season: tvMetadata.season,
+      episode: tvMetadata.episode,
+      isTVShow: tvMetadata.isTVShow,
+      quality: qualityMetadata.quality,
+      source: sourceMetadata.source,
     };
   }
 
-  // For single or multiple candidates, return them
+  const orderedTitles = buildOrderedTitles(titleCandidates);
   return {
-    titles: titleCandidates,
-    year,
-    season,
-    episode,
-    isTVShow,
-    quality,
-    source,
+    titles: orderedTitles.length > 0 ? orderedTitles : titleCandidates,
+    year: yearMetadata.year,
+    season: tvMetadata.season,
+    episode: tvMetadata.episode,
+    isTVShow: tvMetadata.isTVShow,
+    quality: qualityMetadata.quality,
+    source: sourceMetadata.source,
   };
 }
 
@@ -735,6 +757,158 @@ async function getTVShowDetails(
   }
 }
 
+type TMDBSingleSearchResult = {
+  result: TMDBMovieResult | TMDBTVResult | null;
+  mediaType: "movie" | "tv" | null;
+  director?: string;
+};
+
+type TMDBMediaSearchResult = TMDBSearchResult & { media_type: "movie" | "tv" };
+
+function buildMultiSearchParams(
+  title: string,
+  apiKey: string,
+  tmdbLanguage: string,
+  year?: number
+): Record<string, string> {
+  const params: Record<string, string> = {
+    api_key: apiKey,
+    query: title,
+    language: tmdbLanguage,
+  };
+  if (year) {
+    params.year = year.toString();
+  }
+  return params;
+}
+
+function isTMDBMediaSearchResult(
+  item: TMDBSearchResult
+): boolean {
+  return item.media_type === "movie" || item.media_type === "tv";
+}
+
+function extractMediaResultYear(item: TMDBMediaSearchResult): number | undefined {
+  const date =
+    item.media_type === "movie" ? item.release_date : item.first_air_date;
+  if (!date || date.length < 4) {
+    return undefined;
+  }
+
+  const itemYear = parseInt(date.substring(0, 4), 10);
+  return Number.isNaN(itemYear) ? undefined : itemYear;
+}
+
+function getYearMatchScore(item: TMDBMediaSearchResult, year?: number): number {
+  if (!year) {
+    return 0;
+  }
+
+  const itemYear = extractMediaResultYear(item);
+  if (itemYear === undefined) {
+    return 0;
+  }
+  if (itemYear === year) {
+    return 100;
+  }
+  if (Math.abs(itemYear - year) <= 1) {
+    return 50;
+  }
+  return 0;
+}
+
+function scoreMultiSearchResult(item: TMDBMediaSearchResult, year?: number): number {
+  let score = (item.popularity || 0) * 0.5;
+  score += getYearMatchScore(item, year);
+  if (item.vote_average) {
+    score += item.vote_average * 10;
+  }
+  return score;
+}
+
+function pickBestMultiSearchResult(
+  results: TMDBSearchResult[],
+  year?: number
+): TMDBMediaSearchResult | null {
+  let bestMatch: TMDBMediaSearchResult | null = null;
+  let bestScore = -1;
+
+  for (const item of results) {
+    if (!isTMDBMediaSearchResult(item)) {
+      continue;
+    }
+
+    const mediaItem = item as TMDBMediaSearchResult;
+    const score = scoreMultiSearchResult(mediaItem, year);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = mediaItem;
+    }
+  }
+
+  return bestMatch;
+}
+
+async function fetchTMDBSearchDetails(
+  bestMatch: TMDBMediaSearchResult,
+  apiKey: string,
+  tmdbLanguage: string
+): Promise<TMDBSingleSearchResult | null> {
+  if (bestMatch.media_type === "movie") {
+    const movieDetails = await getMovieDetails(bestMatch.id, apiKey, tmdbLanguage);
+    if (movieDetails?.movie) {
+      return {
+        result: movieDetails.movie,
+        mediaType: "movie",
+        director: movieDetails.director,
+      };
+    }
+    return null;
+  }
+
+  const tvDetails = await getTVShowDetails(bestMatch.id, apiKey, tmdbLanguage);
+  if (tvDetails?.tv) {
+    return {
+      result: tvDetails.tv,
+      mediaType: "tv",
+      director: tvDetails.director,
+    };
+  }
+  return null;
+}
+
+function buildTMDBSearchFallbackResult(
+  bestMatch: TMDBMediaSearchResult
+): TMDBSingleSearchResult {
+  if (bestMatch.media_type === "movie") {
+    return {
+      result: {
+        id: bestMatch.id,
+        title: bestMatch.title || "",
+        release_date: bestMatch.release_date,
+        overview: bestMatch.overview,
+        poster_path: bestMatch.poster_path,
+        backdrop_path: bestMatch.backdrop_path,
+        vote_average: bestMatch.vote_average,
+      },
+      mediaType: "movie",
+    };
+  }
+
+  return {
+    result: {
+      id: bestMatch.id,
+      name: bestMatch.name || "",
+      first_air_date: bestMatch.first_air_date,
+      overview: bestMatch.overview,
+      poster_path: bestMatch.poster_path,
+      backdrop_path: bestMatch.backdrop_path,
+      vote_average: bestMatch.vote_average,
+    },
+    mediaType: "tv",
+  };
+}
+
 /**
  * Search TMDB using multi-search API (searches both movies and TV simultaneously)
  * Returns localized results based on language parameter
@@ -744,136 +918,31 @@ async function searchTMDBSingle(
   apiKey: string,
   year?: number,
   language?: string
-): Promise<{
-  result: TMDBMovieResult | TMDBTVResult | null;
-  mediaType: "movie" | "tv" | null;
-  director?: string;
-}> {
+): Promise<TMDBSingleSearchResult> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
-    const params: Record<string, string> = {
-      api_key: apiKey,
-      query: title,
-      language: tmdbLanguage,
-    };
-
-    if (year) {
-      params.year = year.toString();
-    }
-
+    const params = buildMultiSearchParams(title, apiKey, tmdbLanguage, year);
     const response = await axios.get(`${TMDB_API_BASE}/search/multi`, {
       params,
       timeout: 10000,
     });
 
     const results: TMDBSearchResult[] = response.data.results || [];
-
-    if (results.length === 0) {
-      return { result: null, mediaType: null };
-    }
-
-    // Filter by media type and find best match
-    let bestMatch: TMDBSearchResult | null = null;
-    let bestScore = -1;
-
-    for (const item of results) {
-      if (item.media_type !== "movie" && item.media_type !== "tv") {
-        continue;
-      }
-
-      let score = (item.popularity || 0) * 0.5;
-
-      // Year matching bonus
-      if (year && item.media_type === "movie" && item.release_date) {
-        const itemYear = parseInt(item.release_date.substring(0, 4), 10);
-        if (itemYear === year) {
-          score += 100; // Big bonus for exact year match
-        } else if (Math.abs(itemYear - year) <= 1) {
-          score += 50; // Smaller bonus for close year
-        }
-      } else if (year && item.media_type === "tv" && item.first_air_date) {
-        const itemYear = parseInt(item.first_air_date.substring(0, 4), 10);
-        if (itemYear === year) {
-          score += 100;
-        } else if (Math.abs(itemYear - year) <= 1) {
-          score += 50;
-        }
-      }
-
-      // Vote average bonus
-      if (item.vote_average) {
-        score += item.vote_average * 10;
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = item;
-      }
-    }
-
+    const bestMatch = pickBestMultiSearchResult(results, year);
     if (!bestMatch) {
       return { result: null, mediaType: null };
     }
 
-    // Fetch full details with language to get localized poster_path, title, and overview
-    if (bestMatch.media_type === "movie") {
-      const movieDetails = await getMovieDetails(
-        bestMatch.id,
-        apiKey,
-        tmdbLanguage
-      );
-      if (movieDetails?.movie) {
-        return {
-          result: movieDetails.movie,
-          mediaType: "movie",
-          director: movieDetails.director,
-        };
-      }
-    } else if (bestMatch.media_type === "tv") {
-      const tvDetails = await getTVShowDetails(
-        bestMatch.id,
-        apiKey,
-        tmdbLanguage
-      );
-      if (tvDetails?.tv) {
-        return {
-          result: tvDetails.tv,
-          mediaType: "tv",
-          director: tvDetails.director,
-        };
-      }
+    const detailsResult = await fetchTMDBSearchDetails(
+      bestMatch,
+      apiKey,
+      tmdbLanguage
+    );
+    if (detailsResult) {
+      return detailsResult;
     }
 
-    // Fallback to search result if details fetch fails
-    if (bestMatch.media_type === "movie") {
-      return {
-        result: {
-          id: bestMatch.id,
-          title: bestMatch.title || "",
-          release_date: bestMatch.release_date,
-          overview: bestMatch.overview,
-          poster_path: bestMatch.poster_path,
-          backdrop_path: bestMatch.backdrop_path,
-          vote_average: bestMatch.vote_average,
-        },
-        mediaType: "movie",
-      };
-    } else if (bestMatch.media_type === "tv") {
-      return {
-        result: {
-          id: bestMatch.id,
-          name: bestMatch.name || "",
-          first_air_date: bestMatch.first_air_date,
-          overview: bestMatch.overview,
-          poster_path: bestMatch.poster_path,
-          backdrop_path: bestMatch.backdrop_path,
-          vote_average: bestMatch.vote_average,
-        },
-        mediaType: "tv",
-      };
-    }
-
-    return { result: null, mediaType: null };
+    return buildTMDBSearchFallbackResult(bestMatch);
   } catch (error) {
     logger.error(`Error searching TMDB multi for "${title}":`, error);
     return { result: null, mediaType: null };

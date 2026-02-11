@@ -4,6 +4,35 @@ import { continuousDownloadTasks } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { ContinuousDownloadTask } from "./types";
 
+type TaskStatus = "active" | "paused" | "completed" | "cancelled";
+
+const toOptional = <T>(value: T | null | undefined): T | undefined =>
+  value ?? undefined;
+
+const toCount = (value: number | null | undefined): number => value ?? 0;
+
+const toTaskStatus = (value: unknown): TaskStatus =>
+  value as TaskStatus;
+
+const mapTaskRowToEntity = (
+  task: any,
+  playlistName: string | null
+): ContinuousDownloadTask => ({
+  ...task,
+  subscriptionId: toOptional(task.subscriptionId),
+  collectionId: toOptional(task.collectionId),
+  playlistName: toOptional(playlistName),
+  updatedAt: toOptional(task.updatedAt),
+  completedAt: toOptional(task.completedAt),
+  error: toOptional(task.error),
+  status: toTaskStatus(task.status),
+  totalVideos: toCount(task.totalVideos),
+  downloadedCount: toCount(task.downloadedCount),
+  skippedCount: toCount(task.skippedCount),
+  failedCount: toCount(task.failedCount),
+  currentVideoIndex: toCount(task.currentVideoIndex),
+});
+
 /**
  * Repository for managing continuous download tasks in the database
  */
@@ -36,22 +65,9 @@ export class TaskRepository {
         eq(continuousDownloadTasks.collectionId, collections.id)
       );
 
-    // Convert null to undefined for TypeScript compatibility and ensure status type
-    return result.map(({ task, playlistName }) => ({
-      ...task,
-      subscriptionId: task.subscriptionId ?? undefined,
-      collectionId: task.collectionId ?? undefined,
-      playlistName: playlistName ?? undefined,
-      updatedAt: task.updatedAt ?? undefined,
-      completedAt: task.completedAt ?? undefined,
-      error: task.error ?? undefined,
-      status: task.status as "active" | "paused" | "completed" | "cancelled",
-      totalVideos: task.totalVideos ?? 0,
-      downloadedCount: task.downloadedCount ?? 0,
-      skippedCount: task.skippedCount ?? 0,
-      failedCount: task.failedCount ?? 0,
-      currentVideoIndex: task.currentVideoIndex ?? 0,
-    }));
+    return result.map(({ task, playlistName }) =>
+      mapTaskRowToEntity(task, playlistName)
+    );
   }
 
   /**
@@ -76,22 +92,7 @@ export class TaskRepository {
 
     const { task, playlistName } = result[0];
 
-    // Convert null to undefined for TypeScript compatibility and ensure status type
-    return {
-      ...task,
-      subscriptionId: task.subscriptionId ?? undefined,
-      collectionId: task.collectionId ?? undefined,
-      playlistName: playlistName ?? undefined,
-      updatedAt: task.updatedAt ?? undefined,
-      completedAt: task.completedAt ?? undefined,
-      error: task.error ?? undefined,
-      status: task.status as "active" | "paused" | "completed" | "cancelled",
-      totalVideos: task.totalVideos ?? 0,
-      downloadedCount: task.downloadedCount ?? 0,
-      skippedCount: task.skippedCount ?? 0,
-      failedCount: task.failedCount ?? 0,
-      currentVideoIndex: task.currentVideoIndex ?? 0,
-    };
+    return mapTaskRowToEntity(task, playlistName);
   }
 
   /**

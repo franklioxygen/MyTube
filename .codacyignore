@@ -1,7 +1,11 @@
 node_modules/
 backend/bgutil-ytdlp-pot-provider/
+**/bgutil-ytdlp-pot-provider/**
 dist/
 build/
 coverage/
 .codacy/
 .git/
+frontend/src/utils/locales/
+frontend/src/**/__tests__/
+backend/src/__tests__/

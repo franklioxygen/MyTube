@@ -16,7 +16,10 @@
     "lint:frontend": "cd frontend && npm run lint",
     "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
     "test:frontend": "cd frontend && npm run test",
-    "test:backend": "cd backend && npm run test"
+    "test:backend": "cd backend && npm run test",
+    "complexity:lizard": "./.codacy/cli.sh analyze -t lizard --format sarif -o /tmp/codacy-lizard.sarif",
+    "complexity:baseline:update": "npm run complexity:lizard && node scripts/complexity/lizard-baseline.mjs update /tmp/codacy-lizard.sarif .codacy/lizard-baseline.json",
+    "complexity:check-new": "npm run complexity:lizard && node scripts/complexity/lizard-baseline.mjs check /tmp/codacy-lizard.sarif .codacy/lizard-baseline.json"
   },
   "keywords": [
     "youtube",

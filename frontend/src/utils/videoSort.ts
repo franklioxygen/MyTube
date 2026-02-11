@@ -50,6 +50,51 @@ const getSeededScore = (id: string, shuffleSeed: number): number => {
   return hash >>> 0;
 };
 
+type VideoComparator = (a: Video, b: Video) => number;
+
+const compareAddedAtDesc: VideoComparator = (a, b) =>
+  new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+
+const compareAddedAtAsc: VideoComparator = (a, b) =>
+  new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
+
+const compareViewsDesc: VideoComparator = (a, b) =>
+  (b.viewCount || 0) - (a.viewCount || 0);
+
+const compareViewsAsc: VideoComparator = (a, b) =>
+  (a.viewCount || 0) - (b.viewCount || 0);
+
+const compareNameAsc: VideoComparator = (a, b) => a.title.localeCompare(b.title);
+
+const compareVideoDate = (a: Video, b: Video, ascending: boolean): number => {
+  if (!a.date && !b.date) return 0;
+  if (!a.date) return 1;
+  if (!b.date) return -1;
+  return ascending ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+};
+
+const compareVideoDateDesc: VideoComparator = (a, b) =>
+  compareVideoDate(a, b, false);
+
+const compareVideoDateAsc: VideoComparator = (a, b) =>
+  compareVideoDate(a, b, true);
+
+const SORT_COMPARATORS: Record<Exclude<SortOption, "random">, VideoComparator> = {
+  dateDesc: compareAddedAtDesc,
+  dateAsc: compareAddedAtAsc,
+  viewsDesc: compareViewsDesc,
+  viewsAsc: compareViewsAsc,
+  nameAsc: compareNameAsc,
+  videoDateDesc: compareVideoDateDesc,
+  videoDateAsc: compareVideoDateAsc,
+};
+
+const sortRandomVideos = (videos: Video[], shuffleSeed: number): Video[] =>
+  videos
+    .map((video) => ({ video, score: getSeededScore(video.id, shuffleSeed) }))
+    .sort((a, b) => a.score - b.score)
+    .map((item) => item.video);
+
 export const sortVideos = (
   videos: Video[] | undefined,
   sortOption: SortOption,
@@ -57,42 +102,10 @@ export const sortVideos = (
 ): Video[] => {
   if (!videos) return [];
 
-  const result = [...videos];
-  switch (sortOption) {
-    case "dateDesc":
-      return result.sort(
-        (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()
-      );
-    case "dateAsc":
-      return result.sort(
-        (a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime()
-      );
-    case "viewsDesc":
-      return result.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-    case "viewsAsc":
-      return result.sort((a, b) => (a.viewCount || 0) - (b.viewCount || 0));
-    case "nameAsc":
-      return result.sort((a, b) => a.title.localeCompare(b.title));
-    case "videoDateDesc":
-      return result.sort((a, b) => {
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return b.date.localeCompare(a.date);
-      });
-    case "videoDateAsc":
-      return result.sort((a, b) => {
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return a.date.localeCompare(b.date);
-      });
-    case "random":
-      return result
-        .map((video) => ({ video, score: getSeededScore(video.id, shuffleSeed) }))
-        .sort((a, b) => a.score - b.score)
-        .map((item) => item.video);
-    default:
-      return result;
+  if (sortOption === "random") {
+    return sortRandomVideos([...videos], shuffleSeed);
   }
+
+  const comparator = SORT_COMPARATORS[sortOption];
+  return comparator ? [...videos].sort(comparator) : [...videos];
 };
