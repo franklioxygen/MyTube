@@ -239,30 +239,37 @@ export function extractBilibiliVideoId(url: string): string | null {
   return null;
 }
 
+const YOUTUBE_VIDEO_ID_PATTERNS: RegExp[] = [
+  /[?&]v=([a-zA-Z0-9_-]{11})/,
+  /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+  /\/embed\/([a-zA-Z0-9_-]{11})/,
+  /\/shorts\/([a-zA-Z0-9_-]{11})/,
+];
+
+function extractByPatternList(url: string, patterns: RegExp[]): string | null {
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
 // Helper function to extract video ID from YouTube URL
 export function extractYouTubeVideoId(url: string): string | null {
-  // Standard YouTube URL: youtube.com/watch?v=VIDEO_ID
-  const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  if (watchMatch && watchMatch[1]) {
-    return watchMatch[1];
-  }
+  return extractByPatternList(url, YOUTUBE_VIDEO_ID_PATTERNS);
+}
 
-  // Short YouTube URL: youtu.be/VIDEO_ID
-  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
-  if (shortMatch && shortMatch[1]) {
-    return shortMatch[1];
-  }
+function getMissAVLastPathSegment(url: string): string | null {
+  const pathSegments = new URL(url).pathname
+    .split("/")
+    .filter((segment) => segment.length > 0);
+  const videoId = pathSegments[pathSegments.length - 1];
 
-  // Embed URL: youtube.com/embed/VIDEO_ID
-  const embedMatch = url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
-  if (embedMatch && embedMatch[1]) {
-    return embedMatch[1];
-  }
-
-  // Shorts URL: youtube.com/shorts/VIDEO_ID
-  const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
-  if (shortsMatch && shortsMatch[1]) {
-    return shortsMatch[1];
+  if (videoId && /^[a-zA-Z0-9-]+$/.test(videoId)) {
+    return videoId;
   }
 
   return null;
@@ -275,27 +282,13 @@ export function extractMissAVVideoId(url: string): string | null {
     // - https://missav.ai/dm2/en/jux-492-uncensored-leak
     // - https://missav.ai/dm29/en/juq-643-uncensored-leak
     // - https://missav.ai/v/VIDEO_ID
-    // The video ID is the last path segment (after the last /)
-    const urlObj = new URL(url);
-    const pathSegments = urlObj.pathname
-      .split("/")
-      .filter((segment) => segment.length > 0);
-
-    if (pathSegments.length > 0) {
-      // Get the last segment as the video ID
-      const videoId = pathSegments[pathSegments.length - 1];
-      if (videoId && /^[a-zA-Z0-9-]+$/.test(videoId)) {
-        return videoId;
-      }
+    const videoIdFromPath = getMissAVLastPathSegment(url);
+    if (videoIdFromPath) {
+      return videoIdFromPath;
     }
 
     // Fallback to old regex pattern for URLs like /v/VIDEO_ID or /dm*/VIDEO_ID (without language code)
-    const vidMatch = url.match(/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)(?:\/|$)/);
-    if (vidMatch && vidMatch[1]) {
-      return vidMatch[1];
-    }
-
-    return null;
+    return extractByPatternList(url, [/\/(?:v|dm\d*)\/([a-zA-Z0-9-]+)(?:\/|$)/]);
   } catch (error) {
     console.error("Error extracting MissAV video ID:", error);
     return null;

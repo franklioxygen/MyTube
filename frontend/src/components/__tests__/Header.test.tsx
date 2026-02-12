@@ -91,6 +91,8 @@ describe('Header', () => {
         activeDownloads: [],
         queuedDownloads: [],
     };
+    const settingsResponse = { data: { websiteName: 'TestTube', infiniteScroll: false } };
+    const emptyResponse = { data: [] };
 
     let queryClient: QueryClient;
 
@@ -116,19 +118,21 @@ describe('Header', () => {
         );
     };
 
+    const resolveAxiosGet = (url: unknown) => {
+        if (typeof url !== 'string') {
+            return Promise.resolve(emptyResponse);
+        }
+
+        if (url.includes('/settings')) {
+            return Promise.resolve(settingsResponse);
+        }
+
+        return Promise.resolve(emptyResponse);
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
-        // Default mock implementation - VITE_API_URL is already set to 'http://localhost:5551/api' by vite.config.js
-        mockedAxios.get.mockImplementation((url: string) => {
-            if (url && typeof url === 'string' && url.includes('/settings')) {
-                return Promise.resolve({ data: { websiteName: 'TestTube', infiniteScroll: false } });
-            }
-            // Handle subscriptions and tasks calls
-            if (url && typeof url === 'string' && (url.includes('/subscriptions/tasks') || (url.includes('/subscriptions') && !url.includes('/subscriptions/tasks')))) {
-                return Promise.resolve({ data: [] });
-            }
-            return Promise.resolve({ data: [] });
-        });
+        mockedAxios.get.mockImplementation(resolveAxiosGet);
     });
 
     it('renders with logo and title', async () => {

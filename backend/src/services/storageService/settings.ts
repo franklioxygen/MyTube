@@ -31,41 +31,67 @@ export function invalidateSettingsCache(): void {
   settingsCacheUpdatedAt = 0;
 }
 
-export function getSettings(): Record<string, any> {
-  const now = Date.now();
-  if (isSettingsCacheFresh(now) && settingsCache) {
+function parseSettingValue(value: string): any {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function loadSettingsMapFromDatabase(): Record<string, any> {
+  const allSettings = db.select().from(settings).all();
+  const settingsMap: Record<string, any> = {};
+
+  for (const setting of allSettings) {
+    settingsMap[setting.key] = parseSettingValue(setting.value);
+  }
+
+  return settingsMap;
+}
+
+function getCachedSettingsCopy(now: number): Record<string, any> | null {
+  if (!isSettingsCacheFresh(now) || settingsCache === null) {
+    return null;
+  }
+
+  return cloneSettingsMap(settingsCache);
+}
+
+function updateSettingsCache(now: number, settingsMap: Record<string, any>): void {
+  if (!SHOULD_USE_SETTINGS_CACHE) {
+    return;
+  }
+
+  settingsCache = settingsMap;
+  settingsCacheUpdatedAt = now;
+}
+
+function getSettingsErrorFallback(): Record<string, any> {
+  if (settingsCache !== null) {
     return cloneSettingsMap(settingsCache);
   }
 
+  return {};
+}
+
+export function getSettings(): Record<string, any> {
+  const now = Date.now();
+  const cachedSettings = getCachedSettingsCopy(now);
+  if (cachedSettings !== null) {
+    return cachedSettings;
+  }
+
   try {
-    const allSettings = db.select().from(settings).all();
-    const settingsMap: Record<string, any> = {};
-
-    for (const setting of allSettings) {
-      try {
-        settingsMap[setting.key] = JSON.parse(setting.value);
-      } catch (e) {
-        settingsMap[setting.key] = setting.value;
-      }
-    }
-
-    if (SHOULD_USE_SETTINGS_CACHE) {
-      settingsCache = settingsMap;
-      settingsCacheUpdatedAt = now;
-    }
-
-    return cloneSettingsMap(settingsMap);
+    const freshSettingsMap = loadSettingsMapFromDatabase();
+    updateSettingsCache(now, freshSettingsMap);
+    return cloneSettingsMap(freshSettingsMap);
   } catch (error) {
     logger.error(
       "Error getting settings",
       error instanceof Error ? error : new Error(String(error))
     );
-    // Return stale cache as a fallback if available
-    if (settingsCache) {
-      return cloneSettingsMap(settingsCache);
-    }
-    // Return empty object for backward compatibility
-    return {};
+    return getSettingsErrorFallback();
   }
 }
 

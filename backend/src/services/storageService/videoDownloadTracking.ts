@@ -4,6 +4,55 @@ import { videoDownloads } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { DownloadHistoryItem, Video, VideoDownloadCheckResult } from "./types";
 
+type DownloadTrackingRow = {
+  status: "exists" | "deleted" | string;
+  videoId?: string | null;
+  title?: string | null;
+  author?: string | null;
+  downloadedAt?: number | null;
+  deletedAt?: number | null;
+};
+
+function buildSourceVideoQueryCondition(
+  sourceVideoId: string,
+  platform?: string
+) {
+  if (!platform) {
+    return eq(videoDownloads.sourceVideoId, sourceVideoId);
+  }
+
+  return and(
+    eq(videoDownloads.sourceVideoId, sourceVideoId),
+    eq(videoDownloads.platform, platform)
+  );
+}
+
+function selectPreferredDownloadRecord(
+  records: DownloadTrackingRow[]
+): DownloadTrackingRow | undefined {
+  return records
+    .slice()
+    .sort((left, right) => {
+      if (left.status !== right.status) {
+        return left.status === "exists" ? -1 : 1;
+      }
+
+      return (right.downloadedAt || 0) - (left.downloadedAt || 0);
+    })[0];
+}
+
+function toDownloadCheckResult(record: DownloadTrackingRow): VideoDownloadCheckResult {
+  return {
+    found: true,
+    status: record.status as "exists" | "deleted",
+    videoId: record.videoId || undefined,
+    title: record.title || undefined,
+    author: record.author || undefined,
+    downloadedAt: record.downloadedAt ?? undefined,
+    deletedAt: record.deletedAt ?? undefined,
+  };
+}
+
 /**
  * Check if a video has been downloaded before by its source video ID
  */
@@ -15,37 +64,12 @@ export function checkVideoDownloadBySourceId(
     const records = db
       .select()
       .from(videoDownloads)
-      .where(
-        platform
-          ? and(
-              eq(videoDownloads.sourceVideoId, sourceVideoId),
-              eq(videoDownloads.platform, platform)
-            )
-          : eq(videoDownloads.sourceVideoId, sourceVideoId)
-      )
+      .where(buildSourceVideoQueryCondition(sourceVideoId, platform))
       .all();
 
-    const record = records
-      .slice()
-      .sort((left, right) => {
-        const leftRank = left.status === "exists" ? 0 : 1;
-        const rightRank = right.status === "exists" ? 0 : 1;
-        if (leftRank !== rightRank) {
-          return leftRank - rightRank;
-        }
-        return (right.downloadedAt || 0) - (left.downloadedAt || 0);
-      })[0];
-
-    if (record) {
-      return {
-        found: true,
-        status: record.status as "exists" | "deleted",
-        videoId: record.videoId || undefined,
-        title: record.title || undefined,
-        author: record.author || undefined,
-        downloadedAt: record.downloadedAt,
-        deletedAt: record.deletedAt || undefined,
-      };
+    const preferredRecord = selectPreferredDownloadRecord(records as DownloadTrackingRow[]);
+    if (preferredRecord) {
+      return toDownloadCheckResult(preferredRecord);
     }
 
     return { found: false };

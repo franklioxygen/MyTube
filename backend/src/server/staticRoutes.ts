@@ -101,12 +101,14 @@ export const registerSpaFallback = (
   app: Express,
   frontendDist: string
 ): void => {
+  const safeFrontendDist = path.resolve(frontendDist);
+
   app.get("*", (req, res) => {
     if (req.path.startsWith("/api") || req.path.startsWith("/cloud")) {
       res.status(404).send("Not Found");
       return;
     }
 
-    res.sendFile(path.join(frontendDist, "index.html"));
+    res.sendFile("index.html", { root: safeFrontendDist });
   });
 };

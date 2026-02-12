@@ -22,21 +22,35 @@ type DownloadRow = {
   type: string | null;
 };
 
+const MUTABLE_DOWNLOAD_FIELDS: Array<
+  keyof Omit<DownloadInfo, "id" | "timestamp">
+> = [
+  "progress",
+  "totalSize",
+  "downloadedSize",
+  "speed",
+  "filename",
+  "sourceUrl",
+  "type",
+  "title",
+];
+
+function toOptionalValue<T>(value: T | null): T | undefined {
+  return value ?? undefined;
+}
+
 function mapDownloadRow(download: DownloadRow): DownloadInfo {
   return {
     id: download.id,
     title: download.title,
-    timestamp: download.timestamp || 0,
-    filename: download.filename || undefined,
-    totalSize: download.totalSize || undefined,
-    downloadedSize: download.downloadedSize || undefined,
-    progress:
-      download.progress !== null && download.progress !== undefined
-        ? download.progress
-        : undefined,
-    speed: download.speed || undefined,
-    sourceUrl: download.sourceUrl || undefined,
-    type: download.type || undefined,
+    timestamp: download.timestamp ?? 0,
+    filename: toOptionalValue(download.filename),
+    totalSize: toOptionalValue(download.totalSize),
+    downloadedSize: toOptionalValue(download.downloadedSize),
+    progress: toOptionalValue(download.progress),
+    speed: toOptionalValue(download.speed),
+    sourceUrl: toOptionalValue(download.sourceUrl),
+    type: toOptionalValue(download.type),
   };
 }
 
@@ -83,22 +97,16 @@ export function updateActiveDownload(
   updates: Partial<DownloadInfo>
 ): void {
   try {
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       timestamp: Date.now(),
     };
 
-    // Explicitly set all fields that might be updated
-    if (updates.progress !== undefined) updateData.progress = updates.progress;
-    if (updates.totalSize !== undefined)
-      updateData.totalSize = updates.totalSize;
-    if (updates.downloadedSize !== undefined)
-      updateData.downloadedSize = updates.downloadedSize;
-    if (updates.speed !== undefined) updateData.speed = updates.speed;
-    if (updates.filename !== undefined) updateData.filename = updates.filename;
-    if (updates.sourceUrl !== undefined)
-      updateData.sourceUrl = updates.sourceUrl;
-    if (updates.type !== undefined) updateData.type = updates.type;
-    if (updates.title !== undefined) updateData.title = updates.title;
+    for (const field of MUTABLE_DOWNLOAD_FIELDS) {
+      const value = updates[field];
+      if (value !== undefined) {
+        updateData[field] = value;
+      }
+    }
 
     db.update(downloads).set(updateData).where(eq(downloads.id, id)).run();
   } catch (error) {

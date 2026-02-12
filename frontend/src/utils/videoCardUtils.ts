@@ -1,38 +1,45 @@
 import { Collection, Video } from '../types';
 
+const NEW_VIDEO_WINDOW_DAYS = 7;
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
+const getViewCount = (video: Video): number | null | undefined => {
+    if (typeof video.viewCount === 'string') {
+        return parseInt(video.viewCount, 10);
+    }
+
+    return video.viewCount;
+};
+
+const hasNoViews = (video: Video): boolean => {
+    const viewCount = getViewCount(video);
+    return viewCount === 0 || viewCount === null || viewCount === undefined || Number.isNaN(viewCount);
+};
+
+const isAddedWithinDays = (addedAt: string, days: number): boolean => {
+    const addedDate = new Date(addedAt);
+    if (Number.isNaN(addedDate.getTime())) {
+        return false;
+    }
+
+    const now = new Date();
+    const daysDiff = (now.getTime() - addedDate.getTime()) / DAY_IN_MS;
+    return daysDiff >= 0 && daysDiff <= days;
+};
+
 /**
  * Check if video is new (0 views and added within 7 days)
  */
 export const isNewVideo = (video: Video): boolean => {
-    // Check if viewCount is 0 or null/undefined (unwatched)
-    // Handle both number and string types
-    const viewCountNum = typeof video.viewCount === 'string' 
-        ? parseInt(video.viewCount, 10) 
-        : video.viewCount;
-    const hasNoViews = viewCountNum === 0 || viewCountNum === null || viewCountNum === undefined || isNaN(viewCountNum);
-    
-    if (!hasNoViews) {
+    if (!hasNoViews(video)) {
         return false;
     }
 
-    // Check if addedAt exists
     if (!video.addedAt) {
         return false;
     }
 
-    // Check if added within 7 days
-    const addedDate = new Date(video.addedAt);
-    const now = new Date();
-
-    // Handle invalid dates
-    if (isNaN(addedDate.getTime())) {
-        return false;
-    }
-
-    const daysDiff = (now.getTime() - addedDate.getTime()) / (1000 * 60 * 60 * 24);
-    const isWithin7Days = daysDiff >= 0 && daysDiff <= 7; // >= 0 to handle future dates
-
-    return isWithin7Days;
+    return isAddedWithinDays(video.addedAt, NEW_VIDEO_WINDOW_DAYS);
 };
 
 /**

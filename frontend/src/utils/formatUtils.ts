@@ -1,21 +1,34 @@
 /**
  * Helper to parse duration to seconds
  */
+const parseColonDuration = (duration: string): number | undefined => {
+  if (!duration.includes(":")) {
+    return undefined;
+  }
+
+  const parts = duration.split(":").map((part) => parseInt(part, 10));
+  if (parts.length === 3) {
+    const totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return isNaN(totalSeconds) ? 0 : totalSeconds;
+  }
+
+  if (parts.length === 2) {
+    const totalSeconds = parts[0] * 60 + parts[1];
+    return isNaN(totalSeconds) ? 0 : totalSeconds;
+  }
+
+  return undefined;
+};
+
 export const parseDuration = (
   duration: string | number | undefined,
 ): number => {
   if (!duration) return 0;
   if (typeof duration === "number") return duration;
 
-  if (duration.includes(":")) {
-    const parts = duration.split(":").map((part) => parseInt(part, 10));
-    if (parts.length === 3) {
-      const result = parts[0] * 3600 + parts[1] * 60 + parts[2];
-      return isNaN(result) ? 0 : result;
-    } else if (parts.length === 2) {
-      const result = parts[0] * 60 + parts[1];
-      return isNaN(result) ? 0 : result;
-    }
+  const colonDuration = parseColonDuration(duration);
+  if (colonDuration !== undefined) {
+    return colonDuration;
   }
 
   const parsed = parseInt(duration, 10);

@@ -109,6 +109,8 @@ describe("server/staticRoutes", () => {
       sendFile: vi.fn(),
     };
     handler({ path: "/home" } as any, spaRes);
-    expect(spaRes.sendFile).toHaveBeenCalledWith("/frontend-dist/index.html");
+    expect(spaRes.sendFile).toHaveBeenCalledWith("index.html", {
+      root: "/frontend-dist"
+    });
   });
 });

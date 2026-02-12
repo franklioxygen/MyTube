@@ -8,6 +8,21 @@ import { ParsedQs } from "qs";
 // Type representing what Express req.query can be
 type ExpressQueryValue = string | ParsedQs | (string | ParsedQs)[] | undefined;
 
+const TRUTHY_BOOLEAN_VALUES = new Set(["true", "1", "yes"]);
+
+function pickFirstValue<T>(value: T | T[]): T | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseIntegerValue(value: unknown): number | undefined {
+  const parsed = parseInt(String(value), 10);
+  return isNaN(parsed) ? undefined : parsed;
+}
+
+function isTruthyBooleanString(value: unknown): boolean {
+  return TRUTHY_BOOLEAN_VALUES.has(String(value).toLowerCase());
+}
+
 /**
  * Safely extract a string parameter from request query/body/params
  * Handles string, string[], ParsedQs, and mixed arrays, taking first element if array
@@ -55,20 +70,18 @@ export function getNumberParam(
   if (value === undefined || value === null) {
     return defaultValue;
   }
+
   if (typeof value === "number") {
     return isNaN(value) ? defaultValue : value;
   }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return defaultValue;
-    }
-    const parsed = parseInt(String(value[0]), 10);
-    return isNaN(parsed) ? defaultValue : parsed;
+
+  const candidate = pickFirstValue(value);
+  if (candidate === undefined) {
+    return defaultValue;
   }
-  // Handle ParsedQs (object) by converting to string first
-  const stringValue = typeof value === "object" ? String(value) : String(value);
-  const parsed = parseInt(stringValue, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
+
+  const parsed = parseIntegerValue(candidate);
+  return parsed ?? defaultValue;
 }
 
 /**
@@ -114,16 +127,15 @@ export function getBooleanParam(
   if (value === undefined || value === null) {
     return defaultValue;
   }
+
   if (typeof value === "boolean") {
     return value;
   }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return defaultValue;
-    }
-    const str = String(value[0]).toLowerCase();
-    return str === "true" || str === "1" || str === "yes";
+
+  const candidate = pickFirstValue(value);
+  if (candidate === undefined) {
+    return defaultValue;
   }
-  const str = String(value).toLowerCase();
-  return str === "true" || str === "1" || str === "yes";
+
+  return isTruthyBooleanString(candidate);
 }

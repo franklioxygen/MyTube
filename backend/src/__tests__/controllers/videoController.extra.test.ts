@@ -354,7 +354,7 @@ describe("videoController extra coverage", () => {
       "Content-Type",
       "video/mp4"
     );
-    expect(sendFile).toHaveBeenCalledWith("/mnt/media/video.mp4");
+    expect(sendFile).toHaveBeenCalledWith("video.mp4", { root: "/mnt/media" });
   });
 
   it("serveMountVideo throws not found when record is missing", async () => {

@@ -19,7 +19,7 @@ const tryConnect = () => {
     process.exit(0);
   });
 
-  socket.on('error', (err) => {
+  socket.on('error', () => {
     socket.destroy();
     // Wait 1 second before retrying
     setTimeout(tryConnect, 1000);

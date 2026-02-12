@@ -2,6 +2,7 @@ import { AlertColor } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 
 import { Collection, Video } from '../../types';
+import { TranslationKey } from '../../utils/translations';
 import {
     buildUpdatedTags,
     findAuthorCollection,
@@ -10,7 +11,7 @@ import {
     getVideosMissingFromCollection
 } from './utils';
 
-type TranslateFn = (key: any, replacements?: Record<string, string | number>) => string;
+type TranslateFn = (key: TranslationKey, replacements?: Record<string, string | number>) => string;
 type ShowSnackbarFn = (message: string, severity?: AlertColor) => void;
 
 interface UseAuthorVideoActionsParams {
@@ -220,33 +221,33 @@ export const useAuthorVideoActions = ({
 
         if (existingCollection) {
             if (videosInOtherCollectionsCount > 0) {
-                return t('addVideosToExistingCollectionConfirmationWithMove' as any, {
+                return t('addVideosToExistingCollectionConfirmationWithMove', {
                     author: authorDisplayName || '',
                     count: videosNotInTarget.length,
                     moveCount: videosInOtherCollectionsCount
                 });
             }
-            return t('addVideosToExistingCollectionConfirmation' as any, {
+            return t('addVideosToExistingCollectionConfirmation', {
                 author: authorDisplayName || '',
                 count: videosNotInTarget.length
             });
         }
 
         if (videosInOtherCollectionsCount > 0) {
-            return t('createCollectionFromAuthorConfirmationWithMove' as any, {
+            return t('createCollectionFromAuthorConfirmationWithMove', {
                 author: authorDisplayName || '',
                 count: videosInOtherCollectionsCount
             });
         }
 
-        return t('createCollectionFromAuthorConfirmation' as any, {
+        return t('createCollectionFromAuthorConfirmation', {
             author: authorDisplayName || ''
         });
     }, [authorDisplayName, authorVideos, collections, existingCollection, t]);
 
     const createCollectionModalTitle = useMemo(() => {
         if (existingCollection) {
-            return t('addVideosToCollection' as any);
+            return t('addVideosToCollection');
         }
         return t('createCollectionFromAuthor');
     }, [existingCollection, t]);

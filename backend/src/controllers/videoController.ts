@@ -786,5 +786,5 @@ export const serveMountVideo = async (
   const filePath = resolveMountFilePath(rawFilePath);
   assertMountFileExists(filePath);
   setMountVideoHeaders(res, filePath);
-  res.sendFile(filePath);
+  res.sendFile(path.basename(filePath), { root: path.dirname(filePath) });
 };

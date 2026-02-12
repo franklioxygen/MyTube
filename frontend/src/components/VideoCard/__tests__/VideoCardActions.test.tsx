@@ -12,17 +12,18 @@ const mockAddToCollection = vi.fn();
 const mockCreateCollection = vi.fn();
 const mockRemoveFromCollection = vi.fn();
 const mockHandleShare = vi.fn();
+const mockCollectionContextValue = {
+    collections: [
+        { id: 'col1', name: 'Collection 1', videos: ['vid1'] },
+        { id: 'col2', name: 'Collection 2', videos: [] }
+    ],
+    addToCollection: mockAddToCollection,
+    createCollection: mockCreateCollection,
+    removeFromCollection: mockRemoveFromCollection
+};
 
 vi.mock('../../../contexts/CollectionContext', () => ({
-    useCollection: () => ({
-        collections: [
-            { id: 'col1', name: 'Collection 1', videos: ['vid1'] },
-            { id: 'col2', name: 'Collection 2', videos: [] }
-        ],
-        addToCollection: mockAddToCollection,
-        createCollection: mockCreateCollection,
-        removeFromCollection: mockRemoveFromCollection
-    }),
+    useCollection: () => mockCollectionContextValue,
 }));
 
 vi.mock('../../../hooks/useShareVideo', () => ({

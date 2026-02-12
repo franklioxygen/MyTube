@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { NavigateFunction } from 'react-router-dom';
+import { TranslationKey } from '../../utils/translations';
 
 interface HeaderSubmitResult {
     success?: boolean;
@@ -7,7 +8,7 @@ interface HeaderSubmitResult {
     error?: string;
 }
 
-type TranslateFn = (key: any, replacements?: Record<string, string | number>) => string;
+type TranslateFn = (key: TranslationKey, replacements?: Record<string, string | number>) => string;
 
 interface UseHeaderSubmissionParams {
     onSubmit: (url: string) => Promise<HeaderSubmitResult>;

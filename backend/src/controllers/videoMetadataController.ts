@@ -56,16 +56,16 @@ export const refreshThumbnail = async (
   let videoFilePath: string;
   if (video.videoPath && video.videoPath.startsWith("/videos/")) {
     const relativePath = video.videoPath.replace(/^\/videos\//, "");
-    // Split by / to handle the web path separators and join with system separator
-    videoFilePath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
+    videoFilePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
   } else if (video.videoFilename) {
-    videoFilePath = path.join(VIDEOS_DIR, video.videoFilename);
+    const safeVideoFilename = path.basename(video.videoFilename);
+    videoFilePath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
   } else {
     throw new ValidationError("Video file path not found in record", "video");
   }
 
-  // Validate paths to prevent path traversal
-  const validatedVideoPath = validateVideoPath(videoFilePath);
+  // Path has already been validated above.
+  const validatedVideoPath = videoFilePath;
 
   if (!fs.existsSync(validatedVideoPath)) {
     throw new NotFoundError("Video file", validatedVideoPath);
@@ -80,20 +80,24 @@ export const refreshThumbnail = async (
   if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
     // Local file exists (or should exist) - preserve the existing path (e.g. inside a collection folder)
     const relativePath = video.thumbnailPath.replace(/^\/images\//, "");
-    thumbnailAbsolutePath = path.join(IMAGES_DIR, ...relativePath.split("/"));
+    thumbnailAbsolutePath = validateImagePath(`${IMAGES_DIR}/${relativePath}`);
   } else {
     // Remote URL or missing - create a new local file in the root images directory
     if (!newThumbnailFilename) {
       const videoName = path.parse(path.basename(videoFilePath)).name;
       newThumbnailFilename = `${videoName}.jpg`;
     }
-    thumbnailAbsolutePath = path.join(IMAGES_DIR, newThumbnailFilename);
-    newThumbnailPath = `/images/${newThumbnailFilename}`;
+    const safeThumbnailFilename = path.basename(newThumbnailFilename);
+    newThumbnailFilename = safeThumbnailFilename;
+    thumbnailAbsolutePath = validateImagePath(
+      `${IMAGES_DIR}/${safeThumbnailFilename}`
+    );
+    newThumbnailPath = `/images/${safeThumbnailFilename}`;
     needsDbUpdate = true;
   }
 
   // Ensure directory exists
-  const validatedThumbnailPath = validateImagePath(thumbnailAbsolutePath);
+  const validatedThumbnailPath = thumbnailAbsolutePath;
   fs.ensureDirSync(path.dirname(validatedThumbnailPath));
 
   // Calculate random timestamp
@@ -150,39 +154,57 @@ export const refreshThumbnail = async (
   });
 };
 
-const resolveVideoPathForFileSize = (
-  video: storageService.Video
+const resolveMountVideoPathForFileSize = (
+  videoPath: string
 ): string | null => {
-  if (video.videoPath?.startsWith("cloud:")) {
+  const rawPath = videoPath.substring(6);
+  if (
+    !rawPath ||
+    !path.isAbsolute(rawPath) ||
+    rawPath.includes("..") ||
+    rawPath.includes("\0")
+  ) {
     return null;
   }
 
-  if (video.videoPath?.startsWith("mount:")) {
-    const rawPath = video.videoPath.substring(6);
-    if (
-      !rawPath ||
-      !path.isAbsolute(rawPath) ||
-      rawPath.includes("..") ||
-      rawPath.includes("\0")
-    ) {
-      return null;
-    }
+  return path.resolve(path.normalize(rawPath));
+};
 
-    return path.resolve(path.normalize(rawPath));
+const resolveLocalVideoPathForFileSize = (
+  videoPath: string
+): string => {
+  const relativePath = videoPath.replace(/^\/videos\//, "");
+  const localPath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
+  return validateVideoPath(localPath);
+};
+
+const resolveFilenamePathForFileSize = (
+  videoFilename?: string
+): string | null => {
+  if (!videoFilename) {
+    return null;
   }
 
-  if (video.videoPath?.startsWith("/videos/")) {
-    const relativePath = video.videoPath.replace(/^\/videos\//, "");
-    const localPath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
-    return validateVideoPath(localPath);
+  return validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
+};
+
+const resolveVideoPathForFileSize = (
+  video: storageService.Video
+): string | null => {
+  const { videoPath } = video;
+  if (videoPath?.startsWith("cloud:")) {
+    return null;
   }
 
-  if (video.videoFilename) {
-    const localPath = path.join(VIDEOS_DIR, video.videoFilename);
-    return validateVideoPath(localPath);
+  if (videoPath?.startsWith("mount:")) {
+    return resolveMountVideoPathForFileSize(videoPath);
   }
 
-  return null;
+  if (videoPath?.startsWith("/videos/")) {
+    return resolveLocalVideoPathForFileSize(videoPath);
+  }
+
+  return resolveFilenamePathForFileSize(video.videoFilename);
 };
 
 /**

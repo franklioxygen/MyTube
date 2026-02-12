@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { VIDEOS_DIR } from '../../config/paths';
 import { cleanupVideoArtifacts } from '../../utils/downloadUtils';
 
