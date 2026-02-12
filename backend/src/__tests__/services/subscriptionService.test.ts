@@ -80,7 +80,7 @@ describe('SubscriptionService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getProviderScript).mockReturnValue(undefined);
+    vi.mocked(getProviderScript).mockReturnValue('');
     
     mockBuilder = createMockQueryBuilder([]);
 

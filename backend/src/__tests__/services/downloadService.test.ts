@@ -65,7 +65,7 @@ describe("downloadService", () => {
     vi.mocked(getNetworkConfigFromUserConfig).mockReturnValue({
       proxy: "http://proxy",
     } as any);
-    vi.mocked(getProviderScript).mockReturnValue(undefined);
+    vi.mocked(getProviderScript).mockReturnValue("");
     vi.mocked(isBilibiliUrl).mockReturnValue(false);
     vi.mocked(isMissAVUrl).mockReturnValue(false);
     vi.mocked(extractBilibiliVideoId).mockReturnValue(null);

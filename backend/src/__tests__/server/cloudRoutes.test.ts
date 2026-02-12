@@ -88,6 +88,9 @@ describe("server/cloudRoutes", () => {
     return handlers;
   };
 
+  const createReq = (filename: string): Request =>
+    ({ params: { filename } } as unknown as Request);
+
   it("should register cloud video/image routes", () => {
     const handlers = registerAndGetHandlers();
     expect(Object.keys(handlers)).toEqual([
@@ -101,7 +104,7 @@ describe("server/cloudRoutes", () => {
       cloudDriveEnabled: false,
     } as any);
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "a.mp4" } } as Request;
+    const req = createReq("a.mp4");
     const res = createRes();
 
     handlers["/cloud/videos/:filename"](req, res);
@@ -120,7 +123,7 @@ describe("server/cloudRoutes", () => {
     );
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "abc.jpg" } } as Request;
+    const req = createReq("abc.jpg");
     const res = createRes();
 
     handlers["/cloud/images/:filename"](req, res);
@@ -139,7 +142,7 @@ describe("server/cloudRoutes", () => {
     vi.mocked(validateCloudThumbnailCachePath).mockReturnValue("/tmp/other/safe.jpg");
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "safe.jpg" } } as Request;
+    const req = createReq("safe.jpg");
     const res = createRes();
 
     handlers["/cloud/images/:filename"](req, res);
@@ -154,7 +157,7 @@ describe("server/cloudRoutes", () => {
     (CloudStorageService.getSignedUrl as any).mockResolvedValue(null);
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "video.mp4" } } as Request;
+    const req = createReq("video.mp4");
     const res = createRes();
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();
@@ -173,7 +176,7 @@ describe("server/cloudRoutes", () => {
     });
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "video.mp4" } } as Request;
+    const req = createReq("video.mp4");
     const res = createRes();
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();
@@ -189,7 +192,7 @@ describe("server/cloudRoutes", () => {
     vi.mocked(validateRedirectUrl).mockReturnValue("https://evil.example/file.mp4");
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "video.mp4" } } as Request;
+    const req = createReq("video.mp4");
     const res = createRes();
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();
@@ -207,7 +210,7 @@ describe("server/cloudRoutes", () => {
     );
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "video.mp4" } } as Request;
+    const req = createReq("video.mp4");
     const res = createRes();
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();
@@ -224,7 +227,7 @@ describe("server/cloudRoutes", () => {
     });
 
     const handlers = registerAndGetHandlers();
-    const req = { params: { filename: "x.mp4" } } as Request;
+    const req = createReq("x.mp4");
     const res = createRes();
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();

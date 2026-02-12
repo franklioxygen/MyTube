@@ -24,7 +24,7 @@ vi.mock("../../utils/security", () => ({
 }));
 
 describe("downloadUtils", () => {
-  let setTimeoutSpy: ReturnType<typeof vi.spyOn>;
+  let setTimeoutSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     vi.clearAllMocks();
