@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import UploadModal from '../UploadModal';
@@ -177,11 +177,11 @@ describe('UploadModal', () => {
         const error = { response: { data: { error: 'Upload Error Message' } } };
 
         expect(capturedOptions.onError).toBeDefined();
-        // Wrap in act if state updates
-        await waitFor(() => {
+
+        await act(async () => {
             capturedOptions.onError(error);
         });
 
-        expect(screen.getByText('Upload Error Message')).toBeInTheDocument();
+        expect(await screen.findByText('Upload Error Message')).toBeInTheDocument();
     });
 });
