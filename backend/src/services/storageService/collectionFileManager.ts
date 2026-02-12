@@ -257,52 +257,14 @@ export function moveSubtitlesToCollection(
     const settings = getSettings();
     const moveWithVideo = settings.moveSubtitlesToVideoFolder;
 
-    newSubtitles.forEach((sub, index) => {
-      let currentSubPath = sub.path;
-      // Determine existing absolute path
-      let absoluteSourcePath = "";
-      if (sub.path.startsWith("/videos/")) {
-        absoluteSourcePath = path.join(
-          VIDEOS_DIR,
-          sub.path.replace("/videos/", "")
-        );
-      } else if (sub.path.startsWith("/subtitles/")) {
-        absoluteSourcePath = path.join(
-          UPLOADS_DIR,
-          sub.path.replace(/^\//, "")
-        );
+    for (let index = 0; index < newSubtitles.length; index++) {
+      const sub = newSubtitles[index];
+      const result = processSubtitleFileMove(sub, sanitizedCollectionName, moveWithVideo);
+      if (result && result.updated) {
+        newSubtitles[index] = result.newSub;
+        subtitlesUpdated = true;
       }
-
-      let targetSubDir = "";
-      let newWebPath = "";
-
-      // Determine target based on moveSubtitlesToVideoFolder setting
-      if (moveWithVideo) {
-        // Always move to video folder
-        targetSubDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
-        newWebPath = `/videos/${sanitizedCollectionName}/${path.basename(sub.path)}`;
-      } else {
-        // Move to central subtitles folder (mirror collection structure)
-        targetSubDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
-        newWebPath = `/subtitles/${sanitizedCollectionName}/${path.basename(sub.path)}`;
-      }
-
-      if (absoluteSourcePath && targetSubDir && newWebPath) {
-        const targetSubPath = path.join(targetSubDir, path.basename(sub.path));
-        if (
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.existsSync(absoluteSourcePath) &&
-          absoluteSourcePath !== targetSubPath
-        ) {
-          moveFile(absoluteSourcePath, targetSubPath);
-          newSubtitles[index] = {
-            ...sub,
-            path: newWebPath,
-          };
-          subtitlesUpdated = true;
-        }
-      }
-    });
+    }
 
     if (subtitlesUpdated) {
       updates.subtitles = newSubtitles;
@@ -330,58 +292,21 @@ export function moveSubtitlesFromCollection(
     const newSubtitles = [...video.subtitles];
     let subtitlesUpdated = false;
 
-    newSubtitles.forEach((sub, index) => {
-      let absoluteSourcePath = "";
-      // Construct absolute source path based on DB path
-      if (sub.path.startsWith("/videos/")) {
-        absoluteSourcePath = path.join(
-          VIDEOS_DIR,
-          sub.path.replace("/videos/", "")
-        );
-      } else if (sub.path.startsWith("/subtitles/")) {
-        // sub.path is like /subtitles/Collection/file.vtt
-        // SUBTITLES_DIR is uploads/subtitles
-        absoluteSourcePath = path.join(
-          UPLOADS_DIR,
-          sub.path.replace(/^\//, "")
-        ); // path.join(headers...) -> uploads/subtitles/...
+    for (let index = 0; index < newSubtitles.length; index++) {
+      const sub = newSubtitles[index];
+      const result = processSubtitleMoveFromCollection(
+        sub,
+        targetVideoDir,
+        targetSubDir,
+        videoPathPrefix,
+        subtitlePathPrefix
+      );
+
+      if (result && result.updated) {
+        newSubtitles[index] = result.newSub;
+        subtitlesUpdated = true;
       }
-
-      let targetSubDirPath = "";
-      let newWebPath = "";
-
-      if (sub.path.startsWith("/videos/")) {
-        targetSubDirPath = targetVideoDir; // Calculated above (root or other collection)
-        newWebPath = `${videoPathPrefix}/${path.basename(sub.path)}`;
-      } else if (sub.path.startsWith("/subtitles/")) {
-        // Should move to root subtitles or other collection subtitles
-        targetSubDirPath = targetSubDir;
-        newWebPath = subtitlePathPrefix
-          ? `${subtitlePathPrefix}/${path.basename(sub.path)}`
-          : `/subtitles/${path.basename(sub.path)}`;
-      }
-
-      if (absoluteSourcePath && targetSubDirPath && newWebPath) {
-        const targetSubPath = path.join(
-          targetSubDirPath,
-          path.basename(sub.path)
-        );
-
-        // Ensure correct paths for move
-        // Need to handle potential double slashes or construction issues if any
-        if (
-          fs.existsSync(absoluteSourcePath) &&
-          absoluteSourcePath !== targetSubPath
-        ) {
-          moveFile(absoluteSourcePath, targetSubPath);
-          newSubtitles[index] = {
-            ...sub,
-            path: newWebPath,
-          };
-          subtitlesUpdated = true;
-        }
-      }
-    });
+    }
 
     if (subtitlesUpdated) {
       updates.subtitles = newSubtitles;
@@ -551,77 +476,11 @@ export function renameCollectionDirectories(
     return false;
   }
 
-  let success = true;
+  const resultVideo = processDirectoryRename(VIDEOS_DIR, sanitizedOldName, sanitizedNewName);
+  const resultImage = processDirectoryRename(IMAGES_DIR, sanitizedOldName, sanitizedNewName);
+  const resultSubtitle = processDirectoryRename(SUBTITLES_DIR, sanitizedOldName, sanitizedNewName);
 
-  // Function to rename a specific type of directory
-  const renameDir = (baseDir: string): void => {
-    const oldDir = path.join(baseDir, sanitizedOldName);
-    const newDir = path.join(baseDir, sanitizedNewName);
-
-    // Validate paths to prevent path traversal
-    const normalizedOldDir = path.normalize(oldDir);
-    const normalizedNewDir = path.normalize(newDir);
-    const normalizedBaseDir = path.normalize(baseDir);
-
-    // Ensure paths are within base directory
-    if (!normalizedOldDir.startsWith(normalizedBaseDir) || !normalizedNewDir.startsWith(normalizedBaseDir)) {
-      logger.error(`Path traversal detected: oldDir=${oldDir}, newDir=${newDir}, baseDir=${baseDir}`);
-      success = false;
-      return;
-    }
-
-    try {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(oldDir)) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newDir)) {
-          // If target directory already exists, we fail for now or merge.
-          // Let's assume name collision check is done before.
-          // But if it exists, merging is safer than overwriting.
-          logger.warn(`Target directory ${newDir} already exists. Merging content.`);
-          
-          // Move all files from old to new
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          const files = fs.readdirSync(oldDir);
-          files.forEach(file => {
-             const oldFile = path.join(oldDir, file);
-             const newFile = path.join(newDir, file);
-             try {
-                moveFile(oldFile, newFile);
-             } catch (e) {
-                logger.error(`Error moving file ${oldFile} to ${newFile}: ${e}`);
-                success = false;
-             }
-          });
-          // Remove old directory (use recursive to handle non-empty dirs)
-          try {
-            if (fs.existsSync(oldDir)) {
-              fs.rmSync(oldDir, { recursive: true, force: true });
-            }
-          } catch (e) {
-            logger.error(`Error removing old directory ${oldDir}: ${e}`);
-            success = false;
-          }
-        } else {
-          // Simple rename
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.renameSync(oldDir, newDir);
-        }
-      }
-    } catch (e) {
-      logger.error(
-        `Error renaming directory from ${oldDir} to ${newDir}`,
-        e instanceof Error ? e : new Error(String(e))
-      );
-      success = false;
-    }
-  };
-
-  renameDir(VIDEOS_DIR);
-  renameDir(IMAGES_DIR);
-  renameDir(SUBTITLES_DIR);
-
-  return success;
+  return resultVideo && resultImage && resultSubtitle;
 }
 
 /**
@@ -684,4 +543,223 @@ export function updateVideoPathsForCollectionRename(
   }
 
   return updates;
+}
+
+/**
+ * Process a single subtitle file move for collection
+ */
+function processSubtitleFileMove(
+  sub: { path: string; language: string; filename: string },
+  sanitizedCollectionName: string,
+  moveWithVideo: boolean
+): { updated: boolean; newSub: typeof sub } | null {
+  const paths = calculateSubtitlePaths(sub, sanitizedCollectionName, moveWithVideo);
+
+  if (paths) {
+    const { absoluteSourcePath, targetSubPath, newWebPath } = paths;
+    
+    if (
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.existsSync(absoluteSourcePath) &&
+      absoluteSourcePath !== targetSubPath
+    ) {
+      try {
+        moveFile(absoluteSourcePath, targetSubPath);
+        return {
+          updated: true,
+          newSub: {
+            ...sub,
+            path: newWebPath,
+          },
+        };
+      } catch (e) {
+        logger.error(
+          `Error moving subtitle file ${absoluteSourcePath} to ${targetSubPath}: ${e}`
+        );
+        throw e;
+      }
+    }
+  }
+
+  return null;
+}
+
+function calculateSubtitlePaths(
+  sub: { path: string; language: string; filename: string },
+  sanitizedCollectionName: string,
+  moveWithVideo: boolean
+): { absoluteSourcePath: string; targetSubPath: string; newWebPath: string } | null {
+  // Determine existing absolute path
+  let absoluteSourcePath = "";
+  if (sub.path.startsWith("/videos/")) {
+    absoluteSourcePath = path.join(
+      VIDEOS_DIR,
+      sub.path.replace("/videos/", "")
+    );
+  } else if (sub.path.startsWith("/subtitles/")) {
+    absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+  }
+
+  let targetSubDir = "";
+  let newWebPath = "";
+
+  // Determine target based on moveSubtitlesToVideoFolder setting
+  if (moveWithVideo) {
+    // Always move to video folder
+    targetSubDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
+    newWebPath = `/videos/${sanitizedCollectionName}/${path.basename(sub.path)}`;
+  } else {
+    // Move to central subtitles folder (mirror collection structure)
+    targetSubDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
+    newWebPath = `/subtitles/${sanitizedCollectionName}/${path.basename(sub.path)}`;
+  }
+
+  if (absoluteSourcePath && targetSubDir && newWebPath) {
+    return {
+      absoluteSourcePath,
+      targetSubPath: path.join(targetSubDir, path.basename(sub.path)),
+      newWebPath
+    };
+  }
+  return null;
+}
+
+/**
+ * Helper to rename a specific type of directory
+ * Extracted to reduce complexity of renameCollectionDirectories
+ */
+function processDirectoryRename(
+  baseDir: string,
+  sanitizedOldName: string,
+  sanitizedNewName: string
+): boolean {
+  let success = true;
+  const oldDir = path.join(baseDir, sanitizedOldName);
+  const newDir = path.join(baseDir, sanitizedNewName);
+
+  // Validate paths to prevent path traversal
+  const normalizedOldDir = path.normalize(oldDir);
+  const normalizedNewDir = path.normalize(newDir);
+  const normalizedBaseDir = path.normalize(baseDir);
+
+  // Ensure paths are within base directory
+  if (
+    !normalizedOldDir.startsWith(normalizedBaseDir) ||
+    !normalizedNewDir.startsWith(normalizedBaseDir)
+  ) {
+    logger.error(
+      `Path traversal detected: oldDir=${oldDir}, newDir=${newDir}, baseDir=${baseDir}`
+    );
+    return false;
+  }
+
+  try {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(oldDir)) {
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(newDir)) {
+        // If target directory already exists, we fail for now or merge.
+        // Let's assume name collision check is done before.
+        // But if it exists, merging is safer than overwriting.
+        logger.warn(
+          `Target directory ${newDir} already exists. Merging content.`
+        );
+
+        // Move all files from old to new
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        const files = fs.readdirSync(oldDir);
+        files.forEach((file) => {
+          const oldFile = path.join(oldDir, file);
+          const newFile = path.join(newDir, file);
+          try {
+            moveFile(oldFile, newFile);
+          } catch (e) {
+            logger.error(`Error moving file ${oldFile} to ${newFile}: ${e}`);
+            success = false;
+          }
+        });
+        // Remove old directory (use recursive to handle non-empty dirs)
+        try {
+          if (fs.existsSync(oldDir)) {
+            fs.rmSync(oldDir, { recursive: true, force: true });
+          }
+        } catch (e) {
+          logger.error(`Error removing old directory ${oldDir}: ${e}`);
+          success = false;
+        }
+      } else {
+        // Simple rename
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.renameSync(oldDir, newDir);
+      }
+    }
+  } catch (e) {
+    logger.error(
+      `Error renaming directory from ${oldDir} to ${newDir}`,
+      e instanceof Error ? e : new Error(String(e))
+    );
+    success = false;
+  }
+
+  return success;
+}
+
+function processSubtitleMoveFromCollection(
+  sub: { path: string; language: string; filename: string },
+  targetVideoDir: string,
+  targetSubDir: string,
+  videoPathPrefix: string,
+  subtitlePathPrefix?: string
+): { updated: boolean; newSub: typeof sub } | null {
+  let absoluteSourcePath = "";
+  // Construct absolute source path based on DB path
+  if (sub.path.startsWith("/videos/")) {
+    absoluteSourcePath = path.join(VIDEOS_DIR, sub.path.replace("/videos/", ""));
+  } else if (sub.path.startsWith("/subtitles/")) {
+    // sub.path is like /subtitles/Collection/file.vtt
+    // SUBTITLES_DIR is uploads/subtitles
+    absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+  }
+
+  let targetSubDirPath = "";
+  let newWebPath = "";
+
+  if (sub.path.startsWith("/videos/")) {
+    targetSubDirPath = targetVideoDir; // Calculated above (root or other collection)
+    newWebPath = `${videoPathPrefix}/${path.basename(sub.path)}`;
+  } else if (sub.path.startsWith("/subtitles/")) {
+    // Should move to root subtitles or other collection subtitles
+    targetSubDirPath = targetSubDir;
+    newWebPath = subtitlePathPrefix
+      ? `${subtitlePathPrefix}/${path.basename(sub.path)}`
+      : `/subtitles/${path.basename(sub.path)}`;
+  }
+
+  if (absoluteSourcePath && targetSubDirPath && newWebPath) {
+    const targetSubPath = path.join(targetSubDirPath, path.basename(sub.path));
+
+    // Ensure correct paths for move
+    if (
+      fs.existsSync(absoluteSourcePath) &&
+      absoluteSourcePath !== targetSubPath
+    ) {
+      try {
+        moveFile(absoluteSourcePath, targetSubPath);
+        return {
+          updated: true,
+          newSub: {
+            ...sub,
+            path: newWebPath,
+          },
+        };
+      } catch (e) {
+        logger.error(
+          `Error moving subtitle file ${absoluteSourcePath} to ${targetSubPath}: ${e}`
+        );
+        throw e;
+      }
+    }
+  }
+
+  return null;
 }

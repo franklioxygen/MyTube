@@ -41,11 +41,7 @@ type ProcessFileResult = "added" | "updated" | "skipped";
 
 type TmdbMetadata = Awaited<ReturnType<typeof scrapeMetadataFromTMDB>>;
 
-type ThumbnailResolution = {
-  filename?: string;
-  path?: string;
-  url?: string;
-};
+import { resolveThumbnail } from "./scanHelpers";
 
 const runWithConcurrencyLimit = async <T>(
   items: T[],
@@ -253,93 +249,8 @@ const maybeGenerateThumbnail = async (
   }
 };
 
-const resolveThumbnail = async (
-  filename: string,
-  tmdbMetadata: TmdbMetadata,
-  tempThumbnailPath: string,
-  fallbackThumbnailFilename: string
-): Promise<ThumbnailResolution> => {
-  const tmdbThumbnailFilename = (tmdbMetadata as any)?.thumbnailFilename as
-    | string
-    | undefined;
 
-  if (
-    tmdbMetadata?.thumbnailPath &&
-    tmdbMetadata.thumbnailPath.startsWith("/images/")
-  ) {
-    if (tmdbThumbnailFilename) {
-      const tmdbFilePath = validateImagePath(
-        path.join(IMAGES_DIR, tmdbThumbnailFilename.replace(/\//g, path.sep))
-      );
 
-      if (await fs.pathExists(tmdbFilePath)) {
-        logger.info(
-          `Using TMDB poster for "${filename}" (saved as: ${tmdbThumbnailFilename})`
-        );
-      } else {
-        logger.warn(
-          `TMDB poster path doesn't exist, using metadata path: ${tmdbMetadata.thumbnailPath}`
-        );
-      }
-
-      return {
-        filename: path.basename(tmdbThumbnailFilename),
-        path: tmdbMetadata.thumbnailPath,
-        url: tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath,
-      };
-    }
-
-    const pathFromMetadata = tmdbMetadata.thumbnailPath.replace("/images/", "");
-    return {
-      filename: path.basename(pathFromMetadata),
-      path: tmdbMetadata.thumbnailPath,
-      url: tmdbMetadata.thumbnailUrl || tmdbMetadata.thumbnailPath,
-    };
-  }
-
-  let finalThumbnailFilename = fallbackThumbnailFilename;
-
-  try {
-    const safeTargetThumbnailPath = validateImagePath(
-      path.join(IMAGES_DIR, finalThumbnailFilename)
-    );
-    const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
-
-    if (await fs.pathExists(safeTempThumbnailPath)) {
-      if (
-        (await fs.pathExists(safeTargetThumbnailPath)) &&
-        safeTempThumbnailPath !== safeTargetThumbnailPath
-      ) {
-        await fs.remove(safeTempThumbnailPath);
-        logger.warn(
-          `Thumbnail filename already exists: ${finalThumbnailFilename}, using existing`
-        );
-      } else if (safeTempThumbnailPath !== safeTargetThumbnailPath) {
-        await fs.move(safeTempThumbnailPath, safeTargetThumbnailPath);
-        logger.info(`Renamed thumbnail file to "${finalThumbnailFilename}"`);
-      }
-
-      return {
-        filename: finalThumbnailFilename,
-        path: `/images/${finalThumbnailFilename}`,
-        url: `/images/${finalThumbnailFilename}`,
-      };
-    }
-  } catch (error) {
-    logger.error(`Error resolving thumbnail file: ${error}`);
-  }
-
-  if (await fs.pathExists(tempThumbnailPath)) {
-    finalThumbnailFilename = path.basename(tempThumbnailPath);
-    return {
-      filename: finalThumbnailFilename,
-      path: `/images/${finalThumbnailFilename}`,
-      url: `/images/${finalThumbnailFilename}`,
-    };
-  }
-
-  return {};
-};
 
 const processSingleVideoFile = async (
   filePath: string,

@@ -2,11 +2,11 @@ import { desc, eq } from "drizzle-orm";
 import fs from "fs-extra";
 import path from "path";
 import {
-  AVATARS_DIR,
-  IMAGES_DIR,
-  SUBTITLES_DIR,
-  UPLOADS_DIR,
-  VIDEOS_DIR,
+    AVATARS_DIR,
+    IMAGES_DIR,
+    SUBTITLES_DIR,
+    UPLOADS_DIR,
+    VIDEOS_DIR,
 } from "../../config/paths";
 import { db } from "../../db";
 import { videos } from "../../db/schema";
@@ -494,208 +494,16 @@ export function deleteVideo(id: string): boolean {
     const allCollections = getCollections();
 
     // Remove video file
-    if (videoToDelete.videoFilename) {
-      const actualPath = findVideoFile(
-        videoToDelete.videoFilename,
-        allCollections
-      );
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (actualPath && fs.existsSync(actualPath)) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(actualPath);
-      }
-    }
+    deleteVideoFile(videoToDelete, allCollections);
 
     // Remove thumbnail file
-    if (videoToDelete.thumbnailFilename) {
-      let thumbnailPath: string | null = null;
-
-      // Determine the actual file path based on thumbnailPath
-      if (videoToDelete.thumbnailPath) {
-        if (videoToDelete.thumbnailPath.startsWith("/videos/")) {
-          // Thumbnail is stored alongside video file
-          thumbnailPath = path.join(
-            VIDEOS_DIR,
-            videoToDelete.thumbnailPath.replace(/^\/videos\//, "")
-          );
-        } else if (videoToDelete.thumbnailPath.startsWith("/images/")) {
-          // Thumbnail is in images directory (may be in collection subdirectory)
-          thumbnailPath = path.join(
-            UPLOADS_DIR,
-            videoToDelete.thumbnailPath.replace(/^\//, "")
-          );
-        }
-      }
-
-      // Fallback: try to find by filename if path-based lookup fails
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
-        // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
-        if (videoToDelete.videoFilename) {
-          const videoPath = findVideoFile(
-            videoToDelete.videoFilename,
-            allCollections
-          );
-          if (videoPath) {
-            const videoDir = path.dirname(videoPath);
-            thumbnailPath = path.join(
-              videoDir,
-              videoToDelete.thumbnailFilename
-            );
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (!fs.existsSync(thumbnailPath)) {
-              thumbnailPath = null;
-            }
-          }
-        }
-      }
-
-      // Final fallback: try standard image locations
-      if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
-        thumbnailPath = findImageFile(
-          videoToDelete.thumbnailFilename,
-          allCollections
-        );
-      }
-
-      // Delete the thumbnail file if it exists
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (thumbnailPath && fs.existsSync(thumbnailPath)) {
-        try {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(thumbnailPath);
-          logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
-        } catch (error) {
-          logger.error(
-            `Error deleting thumbnail file ${thumbnailPath}`,
-            error instanceof Error ? error : new Error(String(error))
-          );
-        }
-      }
-    }
+    deleteThumbnailFile(videoToDelete, allCollections);
 
     // Remove author avatar file only if this is the last video from this author
-    if (videoToDelete.authorAvatarFilename && videoToDelete.author) {
-      // Check if there are other videos from the same author
-      const allVideos = getVideos();
-      const otherVideosFromAuthor = allVideos.filter(
-        (v) => v.id !== id && v.author === videoToDelete.author
-      );
-
-      // Only delete avatar if this is the last video from this author
-      if (otherVideosFromAuthor.length === 0) {
-        let avatarPath: string | null = null;
-
-        // Determine the actual file path based on authorAvatarPath
-        if (videoToDelete.authorAvatarPath) {
-          if (videoToDelete.authorAvatarPath.startsWith("/avatars/")) {
-            // Avatar is in avatars directory
-            avatarPath = path.join(
-              UPLOADS_DIR,
-              videoToDelete.authorAvatarPath.replace(/^\//, "")
-            );
-          } else if (videoToDelete.authorAvatarPath.startsWith("/images/")) {
-            // Legacy: Avatar might be in images directory (for backward compatibility)
-            avatarPath = path.join(
-              UPLOADS_DIR,
-              videoToDelete.authorAvatarPath.replace(/^\//, "")
-            );
-          }
-        }
-
-        // Fallback: try to find by filename in avatars directory
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!avatarPath || !fs.existsSync(avatarPath)) {
-          const fallbackPath = path.join(
-            AVATARS_DIR,
-            videoToDelete.authorAvatarFilename
-          );
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(fallbackPath)) {
-            avatarPath = fallbackPath;
-          }
-        }
-
-        // Delete the avatar file if it exists
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (avatarPath && fs.existsSync(avatarPath)) {
-          try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(avatarPath);
-            logger.info(`Deleted author avatar file: ${avatarPath}`);
-          } catch (error) {
-            logger.error(
-              `Error deleting author avatar file ${avatarPath}`,
-              error instanceof Error ? error : new Error(String(error))
-            );
-          }
-        }
-      } else {
-        logger.info(
-          `Skipping avatar deletion - ${otherVideosFromAuthor.length} other video(s) from author "${videoToDelete.author}" still exist`
-        );
-      }
-    }
+    deleteAuthorAvatarIfNeeded(videoToDelete, id);
 
     // Remove subtitle files
-    if (videoToDelete.subtitles && videoToDelete.subtitles.length > 0) {
-      for (const subtitle of videoToDelete.subtitles) {
-        let subtitlePath: string | null = null;
-
-        // Determine the actual file path based on subtitle.path
-        if (subtitle.path) {
-          if (subtitle.path.startsWith("/videos/")) {
-            // Subtitle is stored alongside video file
-            subtitlePath = path.join(
-              VIDEOS_DIR,
-              subtitle.path.replace(/^\/videos\//, "")
-            );
-          } else if (subtitle.path.startsWith("/subtitles/")) {
-            // Subtitle is in subtitles directory (may be in collection subdirectory)
-            subtitlePath = path.join(
-              UPLOADS_DIR,
-              subtitle.path.replace(/^\//, "")
-            );
-          }
-        }
-
-        // Fallback: try to find by filename if path-based lookup fails
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!subtitlePath || !fs.existsSync(subtitlePath)) {
-          // Try root subtitles directory
-          subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (!fs.existsSync(subtitlePath)) {
-            // Try alongside video file
-            if (videoToDelete.videoFilename) {
-              const videoPath = findVideoFile(
-                videoToDelete.videoFilename,
-                allCollections
-              );
-              if (videoPath) {
-                const videoDir = path.dirname(videoPath);
-                subtitlePath = path.join(videoDir, subtitle.filename);
-              }
-            }
-          }
-        }
-
-        // Delete the subtitle file if it exists
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (subtitlePath && fs.existsSync(subtitlePath)) {
-          try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(subtitlePath);
-            logger.info(`Deleted subtitle file: ${subtitlePath}`);
-          } catch (error) {
-            logger.error(
-              `Error deleting subtitle file ${subtitlePath}`,
-              error instanceof Error ? error : new Error(String(error))
-            );
-          }
-        }
-      }
-    }
+    deleteSubtitleFiles(videoToDelete, allCollections);
 
     // Mark video as deleted in download history
     markVideoDownloadDeleted(id);
@@ -713,5 +521,213 @@ export function deleteVideo(id: string): boolean {
       error instanceof Error ? error : new Error(String(error)),
       "deleteVideo"
     );
+  }
+}
+
+function deleteVideoFile(
+  video: import("./types").Video,
+  allCollections: import("./types").Collection[]
+): void {
+  if (video.videoFilename) {
+    const actualPath = findVideoFile(video.videoFilename, allCollections);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (actualPath && fs.existsSync(actualPath)) {
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.unlinkSync(actualPath);
+    }
+  }
+}
+
+function deleteThumbnailFile(
+  video: import("./types").Video,
+  allCollections: import("./types").Collection[]
+): void {
+  if (video.thumbnailFilename) {
+    let thumbnailPath: string | null = null;
+
+    // Determine the actual file path based on thumbnailPath
+    if (video.thumbnailPath) {
+      if (video.thumbnailPath.startsWith("/videos/")) {
+        // Thumbnail is stored alongside video file
+        thumbnailPath = path.join(
+          VIDEOS_DIR,
+          video.thumbnailPath.replace(/^\/videos\//, "")
+        );
+      } else if (video.thumbnailPath.startsWith("/images/")) {
+        // Thumbnail is in images directory (may be in collection subdirectory)
+        thumbnailPath = path.join(
+          UPLOADS_DIR,
+          video.thumbnailPath.replace(/^\//, "")
+        );
+      }
+    }
+
+    // Fallback: try to find by filename if path-based lookup fails
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+      // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
+      if (video.videoFilename) {
+        const videoPath = findVideoFile(video.videoFilename, allCollections);
+        if (videoPath) {
+          const videoDir = path.dirname(videoPath);
+          thumbnailPath = path.join(videoDir, video.thumbnailFilename);
+          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+          if (!fs.existsSync(thumbnailPath)) {
+            thumbnailPath = null;
+          }
+        }
+      }
+    }
+
+    // Final fallback: try standard image locations
+    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+      thumbnailPath = findImageFile(video.thumbnailFilename, allCollections);
+    }
+
+    // Delete the thumbnail file if it exists
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+      try {
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.unlinkSync(thumbnailPath);
+        logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
+      } catch (error) {
+        logger.error(
+          `Error deleting thumbnail file ${thumbnailPath}`,
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    }
+  }
+}
+
+function deleteAuthorAvatarIfNeeded(
+  video: import("./types").Video,
+  exceptionId: string
+): void {
+  if (video.authorAvatarFilename && video.author) {
+    // Check if there are other videos from the same author
+    const allVideos = getVideos();
+    const otherVideosFromAuthor = allVideos.filter(
+      (v) => v.id !== exceptionId && v.author === video.author
+    );
+
+    // Only delete avatar if this is the last video from this author
+    if (otherVideosFromAuthor.length === 0) {
+      let avatarPath: string | null = null;
+
+      // Determine the actual file path based on authorAvatarPath
+      if (video.authorAvatarPath) {
+        if (video.authorAvatarPath.startsWith("/avatars/")) {
+          // Avatar is in avatars directory
+          avatarPath = path.join(
+            UPLOADS_DIR,
+            video.authorAvatarPath.replace(/^\//, "")
+          );
+        } else if (video.authorAvatarPath.startsWith("/images/")) {
+          // Legacy: Avatar might be in images directory (for backward compatibility)
+          avatarPath = path.join(
+            UPLOADS_DIR,
+            video.authorAvatarPath.replace(/^\//, "")
+          );
+        }
+      }
+
+      // Fallback: try to find by filename in avatars directory
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (!avatarPath || !fs.existsSync(avatarPath)) {
+        const fallbackPath = path.join(
+          AVATARS_DIR,
+          video.authorAvatarFilename
+        );
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(fallbackPath)) {
+          avatarPath = fallbackPath;
+        }
+      }
+
+      // Delete the avatar file if it exists
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (avatarPath && fs.existsSync(avatarPath)) {
+        try {
+          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+          fs.unlinkSync(avatarPath);
+          logger.info(`Deleted author avatar file: ${avatarPath}`);
+        } catch (error) {
+          logger.error(
+            `Error deleting author avatar file ${avatarPath}`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
+      }
+    } else {
+      logger.info(
+        `Skipping avatar deletion - ${otherVideosFromAuthor.length} other video(s) from author "${video.author}" still exist`
+      );
+    }
+  }
+}
+
+function deleteSubtitleFiles(
+  video: import("./types").Video,
+  allCollections: import("./types").Collection[]
+): void {
+  if (video.subtitles && video.subtitles.length > 0) {
+    for (const subtitle of video.subtitles) {
+      let subtitlePath: string | null = null;
+
+      // Determine the actual file path based on subtitle.path
+      if (subtitle.path) {
+        if (subtitle.path.startsWith("/videos/")) {
+          // Subtitle is stored alongside video file
+          subtitlePath = path.join(
+            VIDEOS_DIR,
+            subtitle.path.replace(/^\/videos\//, "")
+          );
+        } else if (subtitle.path.startsWith("/subtitles/")) {
+          // Subtitle is in subtitles directory (may be in collection subdirectory)
+          subtitlePath = path.join(
+            UPLOADS_DIR,
+            subtitle.path.replace(/^\//, "")
+          );
+        }
+      }
+
+      // Fallback: try to find by filename if path-based lookup fails
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+        // Try root subtitles directory
+        subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (!fs.existsSync(subtitlePath)) {
+          // Try alongside video file
+          if (video.videoFilename) {
+            const videoPath = findVideoFile(
+              video.videoFilename,
+              allCollections
+            );
+            if (videoPath) {
+              const videoDir = path.dirname(videoPath);
+              subtitlePath = path.join(videoDir, subtitle.filename);
+            }
+          }
+        }
+      }
+
+      // Delete the subtitle file if it exists
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (subtitlePath && fs.existsSync(subtitlePath)) {
+        try {
+          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+          fs.unlinkSync(subtitlePath);
+          logger.info(`Deleted subtitle file: ${subtitlePath}`);
+        } catch (error) {
+          logger.error(
+            `Error deleting subtitle file ${subtitlePath}`,
+            error instanceof Error ? error : new Error(String(error))
+          );
+        }
+      }
+    }
   }
 }
