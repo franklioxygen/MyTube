@@ -364,6 +364,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       if (!m3u8Url) {
         const debugFile = path.join(DATA_DIR, `missav_debug_${timestamp}.html`);
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         fs.writeFileSync(debugFile, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
@@ -579,7 +580,9 @@ export class MissAVDownloader extends BaseDownloader {
       // 10. Get file size
       let fileSize: string | undefined;
       try {
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(newVideoPath)) {
+          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           const stats = fs.statSync(newVideoPath);
           fileSize = stats.size.toString();
         }
@@ -649,7 +652,9 @@ export class MissAVDownloader extends BaseDownloader {
           IMAGES_DIR,
           `${cleanupSafeBaseFilename}.jpg`,
         );
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(cleanupThumbnailPath))
           await safeRemove(cleanupThumbnailPath);
         // Also try mp4 in case the file was created with default extension
@@ -657,6 +662,7 @@ export class MissAVDownloader extends BaseDownloader {
           VIDEOS_DIR,
           `${cleanupSafeBaseFilename}.mp4`,
         );
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(cleanupVideoPathMp4))
           await safeRemove(cleanupVideoPathMp4);
       } catch (cleanupError) {

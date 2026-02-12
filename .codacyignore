@@ -1,9 +1,17 @@
 node_modules/
+**/node_modules/**
 backend/bgutil-ytdlp-pot-provider/
 **/bgutil-ytdlp-pot-provider/**
 dist/
+**/dist/**
 build/
+**/build/**
 coverage/
+**/coverage/**
+codeql-db/
+codeql-reports/
+**/.vite/**
+uploads/
 .codacy/
 .git/
 frontend/src/utils/locales/

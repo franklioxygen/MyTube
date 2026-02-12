@@ -1,1 +1,1 @@
-ALTER TABLE `continuous_download_tasks` ADD `collection_id` text;
+ALTER TABLE "continuous_download_tasks" ADD "collection_id" text;

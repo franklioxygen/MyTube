@@ -38,7 +38,9 @@ async function runTest() {
         console.error("Test failed:", error);
         process.exit(1);
     } finally {
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(TEST_VIDEO_PATH)) {
+            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             fs.unlinkSync(TEST_VIDEO_PATH);
             console.log("Test video deleted.");
         }

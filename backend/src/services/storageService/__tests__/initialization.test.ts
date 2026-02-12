@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db, sqlite } from "../../../db";

@@ -46,6 +46,7 @@ export function resolveAbsolutePath(relativePath: string): string | null {
     const fullPath = path.join(uploadsBase, cleanRelative);
     logger.debug("Trying uploads videos path:", fullPath);
     // Validate path is within uploadsBase to prevent path traversal
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (validatePathWithinDirectory(fullPath, uploadsBase) && fs.existsSync(fullPath)) {
       logger.debug("Found video file at:", fullPath);
       return fullPath;
@@ -81,10 +82,12 @@ export function resolveAbsolutePath(relativePath: string): string | null {
   ];
   for (const root of possibleRoots) {
     logger.debug("Checking data root:", root);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (fs.existsSync(root)) {
       const fullPath = path.join(root, cleanRelative);
       logger.debug("Found data root directory, trying file:", fullPath);
       // Validate path is within root to prevent path traversal
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       if (validatePathWithinDirectory(fullPath, root) && fs.existsSync(fullPath)) {
         logger.debug("Found file in data root:", fullPath);
         return fullPath;

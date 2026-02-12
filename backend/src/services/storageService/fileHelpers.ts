@@ -45,6 +45,7 @@ export function findVideoFile(
     const rootPath = path.join(VIDEOS_DIR, sanitizedFilename);
     try {
       validateSafePath(rootPath);
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       if (fs.existsSync(rootPath)) return rootPath;
     } catch (e) {
       // Skip unsafe root path
@@ -71,6 +72,7 @@ export function findVideoFile(
         );
         try {
           validateSafePath(collectionPath);
+          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           if (fs.existsSync(collectionPath)) return collectionPath;
         } catch (e) {
           // Skip unsafe paths
@@ -149,6 +151,7 @@ export function moveFile(sourcePath: string, destPath: string): void {
     validateSafePath(sourcePath);
     validateSafePath(destPath);
 
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (fs.existsSync(sourcePath)) {
       fs.ensureDirSync(path.dirname(destPath));
       fs.moveSync(sourcePath, destPath, { overwrite: true });

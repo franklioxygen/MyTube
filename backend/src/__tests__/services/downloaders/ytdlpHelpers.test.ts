@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { extractXiaoHongShuAuthor } from "../../../services/downloaders/ytdlp/ytdlpHelpers";

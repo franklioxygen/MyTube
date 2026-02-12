@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerApiRoutes } from "../../server/apiRoutes";
 import { authMiddleware } from "../../middleware/authMiddleware";

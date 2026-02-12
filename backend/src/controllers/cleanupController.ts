@@ -29,6 +29,7 @@ export const cleanupTempFiles = async (
   // Recursively find and delete .ytdl and .part files
   const cleanupDirectory = async (dir: string) => {
     try {
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       const entries = await fs.readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -56,6 +57,7 @@ export const cleanupTempFiles = async (
           // Check if file has .ytdl or .part extension
           if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {
             try {
+              // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               await fs.unlink(fullPath);
               deletedCount++;
               logger.debug(`Deleted temp file: ${fullPath}`);

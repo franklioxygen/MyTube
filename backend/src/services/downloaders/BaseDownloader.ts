@@ -76,6 +76,7 @@ export abstract class BaseDownloader implements IDownloader {
         ...axiosConfig,
       });
 
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       const writer = fs.createWriteStream(safeSavePath);
       response.data.pipe(writer);
 

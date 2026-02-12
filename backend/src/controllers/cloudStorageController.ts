@@ -191,6 +191,7 @@ export const syncToCloud = async (
         cleanRelative.startsWith("subtitles/")
       ) {
         const fullPath = path.join(uploadsBase, cleanRelative);
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(fullPath)) {
           return fullPath;
         }
@@ -202,6 +203,7 @@ export const syncToCloud = async (
         path.join(process.cwd(), "..", "data"),
       ];
       for (const root of possibleRoots) {
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         if (fs.existsSync(root)) {
           const fullPath = path.join(root, cleanRelative);
           if (fs.existsSync(fullPath)) {

@@ -125,7 +125,7 @@ jobs:
           mkdir -p ~/yt-dlp-plugins/bgutil-ytdlp-pot-provider/
           cp -r plugin/ ~/yt-dlp-plugins/
       - name: Build Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@601a80b39c9405e50806ae38af30926f9d957c47 # v6
         with:
           context: server/
           file: server/Dockerfile

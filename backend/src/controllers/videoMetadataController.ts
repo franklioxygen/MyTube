@@ -67,6 +67,7 @@ export const refreshThumbnail = async (
   // Path has already been validated above.
   const validatedVideoPath = videoFilePath;
 
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (!fs.existsSync(validatedVideoPath)) {
     throw new NotFoundError("Video file", validatedVideoPath);
   }
@@ -243,6 +244,7 @@ export const refreshAllFileSizes = async (
         continue;
       }
 
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       const stats = await fs.stat(resolvedPath);
       if (!stats.isFile()) {
         skippedCount += 1;

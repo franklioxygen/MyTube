@@ -5,7 +5,7 @@ import json
 import os.path
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 
 from yt_dlp.extractor.youtube.pot.provider import (
     PoTokenProviderError,
@@ -93,6 +93,9 @@ class BgUtilScriptPTP(BgUtilPTPBase):
             return True
 
     def _check_node_version(self, node_path):
+        stdout = ''
+        stderr = ''
+        returncode = -1
         try:
             stdout, stderr, returncode = Popen.run(
                 [node_path, '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,

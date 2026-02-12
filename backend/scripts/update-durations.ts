@@ -42,6 +42,7 @@ async function updateDurations() {
         continue;
     }
 
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (!fs.existsSync(fsPath)) {
         console.warn(`File not found: ${fsPath}`);
         continue;

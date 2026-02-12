@@ -1,1 +1,1 @@
-ALTER TABLE `videos` ADD `file_size` text;
+ALTER TABLE "videos" ADD "file_size" text;

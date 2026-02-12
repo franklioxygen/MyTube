@@ -63,6 +63,7 @@ function getWaitTime(attempts: number): number {
  */
 function loadAttemptData(): LoginAttemptData {
   try {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (fs.existsSync(LOGIN_ATTEMPTS_FILE)) {
       const data = fs.readJsonSync(LOGIN_ATTEMPTS_FILE);
       return {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { execSync, spawn } from "child_process";
 import * as fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

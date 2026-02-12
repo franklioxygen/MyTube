@@ -1,1 +1,1 @@
-ALTER TABLE `videos` ADD `visibility` integer DEFAULT 1;
+ALTER TABLE "videos" ADD "visibility" integer DEFAULT 1;

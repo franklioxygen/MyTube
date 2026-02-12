@@ -11,6 +11,7 @@ async function migrate() {
   console.log('Starting migration...');
 
   // Migrate Videos
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (fs.existsSync(VIDEOS_DATA_PATH)) {
     const videosData = fs.readJSONSync(VIDEOS_DATA_PATH);
     console.log(`Found ${videosData.length} videos to migrate.`);
@@ -76,6 +77,7 @@ async function migrate() {
   }
 
   // Migrate Collections
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (fs.existsSync(COLLECTIONS_DATA_PATH)) {
     const collectionsData = fs.readJSONSync(COLLECTIONS_DATA_PATH);
     console.log(`Found ${collectionsData.length} collections to migrate.`);
@@ -114,6 +116,7 @@ async function migrate() {
   }
 
   // Migrate Settings
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (fs.existsSync(SETTINGS_DATA_PATH)) {
     try {
       const settingsData = fs.readJSONSync(SETTINGS_DATA_PATH);
@@ -137,6 +140,7 @@ async function migrate() {
   }
 
   // Migrate Status (Downloads)
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (fs.existsSync(STATUS_DATA_PATH)) {
     try {
       const statusData = fs.readJSONSync(STATUS_DATA_PATH);

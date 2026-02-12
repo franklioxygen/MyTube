@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from "fs-extra";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";

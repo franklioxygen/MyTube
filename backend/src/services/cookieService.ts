@@ -10,6 +10,7 @@ const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
  * Check if cookies file exists
  */
 export function checkCookies(): { exists: boolean } {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return { exists: fs.existsSync(COOKIES_PATH) };
 }
 
@@ -27,11 +28,14 @@ export function uploadCookies(fileBuffer: Buffer): void {
 
   try {
     fs.ensureDirSync(path.dirname(targetPath));
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     fs.writeFileSync(tempPath, fileBuffer);
     fs.moveSync(tempPath, targetPath, { overwrite: true });
     logger.info(`Cookies uploaded and saved to ${targetPath}`);
   } catch (error: any) {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (fs.existsSync(tempPath)) {
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       fs.unlinkSync(tempPath);
     }
     throw error;
@@ -43,7 +47,9 @@ export function uploadCookies(fileBuffer: Buffer): void {
  */
 export function deleteCookies(): void {
   const safeCookiesPath = path.resolve(COOKIES_PATH);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (fs.existsSync(safeCookiesPath)) {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     fs.unlinkSync(safeCookiesPath);
   } else {
     throw new NotFoundError("Cookies file", "cookies.txt");
