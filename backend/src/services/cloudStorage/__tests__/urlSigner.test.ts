@@ -3,6 +3,7 @@ import * as fileLister from '../fileLister';
 import * as pathUtils from '../pathUtils';
 import { CloudDriveConfig } from '../types';
 import { clearSignedUrlCache, getSignedUrl } from '../urlSigner';
+import { logger } from '../../../utils/logger';
 
 describe('cloudStorage urlSigner', () => {
     const mockConfig: CloudDriveConfig = {
@@ -108,6 +109,53 @@ describe('cloudStorage urlSigner', () => {
             expect(url).toBe('https://cdn.example.com/d/uploads/subdir/nested.mp4?sign=nested-sig');
         });
 
+        it('should search scanPaths when filename-only lookup misses upload path', async () => {
+            const configWithScanPaths = {
+                ...mockConfig,
+                scanPaths: ['/movies'],
+            } as CloudDriveConfig;
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads') {
+                    return [];
+                }
+                if (listPath === '/movies') {
+                    return [{ name: 'scan-only.mp4', is_dir: false, sign: 'scan-sig' }] as any;
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl('scan-only.mp4', 'video', configWithScanPaths);
+            expect(url).toBe('https://cdn.example.com/d/movies/scan-only.mp4?sign=scan-sig');
+        });
+
+        it('should continue searching when recursive upload lookup throws', async () => {
+            const configWithScanPaths = {
+                ...mockConfig,
+                scanPaths: ['/movies'],
+            } as CloudDriveConfig;
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads') {
+                    throw new Error('upload root unavailable');
+                }
+                if (listPath === '/movies') {
+                    return [{ name: 'recover.mp4', is_dir: false, sign: 'recover-sig' }] as any;
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl('recover.mp4', 'video', configWithScanPaths);
+            expect(url).toBe('https://cdn.example.com/d/movies/recover.mp4?sign=recover-sig');
+        });
+
+        it('should normalize leading slash filenames', async () => {
+            getFileListMock.mockResolvedValue([
+                { name: 'video.mp4', is_dir: false, sign: 'slash-sig' }
+            ]);
+
+            const url = await getSignedUrl('/video.mp4', 'video', mockConfig);
+            expect(url).toBe('https://cdn.example.com/d/uploads/video.mp4?sign=slash-sig');
+        });
+
         it('should get thumbnail URL with sign preference', async () => {
             getFileListMock.mockResolvedValue([
                 { name: 'thumb.jpg', is_dir: false, sign: 'thumb-sig', thumb: 'http://original-thumb' }
@@ -125,6 +173,120 @@ describe('cloudStorage urlSigner', () => {
             const url = await getSignedUrl('thumb.jpg', 'thumbnail', mockConfig);
             // Thumb URL logic replaces domain and resizes
             expect(url).toBe('https://cdn.example.com/thumb?width=1280&height=720');
+        });
+
+        it('should preserve foundPath with trailing slash when upload root ends with slash', async () => {
+            normalizeUploadPathMock.mockImplementation(() => '/uploads/');
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads/') {
+                    return [{ name: 'root.mp4', is_dir: false, sign: 'root-sig' }] as any;
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl('root.mp4', 'video', mockConfig);
+            expect(url).toBe('https://cdn.example.com/d/uploads/root.mp4?sign=root-sig');
+        });
+
+        it('should fallback to scanPath absolute directory when upload subdirectory lookup fails', async () => {
+            const configWithScanPaths = {
+                ...mockConfig,
+                scanPaths: ['/movies'],
+            } as CloudDriveConfig;
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads/movies') {
+                    throw new Error('not under upload path');
+                }
+                if (listPath === '/movies') {
+                    return [{ name: 'movie.mp4', is_dir: false, sign: 'absolute-sig' }] as any;
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl(
+                'movies/movie.mp4',
+                'video',
+                configWithScanPaths
+            );
+            expect(url).toBe('https://cdn.example.com/d/movies/movie.mp4?sign=absolute-sig');
+        });
+
+        it('should append relative directory to scanPath when needed', async () => {
+            const configWithScanPaths = {
+                ...mockConfig,
+                scanPaths: ['/movies'],
+            } as CloudDriveConfig;
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads/subdir') {
+                    throw new Error('not in upload root');
+                }
+                if (listPath === '/movies/subdir') {
+                    return [{ name: 'movie.mp4', is_dir: false, sign: 'relative-sig' }] as any;
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl(
+                'subdir/movie.mp4',
+                'video',
+                configWithScanPaths
+            );
+            expect(url).toBe('https://cdn.example.com/d/movies/subdir/movie.mp4?sign=relative-sig');
+        });
+
+        it('should return null when directory search fails in all scanPaths', async () => {
+            const configWithScanPaths = {
+                ...mockConfig,
+                scanPaths: ['/movies'],
+            } as CloudDriveConfig;
+            getFileListMock.mockImplementation(async (_config, listPath) => {
+                if (listPath === '/uploads/subdir') {
+                    throw new Error('upload missing');
+                }
+                if (listPath === '/movies/subdir') {
+                    throw new Error('scanPath missing');
+                }
+                return [];
+            });
+
+            const url = await getSignedUrl(
+                'subdir/missing.mp4',
+                'video',
+                configWithScanPaths
+            );
+            expect(url).toBeNull();
+        });
+
+        it('should keep working when thumb URL domain replacement parsing fails', async () => {
+            getFileListMock.mockResolvedValue([
+                { name: 'thumb.jpg', is_dir: false, thumb: 'not-a-valid-url' }
+            ] as any);
+
+            const url = await getSignedUrl('thumb.jpg', 'thumbnail', mockConfig);
+            expect(url).toBe('not-a-valid-url');
+        });
+
+        it('should return null when normalizeUploadPath throws in URL lookup', async () => {
+            normalizeUploadPathMock.mockImplementation(() => {
+                throw new Error('normalize failed');
+            });
+
+            const url = await getSignedUrl('video.mp4', 'video', mockConfig);
+            expect(url).toBeNull();
+        });
+
+        it('should hit getSignedUrl catch when url lookup throws unexpectedly', async () => {
+            const errorSpy = vi.spyOn(logger, 'error').mockImplementationOnce(() => {
+                throw new Error('logger exploded');
+            });
+            normalizeUploadPathMock.mockImplementation(() => {
+                throw new Error('normalize failed');
+            });
+
+            const url = await getSignedUrl('throw.mp4', 'video', mockConfig);
+            expect(url).toBeNull();
+
+            errorSpy.mockRestore();
         });
     });
 });

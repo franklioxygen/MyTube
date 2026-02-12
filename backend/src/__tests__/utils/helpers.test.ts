@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    extractMissAVVideoId,
+    extractSourceVideoId,
+    extractYouTubeVideoId,
     extractBilibiliMid,
     extractBilibiliSeasonId,
     extractBilibiliSeriesId,
     extractBilibiliVideoId,
     extractUrlFromText,
+    formatAvatarFilename,
     formatVideoFilename,
+    generateTimestamp,
     getDomainFromUrl,
+    isBilibiliShortUrl,
     isBilibiliUrl,
+    isMissAVUrl,
+    isTwitterUrl,
     isYouTubeUrl,
     isValidUrl,
     normalizeYouTubeAuthorUrl,
+    processVideoUrl,
     resolveShortUrl,
     sanitizeFilename,
     trimBilibiliUrl
@@ -57,6 +66,23 @@ describe('Helpers', () => {
     it('should return false for URLs with credentials or explicit ports', () => {
       expect(isYouTubeUrl('https://user:pass@youtube.com/watch?v=abc123')).toBe(false);
       expect(isYouTubeUrl('https://youtube.com:8443/watch?v=abc123')).toBe(false);
+    });
+  });
+
+  describe('other domain classifiers', () => {
+    it('should validate bilibili short URLs', () => {
+      expect(isBilibiliShortUrl('https://b23.tv/abc')).toBe(true);
+      expect(isBilibiliShortUrl('https://bili2233.cn/abc')).toBe(true);
+      expect(isBilibiliShortUrl('https://example.com/abc')).toBe(false);
+    });
+
+    it('should validate missav and twitter URL domains', () => {
+      expect(isMissAVUrl('https://missav.com/abc')).toBe(true);
+      expect(isMissAVUrl('https://123av.ai/abc')).toBe(true);
+      expect(isMissAVUrl('https://user:pass@missav.com/abc')).toBe(false);
+      expect(isTwitterUrl('https://x.com/user')).toBe(true);
+      expect(isTwitterUrl('https://twitter.com/user')).toBe(true);
+      expect(isTwitterUrl('https://youtube.com/user')).toBe(false);
     });
   });
 
@@ -147,6 +173,11 @@ describe('Helpers', () => {
       const result = await resolveShortUrl('https://b23.tv/example');
       expect(result).toBe('https://b23.tv/example');
     });
+
+    it('should reject invalid protocol and normalize traversal paths', async () => {
+      await expect(resolveShortUrl('ftp://b23.tv/test')).rejects.toThrow('Invalid URL');
+      await expect(resolveShortUrl('https://b23.tv/../test')).resolves.toBe('https://b23.tv/test');
+    });
   });
 
   describe('trimBilibiliUrl', () => {
@@ -164,6 +195,10 @@ describe('Helpers', () => {
       const url = 'https://www.bilibili.com/read/cv123456?from=search';
       expect(trimBilibiliUrl(url)).toBe('https://www.bilibili.com/read/cv123456');
     });
+
+    it('should return original value when URL parsing fails', () => {
+      expect(trimBilibiliUrl('invalid-url')).toBe('invalid-url');
+    });
   });
 
   describe('extractBilibiliVideoId', () => {
@@ -177,6 +212,63 @@ describe('Helpers', () => {
 
     it('should return null if no ID found', () => {
       expect(extractBilibiliVideoId('https://www.bilibili.com/')).toBe(null);
+    });
+  });
+
+  describe('extractYouTubeVideoId', () => {
+    it('should extract watch/short/embed/shorts ids', () => {
+      expect(extractYouTubeVideoId('https://youtube.com/watch?v=abcdefghijk')).toBe('abcdefghijk');
+      expect(extractYouTubeVideoId('https://youtu.be/abcdefghijk')).toBe('abcdefghijk');
+      expect(extractYouTubeVideoId('https://youtube.com/embed/abcdefghijk')).toBe('abcdefghijk');
+      expect(extractYouTubeVideoId('https://youtube.com/shorts/abcdefghijk')).toBe('abcdefghijk');
+    });
+
+    it('should return null when youtube id cannot be extracted', () => {
+      expect(extractYouTubeVideoId('https://youtube.com/watch?v=short')).toBe(null);
+    });
+  });
+
+  describe('extractMissAVVideoId', () => {
+    it('should extract missav id from last path segment', () => {
+      expect(extractMissAVVideoId('https://missav.ai/dm29/en/juq-643-uncensored-leak')).toBe(
+        'juq-643-uncensored-leak'
+      );
+      expect(extractMissAVVideoId('https://missav.ai/v/ABCD123')).toBe('ABCD123');
+    });
+
+    it('should return null for invalid missav urls', () => {
+      expect(extractMissAVVideoId('not-a-url')).toBe(null);
+    });
+  });
+
+  describe('extractSourceVideoId and processVideoUrl', () => {
+    it('should detect source IDs by platform and fallback for unknown', () => {
+      expect(extractSourceVideoId('https://www.bilibili.com/video/BV1xx411c7mD')).toEqual({
+        id: 'BV1xx411c7mD',
+        platform: 'bilibili',
+      });
+      expect(extractSourceVideoId('https://youtube.com/watch?v=abcdefghijk')).toEqual({
+        id: 'abcdefghijk',
+        platform: 'youtube',
+      });
+      expect(extractSourceVideoId('https://missav.ai/v/ABC-123')).toEqual({
+        id: 'ABC-123',
+        platform: 'missav',
+      });
+      expect(extractSourceVideoId('https://example.com/video/1')).toEqual({
+        id: 'https://example.com/video/1',
+        platform: 'other',
+      });
+    });
+
+    it('should process text-wrapped URLs and resolve bilibili short links', async () => {
+      await expect(
+        processVideoUrl('Title https://b23.tv/xyz')
+      ).resolves.toEqual({
+        videoUrl: 'https://b23.tv/xyz',
+        sourceVideoId: null,
+        platform: 'bilibili',
+      });
     });
   });
 
@@ -216,11 +308,19 @@ describe('Helpers', () => {
     it('should extract season_id', () => {
       expect(extractBilibiliSeasonId('https://www.bilibili.com/bangumi/play/ss123?season_id=456')).toBe('456');
     });
+
+    it('should return null for invalid season URL', () => {
+      expect(extractBilibiliSeasonId('not-url')).toBe(null);
+    });
   });
 
   describe('extractBilibiliSeriesId', () => {
     it('should extract series_id', () => {
       expect(extractBilibiliSeriesId('https://www.bilibili.com/video/BV1xx?series_id=789')).toBe('789');
+    });
+
+    it('should return null for invalid series URL', () => {
+      expect(extractBilibiliSeriesId('not-url')).toBe(null);
     });
   });
 
@@ -301,6 +401,28 @@ describe('Helpers', () => {
     
     it('should handle xvideos.red', () => {
         expect(getDomainFromUrl('https://xvideos.red/video/123')).toBe('xvideos.red');
+    });
+  });
+
+  describe('formatAvatarFilename and generateTimestamp', () => {
+    it('should format avatar filename with normalized values', () => {
+      expect(formatAvatarFilename('YouTube', 'Eric Cartman')).toBe(
+        'youtube-eric.cartman.jpg'
+      );
+      expect(formatAvatarFilename('YouTube!', '')).toBe('youtube-unknown.jpg');
+    });
+
+    it('should truncate very long avatar author values', () => {
+      const longAuthor = 'A'.repeat(200);
+      const filename = formatAvatarFilename('X', longAuthor);
+      expect(filename.startsWith('x-')).toBe(true);
+      expect(filename.endsWith('.jpg')).toBe(true);
+      expect(filename.length).toBeLessThanOrEqual(110);
+    });
+
+    it('should generate timestamp in expected format', () => {
+      const ts = generateTimestamp();
+      expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/);
     });
   });
 });

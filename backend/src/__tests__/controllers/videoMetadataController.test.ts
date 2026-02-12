@@ -11,7 +11,11 @@ import {
   validateVideoPath,
 } from "../../utils/security";
 
-vi.mock("../../services/storageService");
+vi.mock("../../services/storageService", () => ({
+  getVideoById: vi.fn(),
+  getVideos: vi.fn(),
+  updateVideo: vi.fn(),
+}));
 vi.mock("../../services/metadataService", () => ({
   getVideoDuration: vi.fn(),
 }));

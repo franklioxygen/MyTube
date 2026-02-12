@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { continuousDownloadService } from "../../services/continuousDownloadService";
 import * as downloadService from "../../services/downloadService";
 import { BilibiliDownloader } from "../../services/downloaders/BilibiliDownloader";
 import { MissAVDownloader } from "../../services/downloaders/MissAVDownloader";
 import { YtDlpDownloader } from "../../services/downloaders/YtDlpDownloader";
 import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
+import * as storageService from "../../services/storageService";
 import {
     extractBilibiliVideoId,
     isBilibiliUrl,
@@ -19,6 +21,18 @@ import {
 vi.mock("../../services/downloaders/BilibiliDownloader");
 vi.mock("../../services/downloaders/YtDlpDownloader");
 vi.mock("../../services/downloaders/MissAVDownloader");
+vi.mock("../../services/continuousDownloadService", () => ({
+  continuousDownloadService: {
+    getTaskByAuthorUrl: vi.fn(),
+    createPlaylistTask: vi.fn(),
+  },
+}));
+vi.mock("../../services/storageService", () => ({
+  getCollectionByName: vi.fn(),
+  getCollectionById: vi.fn(),
+  saveCollection: vi.fn(),
+  generateUniqueCollectionName: vi.fn((name: string) => name),
+}));
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
   getNetworkConfigFromUserConfig: vi.fn(),
@@ -35,7 +49,13 @@ vi.mock("../../utils/helpers", () => ({
 vi.mock("../../utils/logger", () => ({
   logger: {
     error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
+}));
+vi.mock("uuid", () => ({
+  v4: vi.fn(() => "uuid-fixed"),
 }));
 
 describe("downloadService", () => {
@@ -49,6 +69,11 @@ describe("downloadService", () => {
     vi.mocked(isBilibiliUrl).mockReturnValue(false);
     vi.mocked(isMissAVUrl).mockReturnValue(false);
     vi.mocked(extractBilibiliVideoId).mockReturnValue(null);
+    (continuousDownloadService.getTaskByAuthorUrl as any).mockResolvedValue(null);
+    (continuousDownloadService.createPlaylistTask as any).mockResolvedValue(undefined);
+    (storageService.getCollectionByName as any).mockReturnValue(null);
+    (storageService.getCollectionById as any).mockReturnValue(null);
+    (storageService.saveCollection as any).mockImplementation((collection: any) => collection);
   });
 
   describe("wrapper calls", () => {
@@ -256,6 +281,154 @@ describe("downloadService", () => {
         "https://youtube.com/watch?v=1",
         "d3",
         cancel
+      );
+    });
+  });
+
+  describe("downloadChannelPlaylists", () => {
+    const mockPlaylistFeedForCollectionCreation = () => {
+      vi.mocked(executeYtDlpJson).mockResolvedValue({
+        channel_id: "channel-id",
+        entries: [
+          { title: "No URL and ID" },
+          { id: "pl-existing", title: "Existing Playlist" },
+          {
+            url: "https://www.youtube.com/playlist?list=pl-orphan",
+            title: "Orphan Playlist",
+          },
+          {
+            url: "https://www.youtube.com/playlist?list=pl-new",
+            title: "Fresh:Playlist?*",
+          },
+          { id: "pl-title-match", title: "Title Match" },
+        ],
+      } as any);
+    };
+
+    const mockExistingPlaylistTaskLookups = () => {
+      (continuousDownloadService.getTaskByAuthorUrl as any)
+        .mockResolvedValueOnce({ collectionId: "col-existing" })
+        .mockResolvedValueOnce({ collectionId: "col-missing" })
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+    };
+
+    const mockCollectionLookupsForPlaylistCreation = () => {
+      (storageService.getCollectionById as any)
+        .mockReturnValueOnce({ id: "col-existing", name: "Already There" })
+        .mockReturnValueOnce(null);
+
+      (storageService.getCollectionByName as any).mockImplementation((name: string) => {
+        if (name === "Title Match - @channel-name") {
+          return null;
+        }
+        if (name === "Title Match") {
+          return { id: "col-title", name: "Title Match" };
+        }
+        return null;
+      });
+    };
+
+    it("returns failure when no playlists are found", async () => {
+      vi.mocked(executeYtDlpJson).mockResolvedValue({ entries: [] } as any);
+
+      const result = await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@demo"
+      );
+
+      expect(result).toEqual({
+        success: false,
+        message: "No playlists found on this channel.",
+      });
+      expect(executeYtDlpJson).toHaveBeenCalledWith(
+        "https://www.youtube.com/@demo/playlists",
+        expect.objectContaining({
+          noWarnings: true,
+          flatPlaylist: true,
+          dumpSingleJson: true,
+          playlistEnd: 100,
+        })
+      );
+      expect(continuousDownloadService.createPlaylistTask).not.toHaveBeenCalled();
+    });
+
+    it("skips existing playlist tasks and creates collections/tasks for new playlists", async () => {
+      mockPlaylistFeedForCollectionCreation();
+      mockExistingPlaylistTaskLookups();
+      mockCollectionLookupsForPlaylistCreation();
+
+      const result = await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@channel-name"
+      );
+
+      expect(result).toEqual({
+        success: true,
+        message: "Started downloading 2 playlists. Collections created.",
+      });
+
+      expect(storageService.saveCollection).toHaveBeenCalledTimes(1);
+      expect(storageService.saveCollection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "uuid-fixed",
+          name: "Fresh-Playlist-- - @channel-name",
+          title: "Fresh-Playlist-- - @channel-name",
+        })
+      );
+
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledTimes(2);
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=pl-new",
+        "@channel-name",
+        "YouTube",
+        "uuid-fixed"
+      );
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=pl-title-match",
+        "@channel-name",
+        "YouTube",
+        "col-title"
+      );
+    });
+
+    it("adds provider extractor args and supports trailing slash channel URLs", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      vi.mocked(executeYtDlpJson).mockResolvedValue({
+        uploader: "Channel A",
+        entries: [{ id: "pl-1", title: "Playlist 1" }],
+      } as any);
+
+      await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@channela/"
+      );
+
+      expect(executeYtDlpJson).toHaveBeenCalledWith(
+        "https://www.youtube.com/@channela/playlists",
+        expect.objectContaining({
+          extractorArgs: "youtubepot-bgutilscript:script_path=/tmp/provider.js",
+        })
+      );
+      expect(continuousDownloadService.createPlaylistTask).toHaveBeenCalledWith(
+        "https://www.youtube.com/playlist?list=pl-1",
+        "Channel A",
+        "YouTube",
+        "uuid-fixed"
+      );
+    });
+
+    it("returns failure payload when processing throws", async () => {
+      vi.mocked(executeYtDlpJson).mockRejectedValue(new Error("network error"));
+
+      const result = await downloadService.downloadChannelPlaylists(
+        "https://www.youtube.com/@broken"
+      );
+
+      expect(result).toEqual({
+        success: false,
+        message: "network error",
+      });
+      expect(logger.error).toHaveBeenCalledWith(
+        "Error processing channel playlists:",
+        expect.any(Error)
       );
     });
   });

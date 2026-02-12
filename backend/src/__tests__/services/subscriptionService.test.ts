@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { db } from '../../db';
 import { DuplicateError, ValidationError } from '../../errors/DownloadErrors';
 import { BilibiliDownloader } from '../../services/downloaders/BilibiliDownloader';
+import { getProviderScript } from '../../services/downloaders/ytdlp/ytdlpHelpers';
 import { YtDlpDownloader } from '../../services/downloaders/YtDlpDownloader';
 import * as downloadService from '../../services/downloadService';
 import * as storageService from '../../services/storageService';
@@ -33,6 +34,9 @@ vi.mock('../../services/storageService');
 vi.mock('../../services/downloaders/BilibiliDownloader');
 vi.mock('../../services/downloaders/BilibiliDownloader');
 vi.mock('../../services/downloaders/YtDlpDownloader');
+vi.mock('../../services/downloaders/ytdlp/ytdlpHelpers', () => ({
+  getProviderScript: vi.fn(),
+}));
 vi.mock('../../utils/ytDlpUtils', () => ({
   executeYtDlpJson: vi.fn(),
   getUserYtDlpConfig: vi.fn().mockReturnValue({}),
@@ -76,6 +80,7 @@ describe('SubscriptionService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getProviderScript).mockReturnValue(undefined);
     
     mockBuilder = createMockQueryBuilder([]);
 
@@ -513,6 +518,30 @@ describe('SubscriptionService', () => {
       expect(result).toBeNull();
     });
 
+    it('should return direct playlist entry URL when available', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({
+        entries: [{ url: 'https://www.youtube.com/watch?v=url-first' }],
+      });
+
+      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+        'https://youtube.com/playlist?list=xyz',
+        'YouTube'
+      );
+
+      expect(result).toBe('https://www.youtube.com/watch?v=url-first');
+    });
+
+    it('should return null when playlist has no entries', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+
+      const result = await (subscriptionService as any).getLatestPlaylistVideoUrl(
+        'https://youtube.com/playlist?list=xyz',
+        'YouTube'
+      );
+
+      expect(result).toBeNull();
+    });
+
     it('should choose latest video resolver based on platform', async () => {
       (BilibiliDownloader.getLatestVideoUrl as any).mockResolvedValue('https://bilibili.com/video/BV1x');
       (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('https://youtube.com/watch?v=1');
@@ -528,6 +557,442 @@ describe('SubscriptionService', () => {
 
       expect(bilibili).toBe('https://bilibili.com/video/BV1x');
       expect(youtube).toBe('https://youtube.com/watch?v=1');
+    });
+
+    it('should catch scheduler tick errors from checkSubscriptions', async () => {
+      let tick: (() => void) | undefined;
+      (cron.schedule as any).mockImplementationOnce((_expr: string, cb: () => void) => {
+        tick = cb;
+        return { stop: vi.fn() };
+      });
+      const checkSpy = vi
+        .spyOn(subscriptionService, 'checkSubscriptions')
+        .mockRejectedValueOnce(new Error('tick failed'));
+
+      subscriptionService.startScheduler();
+      tick?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(checkSpy).toHaveBeenCalled();
+      checkSpy.mockRestore();
+    });
+  });
+
+  describe('additional subscribe branches', () => {
+    it('should throw validation error for bilibili space URL without valid mid', async () => {
+      await expect(
+        subscriptionService.subscribe('https://space.bilibili.com/not-a-mid', 30)
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it('should fallback to bilibili mid-based author when author lookup fails', async () => {
+      (BilibiliDownloader.getAuthorInfo as any).mockRejectedValue(
+        new Error('author lookup failed')
+      );
+
+      const result = await subscriptionService.subscribe(
+        'https://space.bilibili.com/123456',
+        30
+      );
+
+      expect(result.author).toBe('Bilibili User 123456');
+      expect(result.platform).toBe('Bilibili');
+    });
+
+    it('should append /videos for trailing slash YouTube URLs', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({ uploader: 'Root Channel' });
+
+      const result = await subscriptionService.subscribe('https://www.youtube.com/', 60);
+
+      expect(result.author).toBe('Root Channel');
+      expect(executeYtDlpJson).toHaveBeenCalledWith(
+        'https://www.youtube.com/videos',
+        expect.objectContaining({ flatPlaylist: true, playlistEnd: 1 })
+      );
+    });
+
+    it('should resolve YouTube author from first video metadata when channel info is missing', async () => {
+      let callCount = 0;
+      (executeYtDlpJson as any).mockImplementation(async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return {
+            channel_id: 'cid',
+            entries: [{ url: 'https://www.youtube.com/watch?v=abc' }],
+          };
+        }
+        return { channel: 'From Video Metadata' };
+      });
+
+      const result = await subscriptionService.subscribe(
+        'https://www.youtube.com/@fallback-source',
+        60
+      );
+
+      expect(result.author).toBe('From Video Metadata');
+      expect((executeYtDlpJson as any).mock.calls.length).toBe(2);
+    });
+
+    it('should fallback to YouTube handle parsing when metadata has no channel names', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({});
+
+      const result = await subscriptionService.subscribe(
+        'https://www.youtube.com/@handle_name',
+        60
+      );
+
+      expect(result.author).toBe('@handle_name');
+    });
+
+    it('should fallback to URL path segment when YouTube metadata lookup throws', async () => {
+      (executeYtDlpJson as any).mockRejectedValue(new Error('yt lookup failed'));
+
+      const result = await subscriptionService.subscribe(
+        'https://www.youtube.com/channel/UC_ABC_123',
+        60
+      );
+
+      expect(result.author).toBe('UC_ABC_123');
+    });
+
+    it('should throw duplicate error for duplicate playlist subscriptions', async () => {
+      mockBuilder.then = (cb: any) =>
+        Promise.resolve([{ id: 'existing-playlist' }]).then(cb);
+
+      await expect(
+        subscriptionService.subscribePlaylist(
+          'https://www.youtube.com/playlist?list=dup',
+          30,
+          'Duplicate',
+          'dup',
+          'Author',
+          'YouTube',
+          null
+        )
+      ).rejects.toThrow(DuplicateError);
+    });
+  });
+
+  describe('additional watcher and check branches', () => {
+    it('should return early for watcher when no playlists are found', async () => {
+      vi.mocked(getProviderScript).mockReturnValue('/tmp/provider.js');
+      (executeYtDlpJson as any).mockResolvedValue({ entries: [] });
+
+      const sub = {
+        id: 'watcher-empty',
+        author: 'Watcher',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@watcher/playlists',
+        interval: 60,
+        subscriptionType: 'channel_playlists',
+      };
+
+      await subscriptionService.checkChannelPlaylists(sub as any);
+
+      expect(executeYtDlpJson).toHaveBeenCalledWith(
+        sub.authorUrl,
+        expect.objectContaining({
+          flatPlaylist: true,
+          dumpSingleJson: true,
+          extractorArgs: 'youtubepot-bgutilscript:script_path=/tmp/provider.js',
+        })
+      );
+    });
+
+    it('should create collection and subscribe watcher-discovered playlist using parsed list id', async () => {
+      (executeYtDlpJson as any).mockResolvedValue({
+        entries: [
+          {
+            title: 'Playlist / One',
+            url: 'https://www.youtube.com/playlist?list=PL123',
+          },
+        ],
+      });
+      (storageService.getSettings as any).mockReturnValue({
+        saveAuthorFilesToCollection: false,
+      });
+      (storageService.getCollectionByName as any).mockReturnValue(undefined);
+      (storageService.generateUniqueCollectionName as any).mockReturnValue('Unique Playlist');
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([]).then(cb); // listSubscriptions
+        return Promise.resolve([{ id: 'watcher-sub' }]).then(cb); // update lastCheck
+      };
+
+      const subscribeSpy = vi
+        .spyOn(subscriptionService, 'subscribePlaylist')
+        .mockResolvedValue({ id: 'playlist-sub' } as any);
+
+      await subscriptionService.checkChannelPlaylists({
+        id: 'watcher-id',
+        author: 'Watcher Name',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@watcher/playlists',
+        interval: 120,
+        subscriptionType: 'channel_playlists',
+      } as any);
+
+      expect(storageService.saveCollection).toHaveBeenCalled();
+      expect(subscribeSpy).toHaveBeenCalledWith(
+        'https://www.youtube.com/playlist?list=PL123',
+        120,
+        'Playlist - One',
+        'PL123',
+        'Watcher Name',
+        'YouTube',
+        expect.any(String)
+      );
+      subscribeSpy.mockRestore();
+    });
+
+    it('should skip paused subscriptions and channel watcher subscriptions during checks', async () => {
+      const paused = {
+        id: 'paused-sub',
+        author: 'Paused',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@paused',
+        interval: 1,
+        lastCheck: 0,
+        paused: 1,
+      };
+      const watcher = {
+        id: 'watcher-sub',
+        author: 'Watcher',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@watcher/playlists',
+        interval: 1,
+        lastCheck: 0,
+        subscriptionType: 'channel_playlists',
+      };
+
+      mockBuilder.then = (cb: any) => Promise.resolve([paused, watcher]).then(cb);
+      const watcherSpy = vi
+        .spyOn(subscriptionService, 'checkChannelPlaylists')
+        .mockResolvedValue(undefined);
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(watcherSpy).toHaveBeenCalledWith(watcher as any);
+      expect(YtDlpDownloader.getLatestVideoUrl).not.toHaveBeenCalled();
+      watcherSpy.mockRestore();
+    });
+
+    it('should skip download when subscription is deleted before lock update', async () => {
+      const sub = {
+        id: 'deleted-before-lock',
+        author: 'Deleted',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@deleted',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'old-link',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([]).then(cb); // lock update
+        return Promise.resolve([]).then(cb);
+      };
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('new-link');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
+    });
+
+    it('should download bilibili subscription videos and update counters', async () => {
+      const sub = {
+        id: 'bili-sub',
+        author: 'BiliAuthor',
+        platform: 'Bilibili',
+        authorUrl: 'https://space.bilibili.com/100',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'old-link',
+        downloadCount: 2,
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lock update
+        if (callCount === 3) return Promise.resolve([{ id: sub.id }]).then(cb); // success update
+        return Promise.resolve([]).then(cb);
+      };
+      (BilibiliDownloader.getLatestVideoUrl as any).mockResolvedValue(
+        'https://www.bilibili.com/video/BV1x'
+      );
+      (downloadService.downloadSingleBilibiliPart as any).mockResolvedValue({
+        id: 'video-bili',
+        title: 'Bili Video',
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadSingleBilibiliPart).toHaveBeenCalledWith(
+        'https://www.bilibili.com/video/BV1x',
+        1,
+        1,
+        ''
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success', sourceUrl: 'https://www.bilibili.com/video/BV1x' })
+      );
+    });
+
+    it('should tolerate collection add failures and continue playlist subscription processing', async () => {
+      const sub = {
+        id: 'playlist-sub',
+        author: 'Playlist Author',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/playlist?list=abc',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'old-link',
+        downloadCount: 0,
+        subscriptionType: 'playlist',
+        collectionId: 'collection-1',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lock update
+        if (callCount === 3) return Promise.resolve([]).then(cb); // success update -> deleted branch
+        return Promise.resolve([]).then(cb);
+      };
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue(
+        'https://www.youtube.com/watch?v=new-playlist-video'
+      );
+      (downloadService.downloadYouTubeVideo as any).mockResolvedValue({
+        videoData: {
+          id: 'video-1',
+          title: 'Playlist Video',
+          author: 'Playlist Author',
+        },
+      });
+      (storageService.addVideoToCollection as any).mockImplementation(() => {
+        throw new Error('collection write failed');
+      });
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addVideoToCollection).toHaveBeenCalledWith(
+        'collection-1',
+        'video-1'
+      );
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success' })
+      );
+    });
+
+    it('should record failed download history when video download fails', async () => {
+      const sub = {
+        id: 'failed-sub',
+        author: 'FailAuthor',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@fail',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'old-link',
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lock update
+        return Promise.resolve([]).then(cb);
+      };
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue(
+        'https://www.youtube.com/watch?v=failed'
+      );
+      (downloadService.downloadYouTubeVideo as any).mockRejectedValue(
+        new Error('download exploded')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'failed',
+          sourceUrl: 'https://www.youtube.com/watch?v=failed',
+          error: 'download exploded',
+        })
+      );
+    });
+
+    it('should record failed shorts history when short download throws non-Error', async () => {
+      const sub = {
+        id: 'short-sub',
+        author: 'ShortAuthor',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@short-author',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'same-link',
+        lastShortVideoLink: 'old-short',
+        downloadShorts: 1,
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lastCheck update
+        if (callCount === 3) return Promise.resolve([{ id: sub.id }]).then(cb); // short check select
+        return Promise.resolve([]).then(cb);
+      };
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockResolvedValue('new-short-link');
+      (downloadService.downloadYouTubeVideo as any).mockRejectedValue('short exploded');
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(storageService.addDownloadHistoryItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Short from ShortAuthor',
+          status: 'failed',
+          error: 'Download failed',
+          sourceUrl: 'new-short-link',
+        })
+      );
+    });
+
+    it('should ignore shorts lookup exceptions and continue processing', async () => {
+      const sub = {
+        id: 'short-error-sub',
+        author: 'ShortsErrorAuthor',
+        platform: 'YouTube',
+        authorUrl: 'https://www.youtube.com/@shorts-error',
+        interval: 1,
+        lastCheck: 0,
+        lastVideoLink: 'same-link',
+        downloadShorts: 1,
+      };
+
+      let callCount = 0;
+      mockBuilder.then = (cb: any) => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve([sub]).then(cb); // listSubscriptions
+        if (callCount === 2) return Promise.resolve([{ id: sub.id }]).then(cb); // lastCheck update
+        if (callCount === 3) return Promise.resolve([{ id: sub.id }]).then(cb); // short check select
+        return Promise.resolve([]).then(cb);
+      };
+      (YtDlpDownloader.getLatestVideoUrl as any).mockResolvedValue('same-link');
+      (YtDlpDownloader.getLatestShortsUrl as any).mockRejectedValue(
+        new Error('shorts fetch failed')
+      );
+
+      await subscriptionService.checkSubscriptions();
+
+      expect(downloadService.downloadYouTubeVideo).not.toHaveBeenCalled();
     });
   });
 });

@@ -8,6 +8,7 @@ import * as fileLister from '../fileLister';
 import * as fileUploader from '../fileUploader';
 import { CloudDriveConfig } from '../types';
 import * as urlSigner from '../urlSigner';
+import { logger } from '../../../utils/logger';
 
 vi.mock('fs-extra');
 vi.mock('../fileLister');
@@ -152,7 +153,7 @@ describe('cloudStorage cloudScanner', () => {
         expect(result.errors[0]).toContain('Failed to get signed URL');
     });
 
-     it('should generate thumbnail with correct time point', async () => {
+    it('should generate thumbnail with correct time point', async () => {
          // Mock long duration
          vi.mocked(security.execFileSafe).mockImplementation(async (cmd) => {
              if (cmd === 'ffprobe') return { stdout: '3661', stderr: '' }; // 1h 1m 1s
@@ -169,4 +170,241 @@ describe('cloudStorage cloudScanner', () => {
             expect.anything()
          );
      });
+
+    it('should fallback to file.sign when signed url lookup returns null', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') {
+                return [
+                    {
+                        file: { name: 'signed_by_file.mp4', is_dir: false, sign: 'file-sign' },
+                        path: '/uploads/signed_by_file.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+        vi.mocked(urlSigner.getSignedUrl).mockResolvedValue(null);
+
+        const result = await scanCloudFiles(mockConfig);
+
+        expect(result.added).toBe(1);
+        expect(security.validateUrl).toHaveBeenCalledWith(
+            'https://cdn.example.com/d/uploads/signed_by_file.mp4?sign=file-sign'
+        );
+    });
+
+    it('should continue when ffprobe duration lookup fails', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') {
+                return [
+                    {
+                        file: { name: 'no_duration.mp4', is_dir: false },
+                        path: '/uploads/no_duration.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+        vi.mocked(security.execFileSafe).mockImplementation(async (cmd) => {
+            if (cmd === 'ffprobe') {
+                throw new Error('ffprobe failed');
+            }
+            return { stdout: '', stderr: '' };
+        });
+
+        const result = await scanCloudFiles(mockConfig);
+
+        expect(result.added).toBe(1);
+        expect(storageService.saveVideo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                videoFilename: 'no_duration.mp4',
+                duration: undefined,
+            })
+        );
+    });
+
+    it('should retry ffmpeg failures and continue without thumbnail after max retries', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') {
+                return [
+                    {
+                        file: { name: 'retry_no_thumb.mp4', is_dir: false },
+                        path: '/uploads/retry_no_thumb.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+
+        const timeoutSpy = vi
+            .spyOn(global, 'setTimeout')
+            .mockImplementation(((fn: any) => {
+                if (typeof fn === 'function') fn();
+                return 0 as any;
+            }) as any);
+
+        vi.mocked(security.execFileSafe).mockImplementation(async (cmd) => {
+            if (cmd === 'ffprobe') {
+                return { stdout: '60', stderr: '' };
+            }
+            throw new Error('ffmpeg failed');
+        });
+
+        vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+            const asText = String(p);
+            if (asText.includes('temp_')) return true;
+            return true;
+        });
+        vi.mocked(fs.unlinkSync).mockImplementation(() => undefined as any);
+
+        const result = await scanCloudFiles(mockConfig);
+        timeoutSpy.mockRestore();
+
+        expect(result.added).toBe(1);
+        expect(storageService.saveVideo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                thumbnailFilename: undefined,
+                thumbnailPath: undefined,
+                thumbnailUrl: undefined,
+            })
+        );
+    });
+
+    it('should ignore temp cleanup errors during ffmpeg retry attempts', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') {
+                return [
+                    {
+                        file: { name: 'cleanup_error.mp4', is_dir: false },
+                        path: '/uploads/cleanup_error.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+
+        const timeoutSpy = vi
+            .spyOn(global, 'setTimeout')
+            .mockImplementation(((fn: any) => {
+                if (typeof fn === 'function') fn();
+                return 0 as any;
+            }) as any);
+
+        vi.mocked(security.execFileSafe).mockImplementation(async (cmd) => {
+            if (cmd === 'ffprobe') return { stdout: '10', stderr: '' };
+            throw new Error('ffmpeg failed');
+        });
+
+        vi.mocked(fs.existsSync).mockImplementation((p: any) => {
+            const asText = String(p);
+            if (asText.includes('temp_')) return true;
+            return true;
+        });
+        vi.mocked(fs.unlinkSync).mockImplementation((p: any) => {
+            const asText = String(p);
+            if (asText.includes('temp_')) {
+                throw new Error('cleanup failed');
+            }
+            return undefined as any;
+        });
+
+        const result = await scanCloudFiles(mockConfig);
+        timeoutSpy.mockRestore();
+
+        expect(result.added).toBe(1);
+    });
+
+    it('should handle scanPath files and skipped thumbnail uploads', async () => {
+        const scanPathConfig: CloudDriveConfig = {
+            ...mockConfig,
+            scanPaths: ['/movies'],
+        };
+
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') return [];
+            if (scanPath === '/movies') {
+                return [
+                    {
+                        file: { name: 'from_scanpath.mp4', is_dir: false },
+                        path: '/movies/from_scanpath.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+        vi.mocked(fileUploader.uploadFile).mockResolvedValue({ uploaded: false, skipped: true } as any);
+
+        const result = await scanCloudFiles(scanPathConfig);
+
+        expect(result.added).toBe(1);
+        expect(storageService.saveVideo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                videoPath: 'cloud:movies/from_scanpath.mp4',
+                thumbnailFilename: expect.stringMatching(/\.jpg$/),
+                thumbnailPath: expect.stringContaining('cloud:movies/'),
+                thumbnailUrl: expect.stringContaining('cloud:movies/'),
+            })
+        );
+    });
+
+    it('should collect processing errors when saveVideo throws', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockResolvedValue([
+            {
+                file: { name: 'save_fail.mp4', is_dir: false },
+                path: '/uploads/save_fail.mp4'
+            }
+        ] as any);
+        vi.mocked(storageService.saveVideo).mockImplementation(() => {
+            throw new Error('db write failed');
+        });
+
+        const result = await scanCloudFiles(mockConfig);
+
+        expect(result.added).toBe(0);
+        expect(result.errors).toEqual(
+            expect.arrayContaining([expect.stringContaining('save_fail.mp4: db write failed')])
+        );
+    });
+
+    it('should handle rejected per-video promise branch in batch settlement', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockImplementation(async (_config, scanPath) => {
+            if (scanPath === '/uploads') {
+                return [
+                    {
+                        file: { name: 'reject_branch.mp4', is_dir: false },
+                        path: '/uploads/reject_branch.mp4'
+                    }
+                ] as any;
+            }
+            return [];
+        });
+        vi.mocked(storageService.saveVideo).mockImplementation(() => {
+            throw new Error('db failed');
+        });
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {
+            throw new Error('logger exploded');
+        });
+
+        const result = await scanCloudFiles(mockConfig);
+        loggerSpy.mockRestore();
+
+        expect(result.added).toBe(0);
+        expect(result.errors).toEqual(
+            expect.arrayContaining([expect.stringContaining('reject_branch.mp4: logger exploded')])
+        );
+    });
+
+    it('should return top-level failure result when recursive listing throws', async () => {
+        vi.mocked(fileLister.getFilesRecursively).mockRejectedValue(
+            new Error('scan root failed')
+        );
+
+        const result = await scanCloudFiles(mockConfig, mockCallback);
+
+        expect(result).toEqual({
+            added: 0,
+            errors: ['scan root failed'],
+        });
+        expect(mockCallback).toHaveBeenCalledWith('Scan failed: scan root failed');
+    });
 });
