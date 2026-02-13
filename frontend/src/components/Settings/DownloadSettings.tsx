@@ -14,6 +14,7 @@ import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
 import { PREFERRED_AUDIO_LANGUAGE_OPTIONS } from '../../utils/audioLanguages';
+import { VIDEO_CODEC_OPTIONS } from '../../utils/videoCodecs';
 
 interface DownloadSettingsProps {
     settings: Settings;
@@ -97,6 +98,39 @@ const DownloadSettings: React.FC<DownloadSettingsProps> = ({
                 </FormControl>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
                     {t('preferredAudioLanguageDescription')}
+                </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3 }} id="defaultVideoCodec-setting">
+                <Typography variant="h6" gutterBottom>{t('defaultVideoCodec')}</Typography>
+                <FormControl fullWidth sx={{ maxWidth: 400 }}>
+                    <Select
+                        labelId="default-video-codec-label"
+                        id="default-video-codec"
+                        value={settings.defaultVideoCodec ?? ''}
+                        onChange={(e) => onChange('defaultVideoCodec', e.target.value)}
+                        displayEmpty
+                        renderValue={(v) =>
+                            v === ''
+                                ? t('defaultVideoCodecDefault')
+                                : (() => {
+                                      const opt = VIDEO_CODEC_OPTIONS.find((o) => o.value === v);
+                                      return opt ? t(opt.labelKey) : v;
+                                  })()
+                        }
+                    >
+                        <MenuItem value="">
+                            <em>{t('defaultVideoCodecDefault')}</em>
+                        </MenuItem>
+                        {VIDEO_CODEC_OPTIONS.map((opt) => (
+                            <MenuItem key={opt.value} value={opt.value}>
+                                {t(opt.labelKey)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                    {t('defaultVideoCodecDescription')}
                 </Typography>
             </Box>
 

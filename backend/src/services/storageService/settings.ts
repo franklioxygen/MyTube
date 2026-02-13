@@ -135,6 +135,7 @@ const WHITELISTED_SETTINGS = [
   "mountDirectories",
   "defaultSort",
   "preferredAudioLanguage",
+  "defaultVideoCodec",
   "authorTags",
   "collectionTags",
   "showTagsOnThumbnail",

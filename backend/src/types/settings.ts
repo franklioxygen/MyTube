@@ -37,6 +37,7 @@ export interface Settings {
   mountDirectories?: string;
   defaultSort?: string;
   preferredAudioLanguage?: string;
+  defaultVideoCodec?: string;
   authorTags?: Record<string, string[]>;
   collectionTags?: Record<string, string[]>;
   showTagsOnThumbnail?: boolean;

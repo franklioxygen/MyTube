@@ -63,7 +63,8 @@ describe('DownloadSettings', () => {
         const user = userEvent.setup();
         render(<DownloadSettings {...defaultProps} />);
 
-        const dropdown = screen.getByRole('combobox');
+        const dropdowns = screen.getAllByRole('combobox');
+        const dropdown = dropdowns[0];
         expect(dropdown).toBeInTheDocument();
 
         await user.click(dropdown);
@@ -77,5 +78,26 @@ describe('DownloadSettings', () => {
         render(<DownloadSettings {...defaultProps} />);
 
         expect(screen.getByText('preferredAudioLanguageDescription')).toBeInTheDocument();
+    });
+
+    it('should render video codec dropdown and call onChange when selection changes', async () => {
+        const user = userEvent.setup();
+        render(<DownloadSettings {...defaultProps} />);
+
+        const dropdowns = screen.getAllByRole('combobox');
+        const codecDropdown = dropdowns[1];
+        expect(codecDropdown).toBeInTheDocument();
+
+        await user.click(codecDropdown);
+        const option = await screen.findByRole('option', { name: 'defaultVideoCodec_h265' });
+        await user.click(option);
+
+        expect(mockOnChange).toHaveBeenCalledWith('defaultVideoCodec', 'h265');
+    });
+
+    it('should show video codec description', () => {
+        render(<DownloadSettings {...defaultProps} />);
+
+        expect(screen.getByText('defaultVideoCodecDescription')).toBeInTheDocument();
     });
 });

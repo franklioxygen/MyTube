@@ -18,6 +18,7 @@ interface DownloadFlagContext {
   flags: YtDlpFlags;
   config: UserYtDlpConfig;
   isYouTube: boolean;
+  isTwitter: boolean;
   formatSortValue?: string;
   youtubeFormat: string;
   mergeOutputFormat: string;
@@ -32,8 +33,64 @@ const TWITTER_SAFARI_FORMAT =
 const YOUTUBE_HIGH_RES_FORMAT =
   "bestvideo[vcodec^=vp9][ext=webm]+bestaudio/bestvideo[ext=webm]+bestaudio/bestvideo+bestaudio/best";
 
+interface CodecConfig {
+  formatSortValue: string;
+  vcodecFilter: string;
+  videoExt: string;
+  audioExt: string;
+  mergeOutputFormat: string;
+}
+
+const CODEC_CONFIGS: Record<string, CodecConfig> = {
+  h264: {
+    formatSortValue: "vcodec:h264",
+    vcodecFilter: "avc1",
+    videoExt: "mp4",
+    audioExt: "m4a",
+    mergeOutputFormat: "mp4",
+  },
+  h265: {
+    formatSortValue: "vcodec:h265",
+    vcodecFilter: "hevc",
+    videoExt: "mp4",
+    audioExt: "m4a",
+    mergeOutputFormat: "mp4",
+  },
+  av1: {
+    formatSortValue: "vcodec:av01",
+    vcodecFilter: "av01",
+    videoExt: "mp4",
+    audioExt: "m4a",
+    mergeOutputFormat: "mp4",
+  },
+  vp9: {
+    formatSortValue: "vcodec:vp9",
+    vcodecFilter: "vp9",
+    videoExt: "webm",
+    audioExt: "webm",
+    mergeOutputFormat: "webm",
+  },
+};
+
+function getCodecConfigFromSettings(): CodecConfig | null {
+  const appSettings = storageService.getSettings();
+  const codec = appSettings?.defaultVideoCodec;
+  if (!codec || typeof codec !== "string" || codec.trim() === "") {
+    return null;
+  }
+  return CODEC_CONFIGS[codec.trim().toLowerCase()] || null;
+}
+
 function hasUserSpecifiedFormat(config: UserYtDlpConfig): boolean {
   return Boolean(config.f || config.format);
+}
+
+function hasUserSpecifiedFormatSort(config: UserYtDlpConfig): boolean {
+  return Boolean(config.S || config.formatSort);
+}
+
+function hasUserFormatControl(config: UserYtDlpConfig): boolean {
+  return hasUserSpecifiedFormat(config) || hasUserSpecifiedFormatSort(config);
 }
 
 function resolveDownloadFormats(config: UserYtDlpConfig): {
@@ -224,13 +281,65 @@ function applyPreferredAudioLanguageIfNeeded(
     return false;
   }
 
+  // Integrate codec preference if set, but only when user hasn't specified formatSort
+  const userHasFormatSort = hasUserSpecifiedFormatSort(config);
+  const codecConfig = userHasFormatSort ? null : getCodecConfigFromSettings();
+  const vf = codecConfig ? codecConfig.vcodecFilter : "avc1";
+  const ve = codecConfig ? codecConfig.videoExt : "mp4";
+  const ae = codecConfig ? codecConfig.audioExt : "m4a";
+
   flags.format =
-    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[language=${lang}][ext=m4a]/` +
-    `bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/` +
-    `bestvideo[ext=mp4]+bestaudio[language=${lang}]/` +
-    `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
-  flags.mergeOutputFormat = "mp4";
-  logger.info("Using preferred audio language (MP4/m4a for playback):", lang);
+    `bestvideo[ext=${ve}][vcodec^=${vf}]+bestaudio[language=${lang}][ext=${ae}]/` +
+    `bestvideo[ext=${ve}][vcodec^=${vf}]+bestaudio[ext=${ae}]/` +
+    `bestvideo[ext=${ve}]+bestaudio[language=${lang}]/` +
+    `bestvideo[ext=${ve}]+bestaudio[ext=${ae}]/best[ext=${ve}]/best`;
+  flags.mergeOutputFormat = codecConfig ? codecConfig.mergeOutputFormat : "mp4";
+
+  if (codecConfig) {
+    flags.formatSort = codecConfig.formatSortValue;
+  }
+
+  logger.info("Using preferred audio language (with codec preference):", lang, vf);
+  return true;
+}
+
+function applyDefaultVideoCodecIfNeeded(
+  args: {
+    flags: YtDlpFlags;
+    config: UserYtDlpConfig;
+    isTwitter: boolean;
+  },
+): boolean {
+  const { flags, config, isTwitter } = args;
+  if (hasUserFormatControl(config) || isTwitter) {
+    return false;
+  }
+
+  const codecConfig = getCodecConfigFromSettings();
+  if (!codecConfig) {
+    return false;
+  }
+
+  // Apply formatSort to prefer the codec (soft preference, won't fail)
+  if (flags.formatSort) {
+    flags.formatSort = `${codecConfig.formatSortValue},${flags.formatSort}`;
+  } else {
+    flags.formatSort = codecConfig.formatSortValue;
+  }
+
+  // Build a codec-aware format string with fallbacks
+  const vf = codecConfig.vcodecFilter;
+  const ve = codecConfig.videoExt;
+  const ae = codecConfig.audioExt;
+  flags.format =
+    `bestvideo[ext=${ve}][vcodec^=${vf}]+bestaudio[ext=${ae}]/` +
+    `bestvideo[vcodec^=${vf}]+bestaudio/` +
+    `bestvideo[ext=${ve}]+bestaudio[ext=${ae}]/` +
+    `bestvideo+bestaudio/best`;
+
+  flags.mergeOutputFormat = codecConfig.mergeOutputFormat;
+
+  logger.info(`Applied default video codec preference: ${vf}`);
   return true;
 }
 
@@ -328,6 +437,7 @@ function createDownloadFlagContext(
     flags,
     config,
     isYouTube,
+    isTwitter,
     formatSortValue,
     youtubeFormat,
     mergeOutputFormat,
@@ -335,7 +445,7 @@ function createDownloadFlagContext(
 }
 
 function applyPostBuildRules(context: DownloadFlagContext): string {
-  const { flags, isYouTube, config, formatSortValue, youtubeFormat } = context;
+  const { flags, isYouTube, isTwitter, config, formatSortValue, youtubeFormat } = context;
   let mergeOutputFormat = context.mergeOutputFormat;
 
   applyYouTubeFormatIfNeeded({
@@ -346,8 +456,12 @@ function applyPostBuildRules(context: DownloadFlagContext): string {
     youtubeFormat,
   });
 
+  // Audio language takes priority and already integrates codec preference internally
   if (applyPreferredAudioLanguageIfNeeded({ flags, isYouTube, config })) {
-    mergeOutputFormat = "mp4";
+    mergeOutputFormat = flags.mergeOutputFormat || "mp4";
+  } else if (applyDefaultVideoCodecIfNeeded({ flags, config, isTwitter })) {
+    // Standalone codec only applies when audio language didn't already handle it
+    mergeOutputFormat = flags.mergeOutputFormat || mergeOutputFormat;
   }
 
   applyYouTubeExtractorArgsIfNeeded({ flags, isYouTube, config });

@@ -1,3 +1,4 @@
+import * as storageService from "../../../services/storageService";
 import { logger } from "../../../utils/logger";
 import {
   getNetworkConfigFromUserConfig,
@@ -25,25 +26,55 @@ export function prepareBilibiliDownloadFlags(
   const userConfig = getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
-  // Default format - explicitly require H.264 (avc1) codec for Safari compatibility
-  // Safari doesn't support HEVC/H.265 or other codecs that Bilibili might serve
-  let downloadFormat =
-    "bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
+  // Codec filter mapping for format string and formatSort
+  const codecFilterMap: Record<string, { vcodecFilter: string; formatSort: string }> = {
+    h264: { vcodecFilter: "avc", formatSort: "vcodec:h264" },
+    h265: { vcodecFilter: "hevc", formatSort: "vcodec:h265" },
+    av1: { vcodecFilter: "av01", formatSort: "vcodec:av01" },
+    vp9: { vcodecFilter: "vp9", formatSort: "vcodec:vp9" },
+  };
 
-  // If user specified a format, use it
-  if (userConfig.f || userConfig.format) {
+  // Determine which codec to use: user config > app setting > default (h264)
+  let codecFilter = "avc";
+  let codecFormatSort = "vcodec:h264";
+  let downloadFormat: string;
+
+  const hasUserFormat = Boolean(userConfig.f || userConfig.format);
+  const hasUserFormatSort = Boolean(userConfig.S || userConfig.formatSort);
+  const hasUserFormatControl = hasUserFormat || hasUserFormatSort;
+
+  if (hasUserFormat) {
+    // User specified a format, use it directly
     downloadFormat = userConfig.f || userConfig.format;
     logger.info("Using user-specified format for Bilibili:", downloadFormat);
+  } else if (!hasUserFormatControl) {
+    // No user format control at all — apply app-level codec preference
+    const appSettings = storageService.getSettings();
+    const codecSetting = appSettings?.defaultVideoCodec;
+    if (codecSetting && typeof codecSetting === "string" && codecSetting.trim() !== "") {
+      const mapped = codecFilterMap[codecSetting.trim().toLowerCase()];
+      if (mapped) {
+        codecFilter = mapped.vcodecFilter;
+        codecFormatSort = mapped.formatSort;
+        logger.info("Using codec preference for Bilibili:", codecFilter);
+      }
+    }
+    // Build codec-aware format string with fallbacks
+    downloadFormat =
+      `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +
+      `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
+  } else {
+    // User has formatSort only — use default format string, let their sort control codec
+    downloadFormat =
+      "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
   }
 
   // Get format sort option if user specified it
-  // Default to preferring H.264 codec for Safari compatibility
   let formatSortValue = userConfig.S || userConfig.formatSort;
-  if (!formatSortValue && !(userConfig.f || userConfig.format)) {
-    // If user hasn't specified format or format sort, prefer H.264 for compatibility
-    formatSortValue = "vcodec:h264";
+  if (!formatSortValue && !hasUserFormatControl) {
+    formatSortValue = codecFormatSort;
     logger.info(
-      "Using default format sort for Safari compatibility:",
+      "Using format sort for Bilibili codec preference:",
       formatSortValue
     );
   }

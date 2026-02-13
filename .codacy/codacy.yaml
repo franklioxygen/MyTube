@@ -8,4 +8,4 @@ tools:
     - pmd@6.55.0
     - pylint@3.3.9
     - semgrep@1.78.0
-    - trivy@0.66.0
+    - trivy@0.69.1
