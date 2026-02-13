@@ -15,6 +15,83 @@ export interface PreparedBilibiliFlags {
   formatSort?: string;
 }
 
+// Codec filter mapping for format string and formatSort
+const BILIBILI_CODEC_MAP: Record<string, { vcodecFilter: string; formatSort: string }> = {
+  h264: { vcodecFilter: "avc", formatSort: "vcodec:h264" },
+  h265: { vcodecFilter: "hevc", formatSort: "vcodec:h265" },
+  av1: { vcodecFilter: "av01", formatSort: "vcodec:av01" },
+  vp9: { vcodecFilter: "vp9", formatSort: "vcodec:vp9" },
+};
+
+function resolveCodecPreference(): { codecFilter: string; codecFormatSort: string } {
+  const appSettings = storageService.getSettings();
+  const codecSetting = appSettings?.defaultVideoCodec;
+  if (codecSetting && typeof codecSetting === "string" && codecSetting.trim() !== "") {
+    const mapped = BILIBILI_CODEC_MAP[codecSetting.trim().toLowerCase()];
+    if (mapped) {
+      logger.info("Using codec preference for Bilibili:", mapped.vcodecFilter);
+      return { codecFilter: mapped.vcodecFilter, codecFormatSort: mapped.formatSort };
+    }
+  }
+  return { codecFilter: "avc", codecFormatSort: "vcodec:h264" };
+}
+
+function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
+  writeSubs: any;
+  writeAutoSubs: any;
+  convertSubs: any;
+} {
+  return {
+    writeSubs: userConfig.writeSubs !== undefined ? userConfig.writeSubs : true,
+    writeAutoSubs: userConfig.writeAutoSubs !== undefined ? userConfig.writeAutoSubs : true,
+    convertSubs: userConfig.convertSubs !== undefined ? userConfig.convertSubs : "vtt",
+  };
+}
+
+function resolveBilibiliFormatSort(
+  userConfig: BilibiliDownloadFlags,
+  codecFormatSort: string,
+): string | undefined {
+  const userSort = userConfig.S || userConfig.formatSort;
+  if (userSort) {
+    return userSort;
+  }
+  // userSort is falsy here, so only f/format would indicate user format control
+  if (!userConfig.f && !userConfig.format && codecFormatSort) {
+    logger.info("Using format sort for Bilibili codec preference:", codecFormatSort);
+    return codecFormatSort;
+  }
+  return undefined;
+}
+
+function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
+  downloadFormat: string;
+  codecFormatSort: string;
+} {
+  const hasUserFormat = Boolean(userConfig.f || userConfig.format);
+  const hasUserFormatSort = Boolean(userConfig.S || userConfig.formatSort);
+
+  if (hasUserFormat) {
+    const downloadFormat = userConfig.f || userConfig.format;
+    logger.info("Using user-specified format for Bilibili:", downloadFormat);
+    return { downloadFormat, codecFormatSort: "" };
+  }
+
+  if (!hasUserFormat && !hasUserFormatSort) {
+    const { codecFilter, codecFormatSort } = resolveCodecPreference();
+    const downloadFormat =
+      `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +
+      `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
+    return { downloadFormat, codecFormatSort };
+  }
+
+  // User has formatSort only — use default format string, let their sort control codec
+  return {
+    downloadFormat: "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+    codecFormatSort: "",
+  };
+}
+
 /**
  * Prepare yt-dlp flags for Bilibili video download
  */
@@ -22,62 +99,12 @@ export function prepareBilibiliDownloadFlags(
   url: string,
   outputTemplate: string
 ): PreparedBilibiliFlags {
-  // Get user's yt-dlp configuration for network settings
   const userConfig = getUserYtDlpConfig(url);
   const networkConfig = getNetworkConfigFromUserConfig(userConfig);
 
-  // Codec filter mapping for format string and formatSort
-  const codecFilterMap: Record<string, { vcodecFilter: string; formatSort: string }> = {
-    h264: { vcodecFilter: "avc", formatSort: "vcodec:h264" },
-    h265: { vcodecFilter: "hevc", formatSort: "vcodec:h265" },
-    av1: { vcodecFilter: "av01", formatSort: "vcodec:av01" },
-    vp9: { vcodecFilter: "vp9", formatSort: "vcodec:vp9" },
-  };
-
-  // Determine which codec to use: user config > app setting > default (h264)
-  let codecFilter = "avc";
-  let codecFormatSort = "vcodec:h264";
-  let downloadFormat: string;
-
-  const hasUserFormat = Boolean(userConfig.f || userConfig.format);
-  const hasUserFormatSort = Boolean(userConfig.S || userConfig.formatSort);
-  const hasUserFormatControl = hasUserFormat || hasUserFormatSort;
-
-  if (hasUserFormat) {
-    // User specified a format, use it directly
-    downloadFormat = userConfig.f || userConfig.format;
-    logger.info("Using user-specified format for Bilibili:", downloadFormat);
-  } else if (!hasUserFormatControl) {
-    // No user format control at all — apply app-level codec preference
-    const appSettings = storageService.getSettings();
-    const codecSetting = appSettings?.defaultVideoCodec;
-    if (codecSetting && typeof codecSetting === "string" && codecSetting.trim() !== "") {
-      const mapped = codecFilterMap[codecSetting.trim().toLowerCase()];
-      if (mapped) {
-        codecFilter = mapped.vcodecFilter;
-        codecFormatSort = mapped.formatSort;
-        logger.info("Using codec preference for Bilibili:", codecFilter);
-      }
-    }
-    // Build codec-aware format string with fallbacks
-    downloadFormat =
-      `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +
-      `bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
-  } else {
-    // User has formatSort only — use default format string, let their sort control codec
-    downloadFormat =
-      "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best";
-  }
-
-  // Get format sort option if user specified it
-  let formatSortValue = userConfig.S || userConfig.formatSort;
-  if (!formatSortValue && !hasUserFormatControl) {
-    formatSortValue = codecFormatSort;
-    logger.info(
-      "Using format sort for Bilibili codec preference:",
-      formatSortValue
-    );
-  }
+  const { downloadFormat, codecFormatSort } = resolveBilibiliFormat(userConfig);
+  const formatSortValue = resolveBilibiliFormatSort(userConfig, codecFormatSort);
+  const subtitleDefaults = resolveSubtitleDefaults(userConfig);
 
   // Prepare base flags from user config (excluding output options we manage)
   const {
@@ -87,35 +114,27 @@ export function prepareBilibiliDownloadFlags(
     format: _format,
     S: _S,
     formatSort: _formatSort,
-    // Extract user subtitle preferences (use them if provided)
-    writeSubs: userWriteSubs,
-    writeAutoSubs: userWriteAutoSubs,
-    convertSubs: userConvertSubs,
-    // Extract user merge output format (use it if provided)
+    writeSubs: _writeSubs,
+    writeAutoSubs: _writeAutoSubs,
+    convertSubs: _convertSubs,
     mergeOutputFormat: userMergeOutputFormat,
     ...safeUserConfig
   } = userConfig;
 
-  // Determine merge output format: use user's choice or default to mp4
   const mergeOutputFormat = userMergeOutputFormat || "mp4";
   logger.info(`Using merge output format: ${mergeOutputFormat}`);
 
-  // Prepare flags for yt-dlp - merge user config with required settings
   const flags: BilibiliDownloadFlags = {
-    ...networkConfig, // Apply network settings
-    ...safeUserConfig, // Apply other user config
+    ...networkConfig,
+    ...safeUserConfig,
     output: outputTemplate,
     format: downloadFormat,
-    // Use user preferences if provided, otherwise use defaults
     mergeOutputFormat: mergeOutputFormat,
-    writeSubs: userWriteSubs !== undefined ? userWriteSubs : true,
-    writeAutoSubs: userWriteAutoSubs !== undefined ? userWriteAutoSubs : true,
-    convertSubs: userConvertSubs !== undefined ? userConvertSubs : "vtt",
-    ignoreErrors: true, // Continue even if subtitle download fails
-    noWarnings: false, // Show warnings for debugging
+    ...subtitleDefaults,
+    ignoreErrors: true,
+    noWarnings: false,
   };
 
-  // Apply format sort (either user-specified or default H.264 preference)
   if (formatSortValue) {
     flags.formatSort = formatSortValue;
     logger.info("Using format sort for Bilibili:", formatSortValue);
