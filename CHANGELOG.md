@@ -1,6 +1,63 @@
 # Change Log
 
 
+## v1.8.14 (2026-02-13)
+
+### Refactor
+
+- refactor: Improve code readability and structure (30d981c)
+
+### Docs
+
+- docs: Update video codec options in download settings (6665a61)
+
+## v1.8.13 (2026-02-12)
+
+### Refactor
+
+- refactor: Extracted functions for deleting video files and handling author avatar cleanup (8d63e80)
+
+### Chore
+
+- chore: fix codacy issues (6aae270)
+
+## v1.8.12 (2026-02-11)
+
+### Test
+
+- test: Update testing library function in UploadModal test (1828fe6)
+
+## v1.8.11 (2026-02-11)
+
+### Chore
+
+- chore: improve codacy score (8a5a9cc)
+
+## v1.8.10 (2026-02-11)
+
+### Test
+
+- test: refactor createReq function for cloudRoutes tests (84a5a3d)
+- test: improve test coverage (5521c9f)
+- test: Refactor useHomePagination tests (cae485a)
+- test: improve test coverage (aad0c78)
+
+## v1.8.9 (2026-02-11)
+
+### Ci
+
+- ci: Update Codacy token handling logic (6408a82)
+
+### Style
+
+- style: Update badges in README files (924c54c)
+
+## v1.8.8 (2026-02-11)
+
+### Feat
+
+- feat: Add Lizard configuration for code complexity (b9729a9)
+
 ## v1.8.7 (2026-02-11)
 
 ### Feat
