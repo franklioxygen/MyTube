@@ -21,7 +21,7 @@
     "@tanstack/react-query-devtools": "^5.91.1",
     "axios": "^1.13.5",
     "dotenv": "^16.4.7",
-    "framer-motion": "^12.25.0",
+    "framer-motion": "^12.29.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router": "^7.12.0",
