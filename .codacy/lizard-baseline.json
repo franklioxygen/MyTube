@@ -1,12 +1,12 @@
 {
   "tool": "lizard",
-  "createdAt": "2026-02-13T20:05:55.110Z",
+  "createdAt": "2026-02-14T19:28:22.526Z",
   "source": "codacy-cli analyze -t lizard --format sarif",
-  "totalIssues": 158,
+  "totalIssues": 173,
   "ruleCounts": {
     "Lizard_ccn-medium": 104,
     "Lizard_file-nloc-medium": 1,
-    "Lizard_nloc-medium": 47,
+    "Lizard_nloc-medium": 62,
     "Lizard_parameter-count-medium": 6
   },
   "fingerprints": [
@@ -120,12 +120,15 @@
     "Lizard_nloc-medium|CollectionsTable.tsx|Method validateName has 213 lines of code (limit is 50)",
     "Lizard_nloc-medium|Home.tsx|Method t has 67 lines of code (limit is 50)",
     "Lizard_nloc-medium|HomeSidebar.tsx|Method HomeSidebar has 52 lines of code (limit is 50)",
+    "Lizard_nloc-medium|ManagePage.test.tsx|Method *global* has 61 lines of code (limit is 50)",
     "Lizard_nloc-medium|ManagePage.tsx|Method *global* has 51 lines of code (limit is 50)",
     "Lizard_nloc-medium|SearchResults.tsx|Method && has 82 lines of code (limit is 50)",
     "Lizard_nloc-medium|SettingsPage.tsx|Method *global* has 122 lines of code (limit is 50)",
     "Lizard_nloc-medium|TagsModal.tsx|Method *global* has 72 lines of code (limit is 50)",
     "Lizard_nloc-medium|VideoCard.tsx|Method ... has 62 lines of code (limit is 50)",
     "Lizard_nloc-medium|VideoInfo.tsx|Method && has 55 lines of code (limit is 50)",
+    "Lizard_nloc-medium|VideoPlayer.test.tsx|Method *global* has 87 lines of code (limit is 50)",
+    "Lizard_nloc-medium|VideoPlayer.test.tsx|Method resetDefaults has 61 lines of code (limit is 50)",
     "Lizard_nloc-medium|VideosTable.tsx|Method (anonymous) has 60 lines of code (limit is 50)",
     "Lizard_nloc-medium|VideosTable.tsx|Method *global* has 76 lines of code (limit is 50)",
     "Lizard_nloc-medium|bilibiliMetadata.ts|Method extractPartMetadata has 54 lines of code (limit is 50)",
