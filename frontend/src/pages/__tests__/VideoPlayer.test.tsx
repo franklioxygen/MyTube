@@ -447,7 +447,7 @@ describe('VideoPlayer', () => {
         });
 
         it('onConfirm calls handleUnsubscribeFromHook which calls unsubscribeMutation.mutate', () => {
-            mockHandleUnsubscribeFromHook.mockImplementation((cb: Function) => cb());
+            mockHandleUnsubscribeFromHook.mockImplementation((cb: () => void) => cb());
             render(<VideoPlayer />);
 
             act(() => { capturedVideoInfoProps.onUnsubscribe(); });

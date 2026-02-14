@@ -367,11 +367,6 @@ describe('LoginPage', () => {
 
             // The text "resetPassword" should not appear as a button label
             // (there may be an info icon instead)
-            const resetButtons = screen.queryAllByText('resetPassword');
-            // Filter to only buttons
-            const buttonElements = resetButtons.filter(
-                (el) => el.closest('button')?.getAttribute('type') !== 'button' || el.tagName === 'BUTTON'
-            );
             // In non-allowResetPassword mode with passwordLoginAllowed, we should not see the reset button text
             expect(screen.queryByRole('button', { name: 'resetPassword' })).not.toBeInTheDocument();
         });
