@@ -24,8 +24,8 @@ const {
     const mockShowSnackbar = vi.fn();
     const mockHandleVideoSubmit = vi.fn();
     const mockDownloadContext = {
-        activeDownloads: [] as any[],
-        queuedDownloads: [] as any[],
+        activeDownloads: [] as unknown[],
+        queuedDownloads: [] as unknown[],
         handleVideoSubmit: mockHandleVideoSubmit,
     };
     const mockApi = {
@@ -33,16 +33,16 @@ const {
         post: vi.fn().mockResolvedValue({ data: {} }),
         delete: vi.fn().mockResolvedValue({ data: {} }),
     };
-    const mockMutations: Array<{ mutate: ReturnType<typeof vi.fn>; mutationFn: any }> = [];
+    const mockMutations: Array<{ mutate: ReturnType<typeof vi.fn>; mutationFn: unknown }> = [];
     const mockInvalidateQueries = vi.fn();
     const mockCancelQueries = vi.fn();
     const mockSetQueryData = vi.fn();
     const mockGetQueryData = vi.fn();
-    const mockHistoryDataRef = { current: [] as any[] };
-    const capturedActiveDownloadsPropsRef = { current: {} as any };
-    const capturedQueuePropsRef = { current: {} as any };
-    const capturedHistoryPropsRef = { current: {} as any };
-    const capturedBatchModalPropsRef = { current: {} as any };
+    const mockHistoryDataRef = { current: [] as unknown[] };
+    const capturedActiveDownloadsPropsRef = { current: {} as Record<string, unknown> };
+    const capturedQueuePropsRef = { current: {} as Record<string, unknown> };
+    const capturedHistoryPropsRef = { current: {} as Record<string, unknown> };
+    const capturedBatchModalPropsRef = { current: {} as Record<string, unknown> };
 
     return {
         mockT,
@@ -85,8 +85,8 @@ vi.mock('@tanstack/react-query', () => ({
     useQuery: () => {
         return { data: mockHistoryDataRef.current };
     },
-    useMutation: ({ mutationFn, onSuccess, onError }: any) => {
-        const mutate = vi.fn(async (...args: any[]) => {
+    useMutation: ({ mutationFn, onSuccess, onError }: { mutationFn: (...args: unknown[]) => Promise<unknown>; onSuccess?: () => void; onError?: () => void }) => {
+        const mutate = vi.fn(async (...args: unknown[]) => {
             try {
                 await mutationFn(...args);
                 onSuccess?.();
@@ -109,7 +109,7 @@ vi.mock('@tanstack/react-query', () => ({
 // --- Mock child components ---
 
 vi.mock('../DownloadPage/ActiveDownloadsTab', () => ({
-    ActiveDownloadsTab: (props: any) => {
+    ActiveDownloadsTab: (props: { onCancel: (id: string) => void; [key: string]: unknown }) => {
         capturedActiveDownloadsPropsRef.current = props;
         return (
             <div data-testid="ActiveDownloadsTab">
@@ -120,7 +120,7 @@ vi.mock('../DownloadPage/ActiveDownloadsTab', () => ({
 }));
 
 vi.mock('../DownloadPage/QueueTab', () => ({
-    QueueTab: (props: any) => {
+    QueueTab: (props: { onRemove: (id: string) => void; onClear: () => void; [key: string]: unknown }) => {
         capturedQueuePropsRef.current = props;
         return (
             <div data-testid="QueueTab">
@@ -132,7 +132,7 @@ vi.mock('../DownloadPage/QueueTab', () => ({
 }));
 
 vi.mock('../DownloadPage/HistoryTab', () => ({
-    HistoryTab: (props: any) => {
+    HistoryTab: (props: { onRemove: (id: string) => void; onClear: () => void; onRetry: (url: string) => void; onReDownload: (url: string) => void; onViewVideo: (id: string) => void; [key: string]: unknown }) => {
         capturedHistoryPropsRef.current = props;
         return (
             <div data-testid="HistoryTab">
@@ -147,15 +147,15 @@ vi.mock('../DownloadPage/HistoryTab', () => ({
 }));
 
 vi.mock('../DownloadPage/CustomTabPanel', () => ({
-    CustomTabPanel: ({ children, value, index }: any) => value === index ? <div>{children}</div> : null,
+    CustomTabPanel: ({ children, value, index }: { children: React.ReactNode; value: number; index: number; [key: string]: unknown }) => value === index ? <div>{children}</div> : null,
 }));
 
 vi.mock('../DownloadPage/HistoryItem', () => ({
-    DownloadHistoryItem: {} as any,
+    DownloadHistoryItem: {} as Record<string, unknown>,
 }));
 
 vi.mock('../../components/BatchDownloadModal', () => ({
-    default: (props: any) => {
+    default: (props: { open: boolean; onConfirm: (urls: string[]) => void; onClose: () => void; [key: string]: unknown }) => {
         capturedBatchModalPropsRef.current = props;
         return props.open ? (
             <div data-testid="BatchDownloadModal">
@@ -167,7 +167,7 @@ vi.mock('../../components/BatchDownloadModal', () => ({
 }));
 
 vi.mock('../../components/UploadModal', () => ({
-    default: (props: any) => {
+    default: (props: { open: boolean; onClose: () => void; [key: string]: unknown }) => {
         return props.open ? (
             <div data-testid="UploadModal">
                 <button data-testid="upload-close-btn" onClick={() => props.onClose()}>Close Upload</button>
@@ -385,7 +385,7 @@ describe('DownloadPage', () => {
 
         // Switch to History tab to access isDownloadInProgress
         fireEvent.click(screen.getByText('downloadHistory'));
-        expect(capturedHistoryPropsRef.current.isDownloadInProgress('https://example.com/active')).toBe(true);
+        expect((capturedHistoryPropsRef.current.isDownloadInProgress as (url: string) => boolean)('https://example.com/active')).toBe(true);
     });
 
     // 15. isDownloadInProgress returns true if sourceUrl in queued downloads
@@ -397,7 +397,7 @@ describe('DownloadPage', () => {
 
         // Switch to History tab to access isDownloadInProgress
         fireEvent.click(screen.getByText('downloadHistory'));
-        expect(capturedHistoryPropsRef.current.isDownloadInProgress('https://example.com/queued')).toBe(true);
+        expect((capturedHistoryPropsRef.current.isDownloadInProgress as (url: string) => boolean)('https://example.com/queued')).toBe(true);
     });
 
     // Also verify it returns false when not in progress
@@ -407,7 +407,7 @@ describe('DownloadPage', () => {
         renderPage();
 
         fireEvent.click(screen.getByText('downloadHistory'));
-        expect(capturedHistoryPropsRef.current.isDownloadInProgress('https://example.com/not-found')).toBe(false);
+        expect((capturedHistoryPropsRef.current.isDownloadInProgress as (url: string) => boolean)('https://example.com/not-found')).toBe(false);
     });
 
     // 16. handleRetry calls handleVideoSubmit when not in progress

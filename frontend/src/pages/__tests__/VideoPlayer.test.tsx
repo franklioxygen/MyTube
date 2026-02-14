@@ -48,13 +48,24 @@ const mockScrollTo = vi.fn();
 
 // ---- Mutable mock state (overridable per test) ----
 
-let mockVideoQueryReturn: any;
-let mockAuthReturn: any;
-let mockVideoMutationsReturn: any;
-let mockVideoSubscriptionsReturn: any;
-let mockVideoCollectionsReturn: any;
-let mockVideoRecommendationsReturn: any;
-let mockVideoPlayerSettingsReturn: any;
+let mockVideoQueryReturn: Record<string, unknown>;
+let mockAuthReturn: unknown;
+interface MockDeleteMutation {
+    isPending: boolean;
+    error: { message?: string } | null;
+    mutateAsync: typeof mockDeleteMutateAsync;
+}
+
+interface MockVideoMutationsReturn extends Record<string, unknown> {
+    deleteMutation: MockDeleteMutation;
+    _onDeleteSuccess: ((data: unknown) => void) | undefined;
+}
+
+let mockVideoMutationsReturn: MockVideoMutationsReturn;
+let mockVideoSubscriptionsReturn: Record<string, unknown>;
+let mockVideoCollectionsReturn: unknown;
+let mockVideoRecommendationsReturn: unknown;
+let mockVideoPlayerSettingsReturn: Record<string, unknown>;
 
 // ---- Mock hooks ----
 
@@ -64,7 +75,7 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string, params?: any) => params ? `${key}:${JSON.stringify(params)}` : key }),
+    useLanguage: () => ({ t: (key: string, params?: unknown) => params ? `${key}:${JSON.stringify(params)}` : key }),
 }));
 
 vi.mock('../../contexts/VideoContext', () => ({
@@ -94,9 +105,9 @@ vi.mock('../../hooks/useVideoSubscriptions', () => ({
 }));
 
 vi.mock('../../hooks/useVideoMutations', () => ({
-    useVideoMutations: (opts: any) => {
+    useVideoMutations: (opts: Record<string, unknown>) => {
         // Capture onDeleteSuccess for testing
-        mockVideoMutationsReturn._onDeleteSuccess = opts?.onDeleteSuccess;
+        mockVideoMutationsReturn._onDeleteSuccess = opts?.onDeleteSuccess as ((data: unknown) => void) | undefined;
         return mockVideoMutationsReturn;
     },
 }));
@@ -121,61 +132,119 @@ vi.mock('../../utils/apiUrl', () => ({
     getBackendUrl: () => 'http://localhost:5000',
 }));
 
+// ---- Captured props interfaces ----
+
+interface CapturedVideoControlsProps extends Record<string, unknown> {
+    onEnded: () => void;
+    onToggleCinemaMode: () => void;
+    isCinemaMode: boolean;
+    autoPlay: boolean;
+    startTime: number;
+}
+
+interface CapturedVideoInfoProps extends Record<string, unknown> {
+    onAuthorClick: () => void;
+    onAvatarClick: () => void;
+    onDelete: () => void;
+    onUnsubscribe: () => void;
+    onRatingChange: (value: number) => Promise<void>;
+    onTitleSave: (title: string) => Promise<void>;
+    onTagsUpdate: (tags: string[]) => Promise<void>;
+    onToggleVisibility: () => Promise<void>;
+    onCollectionClick: (id: string) => void;
+    isDeleting: boolean;
+    deleteError: string | null;
+    availableTags: string[];
+    isSubscribed: boolean;
+}
+
+interface CapturedCommentsSectionProps extends Record<string, unknown> {
+    onToggleComments: () => void;
+    showComments: boolean;
+}
+
+interface CapturedUpNextSidebarProps extends Record<string, unknown> {
+    onAutoPlayNextChange: (value: boolean) => void;
+    onVideoClick: (id: string) => void;
+    autoPlayNext: boolean;
+}
+
+interface CapturedCollectionModalProps extends Record<string, unknown> {
+    onRemoveFromCollection: () => void;
+}
+
+interface CapturedConfirmationModalProps extends Record<string, unknown> {
+    onConfirm: () => void | Promise<void>;
+    onClose: () => void;
+    isOpen: boolean;
+    title: string;
+    isDanger: boolean;
+}
+
+interface CapturedSubscribeModalProps extends Record<string, unknown> {
+    onClose: () => void;
+    onConfirm: () => void;
+    open: boolean;
+    authorName: string;
+    url: string;
+    source: string;
+}
+
 // ---- Mock child components with data-testid and exposed callbacks ----
 
-let capturedVideoControlsProps: any = {};
-let capturedVideoInfoProps: any = {};
-let capturedCommentsSectionProps: any = {};
-let capturedUpNextSidebarProps: any = {};
-let capturedCollectionModalProps: any = {};
-let capturedConfirmationModalProps: any = {};
-let capturedSubscribeModalProps: any = {};
+let capturedVideoControlsProps: CapturedVideoControlsProps = {} as CapturedVideoControlsProps;
+let capturedVideoInfoProps: CapturedVideoInfoProps = {} as CapturedVideoInfoProps;
+let capturedCommentsSectionProps: CapturedCommentsSectionProps = {} as CapturedCommentsSectionProps;
+let capturedUpNextSidebarProps: CapturedUpNextSidebarProps = {} as CapturedUpNextSidebarProps;
+let capturedCollectionModalProps: CapturedCollectionModalProps = {} as CapturedCollectionModalProps;
+let capturedConfirmationModalProps: CapturedConfirmationModalProps = {} as CapturedConfirmationModalProps;
+let capturedSubscribeModalProps: CapturedSubscribeModalProps = {} as CapturedSubscribeModalProps;
 
 vi.mock('../../components/VideoPlayer/VideoControls', () => ({
-    default: (props: any) => {
-        capturedVideoControlsProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedVideoControlsProps = props as CapturedVideoControlsProps;
         return <div data-testid="video-controls" />;
     },
 }));
 
 vi.mock('../../components/VideoPlayer/VideoInfo', () => ({
-    default: (props: any) => {
-        capturedVideoInfoProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedVideoInfoProps = props as CapturedVideoInfoProps;
         return <div data-testid="video-info" />;
     },
 }));
 
 vi.mock('../../components/VideoPlayer/CommentsSection', () => ({
-    default: (props: any) => {
-        capturedCommentsSectionProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedCommentsSectionProps = props as CapturedCommentsSectionProps;
         return <div data-testid="comments-section" />;
     },
 }));
 
 vi.mock('../../components/VideoPlayer/UpNextSidebar', () => ({
-    default: (props: any) => {
-        capturedUpNextSidebarProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedUpNextSidebarProps = props as CapturedUpNextSidebarProps;
         return <div data-testid="up-next-sidebar" />;
     },
 }));
 
 vi.mock('../../components/CollectionModal', () => ({
-    default: (props: any) => {
-        capturedCollectionModalProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedCollectionModalProps = props as CapturedCollectionModalProps;
         return <div data-testid="collection-modal" />;
     },
 }));
 
 vi.mock('../../components/ConfirmationModal', () => ({
-    default: (props: any) => {
-        capturedConfirmationModalProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedConfirmationModalProps = props as CapturedConfirmationModalProps;
         return <div data-testid="confirmation-modal" />;
     },
 }));
 
 vi.mock('../../components/SubscribeModal', () => ({
-    default: (props: any) => {
-        capturedSubscribeModalProps = props;
+    default: (props: Record<string, unknown>) => {
+        capturedSubscribeModalProps = props as CapturedSubscribeModalProps;
         return <div data-testid="subscribe-modal" />;
     },
 }));
@@ -255,13 +324,13 @@ function resetDefaults() {
         playFromBeginning: false,
     };
 
-    capturedVideoControlsProps = {};
-    capturedVideoInfoProps = {};
-    capturedCommentsSectionProps = {};
-    capturedUpNextSidebarProps = {};
-    capturedCollectionModalProps = {};
-    capturedConfirmationModalProps = {};
-    capturedSubscribeModalProps = {};
+    capturedVideoControlsProps = {} as CapturedVideoControlsProps;
+    capturedVideoInfoProps = {} as CapturedVideoInfoProps;
+    capturedCommentsSectionProps = {} as CapturedCommentsSectionProps;
+    capturedUpNextSidebarProps = {} as CapturedUpNextSidebarProps;
+    capturedCollectionModalProps = {} as CapturedCollectionModalProps;
+    capturedConfirmationModalProps = {} as CapturedConfirmationModalProps;
+    capturedSubscribeModalProps = {} as CapturedSubscribeModalProps;
 }
 
 beforeEach(() => {
@@ -447,7 +516,7 @@ describe('VideoPlayer', () => {
         });
 
         it('onConfirm calls handleUnsubscribeFromHook which calls unsubscribeMutation.mutate', () => {
-            mockHandleUnsubscribeFromHook.mockImplementation((cb: () => void) => cb());
+            mockHandleUnsubscribeFromHook.mockImplementation((cb: () => void) => { cb(); });
             render(<VideoPlayer />);
 
             act(() => { capturedVideoInfoProps.onUnsubscribe(); });

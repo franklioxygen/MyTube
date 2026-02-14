@@ -22,7 +22,7 @@ vi.mock('../../contexts/SnackbarContext', () => ({
 
 const mockDeleteCollection = vi.fn();
 const mockCollectionContext = {
-    collections: [] as any[],
+    collections: [] as unknown[],
     deleteCollection: mockDeleteCollection,
 };
 vi.mock('../../contexts/CollectionContext', () => ({
@@ -32,7 +32,7 @@ vi.mock('../../contexts/CollectionContext', () => ({
 const mockDeleteVideo = vi.fn();
 const mockUpdateVideo = vi.fn();
 const mockVideoContext = {
-    videos: [] as any[],
+    videos: [] as unknown[],
     deleteVideo: mockDeleteVideo,
     availableTags: ['tag1', 'tag2', 'tag3'],
     updateVideo: mockUpdateVideo,
@@ -54,7 +54,7 @@ vi.mock('../../hooks/useSettings', () => ({
     }),
 }));
 
-const mockUseVideoSort = vi.fn((props: any) => ({
+const mockUseVideoSort = vi.fn((props: Record<string, unknown>) => ({
     sortedVideos: props.videos,
     sortOption: 'dateDesc',
     sortAnchorEl: null,
@@ -62,7 +62,7 @@ const mockUseVideoSort = vi.fn((props: any) => ({
     handleSortClose: vi.fn(),
 }));
 vi.mock('../../hooks/useVideoSort', () => ({
-    useVideoSort: (props: any) => mockUseVideoSort(props),
+    useVideoSort: (props: Record<string, unknown>) => mockUseVideoSort(props),
 }));
 
 // --- Mock child components ---
@@ -80,15 +80,15 @@ vi.mock('../../components/SortControl', () => ({
 }));
 
 vi.mock('../../components/VideoCard', () => ({
-    default: ({ video }: { video: any }) => (
+    default: ({ video }: { video: { id: string; title: string; [key: string]: unknown } }) => (
         <div data-testid={`VideoCard-${video.id}`}>{video.title}</div>
     ),
 }));
 
 // Track props passed to DeleteCollectionModal for assertions
-let capturedDeleteModalProps: any = {};
+let capturedDeleteModalProps: { onDeleteCollectionOnly?: () => Promise<void>; onDeleteCollectionAndVideos?: () => Promise<void>; [key: string]: unknown } = {};
 vi.mock('../../components/DeleteCollectionModal', () => ({
-    default: (props: any) => {
+    default: (props: { isOpen: boolean; collectionName: string; videoCount: number; onDeleteCollectionOnly: () => Promise<void>; onDeleteCollectionAndVideos: () => Promise<void>; onClose: () => void }) => {
         capturedDeleteModalProps = props;
         return props.isOpen ? (
             <div data-testid="DeleteCollectionModal">
@@ -169,7 +169,7 @@ describe('CollectionPage', () => {
         mockVideoContext.updateVideo = mockUpdateVideo;
 
         mockDeleteCollection.mockResolvedValue({ success: true });
-        mockUseVideoSort.mockImplementation((props: any) => ({
+        mockUseVideoSort.mockImplementation((props: Record<string, unknown>) => ({
             sortedVideos: props.videos,
             sortOption: 'dateDesc',
             sortAnchorEl: null,
@@ -241,7 +241,7 @@ describe('CollectionPage', () => {
         // directly since the component wires it as a prop to DeleteCollectionModal.
         expect(capturedDeleteModalProps.onDeleteCollectionOnly).toBeDefined();
 
-        await capturedDeleteModalProps.onDeleteCollectionOnly();
+        await capturedDeleteModalProps.onDeleteCollectionOnly!();
 
         expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', false);
         expect(mockNavigate).toHaveBeenCalledWith('/');
@@ -253,7 +253,7 @@ describe('CollectionPage', () => {
 
         expect(capturedDeleteModalProps.onDeleteCollectionAndVideos).toBeDefined();
 
-        await capturedDeleteModalProps.onDeleteCollectionAndVideos();
+        await capturedDeleteModalProps.onDeleteCollectionAndVideos!();
 
         expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', true);
         expect(mockNavigate).toHaveBeenCalledWith('/');
@@ -264,7 +264,7 @@ describe('CollectionPage', () => {
         mockDeleteCollection.mockResolvedValue({ success: false });
         renderCollectionPage();
 
-        await capturedDeleteModalProps.onDeleteCollectionOnly();
+        await capturedDeleteModalProps.onDeleteCollectionOnly!();
 
         expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', false);
         expect(mockNavigate).not.toHaveBeenCalled();

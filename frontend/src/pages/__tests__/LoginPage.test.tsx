@@ -51,12 +51,12 @@ vi.mock('../../contexts/LanguageContext', () => ({
 
 // Mock child components
 vi.mock('../../components/AlertModal', () => ({
-    default: ({ open, title, message }: any) =>
+    default: ({ open, title, message }: { open: boolean; title: string; message: string }) =>
         open ? <div data-testid="alert-modal">{title}: {message}</div> : null,
 }));
 
 vi.mock('../../components/ConfirmationModal', () => ({
-    default: ({ isOpen, title }: any) =>
+    default: ({ isOpen, title }: { isOpen: boolean; title: string }) =>
         isOpen ? <div data-testid="confirmation-modal">{title}</div> : null,
 }));
 
@@ -67,10 +67,10 @@ vi.mock('../../components/VersionInfo', () => ({
 // --- Controllable useQuery / useMutation mocks ---
 
 // Default query results keyed by queryKey[0]
-let queryResults: Record<string, any> = {};
+let queryResults: Record<string, Record<string, unknown>> = {};
 
 // Store mutation mocks so tests can invoke onSuccess/onError and check mutate calls
-let mutationMocks: Record<string, any> = {};
+let mutationMocks: Record<string, Record<string, unknown>> = {};
 
 // Helper to get or create a mutation mock for a given key.
 // Returns the same mock on subsequent calls with the same key (across re-renders).
@@ -97,7 +97,7 @@ const mutationKeyOrder = [
 ];
 
 vi.mock('@tanstack/react-query', () => ({
-    useQuery: vi.fn(({ queryKey }: any) => {
+    useQuery: vi.fn(({ queryKey }: { queryKey: string[] }) => {
         const key = queryKey[0];
         return queryResults[key] || {
             data: undefined,
@@ -119,7 +119,7 @@ vi.mock('@tanstack/react-query', () => ({
 // --- Helpers ---
 
 /** Set default query results that produce the "normal login form" state */
-const setNormalState = (overrides: Record<string, any> = {}) => {
+const setNormalState = (overrides: Record<string, unknown> = {}) => {
     queryResults = {
         healthCheck: {
             data: {
@@ -390,7 +390,7 @@ describe('LoginPage', () => {
         it('shows Alert when waitTime > 0 from server response', () => {
             setNormalState();
             // Inject waitTime into the healthCheck data
-            queryResults['healthCheck'].data.waitTime = 5000;
+            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 5000;
             render(<LoginPage />);
 
             // The wait time alert shows t('waitTimeMessage') with {time} replaced

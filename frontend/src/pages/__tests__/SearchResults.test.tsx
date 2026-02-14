@@ -10,8 +10,8 @@ vi.mock('../../contexts/LanguageContext', () => ({
 
 // Mock useVideo with mutable defaults
 const mockUseVideoReturn = {
-    searchResults: [] as any[],
-    localSearchResults: [] as any[],
+    searchResults: [] as unknown[],
+    localSearchResults: [] as unknown[],
     searchTerm: '',
     loading: false,
     youtubeLoading: false,
@@ -40,7 +40,7 @@ vi.mock('../../contexts/DownloadContext', () => ({
 
 // Mock VideoCard as a simple stub
 vi.mock('../../components/VideoCard', () => ({
-    default: ({ video }: { video: any }) => (
+    default: ({ video }: { video: { id: string; title: string } }) => (
         <div data-testid={`video-card-${video.id}`}>{video.title}</div>
     ),
 }));

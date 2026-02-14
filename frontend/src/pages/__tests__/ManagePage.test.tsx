@@ -5,8 +5,8 @@ import ManagePage from '../ManagePage';
 
 // --- Module-level mock data (modifiable per test) ---
 
-let mockVideos: any[] = [];
-let mockCollections: any[] = [];
+let mockVideos: unknown[] = [];
+let mockCollections: unknown[] = [];
 let mockUserRole = 'admin';
 
 const mockDeleteVideo = vi.fn();
@@ -90,7 +90,7 @@ vi.mock('../../utils/formatUtils', () => ({
 // --- Mock child components ---
 
 vi.mock('../../components/ConfirmationModal', () => ({
-    default: (props: any) =>
+    default: (props: { isOpen: boolean; title: string; message: string; onConfirm: () => void; confirmText: string; cancelText: string; onClose: () => void }) =>
         props.isOpen ? (
             <div data-testid="confirmation-modal">
                 <span data-testid="modal-title">{props.title}</span>
@@ -106,7 +106,7 @@ vi.mock('../../components/ConfirmationModal', () => ({
 }));
 
 vi.mock('../../components/DeleteCollectionModal', () => ({
-    default: (props: any) =>
+    default: (props: { isOpen: boolean; collectionName: string; videoCount: number; onDeleteCollectionOnly: () => void; onDeleteCollectionAndVideos: () => void; onClose: () => void }) =>
         props.isOpen ? (
             <div data-testid="delete-collection-modal">
                 <span data-testid="delete-collection-name">{props.collectionName}</span>
@@ -124,10 +124,24 @@ vi.mock('../../components/DeleteCollectionModal', () => ({
         ) : null,
 }));
 
-let capturedVideosTableProps: any = null;
+interface CapturedVideosTableProps {
+    totalVideosCount: number;
+    searchTerm: string;
+    page: number;
+    totalSize: number;
+    onSearchChange?: (value: string) => void;
+    onDeleteClick?: (id: string) => void;
+    onRefreshThumbnail?: (id: string) => void;
+    onRefreshFileSizes?: () => void;
+    onPageChange?: (event: unknown, page: number) => void;
+    onSort?: (field: string) => void;
+    onUpdateVideo: (id: string, data: Record<string, unknown>) => void;
+}
+
+let capturedVideosTableProps: CapturedVideosTableProps | null = null;
 
 vi.mock('../../components/ManagePage/CollectionsTable', () => ({
-    default: (props: any) => (
+    default: (props: { totalCollectionsCount: number; page: number; onDelete?: (col: { id: string; name: string; videos: string[]; createdAt: string }) => void; onPageChange?: (event: unknown, page: number) => void; onSort?: (field: string) => void }) => (
         <div data-testid="collections-table">
             <span data-testid="collections-count">{props.totalCollectionsCount}</span>
             <span data-testid="collections-page">{props.page}</span>
@@ -139,7 +153,7 @@ vi.mock('../../components/ManagePage/CollectionsTable', () => ({
             </button>
             <button
                 data-testid="collections-page-change-btn"
-                onClick={() => props.onPageChange?.({} as any, 2)}
+                onClick={() => props.onPageChange?.({}, 2)}
             >
                 Next Page
             </button>
@@ -154,7 +168,7 @@ vi.mock('../../components/ManagePage/CollectionsTable', () => ({
 }));
 
 vi.mock('../../components/ManagePage/VideosTable', () => ({
-    default: (props: any) => {
+    default: (props: CapturedVideosTableProps) => {
         capturedVideosTableProps = props;
         return (
             <div data-testid="videos-table">
@@ -186,7 +200,7 @@ vi.mock('../../components/ManagePage/VideosTable', () => ({
                 </button>
                 <button
                     data-testid="videos-page-change-btn"
-                    onClick={() => props.onPageChange?.({} as any, 2)}
+                    onClick={() => props.onPageChange?.({}, 2)}
                 >
                     Next Page
                 </button>
@@ -566,7 +580,7 @@ describe('ManagePage', () => {
         fireEvent.click(videosTab);
 
         // vid-1: 1000 + vid-2: 2000 = 3000
-        expect(capturedVideosTableProps.totalSize).toBe(3000);
+        expect(capturedVideosTableProps!.totalSize).toBe(3000);
     });
 
     it('passes onUpdateVideo to VideosTable', () => {
@@ -575,6 +589,6 @@ describe('ManagePage', () => {
         const videosTab = screen.getByRole('tab', { name: /videos/i });
         fireEvent.click(videosTab);
 
-        expect(capturedVideosTableProps.onUpdateVideo).toBe(mockUpdateVideo);
+        expect(capturedVideosTableProps!.onUpdateVideo).toBe(mockUpdateVideo);
     });
 });

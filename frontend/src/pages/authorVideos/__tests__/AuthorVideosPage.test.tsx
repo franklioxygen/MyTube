@@ -1,5 +1,6 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { render, screen } from '@testing-library/react';
+import { type MouseEventHandler, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthorVideosPage from '../AuthorVideosPage';
 
@@ -13,12 +14,12 @@ const mockAddToCollection = vi.fn();
 const mockShowSnackbar = vi.fn();
 const mockNavigate = vi.fn();
 
-let mockVideos: any[] = [];
-let mockAuthorVideos: any[] = [];
+let mockVideos: unknown[] = [];
+let mockAuthorVideos: unknown[] = [];
 let mockAvailableTags: string[] = ['tag1', 'tag2'];
 
 // Mutable actions state — tests can override individual fields
-let mockActionsOverrides: Record<string, any> = {};
+let mockActionsOverrides: Record<string, unknown> = {};
 
 const defaultActions = () => ({
     isDeleteModalOpen: false,
@@ -41,7 +42,7 @@ const defaultActions = () => ({
 });
 
 // Mutable tag filter state
-let mockTagFilterOverrides: Record<string, any> = {};
+let mockTagFilterOverrides: Record<string, unknown> = {};
 
 const defaultTagFilter = () => ({
     availableTags: ['tag1', 'tag2'],
@@ -99,7 +100,7 @@ vi.mock('../../../hooks/useSettings', () => ({
 }));
 
 vi.mock('../../../hooks/useVideoSort', () => ({
-    useVideoSort: (props: any) => ({
+    useVideoSort: (props: { videos: unknown[]; [key: string]: unknown }) => ({
         sortedVideos: props.videos,
         sortOption: 'dateDesc',
         sortAnchorEl: null,
@@ -124,7 +125,7 @@ vi.mock('../utils', () => ({
 // --- Mock child components ---
 
 vi.mock('../../../components/TagsSidebar', () => ({
-    TagsSidebar: (props: any) => (
+    TagsSidebar: (props: { isSidebarOpen: unknown; onTagToggle: (tag: string) => void; [key: string]: unknown }) => (
         <div data-testid="tags-sidebar">
             <span data-testid="sidebar-open">{String(props.isSidebarOpen)}</span>
             <button data-testid="tag-toggle-btn" onClick={() => props.onTagToggle('tag1')}>Toggle Tag</button>
@@ -133,7 +134,7 @@ vi.mock('../../../components/TagsSidebar', () => ({
 }));
 
 vi.mock('../AuthorVideosHeader', () => ({
-    default: (props: any) => (
+    default: (props: { authorDisplayName: ReactNode; videoCountLabel: ReactNode; hasVideos: unknown; isBusy: unknown; onToggleSidebar: MouseEventHandler; onOpenTagsModal: MouseEventHandler; onOpenCreateCollectionModal: MouseEventHandler; onOpenDeleteModal: MouseEventHandler; [key: string]: unknown }) => (
         <div data-testid="author-header">
             <span data-testid="author-display-name">{props.authorDisplayName}</span>
             <span data-testid="video-count-label">{props.videoCountLabel}</span>
@@ -148,7 +149,7 @@ vi.mock('../AuthorVideosHeader', () => ({
 }));
 
 vi.mock('../AuthorVideosContent', () => ({
-    default: (props: any) => (
+    default: (props: { authorVideosLength: ReactNode; sortedVideos: unknown[]; noVideosMessage: ReactNode; noFilteredVideosMessage: ReactNode; showTagsOnThumbnail: unknown; [key: string]: unknown }) => (
         <div data-testid="author-content">
             <span data-testid="author-videos-length">{props.authorVideosLength}</span>
             <span data-testid="sorted-videos-count">{props.sortedVideos.length}</span>
@@ -160,7 +161,7 @@ vi.mock('../AuthorVideosContent', () => ({
 }));
 
 vi.mock('../../../components/ConfirmationModal', () => ({
-    default: ({ isOpen, onClose, onConfirm, title, message, confirmText, isDanger }: any) =>
+    default: ({ isOpen, onClose, onConfirm, title, message, confirmText, isDanger }: { isOpen: unknown; onClose: MouseEventHandler; onConfirm: MouseEventHandler; title: ReactNode; message: ReactNode; confirmText: ReactNode; isDanger: unknown; [key: string]: unknown }) =>
         isOpen ? (
             <div data-testid={`confirmation-modal-${title}`}>
                 <span data-testid="modal-title">{title}</span>
@@ -174,7 +175,7 @@ vi.mock('../../../components/ConfirmationModal', () => ({
 }));
 
 vi.mock('../../../components/TagsModal', () => ({
-    default: ({ open, onClose, videoTags, availableTags, onSave }: any) =>
+    default: ({ open, onClose, videoTags, availableTags, onSave }: { open: unknown; onClose: MouseEventHandler; videoTags: unknown; availableTags: unknown; onSave: (tags: string[]) => void; [key: string]: unknown }) =>
         open ? (
             <div data-testid="tags-modal">
                 <span data-testid="tags-modal-video-tags">{JSON.stringify(videoTags)}</span>

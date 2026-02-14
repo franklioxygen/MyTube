@@ -6,12 +6,12 @@ const mockGetUserYtDlpConfig = vi.fn().mockReturnValue({});
 const mockGetNetworkConfigFromUserConfig = vi.fn().mockReturnValue({});
 
 vi.mock('../../../services/storageService', () => ({
-  getSettings: (...args: any[]) => mockGetSettings(...args),
+  getSettings: (...args: unknown[]) => mockGetSettings(...args),
 }));
 
 vi.mock('../../../utils/ytDlpUtils', () => ({
-  getUserYtDlpConfig: (...args: any[]) => mockGetUserYtDlpConfig(...args),
-  getNetworkConfigFromUserConfig: (...args: any[]) => mockGetNetworkConfigFromUserConfig(...args),
+  getUserYtDlpConfig: (...args: unknown[]) => mockGetUserYtDlpConfig(...args),
+  getNetworkConfigFromUserConfig: (...args: unknown[]) => mockGetNetworkConfigFromUserConfig(...args),
 }));
 
 vi.mock('../../../utils/logger', () => ({

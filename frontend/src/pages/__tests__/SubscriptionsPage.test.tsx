@@ -5,8 +5,8 @@ import SubscriptionsPage from '../SubscriptionsPage';
 
 // ── Mutable mock data (overridden per test) ──────────────────────────────────
 
-let mockSubscriptions: any[] = [];
-let mockTasks: any[] = [];
+let mockSubscriptions: unknown[] = [];
+let mockTasks: unknown[] = [];
 const mockRefetchSubscriptions = vi.fn();
 const mockRefetchTasks = vi.fn();
 const mockShowSnackbar = vi.fn();
@@ -104,7 +104,7 @@ const renderPage = () =>
         </ThemeProvider>,
     );
 
-const makeSub = (overrides: Record<string, any> = {}) => ({
+const makeSub = (overrides: Record<string, unknown> = {}) => ({
     id: 'sub-1',
     author: 'TestAuthor',
     authorUrl: 'https://example.com/@TestAuthor',
@@ -117,7 +117,7 @@ const makeSub = (overrides: Record<string, any> = {}) => ({
     ...overrides,
 });
 
-const makeTask = (overrides: Record<string, any> = {}) => ({
+const makeTask = (overrides: Record<string, unknown> = {}) => ({
     id: 'task-1',
     subscriptionId: 'sub-1',
     authorUrl: 'https://example.com/@Author',
