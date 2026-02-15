@@ -1,6 +1,7 @@
 import { render, screen, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import VideoPlayer from '../VideoPlayer';
+import type { MockVideoMutationsReturn, CapturedVideoControlsProps, CapturedVideoInfoProps, CapturedCommentsSectionProps, CapturedUpNextSidebarProps, CapturedCollectionModalProps, CapturedConfirmationModalProps, CapturedSubscribeModalProps } from './videoPlayerTestTypes';
 
 // ---- Shared mock data ----
 
@@ -50,17 +51,6 @@ const mockScrollTo = vi.fn();
 
 let mockVideoQueryReturn: Record<string, unknown>;
 let mockAuthReturn: unknown;
-interface MockDeleteMutation {
-    isPending: boolean;
-    error: { message?: string } | null;
-    mutateAsync: typeof mockDeleteMutateAsync;
-}
-
-interface MockVideoMutationsReturn extends Record<string, unknown> {
-    deleteMutation: MockDeleteMutation;
-    _onDeleteSuccess: ((data: unknown) => void) | undefined;
-}
-
 let mockVideoMutationsReturn: MockVideoMutationsReturn;
 let mockVideoSubscriptionsReturn: Record<string, unknown>;
 let mockVideoCollectionsReturn: unknown;
@@ -131,64 +121,6 @@ vi.mock('../../hooks/useVideoRecommendations', () => ({
 vi.mock('../../utils/apiUrl', () => ({
     getBackendUrl: () => 'http://localhost:5000',
 }));
-
-// ---- Captured props interfaces ----
-
-interface CapturedVideoControlsProps extends Record<string, unknown> {
-    onEnded: () => void;
-    onToggleCinemaMode: () => void;
-    isCinemaMode: boolean;
-    autoPlay: boolean;
-    startTime: number;
-}
-
-interface CapturedVideoInfoProps extends Record<string, unknown> {
-    onAuthorClick: () => void;
-    onAvatarClick: () => void;
-    onDelete: () => void;
-    onUnsubscribe: () => void;
-    onRatingChange: (value: number) => Promise<void>;
-    onTitleSave: (title: string) => Promise<void>;
-    onTagsUpdate: (tags: string[]) => Promise<void>;
-    onToggleVisibility: () => Promise<void>;
-    onCollectionClick: (id: string) => void;
-    isDeleting: boolean;
-    deleteError: string | null;
-    availableTags: string[];
-    isSubscribed: boolean;
-}
-
-interface CapturedCommentsSectionProps extends Record<string, unknown> {
-    onToggleComments: () => void;
-    showComments: boolean;
-}
-
-interface CapturedUpNextSidebarProps extends Record<string, unknown> {
-    onAutoPlayNextChange: (value: boolean) => void;
-    onVideoClick: (id: string) => void;
-    autoPlayNext: boolean;
-}
-
-interface CapturedCollectionModalProps extends Record<string, unknown> {
-    onRemoveFromCollection: () => void;
-}
-
-interface CapturedConfirmationModalProps extends Record<string, unknown> {
-    onConfirm: () => void | Promise<void>;
-    onClose: () => void;
-    isOpen: boolean;
-    title: string;
-    isDanger: boolean;
-}
-
-interface CapturedSubscribeModalProps extends Record<string, unknown> {
-    onClose: () => void;
-    onConfirm: () => void;
-    open: boolean;
-    authorName: string;
-    url: string;
-    source: string;
-}
 
 // ---- Mock child components with data-testid and exposed callbacks ----
 

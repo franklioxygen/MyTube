@@ -2,6 +2,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ManagePage from '../ManagePage';
+import type { CapturedVideosTableProps, ConfirmationModalProps, DeleteCollectionModalProps, CollectionsTableProps } from './managePageTestTypes';
 
 // --- Module-level mock data (modifiable per test) ---
 
@@ -90,7 +91,7 @@ vi.mock('../../utils/formatUtils', () => ({
 // --- Mock child components ---
 
 vi.mock('../../components/ConfirmationModal', () => ({
-    default: (props: { isOpen: boolean; title: string; message: string; onConfirm: () => void; confirmText: string; cancelText: string; onClose: () => void }) =>
+    default: (props: ConfirmationModalProps) =>
         props.isOpen ? (
             <div data-testid="confirmation-modal">
                 <span data-testid="modal-title">{props.title}</span>
@@ -106,7 +107,7 @@ vi.mock('../../components/ConfirmationModal', () => ({
 }));
 
 vi.mock('../../components/DeleteCollectionModal', () => ({
-    default: (props: { isOpen: boolean; collectionName: string; videoCount: number; onDeleteCollectionOnly: () => void; onDeleteCollectionAndVideos: () => void; onClose: () => void }) =>
+    default: (props: DeleteCollectionModalProps) =>
         props.isOpen ? (
             <div data-testid="delete-collection-modal">
                 <span data-testid="delete-collection-name">{props.collectionName}</span>
@@ -124,24 +125,10 @@ vi.mock('../../components/DeleteCollectionModal', () => ({
         ) : null,
 }));
 
-interface CapturedVideosTableProps {
-    totalVideosCount: number;
-    searchTerm: string;
-    page: number;
-    totalSize: number;
-    onSearchChange?: (value: string) => void;
-    onDeleteClick?: (id: string) => void;
-    onRefreshThumbnail?: (id: string) => void;
-    onRefreshFileSizes?: () => void;
-    onPageChange?: (event: unknown, page: number) => void;
-    onSort?: (field: string) => void;
-    onUpdateVideo: (id: string, data: Record<string, unknown>) => void;
-}
-
 let capturedVideosTableProps: CapturedVideosTableProps | null = null;
 
 vi.mock('../../components/ManagePage/CollectionsTable', () => ({
-    default: (props: { totalCollectionsCount: number; page: number; onDelete?: (col: { id: string; name: string; videos: string[]; createdAt: string }) => void; onPageChange?: (event: unknown, page: number) => void; onSort?: (field: string) => void }) => (
+    default: (props: CollectionsTableProps) => (
         <div data-testid="collections-table">
             <span data-testid="collections-count">{props.totalCollectionsCount}</span>
             <span data-testid="collections-page">{props.page}</span>
