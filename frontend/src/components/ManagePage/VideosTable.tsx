@@ -46,9 +46,7 @@ import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
-import { api } from '../../utils/apiClient';
-import { useQueryClient } from '@tanstack/react-query';
-import { useSnackbar } from '../../contexts/SnackbarContext';
+import { useVideoReDownload } from './hooks/useVideoReDownload';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -135,10 +133,8 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [editTitle, setEditTitle] = useState<string>('');
     const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
 
-    // Re-download state
-    const [downloadingItems, setDownloadingItems] = useState<Set<string>>(new Set());
-    const queryClient = useQueryClient();
-    const { showSnackbar } = useSnackbar();
+    // Re-download hook
+    const { handleReDownload } = useVideoReDownload();
 
     // Helper function to check if a video is currently downloading
     const isVideoDownloading = (sourceUrl: string | undefined) => {
@@ -167,46 +163,6 @@ const VideosTable: React.FC<VideosTableProps> = ({
         setEditingVideoId(null);
         setEditTitle('');
     };
-
-    const handleReDownload = async (video: Video) => {
-        if (!video.sourceUrl) {
-            showSnackbar('No source URL available', 'error');
-            return;
-        }
-
-        // Prevent duplicate downloads
-        if (downloadingItems.has(video.sourceUrl)) {
-            showSnackbar('Download already in progress', 'warning');
-            return;
-        }
-
-        setDownloadingItems(prev => new Set(prev).add(video.sourceUrl));
-
-        try {
-            const response = await api.post('/download', {
-                youtubeUrl: video.sourceUrl,
-                forceDownload: true  // Key: bypasses "already exists" check
-            });
-
-            if (response.data.downloadId) {
-                showSnackbar(t('videoDownloading') || 'Video downloading');
-                queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
-            }
-        } catch (error: any) {
-            console.error('Error re-downloading video:', error);
-            showSnackbar(error.response?.data?.error || t('error'), 'error');
-        } finally {
-            setTimeout(() => {
-                setDownloadingItems(prev => {
-                    const next = new Set(prev);
-                    next.delete(video.sourceUrl);
-                    return next;
-                });
-            }, 1000);
-        }
-    };
-
-
 
     const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.checked) {
