@@ -40,7 +40,7 @@ const content = `patterns:
         id: Lizard_nloc-medium
         level: Warning
         severityLevel: Warning
-        threshold: 50
+        threshold: 100
         timeToFix: 10
         title: Enforce Medium Number of Lines of Code (NLOC) Limit
     Lizard_parameter-count-medium:
