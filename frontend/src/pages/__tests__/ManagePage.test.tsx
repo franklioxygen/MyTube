@@ -17,8 +17,7 @@ const mockFetchVideos = vi.fn();
 const mockDeleteCollection = vi.fn();
 const mockUpdateCollection = vi.fn();
 const mockShowSnackbar = vi.fn();
-const mockMutate = vi.fn();
-const mockRefreshFileSizesMutate = vi.fn();
+const mockMutate = vi.fn(), mockRefreshFileSizesMutate = vi.fn();
 
 // --- Mocks ---
 

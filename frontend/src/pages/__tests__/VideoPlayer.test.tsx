@@ -43,9 +43,7 @@ const mockUploadSubtitleMutateAsync = vi.fn();
 const mockDeleteSubtitleMutateAsync = vi.fn();
 const mockHandleTimeUpdate = vi.fn();
 const mockSetIsDeleting = vi.fn();
-const mockHandleSubtitlesToggle = vi.fn();
-const mockHandleLoopToggle = vi.fn();
-const mockScrollTo = vi.fn();
+const mockHandleSubtitlesToggle = vi.fn(), mockHandleLoopToggle = vi.fn(), mockScrollTo = vi.fn();
 
 // ---- Mutable mock state (overridable per test) ----
 
