@@ -1,5 +1,5 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SubscriptionsPage from '../SubscriptionsPage';
 
@@ -56,42 +56,8 @@ vi.mock('../../contexts/SnackbarContext', () => ({
     useSnackbar: () => ({ showSnackbar: mockShowSnackbar }),
 }));
 
-// Mock ConfirmationModal – renders buttons that expose onConfirm / onClose
-let capturedModals: Record<string, { onConfirm: () => void; onClose: () => void }> = {};
-
-vi.mock('../../components/ConfirmationModal', () => ({
-    default: ({
-        isOpen,
-        onConfirm,
-        onClose,
-        title,
-    }: {
-        isOpen: boolean;
-        onConfirm: () => void;
-        onClose: () => void;
-        title: string;
-        message: string;
-        confirmText: string;
-        cancelText: string;
-        isDanger?: boolean;
-    }) => {
-        // Store callbacks so tests can invoke them directly if needed
-        if (isOpen) {
-            capturedModals[title] = { onConfirm, onClose };
-        }
-        return isOpen ? (
-            <div data-testid={`modal-${title}`}>
-                <span data-testid={`modal-title-${title}`}>{title}</span>
-                <button data-testid={`modal-confirm-${title}`} onClick={onConfirm}>
-                    Confirm
-                </button>
-                <button data-testid={`modal-close-${title}`} onClick={onClose}>
-                    Close
-                </button>
-            </div>
-        ) : null;
-    },
-}));
+// NOTE: ConfirmationModal is NOT mocked — we render the real component
+// and interact with the real MUI Dialog.
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,7 +111,6 @@ describe('SubscriptionsPage', () => {
         mockSubscriptions = [];
         mockTasks = [];
         mockUserRole = 'admin';
-        capturedModals = {};
     });
 
     // ── 1. Page title ────────────────────────────────────────────────────
@@ -188,22 +153,23 @@ describe('SubscriptionsPage', () => {
         expect(screen.getByText('99')).toBeInTheDocument();
     });
 
-    // ── 4. Unsubscribe flow ──────────────────────────────────────────────
+    // ── 4. Unsubscribe flow (real ConfirmationModal) ──────────────────────
 
-    it('opens modal and calls api.delete on confirm unsubscribe', async () => {
+    it('opens real modal and calls api.delete on confirm unsubscribe', async () => {
         mockSubscriptions = [makeSub({ id: 'sub-99', author: 'RemoveMe' })];
         renderPage();
 
         // Click the delete icon button (has title="unsubscribe")
-        const deleteBtn = screen.getByTitle('unsubscribe');
-        fireEvent.click(deleteBtn);
+        fireEvent.click(screen.getByTitle('unsubscribe'));
 
-        // Modal should appear
-        expect(screen.getByTestId('modal-unsubscribe')).toBeInTheDocument();
+        // Real ConfirmationModal should open as a dialog
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('confirmUnsubscribe')).toBeInTheDocument();
 
-        // Confirm
+        // Confirm — use getByRole('button') to distinguish from title text
+        // (title="unsubscribe" and confirmText="unsubscribe" are the same)
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-unsubscribe'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'unsubscribe' }));
         });
 
         expect(api.delete).toHaveBeenCalledWith('/subscriptions/sub-99');
@@ -285,19 +251,19 @@ describe('SubscriptionsPage', () => {
         expect(progressBar).toHaveAttribute('aria-valuenow', '0');
     });
 
-    // ── 10. Cancel task flow ─────────────────────────────────────────────
+    // ── 10. Cancel task flow (real ConfirmationModal) ─────────────────────
 
-    it('opens cancel modal and calls api.delete on confirm', async () => {
+    it('opens real cancel modal and calls api.delete on confirm', async () => {
         mockTasks = [makeTask({ id: 'task-cancel', status: 'active' })];
         renderPage();
 
-        const cancelBtn = screen.getByTitle('cancelTask');
-        fireEvent.click(cancelBtn);
+        fireEvent.click(screen.getByTitle('cancelTask'));
 
-        expect(screen.getByTestId('modal-cancelTask')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('confirmCancelTask')).toBeInTheDocument();
 
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-cancelTask'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'cancelTask' }));
         });
 
         expect(api.delete).toHaveBeenCalledWith('/subscriptions/tasks/task-cancel');
@@ -305,19 +271,19 @@ describe('SubscriptionsPage', () => {
         expect(mockRefetchTasks).toHaveBeenCalled();
     });
 
-    // ── 11. Delete task flow (completed/cancelled tasks) ─────────────────
+    // ── 11. Delete task flow (real ConfirmationModal) ─────────────────────
 
-    it('opens delete modal and calls api.delete for a completed task', async () => {
+    it('opens real delete modal and calls api.delete for a completed task', async () => {
         mockTasks = [makeTask({ id: 'task-del', status: 'completed' })];
         renderPage();
 
-        const deleteBtn = screen.getByTitle('deleteTask');
-        fireEvent.click(deleteBtn);
+        fireEvent.click(screen.getByTitle('deleteTask'));
 
-        expect(screen.getByTestId('modal-deleteTask')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('confirmDeleteTask')).toBeInTheDocument();
 
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-deleteTask'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'deleteTask' }));
         });
 
         expect(api.delete).toHaveBeenCalledWith('/subscriptions/tasks/task-del/delete');
@@ -325,33 +291,34 @@ describe('SubscriptionsPage', () => {
         expect(mockRefetchTasks).toHaveBeenCalled();
     });
 
-    it('opens delete modal for a cancelled task', async () => {
+    it('opens real delete modal for a cancelled task', async () => {
         mockTasks = [makeTask({ id: 'task-del-cancelled', status: 'cancelled' })];
         renderPage();
 
-        const deleteBtn = screen.getByTitle('deleteTask');
-        fireEvent.click(deleteBtn);
+        fireEvent.click(screen.getByTitle('deleteTask'));
 
+        const dialog = screen.getByRole('dialog');
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-deleteTask'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'deleteTask' }));
         });
 
         expect(api.delete).toHaveBeenCalledWith('/subscriptions/tasks/task-del-cancelled/delete');
     });
 
-    // ── 12. Clear finished tasks flow ────────────────────────────────────
+    // ── 12. Clear finished tasks flow (real ConfirmationModal) ────────────
 
-    it('clears finished tasks via api.delete on confirm', async () => {
+    it('clears finished tasks via real modal confirm', async () => {
         mockTasks = [makeTask({ id: 'task-done', status: 'completed' })];
         renderPage();
 
-        const clearBtn = screen.getByText('clearFinishedTasks');
-        fireEvent.click(clearBtn);
+        fireEvent.click(screen.getByText('clearFinishedTasks'));
 
-        expect(screen.getByTestId('modal-clearFinishedTasks')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        expect(within(dialog).getByText('confirmClearFinishedTasks')).toBeInTheDocument();
 
+        // clearFinishedTasks modal has confirmText="clear" (different from title)
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-clearFinishedTasks'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'clear' }));
         });
 
         expect(api.delete).toHaveBeenCalledWith('/subscriptions/tasks/clear-finished');
@@ -436,15 +403,36 @@ describe('SubscriptionsPage', () => {
         expect(screen.getByText('never')).toBeInTheDocument();
     });
 
-    it('closes unsubscribe modal when close button is clicked', () => {
+    it('closes unsubscribe modal when cancel button is clicked', async () => {
         mockSubscriptions = [makeSub()];
         renderPage();
 
         fireEvent.click(screen.getByTitle('unsubscribe'));
-        expect(screen.getByTestId('modal-unsubscribe')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toBeInTheDocument();
 
-        fireEvent.click(screen.getByTestId('modal-close-unsubscribe'));
-        expect(screen.queryByTestId('modal-unsubscribe')).not.toBeInTheDocument();
+        // Click the cancel button in the real ConfirmationModal
+        fireEvent.click(within(dialog).getByRole('button', { name: 'cancel' }));
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
+    it('closes unsubscribe modal when close icon is clicked', async () => {
+        mockSubscriptions = [makeSub()];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('unsubscribe'));
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toBeInTheDocument();
+
+        // Click the close icon button (aria-label="close")
+        fireEvent.click(within(dialog).getByLabelText('close'));
+
+        await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
     });
 
     it('displays task playlistName instead of author when available', () => {
@@ -470,14 +458,16 @@ describe('SubscriptionsPage', () => {
         renderPage();
 
         fireEvent.click(screen.getByTitle('unsubscribe'));
+        const dialog = screen.getByRole('dialog');
+
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-unsubscribe'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'unsubscribe' }));
         });
 
         expect(mockShowSnackbar).toHaveBeenCalledWith('error');
-        // Modal should be closed even on error
+        // Modal should be closed even on error (finally block closes it)
         await waitFor(() => {
-            expect(screen.queryByTestId('modal-unsubscribe')).not.toBeInTheDocument();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
 
@@ -499,14 +489,16 @@ describe('SubscriptionsPage', () => {
         renderPage();
 
         fireEvent.click(screen.getByTitle('cancelTask'));
+        const dialog = screen.getByRole('dialog');
+
         await act(async () => {
-            fireEvent.click(screen.getByTestId('modal-confirm-cancelTask'));
+            fireEvent.click(within(dialog).getByRole('button', { name: 'cancelTask' }));
         });
 
         expect(mockShowSnackbar).toHaveBeenCalledWith('error');
     });
 
-    it('unsubscribe modal message includes "(playlistsWatcher)" for playlist subscriptions', () => {
+    it('opens unsubscribe modal for playlist subscription', () => {
         mockSubscriptions = [
             makeSub({
                 id: 'sub-plm',
@@ -518,7 +510,9 @@ describe('SubscriptionsPage', () => {
 
         fireEvent.click(screen.getByTitle('unsubscribe'));
 
-        // The modal title should be "unsubscribe" (from the mock)
-        expect(screen.getByTestId('modal-unsubscribe')).toBeInTheDocument();
+        const dialog = screen.getByRole('dialog');
+        // Modal opens with correct structure (title + message + confirm/cancel)
+        expect(within(dialog).getByText('confirmUnsubscribe')).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'unsubscribe' })).toBeInTheDocument();
     });
 });

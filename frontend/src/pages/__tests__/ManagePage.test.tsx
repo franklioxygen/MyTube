@@ -1,8 +1,8 @@
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ManagePage from '../ManagePage';
-import type { CapturedVideosTableProps, ConfirmationModalProps, DeleteCollectionModalProps, CollectionsTableProps } from './managePageTestTypes';
+import type { CapturedVideosTableProps, CollectionsTableProps } from './managePageTestTypes';
 
 // --- Module-level mock data (modifiable per test) ---
 
@@ -87,42 +87,9 @@ vi.mock('../../utils/formatUtils', () => ({
     formatSize: (bytes: number) => `${bytes} bytes`,
 }));
 
-// --- Mock child components ---
-
-vi.mock('../../components/ConfirmationModal', () => ({
-    default: (props: ConfirmationModalProps) =>
-        props.isOpen ? (
-            <div data-testid="confirmation-modal">
-                <span data-testid="modal-title">{props.title}</span>
-                <span data-testid="modal-message">{props.message}</span>
-                <button data-testid="modal-confirm" onClick={props.onConfirm}>
-                    {props.confirmText}
-                </button>
-                <button data-testid="modal-cancel" onClick={props.onClose}>
-                    {props.cancelText}
-                </button>
-            </div>
-        ) : null,
-}));
-
-vi.mock('../../components/DeleteCollectionModal', () => ({
-    default: (props: DeleteCollectionModalProps) =>
-        props.isOpen ? (
-            <div data-testid="delete-collection-modal">
-                <span data-testid="delete-collection-name">{props.collectionName}</span>
-                <span data-testid="delete-collection-video-count">{props.videoCount}</span>
-                <button data-testid="delete-collection-only" onClick={props.onDeleteCollectionOnly}>
-                    Delete Collection Only
-                </button>
-                <button data-testid="delete-collection-and-videos" onClick={props.onDeleteCollectionAndVideos}>
-                    Delete Collection and Videos
-                </button>
-                <button data-testid="delete-collection-close" onClick={props.onClose}>
-                    Close
-                </button>
-            </div>
-        ) : null,
-}));
+// --- Mock only heavy child components (tables with many context deps) ---
+// NOTE: ConfirmationModal and DeleteCollectionModal are NOT mocked.
+// They render as real components so their code is covered.
 
 let capturedVideosTableProps: CapturedVideosTableProps | null = null;
 
@@ -262,319 +229,291 @@ describe('ManagePage', () => {
         );
     };
 
-    // ---- Test 1: Page title ----
-    it('renders the page title "manageContent"', () => {
-        renderManagePage();
-        expect(screen.getByText('manageContent')).toBeInTheDocument();
-    });
+    // --- Page rendering ---
+    describe('page rendering', () => {
+        it('renders the page title "manageContent"', () => {
+            renderManagePage();
+            expect(screen.getByText('manageContent')).toBeInTheDocument();
+        });
 
-    // ---- Test 2: Scan files button for admin ----
-    it('shows scan files button for admin users', () => {
-        renderManagePage();
-        expect(screen.getByText('scanFiles')).toBeInTheDocument();
-    });
+        it('shows scan files button for admin users', () => {
+            renderManagePage();
+            expect(screen.getByText('scanFiles')).toBeInTheDocument();
+        });
 
-    // ---- Test 3: Hides scan files button for visitor ----
-    it('hides scan files button for visitor users', () => {
-        mockUserRole = 'visitor';
-        renderManagePage();
-        expect(screen.queryByText('scanFiles')).not.toBeInTheDocument();
-    });
+        it('hides scan files button for visitor users', () => {
+            mockUserRole = 'visitor';
+            renderManagePage();
+            expect(screen.queryByText('scanFiles')).not.toBeInTheDocument();
+        });
 
-    // ---- Test 4: Tab switching ----
-    it('switches between collections and videos tabs', () => {
-        renderManagePage();
+        it('renders tab labels with correct counts', () => {
+            renderManagePage();
+            expect(screen.getByRole('tab', { name: /collections \(2\)/i })).toBeInTheDocument();
+            expect(screen.getByRole('tab', { name: /videos \(2\)/i })).toBeInTheDocument();
+        });
 
-        // Collections tab is active by default (tab index 0)
-        expect(screen.getByTestId('collections-table')).toBeInTheDocument();
-        expect(screen.queryByTestId('videos-table')).not.toBeInTheDocument();
-
-        // Click the videos tab
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
-
-        expect(screen.queryByTestId('collections-table')).not.toBeInTheDocument();
-        expect(screen.getByTestId('videos-table')).toBeInTheDocument();
-
-        // Switch back to collections tab
-        const collectionsTab = screen.getByRole('tab', { name: /collections/i });
-        fireEvent.click(collectionsTab);
-
-        expect(screen.getByTestId('collections-table')).toBeInTheDocument();
-        expect(screen.queryByTestId('videos-table')).not.toBeInTheDocument();
-    });
-
-    // ---- Test 5: Collections tab renders CollectionsTable ----
-    it('renders CollectionsTable on the collections tab', () => {
-        renderManagePage();
-        expect(screen.getByTestId('collections-table')).toBeInTheDocument();
-        expect(screen.getByTestId('collections-count')).toHaveTextContent('2');
-    });
-
-    // ---- Test 6: Videos tab renders VideosTable ----
-    it('renders VideosTable on the videos tab', () => {
-        renderManagePage();
-
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
-
-        expect(screen.getByTestId('videos-table')).toBeInTheDocument();
-        expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
-    });
-
-    // ---- Test 7: Delete video flow ----
-    it('opens confirmation modal when deleting a video and calls deleteVideo on confirm', async () => {
-        renderManagePage();
-
-        // Switch to videos tab
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
-
-        // No confirmation modal initially
-        expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
-
-        // Click delete on a video
-        fireEvent.click(screen.getByTestId('videos-delete-btn'));
-
-        // Confirmation modal should appear
-        expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
-        expect(screen.getByTestId('modal-title')).toHaveTextContent('deleteVideo');
-        expect(screen.getByTestId('modal-message')).toHaveTextContent('confirmDelete');
-
-        // Confirm the deletion
-        fireEvent.click(screen.getByTestId('modal-confirm'));
-
-        await waitFor(() => {
-            expect(mockDeleteVideo).toHaveBeenCalledWith('vid-1');
+        it('renders with empty videos and collections', () => {
+            mockVideos = [];
+            mockCollections = [];
+            renderManagePage();
+            expect(screen.getByText('manageContent')).toBeInTheDocument();
+            expect(screen.getByRole('tab', { name: /collections \(0\)/i })).toBeInTheDocument();
+            expect(screen.getByRole('tab', { name: /videos \(0\)/i })).toBeInTheDocument();
         });
     });
 
-    it('closes the video delete modal when cancel is clicked', () => {
-        renderManagePage();
+    // --- Tab switching ---
+    describe('tab switching', () => {
+        it('shows collections tab by default', () => {
+            renderManagePage();
+            expect(screen.getByTestId('collections-table')).toBeInTheDocument();
+            expect(screen.queryByTestId('videos-table')).not.toBeInTheDocument();
+        });
 
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
+        it('switches to videos tab', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(screen.queryByTestId('collections-table')).not.toBeInTheDocument();
+            expect(screen.getByTestId('videos-table')).toBeInTheDocument();
+        });
 
-        fireEvent.click(screen.getByTestId('videos-delete-btn'));
-        expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByTestId('modal-cancel'));
-        expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
-    });
-
-    // ---- Test 8: Delete collection flow ----
-    it('opens DeleteCollectionModal when deleting a collection', () => {
-        renderManagePage();
-
-        expect(screen.queryByTestId('delete-collection-modal')).not.toBeInTheDocument();
-
-        fireEvent.click(screen.getByTestId('collections-delete-btn'));
-
-        expect(screen.getByTestId('delete-collection-modal')).toBeInTheDocument();
-        expect(screen.getByTestId('delete-collection-name')).toHaveTextContent('Test Collection');
-        expect(screen.getByTestId('delete-collection-video-count')).toHaveTextContent('2');
-    });
-
-    it('calls deleteCollection with deleteVideos=false when "delete collection only" is clicked', async () => {
-        renderManagePage();
-
-        fireEvent.click(screen.getByTestId('collections-delete-btn'));
-        fireEvent.click(screen.getByTestId('delete-collection-only'));
-
-        await waitFor(() => {
-            expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', false);
+        it('switches back to collections tab', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByRole('tab', { name: /collections/i }));
+            expect(screen.getByTestId('collections-table')).toBeInTheDocument();
+            expect(screen.queryByTestId('videos-table')).not.toBeInTheDocument();
         });
     });
 
-    it('calls deleteCollection with deleteVideos=true when "delete collection and videos" is clicked', async () => {
-        renderManagePage();
+    // --- Table props ---
+    describe('table props', () => {
+        it('renders CollectionsTable with correct count', () => {
+            renderManagePage();
+            expect(screen.getByTestId('collections-count')).toHaveTextContent('2');
+        });
 
-        fireEvent.click(screen.getByTestId('collections-delete-btn'));
-        fireEvent.click(screen.getByTestId('delete-collection-and-videos'));
+        it('renders VideosTable with correct count', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
+        });
 
-        await waitFor(() => {
-            expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', true);
+        it('passes totalSize to VideosTable as sum of filtered video file sizes', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            // vid-1: 1000 + vid-2: 2000 = 3000
+            expect(capturedVideosTableProps!.totalSize).toBe(3000);
+        });
+
+        it('passes onUpdateVideo to VideosTable', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(capturedVideosTableProps!.onUpdateVideo).toBe(mockUpdateVideo);
         });
     });
 
-    // ---- Test 9: Scan files confirmation modal flow ----
-    it('opens scan files confirmation modal and triggers scan on confirm', () => {
-        renderManagePage();
+    // --- Delete video flow (real ConfirmationModal) ---
+    describe('delete video flow', () => {
+        it('opens real confirmation modal when deleting a video', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
 
-        // Click scan files button
-        fireEvent.click(screen.getByText('scanFiles'));
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-        // The scan confirmation modal should appear (it is the second ConfirmationModal)
-        // We need to find the one with the scan-related title
-        const modals = screen.getAllByTestId('confirmation-modal');
-        expect(modals.length).toBeGreaterThanOrEqual(1);
+            fireEvent.click(screen.getByTestId('videos-delete-btn'));
 
-        // Confirm the scan
-        const confirmButtons = screen.getAllByTestId('modal-confirm');
-        // The scan modal is the last one rendered
-        fireEvent.click(confirmButtons[confirmButtons.length - 1]);
-
-        expect(mockMutate).toHaveBeenCalled();
-    });
-
-    it('closes scan files confirmation modal on cancel', () => {
-        renderManagePage();
-
-        fireEvent.click(screen.getByText('scanFiles'));
-
-        // Modal should be visible
-        expect(screen.getByTestId('confirmation-modal')).toBeInTheDocument();
-
-        // Cancel
-        fireEvent.click(screen.getByTestId('modal-cancel'));
-
-        // Modal should be closed
-        expect(screen.queryByTestId('confirmation-modal')).not.toBeInTheDocument();
-    });
-
-    // ---- Test 10: Search term filtering ----
-    it('passes searchTerm to VideosTable and filters videos', () => {
-        mockVideos = [
-            {
-                id: 'vid-1',
-                title: 'Alpha Video',
-                author: 'Author A',
-                date: '2024-01-01',
-                source: 'youtube' as const,
-                sourceUrl: '',
-                addedAt: '2024-01-01T00:00:00Z',
-                fileSize: '1000',
-            },
-            {
-                id: 'vid-2',
-                title: 'Beta Video',
-                author: 'Author B',
-                date: '2024-01-02',
-                source: 'local' as const,
-                sourceUrl: '',
-                addedAt: '2024-01-02T00:00:00Z',
-                fileSize: '2000',
-            },
-            {
-                id: 'vid-3',
-                title: 'Gamma Video',
-                author: 'Alpha Author',
-                date: '2024-01-03',
-                source: 'local' as const,
-                sourceUrl: '',
-                addedAt: '2024-01-03T00:00:00Z',
-                fileSize: '3000',
-            },
-        ];
-
-        renderManagePage();
-
-        // Switch to videos tab
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
-
-        // Initially all 3 videos
-        expect(screen.getByTestId('videos-count')).toHaveTextContent('3');
-
-        // Type a search term via the mock input
-        fireEvent.change(screen.getByTestId('videos-search-input'), {
-            target: { value: 'Alpha' },
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByText('deleteVideo')).toBeInTheDocument();
+            expect(within(dialog).getByText('confirmDelete')).toBeInTheDocument();
         });
 
-        // After search, the filtered count should be 2 (vid-1 title "Alpha Video" + vid-3 author "Alpha Author")
-        expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
-        expect(screen.getByTestId('videos-search-term')).toHaveTextContent('Alpha');
-    });
+        it('calls deleteVideo on confirm', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-delete-btn'));
 
-    // ---- Test 11: Pagination state management ----
-    it('manages collection pagination state', () => {
-        renderManagePage();
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('delete'));
 
-        // Default page is 1
-        expect(screen.getByTestId('collections-page')).toHaveTextContent('1');
+            await waitFor(() => {
+                expect(mockDeleteVideo).toHaveBeenCalledWith('vid-1');
+            });
+        });
 
-        // Click next page
-        fireEvent.click(screen.getByTestId('collections-page-change-btn'));
+        it('closes modal on cancel', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-delete-btn'));
 
-        expect(screen.getByTestId('collections-page')).toHaveTextContent('2');
-    });
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('cancel'));
 
-    it('manages video pagination state', () => {
-        renderManagePage();
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+        });
 
-        // Switch to videos tab
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
+        it('closes modal on close icon button', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-delete-btn'));
 
-        // Default page is 1
-        expect(screen.getByTestId('videos-page')).toHaveTextContent('1');
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByLabelText('close'));
 
-        // Click next page
-        fireEvent.click(screen.getByTestId('videos-page-change-btn'));
-
-        expect(screen.getByTestId('videos-page')).toHaveTextContent('2');
-    });
-
-    // ---- Additional edge cases ----
-
-    it('renders tab labels with correct counts', () => {
-        renderManagePage();
-
-        expect(screen.getByRole('tab', { name: /collections \(2\)/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /videos \(2\)/i })).toBeInTheDocument();
-    });
-
-    it('handles refreshThumbnail through VideosTable', async () => {
-        renderManagePage();
-
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
-
-        fireEvent.click(screen.getByTestId('videos-refresh-thumbnail-btn'));
-
-        await waitFor(() => {
-            expect(mockRefreshThumbnail).toHaveBeenCalledWith('vid-1');
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
         });
     });
 
-    it('triggers refreshFileSizes mutation through VideosTable', () => {
-        renderManagePage();
+    // --- Delete collection flow (real DeleteCollectionModal) ---
+    describe('delete collection flow', () => {
+        it('opens real DeleteCollectionModal when deleting a collection', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-delete-btn'));
 
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByText('deleteCollectionTitle')).toBeInTheDocument();
+            expect(within(dialog).getByText(/Test Collection/)).toBeInTheDocument();
+        });
 
-        fireEvent.click(screen.getByTestId('videos-refresh-file-sizes-btn'));
+        it('shows video count in delete collection modal', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-delete-btn'));
 
-        expect(mockRefreshFileSizesMutate).toHaveBeenCalled();
+            const dialog = screen.getByRole('dialog');
+            // The mock passes videos: ['vid-1', 'vid-2'] = videoCount 2
+            expect(within(dialog).getByText('2')).toBeInTheDocument();
+        });
+
+        it('calls deleteCollection with deleteVideos=false on "delete collection only"', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-delete-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('deleteCollectionOnly'));
+
+            await waitFor(() => {
+                expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', false);
+            });
+        });
+
+        it('calls deleteCollection with deleteVideos=true on "delete collection and videos"', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-delete-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('deleteCollectionAndVideos'));
+
+            await waitFor(() => {
+                expect(mockDeleteCollection).toHaveBeenCalledWith('col-1', true);
+            });
+        });
+
+        it('closes modal on cancel', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByTestId('collections-delete-btn'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('cancel'));
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+        });
     });
 
-    it('renders with empty videos and collections', () => {
-        mockVideos = [];
-        mockCollections = [];
+    // --- Scan files flow (real ConfirmationModal) ---
+    describe('scan files flow', () => {
+        it('opens scan confirmation modal on button click', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByText('scanFiles'));
 
-        renderManagePage();
+            const dialog = screen.getByRole('dialog');
+            expect(within(dialog).getByText('scanFilesConfirmMessage')).toBeInTheDocument();
+        });
 
-        expect(screen.getByText('manageContent')).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /collections \(0\)/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /videos \(0\)/i })).toBeInTheDocument();
+        it('triggers scan mutation on confirm', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByText('scanFiles'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('continue'));
+
+            expect(mockMutate).toHaveBeenCalled();
+        });
+
+        it('closes scan modal on cancel', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByText('scanFiles'));
+
+            const dialog = screen.getByRole('dialog');
+            fireEvent.click(within(dialog).getByText('cancel'));
+
+            await waitFor(() => {
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+        });
     });
 
-    it('passes totalSize to VideosTable as sum of filtered video file sizes', () => {
-        renderManagePage();
+    // --- Search filtering ---
+    describe('search filtering', () => {
+        it('filters videos by search term', () => {
+            mockVideos = [
+                { id: 'vid-1', title: 'Alpha Video', author: 'Author A', date: '2024-01-01', source: 'youtube' as const, sourceUrl: '', addedAt: '2024-01-01T00:00:00Z', fileSize: '1000' },
+                { id: 'vid-2', title: 'Beta Video', author: 'Author B', date: '2024-01-02', source: 'local' as const, sourceUrl: '', addedAt: '2024-01-02T00:00:00Z', fileSize: '2000' },
+                { id: 'vid-3', title: 'Gamma Video', author: 'Alpha Author', date: '2024-01-03', source: 'local' as const, sourceUrl: '', addedAt: '2024-01-03T00:00:00Z', fileSize: '3000' },
+            ];
 
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
 
-        // vid-1: 1000 + vid-2: 2000 = 3000
-        expect(capturedVideosTableProps!.totalSize).toBe(3000);
+            expect(screen.getByTestId('videos-count')).toHaveTextContent('3');
+
+            fireEvent.change(screen.getByTestId('videos-search-input'), { target: { value: 'Alpha' } });
+
+            expect(screen.getByTestId('videos-count')).toHaveTextContent('2');
+            expect(screen.getByTestId('videos-search-term')).toHaveTextContent('Alpha');
+        });
     });
 
-    it('passes onUpdateVideo to VideosTable', () => {
-        renderManagePage();
+    // --- Pagination ---
+    describe('pagination', () => {
+        it('manages collection pagination state', () => {
+            renderManagePage();
+            expect(screen.getByTestId('collections-page')).toHaveTextContent('1');
+            fireEvent.click(screen.getByTestId('collections-page-change-btn'));
+            expect(screen.getByTestId('collections-page')).toHaveTextContent('2');
+        });
 
-        const videosTab = screen.getByRole('tab', { name: /videos/i });
-        fireEvent.click(videosTab);
+        it('manages video pagination state', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(screen.getByTestId('videos-page')).toHaveTextContent('1');
+            fireEvent.click(screen.getByTestId('videos-page-change-btn'));
+            expect(screen.getByTestId('videos-page')).toHaveTextContent('2');
+        });
+    });
 
-        expect(capturedVideosTableProps!.onUpdateVideo).toBe(mockUpdateVideo);
+    // --- Other interactions ---
+    describe('other interactions', () => {
+        it('handles refreshThumbnail through VideosTable', async () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-refresh-thumbnail-btn'));
+            await waitFor(() => {
+                expect(mockRefreshThumbnail).toHaveBeenCalledWith('vid-1');
+            });
+        });
+
+        it('triggers refreshFileSizes mutation through VideosTable', () => {
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            fireEvent.click(screen.getByTestId('videos-refresh-file-sizes-btn'));
+            expect(mockRefreshFileSizesMutate).toHaveBeenCalled();
+        });
     });
 });

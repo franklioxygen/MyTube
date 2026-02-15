@@ -128,7 +128,7 @@ vi.mock('../../../components/TagsSidebar', () => ({
     TagsSidebar: (props: { isSidebarOpen: unknown; onTagToggle: (tag: string) => void; [key: string]: unknown }) => (
         <div data-testid="tags-sidebar">
             <span data-testid="sidebar-open">{String(props.isSidebarOpen)}</span>
-            <button data-testid="tag-toggle-btn" onClick={() => props.onTagToggle('tag1')}>Toggle Tag</button>
+            <button data-testid="tag-toggle-btn" onClick={() => { props.onTagToggle('tag1'); }}>Toggle Tag</button>
         </div>
     ),
 }));
@@ -180,7 +180,7 @@ vi.mock('../../../components/TagsModal', () => ({
             <div data-testid="tags-modal">
                 <span data-testid="tags-modal-video-tags">{JSON.stringify(videoTags)}</span>
                 <span data-testid="tags-modal-available-tags">{JSON.stringify(availableTags)}</span>
-                <button data-testid="tags-modal-save-btn" onClick={() => onSave(['newTag'])}>Save Tags</button>
+                <button data-testid="tags-modal-save-btn" onClick={() => { onSave(['newTag']); }}>Save Tags</button>
                 <button data-testid="tags-modal-close-btn" onClick={onClose}>Close Tags Modal</button>
             </div>
         ) : null,
