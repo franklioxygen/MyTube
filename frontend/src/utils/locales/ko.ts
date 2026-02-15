@@ -341,6 +341,7 @@ export const ko = {
   actions: "작업",
   deleteCollection: "컬렉션 삭제",
   deleteVideo: "동영상 삭제",
+  redownloadVideo: "동영상 다시 다운로드",
   refreshFileSizesSuccess: "파일 크기가 새로 고쳐졌습니다. 동영상 {count}개가 업데이트되었습니다.",
   refreshFileSizesFailed: " {count}개 실패.",
   refreshFileSizesSkipped: " {count}개 변경 없음 또는 사용 불가.",

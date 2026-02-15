@@ -344,6 +344,7 @@ export const ru = {
   actions: "Действия",
   deleteCollection: "Удалить коллекцию",
   deleteVideo: "Удалить видео",
+  redownloadVideo: "Скачать видео заново",
   refreshFileSizesSuccess: "Размеры файлов обновлены. Обновлено {count} видео.",
   refreshFileSizesFailed: " {count} не удалось.",
   refreshFileSizesSkipped: " {count} без изменений или недоступно.",

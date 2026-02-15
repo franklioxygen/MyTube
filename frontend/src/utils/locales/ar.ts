@@ -334,6 +334,7 @@ export const ar = {
   actions: "إجراءات",
   deleteCollection: "حذف المجموعة",
   deleteVideo: "حذف الفيديو",
+  redownloadVideo: "إعادة تحميل الفيديو",
   refreshFileSizesSuccess: "تم تحديث أحجام الملفات. تم تحديث {count} فيديو.",
   refreshFileSizesFailed: " فشل {count}.",
   refreshFileSizesSkipped: " {count} لم يتغير أو غير متاح.",

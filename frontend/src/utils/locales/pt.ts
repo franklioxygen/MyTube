@@ -349,6 +349,7 @@ export const pt = {
   actions: "Ações",
   deleteCollection: "Excluir Coleção",
   deleteVideo: "Excluir Vídeo",
+  redownloadVideo: "Baixar vídeo novamente",
   refreshFileSizesSuccess: "Tamanhos de arquivo atualizados. {count} vídeos atualizados.",
   refreshFileSizesFailed: " {count} falhas.",
   refreshFileSizesSkipped: " {count} inalterados ou indisponíveis.",

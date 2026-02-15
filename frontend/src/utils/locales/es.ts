@@ -353,6 +353,7 @@ export const es = {
   actions: "Acciones",
   deleteCollection: "Eliminar Colección",
   deleteVideo: "Eliminar Video",
+  redownloadVideo: "Volver a descargar video",
   refreshFileSizesSuccess: "Tamaños de archivo actualizados. {count} videos actualizados.",
   refreshFileSizesFailed: " {count} fallidos.",
   refreshFileSizesSkipped: " {count} sin cambios o no disponibles.",

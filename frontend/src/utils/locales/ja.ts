@@ -347,6 +347,7 @@ export const ja = {
   actions: "アクション",
   deleteCollection: "コレクションを削除",
   deleteVideo: "動画を削除",
+  redownloadVideo: "動画を再ダウンロード",
   refreshFileSizesSuccess: "ファイルサイズを更新しました。{count} 本の動画を更新しました。",
   refreshFileSizesFailed: " {count} 件失敗しました。",
   refreshFileSizesSkipped: " {count} 件変更なしまたは利用不可。",

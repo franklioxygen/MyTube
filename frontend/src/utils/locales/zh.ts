@@ -325,6 +325,7 @@ export const zh = {
   actions: "操作",
   deleteCollection: "删除合集",
   deleteVideo: "删除视频",
+  redownloadVideo: "重新下载视频",
   refreshFileSizesSuccess: "文件大小已刷新。更新了 {count} 个视频。",
   refreshFileSizesFailed: " {count} 个失败。",
   refreshFileSizesSkipped: " {count} 个未更改或不可用。",

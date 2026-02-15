@@ -1,6 +1,23 @@
 # Change Log
 
 
+## Unreleased
+
+### Fix
+
+- fix: upgrade react-virtuoso from 4.17.0 to 4.18.1 (2ec4810)
+- fix: upgrade react-router from 7.12.0 to 7.13.0 (e87750a)
+- fix: upgrade @tanstack/react-query from 5.90.16 to 5.90.20 (8a2aa74)
+- fix: upgrade framer-motion from 12.25.0 to 12.29.0 (ea4a780)
+
+### Test
+
+- test: add comprehensive tests for 9 frontend page components (452921a)
+
+### Chore
+
+- chore(deps): bump qs from 6.14.1 to 6.14.2 in /backend (0ef8892)
+
 ## v1.8.14 (2026-02-13)
 
 ### Refactor
