@@ -49,6 +49,8 @@ export interface DownloadInfo {
   totalSize?: string;
   downloadedSize?: string;
   filename?: string;
+  sourceUrl?: string;
+  type?: string;
 }
 
 export interface Comment {

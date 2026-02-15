@@ -360,6 +360,11 @@ export function handleVideoDownloadCheck(
     const verification = verifyVideoExists(downloadCheck, getVideoById);
 
     if (verification.exists && verification.video) {
+      // If forceDownload is true, allow re-download of existing video
+      if (forceDownload) {
+        return { shouldSkip: false, shouldForce: true };
+      }
+
       // Video exists, add to download history as "skipped" and return success
       addDownloadHistoryItem({
         id: Date.now().toString(),

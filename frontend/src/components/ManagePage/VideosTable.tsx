@@ -5,6 +5,7 @@ import {
     DriveFileMove,
     Edit,
     Refresh,
+    Replay,
     Search,
     VideoLibrary
 } from '@mui/icons-material';
@@ -35,6 +36,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollection } from '../../contexts/CollectionContext';
+import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useVideo } from '../../contexts/VideoContext';
 import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
@@ -44,6 +46,9 @@ import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
+import { api } from '../../utils/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 const BACKEND_URL = getBackendUrl();
 
@@ -113,6 +118,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const { userRole } = useAuth();
     const { collections, addToCollection, createCollection, fetchCollections } = useCollection();
     const { deleteVideo } = useVideo();
+    const { activeDownloads, queuedDownloads } = useDownload();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
@@ -128,6 +134,19 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>('');
     const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
+
+    // Re-download state
+    const [downloadingItems, setDownloadingItems] = useState<Set<string>>(new Set());
+    const queryClient = useQueryClient();
+    const { showSnackbar } = useSnackbar();
+
+    // Helper function to check if a video is currently downloading
+    const isVideoDownloading = (sourceUrl: string | undefined) => {
+        if (!sourceUrl) return false;
+        return [...activeDownloads, ...queuedDownloads].some(
+            download => download.sourceUrl === sourceUrl
+        );
+    };
 
     const handleEditClick = (video: Video) => {
         setEditingVideoId(video.id);
@@ -147,6 +166,44 @@ const VideosTable: React.FC<VideosTableProps> = ({
         setIsSavingTitle(false);
         setEditingVideoId(null);
         setEditTitle('');
+    };
+
+    const handleReDownload = async (video: Video) => {
+        if (!video.sourceUrl) {
+            showSnackbar('No source URL available', 'error');
+            return;
+        }
+
+        // Prevent duplicate downloads
+        if (downloadingItems.has(video.sourceUrl)) {
+            showSnackbar('Download already in progress', 'warning');
+            return;
+        }
+
+        setDownloadingItems(prev => new Set(prev).add(video.sourceUrl));
+
+        try {
+            const response = await api.post('/download', {
+                youtubeUrl: video.sourceUrl,
+                forceDownload: true  // Key: bypasses "already exists" check
+            });
+
+            if (response.data.downloadId) {
+                showSnackbar(t('videoDownloading') || 'Video downloading');
+                queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+            }
+        } catch (error: any) {
+            console.error('Error re-downloading video:', error);
+            showSnackbar(error.response?.data?.error || t('error'), 'error');
+        } finally {
+            setTimeout(() => {
+                setDownloadingItems(prev => {
+                    const next = new Set(prev);
+                    next.delete(video.sourceUrl);
+                    return next;
+                });
+            }, 1000);
+        }
     };
 
 
@@ -462,6 +519,19 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                     <TableCell>{formatSize(video.fileSize)}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">
+                                            {video.sourceUrl && !isVideoDownloading(video.sourceUrl) && (
+                                                <Tooltip
+                                                    title={t('redownloadVideo') || 'Re-download Video'}
+                                                    disableHoverListener={isTouch}
+                                                >
+                                                    <IconButton
+                                                        color="primary"
+                                                        onClick={() => handleReDownload(video)}
+                                                    >
+                                                        <Replay />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
                                             <Tooltip title={t('deleteVideo')} disableHoverListener={isTouch}>
                                                 <IconButton
                                                     color="error"
