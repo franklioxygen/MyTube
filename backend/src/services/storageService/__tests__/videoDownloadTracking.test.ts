@@ -276,6 +276,33 @@ describe('videoDownloadTracking', () => {
         expect(result.response?.videoId).toBe('v1');
       });
 
+      it('allows re-download of existing video when forceDownload is true', () => {
+        const addHistory = vi.fn();
+
+        const result = handleVideoDownloadCheck(
+          {
+            found: true,
+            status: 'exists',
+            videoId: 'v1',
+            title: 'Saved',
+            author: 'Author',
+          } as any,
+          'https://example.com',
+          vi.fn().mockReturnValue({
+            id: 'v1',
+            title: 'Saved',
+            author: 'Author',
+            videoPath: '/videos/v1.mp4',
+            thumbnailPath: '/images/v1.jpg',
+          }),
+          addHistory,
+          true // forceDownload
+        );
+
+        expect(addHistory).not.toHaveBeenCalled();
+        expect(result).toEqual({ shouldSkip: false, shouldForce: true });
+      });
+
       it('skips deleted videos when force is not enabled', () => {
         const addHistory = vi.fn();
 

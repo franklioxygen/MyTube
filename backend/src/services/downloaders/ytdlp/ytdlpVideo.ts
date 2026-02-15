@@ -553,9 +553,35 @@ export async function downloadVideo(
       "Video with same sourceUrl exists, updating subtitle information"
     );
 
+    // Delete old video file if filename changed
+    if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
+      const oldVideoPath = path.join(VIDEOS_DIR, existingVideo.videoFilename);
+      try {
+        if (fs.existsSync(oldVideoPath)) {
+          fs.unlinkSync(oldVideoPath);
+          logger.info(`Deleted old video file: ${existingVideo.videoFilename}`);
+        }
+      } catch (e) {
+        logger.error("Failed to delete old video file:", e);
+      }
+    }
+
+    // Delete old thumbnail file if being replaced with a new one
+    if (thumbnailSaved && existingVideo.thumbnailFilename && existingVideo.thumbnailFilename !== finalThumbnailFilename) {
+      const oldThumbnailDir = existingVideo.thumbnailPath?.startsWith('/videos/') ? VIDEOS_DIR : IMAGES_DIR;
+      const oldThumbnailPath = path.join(oldThumbnailDir, existingVideo.thumbnailFilename);
+      try {
+        if (fs.existsSync(oldThumbnailPath)) {
+          fs.unlinkSync(oldThumbnailPath);
+          logger.info(`Deleted old thumbnail file: ${existingVideo.thumbnailFilename}`);
+        }
+      } catch (e) {
+        logger.error("Failed to delete old thumbnail file:", e);
+      }
+    }
+
     // Use existing video's ID and preserve other fields
     videoData.id = existingVideo.id;
-    videoData.addedAt = existingVideo.addedAt;
     videoData.createdAt = existingVideo.createdAt;
 
     const updatedVideo = storageService.updateVideo(existingVideo.id, {
@@ -572,6 +598,7 @@ export async function downloadVideo(
         : existingVideo.thumbnailPath,
       duration: videoData.duration,
       fileSize: videoData.fileSize,
+      addedAt: new Date().toISOString(), // Update download date
       title: videoData.title, // Update title in case it changed
       description: videoData.description, // Update description in case it changed
       authorAvatarFilename: authorAvatarSaved
