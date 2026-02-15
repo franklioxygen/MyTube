@@ -1,5 +1,4 @@
 // Type definitions for ManagePage.test.tsx mock captured props
-// Extracted to reduce global scope complexity (lizard nloc/ccn)
 
 export interface CapturedVideosTableProps {
     totalVideosCount: number;
