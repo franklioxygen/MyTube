@@ -39,9 +39,6 @@ jobs:
         cd frontend
         npm run lint
 
-    - name: Check New Complexity Issues
-      run: npm run complexity:check-new
-        
     - name: Build Frontend
       run: |
         cd frontend

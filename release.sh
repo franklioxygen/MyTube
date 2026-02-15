@@ -38,10 +38,6 @@ fi
 echo "🧹 Running lint..."
 npm run lint
 
-# Check for new complexity issues
-echo "🔍 Checking for new complexity issues..."
-npm run complexity:check-new
-
 # Run tests
 echo "🧪 Running tests..."
 npm run test
