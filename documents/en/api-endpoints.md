@@ -104,6 +104,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/settings/cloudflared/status` - Get Cloudflared tunnel status
 - `POST /api/settings/tags/rename` - Rename tag
   - Body: `{ oldTag: string, newTag: string }`
+- `POST /api/settings/telegram/test` - Send a test Telegram notification
+  - Body: `{ botToken: string, chatId: string }`
 
 ## Password & Session
 

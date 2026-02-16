@@ -41,6 +41,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **TMDB Integration**: Configure your TMDB API key in settings to enable automatic metadata scraping for local video files. The scraper intelligently parses filenames to extract titles and matches them with TMDB database.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
 - **Task Hooks**: Execute custom shell scripts at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
+- **Telegram Notifications**: Receive instant notifications via Telegram bot when a download task succeeds or fails.
 - **Browser Extension**: A Chrome extension to download videos directly from your browser. Supports all yt-dlp supported sites.
 
 ## Browser Extension

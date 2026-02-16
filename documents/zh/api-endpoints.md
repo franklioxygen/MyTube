@@ -104,6 +104,8 @@
 - `GET /api/settings/cloudflared/status` - 获取 Cloudflared 隧道状态
 - `POST /api/settings/tags/rename` - 重命名标签
   - 请求体: `{ oldTag: string, newTag: string }`
+- `POST /api/settings/telegram/test` - 发送 Telegram 测试通知
+  - 请求体: `{ botToken: string, chatId: string }`
 
 ## 密码与会话
 
