@@ -32,7 +32,16 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+const TELEGRAM_BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]+$/;
+const TELEGRAM_CHAT_ID_RE = /^-?\d+$/;
+
 async function sendMessage(botToken: string, chatId: string, text: string): Promise<void> {
+  if (!TELEGRAM_BOT_TOKEN_RE.test(botToken)) {
+    throw new Error("Invalid Telegram bot token format");
+  }
+  if (!TELEGRAM_CHAT_ID_RE.test(chatId)) {
+    throw new Error("Invalid Telegram chat ID format");
+  }
   const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   const response = await fetch(url, {
     method: "POST",

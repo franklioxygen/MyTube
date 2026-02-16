@@ -28,7 +28,7 @@ describe("TelegramService", () => {
 
   const enabledSettings = {
     telegramEnabled: true,
-    telegramBotToken: "test-token",
+    telegramBotToken: "123456789:ABC-def",
     telegramChatId: "123456",
     telegramNotifyOnSuccess: true,
     telegramNotifyOnFail: true,
@@ -47,7 +47,7 @@ describe("TelegramService", () => {
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, options] = mockFetch.mock.calls[0];
-      expect(url).toBe("https://api.telegram.org/bottest-token/sendMessage");
+      expect(url).toBe("https://api.telegram.org/bot123456789:ABC-def/sendMessage");
       const body = JSON.parse(options.body);
       expect(body.chat_id).toBe("123456");
       expect(body.parse_mode).toBe("HTML");
@@ -252,12 +252,12 @@ describe("TelegramService", () => {
     it("should return ok: true on success", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(enabledSettings);
 
-      const result = await TelegramService.sendTestMessage("token", "chat-id");
+      const result = await TelegramService.sendTestMessage("123456789:ABC-def", "123456");
 
       expect(result).toEqual({ ok: true });
       expect(mockFetch).toHaveBeenCalledOnce();
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(body.chat_id).toBe("chat-id");
+      expect(body.chat_id).toBe("123456");
       expect(body.text).toContain("test successful");
     });
 
@@ -269,7 +269,7 @@ describe("TelegramService", () => {
         json: () => Promise.resolve({ description: "Unauthorized" }),
       });
 
-      const result = await TelegramService.sendTestMessage("bad-token", "chat-id");
+      const result = await TelegramService.sendTestMessage("123456789:InvalidToken", "123456");
 
       expect(result.ok).toBe(false);
       expect(result.error).toContain("Unauthorized");
@@ -281,7 +281,7 @@ describe("TelegramService", () => {
         language: "zh",
       });
 
-      await TelegramService.sendTestMessage("token", "chat-id");
+      await TelegramService.sendTestMessage("123456789:ABC-def", "123456");
 
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.text).toContain("通知测试成功");
