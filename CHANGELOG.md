@@ -1,14 +1,106 @@
 # Change Log
 
 
-## Unreleased
+## v1.8.23 (2026-02-17)
+
+### Feat
+
+- feat: Add Telegram notification support (67a4c95)
+
+### Refactor
+
+- refactor: Improve handling of deduplicating filenames (b1a7487)
+
+## v1.8.22 (2026-02-15)
 
 ### Fix
 
+- fix: Update Telegram bot token and chat ID format validation (7c13709)
+
+## v1.8.21 (2026-02-15)
+
+### Chore
+
+- chore: release v1.8.21 (902807c)
+
+## v1.8.20 (2026-02-15)
+
+### Feat
+
+- feat: Build multi-architecture images using buildx (4850c80)
+
+## v1.8.19 (2026-02-15)
+
+### Test
+
+- test: update test cases (b5fff7b)
+
+## v1.8.18 (2026-02-15)
+
+### Refactor
+
+- refactor: Remove redundant video addedAt field (5260659)
+
+### Chore
+
+- chore: Remove complexity check from workflows and release script (33b0e77)
+- chore: Remove lizard tool configurations and baseline (75e9008)
+
+## v1.8.17 (2026-02-15)
+
+### Chore
+
+- chore(deps): Update package versions and add tests (dede00c)
+
+## v1.8.16 (2026-02-15)
+
+### Feat
+
+- feat: Add re-download functionality for videos (dcc74a1)
+
+### Fix
+
+- fix: Increase NLOC threshold to 100 (0d9bd4d)
+- fix: Update Lizard_nloc-medium threshold to 100 (b41c40d)
+
+### Refactor
+
+- refactor: Extract re-download logic into custom hook to reduce complexity (6d987ee)
+
+### Test
+
+- test: Add re-download feature for videos with sourceUrl (0d3d696)
+
+### Chore
+
+- chore: Update lizard complexity baseline (3e3822e)
+- chore: Increase lizard NLOC limit from 50 to 100 (5d436fb)
+- chore: Update file extensions in test files (eefd00c)
+- chore(deps): bump qs in /backend/bgutil-ytdlp-pot-provider/server (7b31cbf)
+
+## v1.8.15 (2026-02-14)
+
+### Feat
+
+- feat: Add type definitions for mock captured props (7cf0e58)
+- feat: Add new lizard patterns for medium thresholds (6c08015)
+
+### Fix
+
+- fix: resolve ESLint errors in test files (9961330)
 - fix: upgrade react-virtuoso from 4.17.0 to 4.18.1 (2ec4810)
 - fix: upgrade react-router from 7.12.0 to 7.13.0 (e87750a)
 - fix: upgrade @tanstack/react-query from 5.90.16 to 5.90.20 (8a2aa74)
 - fix: upgrade framer-motion from 12.25.0 to 12.29.0 (ea4a780)
+
+### Refactor
+
+- refactor: update types from 'any' to 'unknown' (9531049)
+
+### Style
+
+- style: Combine multiple variable assignments in tests pages (094cadd)
+- style: Remove unnecessary empty patterns in lizard.yaml (11a5740)
 
 ### Test
 
@@ -16,6 +108,7 @@
 
 ### Chore
 
+- chore: update lizard baseline with test file complexity issues (2e6d35f)
 - chore(deps): bump qs from 6.14.1 to 6.14.2 in /backend (0ef8892)
 
 ## v1.8.14 (2026-02-13)
