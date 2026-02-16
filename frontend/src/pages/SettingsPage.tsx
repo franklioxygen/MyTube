@@ -447,6 +447,12 @@ const SettingsPage: React.FC = () => {
             <AdvancedSettings
                 debugMode={debugMode}
                 onDebugModeChange={setDebugMode}
+                telegramEnabled={settings.telegramEnabled}
+                telegramBotToken={settings.telegramBotToken}
+                telegramChatId={settings.telegramChatId}
+                telegramNotifyOnSuccess={settings.telegramNotifyOnSuccess}
+                telegramNotifyOnFail={settings.telegramNotifyOnFail}
+                onChange={handleChange}
             />
             <HookSettings
                 settings={settings}

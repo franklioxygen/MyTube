@@ -43,6 +43,7 @@ import {
     migrateData,
     patchSettings,
     renameTag,
+    testTelegramNotification,
 } from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
 
@@ -88,6 +89,9 @@ router.post(
 );
 router.post("/delete-cookies", asyncHandler(deleteCookies));
 router.get("/check-cookies", asyncHandler(checkCookies));
+
+// Telegram routes
+router.post("/telegram/test", asyncHandler(testTelegramNotification));
 
 // Hook routes
 router.post("/hooks/:name", uploadHookFile, asyncHandler(uploadHook));

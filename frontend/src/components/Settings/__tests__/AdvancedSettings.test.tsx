@@ -20,6 +20,7 @@ describe('AdvancedSettings', () => {
     const defaultProps = {
         debugMode: false,
         onDebugModeChange: vi.fn(),
+        onChange: vi.fn(),
     };
 
     it('should render switch', () => {

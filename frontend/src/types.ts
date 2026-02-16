@@ -117,4 +117,9 @@ export interface Settings {
   playFromBeginning?: boolean;
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
+  telegramEnabled?: boolean;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramNotifyOnSuccess?: boolean;
+  telegramNotifyOnFail?: boolean;
 }

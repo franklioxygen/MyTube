@@ -428,6 +428,14 @@ class DownloadManager {
         thumbnailPath: videoData.thumbnailPath,
       });
 
+      import("./telegramService").then(({ TelegramService }) =>
+        TelegramService.notifyTaskComplete({
+          taskTitle: finalTitle || task.title,
+          status: "success",
+          sourceUrl: task.sourceUrl,
+        })
+      ).catch(() => {});
+
       // Trigger Cloud Upload (Async, don't await to block queue processing?)
       // Actually, we might want to await it if we want to ensure it's done before resolving,
       // but that would block the download queue.
@@ -474,6 +482,15 @@ class DownloadManager {
         status: "fail",
         error: error instanceof Error ? error.message : String(error),
       });
+
+      import("./telegramService").then(({ TelegramService }) =>
+        TelegramService.notifyTaskComplete({
+          taskTitle: task.title,
+          status: "fail",
+          sourceUrl: task.sourceUrl,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      ).catch(() => {});
 
       task.reject(error);
     } finally {

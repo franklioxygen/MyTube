@@ -45,6 +45,11 @@ export interface Settings {
   theme?: 'light' | 'dark' | 'system';
   showThemeButton?: boolean;
   fastRetryMode?: boolean;
+  telegramEnabled?: boolean;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramNotifyOnSuccess?: boolean;
+  telegramNotifyOnFail?: boolean;
 }
 
 export const defaultSettings: Settings = {
@@ -74,4 +79,9 @@ export const defaultSettings: Settings = {
   showTagsOnThumbnail: true,
   playFromBeginning: false,
   showThemeButton: true,
+  telegramEnabled: false,
+  telegramBotToken: "",
+  telegramChatId: "",
+  telegramNotifyOnSuccess: true,
+  telegramNotifyOnFail: true,
 };

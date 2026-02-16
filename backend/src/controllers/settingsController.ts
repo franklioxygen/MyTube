@@ -505,3 +505,22 @@ export const renameTag = async (req: Request, res: Response): Promise<void> => {
 
   res.json({ success: true, result });
 };
+
+export const testTelegramNotification = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { botToken, chatId } = req.body;
+  if (!botToken || !chatId) {
+    res.status(400).json({ error: "botToken and chatId are required" });
+    return;
+  }
+
+  const { TelegramService } = await import("../services/telegramService");
+  const result = await TelegramService.sendTestMessage(botToken, chatId);
+  if (result.ok) {
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: result.error });
+  }
+};

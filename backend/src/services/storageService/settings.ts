@@ -143,6 +143,11 @@ const WHITELISTED_SETTINGS = [
   "theme",
   "showThemeButton",
   "fastRetryMode",
+  "telegramEnabled",
+  "telegramBotToken",
+  "telegramChatId",
+  "telegramNotifyOnSuccess",
+  "telegramNotifyOnFail",
 ];
 
 export function saveSettings(newSettings: Record<string, any>): void {
