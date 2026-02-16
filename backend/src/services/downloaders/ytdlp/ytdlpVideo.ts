@@ -166,7 +166,7 @@ export async function downloadVideo(
     });
 
     const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
-    const newThumbnailPath = moveThumbnailsToVideoFolder
+    let newThumbnailPath = moveThumbnailsToVideoFolder
       ? path.join(VIDEOS_DIR, finalThumbnailFilename)
       : path.join(IMAGES_DIR, finalThumbnailFilename);
 
@@ -207,7 +207,7 @@ export async function downloadVideo(
 
     // Update the video path to use the correct extension based on merge format
     const videoExtension = mergeOutputFormat;
-    const newVideoPathWithFormat = newVideoPath.replace(
+    let newVideoPathWithFormat = newVideoPath.replace(
       /\.mp4$/,
       `.${videoExtension}`
     );
@@ -215,6 +215,27 @@ export async function downloadVideo(
       /\.mp4$/,
       `.${videoExtension}`
     );
+
+    // If file already exists (e.g. redownload), deduplicate the filename
+    if (fs.existsSync(newVideoPathWithFormat)) {
+      let counter = 1;
+      const ext = `.${videoExtension}`;
+      const basePath = newVideoPathWithFormat.replace(new RegExp(`\\${ext}$`), "");
+      const baseName = finalVideoFilename.replace(new RegExp(`\\${ext}$`), "");
+      while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+        counter++;
+      }
+      newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
+      finalVideoFilename = `${baseName}_${counter}${ext}`;
+      finalThumbnailFilename = finalThumbnailFilename.replace(
+        /\.jpg$/,
+        `_${counter}.jpg`
+      );
+      newThumbnailPath = moveThumbnailsToVideoFolder
+        ? path.join(VIDEOS_DIR, finalThumbnailFilename)
+        : path.join(IMAGES_DIR, finalThumbnailFilename);
+      logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
+    }
 
     // Update output path in flags
     flags.output = newVideoPathWithFormat;

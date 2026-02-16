@@ -388,14 +388,32 @@ export class MissAVDownloader extends BaseDownloader {
       const newVideoFilename = `${newSafeBaseFilename}.${mergeOutputFormat}`;
       const newThumbnailFilename = `${newSafeBaseFilename}.jpg`;
 
-      const newVideoPath = path.join(VIDEOS_DIR, newVideoFilename);
+      let finalVideoFilename = newVideoFilename;
+      let finalThumbnailFilename = newThumbnailFilename;
+      let newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
       const settings = storageService.getSettings();
       const moveThumbnailsToVideoFolder =
         settings.moveThumbnailsToVideoFolder || false;
       const thumbnailDir = moveThumbnailsToVideoFolder
         ? VIDEOS_DIR
         : IMAGES_DIR;
-      const newThumbnailPath = path.join(thumbnailDir, newThumbnailFilename);
+
+      // If file already exists (e.g. redownload), deduplicate the filename
+      if (fs.existsSync(newVideoPath)) {
+        let counter = 1;
+        const ext = `.${mergeOutputFormat}`;
+        const basePath = newVideoPath.replace(new RegExp(`\\${ext}$`), "");
+        const baseName = newSafeBaseFilename;
+        while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+          counter++;
+        }
+        newVideoPath = `${basePath}_${counter}${ext}`;
+        finalVideoFilename = `${baseName}_${counter}${ext}`;
+        finalThumbnailFilename = `${baseName}_${counter}.jpg`;
+        logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
+      }
+
+      let newThumbnailPath = path.join(thumbnailDir, finalThumbnailFilename);
 
       // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
@@ -598,14 +616,14 @@ export class MissAVDownloader extends BaseDownloader {
         date: videoDate,
         source: "missav",
         sourceUrl: url,
-        videoFilename: newVideoFilename,
-        thumbnailFilename: thumbnailSaved ? newThumbnailFilename : undefined,
+        videoFilename: finalVideoFilename,
+        thumbnailFilename: thumbnailSaved ? finalThumbnailFilename : undefined,
         thumbnailUrl: thumbnailUrl || undefined,
-        videoPath: `/videos/${newVideoFilename}`,
+        videoPath: `/videos/${finalVideoFilename}`,
         thumbnailPath: thumbnailSaved
           ? moveThumbnailsToVideoFolder
-            ? `/videos/${newThumbnailFilename}`
-            : `/images/${newThumbnailFilename}`
+            ? `/videos/${finalThumbnailFilename}`
+            : `/images/${finalThumbnailFilename}`
           : null,
         duration: duration,
         fileSize: fileSize,
