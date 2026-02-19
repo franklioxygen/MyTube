@@ -227,6 +227,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                 volumeSliderRef={volume.volumeSliderRef}
                 subtitles={subtitles}
                 subtitlesEnabled={subtitlesHook.subtitlesEnabled}
+                selectedSubtitleIndices={subtitlesHook.selectedSubtitleIndices}
                 isLooping={videoPlayer.isLooping}
                 subtitleMenuAnchor={subtitlesHook.subtitleMenuAnchor}
                 onPlayPause={videoPlayer.handlePlayPause}

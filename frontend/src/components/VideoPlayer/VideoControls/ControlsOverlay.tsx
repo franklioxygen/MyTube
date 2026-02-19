@@ -22,6 +22,7 @@ interface ControlsOverlayProps {
     volumeSliderRef: React.RefObject<HTMLDivElement | null>;
     subtitles: Array<{ language: string; filename: string; path: string }>;
     subtitlesEnabled: boolean;
+    selectedSubtitleIndices: number[];
     isLooping: boolean;
     subtitleMenuAnchor: HTMLElement | null;
     onPlayPause: () => void;
@@ -59,6 +60,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     volumeSliderRef,
     subtitles,
     subtitlesEnabled,
+    selectedSubtitleIndices,
     isLooping,
     subtitleMenuAnchor,
     onPlayPause,
@@ -145,6 +147,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                     <SubtitleControl
                         subtitles={subtitles}
                         subtitlesEnabled={subtitlesEnabled}
+                        selectedSubtitleIndices={selectedSubtitleIndices}
                         subtitleMenuAnchor={subtitleMenuAnchor}
                         onSubtitleClick={onSubtitleClick}
                         onCloseMenu={onCloseSubtitleMenu}
@@ -152,6 +155,7 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         showOnMobile={true}
                         onUploadSubtitle={onUploadSubtitle}
                         onDeleteSubtitle={onDeleteSubtitle}
+                        isFullscreen={isFullscreen}
                     />
 
                     {/* Right Side: Fullscreen, Cinema Mode (large screens only), Subtitle, Loop (Desktop only) */}
@@ -174,12 +178,14 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                         <SubtitleControl
                             subtitles={subtitles}
                             subtitlesEnabled={subtitlesEnabled}
+                            selectedSubtitleIndices={selectedSubtitleIndices}
                             subtitleMenuAnchor={subtitleMenuAnchor}
                             onSubtitleClick={onSubtitleClick}
                             onCloseMenu={onCloseSubtitleMenu}
                             onSelectSubtitle={onSelectSubtitle}
                             onUploadSubtitle={onUploadSubtitle}
                             onDeleteSubtitle={onDeleteSubtitle}
+                            isFullscreen={isFullscreen}
                         />
 
                         <LoopControl

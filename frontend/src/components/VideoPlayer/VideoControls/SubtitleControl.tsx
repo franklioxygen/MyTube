@@ -1,6 +1,7 @@
 import { Close, Subtitles, SubtitlesOff } from '@mui/icons-material';
 import {
     Button,
+    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
@@ -20,6 +21,7 @@ import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 interface SubtitleControlProps {
     subtitles: Array<{ language: string; filename: string; path: string }>;
     subtitlesEnabled: boolean;
+    selectedSubtitleIndices: number[];
     subtitleMenuAnchor: HTMLElement | null;
     onSubtitleClick: (event: React.MouseEvent<HTMLElement>) => void;
     onCloseMenu: () => void;
@@ -27,18 +29,21 @@ interface SubtitleControlProps {
     showOnMobile?: boolean;
     onUploadSubtitle?: (file: File) => void;
     onDeleteSubtitle?: (index: number) => void | Promise<void>;
+    isFullscreen?: boolean;
 }
 
 const SubtitleControl: React.FC<SubtitleControlProps> = ({
     subtitles,
     subtitlesEnabled,
+    selectedSubtitleIndices,
     subtitleMenuAnchor,
     onSubtitleClick,
     onCloseMenu,
     onSelectSubtitle,
     showOnMobile = false,
     onUploadSubtitle,
-    onDeleteSubtitle
+    onDeleteSubtitle,
+    isFullscreen = false
 }) => {
     const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
@@ -101,31 +106,44 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
                 anchorEl={subtitleMenuAnchor}
                 open={Boolean(subtitleMenuAnchor)}
                 onClose={onCloseMenu}
+                container={isFullscreen ? document.fullscreenElement as HTMLElement : undefined}
             >
                 {hasSubtitles && (
                     <MenuItem onClick={() => onSelectSubtitle(-1)}>
                         {t('off') || 'Off'}
                     </MenuItem>
                 )}
-                {subtitles?.map((subtitle, index) => (
-                    <MenuItem
-                        key={`${subtitle.language}-${index}`}
-                        onClick={() => onSelectSubtitle(index)}
-                        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                    >
-                        <span>{getSubtitleLanguageLabel(subtitle.language, subtitle.path)}</span>
-                        {onDeleteSubtitle && (
-                            <IconButton
+                {subtitles?.map((subtitle, index) => {
+                    const isChecked = selectedSubtitleIndices.includes(index);
+                    const isDisabled = !isChecked && selectedSubtitleIndices.length >= 2;
+                    return (
+                        <MenuItem
+                            key={`${subtitle.language}-${index}`}
+                            onClick={() => onSelectSubtitle(index)}
+                            disabled={isDisabled}
+                            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                            <Checkbox
+                                checked={isChecked}
                                 size="small"
-                                onClick={(e) => handleDeleteClick(e, index)}
-                                sx={{ ml: 0.5 }}
-                                aria-label={t('delete') || 'Delete'}
-                            >
-                                <Close fontSize="small" />
-                            </IconButton>
-                        )}
-                    </MenuItem>
-                ))}
+                                disableRipple
+                                sx={{ p: 0, mr: 1 }}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <span style={{ flex: 1 }}>{getSubtitleLanguageLabel(subtitle.language, subtitle.path)}</span>
+                            {onDeleteSubtitle && (
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => handleDeleteClick(e, index)}
+                                    sx={{ ml: 0.5 }}
+                                    aria-label={t('delete') || 'Delete'}
+                                >
+                                    <Close fontSize="small" />
+                                </IconButton>
+                            )}
+                        </MenuItem>
+                    );
+                })}
                 {onUploadSubtitle && [
                     <MenuItem key="upload" onClick={handleUploadClick}>
                         {t('uploadSubtitle') || 'Upload Subtitle'}
