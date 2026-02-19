@@ -6,6 +6,7 @@ import CinemaModeControl from './CinemaModeControl';
 import FullscreenControl from './FullscreenControl';
 import LoopControl from './LoopControl';
 import PlaybackControls from './PlaybackControls';
+import SpeedControl from './SpeedControl';
 import ProgressBar from './ProgressBar';
 import SubtitleControl from './SubtitleControl';
 import VolumeControl from './VolumeControl';
@@ -42,6 +43,8 @@ interface ControlsOverlayProps {
     onToggleFullscreen: () => void;
     onToggleLoop: () => void;
     onControlsMouseEnter: () => void;
+    playbackRate: number;
+    onPlaybackRateChange: (rate: number) => void;
     isCinemaMode?: boolean;
     onToggleCinemaMode?: () => void;
     onUploadSubtitle?: (file: File) => void;
@@ -80,6 +83,8 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
     onToggleFullscreen,
     onToggleLoop,
     onControlsMouseEnter,
+    playbackRate,
+    onPlaybackRateChange,
     isCinemaMode = false,
     onToggleCinemaMode,
     onUploadSubtitle,
@@ -201,9 +206,12 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 isPlaying={isPlaying}
                 onPlayPause={onPlayPause}
                 onSeek={onSeek}
+                playbackRate={playbackRate}
+                onPlaybackRateChange={onPlaybackRateChange}
+                isFullscreen={isFullscreen}
             />
 
-            {/* Mobile: Fullscreen, Loop */}
+            {/* Mobile: Fullscreen, Loop, Speed */}
             <Stack direction="row" spacing={0.5} alignItems="center" sx={{ display: { xs: 'flex', sm: 'none' }, ml: 1, justifyContent: 'center', mt: 1 }}>
                 <FullscreenControl
                     isFullscreen={isFullscreen}
@@ -213,6 +221,12 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
                 <LoopControl
                     isLooping={isLooping}
                     onToggle={onToggleLoop}
+                />
+
+                <SpeedControl
+                    playbackRate={playbackRate}
+                    onPlaybackRateChange={onPlaybackRateChange}
+                    isFullscreen={isFullscreen}
                 />
             </Stack>
         </Box>

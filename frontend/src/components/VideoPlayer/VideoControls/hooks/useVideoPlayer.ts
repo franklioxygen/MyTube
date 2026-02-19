@@ -20,6 +20,7 @@ export const useVideoPlayer = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLooping, setIsLooping] = useState<boolean>(autoLoop);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -177,6 +178,14 @@ export const useVideoPlayer = ({
     setIsDragging(true);
   };
 
+  const handlePlaybackRateChange = useCallback((rate: number) => {
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.playbackRate = rate;
+    }
+    setPlaybackRate(rate);
+  }, []);
+
   const handleToggleLoop = () => {
     if (videoRef.current) {
       const newState = !isLooping;
@@ -283,12 +292,14 @@ export const useVideoPlayer = ({
     currentTime,
     duration,
     isDragging,
+    playbackRate,
     handlePlayPause,
     handleSeek,
     handleProgressChange,
     handleProgressChangeCommitted,
     handleProgressMouseDown,
     handleToggleLoop,
+    handlePlaybackRateChange,
     handleTimeUpdate,
     handleLoadedMetadata,
     handleCanPlay,

@@ -6,20 +6,25 @@ import {
     KeyboardDoubleArrowRight,
     Replay10
 } from '@mui/icons-material';
-import { IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
+import { Box, IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import React from 'react';
+import SpeedControl from './SpeedControl';
 
 interface PlaybackControlsProps {
     isPlaying: boolean;
     onPlayPause: () => void;
     onSeek: (seconds: number) => void;
+    playbackRate: number;
+    onPlaybackRateChange: (rate: number) => void;
+    isFullscreen?: boolean;
 }
 
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
-    onSeek
+    onSeek,
+    playbackRate,
+    onPlaybackRateChange,
+    isFullscreen = false
 }) => {
-    // Unused translation hook
-    // const { t } = useLanguage();
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
 
     return (
@@ -84,9 +89,15 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
                     <KeyboardDoubleArrowRight />
                 </IconButton>
             </Tooltip>
+            <Box sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>
+                <SpeedControl
+                    playbackRate={playbackRate}
+                    onPlaybackRateChange={onPlaybackRateChange}
+                    isFullscreen={isFullscreen}
+                />
+            </Box>
         </Stack>
     );
 };
 
 export default PlaybackControls;
-

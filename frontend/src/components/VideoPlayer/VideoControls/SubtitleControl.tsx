@@ -128,7 +128,6 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
                                 size="small"
                                 disableRipple
                                 sx={{ p: 0, mr: 1 }}
-                                onClick={(e) => e.stopPropagation()}
                             />
                             <span style={{ flex: 1 }}>{getSubtitleLanguageLabel(subtitle.language, subtitle.path)}</span>
                             {onDeleteSubtitle && (
