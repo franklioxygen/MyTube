@@ -1,11 +1,24 @@
 # Change Log
 
 
+## v1.8.24 (2026-02-19)
+
+### Feat
+
+- feat: Add speed control to VideoPlayer controls (8f6d2e0)
+- feat: Add selectedSubtitleIndices to ControlsOverlay and SubtitleControl (c6cb3f7)
+
+### Test
+
+- test: Add SpeedControl component tests (be5a508)
+- test: Update subtitle control tests and add useSubtitles tests (03ef069)
+
 ## v1.8.23 (2026-02-17)
 
 ### Feat
 
 - feat: Add Telegram notification support (67a4c95)
+- feat: Add Telegram notification support and improve filename handling (20368be)
 
 ### Refactor
 
@@ -18,6 +31,14 @@
 - fix: Update Telegram bot token and chat ID format validation (7c13709)
 
 ## v1.8.21 (2026-02-15)
+
+### Feat
+
+- feat: Add Telegram notification settings and test functionality (b9d232d)
+
+### Test
+
+- test: Add tests for telegram notifications in AdvancedSettings (9dadf04)
 
 ### Chore
 
