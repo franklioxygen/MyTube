@@ -55,7 +55,7 @@ async function sendMessage(botToken: string, chatId: string, text: string): Prom
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error((body as any).description || `Telegram API error: ${response.status}`);
+    throw new Error((body as { description?: string }).description || `Telegram API error: ${response.status}`);
   }
 }
 
@@ -88,8 +88,8 @@ export class TelegramService {
       }
 
       await sendMessage(settings.telegramBotToken, settings.telegramChatId, text);
-    } catch (error: any) {
-      logger.error(`[TelegramService] Failed to send notification: ${error.message}`);
+    } catch (error: unknown) {
+      logger.error(`[TelegramService] Failed to send notification: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -99,8 +99,8 @@ export class TelegramService {
       const s = getStrings(settings.language);
       await sendMessage(botToken, chatId, `\u2705 ${s.testSuccess}`);
       return { ok: true };
-    } catch (error: any) {
-      return { ok: false, error: error.message };
+    } catch (error: unknown) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 }

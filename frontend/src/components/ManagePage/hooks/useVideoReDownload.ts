@@ -35,9 +35,10 @@ export const useVideoReDownload = () => {
                 showSnackbar(t('videoDownloading') || 'Video downloading');
                 queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error re-downloading video:', error);
-            showSnackbar(error.response?.data?.error || t('error'), 'error');
+            const axiosError = error as { response?: { data?: { error?: string } } };
+            showSnackbar(axiosError.response?.data?.error || t('error'), 'error');
         } finally {
             setTimeout(() => {
                 setDownloadingItems(prev => {

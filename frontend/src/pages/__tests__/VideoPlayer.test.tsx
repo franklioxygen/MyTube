@@ -187,7 +187,7 @@ const localStorageMock = (() => {
         getItem: vi.fn((key: string) => store[key] ?? null),
         setItem: vi.fn((key: string, value: string) => { store[key] = value.toString(); }),
         clear: () => { store = {}; },
-        removeItem: (key: string) => { delete store[key]; },
+        removeItem: (key: string) => { const { [key]: _removed, ...rest } = store; store = rest; },
     };
 })();
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });

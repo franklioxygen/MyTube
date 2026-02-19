@@ -146,7 +146,7 @@ describe("TelegramService", () => {
 
     it("should send success notification when telegramNotifyOnSuccess is undefined (default)", async () => {
       const settings = { ...enabledSettings };
-      delete (settings as any).telegramNotifyOnSuccess;
+      delete (settings as Record<string, unknown>).telegramNotifyOnSuccess;
       vi.mocked(storageService.getSettings).mockReturnValue(settings);
 
       await TelegramService.notifyTaskComplete({
@@ -159,7 +159,7 @@ describe("TelegramService", () => {
 
     it("should send fail notification when telegramNotifyOnFail is undefined (default)", async () => {
       const settings = { ...enabledSettings };
-      delete (settings as any).telegramNotifyOnFail;
+      delete (settings as Record<string, unknown>).telegramNotifyOnFail;
       vi.mocked(storageService.getSettings).mockReturnValue(settings);
 
       await TelegramService.notifyTaskComplete({

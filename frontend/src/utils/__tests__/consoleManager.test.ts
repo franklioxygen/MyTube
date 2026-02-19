@@ -22,7 +22,7 @@ describe("ConsoleManager", () => {
           storage[key] = String(value);
         },
         removeItem: (key: string) => {
-          delete storage[key];
+          const { [key]: _removed, ...rest } = storage; storage = rest;
         },
         clear: () => {
           storage = {};
