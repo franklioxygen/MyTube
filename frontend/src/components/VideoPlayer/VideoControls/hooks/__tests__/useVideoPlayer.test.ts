@@ -209,3 +209,64 @@ describe("useVideoPlayer startTime behavior", () => {
     expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
   });
 });
+
+describe("useVideoPlayer playbackRate behavior", () => {
+  let videoElement: HTMLVideoElement;
+
+  beforeEach(() => {
+    videoElement = document.createElement("video");
+    Object.defineProperty(videoElement, "playbackRate", {
+      writable: true,
+      value: 1,
+    });
+  });
+
+  it("should have an initial playbackRate of 1", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    expect(result.current.playbackRate).toBe(1);
+  });
+
+  it("should update playbackRate state when handlePlaybackRateChange is called", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handlePlaybackRateChange(1.5);
+    });
+
+    expect(result.current.playbackRate).toBe(1.5);
+  });
+
+  it("should set videoElement.playbackRate when handlePlaybackRateChange is called", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handlePlaybackRateChange(2);
+    });
+
+    expect(videoElement.playbackRate).toBe(2);
+  });
+
+  it("should update state even when no video element is attached", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    // videoRef.current remains null
+
+    act(() => {
+      result.current.handlePlaybackRateChange(0.5);
+    });
+
+    expect(result.current.playbackRate).toBe(0.5);
+  });
+
+  it("should reflect the latest rate after multiple changes", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    result.current.videoRef.current = videoElement;
+
+    act(() => { result.current.handlePlaybackRateChange(0.75); });
+    act(() => { result.current.handlePlaybackRateChange(2); });
+
+    expect(result.current.playbackRate).toBe(2);
+    expect(videoElement.playbackRate).toBe(2);
+  });
+});

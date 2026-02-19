@@ -36,6 +36,9 @@ vi.mock('../LoopControl', () => ({
 vi.mock('../PlaybackControls', () => ({
     default: () => <div data-testid="PlaybackControls" />,
 }));
+vi.mock('../SpeedControl', () => ({
+    default: () => <div data-testid="SpeedControl" />,
+}));
 
 describe('ControlsOverlay', () => {
     const defaultProps = {
@@ -52,6 +55,7 @@ describe('ControlsOverlay', () => {
         subtitlesEnabled: false,
         isLooping: false,
         subtitleMenuAnchor: null,
+        playbackRate: 1,
         onPlayPause: vi.fn(),
         onSeek: vi.fn(),
         onProgressChange: vi.fn(),
@@ -69,6 +73,7 @@ describe('ControlsOverlay', () => {
         onToggleFullscreen: vi.fn(),
         onToggleLoop: vi.fn(),
         onControlsMouseEnter: vi.fn(),
+        onPlaybackRateChange: vi.fn(),
     };
 
     beforeEach(() => {
@@ -82,6 +87,11 @@ describe('ControlsOverlay', () => {
         expect(screen.getByTestId('VolumeControl')).toBeInTheDocument();
         expect(screen.getByTestId('PlaybackControls')).toBeInTheDocument();
         expect(screen.getByRole('button')).toBeInTheDocument(); // Play/Pause button
+    });
+
+    it('should render SpeedControl in the mobile row', () => {
+        render(<ControlsOverlay {...defaultProps} />);
+        expect(screen.getByTestId('SpeedControl')).toBeInTheDocument();
     });
 
     it('should toggle play/pause icon', () => {
@@ -103,14 +113,6 @@ describe('ControlsOverlay', () => {
     });
 
     it('should handle visibility styles correctly based on isFullscreen and controlsVisible', () => {
-        // Not full screen, controls always visible (based on implementation logic visible in code)
-        // Code: opacity: isFullscreen ? (controlsVisible ? 0.3 : 0) : 1
-        // Wait, checking the logic:
-        // opacity: isFullscreen ? (controlsVisible ? 0.3 : 0) : 1  <- This seems odd in the source code I read
-        // Line 87: opacity: isFullscreen ? (controlsVisible ? 0.3 : 0) : 1
-        // Wait, if fullscreen and visible, opacity is 0.3? That seems like a background dimming overlay maybe?
-        // Let's check the container styles.
-
         const { container } = render(<ControlsOverlay {...defaultProps} isFullscreen={true} controlsVisible={false} />);
         // When fullscreen and not visible, it should be hidden
         const box = container.firstChild as HTMLElement;
