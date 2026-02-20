@@ -53,16 +53,16 @@ describe('SpeedControl', () => {
         expect(screen.getByText('0.5x')).toBeInTheDocument();
     });
 
-    it('shows all 6 speed options in the menu', () => {
+    it('shows all 7 speed options in the menu', () => {
         render(<SpeedControl {...defaultProps} />);
         fireEvent.click(screen.getByRole('button'));
-        expect(screen.getAllByRole('menuitem')).toHaveLength(6);
+        expect(screen.getAllByRole('menuitem')).toHaveLength(7);
     });
 
-    it('renders speed options 0.5x, 0.75x, 1x, 1.25x, 1.5x and 2x', () => {
+    it('renders speed options 0.5x, 0.75x, 1x, 1.25x, 1.5x, 2x and 3x', () => {
         render(<SpeedControl {...defaultProps} />);
         fireEvent.click(screen.getByRole('button'));
-        for (const label of ['0.5x', '0.75x', '1.25x', '1.5x', '2x']) {
+        for (const label of ['0.5x', '0.75x', '1.25x', '1.5x', '2x', '3x']) {
             expect(screen.getByText(label)).toBeInTheDocument();
         }
     });
