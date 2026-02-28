@@ -80,6 +80,17 @@ export const ar = {
   normalRetryModeDesc: 'أوقات الانتظار: 5 ثوانٍ، 5 ثوانٍ، 10 ثوانٍ، 30 ثانية، 1 دقيقة، 3 دقائق، 10 دقائق، 2 ساعة، 6 ساعات (الحد الأقصى 24 ساعة)',
   allowResetPasswordHelper:
     "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
+  enableApiKeyAuth: "تفعيل المصادقة بمفتاح API",
+  apiKeyAuthHelper:
+    "عند التفعيل، يمكن تفويض طلبات API باستخدام X-API-Key بدون جلسة تسجيل دخول.",
+  apiKey: "مفتاح API",
+  refreshApiKey: "تحديث",
+  refreshApiKeyTitle: "تحديث مفتاح API",
+  refreshApiKeyConfirm: "إنشاء مفتاح API جديد سيؤدي إلى إبطال المفتاح الحالي. ستحتاج جميع العملاء الذين يستخدمون المفتاح القديم إلى التحديث بعد الحفظ.",
+  copyApiKey: "نسخ",
+  apiKeySaveHint: "احفظ الإعدادات لتفعيل التغييرات على مفتاح API.",
+  apiKeyCopied: "تم نسخ مفتاح API إلى الحافظة",
+  apiKeyCopyFailed: "فشل نسخ مفتاح API. يرجى نسخه يدويًا.",
   password: "كلمة المرور",
   enterPassword: "أدخل كلمة المرور",
   togglePasswordVisibility: "تبديل رؤية كلمة المرور",

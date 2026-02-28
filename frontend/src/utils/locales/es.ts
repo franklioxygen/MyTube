@@ -85,6 +85,17 @@ export const es = {
   normalRetryModeDesc: 'Tiempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx. 24h)',
   allowResetPasswordHelper:
     "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
+  enableApiKeyAuth: "Habilitar autenticación con clave API",
+  apiKeyAuthHelper:
+    "Cuando se habilita, las solicitudes a la API se pueden autorizar con X-API-Key sin iniciar sesión.",
+  apiKey: "Clave API",
+  refreshApiKey: "Actualizar",
+  refreshApiKeyTitle: "Actualizar clave API",
+  refreshApiKeyConfirm: "Generar una nueva clave API invalidará la actual. Todos los clientes que usen la clave antigua deberán actualizarse después de guardar.",
+  copyApiKey: "Copiar",
+  apiKeySaveHint: "Guarde la configuración para aplicar los cambios a la clave API.",
+  apiKeyCopied: "Clave API copiada al portapapeles",
+  apiKeyCopyFailed: "Error al copiar la clave API. Cópiela manualmente.",
   password: "Contraseña",
   enterPassword: "Introducir contraseña",
   togglePasswordVisibility: "Alternar visibilidad de contraseña",

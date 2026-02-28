@@ -85,6 +85,18 @@ export const de = {
   normalRetryModeDesc: 'Wartezeiten: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max. 24h)',
   allowResetPasswordHelper:
     "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
+  enableApiKeyAuth: "API-Key-Authentifizierung aktivieren",
+  apiKeyAuthHelper:
+    "Wenn aktiviert, können API-Anfragen mit X-API-Key ohne Anmeldesitzung authentifiziert werden.",
+  apiKey: "API-Schlüssel",
+  refreshApiKey: "Aktualisieren",
+  refreshApiKeyTitle: "API-Schlüssel aktualisieren",
+  refreshApiKeyConfirm:
+    "Die Neuerstellung des API-Schlüssels macht den bestehenden ungültig. Alle Clients, die den alten Schlüssel verwenden, müssen nach dem Speichern aktualisiert werden.",
+  copyApiKey: "Kopieren",
+  apiKeySaveHint: "Einstellungen speichern, um Änderungen am API-Schlüssel zu aktivieren.",
+  apiKeyCopied: "API-Schlüssel in die Zwischenablage kopiert",
+  apiKeyCopyFailed: "API-Schlüssel konnte nicht kopiert werden. Bitte manuell kopieren.",
   password: "Passwort",
   enterPassword: "Passwort eingeben",
   togglePasswordVisibility: "Passwort sichtbar machen",

@@ -83,6 +83,17 @@ export const ko = {
     "대기 시간: 5초, 5초, 10초, 30초, 1분, 3분, 10분, 2시간, 6시간 (최대 24시간)",
   allowResetPasswordHelper:
     "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
+  enableApiKeyAuth: "API 키 인증 활성화",
+  apiKeyAuthHelper:
+    "활성화되면 로그인 세션 없이 X-API-Key를 사용하여 API 요청을 승인할 수 있습니다.",
+  apiKey: "API 키",
+  refreshApiKey: "새로고침",
+  refreshApiKeyTitle: "API 키 새로고침",
+  refreshApiKeyConfirm: "새 API 키를 생성하면 현재 키가 무효화됩니다. 이전 키를 사용하는 모든 클라이언트는 저장 후 업데이트해야 합니다.",
+  copyApiKey: "복사",
+  apiKeySaveHint: "설정을 저장하여 API 키 변경 사항을 적용합니다.",
+  apiKeyCopied: "API 키가 클립보드에 복사되었습니다.",
+  apiKeyCopyFailed: "API 키를 복사하지 못했습니다. 수동으로 복사해 주세요.",
   password: "비밀번호",
   enterPassword: "비밀번호 입력",
   togglePasswordVisibility: "비밀번호 표시 전환",

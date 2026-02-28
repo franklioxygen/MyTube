@@ -81,6 +81,17 @@ export const en = {
   normalRetryModeDesc: 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)',
   allowResetPasswordHelper:
     "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
+  enableApiKeyAuth: "Enable API Key Authentication",
+  apiKeyAuthHelper:
+    "When enabled, API requests can be authorized with X-API-Key without a login session.",
+  apiKey: "API Key",
+  refreshApiKey: "Refresh",
+  refreshApiKeyTitle: "Refresh API Key",
+  refreshApiKeyConfirm: "Regenerating the API key will invalidate the existing one. All clients using the old key will need to be updated after saving.",
+  copyApiKey: "Copy",
+  apiKeySaveHint: "Save settings to activate changes to the API key.",
+  apiKeyCopied: "API key copied to clipboard",
+  apiKeyCopyFailed: "Failed to copy API key. Please copy it manually.",
   password: "Password",
   enterPassword: "Enter Password",
   togglePasswordVisibility: "Toggle password visibility",

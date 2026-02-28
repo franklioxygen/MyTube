@@ -84,6 +84,17 @@ export const fr = {
   normalRetryModeDesc: "Temps d'attente : 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)",
   allowResetPasswordHelper:
     "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",
+  enableApiKeyAuth: "Activer l'authentification par clé API",
+  apiKeyAuthHelper:
+    "Lorsque cette option est activée, les requêtes API peuvent être autorisées avec X-API-Key sans session de connexion.",
+  apiKey: "Clé API",
+  refreshApiKey: "Rafraîchir",
+  refreshApiKeyTitle: "Rafraîchir la clé API",
+  refreshApiKeyConfirm: "La régénération de la clé API invalidera l'ancienne. Tous les clients utilisant l'ancienne clé devront être mis à jour après l'enregistrement.",
+  copyApiKey: "Copier",
+  apiKeySaveHint: "Enregistrer les paramètres pour appliquer les modifications de la clé API.",
+  apiKeyCopied: "Clé API copiée dans le presse-papiers",
+  apiKeyCopyFailed: "Échec de la copie de la clé API. Veuillez la copier manuellement.",
   password: "Mot de passe",
   enterPassword: "Entrez le mot de passe",
   togglePasswordVisibility: "Afficher/Masquer le mot de passe",

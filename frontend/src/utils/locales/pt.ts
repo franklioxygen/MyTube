@@ -84,6 +84,17 @@ export const pt = {
   normalRetryModeDesc: 'Tempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx 24h)',
   allowResetPasswordHelper:
     "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
+  enableApiKeyAuth: "Ativar Autenticação por Chave API",
+  apiKeyAuthHelper:
+    "Quando ativado, as solicitações de API podem ser autorizadas com X-API-Key sem uma sessão de login.",
+  apiKey: "Chave API",
+  refreshApiKey: "Atualizar",
+  refreshApiKeyTitle: "Atualizar Chave API",
+  refreshApiKeyConfirm: "A geração de uma nova chave API invalidará a existente. Todos os clientes que usam a chave antiga precisarão ser atualizados após salvar.",
+  copyApiKey: "Copiar",
+  apiKeySaveHint: "Salve as configurações para ativar as alterações na chave API.",
+  apiKeyCopied: "Chave API copiada para a área de transferência",
+  apiKeyCopyFailed: "Falha ao copiar a chave API. Por favor, copie-a manualmente.",
   password: "Senha",
   enterPassword: "Digite a senha",
   togglePasswordVisibility: "Alternar visibilidade da senha",

@@ -83,6 +83,17 @@ export const ja = {
   normalRetryModeDesc: '待機時間: 5秒, 5秒, 10秒, 30秒, 1分, 3分, 10分, 2時間, 6時間 (最大24時間)',
   allowResetPasswordHelper:
     "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
+  enableApiKeyAuth: "APIキー認証を有効にする",
+  apiKeyAuthHelper:
+    "有効にすると、ログインセッションなしでX-API-Keyを使用してAPIリクエストを承認できます。",
+  apiKey: "APIキー",
+  refreshApiKey: "更新",
+  refreshApiKeyTitle: "APIキーを更新",
+  refreshApiKeyConfirm: "新しいAPIキーを生成すると、現在のキーは無効になります。古いキーを使用しているすべてのクライアントは、保存後に更新する必要があります。",
+  copyApiKey: "コピー",
+  apiKeySaveHint: "設定を保存して、APIキーの変更を適用します。",
+  apiKeyCopied: "APIキーをクリップボードにコピーしました",
+  apiKeyCopyFailed: "APIキーのコピーに失敗しました。手動でコピーしてください。",
   password: "パスワード",
   enterPassword: "パスワードを入力",
   togglePasswordVisibility: "パスワードの表示切り替え",
