@@ -188,7 +188,7 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 style={{
                     width: '100%',
                     height: '100%',
-                    objectFit: isFullscreen ? 'cover' : 'contain',
+                    objectFit: 'contain',
                     display: 'block',
                     cursor: 'pointer'
                 }}

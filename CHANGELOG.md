@@ -1,6 +1,57 @@
 # Change Log
 
 
+## v1.8.29 (2026-02-28)
+
+### Feat
+
+- feat(i18n): translate API key authentication settings (cec21df)
+- Add API key auth controls and update endpoint docs (db29581)
+
+## v1.8.28 (2026-02-28)
+
+### Feat
+
+- feat: Add custom thumbnail upload for videos (144a40c)
+
+## v1.8.27 (2026-02-28)
+
+### Refactor
+
+- refactor: Update minimatch version to 3.1.5 and 9.0.9 (0d990a3)
+
+### Test
+
+- test: Add tests for m3u8 wait behavior in downloadVideo (ff58b51)
+
+## v1.8.26 (2026-02-28)
+
+### Feat
+
+- feat: Add dynamic aspect ratio for mobile devices (24db007)
+
+### Fix
+
+- fix: downloader stderr handling and enforce byte-safe filename limits (3e44bb9)
+
+### Chore
+
+- chore(deps): bump rollup from 4.53.3 to 4.59.0 in /backend (f8db1d4)
+- chore(deps): bump minimatch in /frontend (e3ddd25)
+- chore(deps): bump rollup from 4.34.9 to 4.59.0 in /frontend (d49719f)
+- chore(deps): bump basic-ftp from 5.1.0 to 5.2.0 in /backend (e516763)
+- chore(deps): bump basic-ftp in /backend/bgutil-ytdlp-pot-provider/server (87a782a)
+
+## v1.8.25 (2026-02-20)
+
+### Feat
+
+- feat: Add 3x speed option to SpeedControl component (8c57315)
+
+### Refactor
+
+- refactor: Update type casting in code for strict typing (f97d702)
+
 ## v1.8.24 (2026-02-19)
 
 ### Feat
