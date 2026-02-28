@@ -350,18 +350,18 @@ describe('Helpers', () => {
       expect(formatVideoFilename('My   Video', 'Author   Name', '20230101')).toBe('My.Video-Author.Name-2023');
     });
 
-    it('should truncate filenames exceeding 200 characters', () => {
+    it('should truncate filenames exceeding 200 bytes', () => {
         const longTitle = 'a'.repeat(300);
         const author = 'Author';
         const year = '2023';
         const result = formatVideoFilename(longTitle, author, year);
-        
-        expect(result.length).toBeLessThanOrEqual(200);
+
+        expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(200);
         expect(result).toContain('Author');
         expect(result).toContain('2023');
-        // Suffix is -Author-2023 (12 chars)
-        // Title should be 200 - 12 = 188 chars
-        expect(result.length).toBe(200);
+        // Suffix is -Author-2023 (12 bytes, all ASCII)
+        // Title should be 200 - 12 = 188 bytes = 188 ASCII chars
+        expect(Buffer.byteLength(result, 'utf8')).toBe(200);
     });
 
     it('should truncate very long author names', () => {
@@ -369,16 +369,78 @@ describe('Helpers', () => {
         const longAuthor = 'a'.repeat(100);
         const year = '2023';
         const result = formatVideoFilename(title, longAuthor, year);
-        
-        // Author truncated to 50
-        // Suffix: -[50 chars]-2023 -> 1 + 50 + 1 + 4 = 56 chars
-        // Title: Video (5 chars)
-        // Total: 5 + 56 = 61 chars
-        expect(result.length).toBe(61);
+
+        // Author truncated to 50 bytes (50 ASCII 'a' chars = 50 bytes)
+        // Suffix: -[50 chars]-2023 -> 1 + 50 + 1 + 4 = 56 bytes
+        // Title: Video (5 bytes)
+        // Total: 5 + 56 = 61 bytes
+        expect(Buffer.byteLength(result, 'utf8')).toBe(61);
         expect(result).toContain(title);
         // Should contain 50 'a's
         expect(result).toContain('a'.repeat(50));
         expect(result).not.toContain('a'.repeat(51));
+    });
+
+    // CJK / MissAV long-title regression tests
+    // Each CJK character is 3 bytes in UTF-8 — the old .length check allowed
+    // filenames of up to 600 bytes, causing [Errno 36] on Linux (255-byte limit).
+
+    it('should keep byte length ≤ 200 for a long CJK title', () => {
+        // 80 Chinese characters × 3 bytes = 240 bytes — would breach the old limit
+        const longCjkTitle = '有'.repeat(80);
+        const result = formatVideoFilename(longCjkTitle, '作者', '20260228');
+        expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(200);
+    });
+
+    it('should not split a CJK character when truncating the title', () => {
+        const longCjkTitle = '有'.repeat(80);
+        const result = formatVideoFilename(longCjkTitle, '作者', '20260228');
+        // Every remaining character must decode cleanly — no replacement chars
+        expect(result).not.toContain('\uFFFD');
+        // The result must still be valid Unicode (Buffer round-trip is identical)
+        expect(Buffer.from(result, 'utf8').toString('utf8')).toBe(result);
+    });
+
+    it('should truncate a long CJK author to ≤ 50 bytes', () => {
+        // 30 CJK chars × 3 bytes = 90 bytes > 50-byte author cap
+        const longCjkAuthor = '佐'.repeat(30);
+        const result = formatVideoFilename('Video', longCjkAuthor, '20260228');
+        // Extract the author portion from the result
+        const withoutYear = result.replace(/-\d{4}$/, '');
+        const authorPart = withoutYear.split('-').slice(1).join('-');
+        expect(Buffer.byteLength(authorPart, 'utf8')).toBeLessThanOrEqual(50);
+    });
+
+    it('should reproduce and fix the MissAV SONE-652 long-title failure', () => {
+        // Exact title that triggered [Errno 36] File name too long in Docker
+        const title = 'SONE-652 有一天當我正隨意地對著一個糖爹自慰的時候一個老男人給了我一種奇怪的藥物也就是眾所周知的春藥從那時起我就一直渴望一根好雞巴我的陰部一直無法控制地濕潤';
+        const author = '白神佐喜香 白上咲花';
+        const result = formatVideoFilename(title, author, '20260228');
+        // Must fit within 200 bytes (yt-dlp appends .mp4.ytdl during download)
+        expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(200);
+        // Must not contain any broken multi-byte sequences
+        expect(result).not.toContain('\uFFFD');
+    });
+  });
+
+  describe('sanitizeFilename - CJK byte-length truncation', () => {
+    it('should keep byte length ≤ 200 for a long CJK string', () => {
+        // 80 CJK chars × 3 bytes = 240 bytes — exceeds the 200-byte limit
+        const longCjk = '試'.repeat(80);
+        const result = sanitizeFilename(longCjk);
+        expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(200);
+    });
+
+    it('should not split a CJK character when truncating', () => {
+        const longCjk = '試'.repeat(80);
+        const result = sanitizeFilename(longCjk);
+        expect(result).not.toContain('\uFFFD');
+        expect(Buffer.from(result, 'utf8').toString('utf8')).toBe(result);
+    });
+
+    it('should leave short CJK filenames unchanged', () => {
+        const short = '測試視頻作者';
+        expect(sanitizeFilename(short)).toBe(short);
     });
   });
 

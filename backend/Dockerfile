@@ -78,9 +78,15 @@ ARG TARGETARCH
 RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
     chmod +x /usr/local/bin/cloudflared
 
-# Install yt-dlp, bgutil-ytdlp-pot-provider, and yt-dlp-ejs for YouTube n challenge solving
+# Install yt-dlp and related packages. Versions are pinned for reproducible builds.
+# To upgrade: check https://pypi.org/project/yt-dlp/ and update versions below.
 # Using --break-system-packages because we are in a container and want to install globally
-RUN pip3 install yt-dlp bgutil-ytdlp-pot-provider yt-dlp-ejs curl-cffi --break-system-packages
+RUN pip3 install --no-cache-dir \
+    "yt-dlp==2026.2.21" \
+    "bgutil-ytdlp-pot-provider==1.2.2" \
+    "yt-dlp-ejs==0.5.0" \
+    "curl-cffi==0.14.0" \
+    --break-system-packages
 
 # Environment variables
 ENV NODE_ENV=production

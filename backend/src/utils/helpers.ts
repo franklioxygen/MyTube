@@ -343,6 +343,21 @@ export async function processVideoUrl(input: string): Promise<{
 }
 
 // Helper function to create a safe filename that preserves non-Latin characters
+// Truncate a string so its UTF-8 byte length does not exceed maxBytes.
+// Avoids splitting multi-byte characters (e.g. Chinese/Japanese: 3 bytes each).
+function truncateToByteLength(str: string, maxBytes: number): string {
+  if (Buffer.byteLength(str, "utf8") <= maxBytes) return str;
+  let result = "";
+  let byteCount = 0;
+  for (const char of str) {
+    const charBytes = Buffer.byteLength(char, "utf8");
+    if (byteCount + charBytes > maxBytes) break;
+    result += char;
+    byteCount += charBytes;
+  }
+  return result;
+}
+
 export function sanitizeFilename(filename: string): string {
   // Remove hashtags (e.g. #tag)
   const withoutHashtags = filename.replace(/#\S+/g, "").trim();
@@ -353,9 +368,9 @@ export function sanitizeFilename(filename: string): string {
     .replace(/[\/\\:*?"<>|%,'!;=+\$@^`{}~\[\]()&]/g, "_") // Replace unsafe filesystem and URL characters
     .replace(/\s+/g, "_"); // Replace spaces with underscores
 
-  // Truncate to 200 characters to avoid ENAMETOOLONG errors (filesystem limit is usually 255 bytes)
-  // We use 200 to leave room for timestamp suffix and extension
-  return sanitized.slice(0, 200);
+  // Truncate to 200 bytes to avoid ENAMETOOLONG errors (filesystem limit is 255 bytes).
+  // Using byte length because multi-byte characters (CJK) take 3 bytes each.
+  return truncateToByteLength(sanitized, 200);
 }
 
 // Helper function to extract user mid from Bilibili URL
@@ -426,25 +441,25 @@ export function formatVideoFilename(
     }
   }
 
-  // Truncate author if it's too long (e.g. > 50 chars) to prioritize title visibility
-  if (cleanAuthor.length > 50) {
-    cleanAuthor = cleanAuthor.substring(0, 50);
-  }
+  // Truncate author to 50 bytes (not chars) to prioritize title visibility.
+  // CJK characters are 3 bytes each, so 50 bytes ≈ 16 CJK chars or 50 ASCII chars.
+  cleanAuthor = truncateToByteLength(cleanAuthor, 50);
 
   // Construct the suffix parts
   const yearSuffix = `-${year}`;
   const authorSuffix = `-${cleanAuthor}`;
   const fullSuffix = `${authorSuffix}${yearSuffix}`;
 
-  // Max length for the filename (leaving room for extension)
-  const MAX_FILENAME_LENGTH = 200;
+  // Max byte length for the filename base (no extension).
+  // Linux ext4 limit is 255 bytes. yt-dlp appends .part/.ytdl during download,
+  // so we leave ample room: 200 bytes for the base name.
+  const MAX_FILENAME_BYTES = 200;
 
-  // Calculate available space for title
-  const availableTitleLength = MAX_FILENAME_LENGTH - fullSuffix.length;
+  // Calculate available bytes for the title portion
+  const availableTitleBytes = MAX_FILENAME_BYTES - Buffer.byteLength(fullSuffix, "utf8");
 
-  if (cleanTitle.length > availableTitleLength) {
-    // Truncate title
-    cleanTitle = cleanTitle.substring(0, Math.max(0, availableTitleLength));
+  if (Buffer.byteLength(cleanTitle, "utf8") > availableTitleBytes) {
+    cleanTitle = truncateToByteLength(cleanTitle, Math.max(0, availableTitleBytes));
   }
 
   return `${cleanTitle}${fullSuffix}`;

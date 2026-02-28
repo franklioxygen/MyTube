@@ -480,14 +480,27 @@ export class MissAVDownloader extends BaseDownloader {
 
       // Use ProgressTracker for centralized progress parsing
       const progressTracker = new ProgressTracker(downloadId);
+      // Capped ring-buffer for stderr: retain only the last 4 KB so that
+      // long downloads with chatty ffmpeg/yt-dlp output don't grow memory unboundedly.
+      const STDERR_MAX_BYTES = 4 * 1024;
+      let stderrBuffer = "";
       const parseProgress = (output: string, source: "stdout" | "stderr") => {
-        // Log raw output for debugging (only first few lines or if it contains progress)
         const lines = output.split("\n").filter((line) => line.trim());
-        if (lines.length > 0 && lines[0].includes("[download]")) {
-          logger.info(
-            `[MissAV Progress ${source}]:`,
-            lines[0].substring(0, 100),
-          );
+        for (const line of lines) {
+          if (line.includes("[download]")) {
+            logger.info(`[MissAV Progress ${source}]:`, line.substring(0, 100));
+          } else if (source === "stderr" && line.trim()) {
+            // Only log actual errors/warnings, not generic informational lines.
+            // yt-dlp/ffmpeg stderr is very chatty during HLS segment downloads.
+            if (line.startsWith("ERROR") || line.startsWith("WARNING")) {
+              logger.warn(`[MissAV stderr]:`, line);
+            }
+            // Append to ring-buffer, trimming the oldest content when over the cap.
+            stderrBuffer += line + "\n";
+            if (stderrBuffer.length > STDERR_MAX_BYTES) {
+              stderrBuffer = stderrBuffer.slice(stderrBuffer.length - STDERR_MAX_BYTES);
+            }
+          }
         }
         progressTracker.parseAndUpdate(output);
       };
@@ -516,7 +529,9 @@ export class MissAVDownloader extends BaseDownloader {
             if (code === 0) {
               resolve();
             } else {
-              reject(new Error(`yt-dlp process exited with code ${code}`));
+              const err = new Error(`yt-dlp process exited with code ${code}`);
+              (err as any).stderr = stderrBuffer;
+              reject(err);
             }
           });
 
