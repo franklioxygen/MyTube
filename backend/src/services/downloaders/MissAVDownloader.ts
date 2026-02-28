@@ -255,40 +255,73 @@ export class MissAVDownloader extends BaseDownloader {
           `--user-agent=${USER_AGENT}`,
         ],
       });
-      const page = await browser.newPage();
 
-      // Setup request listener to find m3u8 URLs
+      // Declared before try so they are accessible after browser is closed.
       const m3u8Urls: string[] = [];
-      page.on("request", (request) => {
-        const reqUrl = request.url();
-        if (reqUrl.includes(".m3u8") && !reqUrl.includes("preview")) {
-          logger.info("Found m3u8 URL via network interception:", reqUrl);
-          if (!m3u8Urls.includes(reqUrl)) {
+      const isM3u8 = (u: string) => u.includes(".m3u8") && !u.includes("preview");
+      let html = "";
+
+      try {
+        const page = await browser.newPage();
+
+        // Collect all m3u8 URLs seen during page load via the request event.
+        page.on("request", (request) => {
+          const reqUrl = request.url();
+          if (isM3u8(reqUrl) && !m3u8Urls.includes(reqUrl)) {
+            logger.info("Found m3u8 URL via network interception:", reqUrl);
             m3u8Urls.push(reqUrl);
           }
-        }
-      });
+        });
 
-      logger.info(
-        "Navigating to:",
-        `${safeRequestOrigin}${safeRequestPath}`,
-      );
-      await page.goto(safeRequestOrigin, {
-        waitUntil: "domcontentloaded",
-        timeout: 60000,
-      });
-      await Promise.all([
-        page.waitForNavigation({
-          waitUntil: "networkidle2",
+        logger.info(
+          "Navigating to:",
+          `${safeRequestOrigin}${safeRequestPath}`,
+        );
+        await page.goto(safeRequestOrigin, {
+          waitUntil: "domcontentloaded",
           timeout: 60000,
-        }),
-        page.evaluate((targetPath) => {
-          window.location.assign(targetPath);
-        }, safeRequestPath),
-      ]);
+        });
+        await Promise.all([
+          page.waitForNavigation({
+            waitUntil: "networkidle2",
+            timeout: 60000,
+          }),
+          page.evaluate((targetPath) => {
+            window.location.assign(targetPath);
+          }, safeRequestPath),
+        ]);
 
-      const html = await page.content();
-      await browser.close();
+        // Extra wait is created AFTER networkidle2, so the full 20 s budget
+        // belongs entirely to player initialisation — not shared with page load.
+        // Only entered when nothing was captured during navigation, so the warn
+        // only fires on a genuine timeout, never as a false positive.
+        if (m3u8Urls.length === 0) {
+          logger.info(
+            "No m3u8 URL captured during page load — waiting up to 20 s for video player...",
+          );
+          await page
+            .waitForResponse((res) => isM3u8(res.url()), { timeout: 20_000 })
+            .then((res) => {
+              const u = res.url();
+              if (!m3u8Urls.includes(u)) m3u8Urls.push(u);
+            })
+            .catch((err: unknown) => {
+              if (err instanceof Error && err.name === "TimeoutError") {
+                logger.warn("Video player did not fire an m3u8 request within 20 s.");
+                return;
+              }
+              throw err;
+            });
+        }
+
+        html = await page.content();
+      } finally {
+        // Always close the browser, even when a non-timeout error is thrown,
+        // to prevent Chromium processes from being left behind.
+        await browser.close().catch((closeErr: unknown) => {
+          logger.warn("Failed to close Puppeteer browser:", closeErr);
+        });
+      }
 
       // 2. Extract metadata using cheerio
       const $ = cheerio.load(html);
