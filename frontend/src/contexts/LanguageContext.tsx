@@ -12,12 +12,39 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const LANGUAGE_STORAGE_KEY = 'mytube_language';
 
+const normalizeLanguage = (value: unknown): Language => {
+    switch (value) {
+        case 'en':
+            return 'en';
+        case 'zh':
+            return 'zh';
+        case 'es':
+            return 'es';
+        case 'de':
+            return 'de';
+        case 'ja':
+            return 'ja';
+        case 'fr':
+            return 'fr';
+        case 'ko':
+            return 'ko';
+        case 'ar':
+            return 'ar';
+        case 'pt':
+            return 'pt';
+        case 'ru':
+            return 'ru';
+        default:
+            return 'en';
+    }
+};
+
 // Helper function to get language from localStorage
 const getStoredLanguage = (): Language => {
     try {
         const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-        if (stored && ['en', 'zh', 'es', 'de', 'ja', 'fr', 'ko', 'ar', 'pt', 'ru'].includes(stored)) {
-            return stored as Language;
+        if (stored) {
+            return normalizeLanguage(stored);
         }
     } catch (error) {
         console.error('Error reading language from localStorage:', error);
@@ -65,8 +92,8 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
 
             const response = await api.get('/settings');
-            if (response.data.language) {
-                const backendLanguage = response.data.language as Language;
+            if (response.data?.language !== undefined) {
+                const backendLanguage = normalizeLanguage(response.data.language);
                 setLanguageState(backendLanguage);
                 // Sync localStorage with backend
                 try {
@@ -85,10 +112,11 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     const setLanguage = async (lang: Language) => {
-        setLanguageState(lang);
+        const normalizedLanguage = normalizeLanguage(lang);
+        setLanguageState(normalizedLanguage);
         // Save to localStorage immediately for instant UI update
         try {
-            localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, normalizedLanguage);
         } catch (error) {
             console.error('Error saving language to localStorage:', error);
         }
@@ -96,7 +124,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Always try to save to backend so language persists across browsers
         // (backend accepts when login is disabled, or when cookies are sent; 401 is ignored)
         try {
-            await api.patch('/settings', { language: lang });
+            await api.patch('/settings', { language: normalizedLanguage });
         } catch (error: any) {
             // Silently handle 401 errors (expected when not authenticated)
             // Language is already saved to localStorage, so UI will update correctly

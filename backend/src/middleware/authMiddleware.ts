@@ -50,13 +50,21 @@ const getApiKeyFromRequest = (req: Request): string | null => {
 };
 
 const isApiKeyMatch = (providedApiKey: string, storedApiKey: string): boolean => {
-  // Hash both keys with HMAC-SHA256 before comparing so the digests are
-  // always 32 bytes regardless of input length. This lets timingSafeEqual
-  // run in constant time without leaking length information via an early return.
-  const secret = Buffer.from("mytube-api-key-comparison", "utf8");
-  const providedHash = crypto.createHmac("sha256", secret).update(providedApiKey).digest();
-  const storedHash = crypto.createHmac("sha256", secret).update(storedApiKey).digest();
-  return crypto.timingSafeEqual(providedHash, storedHash);
+  // Compare API keys in constant time without using a password-hash primitive.
+  // Buffers are zero-padded to equal length so timingSafeEqual can be used safely.
+  const providedBuffer = Buffer.from(providedApiKey, "utf8");
+  const storedBuffer = Buffer.from(storedApiKey, "utf8");
+  const maxLength = Math.max(providedBuffer.length, storedBuffer.length);
+
+  const paddedProvided = Buffer.alloc(maxLength);
+  const paddedStored = Buffer.alloc(maxLength);
+  providedBuffer.copy(paddedProvided);
+  storedBuffer.copy(paddedStored);
+
+  const sameLength = providedBuffer.length === storedBuffer.length;
+  const equal = crypto.timingSafeEqual(paddedProvided, paddedStored);
+
+  return sameLength && equal;
 };
 
 const isApiKeyAuthorized = (req: Request): boolean => {

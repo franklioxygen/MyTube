@@ -124,6 +124,24 @@ describe('LanguageContext', () => {
         expect(localStorageMock.setItem).toHaveBeenCalledWith('mytube_language', 'fr');
     });
 
+    it('falls back to en when backend returns an invalid language value', async () => {
+        const localStorageMock = setLocalStorageMock({ initial: { mytube_language: 'fr' } });
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+            }
+            if (url === '/settings') {
+                return Promise.resolve({ data: { language: 'invalid-language' } });
+            }
+            return Promise.resolve({ data: {} });
+        });
+
+        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+
+        await waitFor(() => expect(result.current.language).toBe('en'));
+        expect(localStorageMock.setItem).toHaveBeenCalledWith('mytube_language', 'en');
+    });
+
     it('logs when reading localStorage fails', () => {
         setLocalStorageMock({ throwOnGet: true });
 

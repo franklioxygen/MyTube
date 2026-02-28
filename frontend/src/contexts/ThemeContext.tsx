@@ -14,6 +14,19 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const normalizeThemePreference = (value: unknown): ThemePreference => {
+    switch (value) {
+        case 'light':
+            return 'light';
+        case 'dark':
+            return 'dark';
+        case 'system':
+            return 'system';
+        default:
+            return 'system';
+    }
+};
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const useThemeContext = () => {
     const context = useContext(ThemeContext);
@@ -29,8 +42,8 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Initialize preference from localStorage, defaulting to 'system'
     const [preference, setPreferenceState] = useState<ThemePreference>(() => {
         const savedMode = localStorage.getItem('themeMode');
-        if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
-            return savedMode as ThemePreference;
+        if (savedMode !== null) {
+            return normalizeThemePreference(savedMode);
         }
         // Migration: if it was previously just 'light' or 'dark' in storage (from old code), it's handled above.
         // If nothing is in storage, default to system.
@@ -51,8 +64,8 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
 
             const response = await api.get('/settings');
-            if (response.data.theme) {
-                const backendTheme = response.data.theme as ThemePreference;
+            if (response.data?.theme !== undefined) {
+                const backendTheme = normalizeThemePreference(response.data.theme);
                 setPreferenceState(backendTheme);
                 localStorage.setItem('themeMode', backendTheme);
             }
@@ -77,13 +90,14 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }, []);
 
     const setPreference = async (newPreference: ThemePreference) => {
-        setPreferenceState(newPreference);
-        localStorage.setItem('themeMode', newPreference);
+        const normalizedPreference = normalizeThemePreference(newPreference);
+        setPreferenceState(normalizedPreference);
+        localStorage.setItem('themeMode', normalizedPreference);
 
         // Sync with backend
         try {
             await api.patch('/settings', {
-                theme: newPreference
+                theme: normalizedPreference
             });
         } catch (error: any) {
             if (error?.response?.status !== 401) {

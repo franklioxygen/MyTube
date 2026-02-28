@@ -1,6 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../../utils/apiClient';
 import { ThemeContextProvider, useThemeContext } from '../ThemeContext';
+
+vi.mock('../../utils/apiClient', () => ({
+    api: {
+        get: vi.fn(),
+        patch: vi.fn(),
+    },
+}));
+
+const mockedApi = vi.mocked(api, true);
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -45,6 +55,13 @@ describe('ThemeContext', () => {
     beforeEach(() => {
         localStorageMock.clear();
         vi.clearAllMocks();
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: true, authenticatedRole: null } });
+            }
+            return Promise.resolve({ data: {} });
+        });
+        mockedApi.patch.mockResolvedValue({ data: { success: true } } as any);
     });
 
     afterEach(() => {
@@ -110,6 +127,36 @@ describe('ThemeContext', () => {
         expect(result.current.mode).toBe('dark');
     });
 
+    it('falls back to system when backend returns an invalid theme value', async () => {
+        mockMatchMedia.mockReturnValue({
+            matches: false,
+            media: '(prefers-color-scheme: dark)',
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(),
+        } as MediaQueryList);
+        localStorageMock.setItem('themeMode', 'dark');
+        mockedApi.get.mockImplementation((url: string) => {
+            if (url === '/settings/password-enabled') {
+                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+            }
+            if (url === '/settings') {
+                return Promise.resolve({ data: { theme: 'invalid-theme' } });
+            }
+            return Promise.resolve({ data: {} });
+        });
+
+        const { result } = renderHook(() => useThemeContext(), {
+            wrapper: ThemeContextProvider
+        });
+
+        await waitFor(() => expect(result.current.preference).toBe('system'));
+        expect(localStorageMock.getItem('themeMode')).toBe('system');
+    });
+
     it('should toggle theme from light to dark', () => {
         localStorageMock.setItem('themeMode', 'light');
 
@@ -168,4 +215,3 @@ describe('ThemeContext', () => {
         }, { timeout: 1000 });
     });
 });
-
