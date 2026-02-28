@@ -64,6 +64,12 @@ const VideoElement: React.FC<VideoElementProps> = ({
     }, []);
 
     const [preloadStrategy, setPreloadStrategy] = React.useState<'auto' | 'metadata' | 'none'>('metadata');
+    const [mobileAspectRatio, setMobileAspectRatio] = React.useState<string>('16/9');
+
+    React.useEffect(() => {
+        // Reset to default ratio while new source metadata is loading
+        setMobileAspectRatio('16/9');
+    }, [src]);
 
     React.useEffect(() => {
         // Dynamic preload strategy based on connection
@@ -101,7 +107,10 @@ const VideoElement: React.FC<VideoElementProps> = ({
                     : {
                           maxHeight: 'calc(100vh - 180px)',
                           width: '100%',
-                          aspectRatio: '16/9',
+                          aspectRatio: {
+                              xs: mobileAspectRatio,
+                              sm: '16/9'
+                          },
                           position: 'relative',
                           display: 'block'
                       })
@@ -192,6 +201,10 @@ const VideoElement: React.FC<VideoElementProps> = ({
                 onEnded={onEnded}
                 onTimeUpdate={onTimeUpdate}
                 onLoadedMetadata={(e) => {
+                    const { videoWidth, videoHeight } = e.currentTarget;
+                    if (videoWidth > 0 && videoHeight > 0) {
+                        setMobileAspectRatio(`${videoWidth}/${videoHeight}`);
+                    }
                     onLoadedMetadata(e);
                     onSubtitleInit(e);
                 }}
@@ -240,4 +253,3 @@ const VideoElement: React.FC<VideoElementProps> = ({
 };
 
 export default VideoElement;
-
