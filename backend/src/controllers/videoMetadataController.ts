@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import fs from "fs-extra";
+import multer from "multer";
+import crypto from "crypto";
 import path from "path";
+import sharp from "sharp";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
@@ -8,6 +11,104 @@ import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import { execFileSafe, validateImagePath, validateVideoPath } from "../utils/security";
+
+// Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
+const ALLOWED_IMAGE_MIMES: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/avif": ".avif",
+};
+const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif"]);
+
+const IMAGE_ROOT_PATH = path.resolve(IMAGES_DIR);
+
+const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
+  const rawRelativePath = thumbnailPath
+    .split("?")[0]
+    .replace(/^\/images\//, "")
+    .trim();
+
+  if (!rawRelativePath) {
+    return null;
+  }
+
+  const safeResolvedPath = validateImagePath(
+    path.join(IMAGES_DIR, ...rawRelativePath.split("/").filter(Boolean))
+  );
+  return safeResolvedPath === IMAGE_ROOT_PATH ? null : safeResolvedPath;
+};
+
+const removeImageFileSafely = async (absolutePath: string): Promise<void> => {
+  const safeResolvedPath = validateImagePath(absolutePath);
+  if (safeResolvedPath === IMAGE_ROOT_PATH) {
+    return;
+  }
+
+  const exists = await fs.pathExists(safeResolvedPath);
+  if (!exists) {
+    return;
+  }
+
+  const stats = await fs.stat(safeResolvedPath);
+  if (!stats.isFile()) {
+    logger.warn("Skip deleting thumbnail path because it is not a file", {
+      path: safeResolvedPath,
+    });
+    return;
+  }
+
+  await fs.remove(safeResolvedPath);
+};
+
+const validateUploadedImageContent = async (
+  uploadedFilePath: string
+): Promise<void> => {
+  const safeResolvedPath = validateImagePath(uploadedFilePath);
+
+  try {
+    const metadata = await sharp(safeResolvedPath, { failOn: "error" }).metadata();
+    if (!metadata.format || !ALLOWED_IMAGE_FORMATS.has(metadata.format)) {
+      throw new ValidationError(
+        "Uploaded file is not a valid supported image",
+        "file"
+      );
+    }
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+    throw new ValidationError(
+      "Uploaded file is not a valid supported image",
+      "file"
+    );
+  }
+};
+
+const imageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.ensureDirSync(IMAGES_DIR);
+    cb(null, IMAGES_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(8).toString("hex");
+    const ext = ALLOWED_IMAGE_MIMES[file.mimetype] ?? ".jpg";
+    cb(null, uniqueSuffix + ext);
+  },
+});
+
+export const thumbnailUpload = multer({
+  storage: imageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    if (Object.prototype.hasOwnProperty.call(ALLOWED_IMAGE_MIMES, file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new ValidationError("Only JPEG, PNG, WebP, GIF or AVIF images are allowed", "file"));
+    }
+  },
+});
 
 /**
  * Rate video
@@ -330,4 +431,96 @@ export const updateProgress = async (
       progress: updatedVideo.progress,
     })
   );
+};
+
+/**
+ * Upload a custom thumbnail image for a video
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const uploadThumbnail = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  const video = storageService.getVideoById(id);
+
+  if (!video) {
+    // multer has already written the file — clean it up before throwing
+    if (req.file) {
+      try {
+        await removeImageFileSafely(req.file.path);
+      } catch {
+        // best effort
+      }
+    }
+    throw new NotFoundError("Video", id);
+  }
+
+  if (!req.file) {
+    throw new ValidationError("No image file provided", "file");
+  }
+
+  const uploadedThumbnailAbsPath = validateImagePath(req.file.path);
+  try {
+    await validateUploadedImageContent(uploadedThumbnailAbsPath);
+  } catch (error) {
+    try {
+      await removeImageFileSafely(uploadedThumbnailAbsPath);
+    } catch {
+      // best effort
+    }
+    throw error;
+  }
+
+  const newThumbnailFilename = req.file.filename;
+  const newThumbnailPath = `/images/${newThumbnailFilename}`;
+  let oldThumbnailAbsPath: string | null = null;
+  if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
+    try {
+      oldThumbnailAbsPath = resolveStoredThumbnailPath(video.thumbnailPath);
+    } catch (err) {
+      logger.warn("Failed to resolve old thumbnail path", err);
+    }
+  }
+
+  let updatedVideo: storageService.Video | null;
+  try {
+    updatedVideo = storageService.updateVideo(id, {
+      thumbnailFilename: newThumbnailFilename,
+      thumbnailPath: newThumbnailPath,
+      thumbnailUrl: newThumbnailPath,
+    });
+  } catch (error) {
+    try {
+      await removeImageFileSafely(uploadedThumbnailAbsPath);
+    } catch {
+      // best effort
+    }
+    throw error;
+  }
+
+  if (!updatedVideo) {
+    try {
+      await removeImageFileSafely(uploadedThumbnailAbsPath);
+    } catch {
+      // best effort
+    }
+    throw new NotFoundError("Video", id);
+  }
+
+  if (
+    oldThumbnailAbsPath &&
+    oldThumbnailAbsPath !== uploadedThumbnailAbsPath
+  ) {
+    try {
+      await removeImageFileSafely(oldThumbnailAbsPath);
+    } catch (err) {
+      logger.warn("Failed to delete old thumbnail file", err);
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    thumbnailUrl: `${newThumbnailPath}?t=${Date.now()}`,
+  });
 };

@@ -565,6 +565,11 @@ export const ru = {
   failedToUpload: "Не удалось загрузить видео",
   uploading: "Загрузка...",
   upload: "Загрузить",
+  uploadThumbnail: "Загрузить миниатюру",
+  clickToSelectImage: "Нажмите, чтобы выбрать изображение",
+  changeImage: "Изменить изображение",
+  selectImage: "Выбрать изображение",
+  thumbnailUploaded: "Миниатюра загружена",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Обнаружена коллекция Bilibili",

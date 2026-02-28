@@ -552,6 +552,11 @@ export const ar = {
   failedToUpload: "فشل رفع الفيديو",
   uploading: "جاري الرفع...",
   upload: "رفع",
+  uploadThumbnail: "تحميل الصورة المصغرة",
+  clickToSelectImage: "انقر لتحديد صورة",
+  changeImage: "تغيير الصورة",
+  selectImage: "تحديد صورة",
+  thumbnailUploaded: "تم تحميل الصورة المصغرة",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "تم اكتشاف مجموعة Bilibili",

@@ -531,11 +531,16 @@ export const zh = {
 
   // Upload Modal
   selectVideoFile: "选择视频文件",
-  pleaseSelectVideo: "请选择视频文件",
+  pleaseSelectVideo: "请选择一个视频文件",
   uploadFailed: "上传失败",
   failedToUpload: "视频上传失败",
   uploading: "上传中...",
   upload: "上传",
+  uploadThumbnail: "上传缩略图",
+  clickToSelectImage: "点击选择图片",
+  changeImage: "更改图片",
+  selectImage: "选择图片",
+  thumbnailUploaded: "缩略图已上传",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "检测到 Bilibili 合集",

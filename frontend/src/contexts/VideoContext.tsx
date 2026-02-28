@@ -16,6 +16,7 @@ interface VideoContextType {
     deleteVideos: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
     updateVideo: (id: string, updates: Partial<Video>) => Promise<{ success: boolean; error?: string }>;
     refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
+    uploadThumbnail: (id: string, file: File) => Promise<void>;
     searchLocalVideos: (query: string) => Video[];
     searchResults: any[];
     localSearchResults: Video[];
@@ -381,11 +382,14 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         onSuccess: ({ id, data }) => {
             if (data.success) {
                 queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
-                    old ? old.map(video =>
-                        video.id === id
-                            ? { ...video, thumbnailUrl: data.thumbnailUrl, thumbnailPath: data.thumbnailUrl }
-                            : video
-                    ) : []
+                    old ? old.map(video => {
+                        if (video.id !== id) return video;
+                        const thumbnailUrl = data.thumbnailUrl;
+                        const thumbnailPath = typeof thumbnailUrl === 'string'
+                            ? thumbnailUrl.split('?')[0]
+                            : thumbnailUrl;
+                        return { ...video, thumbnailUrl, thumbnailPath };
+                    }) : []
                 );
                 showSnackbar(t('thumbnailRefreshed'));
             }
@@ -405,6 +409,39 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
             return { success: false, error: t('thumbnailRefreshFailed') };
         }
+    };
+
+    const uploadThumbnailMutation = useMutation({
+        mutationFn: async ({ id, file }: { id: string; file: File }) => {
+            const formData = new FormData();
+            formData.append('thumbnail', file);
+            const response = await api.post(`/videos/${id}/upload-thumbnail`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return { id, data: response.data };
+        },
+        onSuccess: ({ id, data }) => {
+            if (data.success) {
+                queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
+                    old ? old.map(video => {
+                        if (video.id !== id) return video;
+                        const thumbnailUrl = data.thumbnailUrl;
+                        const thumbnailPath = typeof thumbnailUrl === 'string'
+                            ? thumbnailUrl.split('?')[0]
+                            : thumbnailUrl;
+                        return { ...video, thumbnailUrl, thumbnailPath };
+                    }) : []
+                );
+                showSnackbar(t('thumbnailUploaded') || 'Thumbnail uploaded');
+            }
+        },
+        onError: (error: any) => {
+            console.error('Error uploading thumbnail:', error);
+        }
+    });
+
+    const uploadThumbnail = async (id: string, file: File): Promise<void> => {
+        await uploadThumbnailMutation.mutateAsync({ id, file });
     };
 
     const updateVideoMutation = useMutation({
@@ -476,6 +513,7 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             deleteVideos,
             updateVideo,
             refreshThumbnail,
+            uploadThumbnail,
             incrementView,
             searchLocalVideos,
             searchResults,

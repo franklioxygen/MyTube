@@ -573,6 +573,11 @@ export const pt = {
   failedToUpload: "Falha ao enviar vídeo",
   uploading: "Enviando...",
   upload: "Enviar",
+  uploadThumbnail: "Fazer upload da miniatura",
+  clickToSelectImage: "Clique para selecionar uma imagem",
+  changeImage: "Alterar imagem",
+  selectImage: "Selecionar imagem",
+  thumbnailUploaded: "Miniatura enviada",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Coleção Bilibili Detectada",

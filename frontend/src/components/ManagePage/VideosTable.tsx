@@ -1,6 +1,7 @@
 import {
     Check,
     Close,
+    CloudUpload,
     Delete,
     DriveFileMove,
     Edit,
@@ -44,6 +45,7 @@ import { Video } from '../../types';
 import { formatDuration, formatSize } from '../../utils/formatUtils';
 import CollectionModal from '../CollectionModal';
 import ConfirmationModal from '../ConfirmationModal';
+import UploadThumbnailModal from '../UploadThumbnailModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
 import { useVideoReDownload } from './hooks/useVideoReDownload';
@@ -86,6 +88,7 @@ interface VideosTableProps {
     onDeleteClick: (id: string) => void;
     deletingId: string | null;
     onRefreshThumbnail: (id: string) => void;
+    onUploadThumbnail: (id: string, file: File) => Promise<any>;
     refreshingId: string | null;
     onRefreshFileSizes: () => void;
     isRefreshingFileSizes: boolean;
@@ -107,6 +110,7 @@ const VideosTable: React.FC<VideosTableProps> = ({
     onDeleteClick,
     deletingId,
     onRefreshThumbnail,
+    onUploadThumbnail,
     refreshingId,
     onRefreshFileSizes,
     isRefreshingFileSizes,
@@ -132,6 +136,9 @@ const VideosTable: React.FC<VideosTableProps> = ({
     const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState<string>('');
     const [isSavingTitle, setIsSavingTitle] = useState<boolean>(false);
+
+    // Upload thumbnail state
+    const [uploadThumbnailVideoId, setUploadThumbnailVideoId] = useState<string | null>(null);
 
     // Re-download hook
     const { handleReDownload } = useVideoReDownload();
@@ -373,26 +380,47 @@ const VideosTable: React.FC<VideosTableProps> = ({
                                                 <ThumbnailImage video={video} />
                                             </Link>
                                             {!isVisitor && (
-                                                <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"} disableHoverListener={isTouch}>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onRefreshThumbnail(video.id)}
-                                                        disabled={refreshingId === video.id}
-                                                        sx={{
-                                                            position: 'absolute',
-                                                            top: 0,
-                                                            right: 0,
-                                                            bgcolor: 'rgba(0,0,0,0.5)',
-                                                            color: 'white',
-                                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                                            p: 0.5,
-                                                            width: 24,
-                                                            height: 24
-                                                        }}
-                                                    >
-                                                        {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
-                                                    </IconButton>
-                                                </Tooltip>
+                                                <>
+                                                    <Tooltip title={t('refreshThumbnail') || "Refresh Thumbnail"} disableHoverListener={isTouch}>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => onRefreshThumbnail(video.id)}
+                                                            disabled={refreshingId === video.id}
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                right: 0,
+                                                                bgcolor: 'rgba(0,0,0,0.5)',
+                                                                color: 'white',
+                                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                                p: 0.5,
+                                                                width: 24,
+                                                                height: 24
+                                                            }}
+                                                        >
+                                                            {refreshingId === video.id ? <CircularProgress size={14} color="inherit" /> : <Refresh sx={{ fontSize: 16 }} />}
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title={t('uploadThumbnail') || "Upload Thumbnail"} disableHoverListener={isTouch}>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => setUploadThumbnailVideoId(video.id)}
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                bottom: 0,
+                                                                right: 0,
+                                                                bgcolor: 'rgba(0,0,0,0.5)',
+                                                                color: 'white',
+                                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                                p: 0.5,
+                                                                width: 24,
+                                                                height: 24
+                                                            }}
+                                                        >
+                                                            <CloudUpload sx={{ fontSize: 16 }} />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </>
                                             )}
                                         </Box>
                                         <Typography variant="caption" display="block" sx={{ mt: 0.5, color: 'text.secondary', textAlign: 'center' }}>
@@ -538,6 +566,16 @@ const VideosTable: React.FC<VideosTableProps> = ({
                 confirmText={isBulkDeleting ? (t('deleting') || 'Deleting...') : (t('delete') || 'Delete')}
                 cancelText={t('cancel')}
                 isDanger={true}
+            />
+
+            <UploadThumbnailModal
+                open={uploadThumbnailVideoId !== null}
+                onClose={() => setUploadThumbnailVideoId(null)}
+                onUpload={async (file) => {
+                    if (uploadThumbnailVideoId) {
+                        await onUploadThumbnail(uploadThumbnailVideoId, file);
+                    }
+                }}
             />
         </Box>
     );

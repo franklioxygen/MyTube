@@ -57,6 +57,7 @@ export const registerStaticRoutes = (
     express.static(IMAGES_DIR, {
       setHeaders: (res) => {
         res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("X-Content-Type-Options", "nosniff");
       },
     })
   );
@@ -66,6 +67,7 @@ export const registerStaticRoutes = (
     express.static(AVATARS_DIR, {
       setHeaders: (res) => {
         res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("X-Content-Type-Options", "nosniff");
       },
     })
   );

@@ -581,6 +581,11 @@ export const de = {
   failedToUpload: "Fehler beim Hochladen des Videos",
   uploading: "Hochladen...",
   upload: "Hochladen",
+  uploadThumbnail: "Miniaturansicht hochladen",
+  clickToSelectImage: "Klicken Sie, um ein Bild auszuwählen",
+  changeImage: "Bild ändern",
+  selectImage: "Bild auswählen",
+  thumbnailUploaded: "Miniaturansicht hochgeladen",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili-Sammlung Erkannt",

@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { DownloadError, ServiceError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
 
@@ -11,6 +12,17 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ): void {
+  // Handle Multer errors (file size exceeded, unexpected field, etc.)
+  if (err instanceof multer.MulterError) {
+    const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "File too large. Maximum size is 10 MB."
+        : err.message;
+    res.status(status).json({ error: message, type: "validation" });
+    return;
+  }
+
   // Handle DownloadErrors (expected errors during download/processing)
   if (err instanceof DownloadError) {
     logger.warn(`[DownloadError] ${err.type}: ${err.message}`);

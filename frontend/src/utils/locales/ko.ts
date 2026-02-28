@@ -557,6 +557,11 @@ export const ko = {
   failedToUpload: "동영상 업로드 실패",
   uploading: "업로드 중...",
   upload: "업로드",
+  uploadThumbnail: "썸네일 업로드",
+  clickToSelectImage: "클릭하여 이미지 선택",
+  changeImage: "이미지 변경",
+  selectImage: "이미지 선택",
+  thumbnailUploaded: "썸네일 업로드됨",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili 컬렉션 감지됨",

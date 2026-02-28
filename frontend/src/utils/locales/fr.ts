@@ -577,6 +577,11 @@ export const fr = {
   failedToUpload: "Échec de la mise en ligne de la vidéo",
   uploading: "Mise en ligne...",
   upload: "Mettre en ligne",
+  uploadThumbnail: "Télécharger la miniature",
+  clickToSelectImage: "Cliquez pour sélectionner une image",
+  changeImage: "Changer l'image",
+  selectImage: "Sélectionner une image",
+  thumbnailUploaded: "Miniature téléchargée",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Collection Bilibili détectée",

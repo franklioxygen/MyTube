@@ -580,6 +580,11 @@ export const es = {
   failedToUpload: "Error al cargar el video",
   uploading: "Cargando...",
   upload: "Subir",
+  uploadThumbnail: "Subir miniatura",
+  clickToSelectImage: "Haz clic para seleccionar una imagen",
+  changeImage: "Cambiar imagen",
+  selectImage: "Seleccionar imagen",
+  thumbnailUploaded: "Miniatura subida",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Colección de Bilibili Detectada",

@@ -556,6 +556,11 @@ export const en = {
   failedToUpload: "Failed to upload video",
   uploading: "Uploading...",
   upload: "Upload",
+  uploadThumbnail: "Upload Thumbnail",
+  clickToSelectImage: "Click to select an image",
+  changeImage: "Change Image",
+  selectImage: "Select Image",
+  thumbnailUploaded: "Thumbnail uploaded",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili Collection Detected",

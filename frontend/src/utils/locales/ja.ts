@@ -569,6 +569,11 @@ export const ja = {
   failedToUpload: "動画のアップロードに失敗しました",
   uploading: "アップロード中...",
   upload: "アップロード",
+  uploadThumbnail: "サムネイルをアップロード",
+  clickToSelectImage: "クリックして画像を選択",
+  changeImage: "画像を変更",
+  selectImage: "画像を選択",
+  thumbnailUploaded: "サムネイルがアップロードされました",
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibiliコレクションを検出しました",

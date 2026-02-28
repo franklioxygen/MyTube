@@ -32,7 +32,7 @@ const ManagePage: React.FC = () => {
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
-    const { videos, deleteVideo, refreshThumbnail, updateVideo, fetchVideos } = useVideo();
+    const { videos, deleteVideo, refreshThumbnail, uploadThumbnail, updateVideo, fetchVideos } = useVideo();
     const { collections, deleteCollection, updateCollection } = useCollection();
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
@@ -386,6 +386,7 @@ const ManagePage: React.FC = () => {
                         onDeleteClick={handleDelete}
                         deletingId={deletingId}
                         onRefreshThumbnail={handleRefreshThumbnail}
+                        onUploadThumbnail={uploadThumbnail}
                         refreshingId={refreshingId}
                         onRefreshFileSizes={() => refreshFileSizesMutation.mutate()}
                         isRefreshingFileSizes={refreshFileSizesMutation.isPending}
