@@ -36,6 +36,20 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   }
 
   if (
+    newSettings.apiKeyEnabled !== undefined &&
+    typeof newSettings.apiKeyEnabled !== "boolean"
+  ) {
+    throw new ValidationError("API key enabled flag must be a boolean.", "apiKeyEnabled");
+  }
+
+  if (
+    newSettings.apiKey !== undefined &&
+    typeof newSettings.apiKey !== "string"
+  ) {
+    throw new ValidationError("API key must be a string.", "apiKey");
+  }
+
+  if (
     newSettings.visitorPassword !== undefined &&
     typeof newSettings.visitorPassword !== "string"
   ) {

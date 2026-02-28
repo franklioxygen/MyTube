@@ -48,6 +48,24 @@ describe('roleBasedSettingsMiddleware Security', () => {
     }));
   });
 
+  it('should BLOCK api-key-authenticated access to settings routes', () => {
+    req = {
+      method: "GET",
+      path: "/",
+      url: "/",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('cannot access settings'),
+    }));
+  });
+
   it('should ALLOW visitor access to allowed paths', () => {
       req = {
         method: "GET",

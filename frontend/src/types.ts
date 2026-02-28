@@ -65,6 +65,8 @@ export interface Settings {
   loginEnabled: boolean;
   fastRetryMode?: boolean;
   password?: string;
+  apiKeyEnabled?: boolean;
+  apiKey?: string;
   isPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
   allowResetPassword?: boolean;

@@ -99,6 +99,8 @@ export function getSettings(): Record<string, any> {
 const WHITELISTED_SETTINGS = [
   "loginEnabled",
   "password",
+  "apiKeyEnabled",
+  "apiKey",
   "passwordLoginAllowed",
   "allowResetPassword",
   "defaultAutoPlay",

@@ -7,6 +7,8 @@
 - 认证基于 Cookie (HTTP-only JWT Cookie)。同时也接受 Authorization 标头以保证向后兼容性。
 - 启用密码登录后，未认证用户只能访问与登录相关的公开端点。
 - 访客角色对大多数资源仅有只读权限。
+- 当 `apiKeyEnabled` 为 true 时，支持通过 `X-API-Key` 或 `Authorization: ApiKey <key>` 进行 API Key 认证。
+- API Key 认证仅允许访问 `POST /api/download`，用于其他端点会返回 `403`。
 
 ## 视频下载与搜索
 
@@ -14,6 +16,7 @@
   - 查询参数: `query` (必需), `limit` (可选, 默认: `8`), `offset` (可选, 默认: `1`)
 - `POST /api/download` - 添加视频下载任务
   - 请求体: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
   - 支持: YouTube、Bilibili、MissAV 以及其他 yt-dlp 支持的网站
 - `GET /api/check-video-download` - 检查源 URL 是否已被下载过
   - 查询参数: `url` (必需)
@@ -96,8 +99,11 @@
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)
+  - 响应可能包含 `apiKeyEnabled` 与 `apiKey`；当启用登录且为访客用户时，这两个字段会被隐藏
 - `PATCH /api/settings` - 部分更新设置
   - 请求体: 部分设置对象
+  - 支持 `apiKeyEnabled?: boolean` 和 `apiKey?: string`
+  - 当 `apiKeyEnabled` 设为 `true` 且 `apiKey` 为空/缺失时，服务端会自动生成 64 位十六进制密钥
 - `POST /api/settings/migrate` - 将旧版 JSON 数据迁移至 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧版 JSON 数据文件
 - `POST /api/settings/format-filenames` - 格式化旧版文件名

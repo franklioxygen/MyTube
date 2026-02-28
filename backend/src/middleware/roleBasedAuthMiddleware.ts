@@ -42,6 +42,14 @@ const isPublicEndpoint = (req: Request): boolean => {
   return false;
 };
 
+const isApiKeyDownloadEndpoint = (req: Request): boolean => {
+  const path = req.path || req.url || "";
+  return (
+    req.method === "POST" &&
+    (path === "/download" || path.startsWith("/download?"))
+  );
+};
+
 /**
  * Middleware to enforce role-based access control
  * Visitors (userRole === 'visitor') are restricted to read-only operations
@@ -53,6 +61,21 @@ export const roleBasedAuthMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
+  // API keys are intentionally restricted to task submission only.
+  if (req.apiKeyAuthenticated === true) {
+    if (isApiKeyDownloadEndpoint(req)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      success: false,
+      error:
+        "API key authentication only allows POST /api/download requests.",
+    });
+    return;
+  }
+
   // If user is Admin, allow all requests
   if (req.user?.role === "admin") {
     next();

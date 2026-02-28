@@ -7,6 +7,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 - Auth is cookie-based (HTTP-only JWT cookie). Authorization header is also accepted for backward compatibility.
 - When password login is enabled, unauthenticated users can only access login-related public endpoints.
 - Visitor role is read-only for most resources.
+- API key auth is supported via `X-API-Key` or `Authorization: ApiKey <key>` when `apiKeyEnabled` is true.
+- API key auth is restricted to `POST /api/download` only; using it on other endpoints returns `403`.
 
 ## Video Download & Search
 
@@ -14,6 +16,7 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Query params: `query` (required), `limit` (optional, default: `8`), `offset` (optional, default: `1`)
 - `POST /api/download` - Queue a video download
   - Body: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
   - Supports: YouTube, Bilibili, MissAV and other yt-dlp supported sites
 - `GET /api/check-video-download` - Check whether a source URL was downloaded before
   - Query params: `url` (required)
@@ -96,8 +99,11 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)
+  - Response may include `apiKeyEnabled` and `apiKey`; these are hidden from visitor users when login is enabled
 - `PATCH /api/settings` - Partially update settings
   - Body: partial settings object
+  - Supports `apiKeyEnabled?: boolean` and `apiKey?: string`
+  - If `apiKeyEnabled` is set to `true` and `apiKey` is empty/missing, server auto-generates a 64-character hex key
 - `POST /api/settings/migrate` - Migrate legacy JSON data to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files
 - `POST /api/settings/format-filenames` - Format legacy filenames

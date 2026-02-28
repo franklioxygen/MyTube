@@ -1,6 +1,8 @@
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
+  apiKeyEnabled?: boolean;
+  apiKey?: string;
   passwordLoginAllowed?: boolean;
   allowResetPassword?: boolean;
   defaultAutoPlay: boolean;
@@ -55,6 +57,8 @@ export interface Settings {
 export const defaultSettings: Settings = {
   loginEnabled: false,
   password: "",
+  apiKeyEnabled: false,
+  apiKey: "",
   defaultAutoPlay: false,
   defaultAutoLoop: false,
   maxConcurrentDownloads: 3,

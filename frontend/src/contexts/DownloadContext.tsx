@@ -15,6 +15,8 @@ import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
 const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+const ACTIVE_POLL_INTERVAL_MS = 2000;
+const IDLE_POLL_INTERVAL_MS = 10000;
 
 interface BilibiliPartsInfo {
     videosNumber: number;
@@ -111,13 +113,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
-        // Only poll when there are active or queued downloads
+        // Poll with dynamic interval: fast when busy, low-frequency when idle.
         refetchInterval: (query) => {
             const data = query.state.data as { activeDownloads?: any[]; queuedDownloads?: any[] } | undefined;
             const hasActive = (data?.activeDownloads?.length ?? 0) > 0;
             const hasQueued = (data?.queuedDownloads?.length ?? 0) > 0;
-            // Poll every 2 seconds if there are downloads, otherwise stop polling
-            return hasActive || hasQueued ? 2000 : false;
+            // Keep low-frequency polling even when idle so tasks submitted from external API clients appear in UI.
+            return hasActive || hasQueued ? ACTIVE_POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
         },
         initialData: initialStatus || { activeDownloads: [], queuedDownloads: [] },
         // Always fetch fresh data on mount to ensure we have the latest server state

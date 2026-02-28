@@ -7,11 +7,16 @@ import {
   getUserPayloadFromSession,
   verifyToken,
 } from "../../services/authService";
+import { getSettings } from "../../services/storageService";
 
 vi.mock("../../services/authService", () => ({
   getAuthCookieName: vi.fn(),
   getUserPayloadFromSession: vi.fn(),
   verifyToken: vi.fn(),
+}));
+
+vi.mock("../../services/storageService", () => ({
+  getSettings: vi.fn(),
 }));
 
 describe("authMiddleware", () => {
@@ -25,6 +30,10 @@ describe("authMiddleware", () => {
     res = {};
     next = vi.fn();
     vi.mocked(getAuthCookieName).mockReturnValue("mytube_auth_session");
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: false,
+      apiKey: "",
+    } as any);
   });
 
   it("uses session cookie first and sets req.user", () => {
@@ -89,6 +98,81 @@ describe("authMiddleware", () => {
     );
     expect(verifyToken).toHaveBeenCalledWith("t2");
     expect((req as Request).user).toEqual(payload);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks request as api-key-authenticated when a valid X-API-Key is provided", () => {
+    req.headers = { "x-api-key": "my-valid-key" };
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: true,
+      apiKey: "my-valid-key",
+    } as any);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toBeUndefined();
+    expect((req as Request).apiKeyAuthenticated).toBe(true);
+    expect(getUserPayloadFromSession).not.toHaveBeenCalled();
+    expect(verifyToken).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not authenticate with an invalid API key", () => {
+    req.headers = { "x-api-key": "wrong-key" };
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: true,
+      apiKey: "my-valid-key",
+    } as any);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toBeUndefined();
+    expect((req as Request).apiKeyAuthenticated).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers valid session auth even when API key is present", () => {
+    const payload = { role: "admin", id: "u1" } as const;
+    req.cookies = { mytube_auth_session: "sid-1" };
+    req.headers = { "x-api-key": "my-valid-key" };
+    vi.mocked(getUserPayloadFromSession).mockReturnValue(payload as any);
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: true,
+      apiKey: "my-valid-key",
+    } as any);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toEqual(payload);
+    expect((req as Request).apiKeyAuthenticated).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not authenticate when apiKeyEnabled is false even with the correct key", () => {
+    req.headers = { "x-api-key": "my-valid-key" };
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: false,
+      apiKey: "my-valid-key",
+    } as any);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toBeUndefined();
+    expect((req as Request).apiKeyAuthenticated).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("authenticates via Authorization: ApiKey <key> header format", () => {
+    req.headers = { authorization: "ApiKey my-valid-key" };
+    vi.mocked(getSettings).mockReturnValue({
+      apiKeyEnabled: true,
+      apiKey: "my-valid-key",
+    } as any);
+
+    authMiddleware(req as Request, res as Response, next);
+
+    expect((req as Request).user).toBeUndefined();
+    expect((req as Request).apiKeyAuthenticated).toBe(true);
     expect(next).toHaveBeenCalledTimes(1);
   });
 });

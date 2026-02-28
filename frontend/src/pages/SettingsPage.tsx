@@ -60,6 +60,8 @@ const SettingsPage: React.FC = () => {
     const [settings, setSettings] = useState<Settings>({
         loginEnabled: false,
         password: '',
+        apiKeyEnabled: false,
+        apiKey: '',
         defaultAutoPlay: false,
         defaultAutoLoop: false,
         maxConcurrentDownloads: 3,

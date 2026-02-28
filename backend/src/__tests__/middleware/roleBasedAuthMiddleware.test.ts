@@ -91,4 +91,38 @@ describe("roleBasedAuthMiddleware", () => {
     expect(next).toHaveBeenCalled();
     expect(status).not.toHaveBeenCalled();
   });
+
+  it("allows api-key-authenticated POST /download requests", () => {
+    req = {
+      method: "POST",
+      path: "/download",
+      url: "/download",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("blocks api-key-authenticated requests to non-download endpoints", () => {
+    req = {
+      method: "GET",
+      path: "/videos",
+      url: "/videos",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("only allows POST /api/download"),
+      })
+    );
+  });
 });

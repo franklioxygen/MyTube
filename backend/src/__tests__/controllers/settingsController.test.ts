@@ -44,6 +44,21 @@ describe('SettingsController', () => {
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
     });
 
+    it('should hide api key from visitor users', async () => {
+      req.user = { role: 'visitor' } as any;
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+        apiKeyEnabled: true,
+        apiKey: 'super-secret-api-key',
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.apiKey).toBeUndefined();
+      expect(responsePayload.apiKeyEnabled).toBeUndefined();
+    });
+
     it('should save defaults if empty', async () => {
       (storageService.getSettings as any).mockReturnValue({});
 
@@ -122,6 +137,19 @@ describe('SettingsController', () => {
       const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
       expect(savedPayload.password).toBe('hashed');
       expect(savedPayload.password).not.toBe('pass');
+    });
+
+    it('should generate api key when api key auth is enabled without a key', async () => {
+      req.body = { apiKeyEnabled: true, apiKey: '' };
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.apiKeyEnabled).toBe(true);
+      expect(savedPayload.apiKey).toMatch(/^[a-f0-9]{64}$/);
     });
   });
 

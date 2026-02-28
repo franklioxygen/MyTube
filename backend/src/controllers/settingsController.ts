@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import {
@@ -37,10 +38,15 @@ export const getSettings = async (
   const mergedSettings = { ...defaultSettings, ...settings };
 
   // Do not send the hashed password to the frontend
-  const { password, visitorPassword, ...safeSettings } = mergedSettings;
+  const { password, visitorPassword, apiKey, apiKeyEnabled, ...safeSettings } = mergedSettings;
+  const canExposeApiKey =
+    req.user?.role === "admin" || mergedSettings.loginEnabled !== true;
+
   // Return data directly for backward compatibility
   res.json({
     ...safeSettings,
+    apiKeyEnabled: canExposeApiKey ? apiKeyEnabled : undefined,
+    apiKey: canExposeApiKey ? apiKey : undefined,
     isPasswordSet: !!password,
     isVisitorPasswordSet: !!visitorPassword,
     authenticatedRole: req.user?.role ?? null,
@@ -370,6 +376,28 @@ const applyRuntimeSettingChanges = (
   }
 };
 
+const generateApiKey = (): string => crypto.randomBytes(32).toString("hex");
+
+const ensureApiKeyWhenEnabled = (
+  settingsToPersist: Partial<Settings>,
+  finalSettings: Settings
+): void => {
+  if (finalSettings.apiKeyEnabled !== true) {
+    return;
+  }
+
+  if (
+    typeof finalSettings.apiKey === "string" &&
+    finalSettings.apiKey.trim().length > 0
+  ) {
+    return;
+  }
+
+  const newApiKey = generateApiKey();
+  settingsToPersist.apiKey = newApiKey;
+  finalSettings.apiKey = newApiKey;
+};
+
 const persistSettingsUpdate = async (
   req: Request,
   res: Response,
@@ -408,12 +436,13 @@ const persistSettingsUpdate = async (
 
   removeUndefinedSettings(settingsToPersist);
 
-  storageService.saveSettings(settingsToPersist as Record<string, unknown>);
-
   const finalSettings =
     mode === "replace"
       ? (settingsToPersist as Settings)
       : ({ ...existingSettings, ...settingsToPersist } as Settings);
+
+  ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
+  storageService.saveSettings(settingsToPersist as Record<string, unknown>);
 
   processTagChanges(existingSettings, settingsToPersist);
   await moveSubtitlesIfSettingChanged(existingSettings, settingsToPersist);

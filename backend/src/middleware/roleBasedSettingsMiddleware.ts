@@ -53,6 +53,14 @@ export const roleBasedSettingsMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
+  if (req.apiKeyAuthenticated === true) {
+    res.status(403).json({
+      success: false,
+      error: "API key authentication cannot access settings endpoints.",
+    });
+    return;
+  }
+
   // If user is Admin, allow all requests
   if (req.user?.role === "admin") {
     next();

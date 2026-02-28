@@ -1,5 +1,7 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { Box, Button, FormControlLabel, Switch, TextField, Typography } from '@mui/material';
 import { startRegistration } from '@simplewebauthn/browser';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -16,9 +18,16 @@ interface SecuritySettingsProps {
     onChange: (field: keyof Settings, value: any) => void;
 }
 
+const generateApiKey = (): string => {
+    const bytes = new Uint8Array(32);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
 const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange }) => {
     const { t } = useLanguage();
     const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const [showRefreshKeyModal, setShowRefreshKeyModal] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
@@ -147,6 +156,31 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
         removePasskeysMutation.mutate();
     };
 
+    const handleApiKeyToggle = (enabled: boolean) => {
+        onChange('apiKeyEnabled', enabled);
+        if (enabled && !settings.apiKey) {
+            onChange('apiKey', generateApiKey());
+        }
+    };
+
+    const handleRefreshApiKey = () => {
+        onChange('apiKey', generateApiKey());
+    };
+
+    const handleCopyApiKey = async () => {
+        if (!settings.apiKey) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(settings.apiKey);
+            showAlert(t('success'), t('apiKeyCopied') || 'API key copied to clipboard');
+        } catch (error) {
+            console.error('Error copying API key:', error);
+            showAlert(t('error'), t('apiKeyCopyFailed') || 'Failed to copy API key. Please copy it manually.');
+        }
+    };
+
     const fastRetryModeTranslation = t('fastRetryMode');
     const fastRetryModeLabel =
         fastRetryModeTranslation === 'fastRetryMode' ? 'Quick Retry Mode' : fastRetryModeTranslation;
@@ -175,33 +209,31 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                 label={t('enableLogin')}
             />
 
-            {settings.loginEnabled && (
-                <Box sx={{ mt: 2, mb: 1 }}>
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                checked={settings.fastRetryMode || false}
-                                onChange={(e) => onChange('fastRetryMode', e.target.checked)}
-                            />
-                        }
-                        label={fastRetryModeLabel}
-                    />
-                    <Typography
-                        variant="body2"
-                        color={settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
-                        sx={{ mt: 1, fontWeight: settings.fastRetryMode ? 600 : 400 }}
-                    >
-                        {`${fastRetryModeDesc}`}
-                    </Typography>
-                    <Typography
-                        variant="body2"
-                        color={!settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
-                        sx={{ mt: 0.5, fontWeight: !settings.fastRetryMode ? 600 : 400 }}
-                    >
-                        {`${normalRetryModeDesc}`}
-                    </Typography>
-                </Box>
-            )}
+            <Box sx={{ mt: 2, mb: 1 }}>
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={settings.fastRetryMode || false}
+                            onChange={(e) => onChange('fastRetryMode', e.target.checked)}
+                        />
+                    }
+                    label={fastRetryModeLabel}
+                />
+                <Typography
+                    variant="body2"
+                    color={settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
+                    sx={{ mt: 1, fontWeight: settings.fastRetryMode ? 600 : 400 }}
+                >
+                    {`${fastRetryModeDesc}`}
+                </Typography>
+                <Typography
+                    variant="body2"
+                    color={!settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
+                    sx={{ mt: 0.5, fontWeight: !settings.fastRetryMode ? 600 : 400 }}
+                >
+                    {`${normalRetryModeDesc}`}
+                </Typography>
+            </Box>
 
             {settings.loginEnabled && (
                 <Box sx={{ mt: 2 }}>
@@ -256,6 +288,55 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                             {t('allowResetPasswordHelper') || 'When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.'}
                         </Typography>
                     </Box>
+
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={settings.apiKeyEnabled === true}
+                                onChange={(e) => handleApiKeyToggle(e.target.checked)}
+                                disabled={!settings.loginEnabled}
+                            />
+                        }
+                        label={t('enableApiKeyAuth') || 'Enable API Key Authentication'}
+                    />
+
+                    {settings.apiKeyEnabled === true && (
+                        <>
+                            <Box sx={{ mt: 1, mb: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    {t('apiKeyAuthHelper') || 'When enabled, API requests can be authorized with X-API-Key without a login session.'}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ mb: 1, maxWidth: 400 }}>
+                                <TextField
+                                    fullWidth
+                                    label={t('apiKey') || 'API Key'}
+                                    value={settings.apiKey || ''}
+                                    InputProps={{ readOnly: true }}
+                                    helperText={t('apiKeySaveHint') || 'Save settings to activate changes to the API key.'}
+                                />
+                            </Box>
+                            <Box sx={{ mb: 2, maxWidth: 400, display: 'flex', gap: 1 }}>
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={<RefreshIcon />}
+                                    onClick={() => setShowRefreshKeyModal(true)}
+                                >
+                                    {t('refreshApiKey') || 'Refresh'}
+                                </Button>
+                                <Button
+                                    fullWidth
+                                    variant="outlined"
+                                    startIcon={<ContentCopyIcon />}
+                                    onClick={handleCopyApiKey}
+                                    disabled={!settings.apiKey}
+                                >
+                                    {t('copyApiKey') || 'Copy'}
+                                </Button>
+                            </Box>
+                        </>
+                    )}
 
                     <Box sx={{ mt: 3, maxWidth: 400 }}>
                         <Box sx={{ mb: 2 }}>
@@ -327,6 +408,20 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
 
                 </Box>
             )}
+
+            <ConfirmationModal
+                isOpen={showRefreshKeyModal}
+                onClose={() => setShowRefreshKeyModal(false)}
+                onConfirm={() => {
+                    handleRefreshApiKey();
+                    setShowRefreshKeyModal(false);
+                }}
+                title={t('refreshApiKeyTitle') || 'Refresh API Key'}
+                message={t('refreshApiKeyConfirm') || 'Regenerating the API key will invalidate the existing one. All clients using the old key will need to be updated after saving.'}
+                confirmText={t('confirm') || 'Confirm'}
+                cancelText={t('cancel') || 'Cancel'}
+                isDanger={true}
+            />
 
             <ConfirmationModal
                 isOpen={showRemoveModal}
