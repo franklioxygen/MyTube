@@ -19,8 +19,8 @@
       <main>
         <div class="section">
           <label for="serverUrl">
-            <strong>MyTube Server URL</strong>
-            <span class="hint"
+            <strong id="serverUrlLabel">MyTube Server URL</strong>
+            <span id="serverUrlHint" class="hint"
               >Enter the URL of your MyTube server (e.g.,
               http://localhost:3000)</span
             >
@@ -29,6 +29,22 @@
             type="text"
             id="serverUrl"
             placeholder="http://localhost:3000"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="section">
+          <label for="apiKey">
+            <strong id="apiKeyLabel">API Key (Optional)</strong>
+            <span id="apiKeyHint" class="hint"
+              >Paste your API key from MyTube Security Settings. Used only for
+              download requests.</span
+            >
+          </label>
+          <input
+            type="password"
+            id="apiKey"
+            placeholder="Paste API key"
             autocomplete="off"
           />
         </div>

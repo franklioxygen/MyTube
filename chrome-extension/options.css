@@ -110,7 +110,8 @@ label strong {
   }
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   width: 100%;
   padding: 12px 16px;
   border: 2px solid #e0e0e0;
@@ -122,19 +123,22 @@ input[type="text"] {
   color: #333;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus {
   outline: none;
   border-color: #667eea;
 }
 
 @media (prefers-color-scheme: dark) {
-  input[type="text"] {
+  input[type="text"],
+  input[type="password"] {
     background: #2d2d2d;
     border-color: #404040;
     color: #e0e0e0;
   }
 
-  input[type="text"]:focus {
+  input[type="text"]:focus,
+  input[type="password"]:focus {
     border-color: #667eea;
   }
 }

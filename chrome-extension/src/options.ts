@@ -2,41 +2,75 @@
 
 import type { Translations } from './types';
 
+const connectionFailedTemplate = (error: string): string => {
+  const template =
+    window.currentTranslations?.connectionFailed || '✗ {error}';
+  return template.includes('{error}')
+    ? template.replace('{error}', error)
+    : `✗ ${error}`;
+};
+
 // Wait for DOM to be ready and translations to be loaded
-function init() {
+function init(): void {
   if (window.loadTranslations) {
     window.loadTranslations(() => {
-      // Apply translations to static content
       if (window.currentTranslations) {
-        const t = window.currentTranslations;
-        const h1 = document.querySelector('h1');
-        if (h1) h1.textContent = t.mytubeDownloader || 'MyTube Downloader';
-        
-        const subtitle = document.querySelector('.subtitle');
-        if (subtitle) subtitle.textContent = t.configureConnection || 'Configure your MyTube server connection';
-        
-        const label = document.querySelector('label strong');
-        if (label) label.textContent = t.serverUrl || 'MyTube Server URL';
-        
-        const hint = document.querySelector('.hint');
-        if (hint) hint.textContent = t.serverUrlHint || 'Enter the URL of your MyTube server (e.g., http://localhost:3000)';
-        
-        const testBtn = document.getElementById('testConnectionText');
-        if (testBtn) testBtn.textContent = t.testConnection || 'Test Connection';
-        
-        const saveBtn = document.getElementById('saveSettings');
-        if (saveBtn) saveBtn.textContent = t.saveSettings || 'Save Settings';
-        
-        const footer = document.querySelector('footer p');
-        if (footer) footer.textContent = t.footerText || 'After configuring, visit video websites to download videos with one click!';
+        applyStaticTranslations(window.currentTranslations);
       }
-      
-      // Initialize options page
       initializeOptions();
     });
-  } else {
-    // Fallback if translations not loaded
-    initializeOptions();
+    return;
+  }
+
+  // Fallback if translations are unavailable
+  initializeOptions();
+}
+
+function applyStaticTranslations(t: Translations): void {
+  const h1 = document.querySelector('h1');
+  if (h1) h1.textContent = t.mytubeDownloader || 'MyTube Downloader';
+
+  const subtitle = document.querySelector('.subtitle');
+  if (subtitle) {
+    subtitle.textContent =
+      t.configureConnection || 'Configure your MyTube server connection';
+  }
+
+  const serverUrlLabel = document.getElementById('serverUrlLabel');
+  if (serverUrlLabel) {
+    serverUrlLabel.textContent = t.serverUrl || 'MyTube Server URL';
+  }
+
+  const serverUrlHint = document.getElementById('serverUrlHint');
+  if (serverUrlHint) {
+    serverUrlHint.textContent =
+      t.serverUrlHint ||
+      'Enter the URL of your MyTube server (e.g., http://localhost:3000)';
+  }
+
+  const apiKeyLabel = document.getElementById('apiKeyLabel');
+  if (apiKeyLabel) {
+    apiKeyLabel.textContent = t.apiKey || 'API Key (Optional)';
+  }
+
+  const apiKeyHint = document.getElementById('apiKeyHint');
+  if (apiKeyHint) {
+    apiKeyHint.textContent =
+      t.apiKeyHint ||
+      'Paste your API key from MyTube Security Settings. Used only for download requests.';
+  }
+
+  const testBtnText = document.getElementById('testConnectionText');
+  if (testBtnText) testBtnText.textContent = t.testConnection || 'Test Connection';
+
+  const saveBtn = document.getElementById('saveSettings');
+  if (saveBtn) saveBtn.textContent = t.saveSettings || 'Save Settings';
+
+  const footer = document.querySelector('footer p');
+  if (footer) {
+    footer.textContent =
+      t.footerText ||
+      'After configuring, visit video websites to download videos with one click!';
   }
 }
 
@@ -49,6 +83,7 @@ if (document.readyState === 'loading') {
 
 async function initializeOptions(): Promise<void> {
   const serverUrlInput = document.getElementById('serverUrl') as HTMLInputElement | null;
+  const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement | null;
   const testConnectionBtn = document.getElementById('testConnection') as HTMLButtonElement | null;
   const testConnectionText = document.getElementById('testConnectionText');
   const testConnectionSpinner = document.getElementById('testConnectionSpinner');
@@ -56,21 +91,25 @@ async function initializeOptions(): Promise<void> {
   const saveSettingsBtn = document.getElementById('saveSettings') as HTMLButtonElement | null;
   const statusMessage = document.getElementById('statusMessage');
 
-  if (!serverUrlInput || !testConnectionBtn || !testConnectionText || !testConnectionSpinner || 
+  if (!serverUrlInput || !apiKeyInput || !testConnectionBtn || !testConnectionText || !testConnectionSpinner || 
       !testResult || !saveSettingsBtn || !statusMessage) {
     console.error('Required DOM elements not found');
     return;
   }
 
   // Load saved settings
-  const result = await chrome.storage.sync.get(['serverUrl']);
+  const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
   if (result.serverUrl) {
     serverUrlInput.value = result.serverUrl;
+  }
+  if (typeof result.apiKey === 'string') {
+    apiKeyInput.value = result.apiKey;
   }
 
   // Test connection
   testConnectionBtn.addEventListener('click', async () => {
     const serverUrl = serverUrlInput.value.trim();
+    const apiKey = apiKeyInput.value.trim();
     
     if (!serverUrl) {
       showTestResult('Please enter a server URL', 'error');
@@ -95,17 +134,21 @@ async function initializeOptions(): Promise<void> {
       const response = await chrome.runtime.sendMessage({
         action: 'testConnection',
         serverUrl: serverUrl,
+        apiKey: apiKey || undefined,
       }) as { success: boolean; error?: string };
 
       if (response.success) {
         showTestResult(window.currentTranslations?.connectionSuccess || '✓ Connection successful!', 'success');
       } else {
-        const errorMsg = response.error || (window.currentTranslations?.connectionFailed || 'Connection failed');
-        showTestResult(`✗ ${errorMsg.replace('{error}', response.error || '')}`, 'error');
+        showTestResult(
+          connectionFailedTemplate(response.error || 'Connection failed'),
+          'error'
+        );
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : (window.currentTranslations?.connectionFailed || 'Failed to test connection');
-      showTestResult(`✗ ${errorMsg.replace('{error}', error instanceof Error ? error.message : '')}`, 'error');
+      const message =
+        error instanceof Error ? error.message : 'Failed to test connection';
+      showTestResult(connectionFailedTemplate(message), 'error');
     } finally {
       testConnectionBtn.disabled = false;
       testConnectionText.textContent = window.currentTranslations?.testConnection || 'Test Connection';
@@ -116,6 +159,7 @@ async function initializeOptions(): Promise<void> {
   // Save settings
   saveSettingsBtn.addEventListener('click', async () => {
     const serverUrl = serverUrlInput.value.trim();
+    const apiKey = apiKeyInput.value.trim();
 
     if (!serverUrl) {
       showStatus('Please enter a server URL', 'error');
@@ -131,7 +175,12 @@ async function initializeOptions(): Promise<void> {
     }
 
     try {
-      await chrome.storage.sync.set({ serverUrl: serverUrl });
+      if (apiKey.length > 0) {
+        await chrome.storage.sync.set({ serverUrl: serverUrl, apiKey: apiKey });
+      } else {
+        await chrome.storage.sync.set({ serverUrl: serverUrl });
+        await chrome.storage.sync.remove('apiKey');
+      }
       showStatus(window.currentTranslations?.settingsSaved || 'Settings saved successfully!', 'success');
     } catch (error) {
       const errorMsg = (window.currentTranslations?.settingsError || 'Error saving settings: {error}').replace('{error}', error instanceof Error ? error.message : String(error));
@@ -140,11 +189,13 @@ async function initializeOptions(): Promise<void> {
   });
 
   // Allow Enter key to save
-  serverUrlInput.addEventListener('keypress', (e: KeyboardEvent) => {
+  const handleEnterToSave = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       saveSettingsBtn.click();
     }
-  });
+  };
+  serverUrlInput.addEventListener('keydown', handleEnterToSave);
+  apiKeyInput.addEventListener('keydown', handleEnterToSave);
 
   function showTestResult(message: string, type: 'success' | 'error'): void {
     if (!testResult) return;

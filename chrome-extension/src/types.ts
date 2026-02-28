@@ -15,6 +15,8 @@ export interface Translations {
   configureConnection: string;
   serverUrl: string;
   serverUrlHint: string;
+  apiKey: string;
+  apiKeyHint: string;
   testConnection: string;
   testing: string;
   saveSettings: string;

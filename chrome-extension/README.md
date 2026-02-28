@@ -42,8 +42,9 @@ A Chrome extension that allows one-click downloading of videos from YouTube, Bil
 1. Click the extension icon in your browser toolbar
 2. Click "⚙️ Settings" button
 3. Enter your MyTube server URL (e.g., `http://localhost:3000` or `https://your-server.com`)
-4. Click "Test Connection" to verify the connection
-5. Click "Save Settings"
+4. Optional: paste your API key from MyTube Security Settings
+5. Click "Test Connection" to verify the connection
+6. Click "Save Settings"
 
 ## Usage
 
@@ -133,6 +134,9 @@ The extension communicates with your MyTube server using the following endpoints
 - `GET /api/settings` - Used for connection testing
 - `POST /api/download` - Used to queue video downloads
   - Request body: `{ youtubeUrl: string }`
+  - Optional header: `X-API-Key: <your_api_key>`
+
+When API key is configured, the extension only uses API key auth on `POST /api/download` requests, matching backend restrictions.
 
 ## Troubleshooting
 

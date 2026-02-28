@@ -4,18 +4,23 @@ interface DownloadVideoMessage {
   action: 'downloadVideo';
   url: string;
   serverUrl?: string;
+  apiKey?: string | null;
 }
 
 interface TestConnectionMessage {
   action: 'testConnection';
   serverUrl: string;
+  apiKey?: string | null;
 }
 
 interface GetTranslationsMessage {
   action: 'getTranslations';
 }
 
-type MessageRequest = DownloadVideoMessage | TestConnectionMessage | GetTranslationsMessage;
+type MessageRequest =
+  | DownloadVideoMessage
+  | TestConnectionMessage
+  | GetTranslationsMessage;
 
 interface MessageResponse {
   success: boolean;
@@ -24,14 +29,41 @@ interface MessageResponse {
   lang?: string;
 }
 
+const normalizeApiKey = (apiKey?: string | null): string | undefined => {
+  if (typeof apiKey !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = apiKey.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const withApiKeyHeader = (
+  headers: Record<string, string>,
+  apiKey: string | undefined | null
+): Record<string, string> => {
+  if (apiKey) {
+    return { ...headers, 'X-API-Key': apiKey };
+  }
+  return headers;
+};
+
+const parseErrorMessage = async (
+  response: Response,
+  fallbackMessage: string
+): Promise<string> => {
+  const errorData = await response.json().catch(() => ({}));
+  return errorData.message || errorData.error || fallbackMessage;
+};
+
 // Listen for messages from content script and popup
 chrome.runtime.onMessage.addListener((
   request: MessageRequest,
-  sender: chrome.runtime.MessageSender,
+  _sender: chrome.runtime.MessageSender,
   sendResponse: (response: MessageResponse) => void
 ): boolean => {
   if (request.action === 'downloadVideo') {
-    handleDownload(request.url, request.serverUrl)
+    handleDownload(request.url, request.serverUrl, request.apiKey)
       .then(result => {
         sendResponse({ success: true, data: result });
       })
@@ -42,7 +74,7 @@ chrome.runtime.onMessage.addListener((
   }
 
   if (request.action === 'testConnection') {
-    testConnection(request.serverUrl)
+    testConnection(request.serverUrl, request.apiKey)
       .then(result => {
         sendResponse({ success: true, data: result });
       })
@@ -61,7 +93,7 @@ chrome.runtime.onMessage.addListener((
       'ja': 'ja', 'ko': 'ko', 'pt': 'pt', 'ru': 'ru', 'ar': 'ar'
     };
     const normalizedLang = languageMap[langCode] || 'en';
-    
+
     // For now, return language code - content script will use English as fallback
     // Full translation support for content script would require more complex setup
     sendResponse({ success: true, lang: normalizedLang });
@@ -73,18 +105,52 @@ chrome.runtime.onMessage.addListener((
 });
 
 /**
- * Test connection to MyTube server
+ * Test connection to MyTube server.
+ * API key mode is validated through POST /api/download because API keys
+ * are intentionally restricted to download task creation only.
  */
-async function testConnection(serverUrl: string): Promise<{ connected: boolean; message: string }> {
+async function testConnection(
+  serverUrl: string,
+  apiKey?: string | null
+): Promise<{ connected: boolean; message: string }> {
   if (!serverUrl) {
     throw new Error('Server URL is required');
   }
 
   // Normalize URL - remove trailing slash
   const normalizedUrl = serverUrl.replace(/\/+$/, '');
-  const testUrl = `${normalizedUrl}/api/settings`;
+  const normalizedApiKey = normalizeApiKey(apiKey);
 
   try {
+    if (normalizedApiKey) {
+      const response = await fetch(`${normalizedUrl}/api/download`, {
+        method: 'POST',
+        headers: withApiKeyHeader(
+          {
+            'Content-Type': 'application/json',
+          },
+          normalizedApiKey
+        ),
+        body: JSON.stringify({}),
+      });
+
+      if (response.ok || response.status === 400) {
+        return { connected: true, message: 'Connection successful' };
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('API key is invalid or API key authentication is disabled on server.');
+      }
+
+      throw new Error(
+        await parseErrorMessage(
+          response,
+          `Server responded with status ${response.status}`
+        )
+      );
+    }
+
+    const testUrl = `${normalizedUrl}/api/settings`;
     const response = await fetch(testUrl, {
       method: 'GET',
       headers: {
@@ -109,16 +175,27 @@ async function testConnection(serverUrl: string): Promise<{ connected: boolean; 
 /**
  * Send download request to MyTube server
  */
-async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ message: string; downloadId?: string }> {
+async function handleDownload(
+  videoUrl: string,
+  serverUrl?: string,
+  apiKey?: string | null
+): Promise<{ message: string; downloadId?: string }> {
   if (!videoUrl) {
     throw new Error('Video URL is required');
   }
 
-  // Get server URL from storage if not provided
-  let finalServerUrl = serverUrl;
-  if (!finalServerUrl) {
-    const result = await chrome.storage.sync.get(['serverUrl']);
-    finalServerUrl = result.serverUrl;
+  let finalServerUrl = typeof serverUrl === 'string' ? serverUrl.trim() : '';
+  let finalApiKey = normalizeApiKey(apiKey);
+
+  // Get values from storage when not provided by caller
+  if (!finalServerUrl || typeof apiKey === 'undefined') {
+    const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
+    if (!finalServerUrl && typeof result.serverUrl === 'string') {
+      finalServerUrl = result.serverUrl.trim();
+    }
+    if (typeof apiKey === 'undefined') {
+      finalApiKey = normalizeApiKey(result.apiKey);
+    }
   }
 
   if (!finalServerUrl) {
@@ -129,44 +206,53 @@ async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ m
   const normalizedUrl = finalServerUrl.replace(/\/+$/, '');
   const downloadUrl = `${normalizedUrl}/api/download`;
 
-  // Check if video is already downloaded
-  try {
-    const checkUrl = `${normalizedUrl}/api/check-video-download?url=${encodeURIComponent(videoUrl)}`;
-    const checkResponse = await fetch(checkUrl, {
-      method: 'GET',
-    });
-    
-    if (checkResponse.ok) {
-      const data = await checkResponse.json();
-      // If video exists, return success immediately without downloading again
-      if (data.found && data.status === 'exists') {
-         return { message: 'Video already downloaded', downloadId: data.videoId };
+  // /api/check-video-download is not allowed for API key auth.
+  if (!finalApiKey) {
+    try {
+      const checkUrl = `${normalizedUrl}/api/check-video-download?url=${encodeURIComponent(videoUrl)}`;
+      const checkResponse = await fetch(checkUrl, {
+        method: 'GET',
+      });
+
+      if (checkResponse.ok) {
+        const data = await checkResponse.json();
+        // If video exists, return success immediately without downloading again
+        if (data.found && data.status === 'exists') {
+          return { message: 'Video already downloaded', downloadId: data.videoId };
+        }
       }
+    } catch (error) {
+      // Ignore check errors and proceed to download attempt
+      console.warn('Failed to check existing download:', error);
     }
-  } catch (error) {
-    // Ignore check errors and proceed to download attempt
-    console.warn('Failed to check existing download:', error);
   }
 
   try {
     const response = await fetch(downloadUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: withApiKeyHeader(
+        {
+          'Content-Type': 'application/json',
+        },
+        finalApiKey
+      ),
       body: JSON.stringify({
         youtubeUrl: videoUrl,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || errorData.error || `Server responded with status ${response.status}`);
+      throw new Error(
+        await parseErrorMessage(
+          response,
+          `Server responded with status ${response.status}`
+        )
+      );
     }
 
     const data = await response.json();
     // Refresh status immediately
-    fetchDownloadStatus(); 
+    fetchDownloadStatus();
     return { message: data.message || 'Download queued successfully', downloadId: data.downloadId };
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -176,19 +262,16 @@ async function handleDownload(videoUrl: string, serverUrl?: string): Promise<{ m
   }
 }
 
-// --- Badge Update Logic ---
-
-const POLL_INTERVAL = 2000; // 2 seconds
-let pollIntervalId: number | undefined;
-
 /**
  * Fetch download status and update badge
  */
 async function fetchDownloadStatus(): Promise<void> {
-  const result = await chrome.storage.sync.get(['serverUrl']);
+  const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
   const serverUrl = result.serverUrl;
+  const apiKey = normalizeApiKey(result.apiKey);
 
-  if (!serverUrl) {
+  if (!serverUrl || apiKey) {
+    // API key mode can only access POST /api/download, so status polling is unavailable.
     chrome.action.setBadgeText({ text: '' });
     return;
   }
@@ -204,7 +287,7 @@ async function fetchDownloadStatus(): Promise<void> {
     if (response.ok) {
       const data = await response.json();
       const activeCount = (data.activeDownloads?.length || 0) + (data.queuedDownloads?.length || 0);
-      
+
       if (activeCount > 0) {
         chrome.action.setBadgeText({ text: String(activeCount) });
         chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }); // Green color
@@ -212,8 +295,8 @@ async function fetchDownloadStatus(): Promise<void> {
         chrome.action.setBadgeText({ text: '' });
       }
     } else {
-       // Failed to fetch status (maybe auth error or server down) - clear badge
-       chrome.action.setBadgeText({ text: '' });
+      // Failed to fetch status (maybe auth error or server down) - clear badge
+      chrome.action.setBadgeText({ text: '' });
     }
   } catch (error) {
     // Connection error - clear badge
@@ -242,7 +325,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Poll when messages are received (interaction happened)
 chrome.runtime.onMessage.addListener(() => {
-    fetchDownloadStatus();
-    // Return false, we just want to trigger a check
-    return false;
+  fetchDownloadStatus();
+  // Return false, we just want to trigger a check
+  return false;
 });

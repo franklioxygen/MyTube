@@ -83,7 +83,7 @@ async function initializePopup(): Promise<void> {
       // The check is mainly for user feedback, but the backend will handle any valid URL
 
       // Get server URL
-      const result = await chrome.storage.sync.get(['serverUrl']);
+      const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
       if (!result.serverUrl) {
         showError(
           window.currentTranslations?.serverDisconnected ||
@@ -98,6 +98,7 @@ async function initializePopup(): Promise<void> {
         action: 'downloadVideo',
         url: tab.url,
         serverUrl: result.serverUrl,
+        apiKey: result.apiKey ?? null,
       }) as { success: boolean; error?: string };
 
       if (response.success) {
@@ -134,7 +135,7 @@ async function initializePopup(): Promise<void> {
       window.currentTranslations?.checkingServer || 'Checking server...';
 
     try {
-      const result = await chrome.storage.sync.get(['serverUrl']);
+      const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
 
       if (!result.serverUrl) {
         if (!serverStatus || !serverStatusText) return;
@@ -149,6 +150,7 @@ async function initializePopup(): Promise<void> {
       const response = await chrome.runtime.sendMessage({
         action: 'testConnection',
         serverUrl: result.serverUrl,
+        apiKey: result.apiKey ?? null,
       }) as { success: boolean; error?: string };
 
       if (!serverStatus || !serverStatusText) return;
