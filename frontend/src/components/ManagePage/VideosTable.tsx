@@ -61,7 +61,8 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
     const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
         ? `${BACKEND_URL}${video.thumbnailPath}`
         : undefined;
-    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
+    // Prefer backend-provided thumbnailUrl first so cache-busting query params (?t=...) take effect
+    const src = thumbnailUrl || video.thumbnailUrl || localThumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
 
     return (
         <Box

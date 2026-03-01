@@ -71,7 +71,7 @@ vi.mock('../../../utils/apiClient', () => ({
 }));
 
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({
-    useCloudStorageUrl: () => 'mock-url',
+    useCloudStorageUrl: (path: string | null | undefined) => path ? 'mock-url' : undefined,
 }));
 
 describe('VideosTable', () => {
@@ -146,6 +146,23 @@ describe('VideosTable', () => {
 
         fireEvent.click(screen.getByText('title'));
         expect(defaultProps.onSort).toHaveBeenCalledWith('title');
+    });
+
+    it('should prefer refreshed thumbnailUrl over local thumbnailPath url', () => {
+        const refreshedVideo = {
+            ...mockVideos[0],
+            thumbnailPath: '/images/old-thumbnail.jpg',
+            thumbnailUrl: '/images/new-thumbnail.jpg?t=123456',
+        } as unknown as Video;
+
+        render(
+            <BrowserRouter>
+                <VideosTable {...defaultProps} displayedVideos={[refreshedVideo]} />
+            </BrowserRouter>
+        );
+
+        const thumbnail = screen.getByAltText('Video 1');
+        expect(thumbnail).toHaveAttribute('src', '/images/new-thumbnail.jpg?t=123456');
     });
 
     it('should call onDeleteClick when delete button clicked', () => {
@@ -255,4 +272,3 @@ describe('VideosTable', () => {
         });
     });
 });
-
