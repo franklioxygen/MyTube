@@ -210,6 +210,43 @@ describe("storageService videos", () => {
       );
     });
 
+    it("should sync thumbnailUrl when only thumbnailPath is updated", () => {
+      const setMock = vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({
+              id: "1",
+              thumbnailPath: "/images/new.jpg",
+              thumbnailUrl: "/images/new.jpg",
+              tags: undefined,
+              subtitles: undefined,
+            }),
+          }),
+        }),
+      });
+
+      vi.mocked(db.update).mockReturnValue({
+        set: setMock,
+      } as any);
+
+      const result = updateVideo("1", {
+        thumbnailPath: "/images/new.jpg",
+      });
+
+      expect(setMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          thumbnailPath: "/images/new.jpg",
+          thumbnailUrl: "/images/new.jpg",
+        })
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          thumbnailPath: "/images/new.jpg",
+          thumbnailUrl: "/images/new.jpg",
+        })
+      );
+    });
+
     it("should return null if update returns no row", () => {
       vi.mocked(db.update).mockReturnValue({
         set: vi.fn().mockReturnValue({

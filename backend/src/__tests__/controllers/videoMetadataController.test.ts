@@ -1,13 +1,16 @@
 import { Request, Response } from "express";
+import axios from "axios";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as videoMetadataController from "../../controllers/videoMetadataController";
 import { getVideoDuration } from "../../services/metadataService";
+import { getVideoInfo } from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
 import { logger } from "../../utils/logger";
 import {
   execFileSafe,
   validateImagePath,
+  validateUrl,
   validateVideoPath,
 } from "../../utils/security";
 
@@ -15,13 +18,19 @@ vi.mock("../../services/storageService", () => ({
   getVideoById: vi.fn(),
   getVideos: vi.fn(),
   updateVideo: vi.fn(),
+  findVideoFile: vi.fn(),
+  getCollections: vi.fn(),
 }));
 vi.mock("../../services/metadataService", () => ({
   getVideoDuration: vi.fn(),
 }));
+vi.mock("../../services/downloadService", () => ({
+  getVideoInfo: vi.fn(),
+}));
 vi.mock("../../utils/security", () => ({
   validateVideoPath: vi.fn((targetPath: string) => targetPath),
   validateImagePath: vi.fn((targetPath: string) => targetPath),
+  validateUrl: vi.fn((url: string) => url),
   execFileSafe: vi.fn(),
 }));
 vi.mock("../../utils/logger", () => ({
@@ -38,6 +47,12 @@ vi.mock("fs-extra", () => ({
     ensureFileSync: vi.fn(),
     pathExists: vi.fn(),
     stat: vi.fn(),
+    writeFile: vi.fn(),
+  },
+}));
+vi.mock("axios", () => ({
+  default: {
+    get: vi.fn(),
   },
 }));
 
@@ -57,9 +72,24 @@ describe("videoMetadataController", () => {
       isFile: () => true,
       size: 100,
     });
+    vi.mocked(fs.writeFile as any).mockResolvedValue(undefined);
 
+    vi.mocked(validateVideoPath as any).mockImplementation(
+      (targetPath: string) => targetPath
+    );
+    vi.mocked(validateImagePath as any).mockImplementation(
+      (targetPath: string) => targetPath
+    );
     vi.mocked(getVideoDuration as any).mockResolvedValue(120);
     vi.mocked(execFileSafe as any).mockResolvedValue(undefined);
+    vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
+    vi.mocked(storageService.getCollections as any).mockReturnValue([]);
+    vi.mocked(getVideoInfo as any).mockResolvedValue({
+      thumbnailUrl: "https://example.com/thumb.jpg",
+    });
+    vi.mocked(axios.get as any).mockResolvedValue({
+      data: Buffer.from("test-image"),
+    });
   });
 
   describe("rateVideo", () => {
@@ -165,6 +195,46 @@ describe("videoMetadataController", () => {
       ).rejects.toThrow("Video file not found");
     });
 
+    it("falls back to source thumbnail when local video file is missing", async () => {
+      const { res, json } = createResponse();
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(111);
+
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v4",
+        videoFilename: "missing.mp4",
+        thumbnailPath: "/images/missing.jpg",
+        sourceUrl: "https://www.youtube.com/watch?v=test",
+      });
+      vi.mocked(validateImagePath as any).mockReturnValue("/safe/missing.jpg");
+      vi.mocked(validateUrl as any).mockReturnValue("https://example.com/thumb.jpg");
+      vi.mocked(fs.existsSync as any).mockReturnValue(false);
+      vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
+      vi.mocked(storageService.getCollections as any).mockReturnValue([]);
+
+      await videoMetadataController.refreshThumbnail(
+        { params: { id: "v4" } } as unknown as Request,
+        res
+      );
+
+      expect(getVideoInfo).toHaveBeenCalledWith("https://www.youtube.com/watch?v=test");
+      expect(axios.get).toHaveBeenCalledWith("https://example.com/thumb.jpg", {
+        responseType: "arraybuffer",
+        timeout: 15000,
+      });
+      expect(fs.writeFile).toHaveBeenCalledWith("/safe/missing.jpg", expect.any(Buffer));
+      expect(storageService.updateVideo).toHaveBeenCalledWith("v4", {
+        thumbnailFilename: "missing.jpg",
+        thumbnailPath: "/images/missing.jpg",
+        thumbnailUrl: "/images/missing.jpg",
+      });
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        thumbnailUrl: "/images/missing.jpg?t=111",
+      });
+
+      nowSpy.mockRestore();
+    });
+
     it("refreshes existing local thumbnail without db update", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(123456);
@@ -234,6 +304,40 @@ describe("videoMetadataController", () => {
       });
 
       nowSpy.mockRestore();
+    });
+
+    it("falls back to collection path when root video filename path is missing", async () => {
+      const { res } = createResponse();
+      const fallbackVideoPath = "/safe/videos/MyCollection/movie.mp4";
+
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v3",
+        videoFilename: "movie.mp4",
+        thumbnailPath: "/images/movie.jpg",
+      });
+      vi.mocked(storageService.getCollections as any).mockReturnValue([
+        { id: "c1", name: "MyCollection", videos: ["v3"] },
+      ]);
+      vi.mocked(storageService.findVideoFile as any).mockReturnValue(
+        fallbackVideoPath
+      );
+      vi.mocked(fs.existsSync as any).mockImplementation(
+        (targetPath: string) => targetPath === fallbackVideoPath
+      );
+      vi.mocked(validateImagePath as any).mockReturnValue("/safe/movie.jpg");
+
+      await videoMetadataController.refreshThumbnail(
+        { params: { id: "v3" } } as unknown as Request,
+        res
+      );
+
+      expect(storageService.findVideoFile).toHaveBeenCalledWith("movie.mp4", [
+        { id: "c1", name: "MyCollection", videos: ["v3"] },
+      ]);
+      expect(execFileSafe).toHaveBeenCalledWith(
+        "ffmpeg",
+        expect.arrayContaining(["-i", fallbackVideoPath])
+      );
     });
 
     it("falls back to default timestamp when duration lookup fails", async () => {

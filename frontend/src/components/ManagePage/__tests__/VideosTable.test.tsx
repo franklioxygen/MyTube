@@ -148,10 +148,27 @@ describe('VideosTable', () => {
         expect(defaultProps.onSort).toHaveBeenCalledWith('title');
     });
 
-    it('should prefer refreshed thumbnailUrl over local thumbnailPath url', () => {
-        const refreshedVideo = {
+    it('should prefer local thumbnailPath url when thumbnailUrl is stale', () => {
+        const staleThumbnailUrlVideo = {
             ...mockVideos[0],
             thumbnailPath: '/images/old-thumbnail.jpg',
+            thumbnailUrl: '/images/new-thumbnail.jpg?t=123456',
+        } as unknown as Video;
+
+        render(
+            <BrowserRouter>
+                <VideosTable {...defaultProps} displayedVideos={[staleThumbnailUrlVideo]} />
+            </BrowserRouter>
+        );
+
+        const thumbnail = screen.getByAltText('Video 1');
+        expect(thumbnail).toHaveAttribute('src', expect.stringContaining('/images/old-thumbnail.jpg'));
+    });
+
+    it('should use cache-busted thumbnailUrl when it matches thumbnailPath', () => {
+        const refreshedVideo = {
+            ...mockVideos[0],
+            thumbnailPath: '/images/new-thumbnail.jpg',
             thumbnailUrl: '/images/new-thumbnail.jpg?t=123456',
         } as unknown as Video;
 

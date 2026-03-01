@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import axios from "axios";
 import fs from "fs-extra";
 import multer from "multer";
 import crypto from "crypto";
@@ -10,7 +11,7 @@ import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
-import { execFileSafe, validateImagePath, validateVideoPath } from "../utils/security";
+import { execFileSafe, validateImagePath, validateUrl, validateVideoPath } from "../utils/security";
 
 // Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
 const ALLOWED_IMAGE_MIMES: Record<string, string> = {
@@ -86,6 +87,71 @@ const validateUploadedImageContent = async (
   }
 };
 
+const refreshThumbnailFromSource = async (
+  id: string,
+  video: storageService.Video
+): Promise<string> => {
+  if (!video.sourceUrl) {
+    throw new ValidationError("Video source URL not found in record", "video");
+  }
+
+  const { getVideoInfo } = await import("../services/downloadService");
+  const videoInfo = await getVideoInfo(video.sourceUrl);
+  const remoteThumbnailUrl = videoInfo.thumbnailUrl;
+
+  if (!remoteThumbnailUrl) {
+    throw new NotFoundError("Thumbnail source", video.sourceUrl);
+  }
+
+  let newThumbnailPath: string;
+  let newThumbnailFilename: string;
+  let thumbnailAbsolutePath: string;
+
+  if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
+    const relativePath = video.thumbnailPath.replace(/^\/images\//, "");
+    const safeRelativePath = relativePath
+      .split("/")
+      .filter(Boolean)
+      .map((segment: string) => path.basename(segment))
+      .join("/");
+
+    thumbnailAbsolutePath = validateImagePath(
+      path.join(IMAGES_DIR, ...safeRelativePath.split("/").filter(Boolean))
+    );
+    newThumbnailPath = `/images/${safeRelativePath}`;
+    newThumbnailFilename = path.basename(safeRelativePath);
+  } else {
+    const fallbackBaseName = video.videoFilename
+      ? path.parse(path.basename(video.videoFilename)).name
+      : video.id;
+    newThumbnailFilename = `${fallbackBaseName}.jpg`;
+    const safeThumbnailFilename = path.basename(newThumbnailFilename);
+    newThumbnailFilename = safeThumbnailFilename;
+    thumbnailAbsolutePath = validateImagePath(
+      path.join(IMAGES_DIR, safeThumbnailFilename)
+    );
+    newThumbnailPath = `/images/${safeThumbnailFilename}`;
+  }
+
+  fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
+
+  const safeRemoteThumbnailUrl = validateUrl(remoteThumbnailUrl);
+  const response = await axios.get<ArrayBuffer>(safeRemoteThumbnailUrl, {
+    responseType: "arraybuffer",
+    timeout: 15000,
+  });
+
+  await fs.writeFile(thumbnailAbsolutePath, Buffer.from(response.data));
+
+  storageService.updateVideo(id, {
+    thumbnailFilename: newThumbnailFilename,
+    thumbnailPath: newThumbnailPath,
+    thumbnailUrl: newThumbnailPath,
+  });
+
+  return `${newThumbnailPath}?t=${Date.now()}`;
+};
+
 const imageStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     fs.ensureDirSync(IMAGES_DIR);
@@ -153,24 +219,57 @@ export const refreshThumbnail = async (
     throw new NotFoundError("Video", id);
   }
 
-  // Construct paths
-  let videoFilePath: string;
+  // Resolve video path robustly: prefer stored videoPath, then root filename, then collection lookup.
+  let validatedVideoPath: string | null = null;
+  const attemptedPaths: string[] = [];
+
   if (video.videoPath && video.videoPath.startsWith("/videos/")) {
     const relativePath = video.videoPath.replace(/^\/videos\//, "");
-    videoFilePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
-  } else if (video.videoFilename) {
-    const safeVideoFilename = path.basename(video.videoFilename);
-    videoFilePath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
-  } else {
-    throw new ValidationError("Video file path not found in record", "video");
+    const candidatePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
+    attemptedPaths.push(candidatePath);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(candidatePath)) {
+      validatedVideoPath = candidatePath;
+    }
   }
 
-  // Path has already been validated above.
-  const validatedVideoPath = videoFilePath;
+  if (!validatedVideoPath && video.videoFilename) {
+    const safeVideoFilename = path.basename(video.videoFilename);
+    const rootPath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
+    attemptedPaths.push(rootPath);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(rootPath)) {
+      validatedVideoPath = rootPath;
+    } else {
+      const fallbackPath = storageService.findVideoFile(
+        safeVideoFilename,
+        storageService.getCollections()
+      );
+      if (fallbackPath) {
+        const safeFallbackPath = validateVideoPath(fallbackPath);
+        attemptedPaths.push(safeFallbackPath);
+        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(safeFallbackPath)) {
+          validatedVideoPath = safeFallbackPath;
+        }
+      }
+    }
+  }
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(validatedVideoPath)) {
-    throw new NotFoundError("Video file", validatedVideoPath);
+  if (!validatedVideoPath) {
+    if (video.sourceUrl) {
+      const thumbnailUrl = await refreshThumbnailFromSource(id, video);
+      res.status(200).json({
+        success: true,
+        thumbnailUrl,
+      });
+      return;
+    }
+
+    if (attemptedPaths.length === 0) {
+      throw new ValidationError("Video file path not found in record", "video");
+    }
+    throw new NotFoundError("Video file", attemptedPaths[0]);
   }
 
   // Determine thumbnail path on disk
@@ -186,7 +285,7 @@ export const refreshThumbnail = async (
   } else {
     // Remote URL or missing - create a new local file in the root images directory
     if (!newThumbnailFilename) {
-      const videoName = path.parse(path.basename(videoFilePath)).name;
+      const videoName = path.parse(path.basename(validatedVideoPath)).name;
       newThumbnailFilename = `${videoName}.jpg`;
     }
     const safeThumbnailFilename = path.basename(newThumbnailFilename);

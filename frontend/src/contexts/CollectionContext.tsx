@@ -65,6 +65,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
             showSnackbar(t('collectionCreatedSuccessfully'));
         },
         onError: (error) => {
@@ -90,6 +91,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['collections'] });
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
             showSnackbar(t('videoAddedToCollection'));
         },
         onError: (error) => {
@@ -119,6 +121,7 @@ export const CollectionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             ));
 
             queryClient.invalidateQueries({ queryKey: ['collections'] });
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
             showSnackbar(t('videoRemovedFromCollection'));
             return true;
         } catch (error) {

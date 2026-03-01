@@ -441,7 +441,7 @@ export function updateVideo(
   updates: Partial<import("./types").Video>
 ): import("./types").Video | null {
   try {
-    const updatesToSave = {
+    const updatesToSave: Record<string, unknown> = {
       ...updates,
       // Only include tags/subtitles if they are explicitly in the updates object
       ...(updates.tags !== undefined
@@ -455,6 +455,15 @@ export function updateVideo(
           }
         : {}),
     };
+
+    // Keep thumbnailUrl aligned when callers only update thumbnailPath
+    if (
+      Object.prototype.hasOwnProperty.call(updates, "thumbnailPath") &&
+      !Object.prototype.hasOwnProperty.call(updates, "thumbnailUrl")
+    ) {
+      updatesToSave.thumbnailUrl = updates.thumbnailPath ?? null;
+    }
+
     // If tags is explicitly empty array, we might want to save it as '[]' or null.
     // JSON.stringify([]) is '[]', which is fine.
 
