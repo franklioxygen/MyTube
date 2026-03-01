@@ -195,78 +195,89 @@ const VideoControls: React.FC<VideoControlsProps> = ({
                     loadError={loading.loadError}
                     isFullscreen={fullscreen.isFullscreen}
                     subtitles={subtitles}
-                onClick={videoPlayer.handlePlayPause}
-                onPlay={videoPlayer.handlePlay}
-                onPause={videoPlayer.handlePause}
-                onEnded={onEnded}
-                onTimeUpdate={videoPlayer.handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onError={loading.handleVideoError}
-                onLoadStart={handleLoadStart}
-                onCanPlay={handleCanPlay}
-                onLoadedData={handleLoadedData}
-                onProgress={handleProgress}
-                onWaiting={handleWaiting}
-                onCanPlayThrough={handleCanPlayThrough}
-                onSeeking={videoPlayer.handleSeeking}
-                onSeeked={videoPlayer.handleSeeked}
-                onSubtitleInit={subtitlesHook.initializeSubtitles}
+                    onClick={videoPlayer.handlePlayPause}
+                    onPlay={videoPlayer.handlePlay}
+                    onPause={videoPlayer.handlePause}
+                    onEnded={onEnded}
+                    onTimeUpdate={videoPlayer.handleTimeUpdate}
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onError={loading.handleVideoError}
+                    onLoadStart={handleLoadStart}
+                    onCanPlay={handleCanPlay}
+                    onLoadedData={handleLoadedData}
+                    onProgress={handleProgress}
+                    onWaiting={handleWaiting}
+                    onCanPlayThrough={handleCanPlayThrough}
+                    onSeeking={videoPlayer.handleSeeking}
+                    onSeeked={videoPlayer.handleSeeked}
+                    onSubtitleInit={subtitlesHook.initializeSubtitles}
                 />
-            </Box>
 
-            <Box sx={{ flexShrink: 0 }}>
-                <ControlsOverlay
-                    isFullscreen={fullscreen.isFullscreen}
-                controlsVisible={fullscreen.controlsVisible}
-                isPlaying={videoPlayer.isPlaying}
-                currentTime={videoPlayer.currentTime}
-                duration={videoPlayer.duration}
-                isDragging={videoPlayer.isDragging}
-                volume={volume.volume}
-                showVolumeSlider={volume.showVolumeSlider}
-                volumeSliderRef={volume.volumeSliderRef}
-                subtitles={subtitles}
-                subtitlesEnabled={subtitlesHook.subtitlesEnabled}
-                selectedSubtitleIndices={subtitlesHook.selectedSubtitleIndices}
-                isLooping={videoPlayer.isLooping}
-                subtitleMenuAnchor={subtitlesHook.subtitleMenuAnchor}
-                onPlayPause={videoPlayer.handlePlayPause}
-                onSeek={videoPlayer.handleSeek}
-                onProgressChange={videoPlayer.handleProgressChange}
-                onProgressChangeCommitted={videoPlayer.handleProgressChangeCommitted}
-                onProgressMouseDown={videoPlayer.handleProgressMouseDown}
-                onVolumeChange={volume.handleVolumeChange}
-                onVolumeClick={volume.handleVolumeClick}
-                onVolumeMouseEnter={volume.handleVolumeMouseEnter}
-                onVolumeMouseLeave={volume.handleVolumeMouseLeave}
-                onSliderMouseEnter={volume.handleSliderMouseEnter}
-                onSliderMouseLeave={volume.handleSliderMouseLeave}
-                onSubtitleClick={subtitlesHook.handleSubtitleClick}
-                onCloseSubtitleMenu={subtitlesHook.handleCloseSubtitleMenu}
-                onSelectSubtitle={subtitlesHook.handleSelectSubtitle}
-                onToggleFullscreen={fullscreen.handleToggleFullscreen}
-                onToggleLoop={handleToggleLoop}
-                onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
-                playbackRate={videoPlayer.playbackRate}
-                onPlaybackRateChange={videoPlayer.handlePlaybackRateChange}
-                isCinemaMode={isCinemaMode}
-                onToggleCinemaMode={(() => {
-                    const toggle = onToggleCinemaMode;
-                    if (!toggle) return undefined;
-                    return () => {
-                        toggle();
-                        if (fullscreen.isFullscreen) {
-                            fullscreen.handleToggleFullscreen();
-                        }
-                    };
-                })()}
-                onUploadSubtitle={onUploadSubtitle}
-                onDeleteSubtitle={onDeleteSubtitle}
-                />
+                <Box
+                    sx={{
+                        ...(fullscreen.isFullscreen
+                            ? {
+                                  position: 'absolute',
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  zIndex: 20
+                              }
+                            : { flexShrink: 0 })
+                    }}
+                >
+                    <ControlsOverlay
+                        isFullscreen={fullscreen.isFullscreen}
+                        controlsVisible={fullscreen.controlsVisible}
+                        isPlaying={videoPlayer.isPlaying}
+                        currentTime={videoPlayer.currentTime}
+                        duration={videoPlayer.duration}
+                        isDragging={videoPlayer.isDragging}
+                        volume={volume.volume}
+                        showVolumeSlider={volume.showVolumeSlider}
+                        volumeSliderRef={volume.volumeSliderRef}
+                        subtitles={subtitles}
+                        subtitlesEnabled={subtitlesHook.subtitlesEnabled}
+                        selectedSubtitleIndices={subtitlesHook.selectedSubtitleIndices}
+                        isLooping={videoPlayer.isLooping}
+                        subtitleMenuAnchor={subtitlesHook.subtitleMenuAnchor}
+                        onPlayPause={videoPlayer.handlePlayPause}
+                        onSeek={videoPlayer.handleSeek}
+                        onProgressChange={videoPlayer.handleProgressChange}
+                        onProgressChangeCommitted={videoPlayer.handleProgressChangeCommitted}
+                        onProgressMouseDown={videoPlayer.handleProgressMouseDown}
+                        onVolumeChange={volume.handleVolumeChange}
+                        onVolumeClick={volume.handleVolumeClick}
+                        onVolumeMouseEnter={volume.handleVolumeMouseEnter}
+                        onVolumeMouseLeave={volume.handleVolumeMouseLeave}
+                        onSliderMouseEnter={volume.handleSliderMouseEnter}
+                        onSliderMouseLeave={volume.handleSliderMouseLeave}
+                        onSubtitleClick={subtitlesHook.handleSubtitleClick}
+                        onCloseSubtitleMenu={subtitlesHook.handleCloseSubtitleMenu}
+                        onSelectSubtitle={subtitlesHook.handleSelectSubtitle}
+                        onToggleFullscreen={fullscreen.handleToggleFullscreen}
+                        onToggleLoop={handleToggleLoop}
+                        onControlsMouseEnter={fullscreen.handleControlsMouseEnter}
+                        playbackRate={videoPlayer.playbackRate}
+                        onPlaybackRateChange={videoPlayer.handlePlaybackRateChange}
+                        isCinemaMode={isCinemaMode}
+                        onToggleCinemaMode={(() => {
+                            const toggle = onToggleCinemaMode;
+                            if (!toggle) return undefined;
+                            return () => {
+                                toggle();
+                                if (fullscreen.isFullscreen) {
+                                    fullscreen.handleToggleFullscreen();
+                                }
+                            };
+                        })()}
+                        onUploadSubtitle={onUploadSubtitle}
+                        onDeleteSubtitle={onDeleteSubtitle}
+                    />
+                </Box>
             </Box>
         </Box>
     );
 };
 
 export default VideoControls;
-

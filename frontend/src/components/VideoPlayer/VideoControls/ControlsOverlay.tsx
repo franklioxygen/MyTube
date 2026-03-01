@@ -98,15 +98,23 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
         <Box
             sx={{
                 p: 1,
-                bgcolor: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+                bgcolor: isFullscreen
+                    ? 'rgba(0, 0, 0, 0.55)'
+                    : (theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5'),
+                backgroundImage: isFullscreen
+                    ? 'linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.35) 45%, rgba(0, 0, 0, 0))'
+                    : 'none',
                 opacity: isFullscreen
-                    ? (controlsVisible ? 0.3 : 0)
+                    ? (controlsVisible ? 1 : 0)
                     : 1,
                 visibility: isFullscreen && !controlsVisible ? 'hidden' : 'visible',
-                transition: 'opacity 0.3s, visibility 0.3s, background-color 0.3s',
+                transform: isFullscreen
+                    ? (controlsVisible ? 'translateY(0)' : 'translateY(12px)')
+                    : 'translateY(0)',
+                transition: 'opacity 0.35s ease, visibility 0.35s ease, transform 0.35s ease, background-color 0.3s',
                 pointerEvents: isFullscreen && !controlsVisible ? 'none' : 'auto',
                 '&:hover': {
-                    opacity: isFullscreen && controlsVisible ? 1 : (isFullscreen ? 0 : 1)
+                    opacity: 1
                 }
             }}
             onMouseEnter={onControlsMouseEnter}
@@ -234,4 +242,3 @@ const ControlsOverlay: React.FC<ControlsOverlayProps> = ({
 };
 
 export default ControlsOverlay;
-
