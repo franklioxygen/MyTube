@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "fs";
 import downloadManager from "../../services/downloadManager";
 import { ContinuousDownloadService } from "../../services/continuousDownloadService";
 import * as storageService from "../../services/storageService";
@@ -33,14 +34,19 @@ vi.mock("../../services/continuousDownload/taskRepository", () => ({
     resumeTask: vi.fn().mockResolvedValue(undefined),
     deleteTask: vi.fn().mockResolvedValue(undefined),
     cancelTaskWithError: vi.fn().mockResolvedValue(undefined),
+    updateTotalVideos: vi.fn().mockResolvedValue(undefined),
+    updateFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
+    clearFrozenVideoListPath: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
 vi.mock("../../services/continuousDownload/videoUrlFetcher", () => ({
   VideoUrlFetcher: vi.fn().mockImplementation(() => ({
     getAllVideoUrls: vi.fn().mockResolvedValue([]),
+    getAllVideoEntries: vi.fn().mockResolvedValue([]),
     getVideoUrlsIncremental: vi.fn().mockResolvedValue([]),
   })),
+  sortVideoEntries: vi.fn((entries: unknown[]) => entries),
 }));
 
 vi.mock("../../services/continuousDownload/taskCleanup", () => ({
@@ -266,7 +272,7 @@ describe("ContinuousDownloadService", () => {
       expect(processor.processTask).not.toHaveBeenCalled();
     });
 
-    it("should cache and process non-playlist tasks, then clear cache", async () => {
+    it("should prefetch, sort and process non-playlist tasks", async () => {
       const task = {
         id: "np",
         authorUrl: "https://youtube.com/@channel",
@@ -276,11 +282,14 @@ describe("ContinuousDownloadService", () => {
       repo.getTaskById
         .mockResolvedValueOnce(task)
         .mockResolvedValueOnce(task);
-      fetcher.getAllVideoUrls.mockResolvedValue(["u1", "u2"]);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "u1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
+        { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
+      ]);
 
       await (service as any).processTask("np");
 
-      expect(fetcher.getAllVideoUrls).toHaveBeenCalledWith(
+      expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
         "https://youtube.com/@channel",
         "YouTube"
       );
@@ -302,7 +311,104 @@ describe("ContinuousDownloadService", () => {
       await (service as any).processTask("pl");
 
       expect(fetcher.getAllVideoUrls).not.toHaveBeenCalled();
+      expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
       expect(processor.processTask).toHaveBeenCalledWith(task, undefined);
+    });
+
+    it("should create and persist frozen list for full-fetch tasks", async () => {
+      const task = {
+        id: "freeze-create",
+        authorUrl: "https://youtube.com/@freeze",
+        platform: "YouTube",
+        status: "active",
+        downloadOrder: "viewsDesc",
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "u1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
+        { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
+      ]);
+
+      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+
+      await (service as any).processTask("freeze-create");
+
+      expect(fetcher.getAllVideoEntries).toHaveBeenCalledWith(
+        "https://youtube.com/@freeze",
+        "YouTube"
+      );
+      expect(mkdirSpy).toHaveBeenCalled();
+      expect(writeSpy).toHaveBeenCalled();
+      expect(repo.updateFrozenVideoListPath).toHaveBeenCalledWith(
+        "freeze-create",
+        expect.stringContaining("freeze-create.json")
+      );
+      expect(repo.updateTotalVideos).toHaveBeenCalledWith("freeze-create", 2);
+      expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
+
+      mkdirSpy.mockRestore();
+      writeSpy.mockRestore();
+    });
+
+    it("should load existing frozen list on resume and skip metadata fetch", async () => {
+      const task = {
+        id: "freeze-resume",
+        authorUrl: "https://youtube.com/@resume",
+        platform: "YouTube",
+        status: "active",
+        frozenVideoListPath: "/tmp/frozen/resume.json",
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(task);
+
+      const readSpy = vi
+        .spyOn(fs, "readFileSync")
+        .mockReturnValue(JSON.stringify(["r1", "r2"]));
+
+      await (service as any).processTask("freeze-resume");
+
+      expect(readSpy).toHaveBeenCalledWith("/tmp/frozen/resume.json", "utf8");
+      expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
+      expect(processor.processTask).toHaveBeenCalledWith(task, ["r1", "r2"]);
+
+      readSpy.mockRestore();
+    });
+
+    it("should delete frozen list and clear DB path when task reaches completed", async () => {
+      const task = {
+        id: "freeze-done",
+        authorUrl: "https://youtube.com/@done",
+        platform: "YouTube",
+        status: "active",
+      };
+      const finalTask = {
+        ...task,
+        status: "completed",
+        frozenVideoListPath: "/tmp/frozen/freeze-done.json",
+      };
+      repo.getTaskById
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(finalTask);
+      fetcher.getAllVideoEntries.mockResolvedValue([
+        { url: "d1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
+      ]);
+
+      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+      const unlinkSpy = vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+
+      await (service as any).processTask("freeze-done");
+
+      expect(unlinkSpy).toHaveBeenCalledWith("/tmp/frozen/freeze-done.json");
+      expect(repo.clearFrozenVideoListPath).toHaveBeenCalledWith("freeze-done");
+
+      mkdirSpy.mockRestore();
+      writeSpy.mockRestore();
+      unlinkSpy.mockRestore();
     });
 
     it("should cancel task with error when processing fails", async () => {
@@ -313,7 +419,7 @@ describe("ContinuousDownloadService", () => {
         status: "active",
       };
       repo.getTaskById.mockResolvedValue(task);
-      fetcher.getAllVideoUrls.mockRejectedValue(new Error("fetch failed"));
+      fetcher.getAllVideoEntries.mockRejectedValue(new Error("fetch failed"));
 
       await (service as any).processTask("err");
 

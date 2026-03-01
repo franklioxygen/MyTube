@@ -192,5 +192,7 @@ export const continuousDownloadTasks = sqliteTable(
     updatedAt: integer("updated_at"), // Timestamp of last update
     completedAt: integer("completed_at"), // Timestamp when task completed
     error: text("error"), // Error message if task failed
+    downloadOrder: text("download_order").notNull().default("dateDesc"), // User-selected backfill order
+    frozenVideoListPath: text("frozen_video_list_path"), // Path to persisted ordered URL snapshot
   }
 );

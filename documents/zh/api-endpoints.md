@@ -76,7 +76,8 @@
 
 - `GET /api/subscriptions` - 获取所有订阅
 - `POST /api/subscriptions` - 创建订阅
-  - 请求体: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean }`
+  - 请求体: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean, downloadOrder?: 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc' }`
+  - `downloadOrder` 仅在 `downloadAllPrevious` 为 `true` 时生效，默认值为 `dateDesc`
 - `PUT /api/subscriptions/:id/pause` - 暂停订阅
 - `PUT /api/subscriptions/:id/resume` - 恢复订阅
 - `DELETE /api/subscriptions/:id` - 删除订阅

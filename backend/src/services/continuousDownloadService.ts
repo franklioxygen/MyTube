@@ -1,10 +1,15 @@
+import fs from "fs";
+import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { DATA_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
 import { TaskCleanup } from "./continuousDownload/taskCleanup";
 import { TaskProcessor } from "./continuousDownload/taskProcessor";
 import { TaskRepository } from "./continuousDownload/taskRepository";
-import { ContinuousDownloadTask } from "./continuousDownload/types";
-import { VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
+import { ContinuousDownloadTask, DownloadOrder } from "./continuousDownload/types";
+import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
+
+const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
 
 /**
  * Main service for managing continuous download tasks
@@ -13,11 +18,8 @@ import { VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
 export class ContinuousDownloadService {
   private static instance: ContinuousDownloadService;
   private processingTasks: Set<string> = new Set();
-  // Cache video URLs for tasks to avoid re-fetching large playlists
-  // Uses Map to store cached URLs, cleared when tasks are deleted
+  // In-memory cache kept only for incremental (playlist+YouTube+dateDesc) tasks
   private videoUrlCache: Map<string, string[]> = new Map();
-  // Note: incrementalFetchTasks tracking was removed - we determine incrementality
-  // dynamically based on URL pattern (playlist + YouTube) in processTask()
 
   private taskRepository: TaskRepository;
   private videoUrlFetcher: VideoUrlFetcher;
@@ -48,7 +50,8 @@ export class ContinuousDownloadService {
     authorUrl: string,
     author: string,
     platform: string,
-    subscriptionId?: string
+    subscriptionId?: string,
+    downloadOrder: DownloadOrder = "dateDesc"
   ): Promise<ContinuousDownloadTask> {
     const task: ContinuousDownloadTask = {
       id: uuidv4(),
@@ -63,6 +66,7 @@ export class ContinuousDownloadService {
       failedCount: 0,
       currentVideoIndex: 0,
       createdAt: Date.now(),
+      downloadOrder,
     };
 
     await this.taskRepository.createTask(task);
@@ -97,6 +101,7 @@ export class ContinuousDownloadService {
       failedCount: 0,
       currentVideoIndex: 0,
       createdAt: Date.now(),
+      downloadOrder: "dateDesc",
     };
 
     await this.taskRepository.createTask(task);
@@ -157,35 +162,48 @@ export class ContinuousDownloadService {
     this.processingTasks.delete(id);
 
     // Cancel all active downloads that might belong to this task
-    // This is a best-effort attempt to cancel downloads for videos from this task
     try {
       const { getDownloadStatus } = await import("../services/storageService");
       const downloadManager = await import("../services/downloadManager");
       const downloadStatus = getDownloadStatus();
       const activeDownloads = downloadStatus.activeDownloads || [];
 
-      // Get video URLs for this task to match against active downloads
-      // Only do this if we have cached URLs or can quickly fetch a sample
-      const cacheKey = `${id}:${task.authorUrl}`;
+      // Prefer frozen list for URL matching; fall back to incremental cache
       let taskVideoUrls: string[] = [];
-
-      if (this.videoUrlCache.has(cacheKey)) {
-        taskVideoUrls = this.videoUrlCache.get(cacheKey) || [];
-      } else {
-        // Try to get a sample of URLs to match (first 100 should be enough)
+      if (task.frozenVideoListPath) {
         try {
-          const sampleUrls = await this.videoUrlFetcher.getVideoUrlsIncremental(
-            task.authorUrl,
-            task.platform,
-            0,
-            100
-          );
-          taskVideoUrls = sampleUrls;
-        } catch (error) {
-          logger.debug(
-            `Could not fetch sample URLs for task ${id} cancellation:`,
-            error
-          );
+          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+          taskVideoUrls = JSON.parse(raw) as string[];
+        } catch (err) {
+          logger.debug(`Could not load frozen list for task ${id} cancellation:`, err);
+        }
+      }
+
+      if (taskVideoUrls.length === 0) {
+        const cacheKey = `${id}:${task.authorUrl}`;
+        if (this.videoUrlCache.has(cacheKey)) {
+          taskVideoUrls = this.videoUrlCache.get(cacheKey) || [];
+        }
+      }
+
+      if (taskVideoUrls.length === 0) {
+        // Best-effort fallback for incremental tasks when no frozen list/cache exists.
+        const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+        const isPlaylist = playlistRegex.test(task.authorUrl);
+        if (task.platform === "YouTube" && isPlaylist) {
+          try {
+            taskVideoUrls = await this.videoUrlFetcher.getVideoUrlsIncremental(
+              task.authorUrl,
+              task.platform,
+              0,
+              200
+            );
+          } catch (err) {
+            logger.debug(
+              `Could not fetch incremental URLs for task ${id} cancellation:`,
+              err
+            );
+          }
         }
       }
 
@@ -200,7 +218,6 @@ export class ContinuousDownloadService {
       }
     } catch (error) {
       logger.error(`Error cancelling active downloads for task ${id}:`, error);
-      // Continue with cleanup even if download cancellation fails
     }
 
     // Clean up temporary files for the current video being downloaded
@@ -208,12 +225,14 @@ export class ContinuousDownloadService {
       await this.taskCleanup.cleanupCurrentVideoTempFiles(task);
     } catch (error) {
       logger.error(`Error cleaning up temp files for task ${id}:`, error);
-      // Continue with cancellation even if cleanup fails
     }
 
-    // Clear cached video URLs for this task
+    // Clear incremental cache
     const cacheKey = `${id}:${task.authorUrl}`;
     this.videoUrlCache.delete(cacheKey);
+
+    // Delete frozen list file if present
+    await this.deleteFrozenList(task);
 
     logger.info(`Task ${id} cancelled successfully`);
   }
@@ -264,9 +283,10 @@ export class ContinuousDownloadService {
       throw new Error(`Task ${id} not found`);
     }
 
-    // Clear cached video URLs for this task
+    // Clear incremental cache and frozen list
     const cacheKey = `${id}:${task.authorUrl}`;
     this.videoUrlCache.delete(cacheKey);
+    await this.deleteFrozenList(task);
 
     await this.taskRepository.deleteTask(id);
   }
@@ -292,10 +312,10 @@ export class ContinuousDownloadService {
   }
 
   /**
-   * Process a continuous download task
+   * Process a continuous download task.
+   * Owns the mode-decision matrix and URL-list loading before calling TaskProcessor.
    */
   private async processTask(taskId: string): Promise<void> {
-    // Prevent concurrent processing of the same task
     if (this.processingTasks.has(taskId)) {
       logger.debug(`Task ${taskId} is already being processed`);
       return;
@@ -315,34 +335,65 @@ export class ContinuousDownloadService {
         return;
       }
 
-      // For non-incremental mode, cache video URLs
+      // Mode decision: incremental fast path only for YouTube playlist + dateDesc
+      const effectiveOrder: DownloadOrder = task.downloadOrder ?? "dateDesc";
       const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
       const isPlaylist = playlistRegex.test(task.authorUrl);
-      const useIncremental = isPlaylist && task.platform === "YouTube";
+      const useIncremental = isPlaylist && task.platform === "YouTube" && effectiveOrder === "dateDesc";
 
       let cachedVideoUrls: string[] | undefined;
-      if (!useIncremental) {
-        // Cache video URLs for non-incremental tasks
-        const cacheKey = `${taskId}:${task.authorUrl}`;
-        if (!this.videoUrlCache.has(cacheKey)) {
-          const videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
-            task.authorUrl,
-            task.platform
-          );
-          this.videoUrlCache.set(cacheKey, videoUrls);
+
+      if (useIncremental) {
+        // Incremental path: no frozen list needed
+        cachedVideoUrls = undefined;
+      } else {
+        // Full-fetch path: load or build frozen list
+        if (task.frozenVideoListPath) {
+          // Resume: load existing frozen list
+          try {
+            const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+            cachedVideoUrls = JSON.parse(raw) as string[];
+            logger.info(`Loaded frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
+          } catch (err) {
+            logger.warn(`Failed to read frozen list for task ${taskId}, will re-fetch:`, err);
+            cachedVideoUrls = undefined;
+          }
         }
-        cachedVideoUrls = this.videoUrlCache.get(cacheKey);
+
+        if (!cachedVideoUrls) {
+          // Fetch, sort, and freeze
+          logger.info(`Fetching video entries for task ${taskId} (order: ${effectiveOrder})`);
+          const entries = await this.videoUrlFetcher.getAllVideoEntries(task.authorUrl, task.platform);
+          const sorted = sortVideoEntries(entries, effectiveOrder);
+          cachedVideoUrls = sorted.map((e) => e.url);
+
+          // Persist frozen list
+          try {
+            fs.mkdirSync(FROZEN_LISTS_DIR, { recursive: true });
+            const frozenPath = path.join(FROZEN_LISTS_DIR, `${taskId}.json`);
+            fs.writeFileSync(frozenPath, JSON.stringify(cachedVideoUrls), "utf8");
+            await this.taskRepository.updateFrozenVideoListPath(taskId, frozenPath);
+            // Update total from frozen list (source of truth)
+            await this.taskRepository.updateTotalVideos(taskId, cachedVideoUrls.length);
+            logger.info(`Wrote frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
+          } catch (err) {
+            logger.warn(`Failed to persist frozen list for task ${taskId}:`, err);
+            // Continue without frozen list — will be re-fetched on resume
+          }
+        }
       }
 
-      // Process the task
       await this.taskProcessor.processTask(task, cachedVideoUrls);
 
-      // Clear cached video URLs to free memory
+      // On natural completion, clean up frozen list
       const finalTask = await this.getTaskById(taskId);
-      if (finalTask) {
-        const cacheKey = `${taskId}:${finalTask.authorUrl}`;
-        this.videoUrlCache.delete(cacheKey);
+      if (finalTask && (finalTask.status === "completed" || finalTask.status === "cancelled")) {
+        await this.deleteFrozenList(finalTask);
       }
+
+      // Clear incremental cache
+      const cacheKey = `${taskId}:${task.authorUrl}`;
+      this.videoUrlCache.delete(cacheKey);
     } catch (error) {
       logger.error(`Error processing task ${taskId}:`, error);
       await this.taskRepository.cancelTaskWithError(
@@ -350,14 +401,33 @@ export class ContinuousDownloadService {
         error instanceof Error ? error.message : String(error)
       );
 
-      // Clear cached video URLs on error to free memory
+      // Clean up on error
       const task = await this.getTaskById(taskId);
       if (task) {
         const cacheKey = `${taskId}:${task.authorUrl}`;
         this.videoUrlCache.delete(cacheKey);
+        await this.deleteFrozenList(task);
       }
     } finally {
       this.processingTasks.delete(taskId);
+    }
+  }
+
+  /**
+   * Delete the frozen list file for a task and clear the DB column.
+   */
+  private async deleteFrozenList(task: ContinuousDownloadTask): Promise<void> {
+    if (!task.frozenVideoListPath) return;
+    try {
+      fs.unlinkSync(task.frozenVideoListPath);
+      logger.debug(`Deleted frozen list for task ${task.id}`);
+    } catch (err) {
+      logger.warn(`Could not delete frozen list file for task ${task.id}:`, err);
+    }
+    try {
+      await this.taskRepository.clearFrozenVideoListPath(task.id);
+    } catch (err) {
+      logger.warn(`Could not clear frozenVideoListPath in DB for task ${task.id}:`, err);
     }
   }
 }

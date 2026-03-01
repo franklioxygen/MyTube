@@ -31,6 +31,8 @@ const mapTaskRowToEntity = (
   skippedCount: toCount(task.skippedCount),
   failedCount: toCount(task.failedCount),
   currentVideoIndex: toCount(task.currentVideoIndex),
+  downloadOrder: toOptional(task.downloadOrder),
+  frozenVideoListPath: toOptional(task.frozenVideoListPath),
 });
 
 /**
@@ -254,21 +256,26 @@ export class TaskRepository {
 
     const { task, playlistName } = result[0];
 
-    // Convert null to undefined for TypeScript compatibility and ensure status type
-    return {
-      ...task,
-      subscriptionId: task.subscriptionId ?? undefined,
-      collectionId: task.collectionId ?? undefined,
-      playlistName: playlistName ?? undefined,
-      updatedAt: task.updatedAt ?? undefined,
-      completedAt: task.completedAt ?? undefined,
-      error: task.error ?? undefined,
-      status: task.status as "active" | "paused" | "completed" | "cancelled",
-      totalVideos: task.totalVideos ?? 0,
-      downloadedCount: task.downloadedCount ?? 0,
-      skippedCount: task.skippedCount ?? 0,
-      failedCount: task.failedCount ?? 0,
-      currentVideoIndex: task.currentVideoIndex ?? 0,
-    };
+    return mapTaskRowToEntity(task, playlistName);
+  }
+
+  /**
+   * Persist the frozen video list path for a task
+   */
+  async updateFrozenVideoListPath(id: string, path: string): Promise<void> {
+    await db
+      .update(continuousDownloadTasks)
+      .set({ frozenVideoListPath: path, updatedAt: Date.now() })
+      .where(eq(continuousDownloadTasks.id, id));
+  }
+
+  /**
+   * Clear the frozen video list path (called after file deletion on terminal state)
+   */
+  async clearFrozenVideoListPath(id: string): Promise<void> {
+    await db
+      .update(continuousDownloadTasks)
+      .set({ frozenVideoListPath: null, updatedAt: Date.now() })
+      .where(eq(continuousDownloadTasks.id, id));
   }
 }

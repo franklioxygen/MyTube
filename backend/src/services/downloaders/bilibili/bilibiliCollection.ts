@@ -10,6 +10,69 @@ import {
   CollectionDownloadResult,
 } from "./types";
 
+const normalizeUploadDate = (value: unknown): string | undefined => {
+  if (typeof value === "string" && /^\d{8}$/.test(value)) {
+    return value;
+  }
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+
+  const milliseconds = value > 1e12 ? value : value * 1000;
+  const date = new Date(milliseconds);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
+  return `${year}${month}${day}`;
+};
+
+const normalizeViewCount = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const cleaned = value.trim().toLowerCase().replace(/,/g, "");
+  if (!cleaned || cleaned === "--") {
+    return undefined;
+  }
+
+  const unitMatch = cleaned.match(/^([\d.]+)\s*([kmb]|万|亿)?$/);
+  if (unitMatch) {
+    const numeric = Number.parseFloat(unitMatch[1]);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      return undefined;
+    }
+    const unit = unitMatch[2];
+    const multiplier =
+      unit === "k"
+        ? 1e3
+        : unit === "m"
+          ? 1e6
+          : unit === "b"
+            ? 1e9
+            : unit === "万"
+              ? 1e4
+              : unit === "亿"
+                ? 1e8
+                : 1;
+    return Math.floor(numeric * multiplier);
+  }
+
+  const digits = cleaned.replace(/[^\d]/g, "");
+  if (!digits) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 /**
  * Get all videos from a Bilibili collection
  */
@@ -59,6 +122,8 @@ export async function getCollectionVideos(
             bvid: video.bvid,
             title: video.title,
             aid: video.aid,
+            uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+            viewCount: normalizeViewCount(video.stat?.view ?? video.play),
           });
         });
 
@@ -125,6 +190,8 @@ export async function getSeriesVideos(
             bvid: video.bvid,
             title: video.title,
             aid: video.aid,
+            uploadDate: normalizeUploadDate(video.pubdate ?? video.ctime ?? video.created),
+            viewCount: normalizeViewCount(video.stat?.view ?? video.play),
           });
         });
 

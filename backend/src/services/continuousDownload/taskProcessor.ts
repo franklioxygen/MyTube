@@ -77,11 +77,11 @@ export class TaskProcessor {
     const progressState = this.createProgressState(task);
     const maxConcurrentDownloads = this.resolveMaxConcurrentDownloads();
 
-    // For large playlists, use incremental fetching to save memory
-    // Check if it's a playlist (likely to be large)
+    // Mode is determined by the service: if cachedVideoUrls was passed, it's always full-fetch.
+    // Incremental is only used for YouTube playlists when no pre-fetched list is provided.
     const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
     const isPlaylist = playlistRegex.test(task.authorUrl);
-    const useIncremental = isPlaylist && task.platform === "YouTube";
+    const useIncremental = !cachedVideoUrls && isPlaylist && task.platform === "YouTube";
 
     // Get total count if not set
     if (task.totalVideos === 0) {

@@ -686,6 +686,15 @@ export const pt = {
   never: "Nunca",
   downloadAllPreviousVideos: "Baixar todos os vídeos anteriores deste autor",
   downloadShorts: "Baixar Shorts",
+  downloadOrder: "Ordem de download",
+  downloadOrderDateDesc: "Data (mais recente primeiro)",
+  downloadOrderDateAsc: "Data (mais antigo primeiro)",
+  downloadOrderViewsDesc: "Visualizações (mais primeiro)",
+  downloadOrderViewsAsc: "Visualizações (menos primeiro)",
+  downloadOrderLargeChannelHint:
+    "Canais grandes podem demorar mais para buscar metadados antes que o download comece.",
+  downloadOrderShortsHint:
+    "Duas tarefas de download serão criadas: uma para vídeos principais e outra para Shorts.",
   downloadAllPreviousWarning:
     "Aviso: Isso baixará todos os vídeos anteriores deste autor. Isso pode consumir um espaço de armazenamento significativo e pode acionar mecanismos de detecção de bots que podem resultar em proibições temporárias ou permanentes da plataforma. Use por sua conta e risco.",
   downloadAllPreviousVideosInPlaylists: "Baixar vídeos anteriores em playlists",

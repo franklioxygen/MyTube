@@ -678,6 +678,15 @@ export const en = {
   never: "Never",
   downloadAllPreviousVideos: "Download all previous videos from this author",
   downloadShorts: "Download Shorts",
+  downloadOrder: "Download Order",
+  downloadOrderDateDesc: "Date (Newest First)",
+  downloadOrderDateAsc: "Date (Oldest First)",
+  downloadOrderViewsDesc: "Views (Most First)",
+  downloadOrderViewsAsc: "Views (Least First)",
+  downloadOrderLargeChannelHint:
+    "Large channels may take longer to fetch metadata before downloading begins.",
+  downloadOrderShortsHint:
+    "Two download tasks will be created: one for main videos and one for Shorts.",
   downloadAllPreviousWarning:
     "Warning: This will download all previous videos from this author. This may consume significant storage space and could trigger bot detection mechanisms that may result in temporary or permanent bans from the platform. Use at your own risk.",
   downloadAllPreviousVideosInPlaylists: "Download previous videos in playlists",

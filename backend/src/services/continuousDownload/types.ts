@@ -2,6 +2,8 @@
  * Type definitions for continuous download tasks
  */
 
+export type DownloadOrder = "dateDesc" | "dateAsc" | "viewsDesc" | "viewsAsc";
+
 export interface ContinuousDownloadTask {
   id: string;
   subscriptionId?: string;
@@ -20,5 +22,6 @@ export interface ContinuousDownloadTask {
   updatedAt?: number;
   completedAt?: number;
   error?: string;
+  downloadOrder?: DownloadOrder;
+  frozenVideoListPath?: string;
 }
-

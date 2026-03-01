@@ -149,7 +149,8 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   const handleSubscribeConfirm = async (
     interval: number,
     downloadAllPrevious: boolean,
-    downloadShorts: boolean
+    downloadShorts: boolean,
+    downloadOrder: string
   ) => {
     if (!authorChannelUrl || !video) return;
 
@@ -160,6 +161,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
         authorName: video.author,
         downloadAllPrevious,
         downloadShorts,
+        ...(downloadAllPrevious ? { downloadOrder } : {}),
       });
       showSnackbar(t("subscribedSuccessfully"));
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });

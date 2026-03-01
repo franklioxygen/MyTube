@@ -1,4 +1,112 @@
+import { DownloadOrder } from "./types";
 import { logger } from "../../utils/logger";
+
+export interface VideoEntry {
+  url: string;
+  uploadDate: string;  // YYYYMMDD or "00000000"
+  viewCount: number;   // default 0
+  sourceIndex: number; // stable tie-breaker
+}
+
+/**
+ * Sort video entries by the requested order with deterministic tie-breaking.
+ */
+export function sortVideoEntries(entries: VideoEntry[], order: DownloadOrder): VideoEntry[] {
+  return [...entries].sort((a, b) => {
+    let primary = 0;
+    if (order === "dateDesc") {
+      primary = b.uploadDate.localeCompare(a.uploadDate);
+    } else if (order === "dateAsc") {
+      primary = a.uploadDate.localeCompare(b.uploadDate);
+    } else if (order === "viewsDesc") {
+      primary = b.viewCount - a.viewCount;
+      if (primary === 0) primary = b.uploadDate.localeCompare(a.uploadDate);
+    } else if (order === "viewsAsc") {
+      primary = a.viewCount - b.viewCount;
+      if (primary === 0) primary = a.uploadDate.localeCompare(b.uploadDate);
+    }
+    return primary !== 0 ? primary : a.sourceIndex - b.sourceIndex;
+  });
+}
+
+const UNKNOWN_UPLOAD_DATE = "00000000";
+
+const toUploadDate = (value: unknown): string => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{8}$/.test(trimmed)) {
+      return trimmed;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      const numeric = Number.parseInt(trimmed, 10);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        const asTime = numeric > 1e12 ? numeric : numeric * 1000;
+        return toUploadDate(asTime);
+      }
+    }
+    const parsed = Date.parse(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return toUploadDate(parsed);
+    }
+    return UNKNOWN_UPLOAD_DATE;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    const milliseconds = value > 1e12 ? value : value * 1000;
+    const date = new Date(milliseconds);
+    if (!Number.isNaN(date.getTime())) {
+      const year = date.getUTCFullYear();
+      const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+      const day = `${date.getUTCDate()}`.padStart(2, "0");
+      return `${year}${month}${day}`;
+    }
+  }
+
+  return UNKNOWN_UPLOAD_DATE;
+};
+
+const toViewCount = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return Math.floor(value);
+  }
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const cleaned = value.trim().toLowerCase().replace(/,/g, "");
+  if (!cleaned || cleaned === "--") {
+    return 0;
+  }
+
+  const unitMatch = cleaned.match(/^([\d.]+)\s*([kmb]|万|亿)?$/);
+  if (unitMatch) {
+    const numeric = Number.parseFloat(unitMatch[1]);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      return 0;
+    }
+    const unit = unitMatch[2];
+    const multiplier =
+      unit === "k"
+        ? 1e3
+        : unit === "m"
+          ? 1e6
+          : unit === "b"
+            ? 1e9
+            : unit === "万"
+              ? 1e4
+              : unit === "亿"
+                ? 1e8
+                : 1;
+    return Math.floor(numeric * multiplier);
+  }
+
+  const digits = cleaned.replace(/[^\d]/g, "");
+  if (!digits) {
+    return 0;
+  }
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 /**
  * Service for fetching video URLs from different platforms
@@ -106,6 +214,276 @@ export class VideoUrlFetcher {
       logger.error("Error getting all video URLs:", error);
       throw error;
     }
+  }
+
+  /**
+   * Get all video entries with metadata (url, uploadDate, viewCount, sourceIndex).
+   * Used by the full-fetch + sort + freeze path for non-incremental tasks.
+   */
+  async getAllVideoEntries(
+    authorUrl: string,
+    platform: string
+  ): Promise<VideoEntry[]> {
+    try {
+      if (platform === "Bilibili") {
+        return await this.getBilibiliVideoEntries(authorUrl);
+      } else {
+        return await this.getYouTubeVideoEntries(authorUrl);
+      }
+    } catch (error) {
+      logger.error("Error getting all video entries:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get YouTube video entries with metadata
+   */
+  private async getYouTubeVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+    const {
+      executeYtDlpJson,
+      getNetworkConfigFromUserConfig,
+      getUserYtDlpConfig,
+    } = await import("../../utils/ytDlpUtils");
+    const { getProviderScript } = await import(
+      "../downloaders/ytdlp/ytdlpHelpers"
+    );
+    const userConfig = getUserYtDlpConfig(authorUrl);
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+    const PROVIDER_SCRIPT = getProviderScript();
+
+    const playlistRegex = /[?&]list=([a-zA-Z0-9_-]+)/;
+    const isPlaylist = playlistRegex.test(authorUrl);
+
+    let targetUrl = authorUrl;
+    if (!isPlaylist) {
+      if (
+        !targetUrl.includes("/videos") &&
+        !targetUrl.includes("/shorts") &&
+        !targetUrl.includes("/streams")
+      ) {
+        targetUrl = targetUrl.endsWith("/")
+          ? `${targetUrl}videos`
+          : `${targetUrl}/videos`;
+      }
+    }
+
+    const entries: VideoEntry[] = [];
+    let page = 1;
+    const pageSize = 100;
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const result = await executeYtDlpJson(targetUrl, {
+          ...networkConfig,
+          noWarnings: true,
+          flatPlaylist: true,
+          playlistStart: (page - 1) * pageSize + 1,
+          playlistEnd: page * pageSize,
+          ...(PROVIDER_SCRIPT
+            ? { extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}` }
+            : {}),
+        });
+
+        if (result.entries && result.entries.length > 0) {
+          for (const entry of result.entries) {
+            if (entry.id && !entry.id.startsWith("UC")) {
+              const url = entry.url || `https://www.youtube.com/watch?v=${entry.id}`;
+              entries.push({
+                url,
+                uploadDate: toUploadDate(entry.upload_date),
+                viewCount: toViewCount(entry.view_count),
+                sourceIndex: entries.length,
+              });
+            }
+          }
+          hasMore = result.entries.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        logger.error(`Error fetching YouTube video entries page ${page}:`, error);
+        hasMore = false;
+      }
+    }
+
+    logger.info(`Found ${entries.length} video entries for ${authorUrl}`);
+    return entries;
+  }
+
+  /**
+   * Get Bilibili video entries with metadata (preserves existing resolution behavior)
+   */
+  private async getBilibiliVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+    const entries: VideoEntry[] = [];
+    const { extractBilibiliMid, extractBilibiliVideoId } = await import("../../utils/helpers");
+    const { checkBilibiliCollectionOrSeries } = await import("../../services/downloadService");
+    const { getCollectionVideos, getSeriesVideos } = await import("../../services/downloaders/bilibili/bilibiliCollection");
+
+    // First, try to extract mid from space URL
+    let mid = extractBilibiliMid(authorUrl);
+
+    // If not a space URL, check if it's a video URL that belongs to a collection
+    if (!mid) {
+      const videoId = extractBilibiliVideoId(authorUrl);
+      if (videoId) {
+        const collectionInfo = await checkBilibiliCollectionOrSeries(videoId);
+        if (
+          collectionInfo.success &&
+          collectionInfo.type !== "none" &&
+          collectionInfo.mid &&
+          collectionInfo.id
+        ) {
+          logger.info(
+            `Detected Bilibili ${collectionInfo.type} from video URL, using collection API`
+          );
+
+          const videosResult =
+            collectionInfo.type === "collection"
+              ? await getCollectionVideos(collectionInfo.mid, collectionInfo.id)
+              : await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+
+          if (!videosResult.success || videosResult.videos.length === 0) {
+            throw new Error(`Failed to get videos from ${collectionInfo.type}`);
+          }
+
+          for (const video of videosResult.videos) {
+            if (!video.bvid) {
+              continue;
+            }
+            entries.push({
+              url: `https://www.bilibili.com/video/${video.bvid}`,
+              uploadDate: toUploadDate(video.uploadDate),
+              viewCount: toViewCount(video.viewCount),
+              sourceIndex: entries.length,
+            });
+          }
+
+          logger.info(`Found ${entries.length} Bilibili video entries for ${authorUrl}`);
+          return entries;
+        }
+      }
+
+      // If we still don't have a mid, it's an invalid URL
+      throw new Error("Invalid Bilibili space URL or collection URL");
+    }
+
+    const {
+      executeYtDlpJson,
+      getNetworkConfigFromUserConfig,
+      getUserYtDlpConfig,
+    } = await import("../../utils/ytDlpUtils");
+    const userConfig = getUserYtDlpConfig(authorUrl);
+    const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+    const videosUrl = `https://space.bilibili.com/${mid}/video`;
+
+    try {
+      let hasMore = true;
+      let page = 1;
+      const pageSize = 100;
+
+      while (hasMore) {
+        try {
+          const result = await executeYtDlpJson(videosUrl, {
+            ...networkConfig,
+            noWarnings: true,
+            flatPlaylist: true,
+            playlistStart: (page - 1) * pageSize + 1,
+            playlistEnd: page * pageSize,
+          });
+
+          if (result.entries && result.entries.length > 0) {
+            for (const entry of result.entries) {
+              if (entry.id && entry.id.startsWith("BV")) {
+                entries.push({
+                  url: entry.url || `https://www.bilibili.com/video/${entry.id}`,
+                  uploadDate: toUploadDate(
+                    entry.upload_date ?? entry.release_timestamp ?? entry.timestamp
+                  ),
+                  viewCount: toViewCount(entry.view_count),
+                  sourceIndex: entries.length,
+                });
+              }
+            }
+            hasMore = result.entries.length === pageSize;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        } catch (error) {
+          logger.error(`Error fetching Bilibili video entries page ${page}:`, error);
+          hasMore = false;
+        }
+      }
+
+      // If yt-dlp didn't return entries, fall back to the public space API.
+      if (entries.length === 0) {
+        logger.info("yt-dlp returned no Bilibili entries, trying API fallback...");
+        const axios = await import("axios");
+        let pageNum = 1;
+        const pageSize = 50;
+        let hasMoreApi = true;
+        let fetchedCount = 0;
+
+        while (hasMoreApi) {
+          try {
+            const response = await axios.default.get(
+              `https://api.bilibili.com/x/space/arc/search?mid=${mid}&pn=${pageNum}&ps=${pageSize}&order=pubdate`,
+              {
+                headers: {
+                  Referer: "https://www.bilibili.com",
+                  "User-Agent":
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                },
+              }
+            );
+
+            const data = response.data;
+            if (
+              data &&
+              data.code === 0 &&
+              data.data &&
+              data.data.list &&
+              data.data.list.vlist
+            ) {
+              const videos = data.data.list.vlist;
+              for (const video of videos) {
+                if (!video.bvid) {
+                  continue;
+                }
+                entries.push({
+                  url: `https://www.bilibili.com/video/${video.bvid}`,
+                  uploadDate: toUploadDate(video.created ?? video.pubdate),
+                  viewCount: toViewCount(video.play),
+                  sourceIndex: entries.length,
+                });
+              }
+
+              fetchedCount += videos.length;
+              const total = data.data.page?.count || 0;
+              hasMoreApi = fetchedCount < total && videos.length === pageSize;
+              pageNum++;
+            } else {
+              hasMoreApi = false;
+            }
+          } catch (error) {
+            logger.error(
+              `Error fetching Bilibili API fallback page ${pageNum}:`,
+              error
+            );
+            hasMoreApi = false;
+          }
+        }
+      }
+    } catch (error) {
+      logger.error("Error fetching Bilibili video entries:", error);
+      throw error;
+    }
+
+    logger.info(`Found ${entries.length} Bilibili video entries for ${authorUrl}`);
+    return entries;
   }
 
   /**
@@ -473,4 +851,3 @@ export class VideoUrlFetcher {
     return videoUrls;
   }
 }
-

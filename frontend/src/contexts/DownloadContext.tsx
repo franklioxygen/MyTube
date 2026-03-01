@@ -461,13 +461,14 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showChannelPlaylistsModal, setShowChannelPlaylistsModal] = useState(false);
     const [channelPlaylistsUrl, setChannelPlaylistsUrl] = useState('');
 
-    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => {
+    const handleSubscribe = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: string) => {
         try {
             await api.post('/subscriptions', {
                 url: subscribeUrl,
                 interval,
                 downloadAllPrevious,
-                downloadShorts
+                downloadShorts,
+                ...(downloadAllPrevious ? { downloadOrder } : {}),
             });
             showSnackbar(t('subscribedSuccessfully'));
             setShowSubscribeModal(false);
@@ -585,9 +586,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
-    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => {
+    const handleSubscribeConfirm = async (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: string) => {
         if (subscribeMode === 'video') {
-            await handleSubscribe(interval, downloadAllPrevious, downloadShorts);
+            await handleSubscribe(interval, downloadAllPrevious, downloadShorts, downloadOrder);
         } else {
             performSubscribePlaylists(interval, downloadAllPrevious);
         }
@@ -622,6 +623,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 url={subscribeUrl}
                 title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
                 description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
+                enableDownloadOrder={subscribeMode !== 'playlist'}
             />
             <AlertModal
                 open={showDuplicateModal}

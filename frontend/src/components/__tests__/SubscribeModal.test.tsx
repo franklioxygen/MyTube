@@ -55,7 +55,7 @@ describe('SubscribeModal', () => {
 
         // Defaults: 60, false, false
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(60, false, false);
+        expect(mockOnConfirm).toHaveBeenCalledWith(60, false, false, 'dateDesc');
         expect(mockOnClose).toHaveBeenCalled();
     });
 
@@ -70,7 +70,24 @@ describe('SubscribeModal', () => {
         await user.click(screen.getByLabelText('downloadShorts'));
 
         await user.click(screen.getByText('subscribe'));
-        expect(mockOnConfirm).toHaveBeenCalledWith(30, true, true);
+        expect(mockOnConfirm).toHaveBeenCalledWith(30, true, true, 'dateDesc');
+    });
+
+    it('should show download order only when download all previous is checked', async () => {
+        const user = userEvent.setup();
+        render(<SubscribeModal {...defaultProps} />);
+
+        expect(screen.queryByLabelText('downloadOrder')).not.toBeInTheDocument();
+        await user.click(screen.getByLabelText('downloadAllPreviousVideos'));
+        expect(screen.getByLabelText('downloadOrder')).toBeInTheDocument();
+    });
+
+    it('should hide download order when disabled by prop', async () => {
+        const user = userEvent.setup();
+        render(<SubscribeModal {...defaultProps} enableDownloadOrder={false} />);
+
+        await user.click(screen.getByLabelText('downloadAllPreviousVideos'));
+        expect(screen.queryByLabelText('downloadOrder')).not.toBeInTheDocument();
     });
 
     it('should call onClose when cancel clicked', async () => {

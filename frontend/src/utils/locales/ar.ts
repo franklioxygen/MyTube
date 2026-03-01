@@ -662,6 +662,15 @@ export const ar = {
   never: "أبداً",
   downloadAllPreviousVideos: "تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف",
   downloadShorts: "تنزيل Shorts",
+  downloadOrder: "ترتيب التنزيل",
+  downloadOrderDateDesc: "التاريخ (الأحدث أولاً)",
+  downloadOrderDateAsc: "التاريخ (الأقدم أولاً)",
+  downloadOrderViewsDesc: "المشاهدات (الأكثر أولاً)",
+  downloadOrderViewsAsc: "المشاهدات (الأقل أولاً)",
+  downloadOrderLargeChannelHint:
+    "قد تستغرق القنوات الكبيرة وقتاً أطول لجلب البيانات الوصفية قبل بدء التنزيل.",
+  downloadOrderShortsHint:
+    "سيتم إنشاء مهمتي تنزيل: واحدة للفيديوهات الرئيسية وأخرى للـ Shorts.",
   downloadAllPreviousWarning:
     "تحذير: سيؤدي هذا إلى تنزيل جميع مقاطع الفيديو السابقة لهذا المؤلف. قد يستهلك هذا مساحة تخزين كبيرة وقد يؤدي إلى تفعيل آليات اكتشاف الروبوتات التي قد تؤدي إلى حظر مؤقت أو دائم من المنصة. استخدم على مسؤوليتك الخاصة.",
   downloadAllPreviousVideosInPlaylists:

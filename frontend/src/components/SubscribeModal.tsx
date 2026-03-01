@@ -10,21 +10,28 @@ import {
     DialogTitle,
     FormControlLabel,
     IconButton,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel,
     TextField,
     Typography
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 
+type DownloadOrder = 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc';
+
 interface SubscribeModalProps {
     open: boolean;
     onClose: () => void;
-    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean) => void;
+    onConfirm: (interval: number, downloadAllPrevious: boolean, downloadShorts: boolean, downloadOrder: DownloadOrder) => void;
     authorName?: string;
     url: string;
     source?: string;
     title?: string;
     description?: string;
+    enableDownloadOrder?: boolean;
 }
 
 const SubscribeModal: React.FC<SubscribeModalProps> = ({
@@ -35,17 +42,21 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     url,
     source,
     title,
-    description
+    description,
+    enableDownloadOrder = true,
 }) => {
     const { t } = useLanguage();
     const [interval, setInterval] = useState<number>(60); // Default 60 minutes
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
     const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
+    const [downloadOrder, setDownloadOrder] = useState<DownloadOrder>('dateDesc');
 
     const handleConfirm = () => {
-        onConfirm(interval, downloadAllPrevious, downloadShorts);
+        onConfirm(interval, downloadAllPrevious, downloadShorts, downloadOrder);
         onClose();
     };
+
+    const showOrderDropdown = downloadAllPrevious && enableDownloadOrder;
 
     return (
         <Dialog
@@ -113,6 +124,22 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     }
                     label={t('downloadAllPreviousVideos')}
                 />
+                {showOrderDropdown && (
+                    <FormControl fullWidth sx={{ mt: 2 }}>
+                        <InputLabel id="download-order-label">{t('downloadOrder') || 'Download Order'}</InputLabel>
+                        <Select
+                            labelId="download-order-label"
+                            value={downloadOrder}
+                            label={t('downloadOrder') || 'Download Order'}
+                            onChange={(e) => setDownloadOrder(e.target.value as DownloadOrder)}
+                        >
+                            <MenuItem value="dateDesc">{t('downloadOrderDateDesc') || 'Date (Newest First)'}</MenuItem>
+                            <MenuItem value="dateAsc">{t('downloadOrderDateAsc') || 'Date (Oldest First)'}</MenuItem>
+                            <MenuItem value="viewsDesc">{t('downloadOrderViewsDesc') || 'Views (Most First)'}</MenuItem>
+                            <MenuItem value="viewsAsc">{t('downloadOrderViewsAsc') || 'Views (Least First)'}</MenuItem>
+                        </Select>
+                    </FormControl>
+                )}
                 {downloadAllPrevious && (
                     <Alert
                         severity="warning"
@@ -122,6 +149,16 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                         <Typography variant="body2" component="div">
                             {t('downloadAllPreviousWarning')}
                         </Typography>
+                        {enableDownloadOrder && (
+                            <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
+                                {t('downloadOrderLargeChannelHint') || 'Large channels may take longer to fetch metadata before downloading begins.'}
+                            </Typography>
+                        )}
+                        {downloadShorts && (
+                            <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
+                                {t('downloadOrderShortsHint') || 'Two download tasks will be created: one for main videos and one for Shorts.'}
+                            </Typography>
+                        )}
                     </Alert>
                 )}
             </DialogContent>

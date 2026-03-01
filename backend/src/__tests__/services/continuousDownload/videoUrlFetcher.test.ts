@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
+import { sortVideoEntries, VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
 import * as downloadService from '../../../services/downloadService';
 import * as bilibiliCollection from '../../../services/downloaders/bilibili/bilibiliCollection';
 import * as ytdlpHelpers from '../../../services/downloaders/ytdlp/ytdlpHelpers';
@@ -46,6 +46,45 @@ describe('VideoUrlFetcher', () => {
     (bilibiliCollection.getSeriesVideos as any).mockResolvedValue({
       success: false,
       videos: [],
+    });
+  });
+
+  describe('sortVideoEntries', () => {
+    const baseEntries = [
+      { url: 'u1', uploadDate: '20240201', viewCount: 100, sourceIndex: 0 },
+      { url: 'u2', uploadDate: '20240101', viewCount: 500, sourceIndex: 1 },
+      { url: 'u3', uploadDate: '20240101', viewCount: 500, sourceIndex: 2 },
+      { url: 'u4', uploadDate: '20230101', viewCount: 1, sourceIndex: 3 },
+    ];
+
+    it('should sort by dateDesc (newest first)', () => {
+      const sorted = sortVideoEntries(baseEntries, 'dateDesc');
+      expect(sorted.map((x) => x.url)).toEqual(['u1', 'u2', 'u3', 'u4']);
+    });
+
+    it('should sort by dateAsc (oldest first)', () => {
+      const sorted = sortVideoEntries(baseEntries, 'dateAsc');
+      expect(sorted.map((x) => x.url)).toEqual(['u4', 'u2', 'u3', 'u1']);
+    });
+
+    it('should sort by viewsDesc with uploadDate as tie-breaker', () => {
+      const sorted = sortVideoEntries(baseEntries, 'viewsDesc');
+      expect(sorted.map((x) => x.url)).toEqual(['u2', 'u3', 'u1', 'u4']);
+    });
+
+    it('should sort by viewsAsc with uploadDate as tie-breaker', () => {
+      const sorted = sortVideoEntries(baseEntries, 'viewsAsc');
+      expect(sorted.map((x) => x.url)).toEqual(['u4', 'u1', 'u2', 'u3']);
+    });
+
+    it('should keep deterministic order when primary and secondary keys tie', () => {
+      const tied = [
+        { url: 't1', uploadDate: '20240101', viewCount: 10, sourceIndex: 8 },
+        { url: 't2', uploadDate: '20240101', viewCount: 10, sourceIndex: 3 },
+        { url: 't3', uploadDate: '20240101', viewCount: 10, sourceIndex: 5 },
+      ];
+      const sorted = sortVideoEntries(tied, 'viewsDesc');
+      expect(sorted.map((x) => x.url)).toEqual(['t2', 't3', 't1']);
     });
   });
 
@@ -422,6 +461,46 @@ describe('VideoUrlFetcher', () => {
 
       expect(urls).toEqual([]);
       expect(axios.get).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getAllVideoEntries', () => {
+    it('should include Bilibili metadata from collection API when available', async () => {
+      (helpers.extractBilibiliMid as any).mockReturnValue(null);
+      (helpers.extractBilibiliVideoId as any).mockReturnValue('BVCOLL');
+      (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
+        success: true,
+        type: 'collection',
+        mid: 100,
+        id: 200,
+      });
+      (bilibiliCollection.getCollectionVideos as any).mockResolvedValue({
+        success: true,
+        videos: [
+          { bvid: 'BV111', uploadDate: '20240220', viewCount: 1234 },
+          { bvid: 'BV222', uploadDate: '20240219', viewCount: 12 },
+        ],
+      });
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://www.bilibili.com/video/BVCOLL',
+        'Bilibili'
+      );
+
+      expect(entries).toEqual([
+        {
+          url: 'https://www.bilibili.com/video/BV111',
+          uploadDate: '20240220',
+          viewCount: 1234,
+          sourceIndex: 0,
+        },
+        {
+          url: 'https://www.bilibili.com/video/BV222',
+          uploadDate: '20240219',
+          viewCount: 12,
+          sourceIndex: 1,
+        },
+      ]);
     });
   });
 });

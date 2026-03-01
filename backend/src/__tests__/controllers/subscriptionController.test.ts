@@ -150,14 +150,16 @@ describe("SubscriptionController", () => {
         "https://www.youtube.com/@testuser",
         "@testuser",
         "YouTube",
-        "sub-123"
+        "sub-123",
+        "dateDesc"
       );
       expect(continuousDownloadService.createTask).toHaveBeenNthCalledWith(
         2,
         "https://www.youtube.com/@testuser/shorts",
         "@testuser (Shorts)",
         "YouTube",
-        "sub-123"
+        "sub-123",
+        "dateDesc"
       );
     });
 
@@ -181,8 +183,76 @@ describe("SubscriptionController", () => {
         "https://space.bilibili.com/12345",
         "UP 主",
         "Bilibili",
-        "sub-bili-1"
+        "sub-bili-1",
+        "dateDesc"
       );
+    });
+
+    it("should pass explicit valid downloadOrder to both main and shorts tasks", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@ordered",
+        interval: 15,
+        downloadAllPrevious: true,
+        downloadShorts: true,
+        downloadOrder: "viewsAsc",
+      };
+      (subscriptionService.subscribe as any).mockResolvedValue({
+        id: "sub-ordered-1",
+        author: "@ordered",
+        platform: "YouTube",
+      });
+
+      await createSubscription(req as Request, res as Response);
+
+      expect(continuousDownloadService.createTask).toHaveBeenNthCalledWith(
+        1,
+        "https://www.youtube.com/@ordered",
+        "@ordered",
+        "YouTube",
+        "sub-ordered-1",
+        "viewsAsc"
+      );
+      expect(continuousDownloadService.createTask).toHaveBeenNthCalledWith(
+        2,
+        "https://www.youtube.com/@ordered/shorts",
+        "@ordered (Shorts)",
+        "YouTube",
+        "sub-ordered-1",
+        "viewsAsc"
+      );
+    });
+
+    it("should ignore downloadOrder when downloadAllPrevious is not true", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@ignore-order",
+        interval: 20,
+        downloadAllPrevious: false,
+        downloadOrder: "viewsDesc",
+      };
+      (subscriptionService.subscribe as any).mockResolvedValue({
+        id: "sub-ignore-order-1",
+        author: "@ignore-order",
+        platform: "YouTube",
+      });
+
+      await createSubscription(req as Request, res as Response);
+
+      expect(continuousDownloadService.createTask).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(201);
+    });
+
+    it("should reject invalid downloadOrder when backfill is enabled", async () => {
+      req.body = {
+        url: "https://www.youtube.com/@bad-order",
+        interval: 10,
+        downloadAllPrevious: true,
+        downloadOrder: "randomOrder",
+      };
+
+      await expect(
+        createSubscription(req as Request, res as Response)
+      ).rejects.toThrow(ValidationError);
+      expect(subscriptionService.subscribe).not.toHaveBeenCalled();
     });
 
     it("should not fail when task creation throws", async () => {

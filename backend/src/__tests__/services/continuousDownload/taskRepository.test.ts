@@ -107,7 +107,13 @@ describe('TaskRepository', () => {
   it('getTaskById should return task if found', async () => {
     const mockData = [
         { 
-            task: { id: '1', status: 'active', author: 'A' }, 
+            task: {
+              id: '1',
+              status: 'active',
+              author: 'A',
+              downloadOrder: 'viewsDesc',
+              frozenVideoListPath: '/tmp/frozen/1.json',
+            }, 
             playlistName: 'My Playlist' 
         }
     ];
@@ -119,6 +125,8 @@ describe('TaskRepository', () => {
     expect(mockBuilder.where).toHaveBeenCalled();
     expect(task).toBeDefined();
     expect(task?.id).toBe('1');
+    expect(task?.downloadOrder).toBe('viewsDesc');
+    expect(task?.frozenVideoListPath).toBe('/tmp/frozen/1.json');
   });
 
   it('getTaskById should return null if not found', async () => {
@@ -169,6 +177,30 @@ describe('TaskRepository', () => {
     await taskRepository.deleteTask('1');
     
     expect(db.delete).toHaveBeenCalledWith(continuousDownloadTasks);
+    expect(mockBuilder.where).toHaveBeenCalled();
+  });
+
+  it('updateFrozenVideoListPath should persist path and updatedAt', async () => {
+    await taskRepository.updateFrozenVideoListPath('1', '/tmp/frozen/1.json');
+
+    expect(db.update).toHaveBeenCalledWith(continuousDownloadTasks);
+    expect(mockBuilder.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frozenVideoListPath: '/tmp/frozen/1.json',
+      })
+    );
+    expect(mockBuilder.where).toHaveBeenCalled();
+  });
+
+  it('clearFrozenVideoListPath should set path to null and update updatedAt', async () => {
+    await taskRepository.clearFrozenVideoListPath('1');
+
+    expect(db.update).toHaveBeenCalledWith(continuousDownloadTasks);
+    expect(mockBuilder.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        frozenVideoListPath: null,
+      })
+    );
     expect(mockBuilder.where).toHaveBeenCalled();
   });
 });

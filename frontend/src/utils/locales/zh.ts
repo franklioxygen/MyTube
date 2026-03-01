@@ -642,6 +642,15 @@ export const zh = {
   never: "从未",
   downloadAllPreviousVideos: "下载此作者的所有历史视频",
   downloadShorts: "下载 Shorts",
+  downloadOrder: "下载顺序",
+  downloadOrderDateDesc: "日期（最新优先）",
+  downloadOrderDateAsc: "日期（最旧优先）",
+  downloadOrderViewsDesc: "播放量（最多优先）",
+  downloadOrderViewsAsc: "播放量（最少优先）",
+  downloadOrderLargeChannelHint:
+    "大型频道在开始下载前可能需要较长时间获取元数据。",
+  downloadOrderShortsHint:
+    "将创建两个下载任务：一个用于主视频，一个用于 Shorts。",
   downloadAllPreviousWarning:
     "警告：这将下载此作者的所有历史视频。这可能会消耗大量存储空间，并可能触发机器人检测机制，导致平台临时或永久封禁。使用风险自负。",
   downloadAllPreviousVideosInPlaylists: "下载播放列表中以前的视频",

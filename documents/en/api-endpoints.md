@@ -76,7 +76,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 - `GET /api/subscriptions` - Get all subscriptions
 - `POST /api/subscriptions` - Create subscription
-  - Body: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean }`
+  - Body: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean, downloadOrder?: 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc' }`
+  - `downloadOrder` is only applied when `downloadAllPrevious` is `true`; defaults to `dateDesc`
 - `PUT /api/subscriptions/:id/pause` - Pause subscription
 - `PUT /api/subscriptions/:id/resume` - Resume subscription
 - `DELETE /api/subscriptions/:id` - Delete subscription

@@ -675,6 +675,15 @@ export const ru = {
   never: "Никогда",
   downloadAllPreviousVideos: "Скачать все предыдущие видео этого автора",
   downloadShorts: "Скачать Shorts",
+  downloadOrder: "Порядок загрузки",
+  downloadOrderDateDesc: "Дата (сначала новые)",
+  downloadOrderDateAsc: "Дата (сначала старые)",
+  downloadOrderViewsDesc: "Просмотры (сначала больше)",
+  downloadOrderViewsAsc: "Просмотры (сначала меньше)",
+  downloadOrderLargeChannelHint:
+    "Для крупных каналов может потребоваться больше времени на получение метаданных перед началом загрузки.",
+  downloadOrderShortsHint:
+    "Будут созданы две задачи загрузки: одна для основных видео и одна для Shorts.",
   downloadAllPreviousWarning:
     "Предупреждение: Это скачает все предыдущие видео этого автора. Это может потребовать значительного объема хранилища и может вызвать механизмы обнаружения ботов, что может привести к временным или постоянным запретам на платформе. Используйте на свой риск.",
   downloadAllPreviousVideosInPlaylists: "Скачать предыдущие видео в плейлистах",

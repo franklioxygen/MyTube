@@ -33,6 +33,8 @@ export interface BilibiliVideoItem {
   bvid: string;
   title: string;
   aid: number;
+  uploadDate?: string; // YYYYMMDD
+  viewCount?: number; // total views
 }
 
 export interface BilibiliVideosResult {

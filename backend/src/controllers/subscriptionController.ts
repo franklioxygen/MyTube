@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
 import { continuousDownloadService } from "../services/continuousDownloadService";
+import { DownloadOrder } from "../services/continuousDownload/types";
 import { checkPlaylist } from "../services/downloadService";
 import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
@@ -25,15 +26,28 @@ export const createSubscription = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { url, interval, authorName, downloadAllPrevious, downloadShorts: rawDownloadShorts } =
+  const { url, interval, authorName, downloadAllPrevious, downloadShorts: rawDownloadShorts, downloadOrder: rawDownloadOrder } =
     req.body;
   const downloadShorts = Boolean(rawDownloadShorts);
+
+  const validDownloadOrders: DownloadOrder[] = ["dateDesc", "dateAsc", "viewsDesc", "viewsAsc"];
+  let downloadOrder: DownloadOrder = "dateDesc";
+  if (downloadAllPrevious === true) {
+    if (rawDownloadOrder !== undefined && rawDownloadOrder !== null) {
+      if (!validDownloadOrders.includes(rawDownloadOrder)) {
+        throw new ValidationError(`Invalid downloadOrder: must be one of ${validDownloadOrders.join(", ")}`, "downloadOrder");
+      }
+      downloadOrder = rawDownloadOrder as DownloadOrder;
+    }
+  }
+
   logger.info("Creating subscription:", {
     url,
     interval,
     authorName,
     downloadAllPrevious,
     downloadShorts,
+    downloadOrder,
   });
 
   if (!url || !interval) {
@@ -50,13 +64,14 @@ export const createSubscription = async (
   );
 
   // If user wants to download all previous videos, create a continuous download task
-  if (downloadAllPrevious) {
+  if (downloadAllPrevious === true) {
     try {
       await continuousDownloadService.createTask(
         normalizedUrl,
         subscription.author,
         subscription.platform,
-        subscription.id
+        subscription.id,
+        downloadOrder
       );
       logger.info(
         `Created continuous download task for subscription ${subscription.id}`
@@ -80,7 +95,8 @@ export const createSubscription = async (
           shortsUrl,
           `${subscription.author} (Shorts)`,
           subscription.platform,
-          subscription.id
+          subscription.id,
+          downloadOrder
         );
         logger.info(
           `Created continuous download task for Shorts for subscription ${subscription.id}`

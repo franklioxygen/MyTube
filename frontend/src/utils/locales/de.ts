@@ -694,6 +694,15 @@ export const de = {
   downloadAllPreviousVideos:
     "Alle vorherigen Videos dieses Autors herunterladen",
   downloadShorts: "Shorts herunterladen",
+  downloadOrder: "Download-Reihenfolge",
+  downloadOrderDateDesc: "Datum (neueste zuerst)",
+  downloadOrderDateAsc: "Datum (älteste zuerst)",
+  downloadOrderViewsDesc: "Aufrufe (meiste zuerst)",
+  downloadOrderViewsAsc: "Aufrufe (wenigste zuerst)",
+  downloadOrderLargeChannelHint:
+    "Große Kanäle benötigen möglicherweise länger, um Metadaten abzurufen, bevor der Download beginnt.",
+  downloadOrderShortsHint:
+    "Es werden zwei Download-Aufgaben erstellt: eine für Hauptvideos und eine für Shorts.",
   downloadAllPreviousWarning:
     "Warnung: Dies lädt alle vorherigen Videos dieses Autors herunter. Dies kann erheblichen Speicherplatz verbrauchen und könnte Bot-Erkennungsmechanismen auslösen, die zu temporären oder dauerhaften Sperren der Plattform führen können. Verwenden Sie auf eigenes Risiko.",
   downloadAllPreviousVideosInPlaylists:

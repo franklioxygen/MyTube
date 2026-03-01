@@ -667,6 +667,15 @@ export const ko = {
   never: "없음",
   downloadAllPreviousVideos: "이 작가의 모든 이전 동영상 다운로드",
   downloadShorts: "Shorts 다운로드",
+  downloadOrder: "다운로드 순서",
+  downloadOrderDateDesc: "날짜 (최신순)",
+  downloadOrderDateAsc: "날짜 (오래된순)",
+  downloadOrderViewsDesc: "조회수 (높은순)",
+  downloadOrderViewsAsc: "조회수 (낮은순)",
+  downloadOrderLargeChannelHint:
+    "대형 채널은 다운로드 시작 전 메타데이터를 가져오는 데 더 오래 걸릴 수 있습니다.",
+  downloadOrderShortsHint:
+    "두 개의 다운로드 작업이 생성됩니다: 하나는 일반 동영상용, 다른 하나는 Shorts용입니다.",
   downloadAllPreviousWarning:
     "경고: 이것은 이 작가의 모든 이전 동영상을 다운로드합니다. 상당한 저장 공간을 소비할 수 있으며 봇 감지 메커니즘이 트리거되어 플랫폼에서 일시적 또는 영구적 금지 조치를 받을 수 있습니다. 본인의 책임하에 사용하세요.",
   downloadAllPreviousVideosInPlaylists: "재생 목록의 이전 동영상 다운로드",

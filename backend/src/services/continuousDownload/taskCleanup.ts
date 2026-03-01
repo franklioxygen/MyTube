@@ -1,3 +1,4 @@
+import fs from "fs";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { ContinuousDownloadTask } from "./types";
@@ -10,7 +11,9 @@ export class TaskCleanup {
   constructor(private videoUrlFetcher: VideoUrlFetcher) {}
 
   /**
-   * Clean up temporary files for the current video being downloaded in a task
+   * Clean up temporary files for the current video being downloaded in a task.
+   * Uses the frozen list when available to identify the current video URL,
+   * avoiding an extra network fetch.
    */
   async cleanupCurrentVideoTempFiles(
     task: ContinuousDownloadTask
@@ -21,11 +24,25 @@ export class TaskCleanup {
     }
 
     try {
-      // Get the video URL that's currently being downloaded
-      const videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
-        task.authorUrl,
-        task.platform
-      );
+      // Prefer frozen list to identify the current video URL
+      let videoUrls: string[] | null = null;
+
+      if (task.frozenVideoListPath) {
+        try {
+          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+          videoUrls = JSON.parse(raw) as string[];
+        } catch (err) {
+          logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);
+        }
+      }
+
+      if (!videoUrls) {
+        // Fallback: fetch all URLs (legacy path for incremental tasks or missing frozen list)
+        videoUrls = await this.videoUrlFetcher.getAllVideoUrls(
+          task.authorUrl,
+          task.platform
+        );
+      }
 
       if (task.currentVideoIndex < videoUrls.length) {
         const currentVideoUrl = videoUrls[task.currentVideoIndex];
@@ -77,7 +94,6 @@ export class TaskCleanup {
               download.sourceUrl === currentVideoUrl ||
               (download.filename && download.filename.includes(baseFilename))
             ) {
-              // Cancel this download using download manager (properly stops the process)
               logger.info(
                 `Cancelling active download ${download.id} for video ${currentVideoUrl}`
               );

@@ -680,6 +680,15 @@ export const ja = {
   never: "なし",
   downloadAllPreviousVideos: "この著者の過去のすべての動画をダウンロード",
   downloadShorts: "Shortsをダウンロード",
+  downloadOrder: "ダウンロード順序",
+  downloadOrderDateDesc: "日付（新しい順）",
+  downloadOrderDateAsc: "日付（古い順）",
+  downloadOrderViewsDesc: "再生回数（多い順）",
+  downloadOrderViewsAsc: "再生回数（少ない順）",
+  downloadOrderLargeChannelHint:
+    "大規模なチャンネルは、ダウンロード開始前にメタデータを取得するのに時間がかかる場合があります。",
+  downloadOrderShortsHint:
+    "2つのダウンロードタスクが作成されます：メイン動画用と Shorts 用です。",
   downloadAllPreviousWarning:
     "警告：これにより、この著者の過去のすべての動画がダウンロードされます。これにより、大量のストレージ容量が消費される可能性があり、ボット検出メカニズムがトリガーされて、プラットフォームから一時的または永続的な禁止措置を受ける可能性があります。自己責任で使用してください。",
   downloadAllPreviousVideosInPlaylists:
