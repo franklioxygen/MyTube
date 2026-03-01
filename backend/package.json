@@ -32,7 +32,7 @@
     "express-rate-limit": "^8.2.1",
     "fs-extra": "^11.3.3",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.0.2",
+    "multer": "^2.1.0",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.34.0",
     "sharp": "^0.34.5",
