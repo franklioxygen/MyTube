@@ -24,26 +24,59 @@ const ALLOWED_IMAGE_MIMES: Record<string, string> = {
 const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif"]);
 
 const IMAGE_ROOT_PATH = path.resolve(IMAGES_DIR);
+const IMAGE_ROOT_PREFIX = `${IMAGE_ROOT_PATH}${path.sep}`;
 
-const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
-  const rawRelativePath = thumbnailPath
-    .split("?")[0]
-    .replace(/^\/images\//, "")
-    .trim();
-
-  if (!rawRelativePath) {
+const normalizeImageRelativePath = (imagePath: string): string | null => {
+  const rawPath = imagePath.split("?")[0].trim();
+  if (!rawPath) {
     return null;
   }
 
-  const safeResolvedPath = validateImagePath(
-    path.join(IMAGES_DIR, ...rawRelativePath.split("/").filter(Boolean))
-  );
-  return safeResolvedPath === IMAGE_ROOT_PATH ? null : safeResolvedPath;
+  let relativePath = rawPath;
+  if (rawPath.startsWith("/images/")) {
+    relativePath = rawPath.replace(/^\/images\//, "");
+  } else if (path.isAbsolute(rawPath)) {
+    const resolvedPath = path.resolve(rawPath);
+    if (resolvedPath !== IMAGE_ROOT_PATH && !resolvedPath.startsWith(IMAGE_ROOT_PREFIX)) {
+      return null;
+    }
+    relativePath = path.relative(IMAGE_ROOT_PATH, resolvedPath);
+  }
+
+  const safeSegments = relativePath
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((segment: string) => path.basename(segment).trim())
+    .filter((segment: string) => segment.length > 0 && segment !== "." && segment !== "..");
+
+  if (safeSegments.length === 0) {
+    return null;
+  }
+
+  return path.join(...safeSegments);
 };
 
-const removeImageFileSafely = async (absolutePath: string): Promise<void> => {
-  const safeResolvedPath = validateImagePath(absolutePath);
-  if (safeResolvedPath === IMAGE_ROOT_PATH) {
+const resolveImageAbsolutePath = (imagePath: string): string | null => {
+  const safeRelativePath = normalizeImageRelativePath(imagePath);
+  if (!safeRelativePath) {
+    return null;
+  }
+
+  const resolvedPath = path.resolve(IMAGE_ROOT_PATH, safeRelativePath);
+  if (resolvedPath === IMAGE_ROOT_PATH || !resolvedPath.startsWith(IMAGE_ROOT_PREFIX)) {
+    return null;
+  }
+
+  return resolvedPath;
+};
+
+const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
+  return normalizeImageRelativePath(thumbnailPath);
+};
+
+const removeImageFileSafely = async (imagePath: string): Promise<void> => {
+  const safeResolvedPath = resolveImageAbsolutePath(imagePath);
+  if (!safeResolvedPath) {
     return;
   }
 
@@ -547,7 +580,7 @@ export const uploadThumbnail = async (
     // multer has already written the file — clean it up before throwing
     if (req.file) {
       try {
-        await removeImageFileSafely(req.file.path);
+        await removeImageFileSafely(req.file.filename);
       } catch {
         // best effort
       }
@@ -559,24 +592,26 @@ export const uploadThumbnail = async (
     throw new ValidationError("No image file provided", "file");
   }
 
+  const newThumbnailFilename = req.file.filename;
+  const newThumbnailRelativePath =
+    normalizeImageRelativePath(newThumbnailFilename) ?? newThumbnailFilename;
   const uploadedThumbnailAbsPath = validateImagePath(req.file.path);
   try {
     await validateUploadedImageContent(uploadedThumbnailAbsPath);
   } catch (error) {
     try {
-      await removeImageFileSafely(uploadedThumbnailAbsPath);
+      await removeImageFileSafely(newThumbnailRelativePath);
     } catch {
       // best effort
     }
     throw error;
   }
 
-  const newThumbnailFilename = req.file.filename;
   const newThumbnailPath = `/images/${newThumbnailFilename}`;
-  let oldThumbnailAbsPath: string | null = null;
+  let oldThumbnailRelativePath: string | null = null;
   if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
     try {
-      oldThumbnailAbsPath = resolveStoredThumbnailPath(video.thumbnailPath);
+      oldThumbnailRelativePath = resolveStoredThumbnailPath(video.thumbnailPath);
     } catch (err) {
       logger.warn("Failed to resolve old thumbnail path", err);
     }
@@ -591,7 +626,7 @@ export const uploadThumbnail = async (
     });
   } catch (error) {
     try {
-      await removeImageFileSafely(uploadedThumbnailAbsPath);
+      await removeImageFileSafely(newThumbnailRelativePath);
     } catch {
       // best effort
     }
@@ -600,7 +635,7 @@ export const uploadThumbnail = async (
 
   if (!updatedVideo) {
     try {
-      await removeImageFileSafely(uploadedThumbnailAbsPath);
+      await removeImageFileSafely(newThumbnailRelativePath);
     } catch {
       // best effort
     }
@@ -608,11 +643,11 @@ export const uploadThumbnail = async (
   }
 
   if (
-    oldThumbnailAbsPath &&
-    oldThumbnailAbsPath !== uploadedThumbnailAbsPath
+    oldThumbnailRelativePath &&
+    oldThumbnailRelativePath !== newThumbnailRelativePath
   ) {
     try {
-      await removeImageFileSafely(oldThumbnailAbsPath);
+      await removeImageFileSafely(oldThumbnailRelativePath);
     } catch (err) {
       logger.warn("Failed to delete old thumbnail file", err);
     }

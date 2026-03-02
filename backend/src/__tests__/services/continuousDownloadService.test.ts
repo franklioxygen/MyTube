@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
+import path from "path";
 import downloadManager from "../../services/downloadManager";
 import { ContinuousDownloadService } from "../../services/continuousDownloadService";
 import * as storageService from "../../services/storageService";
@@ -67,6 +68,7 @@ describe("ContinuousDownloadService", () => {
   let fetcher: any;
   let cleanup: any;
   let processor: any;
+  let frozenListsRoot: string;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,6 +78,7 @@ describe("ContinuousDownloadService", () => {
     fetcher = (service as any).videoUrlFetcher;
     cleanup = (service as any).taskCleanup;
     processor = (service as any).taskProcessor;
+    frozenListsRoot = path.resolve(path.join(process.cwd(), "data", "frozen-lists"));
     vi.mocked(storageService.getDownloadStatus).mockReturnValue({
       activeDownloads: [],
     } as any);
@@ -354,12 +357,13 @@ describe("ContinuousDownloadService", () => {
     });
 
     it("should load existing frozen list on resume and skip metadata fetch", async () => {
+      const frozenListPath = path.join(frozenListsRoot, "freeze-resume.json");
       const task = {
         id: "freeze-resume",
         authorUrl: "https://youtube.com/@resume",
         platform: "YouTube",
         status: "active",
-        frozenVideoListPath: "/tmp/frozen/resume.json",
+        frozenVideoListPath: frozenListPath,
       };
       repo.getTaskById
         .mockResolvedValueOnce(task)
@@ -371,7 +375,7 @@ describe("ContinuousDownloadService", () => {
 
       await (service as any).processTask("freeze-resume");
 
-      expect(readSpy).toHaveBeenCalledWith("/tmp/frozen/resume.json", "utf8");
+      expect(readSpy).toHaveBeenCalledWith(frozenListPath, "utf8");
       expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
       expect(processor.processTask).toHaveBeenCalledWith(task, ["r1", "r2"]);
 
@@ -379,6 +383,7 @@ describe("ContinuousDownloadService", () => {
     });
 
     it("should delete frozen list and clear DB path when task reaches completed", async () => {
+      const frozenListPath = path.join(frozenListsRoot, "freeze-done.json");
       const task = {
         id: "freeze-done",
         authorUrl: "https://youtube.com/@done",
@@ -388,7 +393,7 @@ describe("ContinuousDownloadService", () => {
       const finalTask = {
         ...task,
         status: "completed",
-        frozenVideoListPath: "/tmp/frozen/freeze-done.json",
+        frozenVideoListPath: frozenListPath,
       };
       repo.getTaskById
         .mockResolvedValueOnce(task)
@@ -403,7 +408,7 @@ describe("ContinuousDownloadService", () => {
 
       await (service as any).processTask("freeze-done");
 
-      expect(unlinkSpy).toHaveBeenCalledWith("/tmp/frozen/freeze-done.json");
+      expect(unlinkSpy).toHaveBeenCalledWith(frozenListPath);
       expect(repo.clearFrozenVideoListPath).toHaveBeenCalledWith("freeze-done");
 
       mkdirSpy.mockRestore();
