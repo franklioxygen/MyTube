@@ -7,6 +7,58 @@ import {
 } from "../config/paths";
 
 /**
+ * Safely rebuild a path from validated components while preserving absolute roots
+ * (e.g. "/" on POSIX, "D:\\" on Windows).
+ */
+function sanitizePathWithoutTraversal(pathValue: string): string {
+  const normalizedPath = path.normalize(pathValue);
+  const isAbsolutePath = path.isAbsolute(normalizedPath);
+
+  let root = "";
+  let relativePath = normalizedPath;
+
+  if (isAbsolutePath) {
+    root = path.parse(normalizedPath).root;
+    relativePath = path.relative(root, normalizedPath);
+  }
+
+  const pathParts = relativePath
+    .split(path.sep)
+    .filter((part) => part !== "" && part !== ".");
+
+  // Only reject if a path component is exactly "..";
+  // filenames containing ".." are still valid.
+  if (pathParts.some((part) => part === "..")) {
+    throw new Error("Path traversal component detected");
+  }
+
+  const rebuiltRelative = pathParts.length > 0 ? path.join(...pathParts) : "";
+  const sanitizedPath = isAbsolutePath
+    ? rebuiltRelative
+      ? path.join(root, rebuiltRelative)
+      : root
+    : rebuiltRelative;
+
+  const finalParts = sanitizedPath
+    .split(path.sep)
+    .filter((part) => part !== "");
+
+  if (finalParts.some((part) => part === "..")) {
+    throw new Error("Path traversal component detected");
+  }
+
+  return sanitizedPath;
+}
+
+function isResolvedPathInsideDir(
+  resolvedPath: string,
+  resolvedAllowedDir: string,
+): boolean {
+  const relative = path.relative(resolvedAllowedDir, resolvedPath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+/**
  * Checks if a path is inside (or equal to) an allowed directory.
  * Both inputs are resolved before comparison.
  */
@@ -25,10 +77,7 @@ export function isPathWithinDirectory(
 
   const resolvedPath = path.resolve(pathToCheck);
   const resolvedAllowedDir = path.resolve(allowedDir);
-  return (
-    resolvedPath === resolvedAllowedDir ||
-    resolvedPath.startsWith(`${resolvedAllowedDir}${path.sep}`)
-  );
+  return isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir);
 }
 
 /**
@@ -66,57 +115,12 @@ export function validatePathWithinDirectory(
     return false;
   }
 
-  // Validate path components by splitting and checking each segment
-  // Only check if path components themselves are "..", not if filenames contain ".."
-  const filePathParts = filePath
-    .split(path.sep)
-    .filter((part) => part !== "" && part !== ".");
-  const allowedDirParts = allowedDir
-    .split(path.sep)
-    .filter((part) => part !== "" && part !== ".");
-
-  // Check each path component for dangerous values
-  // Only reject if a path component IS "..", not if it contains ".." as part of a filename
-  const sanitizedFilePathParts: string[] = [];
-  for (const part of filePathParts) {
-    if (part === "..") {
-      return false; // Path traversal detected
-    }
-    // Filenames can contain ".." as part of their name (e.g., "file..mp4"), which is valid
-    // Only reject if the entire component is ".."
-    sanitizedFilePathParts.push(part);
-  }
-
-  const sanitizedAllowedDirParts: string[] = [];
-  for (const part of allowedDirParts) {
-    if (part === "..") {
-      return false; // Invalid allowed directory
-    }
-    sanitizedAllowedDirParts.push(part);
-  }
-
-  // Reconstruct paths from validated components only
-  // This ensures no path traversal sequences can exist
-  const sanitizedFilePath = path.isAbsolute(filePath)
-    ? path.sep + path.join(...sanitizedFilePathParts)
-    : path.join(...sanitizedFilePathParts);
-  const sanitizedAllowedDir = path.isAbsolute(allowedDir)
-    ? path.sep + path.join(...sanitizedAllowedDirParts)
-    : path.join(...sanitizedAllowedDirParts);
-
-  // Final validation: check if any path component in the reconstructed path is ".."
-  // Split again to check components after reconstruction
-  const finalFilePathParts = sanitizedFilePath
-    .split(path.sep)
-    .filter((part) => part !== "");
-  const finalAllowedDirParts = sanitizedAllowedDir
-    .split(path.sep)
-    .filter((part) => part !== "");
-
-  if (
-    finalFilePathParts.some((part) => part === "..") ||
-    finalAllowedDirParts.some((part) => part === "..")
-  ) {
+  let sanitizedFilePath: string;
+  let sanitizedAllowedDir: string;
+  try {
+    sanitizedFilePath = sanitizePathWithoutTraversal(filePath);
+    sanitizedAllowedDir = sanitizePathWithoutTraversal(allowedDir);
+  } catch {
     return false;
   }
 
@@ -124,11 +128,7 @@ export function validatePathWithinDirectory(
   const resolvedPath = path.resolve(sanitizedFilePath);
   const resolvedAllowedDir = path.resolve(sanitizedAllowedDir);
 
-  // Ensure the resolved path starts with the allowed directory
-  return (
-    resolvedPath.startsWith(resolvedAllowedDir + path.sep) ||
-    resolvedPath === resolvedAllowedDir
-  );
+  return isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir);
 }
 
 /**
@@ -146,72 +146,26 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     throw new Error(`Invalid file path: ${filePath}`);
   }
 
-  // Validate path components by splitting and checking each segment
-  // Only check if path components themselves are "..", not if filenames contain ".."
-  const filePathParts = filePath
-    .split(path.sep)
-    .filter((part) => part !== "" && part !== ".");
-  const allowedDirParts = allowedDir
-    .split(path.sep)
-    .filter((part) => part !== "" && part !== ".");
-
-  // Check each path component for dangerous values
-  // Only reject if a path component IS "..", not if it contains ".." as part of a filename
-  const sanitizedFilePathParts: string[] = [];
-  for (const part of filePathParts) {
-    if (part === "..") {
-      throw new Error(
-        `Path traversal detected: ${filePath} contains invalid path components`,
-      );
-    }
-    // Filenames can contain ".." as part of their name (e.g., "file..mp4"), which is valid
-    // Only reject if the entire component is ".."
-    sanitizedFilePathParts.push(part);
-  }
-
-  const sanitizedAllowedDirParts: string[] = [];
-  for (const part of allowedDirParts) {
-    if (part === "..") {
-      throw new Error(`Invalid allowed directory: ${allowedDir}`);
-    }
-    sanitizedAllowedDirParts.push(part);
-  }
-
-  // Reconstruct paths from validated components only
-  // This ensures no path traversal sequences can exist
-  const sanitizedFilePath = path.isAbsolute(filePath)
-    ? path.sep + path.join(...sanitizedFilePathParts)
-    : path.join(...sanitizedFilePathParts);
-  const sanitizedAllowedDir = path.isAbsolute(allowedDir)
-    ? path.sep + path.join(...sanitizedAllowedDirParts)
-    : path.join(...sanitizedAllowedDirParts);
-
-  // Final validation: check if any path component in the reconstructed path is ".."
-  // Split again to check components after reconstruction
-  const finalFilePathParts = sanitizedFilePath
-    .split(path.sep)
-    .filter((part) => part !== "");
-  const finalAllowedDirParts = sanitizedAllowedDir
-    .split(path.sep)
-    .filter((part) => part !== "");
-
-  if (
-    finalFilePathParts.some((part) => part === "..") ||
-    finalAllowedDirParts.some((part) => part === "..")
-  ) {
+  let sanitizedFilePath: string;
+  let sanitizedAllowedDir: string;
+  try {
+    sanitizedFilePath = sanitizePathWithoutTraversal(filePath);
+  } catch {
     throw new Error(
       `Path traversal detected: ${filePath} contains invalid path components`,
     );
+  }
+  try {
+    sanitizedAllowedDir = sanitizePathWithoutTraversal(allowedDir);
+  } catch {
+    throw new Error(`Invalid allowed directory: ${allowedDir}`);
   }
 
   // Now safe to resolve - paths are constructed from validated components only
   const resolvedPath = path.resolve(sanitizedFilePath);
   const resolvedAllowedDir = path.resolve(sanitizedAllowedDir);
 
-  if (
-    !resolvedPath.startsWith(resolvedAllowedDir + path.sep) &&
-    resolvedPath !== resolvedAllowedDir
-  ) {
+  if (!isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir)) {
     throw new Error(
       `Path traversal detected: ${filePath} is outside ${allowedDir}`,
     );
