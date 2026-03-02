@@ -192,7 +192,7 @@ export const syncToCloud = async (
       ) {
         const fullPath = path.join(uploadsBase, cleanRelative);
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(fullPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(fullPath)) {
           return fullPath;
         }
       }
@@ -204,7 +204,7 @@ export const syncToCloud = async (
       ];
       for (const root of possibleRoots) {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(root)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(root)) {
           const fullPath = path.join(root, cleanRelative);
           if (fs.existsSync(fullPath)) {
             return fullPath;

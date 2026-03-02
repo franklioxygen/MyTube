@@ -49,7 +49,7 @@ function getBackupFiles(): Array<{
   filePath: string;
 }> {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const files = fs.readdirSync(DATA_DIR); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  const files = fs.readdirSync(DATA_DIR);
   const backupFiles: Array<{
     filename: string;
     timestamp: string;
@@ -63,7 +63,7 @@ function getBackupFiles(): Array<{
       const timestamp = match[1];
       const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(filePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      const stats = fs.statSync(filePath);
       backupFiles.push({
         filename: file,
         timestamp,
@@ -94,7 +94,7 @@ function createBackup(): string {
   }
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(dbPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(dbPath)) {
     fs.copyFileSync(RESOLVED_DB_PATH, resolvedBackupPath);
     logger.info(`Created backup of current database at ${resolvedBackupPath}`);
   }
@@ -118,7 +118,7 @@ function reinitializeDatabase(): void {
  */
 export function exportDatabase(): string {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(dbPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (!fs.existsSync(dbPath)) {
     throw new NotFoundError("Database file", "mytube.db");
   }
   return dbPath;
@@ -146,7 +146,7 @@ export function importDatabase(fileBuffer: Buffer): void {
   }
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  fs.writeFileSync(tempImportPath, fileBuffer); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.writeFileSync(tempImportPath, fileBuffer);
 
   // Validate the uploaded file is a valid SQLite database
   validateDatabase(tempImportPath);
@@ -168,7 +168,7 @@ export function importDatabase(fileBuffer: Buffer): void {
   } catch (error: any) {
     // Restore backup if import failed
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(backupPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(backupPath)) {
       try {
         const resolvedBackupPath = path.resolve(backupPath);
         const isSafeBackupPath = isPathWithinDirectory(
@@ -194,10 +194,10 @@ export function importDatabase(fileBuffer: Buffer): void {
     throw error;
   } finally {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(tempImportPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(tempImportPath)) {
       try {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(tempImportPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        fs.unlinkSync(tempImportPath);
       } catch (e) {
         logger.error("Error cleaning up temp file:", e);
       }
@@ -291,7 +291,7 @@ export function cleanupBackupDatabases(): {
         const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
         try {
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(filePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+          fs.unlinkSync(filePath);
           deletedCount++;
           logger.info(`Deleted backup database file: ${file}`);
         } catch (error: any) {

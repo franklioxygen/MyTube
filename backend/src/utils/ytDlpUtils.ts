@@ -30,7 +30,7 @@ function preprocessUrl(url: string): string {
  */
 function getCookiesPath(): string | null {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(COOKIES_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(COOKIES_PATH)) {
     return COOKIES_PATH;
   }
   return null;
@@ -400,7 +400,7 @@ export async function downloadChannelAvatar(
       for (const ext of possibleExtensions) {
         const possiblePath = path.join(outputDir, `${outputFilename}.${ext}`);
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(possiblePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(possiblePath)) {
           // If it's not a jpg, rename it to jpg
           if (ext !== "jpg" && outputPath.endsWith(".jpg")) {
             try {
@@ -423,7 +423,7 @@ export async function downloadChannelAvatar(
 
       // If no file found, check if outputPath exists (might have been created directly)
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(outputPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(outputPath)) {
         resolve(true);
         return;
       }

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
@@ -21,7 +21,6 @@ vi.mock("../../utils/logger", () => ({
 }));
 
 function getCallsBySegment(segment: string) {
-  // eslint-disable-next-line @typescript-eslint/unbound-method
   return vi
     .mocked(axios.get)
     .mock.calls.filter(([url]) => String(url).includes(segment));
@@ -109,12 +108,10 @@ describe("tmdbService", () => {
 
       const result = await scrapeMetadataFromTMDB("Some.Movie.2021.mkv");
       expect(result).toBeNull();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(axios.get).not.toHaveBeenCalled();
     });
 
     it("should scrape movie metadata and download poster with safe nested thumbnail path", async () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       vi.mocked(axios.get).mockImplementation(async (url: any) => {
         const asText = String(url);
         if (asText.includes("/search/multi")) {
@@ -323,7 +320,6 @@ describe("tmdbService", () => {
     });
 
     it("should use strategy 5 fuzzy title search", async () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       vi.mocked(axios.get).mockImplementation(async (url: any, config: any) => {
         const asText = String(url);
         if (asText.includes("/search/multi")) {
@@ -426,7 +422,6 @@ describe("tmdbService", () => {
     });
 
     it("should return null when all strategies fail", async () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       vi.mocked(axios.get).mockResolvedValue({ data: { results: [] } } as any);
 
       const result = await scrapeMetadataFromTMDB("Nothing.Match.2099.mkv");

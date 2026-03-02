@@ -172,7 +172,7 @@ export class ContinuousDownloadService {
   async getTaskById(id: string): Promise<ContinuousDownloadTask | null> {
     return this.taskRepository.getTaskById(id);
   }
- // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+
   /**
    * Get a task by authorUrl (playlist URL)
    */
@@ -369,9 +369,9 @@ export class ContinuousDownloadService {
     try {
       const task = await this.getTaskById(taskId);
       if (!task) {
-        logger.error(`Task ${taskId} not found`); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        logger.error(`Task ${taskId} not found`);
         return;
-      } // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      }
 
       if (task.status !== "active") {
         logger.debug(`Task ${taskId} is not active, skipping`);
@@ -419,7 +419,7 @@ export class ContinuousDownloadService {
             const frozenPath = this.buildFrozenListPath(taskId);
             fs.writeFileSync(frozenPath, JSON.stringify(cachedVideoUrls), "utf8");
             await this.taskRepository.updateFrozenVideoListPath(taskId, frozenPath);
-            // Update total from frozen list (source of truth) // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+            // Update total from frozen list (source of truth)
             await this.taskRepository.updateTotalVideos(taskId, cachedVideoUrls.length);
             logger.info(`Wrote frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
           } catch (err) {

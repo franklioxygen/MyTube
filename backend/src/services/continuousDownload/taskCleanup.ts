@@ -29,7 +29,7 @@ export class TaskCleanup {
 
       if (task.frozenVideoListPath) {
         try {
-          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8"); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
           videoUrls = JSON.parse(raw) as string[];
         } catch (err) {
           logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);

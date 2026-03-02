@@ -1,5 +1,0 @@
----
-# Exclude SQLite migration files from TSQLLint analysis.
-# TSQLLint is a T-SQL (SQL Server) linter and does not apply to SQLite syntax.
-exclude_paths:
-  - "backend/drizzle/*.sql"

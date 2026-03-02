@@ -10,13 +10,13 @@ async function cleanVttFiles() {
     
     try {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!fs.existsSync(SUBTITLES_DIR)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (!fs.existsSync(SUBTITLES_DIR)) {
             console.log("Subtitles directory doesn't exist");
             return;
         }
         
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const vttFiles = fs.readdirSync(SUBTITLES_DIR).filter((file) => file.endsWith(".vtt")); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        const vttFiles = fs.readdirSync(SUBTITLES_DIR).filter((file) => file.endsWith(".vtt"));
         console.log(`Found ${vttFiles.length} VTT files to clean`);
         
         let cleanedCount = 0;
@@ -26,7 +26,7 @@ async function cleanVttFiles() {
             
             // Read VTT file
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            let vttContent = fs.readFileSync(filePath, 'utf-8'); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+            let vttContent = fs.readFileSync(filePath, 'utf-8');
             
             // Check if it has alignment tags
             if (vttContent.includes('align:start') || vttContent.includes('position:0%')) {
@@ -37,7 +37,7 @@ async function cleanVttFiles() {
                 
                 // Write cleaned content back
                 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                fs.writeFileSync(filePath, vttContent, 'utf-8'); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+                fs.writeFileSync(filePath, vttContent, 'utf-8');
                 console.log(`Cleaned: ${vttFile}`);
                 cleanedCount++;
             }

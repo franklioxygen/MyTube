@@ -24,9 +24,9 @@ export class HookService {
    */
   static initialize(): void {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(HOOKS_DIR)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (!fs.existsSync(HOOKS_DIR)) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.mkdirSync(HOOKS_DIR, { recursive: true }); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.mkdirSync(HOOKS_DIR, { recursive: true });
     }
   }
 
@@ -60,7 +60,7 @@ export class HookService {
       const hookPath = this.getSafeHookPath(safeEventName);
 
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(hookPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (!fs.existsSync(hookPath)) {
         return;
       }
 
@@ -70,7 +70,7 @@ export class HookService {
 
       // Ensure the script is executable
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.chmodSync(hookPath, "755"); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.chmodSync(hookPath, "755");
 
       const env: Record<string, string> = { ...process.env } as Record<string, string>;
       
@@ -110,11 +110,11 @@ export class HookService {
     }
     
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(destPath, fileContent); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    fs.writeFileSync(destPath, fileContent);
     
     // Make executable
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.chmodSync(destPath, "755"); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    fs.chmodSync(destPath, "755");
     logger.info(`[HookService] Uploaded hook script: ${destPath}`);
   }
 
@@ -124,9 +124,9 @@ export class HookService {
   static deleteHook(hookName: string): boolean {
     const hookPath = this.getSafeHookPath(hookName);
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(hookPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(hookPath)) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(hookPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.unlinkSync(hookPath);
       logger.info(`[HookService] Deleted hook script: ${hookPath}`);
       return true;
     }
@@ -147,7 +147,7 @@ export class HookService {
     
     return hooks.reduce((acc, hook) => {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      acc[hook] = fs.existsSync(this.getSafeHookPath(hook)); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      acc[hook] = fs.existsSync(this.getSafeHookPath(hook));
       return acc;
     }, {} as Record<string, boolean>);
   }

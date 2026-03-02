@@ -1082,7 +1082,7 @@ async function downloadPoster(
 
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    await fs.writeFile(normalizedSavePath, response.data); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    await fs.writeFile(normalizedSavePath, response.data);
 
     logger.info(`Downloaded poster to ${normalizedSavePath}`);
     return true;

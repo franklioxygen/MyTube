@@ -75,12 +75,12 @@ export async function cleanupSubtitleFiles(
 
   try {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(directory)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (!fs.existsSync(directory)) {
       return deletedFiles;
     }
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(directory); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    const files = fs.readdirSync(directory);
     const subtitleFiles = files.filter(
       (file: string) => file.startsWith(baseFilename) && file.endsWith(".vtt")
     );
@@ -88,7 +88,7 @@ export async function cleanupSubtitleFiles(
     for (const subtitleFile of subtitleFiles) {
       const subtitlePath = path.join(directory, subtitleFile);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(subtitlePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(subtitlePath)) {
         await safeRemove(subtitlePath);
         deletedFiles.push(subtitlePath);
         console.log("Deleted subtitle file:", subtitlePath);
@@ -114,12 +114,12 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
     const videoBasename = path.basename(videoPath);
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(videoDir)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (!fs.existsSync(videoDir)) {
       return deletedFiles;
     }
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(videoDir); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    const files = fs.readdirSync(videoDir);
     const tempFiles = files.filter((file: string) => {
       // Match files like: filename.mp4.part, filename.mp4.ytdl, etc.
       // but not the final video file itself
@@ -136,7 +136,7 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
     for (const tempFile of tempFiles) {
       const tempFilePath = path.join(videoDir, tempFile);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(tempFilePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(tempFilePath)) {
         await safeRemove(tempFilePath);
         deletedFiles.push(tempFilePath);
         console.log("Deleted temporary file:", tempFilePath);
@@ -145,7 +145,7 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
 
     // Also check for the main video file if it exists (partial download)
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(videoPath)) {
       await safeRemove(videoPath);
       deletedFiles.push(videoPath);
       console.log("Deleted partial video file:", videoPath);
@@ -169,7 +169,7 @@ export async function cleanupPartialVideoFiles(videoPath: string): Promise<strin
     const partVideoPath = `${videoPath}.part`;
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(partVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(partVideoPath)) {
       await safeRemove(partVideoPath);
       deletedFiles.push(partVideoPath);
       console.log("Deleted partial video file:", partVideoPath);
@@ -288,7 +288,7 @@ export async function cleanupVideoArtifacts(
     for (const artifact of artifactFiles) {
       const artifactPath = path.join(directory, artifact);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(artifactPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(artifactPath)) {
         await safeRemove(artifactPath);
         deletedFiles.push(artifactPath);
         console.log("Deleted artifact file:", artifactPath);
@@ -329,7 +329,7 @@ export async function safeRemove(
   for (let i = 0; i < retryCount; i++) {
     try {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(resolvedPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (fs.existsSync(resolvedPath)) {
         await fs.remove(resolvedPath);
       }
       return;

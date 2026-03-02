@@ -131,9 +131,9 @@ export function getFileSize(filePath: string): string | undefined {
     ]);
     const fs = require("fs-extra");
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(safeFilePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(safeFilePath)) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(safeFilePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      const stats = fs.statSync(safeFilePath);
       return stats.size.toString();
     }
   } catch (e) {

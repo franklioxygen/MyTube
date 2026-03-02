@@ -217,12 +217,12 @@ export async function downloadVideo(
     );
 
     // If file already exists (e.g. redownload), deduplicate the filename
-    if (fs.existsSync(newVideoPathWithFormat)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(newVideoPathWithFormat)) {
       let counter = 1;
       const ext = `.${videoExtension}`;
       const basePath = newVideoPathWithFormat.replace(new RegExp(`\\${ext}$`), "");
       const baseName = finalVideoFilename.replace(new RegExp(`\\${ext}$`), "");
-      while (fs.existsSync(`${basePath}_${counter}${ext}`)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
         counter++;
       }
       newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
@@ -263,7 +263,7 @@ export async function downloadVideo(
         }
 
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newThumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(newThumbnailPath)) {
           await fs.remove(newThumbnailPath);
         }
         await cleanupSubtitleFiles(newSafeBaseFilename);
@@ -387,7 +387,7 @@ export async function downloadVideo(
       );
 
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (downloaded && fs.existsSync(tempAvatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (downloaded && fs.existsSync(tempAvatarPath)) {
         // Process the downloaded avatar (check if exists, resize)
         authorAvatarPath = await downloadAndProcessAvatar(
           tempAvatarPath, // Use temp file path as "URL" for processing
@@ -396,7 +396,7 @@ export async function downloadVideo(
           async (url: string, savePath: string) => {
             // This function just moves the temp file
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (fs.existsSync(url)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+            if (fs.existsSync(url)) {
               fs.moveSync(url, savePath, { overwrite: true });
               return true;
             }
@@ -407,10 +407,10 @@ export async function downloadVideo(
 
         // Clean up temp file if it still exists (in case processing failed or file wasn't moved)
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(tempAvatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(tempAvatarPath)) {
           try {
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(tempAvatarPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+            fs.unlinkSync(tempAvatarPath);
             logger.info(`Cleaned up temp avatar file: ${tempAvatarPath}`);
           } catch (cleanupError) {
             logger.warn(
@@ -420,7 +420,7 @@ export async function downloadVideo(
           }
         }
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      } else if (fs.existsSync(tempAvatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      } else if (fs.existsSync(tempAvatarPath)) {
         // Clean up temp file if download failed
         try {
           fs.unlinkSync(tempAvatarPath);
@@ -556,9 +556,9 @@ export async function downloadVideo(
   // Get file size
   try {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(finalVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (fs.existsSync(finalVideoPath)) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(finalVideoPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      const stats = fs.statSync(finalVideoPath);
       videoData.fileSize = stats.size.toString();
     }
   } catch (e) {
@@ -578,8 +578,8 @@ export async function downloadVideo(
     if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
       const oldVideoPath = path.join(VIDEOS_DIR, existingVideo.videoFilename);
       try {
-        if (fs.existsSync(oldVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(oldVideoPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(oldVideoPath)) {
+          fs.unlinkSync(oldVideoPath);
           logger.info(`Deleted old video file: ${existingVideo.videoFilename}`);
         }
       } catch (e) {
@@ -592,8 +592,8 @@ export async function downloadVideo(
       const oldThumbnailDir = existingVideo.thumbnailPath?.startsWith('/videos/') ? VIDEOS_DIR : IMAGES_DIR;
       const oldThumbnailPath = path.join(oldThumbnailDir, existingVideo.thumbnailFilename);
       try {
-        if (fs.existsSync(oldThumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(oldThumbnailPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+        if (fs.existsSync(oldThumbnailPath)) {
+          fs.unlinkSync(oldThumbnailPath);
           logger.info(`Deleted old thumbnail file: ${existingVideo.thumbnailFilename}`);
         }
       } catch (e) {

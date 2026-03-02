@@ -19,7 +19,7 @@ export const getVideoDuration = async (
   try {
     // Check if file exists first
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(filePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    if (!fs.existsSync(filePath)) {
       throw FileError.notFound(filePath);
     }
 
@@ -82,7 +82,7 @@ export const backfillDurations = async () => {
       }
 
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(fsPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      if (!fs.existsSync(fsPath)) {
         // console.warn(`File not found: ${fsPath}`); // Reduce noise
         continue;
       }

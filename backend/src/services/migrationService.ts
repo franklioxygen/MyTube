@@ -36,7 +36,7 @@ export async function runMigration() {
   // Check for common misconfiguration (nested data directory)
   const nestedDataPath = path.join(DATA_DIR, "data");
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(nestedDataPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(nestedDataPath)) {
     results.warnings.push(
       `Found nested data directory at ${nestedDataPath}. Your volume mount might be incorrect (mounting /data to /app/data instead of /app/data contents).`
     );
@@ -44,7 +44,7 @@ export async function runMigration() {
 
   // Migrate Videos
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(VIDEOS_DATA_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(VIDEOS_DATA_PATH)) {
     results.videos.found = true;
     try {
       const videosData = fs.readJSONSync(VIDEOS_DATA_PATH);
@@ -113,7 +113,7 @@ export async function runMigration() {
 
   // Migrate Collections
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(COLLECTIONS_DATA_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(COLLECTIONS_DATA_PATH)) {
     results.collections.found = true;
     try {
       const collectionsData = fs.readJSONSync(COLLECTIONS_DATA_PATH);
@@ -181,7 +181,7 @@ export async function runMigration() {
 
   // Migrate Settings
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(SETTINGS_DATA_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(SETTINGS_DATA_PATH)) {
     results.settings.found = true;
     try {
       const settingsData = fs.readJSONSync(SETTINGS_DATA_PATH);
@@ -210,7 +210,7 @@ export async function runMigration() {
 
   // Migrate Status (Downloads)
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(STATUS_DATA_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(STATUS_DATA_PATH)) {
     results.downloads.found = true;
     try {
       const statusData = fs.readJSONSync(STATUS_DATA_PATH);
