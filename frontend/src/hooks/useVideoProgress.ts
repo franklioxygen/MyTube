@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Video } from "../types";
 import { api, apiClient } from "../utils/apiClient";
+import { parseDuration } from "../utils/formatUtils";
 
 interface UseVideoProgressProps {
   videoId: string | undefined;
@@ -61,8 +62,10 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
   const handleTimeUpdate = (currentTime: number) => {
     currentTimeRef.current = currentTime;
 
-    // Increment view count after 10 seconds
-    if (currentTime > 10 && !hasViewed && videoId && !isVisitor) {
+    // Increment view count after 4s for short videos (<20s), otherwise after 10s
+    const durationSeconds = parseDuration(video?.duration);
+    const viewThreshold = durationSeconds > 0 && durationSeconds < 20 ? 4 : 10;
+    if (currentTime > viewThreshold && !hasViewed && videoId && !isVisitor) {
       setHasViewed(true);
       api
         .post(`/videos/${videoId}/view`)
