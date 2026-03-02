@@ -69,3 +69,6 @@ backend/data/*
 # CodeQL
 codeql-db/
 codeql-reports/
+
+# Reports
+reports/*
