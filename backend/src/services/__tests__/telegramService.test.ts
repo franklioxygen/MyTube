@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies
@@ -230,6 +231,7 @@ describe("TelegramService", () => {
         })
       ).resolves.toBeUndefined();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining("Failed to send notification")
       );

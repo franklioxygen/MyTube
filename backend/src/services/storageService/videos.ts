@@ -200,9 +200,9 @@ export function formatLegacyFilenames(): {
 
         // Rename video file
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(oldVideoPath)) {
+        if (fs.existsSync(oldVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(newVideoPath) && oldVideoPath !== newVideoPath) {
+          if (fs.existsSync(newVideoPath) && oldVideoPath !== newVideoPath) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             // Destination exists, append timestamp to avoid collision
             const uniqueSuffix = `_${Date.now()}`;
             const uniqueBase = `${newBaseFilename}${uniqueSuffix}`;
@@ -227,12 +227,12 @@ export function formatLegacyFilenames(): {
             );
 
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.renameSync(oldVideoPath, uniqueVideoPath);
+            fs.renameSync(oldVideoPath, uniqueVideoPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
+            if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-              fs.renameSync(oldThumbnailPath, uniqueThumbPath);
+              fs.renameSync(oldThumbnailPath, uniqueThumbPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             }
 
             // Handle subtitles (Keep in their original folder, assuming root or derived from path if available)
@@ -246,11 +246,11 @@ export function formatLegacyFilenames(): {
                 // For now assuming existing structure matches simple join
 
                 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                if (fs.existsSync(oldSubPath)) {
+                if (fs.existsSync(oldSubPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
                   const newSubFilename = `${uniqueBase}.${subtitle.language}.vtt`;
                   const newSubPath = path.join(SUBTITLES_DIR, newSubFilename);
                   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                  fs.renameSync(oldSubPath, newSubPath);
+                  fs.renameSync(oldSubPath, newSubPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
                   newSubtitles.push({
                     ...subtitle,
                     filename: newSubFilename,
@@ -307,20 +307,20 @@ export function formatLegacyFilenames(): {
           } else {
             // Rename normally
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.renameSync(oldVideoPath, newVideoPath);
+            fs.renameSync(oldVideoPath, newVideoPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
             if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
               // Check if new thumbnail path exists (it shouldn't if specific to this video, but safety check)
               if (
                 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                fs.existsSync(newThumbnailPath) &&
+                fs.existsSync(newThumbnailPath) && // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
                 oldThumbnailPath !== newThumbnailPath
               ) {
                 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                fs.unlinkSync(newThumbnailPath);
+                fs.unlinkSync(newThumbnailPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               }
               // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-              fs.renameSync(oldThumbnailPath, newThumbnailPath);
+              fs.renameSync(oldThumbnailPath, newThumbnailPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             }
 
             // Handle subtitles
@@ -335,7 +335,7 @@ export function formatLegacyFilenames(): {
 
                   // Remove dest if exists
                   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                  if (fs.existsSync(newSubPath)) fs.unlinkSync(newSubPath);
+                  if (fs.existsSync(newSubPath)) fs.unlinkSync(newSubPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
                   fs.renameSync(oldSubPath, newSubPath);
                   updatedSubtitles.push({
@@ -540,9 +540,9 @@ function deleteVideoFile(
   if (video.videoFilename) {
     const actualPath = findVideoFile(video.videoFilename, allCollections);
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (actualPath && fs.existsSync(actualPath)) {
+    if (actualPath && fs.existsSync(actualPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(actualPath);
+      fs.unlinkSync(actualPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     }
   }
 }
@@ -573,7 +573,7 @@ function deleteThumbnailFile(
 
     // Fallback: try to find by filename if path-based lookup fails
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
       if (video.videoFilename) {
         const videoPath = findVideoFile(video.videoFilename, allCollections);
@@ -581,7 +581,7 @@ function deleteThumbnailFile(
           const videoDir = path.dirname(videoPath);
           thumbnailPath = path.join(videoDir, video.thumbnailFilename);
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (!fs.existsSync(thumbnailPath)) {
+          if (!fs.existsSync(thumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             thumbnailPath = null;
           }
         }
@@ -595,10 +595,10 @@ function deleteThumbnailFile(
 
     // Delete the thumbnail file if it exists
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+    if (thumbnailPath && fs.existsSync(thumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       try {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(thumbnailPath);
+        fs.unlinkSync(thumbnailPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
       } catch (error) {
         logger.error(
@@ -644,23 +644,23 @@ function deleteAuthorAvatarIfNeeded(
 
       // Fallback: try to find by filename in avatars directory
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!avatarPath || !fs.existsSync(avatarPath)) {
+      if (!avatarPath || !fs.existsSync(avatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         const fallbackPath = path.join(
           AVATARS_DIR,
           video.authorAvatarFilename
         );
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(fallbackPath)) {
+        if (fs.existsSync(fallbackPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           avatarPath = fallbackPath;
         }
       }
 
       // Delete the avatar file if it exists
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (avatarPath && fs.existsSync(avatarPath)) {
+      if (avatarPath && fs.existsSync(avatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         try {
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(avatarPath);
+          fs.unlinkSync(avatarPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           logger.info(`Deleted author avatar file: ${avatarPath}`);
         } catch (error) {
           logger.error(
@@ -704,11 +704,11 @@ function deleteSubtitleFiles(
 
       // Fallback: try to find by filename if path-based lookup fails
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+      if (!subtitlePath || !fs.existsSync(subtitlePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         // Try root subtitles directory
         subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!fs.existsSync(subtitlePath)) {
+        if (!fs.existsSync(subtitlePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           // Try alongside video file
           if (video.videoFilename) {
             const videoPath = findVideoFile(
@@ -725,10 +725,10 @@ function deleteSubtitleFiles(
 
       // Delete the subtitle file if it exists
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (subtitlePath && fs.existsSync(subtitlePath)) {
+      if (subtitlePath && fs.existsSync(subtitlePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         try {
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(subtitlePath);
+          fs.unlinkSync(subtitlePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           logger.info(`Deleted subtitle file: ${subtitlePath}`);
         } catch (error) {
           logger.error(

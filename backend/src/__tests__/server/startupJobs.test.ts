@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { startBackgroundJobs } from "../../server/startupJobs";
 import { subscriptionService } from "../../services/subscriptionService";
@@ -39,14 +40,19 @@ describe("startBackgroundJobs", () => {
     startBackgroundJobs(3000);
     await flushBackgroundWork();
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(subscriptionService.startScheduler).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(metadataService.backfillDurations).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(startCloudflaredIfEnabled).toHaveBeenCalledWith(3000);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.error).not.toHaveBeenCalled();
   });
 
   it("logs subscription startup failure and keeps other jobs running", async () => {
     const startSchedulerError = new Error("subscription boom");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(subscriptionService.startScheduler).mockImplementation(() => {
       throw startSchedulerError;
     });
@@ -56,6 +62,7 @@ describe("startBackgroundJobs", () => {
 
     expect(metadataService.backfillDurations).toHaveBeenCalledTimes(1);
     expect(startCloudflaredIfEnabled).toHaveBeenCalledWith(8080);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.error).toHaveBeenCalledWith(
       "Failed to start subscription service:",
       startSchedulerError

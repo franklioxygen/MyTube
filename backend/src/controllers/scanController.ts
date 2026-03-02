@@ -70,7 +70,7 @@ const runWithConcurrencyLimit = async <T>(
 const getFilesRecursively = async (dir: string): Promise<string[]> => {
   const safeDir = resolveSafePath(dir, VIDEOS_DIR);
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const entries = await fs.readdir(safeDir, { withFileTypes: true });
+  const entries = await fs.readdir(safeDir, { withFileTypes: true }); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
@@ -133,7 +133,7 @@ const getFilesRecursivelyFromMount = async (
   }
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
+  const entries = await fs.readdir(resolvedDir, { withFileTypes: true }); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
@@ -264,7 +264,7 @@ const processSingleVideoFile = async (
   const webPath = buildVideoWebPath(filePath, normalizedDirectory, isMountDirectory);
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const stats = await fs.stat(filePath);
+  const stats = await fs.stat(filePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   if (stats.size === 0) {
     logger.warn(`Skipping 0-byte video file: ${filePath}`);
     return "skipped";

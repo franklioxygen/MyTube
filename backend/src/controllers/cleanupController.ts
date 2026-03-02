@@ -30,7 +30,7 @@ export const cleanupTempFiles = async (
   const cleanupDirectory = async (dir: string) => {
     try {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+      const entries = await fs.readdir(dir, { withFileTypes: true }); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
@@ -58,7 +58,7 @@ export const cleanupTempFiles = async (
           if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {
             try {
               // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-              await fs.unlink(fullPath);
+              await fs.unlink(fullPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               deletedCount++;
               logger.debug(`Deleted temp file: ${fullPath}`);
             } catch (error) {

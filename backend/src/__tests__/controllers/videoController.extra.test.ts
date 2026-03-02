@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import { PassThrough } from "stream";
@@ -199,12 +199,14 @@ describe("videoController extra coverage", () => {
       videoPath: "cloud:video.mp4",
       thumbnailPath: "cloud:thumb.jpg",
     } as any);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(CloudStorageService.getSignedUrl)
       .mockResolvedValueOnce("https://cdn.example/video.mp4")
       .mockResolvedValueOnce("https://cdn.example/thumb.jpg");
 
     await getVideoById(req as Request, res as Response);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(CloudStorageService.getSignedUrl).toHaveBeenNthCalledWith(
       1,
       "video.mp4",
@@ -281,6 +283,7 @@ describe("videoController extra coverage", () => {
     vi.mocked(isYouTubeUrl).mockReturnValue(false);
     vi.mocked(isBilibiliUrl).mockReturnValue(true);
     vi.mocked(extractBilibiliVideoId).mockReturnValue("BV1xx");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(axios.default.get).mockResolvedValue({
       data: { data: { owner: { mid: 12345 } } },
     } as any);
@@ -333,6 +336,7 @@ describe("videoController extra coverage", () => {
     vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({ id: "v5" } as any);
     vi.mocked(isBilibiliUrl).mockReturnValue(true);
     vi.mocked(extractBilibiliVideoId).mockReturnValue("av123");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     vi.mocked(axios.default.get).mockRejectedValue(new Error("network failed"));
 
     await getAuthorChannelUrl(req as Request, res as Response);

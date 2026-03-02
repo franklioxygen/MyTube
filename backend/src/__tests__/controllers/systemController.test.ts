@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import axios from "axios";
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,6 +38,7 @@ describe("SystemController", () => {
     });
 
     it("should return update info when newer release found", async () => {
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         vi.mocked(axios.get).mockResolvedValueOnce({
             data: {
                 tag_name: "v1.1.0",
@@ -56,6 +58,7 @@ describe("SystemController", () => {
 
     it("should fallback to tags if release not found (404)", async () => {
         // First call fails with 404
+        // eslint-disable-next-line @typescript-eslint/unbound-method
         vi.mocked(axios.get).mockImplementationOnce(() => Promise.reject({
             isAxiosError: true,
             response: { status: 404 }
@@ -79,6 +82,7 @@ describe("SystemController", () => {
     });
 
     it("should handle error gracefully", async () => {
+         // eslint-disable-next-line @typescript-eslint/unbound-method
          vi.mocked(axios.get).mockRejectedValue(new Error("Network Error"));
          
          await getLatestVersion(req as Request, res as Response);

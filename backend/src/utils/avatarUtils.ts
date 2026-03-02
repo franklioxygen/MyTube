@@ -17,7 +17,7 @@ export function getExistingAvatarPath(
   const avatarPath = path.join(AVATARS_DIR, avatarFilename);
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(avatarPath)) {
+  if (fs.existsSync(avatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     logger.info(`Avatar already exists for ${platform} author ${author}: ${avatarPath}`);
     return avatarPath;
   }
@@ -85,7 +85,7 @@ export async function downloadAndProcessAvatar(
 
   // Check if the input is already a local file path (for yt-dlp downloaded avatars)
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const isLocalFile = fs.existsSync(avatarUrl) && !avatarUrl.startsWith('http');
+  const isLocalFile = fs.existsSync(avatarUrl) && !avatarUrl.startsWith('http'); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   
   let tempAvatarPath: string;
   if (isLocalFile) {
@@ -115,9 +115,9 @@ export async function downloadAndProcessAvatar(
       logger.warn(`Failed to resize avatar: ${tempAvatarPath}`);
       // Clean up temp file (only if we created it)
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!isLocalFile && fs.existsSync(tempAvatarPath)) {
+      if (!isLocalFile && fs.existsSync(tempAvatarPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(tempAvatarPath);
+        fs.unlinkSync(tempAvatarPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       }
       return null;
     }

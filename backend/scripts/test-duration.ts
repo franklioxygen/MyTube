@@ -39,9 +39,9 @@ async function runTest() {
         process.exit(1);
     } finally {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(TEST_VIDEO_PATH)) {
+        if (fs.existsSync(TEST_VIDEO_PATH)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(TEST_VIDEO_PATH);
+            fs.unlinkSync(TEST_VIDEO_PATH); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             console.log("Test video deleted.");
         }
     }

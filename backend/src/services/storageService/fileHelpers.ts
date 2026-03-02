@@ -46,7 +46,7 @@ export function findVideoFile(
     try {
       validateSafePath(rootPath);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(rootPath)) return rootPath;
+      if (fs.existsSync(rootPath)) return rootPath; // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     } catch (e) {
       // Skip unsafe root path
       logger.warn(
@@ -73,7 +73,7 @@ export function findVideoFile(
         try {
           validateSafePath(collectionPath);
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(collectionPath)) return collectionPath;
+          if (fs.existsSync(collectionPath)) return collectionPath; // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         } catch (e) {
           // Skip unsafe paths
           continue;
@@ -152,7 +152,7 @@ export function moveFile(sourcePath: string, destPath: string): void {
     validateSafePath(destPath);
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(sourcePath)) {
+    if (fs.existsSync(sourcePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       fs.ensureDirSync(path.dirname(destPath));
       fs.moveSync(sourcePath, destPath, { overwrite: true });
       logger.info(`Moved file from ${sourcePath} to ${destPath}`);

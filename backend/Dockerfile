@@ -1,4 +1,5 @@
 # Stage 1: Builder
+# nosemgrep: Semgrep_dockerfile.security.missing-user.missing-user
 FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
@@ -109,9 +110,12 @@ COPY --from=builder /app/drizzle ./drizzle
 # Copy bgutil-ytdlp-pot-provider
 COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
 
-# Create necessary directories
-RUN mkdir -p uploads/videos uploads/images uploads/subtitles data
+# Create necessary directories and set ownership to node user
+RUN mkdir -p uploads/videos uploads/images uploads/subtitles data \
+    && chown -R node:node uploads data
 
 EXPOSE 5551
+
+USER node
 
 CMD ["node", "dist/src/server.js"]

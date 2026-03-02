@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import axios from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { extractXiaoHongShuAuthor } from "../../../services/downloaders/ytdlp/ytdlpHelpers";
@@ -32,7 +32,9 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBe("虾仁不眨眼");
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(axios.get).toHaveBeenCalledTimes(1);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(axios.get).toHaveBeenCalledWith(
         "https://www.xiaohongshu.com/user/profile/676255a3000000001801484c",
         expect.any(Object),
@@ -46,6 +48,7 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBeNull();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(axios.get).not.toHaveBeenCalled();
     });
 
@@ -55,6 +58,7 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBeNull();
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(axios.get).not.toHaveBeenCalled();
     });
 

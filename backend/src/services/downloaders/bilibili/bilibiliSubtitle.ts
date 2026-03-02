@@ -146,7 +146,7 @@ export async function downloadSubtitles(
           );
 
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.writeFileSync(subPath, vttContent);
+          fs.writeFileSync(subPath, vttContent); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
           logger.info(`Saved subtitle file: ${subPath}`);
 
           savedSubtitles.push({

@@ -13,7 +13,7 @@ export async function runMigrations() {
     // This helps prevent "database is locked" errors on first deployment
     const dbPath = path.join(ROOT_DIR, "data", "mytube.db");
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(dbPath)) {
+    if (!fs.existsSync(dbPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       console.log(
         "Database file does not exist yet, waiting for file system sync..."
       );
@@ -69,13 +69,13 @@ export async function runMigrations() {
 
     const hasLegacyData =
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(VIDEOS_DATA_PATH) ||
+      fs.existsSync(VIDEOS_DATA_PATH) || // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(COLLECTIONS_DATA_PATH) ||
+      fs.existsSync(COLLECTIONS_DATA_PATH) || // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(STATUS_DATA_PATH) ||
+      fs.existsSync(STATUS_DATA_PATH) || // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(SETTINGS_DATA_PATH);
+      fs.existsSync(SETTINGS_DATA_PATH); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
     if (hasLegacyData) {
       console.log("Legacy data files found. Running data migration...");

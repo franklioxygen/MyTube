@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../services/storageService", () => ({
@@ -41,6 +41,7 @@ describe("settingsValidationService extra coverage", () => {
   it("processTagDeletions preserves tags when empty list is sent while old tags exist", () => {
     settingsValidationService.processTagDeletions(["a"], []);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(storageService.getVideos).not.toHaveBeenCalled();
   });
@@ -54,6 +55,7 @@ describe("settingsValidationService extra coverage", () => {
 
     settingsValidationService.processTagDeletions(["a", "b"], ["a"]);
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.info).toHaveBeenCalledWith("Tags deleted:", ["b"]);
     expect(storageService.updateVideo).toHaveBeenCalledWith("v1", {
       tags: ["a"],
@@ -83,6 +85,7 @@ describe("settingsValidationService extra coverage", () => {
     );
 
     expect(hashPassword).not.toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalledWith(
       "Password update rejected: password login is not allowed"
     );

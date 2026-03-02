@@ -32,10 +32,10 @@ function sanitizePathWithoutTraversal(pathValue: string): string {
     throw new Error("Path traversal component detected");
   }
 
-  const rebuiltRelative = pathParts.length > 0 ? path.join(...pathParts) : "";
+  const rebuiltRelative = pathParts.length > 0 ? path.join(...pathParts) : ""; // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   const sanitizedPath = isAbsolutePath
     ? rebuiltRelative
-      ? path.join(root, rebuiltRelative)
+      ? path.join(root, rebuiltRelative) // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       : root
     : rebuiltRelative;
 
@@ -75,8 +75,8 @@ export function isPathWithinDirectory(
     return false;
   }
 
-  const resolvedPath = path.resolve(pathToCheck);
-  const resolvedAllowedDir = path.resolve(allowedDir);
+  const resolvedPath = path.resolve(pathToCheck); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+  const resolvedAllowedDir = path.resolve(allowedDir); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   return isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir);
 }
 
@@ -197,7 +197,7 @@ export function resolveSafePathInDirectories(
   filePath: string,
   allowedDirs: string[],
 ): string {
-  const resolvedPath = path.resolve(filePath);
+  const resolvedPath = path.resolve(filePath); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   if (!validatePathWithinDirectories(resolvedPath, allowedDirs)) {
     throw new Error(
       `Path traversal detected: ${filePath} is outside allowed directories`,

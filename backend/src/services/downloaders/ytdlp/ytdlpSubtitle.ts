@@ -61,7 +61,7 @@ export async function processSubtitles(
 
     for (const dir of searchDirs) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const files = fs.readdirSync(dir).filter((file: string) => {
+      const files = fs.readdirSync(dir).filter((file: string) => { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         const ext = path.extname(file).toLowerCase();
         return file.startsWith(baseFilename) && subtitleExtensions.has(ext);
       });
@@ -112,7 +112,7 @@ export async function processSubtitles(
       if (extension.toLowerCase() === ".vtt") {
         // Read VTT file and fix alignment for centering
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        let vttContent = fs.readFileSync(sourceSubPath, "utf-8");
+        let vttContent = fs.readFileSync(sourceSubPath, "utf-8"); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         // Replace align:start with align:middle for centered subtitles
         // Also remove position:0% which forces left positioning
         vttContent = vttContent.replace(/ align:start/g, " align:middle");
@@ -120,7 +120,7 @@ export async function processSubtitles(
 
         // Write cleaned VTT to destination
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.writeFileSync(destSubPath, vttContent, "utf-8");
+        fs.writeFileSync(destSubPath, vttContent, "utf-8"); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       } else if (sourceSubPath !== destSubPath) {
         fs.copyFileSync(sourceSubPath, destSubPath);
       }
@@ -132,7 +132,7 @@ export async function processSubtitles(
       // So if names are same and dir is same, we're just overwriting in place, which is fine
       if (sourceSubPath !== destSubPath) {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(sourceSubPath);
+        fs.unlinkSync(sourceSubPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       }
 
       logger.info(

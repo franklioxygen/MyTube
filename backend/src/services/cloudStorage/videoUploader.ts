@@ -35,7 +35,7 @@ export async function uploadVideo(
     if (videoData.videoPath) {
       const absoluteVideoPath = resolveAbsolutePath(videoData.videoPath);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (absoluteVideoPath && fs.existsSync(absoluteVideoPath)) {
+      if (absoluteVideoPath && fs.existsSync(absoluteVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         const uploadResult: UploadResult = await uploadFile(
           absoluteVideoPath,
           config
@@ -59,7 +59,7 @@ export async function uploadVideo(
     if (videoData.thumbnailPath) {
       const absoluteThumbPath = resolveAbsolutePath(videoData.thumbnailPath);
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (absoluteThumbPath && fs.existsSync(absoluteThumbPath)) {
+      if (absoluteThumbPath && fs.existsSync(absoluteThumbPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         const uploadResult: UploadResult = await uploadFile(
           absoluteThumbPath,
           config
@@ -98,7 +98,7 @@ export async function uploadVideo(
     );
     fs.ensureDirSync(path.dirname(metadataPath));
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2)); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
     const metadataUploadResult: UploadResult = await uploadFile(
       metadataPath,
@@ -107,7 +107,7 @@ export async function uploadVideo(
 
     // Cleanup temp metadata (always delete temp file)
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.unlinkSync(metadataPath);
+    fs.unlinkSync(metadataPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
 
     logger.info(`[CloudStorage] Upload completed for: ${videoData.title}`);
 
@@ -122,9 +122,9 @@ export async function uploadVideo(
       for (const filePath of uploadedFiles) {
         try {
           // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(filePath)) {
+          if (fs.existsSync(filePath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(filePath);
+            fs.unlinkSync(filePath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
             deletedFiles.push(filePath);
             logger.info(`[CloudStorage] Deleted local file: ${filePath}`);
           }

@@ -42,7 +42,7 @@ export function createTempDir(): string {
  */
 export async function cleanupTempDir(tempDir: string): Promise<void> {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(tempDir)) {
+  if (fs.existsSync(tempDir)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     await safeRemove(tempDir);
     logger.info("Deleted temp directory:", tempDir);
   }
@@ -104,12 +104,12 @@ export function prepareFilePaths(
  */
 export function findVideoFileInTemp(tempDir: string): string | null {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(tempDir)) {
+  if (!fs.existsSync(tempDir)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     return null;
   }
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const files = fs.readdirSync(tempDir);
+  const files = fs.readdirSync(tempDir); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   const videoFile =
     files.find((file: string) => file.endsWith(".mp4")) ||
     files.find((file: string) => file.endsWith(".mkv")) ||
@@ -183,9 +183,9 @@ export function renameFilesWithMetadata(
   );
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(safeVideoPath)) {
+  if (fs.existsSync(safeVideoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.renameSync(safeVideoPath, newVideoPath);
+    fs.renameSync(safeVideoPath, newVideoPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     logger.info("Renamed video file to:", newVideoFilename);
   } else {
     logger.info("Video file not found at:", safeVideoPath);
@@ -194,9 +194,9 @@ export function renameFilesWithMetadata(
 
   let finalThumbnailFilename = newThumbnailFilename;
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (thumbnailSaved && fs.existsSync(safeThumbnailPath)) {
+  if (thumbnailSaved && fs.existsSync(safeThumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.renameSync(safeThumbnailPath, newThumbnailPath);
+    fs.renameSync(safeThumbnailPath, newThumbnailPath); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     logger.info("Renamed thumbnail file to:", newThumbnailFilename);
   } else {
     // If thumbnail wasn't saved or doesn't exist, use original filename
@@ -221,17 +221,17 @@ export async function cleanupFilesOnCancellation(
 ): Promise<void> {
   try {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (tempDir && fs.existsSync(tempDir)) {
+    if (tempDir && fs.existsSync(tempDir)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       await safeRemove(tempDir);
       logger.info("Deleted temp directory:", tempDir);
     }
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) {
+    if (fs.existsSync(videoPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       await safeRemove(videoPath);
       logger.info("Deleted partial video file:", videoPath);
     }
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(thumbnailPath)) {
+    if (fs.existsSync(thumbnailPath)) { // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       await safeRemove(thumbnailPath);
       logger.info("Deleted partial thumbnail file:", thumbnailPath);
     }

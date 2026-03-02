@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../config/paths", () => ({
@@ -97,6 +97,7 @@ describe("collectionFileManager", () => {
     );
 
     expect(result).toEqual({ updated: false, updates: {} });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.warn).toHaveBeenCalled();
   });
 
@@ -306,6 +307,7 @@ describe("collectionFileManager", () => {
 
     cleanupCollectionDirectories("ErrCol");
 
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.error).toHaveBeenCalledWith(
       "Error removing collection directories",
       expect.any(Error)
@@ -363,6 +365,7 @@ describe("collectionFileManager", () => {
     const ok = renameCollectionDirectories("Old", "New");
 
     expect(ok).toBe(false);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(logger.error).toHaveBeenCalled();
   });
 
