@@ -364,6 +364,49 @@ export function initializeStorage(): void {
       );
     }
 
+    // Check continuous_download_tasks table columns for download-order feature fields.
+    // This is a runtime self-heal for older databases where drizzle migrations were skipped.
+    try {
+      const taskTableInfo = sqlite
+        .prepare("PRAGMA table_info(continuous_download_tasks)")
+        .all();
+      const taskColumns = (taskTableInfo as any[]).map((col: any) => col.name);
+
+      if (taskColumns.length > 0) {
+        if (!taskColumns.includes("download_order")) {
+          logger.info(
+            "Migrating database: Adding download_order column to continuous_download_tasks table..."
+          );
+          sqlite
+            .prepare(
+              "ALTER TABLE continuous_download_tasks ADD COLUMN download_order TEXT NOT NULL DEFAULT 'dateDesc'"
+            )
+            .run();
+          logger.info("Migration successful: download_order added.");
+        }
+
+        if (!taskColumns.includes("frozen_video_list_path")) {
+          logger.info(
+            "Migrating database: Adding frozen_video_list_path column to continuous_download_tasks table..."
+          );
+          sqlite
+            .prepare(
+              "ALTER TABLE continuous_download_tasks ADD COLUMN frozen_video_list_path TEXT"
+            )
+            .run();
+          logger.info("Migration successful: frozen_video_list_path added.");
+        }
+      }
+    } catch (taskTableMigrationError) {
+      // Table might not exist yet on very old installs; migration will be handled by drizzle.
+      logger.debug(
+        "Continuous download tasks table migration skipped (table may not exist yet)",
+        taskTableMigrationError instanceof Error
+          ? taskTableMigrationError
+          : new Error(String(taskTableMigrationError))
+      );
+    }
+
     // Create video_downloads table if it doesn't exist
     sqlite
       .prepare(

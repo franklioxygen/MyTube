@@ -349,4 +349,101 @@ describe("storageService initialization", () => {
       "Failed to migrate database columns"
     );
   });
+
+  it("adds missing continuous_download_tasks columns for legacy databases", () => {
+    const alterRun = vi.fn();
+
+    vi.mocked(sqlite.prepare).mockImplementation((sql: string) => {
+      if (sql === "PRAGMA table_info(videos)") {
+        return {
+          all: vi.fn(() => [
+            { name: "tags" },
+            { name: "view_count" },
+            { name: "progress" },
+            { name: "duration" },
+            { name: "file_size" },
+            { name: "last_played_at" },
+            { name: "subtitles" },
+            { name: "description" },
+            { name: "author_avatar_filename" },
+            { name: "author_avatar_path" },
+          ]),
+        } as any;
+      }
+      if (sql === "PRAGMA table_info(downloads)") {
+        return {
+          all: vi.fn(() => [{ name: "source_url" }, { name: "type" }]),
+        } as any;
+      }
+      if (sql === "PRAGMA table_info(subscriptions)") {
+        return {
+          all: vi.fn(() => [
+            { name: "playlist_id" },
+            { name: "playlist_title" },
+            { name: "subscription_type" },
+            { name: "collection_id" },
+            { name: "download_shorts" },
+            { name: "last_short_video_link" },
+          ]),
+        } as any;
+      }
+      if (sql === "PRAGMA table_info(continuous_download_tasks)") {
+        return {
+          all: vi.fn(() => [{ name: "id" }, { name: "author_url" }]),
+        } as any;
+      }
+      if (sql === "PRAGMA table_info(download_history)") {
+        return {
+          all: vi.fn(() => [
+            { name: "video_id" },
+            { name: "downloaded_at" },
+            { name: "deleted_at" },
+          ]),
+        } as any;
+      }
+      if (
+        sql.includes("ALTER TABLE continuous_download_tasks ADD COLUMN download_order") ||
+        sql.includes(
+          "ALTER TABLE continuous_download_tasks ADD COLUMN frozen_video_list_path"
+        )
+      ) {
+        return { run: alterRun } as any;
+      }
+      if (
+        sql.includes("ALTER TABLE") ||
+        sql.includes("CREATE TABLE") ||
+        sql.includes("CREATE UNIQUE INDEX") ||
+        sql.includes("CREATE INDEX") ||
+        sql.includes("UPDATE download_history")
+      ) {
+        return { run: vi.fn(() => ({ changes: 0 })) } as any;
+      }
+      return { run: vi.fn(), all: vi.fn(() => []) } as any;
+    });
+
+    vi.mocked(db.delete).mockReturnValue({
+      where: vi.fn(() => ({ run: vi.fn() })),
+    } as any);
+    vi.mocked(db.select).mockReturnValue({
+      from: vi.fn(() => ({
+        all: vi.fn(() => []),
+      })),
+    } as any);
+    vi.mocked(db.update).mockReturnValue({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({ run: vi.fn() })),
+      })),
+    } as any);
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+
+    initializeStorage();
+
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      "ALTER TABLE continuous_download_tasks ADD COLUMN download_order TEXT NOT NULL DEFAULT 'dateDesc'"
+    );
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      "ALTER TABLE continuous_download_tasks ADD COLUMN frozen_video_list_path TEXT"
+    );
+    expect(alterRun).toHaveBeenCalledTimes(2);
+  });
 });
