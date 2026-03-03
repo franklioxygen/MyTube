@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import fs from "fs-extra";
 import path from "path";
+import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
@@ -8,6 +9,99 @@ import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+
+// Cached promise so we only check/install once per process
+let ytDlpAvailablePromise: Promise<void> | null = null;
+
+/**
+ * Try to install yt-dlp via pip, trying multiple pip variants.
+ */
+async function installYtDlp(): Promise<void> {
+  // pip candidates to try in order
+  const candidates =
+    process.platform === "win32"
+      ? [
+          ["pip", "install", "yt-dlp"],
+          ["pip3", "install", "yt-dlp"],
+          ["python", "-m", "pip", "install", "yt-dlp"],
+        ]
+      : [
+          ["pip3", "install", "yt-dlp"],
+          ["pip3", "install", "--break-system-packages", "yt-dlp"],
+          ["pip", "install", "yt-dlp"],
+          ["pip", "install", "--break-system-packages", "yt-dlp"],
+          ["python3", "-m", "pip", "install", "yt-dlp"],
+        ];
+
+  for (const [cmd, ...args] of candidates) {
+    try {
+      console.log(`[yt-dlp] Attempting: ${cmd} ${args.join(" ")}`);
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(cmd, args, {
+          stdio: "inherit",
+          shell: process.platform === "win32",
+        });
+        proc.on("close", (code) =>
+          code === 0 ? resolve() : reject(new Error(`${cmd} exited with code ${code}`))
+        );
+        proc.on("error", reject);
+      });
+      console.log("[yt-dlp] Successfully installed yt-dlp.");
+      return;
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  throw new Error(
+    "yt-dlp is not installed and could not be automatically installed. " +
+      "Please install it manually: https://github.com/yt-dlp/yt-dlp#installation"
+  );
+}
+
+/**
+ * Ensure yt-dlp is available, auto-installing via pip if not found.
+ * Result is cached so the check only runs once per process.
+ */
+export async function ensureYtDlpAvailable(): Promise<void> {
+  if (ytDlpAvailablePromise) return ytDlpAvailablePromise;
+
+  ytDlpAvailablePromise = (async () => {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(YT_DLP_PATH, ["--version"], {
+          stdio: ["ignore", "ignore", "ignore"],
+        });
+        proc.on("close", (code) =>
+          code === 0 ? resolve() : reject(new Error(`exit ${code}`))
+        );
+        proc.on("error", reject);
+      });
+    } catch (err: any) {
+      // Non-ENOENT means the binary exists but had a non-zero exit – still usable.
+      if (err.code !== "ENOENT") return;
+
+      // Only auto-install when using the default path (not a user-configured path).
+      if (process.env.YT_DLP_PATH) {
+        throw new Error(
+          `yt-dlp not found at configured path: ${YT_DLP_PATH}. ` +
+            "Please check your YT_DLP_PATH environment variable."
+        );
+      }
+
+      console.warn(
+        "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
+      );
+      await installYtDlp();
+    }
+  })().catch((err) => {
+    // Reset cache so the next call retries instead of getting the same error.
+    ytDlpAvailablePromise = null;
+    throw err;
+  });
+
+  return ytDlpAvailablePromise;
+}
 
 /**
  * Preprocess URL to handle specific domain replacements
@@ -134,6 +228,7 @@ export async function executeYtDlpJson(
   flags: Record<string, any> = {},
   retryWithoutFormatRestrictions: boolean = true
 ): Promise<any> {
+  await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
   const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
 
@@ -443,8 +538,11 @@ export async function downloadChannelAvatar(
 }
 
 /**
- * Execute yt-dlp with spawn for progress tracking
- * Returns a subprocess-like object with kill() method
+ * Execute yt-dlp with spawn for progress tracking.
+ * Returns a subprocess-like object with kill() method.
+ *
+ * Uses PassThrough streams so the actual spawn can be deferred until
+ * ensureYtDlpAvailable() confirms (and auto-installs) yt-dlp.
  */
 export function executeYtDlpSpawn(
   rawUrl: string,
@@ -478,52 +576,70 @@ export function executeYtDlpSpawn(
 
   console.log(`Spawning: ${YT_DLP_PATH} ${args.join(" ")}`);
 
-  const subprocess = spawn(YT_DLP_PATH, args, {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  // PassThrough streams let callers attach handlers before the subprocess starts.
+  const stdoutPass = new PassThrough();
+  const stderrPass = new PassThrough();
 
+  let activeSubprocess: ReturnType<typeof spawn> | null = null;
   let resolved = false;
   let rejected = false;
   let stderr = "";
 
-  // Capture stderr for error reporting
-  subprocess.stderr?.on("data", (data: Buffer) => {
+  // Accumulate stderr for error reporting (callers may also attach their own handlers).
+  stderrPass.on("data", (data: Buffer) => {
     stderr += data.toString();
   });
 
-  const promise = new Promise<void>((resolve, reject) => {
-    subprocess.on("close", (code) => {
-      if (code === 0) {
-        if (!resolved && !rejected) {
-          resolved = true;
-          resolve();
-        }
-      } else {
-        if (!resolved && !rejected) {
-          rejected = true;
-          const error = new Error(`yt-dlp process exited with code ${code}`);
-          (error as any).stderr = stderr;
-          (error as any).code = code;
-          console.error("yt-dlp error output:", stderr);
-          reject(error);
-        }
-      }
-    });
+  const promise = ensureYtDlpAvailable()
+    .then(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          activeSubprocess = spawn(YT_DLP_PATH, args, {
+            stdio: ["ignore", "pipe", "pipe"],
+          });
 
-    subprocess.on("error", (error) => {
-      if (!resolved && !rejected) {
-        rejected = true;
-        reject(error);
-      }
+          activeSubprocess.stdout?.pipe(stdoutPass, { end: true });
+          activeSubprocess.stderr?.pipe(stderrPass, { end: true });
+
+          activeSubprocess.on("close", (code) => {
+            if (!resolved && !rejected) {
+              if (code === 0) {
+                resolved = true;
+                resolve();
+              } else {
+                rejected = true;
+                const error = new Error(
+                  `yt-dlp process exited with code ${code}`
+                );
+                (error as any).stderr = stderr;
+                (error as any).code = code;
+                console.error("yt-dlp error output:", stderr);
+                reject(error);
+              }
+            }
+          });
+
+          activeSubprocess.on("error", (error) => {
+            if (!resolved && !rejected) {
+              rejected = true;
+              reject(error);
+            }
+          });
+        })
+    )
+    .catch((err) => {
+      // Destroy the PassThrough streams so callers waiting on them unblock.
+      stdoutPass.destroy(err);
+      stderrPass.destroy(err);
+      throw err;
     });
-  });
 
   return {
-    stdout: subprocess.stdout,
-    stderr: subprocess.stderr,
+    stdout: stdoutPass,
+    stderr: stderrPass,
     kill: (signal?: NodeJS.Signals) => {
-      if (!subprocess.killed) {
-        return subprocess.kill(signal);
+      if (activeSubprocess && !activeSubprocess.killed) {
+        return activeSubprocess.kill(signal);
       }
       return false;
     },
