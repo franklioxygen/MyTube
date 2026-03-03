@@ -28,9 +28,11 @@ async function installYtDlp(): Promise<void> {
   const candidates =
     process.platform === "win32"
       ? [
+          ["py", "-m", "pip", "install", "yt-dlp"],
+          ["python", "-m", "pip", "install", "yt-dlp"],
+          ["python3", "-m", "pip", "install", "yt-dlp"],
           ["pip", "install", "yt-dlp"],
           ["pip3", "install", "yt-dlp"],
-          ["python", "-m", "pip", "install", "yt-dlp"],
         ]
       : [
           ["pip3", "install", "yt-dlp"],
@@ -47,7 +49,6 @@ async function installYtDlp(): Promise<void> {
         let stderr = "";
         const proc = spawn(cmd, args, {
           stdio: ["ignore", "ignore", "pipe"],
-          shell: process.platform === "win32",
         });
         proc.stderr?.on("data", (data: Buffer) => {
           stderr += data.toString();
