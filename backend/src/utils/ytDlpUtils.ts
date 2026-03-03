@@ -14,6 +14,13 @@ const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 let ytDlpAvailablePromise: Promise<void> | null = null;
 
 /**
+ * @internal Test helper to reset internal availability cache between test cases.
+ */
+export function resetYtDlpAvailabilityCacheForTests(): void {
+  ytDlpAvailablePromise = null;
+}
+
+/**
  * Try to install yt-dlp via pip, trying multiple pip variants.
  */
 async function installYtDlp(): Promise<void> {
@@ -37,18 +44,33 @@ async function installYtDlp(): Promise<void> {
     try {
       console.log(`[yt-dlp] Attempting: ${cmd} ${args.join(" ")}`);
       await new Promise<void>((resolve, reject) => {
+        let stderr = "";
         const proc = spawn(cmd, args, {
-          stdio: "inherit",
+          stdio: ["ignore", "ignore", "pipe"],
           shell: process.platform === "win32",
         });
+        proc.stderr?.on("data", (data: Buffer) => {
+          stderr += data.toString();
+        });
         proc.on("close", (code) =>
-          code === 0 ? resolve() : reject(new Error(`${cmd} exited with code ${code}`))
+          code === 0
+            ? resolve()
+            : reject(
+                Object.assign(new Error(`${cmd} exited with code ${code}`), {
+                  code,
+                  stderr,
+                })
+              )
         );
         proc.on("error", reject);
       });
       console.log("[yt-dlp] Successfully installed yt-dlp.");
       return;
-    } catch {
+    } catch (error: any) {
+      const stderr = String(error?.stderr || "").trim();
+      if (stderr) {
+        console.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
+      }
       // Try next candidate
     }
   }
@@ -72,27 +94,60 @@ export async function ensureYtDlpAvailable(): Promise<void> {
         const proc = spawn(YT_DLP_PATH, ["--version"], {
           stdio: ["ignore", "ignore", "ignore"],
         });
-        proc.on("close", (code) =>
-          code === 0 ? resolve() : reject(new Error(`exit ${code}`))
-        );
-        proc.on("error", reject);
+        proc.on("close", (code) => {
+          if (code === 0) {
+            resolve();
+            return;
+          }
+          reject(
+            Object.assign(new Error(`yt-dlp --version exited with code ${code}`), {
+              kind: "close",
+              exitCode: code,
+            })
+          );
+        });
+        proc.on("error", (error: NodeJS.ErrnoException) => {
+          reject(Object.assign(error, { kind: "spawn" }));
+        });
       });
     } catch (err: any) {
-      // Non-ENOENT means the binary exists but had a non-zero exit – still usable.
-      if (err.code !== "ENOENT") return;
+      // Non-zero exit from --version means binary executed; continue.
+      if (err.kind === "close") {
+        return;
+      }
 
-      // Only auto-install when using the default path (not a user-configured path).
-      if (process.env.YT_DLP_PATH) {
+      if (err.code === "EACCES" || err.code === "EPERM") {
         throw new Error(
-          `yt-dlp not found at configured path: ${YT_DLP_PATH}. ` +
-            "Please check your YT_DLP_PATH environment variable."
+          `yt-dlp exists but is not executable at: ${YT_DLP_PATH}. ` +
+            "Please fix file permissions or install yt-dlp manually."
         );
       }
 
-      console.warn(
-        "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
+      if (err.code === "ENOENT") {
+        // Only auto-install when using the default path (not a user-configured path).
+        if (process.env.YT_DLP_PATH) {
+          throw new Error(
+            `yt-dlp not found at configured path: ${YT_DLP_PATH}. ` +
+              "Please check your YT_DLP_PATH environment variable."
+          );
+        }
+
+        console.warn(
+          "[yt-dlp] yt-dlp not found in PATH. Attempting automatic installation..."
+        );
+        await installYtDlp();
+        return;
+      }
+
+      if (process.env.YT_DLP_PATH) {
+        throw new Error(
+          `Failed to execute configured yt-dlp at ${YT_DLP_PATH} ` +
+            `(${err.code || "unknown"}): ${err.message}`
+        );
+      }
+      throw new Error(
+        `Failed to execute yt-dlp (${err.code || "unknown"}): ${err.message}`
       );
-      await installYtDlp();
     }
   })().catch((err) => {
     // Reset cache so the next call retries instead of getting the same error.
@@ -373,6 +428,15 @@ export async function getChannelUrlFromVideo(
   videoUrlRaw: string,
   networkConfig: Record<string, any> = {}
 ): Promise<string | null> {
+  try {
+    await ensureYtDlpAvailable();
+  } catch (error) {
+    // Swallow availability errors: channel URL is supplementary metadata, not critical.
+    // Callers treat null as "not found", which is the correct fallback behavior here.
+    console.warn("yt-dlp unavailable when fetching channel URL:", error);
+    return null;
+  }
+
   const videoUrl = preprocessUrl(videoUrlRaw);
   const args = [
     "--print",
@@ -438,6 +502,15 @@ export async function downloadChannelAvatar(
   outputPath: string,
   networkConfig: Record<string, any> = {}
 ): Promise<boolean> {
+  try {
+    await ensureYtDlpAvailable();
+  } catch (error) {
+    // Swallow availability errors: avatar download failures are non-fatal.
+    // Callers treat false as "avatar unavailable" and continue without it.
+    console.warn("yt-dlp unavailable when downloading channel avatar:", error);
+    return false;
+  }
+
   const channelUrl = preprocessUrl(channelUrlRaw);
   const outputDir = path.dirname(outputPath);
   const outputFilename = path.basename(outputPath, path.extname(outputPath));
@@ -581,9 +654,39 @@ export function executeYtDlpSpawn(
   const stderrPass = new PassThrough();
 
   let activeSubprocess: ReturnType<typeof spawn> | null = null;
+  let killRequested = false;
+  let killSignal: NodeJS.Signals | undefined;
   let resolved = false;
   let rejected = false;
   let stderr = "";
+
+  const endPassThroughStreams = () => {
+    if (!stdoutPass.destroyed && !stdoutPass.readableEnded) {
+      stdoutPass.end();
+    }
+    if (!stderrPass.destroyed && !stderrPass.readableEnded) {
+      stderrPass.end();
+    }
+  };
+
+  const pipeOrForward = (
+    source: NodeJS.ReadableStream | null | undefined,
+    target: PassThrough
+  ) => {
+    if (!source) {
+      target.end();
+      return;
+    }
+
+    if (typeof (source as any).pipe === "function") {
+      source.pipe(target, { end: true });
+      return;
+    }
+
+    // Fallback used by tests that mock child streams as plain EventEmitters.
+    source.on("data", (chunk: Buffer | string) => target.write(chunk));
+    source.on("end", () => target.end());
+  };
 
   // Accumulate stderr for error reporting (callers may also attach their own handlers).
   stderrPass.on("data", (data: Buffer) => {
@@ -594,12 +697,26 @@ export function executeYtDlpSpawn(
     .then(
       () =>
         new Promise<void>((resolve, reject) => {
+          if (killRequested) {
+            rejected = true;
+            endPassThroughStreams();
+            const error = new Error("yt-dlp process cancelled before start");
+            (error as any).code = "SIGTERM";
+            reject(error);
+            return;
+          }
+
           activeSubprocess = spawn(YT_DLP_PATH, args, {
             stdio: ["ignore", "pipe", "pipe"],
           });
 
-          activeSubprocess.stdout?.pipe(stdoutPass, { end: true });
-          activeSubprocess.stderr?.pipe(stderrPass, { end: true });
+          pipeOrForward(activeSubprocess.stdout, stdoutPass);
+          pipeOrForward(activeSubprocess.stderr, stderrPass);
+
+          // Cancellation might happen between availability check and spawn.
+          if (killRequested && !activeSubprocess.killed) {
+            activeSubprocess.kill(killSignal);
+          }
 
           activeSubprocess.on("close", (code) => {
             if (!resolved && !rejected) {
@@ -628,9 +745,8 @@ export function executeYtDlpSpawn(
         })
     )
     .catch((err) => {
-      // Destroy the PassThrough streams so callers waiting on them unblock.
-      stdoutPass.destroy(err);
-      stderrPass.destroy(err);
+      // End streams without emitting stream "error" events that callers don't subscribe to.
+      endPassThroughStreams();
       throw err;
     });
 
@@ -638,10 +754,13 @@ export function executeYtDlpSpawn(
     stdout: stdoutPass,
     stderr: stderrPass,
     kill: (signal?: NodeJS.Signals) => {
+      killRequested = true;
+      killSignal = signal;
       if (activeSubprocess && !activeSubprocess.killed) {
         return activeSubprocess.kill(signal);
       }
-      return false;
+      // Allow cancelling before spawn starts.
+      return activeSubprocess === null ? true : false;
     },
     then: promise.then.bind(promise),
   };

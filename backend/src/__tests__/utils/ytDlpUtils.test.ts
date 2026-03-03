@@ -2,12 +2,14 @@ import { spawn } from "child_process";
 import { EventEmitter } from "events";
 import fs from "fs-extra";
 import path from "path";
+import { PassThrough } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
 import {
   InvalidProxyError,
   convertFlagToArg,
   downloadChannelAvatar,
+  ensureYtDlpAvailable,
   executeYtDlpJson,
   executeYtDlpSpawn,
   flagsToArgs,
@@ -16,6 +18,7 @@ import {
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
   parseYtDlpConfig,
+  resetYtDlpAvailabilityCacheForTests,
 } from "../../utils/ytDlpUtils";
 
 vi.mock("child_process", () => ({
@@ -33,16 +36,16 @@ vi.mock("socks-proxy-agent", () => ({
 }));
 
 type MockProcess = EventEmitter & {
-  stdout: EventEmitter | null;
-  stderr: EventEmitter | null;
+  stdout: PassThrough | null;
+  stderr: PassThrough | null;
   killed: boolean;
   kill: ReturnType<typeof vi.fn>;
 };
 
 const createMockProcess = (): MockProcess => {
   const proc = new EventEmitter() as MockProcess;
-  proc.stdout = new EventEmitter();
-  proc.stderr = new EventEmitter();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
   proc.killed = false;
   proc.kill = vi.fn((signal?: NodeJS.Signals) => {
     proc.killed = true;
@@ -51,9 +54,27 @@ const createMockProcess = (): MockProcess => {
   return proc;
 };
 
+const createVersionCheckProcess = (): MockProcess => {
+  const proc = createMockProcess();
+  queueMicrotask(() => proc.emit("close", 0));
+  return proc;
+};
+
+const mockSpawnWithVersionCheck = (...processes: MockProcess[]) => {
+  vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
+  for (const proc of processes) {
+    vi.mocked(spawn).mockImplementationOnce(() => proc as any);
+  }
+};
+
+const flushAsyncSpawns = async () => {
+  await new Promise((resolve) => setImmediate(resolve));
+};
+
 describe("ytDlpUtils", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({});
   });
@@ -287,10 +308,69 @@ describe("ytDlpUtils", () => {
     });
   });
 
+  describe("ensureYtDlpAvailable", () => {
+    it("should continue when --version exits non-zero", async () => {
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      versionProc.emit("close", 1);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(vi.mocked(spawn).mock.calls).toHaveLength(1);
+    });
+
+    it("should auto-install when yt-dlp is missing", async () => {
+      const versionProc = createMockProcess();
+      const installProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => versionProc as any)
+        .mockImplementationOnce(() => installProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      versionProc.emit("error", Object.assign(new Error("not found"), { code: "ENOENT" }));
+      await flushAsyncSpawns();
+      installProc.emit("close", 0);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(vi.mocked(spawn).mock.calls[1][1]).toEqual(["install", "yt-dlp"]);
+    });
+
+    it("should throw when yt-dlp exists but is not executable", async () => {
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const promise = ensureYtDlpAvailable();
+      versionProc.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
+
+      await expect(promise).rejects.toThrow("not executable");
+    });
+
+    it("should reset cache after failure so the next call retries", async () => {
+      const failProc = createMockProcess();
+      const successProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => failProc as any)
+        .mockImplementationOnce(() => successProc as any);
+
+      // First call: fails due to permissions error
+      const firstPromise = ensureYtDlpAvailable();
+      failProc.emit("error", Object.assign(new Error("permission denied"), { code: "EACCES" }));
+      await expect(firstPromise).rejects.toThrow("not executable");
+
+      // Second call: cache was reset, so a new version check is spawned and succeeds
+      const secondPromise = ensureYtDlpAvailable();
+      successProc.emit("close", 0);
+      await expect(secondPromise).resolves.toBeUndefined();
+
+      expect(vi.mocked(spawn).mock.calls).toHaveLength(2);
+    });
+  });
+
   describe("executeYtDlpJson", () => {
     it("should execute and parse json output with youtube runtime and cookies", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith(path.join("data", "cookies.txt"))
       );
@@ -298,6 +378,7 @@ describe("ytDlpUtils", () => {
       const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
         format: "best",
       });
+      await flushAsyncSpawns();
 
       proc.stdout?.emit("data", Buffer.from('{"id":"abc","title":"video"}'));
       proc.stderr?.emit("data", Buffer.from("[info] metadata"));
@@ -308,7 +389,7 @@ describe("ytDlpUtils", () => {
         title: "video",
       });
 
-      const args = vi.mocked(spawn).mock.calls[0][1] as string[];
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
       expect(args).toContain("--dump-single-json");
       expect(args).toContain("--js-runtime");
       expect(args).toContain("node");
@@ -317,35 +398,38 @@ describe("ytDlpUtils", () => {
 
     it("should preprocess xvideos.red urls before spawning", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = executeYtDlpJson("https://xvideos.red/video/123");
+      await flushAsyncSpawns();
       proc.stdout?.emit("data", Buffer.from("{}"));
       proc.emit("close", 0);
       await promise;
 
-      const args = vi.mocked(spawn).mock.calls[0][1] as string[];
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
       expect(args[args.length - 1]).toContain("xvideos.com/video/123");
     });
 
     it("should retry without format restrictions on format error", async () => {
       const first = createMockProcess();
       const second = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(first as any).mockReturnValueOnce(second as any);
+      mockSpawnWithVersionCheck(first, second);
 
       const promise = executeYtDlpJson("https://example.com/video", {
         format: "best",
         formatSort: "res:2160",
       });
+      await flushAsyncSpawns();
 
       first.stderr?.emit("data", Buffer.from("Requested format is not available"));
       first.emit("close", 1);
+      await flushAsyncSpawns();
       second.stdout?.emit("data", Buffer.from('{"ok":true}'));
       second.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ ok: true });
 
-      const secondArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
       expect(secondArgs).not.toContain("--format");
       expect(secondArgs).not.toContain("--format-sort");
       expect(secondArgs).toContain("https://example.com/video");
@@ -354,26 +438,29 @@ describe("ytDlpUtils", () => {
     it("should retry with explicit best format when format error comes from config", async () => {
       const first = createMockProcess();
       const second = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(first as any).mockReturnValueOnce(second as any);
+      mockSpawnWithVersionCheck(first, second);
 
       const promise = executeYtDlpJson("https://example.com/video", {});
+      await flushAsyncSpawns();
 
       first.stderr?.emit("data", Buffer.from("No video formats found"));
       first.emit("close", 1);
+      await flushAsyncSpawns();
       second.stdout?.emit("data", Buffer.from('{"fallback":true}'));
       second.emit("close", 0);
 
       await expect(promise).resolves.toEqual({ fallback: true });
-      const secondArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
       expect(secondArgs).toContain("--format");
       expect(secondArgs).toContain("best");
     });
 
     it("should reject with stderr on non-zero non-format error", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = executeYtDlpJson("https://example.com/video");
+      await flushAsyncSpawns();
       proc.stderr?.emit("data", Buffer.from("fatal error"));
       proc.emit("close", 2);
 
@@ -385,9 +472,10 @@ describe("ytDlpUtils", () => {
 
     it("should reject when json parse fails", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = executeYtDlpJson("https://example.com/video");
+      await flushAsyncSpawns();
       proc.stdout?.emit("data", Buffer.from("not-json"));
       proc.emit("close", 0);
 
@@ -396,9 +484,10 @@ describe("ytDlpUtils", () => {
 
     it("should reject when subprocess emits error", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = executeYtDlpJson("https://example.com/video");
+      await flushAsyncSpawns();
       proc.emit("error", new Error("spawn failed"));
 
       await expect(promise).rejects.toThrow("spawn failed");
@@ -408,18 +497,19 @@ describe("ytDlpUtils", () => {
   describe("getChannelUrlFromVideo", () => {
     it("should return trimmed channel url on success", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = getChannelUrlFromVideo("https://www.youtube.com/watch?v=abc", {
         proxy: "http://127.0.0.1:7890",
       });
+      await flushAsyncSpawns();
 
       proc.stdout?.emit("data", Buffer.from("https://www.youtube.com/@channel\n"));
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBe("https://www.youtube.com/@channel");
 
-      const args = vi.mocked(spawn).mock.calls[0][1] as string[];
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
       expect(args).toContain("--print");
       expect(args).toContain("channel_url");
       expect(args).toContain("--js-runtime");
@@ -428,9 +518,10 @@ describe("ytDlpUtils", () => {
 
     it("should return null on close with non-zero code", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = getChannelUrlFromVideo("https://example.com/video");
+      await flushAsyncSpawns();
       proc.stderr?.emit("data", Buffer.from("failed"));
       proc.emit("close", 1);
       await expect(promise).resolves.toBeNull();
@@ -438,23 +529,39 @@ describe("ytDlpUtils", () => {
 
     it("should return null on spawn error", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = getChannelUrlFromVideo("https://example.com/video");
+      await flushAsyncSpawns();
       proc.emit("error", new Error("boom"));
       await expect(promise).resolves.toBeNull();
+    });
+
+    it("should return null when yt-dlp availability check fails", async () => {
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const promise = getChannelUrlFromVideo("https://example.com/video");
+      versionProc.emit(
+        "error",
+        Object.assign(new Error("permission denied"), { code: "EACCES" })
+      );
+
+      await expect(promise).resolves.toBeNull();
+      expect(vi.mocked(spawn).mock.calls).toHaveLength(1);
     });
   });
 
   describe("downloadChannelAvatar", () => {
     it("should return false on non-zero close code", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = downloadChannelAvatar(
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       proc.stderr?.emit("data", Buffer.from("download failed"));
       proc.emit("close", 1);
 
@@ -463,7 +570,7 @@ describe("ytDlpUtils", () => {
 
     it("should rename non-jpg avatar to jpg when needed", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith("avatar.png")
       );
@@ -472,6 +579,7 @@ describe("ytDlpUtils", () => {
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBe(true);
@@ -482,7 +590,7 @@ describe("ytDlpUtils", () => {
 
     it("should return true when output file exists directly", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith("avatar.jpg")
       );
@@ -491,6 +599,7 @@ describe("ytDlpUtils", () => {
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBe(true);
@@ -498,13 +607,14 @@ describe("ytDlpUtils", () => {
 
     it("should return false when no avatar files are found", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const promise = downloadChannelAvatar(
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBe(false);
@@ -512,26 +622,45 @@ describe("ytDlpUtils", () => {
 
     it("should return false on spawn error", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const promise = downloadChannelAvatar(
         "https://www.youtube.com/@channel",
         "/tmp/avatar.jpg"
       );
+      await flushAsyncSpawns();
       proc.emit("error", new Error("spawn error"));
       await expect(promise).resolves.toBe(false);
+    });
+
+    it("should return false when yt-dlp availability check fails", async () => {
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const promise = downloadChannelAvatar(
+        "https://www.youtube.com/@channel",
+        "/tmp/avatar.jpg"
+      );
+      versionProc.emit(
+        "error",
+        Object.assign(new Error("permission denied"), { code: "EACCES" })
+      );
+
+      await expect(promise).resolves.toBe(false);
+      expect(vi.mocked(spawn).mock.calls).toHaveLength(1);
     });
   });
 
   describe("executeYtDlpSpawn", () => {
     it("should resolve when subprocess exits with code 0", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const subprocess = executeYtDlpSpawn("https://www.youtube.com/watch?v=abc", {
         format: "best",
       });
       const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBeUndefined();
@@ -541,10 +670,11 @@ describe("ytDlpUtils", () => {
 
     it("should reject with stderr when subprocess exits non-zero", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const subprocess = executeYtDlpSpawn("https://example.com/video");
       const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
       proc.stderr?.emit("data", Buffer.from("bad stderr"));
       proc.emit("close", 3);
 
@@ -557,23 +687,38 @@ describe("ytDlpUtils", () => {
 
     it("should reject on subprocess error event", async () => {
       const proc = createMockProcess();
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const subprocess = executeYtDlpSpawn("https://example.com/video");
       const promise = Promise.resolve(subprocess);
+      await flushAsyncSpawns();
       proc.emit("error", new Error("spawn crashed"));
 
       await expect(promise).rejects.toThrow("spawn crashed");
     });
 
-    it("should return false on kill when process already killed", () => {
+    it("should return false on kill when process already killed", async () => {
       const proc = createMockProcess();
-      proc.killed = true;
-      vi.mocked(spawn).mockReturnValueOnce(proc as any);
+      mockSpawnWithVersionCheck(proc);
 
       const subprocess = executeYtDlpSpawn("https://example.com/video");
+      await flushAsyncSpawns();
+      proc.killed = true;
       expect(subprocess.kill("SIGKILL")).toBe(false);
       expect(proc.kill).not.toHaveBeenCalled();
+    });
+
+    it("should reject as cancelled when killed before subprocess starts", async () => {
+      const versionProc = createMockProcess();
+      vi.mocked(spawn).mockImplementationOnce(() => versionProc as any);
+
+      const subprocess = executeYtDlpSpawn("https://example.com/video");
+      const promise = Promise.resolve(subprocess);
+      expect(subprocess.kill("SIGTERM")).toBe(true);
+      versionProc.emit("close", 0);
+
+      await expect(promise).rejects.toThrow("yt-dlp process cancelled before start");
+      expect(vi.mocked(spawn).mock.calls).toHaveLength(1);
     });
   });
 });
