@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import sharp from "sharp";
+import { Jimp } from "jimp";
 import { AVATARS_DIR } from "../config/paths";
 import { logger } from "./logger";
 import { formatAvatarFilename } from "./helpers";
@@ -37,15 +37,11 @@ export async function resizeAvatar(
     // Ensure output directory exists
     fs.ensureDirSync(path.dirname(outputPath));
 
-    // Resize image to 100x100px using sharp
-    // cover: resize to fill 100x100, cropping if necessary to maintain aspect ratio
-    await sharp(inputPath)
-      .resize(100, 100, {
-        fit: "cover",
-        position: "center",
-      })
-      .jpeg({ quality: 90 }) // Convert to JPEG with good quality
-      .toFile(outputPath);
+    // Pure-JS resize/encode to avoid native binary crashes on some Windows setups.
+    const image = await Jimp.read(inputPath);
+    image.cover({ w: 100, h: 100 });
+    const imageBuffer = await image.getBuffer("image/jpeg", { quality: 90 });
+    await fs.writeFile(outputPath, imageBuffer);
 
     logger.info(`Resized avatar to 100x100px: ${outputPath}`);
     return true;

@@ -4,7 +4,7 @@ import fs from "fs-extra";
 import multer from "multer";
 import crypto from "crypto";
 import path from "path";
-import sharp from "sharp";
+import { fromFile } from "file-type";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
@@ -21,7 +21,7 @@ const ALLOWED_IMAGE_MIMES: Record<string, string> = {
   "image/gif": ".gif",
   "image/avif": ".avif",
 };
-const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp", "gif", "avif"]);
+const ALLOWED_IMAGE_MIME_SET = new Set(Object.keys(ALLOWED_IMAGE_MIMES));
 
 const IMAGE_ROOT_PATH = path.resolve(IMAGES_DIR);
 const IMAGE_ROOT_PREFIX = `${IMAGE_ROOT_PATH}${path.sep}`;
@@ -102,8 +102,8 @@ const validateUploadedImageContent = async (
   const safeResolvedPath = validateImagePath(uploadedFilePath);
 
   try {
-    const metadata = await sharp(safeResolvedPath, { failOn: "error" }).metadata();
-    if (!metadata.format || !ALLOWED_IMAGE_FORMATS.has(metadata.format)) {
+    const type = await fromFile(safeResolvedPath);
+    if (!type?.mime || !ALLOWED_IMAGE_MIME_SET.has(type.mime)) {
       throw new ValidationError(
         "Uploaded file is not a valid supported image",
         "file"

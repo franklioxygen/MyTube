@@ -10,17 +10,18 @@ import {
 } from "../../utils/avatarUtils";
 import { formatAvatarFilename } from "../../utils/helpers";
 
-const sharpMocks = vi.hoisted(() => {
-  const toFile = vi.fn();
-  const jpeg = vi.fn(() => ({ toFile }));
-  const resize = vi.fn(() => ({ jpeg }));
-  const sharpFactory = vi.fn(() => ({ resize }));
-  return { toFile, jpeg, resize, sharpFactory };
+const jimpMocks = vi.hoisted(() => {
+  const getBuffer = vi.fn();
+  const cover = vi.fn(() => ({ getBuffer }));
+  const read = vi.fn(async () => ({ cover, getBuffer }));
+  return { read, cover, getBuffer };
 });
 
 vi.mock("fs-extra");
-vi.mock("sharp", () => ({
-  default: sharpMocks.sharpFactory,
+vi.mock("jimp", () => ({
+  Jimp: {
+    read: jimpMocks.read,
+  },
 }));
 vi.mock("../../utils/helpers", () => ({
   formatAvatarFilename: vi.fn((platform: string, author: string) =>
@@ -38,7 +39,7 @@ vi.mock("../../utils/logger", () => ({
 describe("avatarUtils", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    sharpMocks.toFile.mockResolvedValue(undefined);
+    jimpMocks.getBuffer.mockResolvedValue(Buffer.from("mock-image"));
   });
 
   describe("getExistingAvatarPath", () => {
@@ -68,17 +69,14 @@ describe("avatarUtils", () => {
 
       expect(ok).toBe(true);
       expect(fs.ensureDirSync).toHaveBeenCalledWith("/tmp/out");
-      expect(sharpMocks.sharpFactory).toHaveBeenCalledWith(input);
-      expect(sharpMocks.resize).toHaveBeenCalledWith(100, 100, {
-        fit: "cover",
-        position: "center",
-      });
-      expect(sharpMocks.jpeg).toHaveBeenCalledWith({ quality: 90 });
-      expect(sharpMocks.toFile).toHaveBeenCalledWith(output);
+      expect(jimpMocks.read).toHaveBeenCalledWith(input);
+      expect(jimpMocks.cover).toHaveBeenCalledWith({ w: 100, h: 100 });
+      expect(jimpMocks.getBuffer).toHaveBeenCalledWith("image/jpeg", { quality: 90 });
+      expect(fs.writeFile).toHaveBeenCalledWith(output, Buffer.from("mock-image"));
     });
 
-    it("should return false on sharp failures", async () => {
-      sharpMocks.toFile.mockRejectedValueOnce(new Error("sharp failed"));
+    it("should return false on jimp failures", async () => {
+      jimpMocks.read.mockRejectedValueOnce(new Error("jimp failed"));
       const ok = await resizeAvatar("/tmp/input.png", "/tmp/output.jpg");
       expect(ok).toBe(false);
     });
@@ -122,7 +120,9 @@ describe("avatarUtils", () => {
 
       expect(result).toBe(finalPath);
       expect(downloadFn).not.toHaveBeenCalled();
-      expect(sharpMocks.toFile).toHaveBeenCalledWith(finalPath);
+      expect(jimpMocks.getBuffer).toHaveBeenCalledWith("image/jpeg", {
+        quality: 90,
+      });
     });
 
     it("should return null when remote download fails", async () => {
@@ -149,7 +149,7 @@ describe("avatarUtils", () => {
         const p = String(target);
         return p === temp;
       });
-      sharpMocks.toFile.mockRejectedValueOnce(new Error("resize failed"));
+      jimpMocks.getBuffer.mockRejectedValueOnce(new Error("resize failed"));
       const downloadFn = vi.fn().mockResolvedValue(true);
 
       const result = await downloadAndProcessAvatar(

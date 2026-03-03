@@ -3,6 +3,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as videoMetadataController from "../../controllers/videoMetadataController";
+import { ValidationError } from "../../errors/DownloadErrors";
 import { getVideoDuration } from "../../services/metadataService";
 import { getVideoInfo } from "../../services/downloadService";
 import * as storageService from "../../services/storageService";
@@ -13,6 +14,8 @@ import {
   validateUrl,
   validateVideoPath,
 } from "../../utils/security";
+
+const fromFileMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../services/storageService", () => ({
   getVideoById: vi.fn(),
@@ -46,6 +49,7 @@ vi.mock("fs-extra", () => ({
     ensureDirSync: vi.fn(),
     ensureFileSync: vi.fn(),
     pathExists: vi.fn(),
+    remove: vi.fn(),
     stat: vi.fn(),
     writeFile: vi.fn(),
   },
@@ -54,6 +58,9 @@ vi.mock("axios", () => ({
   default: {
     get: vi.fn(),
   },
+}));
+vi.mock("file-type", () => ({
+  fromFile: fromFileMock,
 }));
 
 const createResponse = () => {
@@ -65,6 +72,7 @@ const createResponse = () => {
 describe("videoMetadataController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fromFileMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
 
     vi.mocked(fs.existsSync as any).mockReturnValue(true);
     vi.mocked(fs.pathExists as any).mockResolvedValue(true);
@@ -554,6 +562,76 @@ describe("videoMetadataController", () => {
           progress: 75,
         },
       });
+    });
+  });
+
+  describe("uploadThumbnail", () => {
+    const fakeFile = {
+      path: "/uploads/thumb.jpg",
+      filename: "thumb.jpg",
+      mimetype: "image/jpeg",
+    };
+
+    beforeEach(() => {
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v1",
+        thumbnailPath: null,
+      });
+      vi.mocked(storageService.updateVideo as any).mockReturnValue({
+        id: "v1",
+        thumbnailPath: "/images/thumb.jpg",
+      });
+    });
+
+    it("accepts an allowed MIME type and returns 200 with thumbnailUrl", async () => {
+      fromFileMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
+      const { res, status, json } = createResponse();
+
+      await videoMetadataController.uploadThumbnail(
+        { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+        res
+      );
+
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, thumbnailUrl: expect.any(String) })
+      );
+    });
+
+    it("rejects a disallowed MIME type with ValidationError", async () => {
+      fromFileMock.mockResolvedValue({ mime: "image/tiff", ext: "tiff" });
+      const { res } = createResponse();
+
+      await expect(
+        videoMetadataController.uploadThumbnail(
+          { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+          res
+        )
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("rejects when fromFile returns undefined (unrecognised bytes) with ValidationError", async () => {
+      fromFileMock.mockResolvedValue(undefined);
+      const { res } = createResponse();
+
+      await expect(
+        videoMetadataController.uploadThumbnail(
+          { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+          res
+        )
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it("rejects when fromFile throws with ValidationError", async () => {
+      fromFileMock.mockRejectedValue(new Error("read error"));
+      const { res } = createResponse();
+
+      await expect(
+        videoMetadataController.uploadThumbnail(
+          { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+          res
+        )
+      ).rejects.toThrow(ValidationError);
     });
   });
 });
