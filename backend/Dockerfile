@@ -5,9 +5,11 @@ WORKDIR /app
 
 # Install dependencies
 COPY backend/package*.json ./
+COPY backend/scripts ./scripts
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
+ENV SKIP_FFMPEG_AUTO_INSTALL=1
 
 # Install build dependencies for native modules (python3, make, g++)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -93,11 +95,13 @@ ENV NODE_ENV=production
 ENV PORT=5551
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
+ENV SKIP_FFMPEG_AUTO_INSTALL=1
 # Debian chromium path
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install production dependencies only
 COPY backend/package*.json ./
+COPY backend/scripts ./scripts
 RUN npm ci --only=production
 
 # Copy built artifacts from builder
