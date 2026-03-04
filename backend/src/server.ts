@@ -5,7 +5,9 @@ dotenv.config();
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
+import fs from "fs-extra";
 import path from "path";
+import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
 import downloadManager from "./services/downloadManager";
@@ -33,8 +35,30 @@ app.use(cookieParser());
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
 
+const configureProcessCrashReports = (): void => {
+  if (!process.report) {
+    return;
+  }
+
+  try {
+    const reportDir = path.join(DATA_DIR, "crash-reports");
+    fs.ensureDirSync(reportDir);
+    process.report.directory = reportDir;
+    process.report.compact = true;
+    process.report.reportOnFatalError = true;
+    process.report.reportOnUncaughtException = true;
+    process.report.reportOnSignal = false;
+    logger.info(`Node crash reports enabled: ${reportDir}`);
+  } catch (error) {
+    logger.warn("Failed to configure Node crash reports", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 const startServer = async (): Promise<void> => {
   try {
+    configureProcessCrashReports();
     await runMigrations();
 
     storageService.initializeStorage();

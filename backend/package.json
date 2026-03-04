@@ -22,7 +22,7 @@
     "ass-to-vtt": "^1.2.0",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.5.0",
+    "better-sqlite3": "^12.6.2",
     "cheerio": "^1.1.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
