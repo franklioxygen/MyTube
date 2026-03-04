@@ -9,6 +9,7 @@ import {
 import { formatVideoFilename, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
+import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
 import {
   downloadChannelAvatar,
   executeYtDlpJson,
@@ -294,8 +295,10 @@ export async function downloadVideo(
 
       if (isSubtitleError) {
         // Check if video file was successfully downloaded
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newVideoPathWithFormat)) {
+        const resolvedVideoPath = resolvePlayableVideoFilePath(
+          newVideoPathWithFormat
+        );
+        if (resolvedVideoPath) {
           logger.warn(
             "Subtitle download failed, but video was downloaded successfully. Continuing...",
             error.message
@@ -322,6 +325,27 @@ export async function downloadVideo(
       await cleanupVideoArtifacts(newSafeBaseFilename);
       await cleanupSubtitleFiles(newSafeBaseFilename);
       throw error;
+    }
+
+    const resolvedVideoPath = resolvePlayableVideoFilePath(
+      newVideoPathWithFormat
+    );
+    if (!resolvedVideoPath) {
+      throw new Error(
+        `Downloaded video file not found after yt-dlp completed: ${newVideoPathWithFormat}`
+      );
+    }
+
+    if (path.normalize(resolvedVideoPath) !== path.normalize(newVideoPathWithFormat)) {
+      logger.warn(
+        "Merged output file missing; falling back to split video artifact. This usually means ffmpeg is not available on the host.",
+        {
+          expected: newVideoPathWithFormat,
+          fallback: resolvedVideoPath,
+        }
+      );
+      newVideoPathWithFormat = resolvedVideoPath;
+      finalVideoFilename = path.basename(resolvedVideoPath);
     }
 
     logger.info("Video downloaded successfully");

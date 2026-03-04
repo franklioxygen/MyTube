@@ -10,6 +10,7 @@ import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
   resolveSafePath,
   sanitizePathSegment,
@@ -144,6 +145,25 @@ const getLanguageFromFilename = (filename: string): string | null => {
   return null;
 };
 
+const resolveVideoWebPath = (absoluteVideoPath: string): string | null => {
+  const videosRoot = path.resolve(VIDEOS_DIR);
+  const normalizedPath = path.resolve(absoluteVideoPath);
+
+  if (
+    normalizedPath !== videosRoot &&
+    !normalizedPath.startsWith(`${videosRoot}${path.sep}`)
+  ) {
+    return null;
+  }
+
+  const relativePath = path.relative(videosRoot, normalizedPath);
+  if (!relativePath || relativePath.startsWith("..")) {
+    return null;
+  }
+
+  return `/videos/${relativePath.split(path.sep).join("/")}`;
+};
+
 /**
  * Get all videos
  * Errors are automatically handled by asyncHandler middleware
@@ -172,6 +192,37 @@ export const getVideoById = async (
 
   if (!video) {
     throw new NotFoundError("Video", id);
+  }
+
+  // Self-heal local paths that point to a missing merged file.
+  // If yt-dlp produced split artifacts (e.g. *.f137.mp4), use a playable fallback.
+  if (video.videoPath?.startsWith("/videos/")) {
+    const relativeVideoPath = video.videoPath.replace(/^\/videos\//, "");
+    const expectedVideoPath = path.resolve(
+      path.join(VIDEOS_DIR, ...relativeVideoPath.split("/"))
+    );
+    const resolvedVideoPath = resolvePlayableVideoFilePath(expectedVideoPath);
+
+    if (
+      resolvedVideoPath &&
+      path.normalize(resolvedVideoPath) !== path.normalize(expectedVideoPath)
+    ) {
+      const resolvedVideoWebPath = resolveVideoWebPath(resolvedVideoPath);
+      const resolvedVideoFilename = path.basename(resolvedVideoPath);
+
+      if (resolvedVideoWebPath) {
+        video.videoPath = resolvedVideoWebPath;
+        video.videoFilename = resolvedVideoFilename;
+        storageService.updateVideo(video.id, {
+          videoPath: resolvedVideoWebPath,
+          videoFilename: resolvedVideoFilename,
+        });
+
+        logger.warn(
+          `Video file repaired for ${video.id}: ${expectedVideoPath} -> ${resolvedVideoPath}`
+        );
+      }
+    }
   }
 
   // Check if video is in cloud storage and inject signed URLs
