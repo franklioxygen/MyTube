@@ -87,6 +87,10 @@ vi.mock("child_process", () => ({
     }
     cb(null, "", "");
   }),
+  spawnSync: vi.fn((_cmd: string, _args: any[]) => ({
+    status: 1,
+    stdout: "",
+  })),
 }));
 
 vi.mock("multer", () => {
@@ -157,6 +161,7 @@ describe("videoController extra coverage", () => {
     vi.mocked(storageService.getSettings).mockReturnValue({
       moveSubtitlesToVideoFolder: false,
     } as any);
+    vi.mocked(storageService.updateVideo).mockReturnValue({} as any);
     vi.mocked(fs.moveSync).mockImplementation(() => undefined);
     vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
@@ -279,6 +284,39 @@ describe("videoController extra coverage", () => {
       videoPath: "/videos/test.f248.webm",
       videoFilename: "test.f248.webm",
     });
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoPath: "/videos/test.f248.webm",
+        videoFilename: "test.f248.webm",
+      })
+    );
+  });
+
+  it("getVideoById keeps response successful when repair persistence fails", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "v1",
+      videoPath: "/videos/test.webm",
+      videoFilename: "test.webm",
+    } as any);
+    vi.mocked(storageService.updateVideo).mockImplementation(() => {
+      throw new Error("db write failed");
+    });
+
+    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+      const value = String(target);
+      if (value.endsWith(path.join("uploads", "videos"))) return true;
+      if (value.endsWith(path.join("uploads", "videos", "test.webm")))
+        return false;
+      if (value.endsWith(path.join("uploads", "videos", "test.f248.webm")))
+        return true;
+      return false;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(["test.f248.webm"] as any);
+    vi.mocked(fs.statSync).mockReturnValue({ size: 2048 } as any);
+
+    await expect(getVideoById(req as Request, res as Response)).resolves.toBeUndefined();
+
+    expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         videoPath: "/videos/test.f248.webm",

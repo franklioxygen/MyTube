@@ -6,9 +6,8 @@ const isWindows = process.platform === "win32";
 const isMac = process.platform === "darwin";
 const isLinux = process.platform === "linux";
 
-function runCommand(command, args, options = {}) {
+function commandSucceeds(command, args, options = {}) {
   const result = cp.spawnSync(command, args, {
-    stdio: "inherit",
     shell: isWindows,
     ...options,
   });
@@ -16,24 +15,32 @@ function runCommand(command, args, options = {}) {
   return result.status === 0;
 }
 
-function commandAvailable(command) {
-  const result = cp.spawnSync(command, ["-version"], {
-    stdio: "ignore",
-    shell: isWindows,
+function runCommand(command, args, options = {}) {
+  return commandSucceeds(command, args, {
+    stdio: "inherit",
+    ...options,
   });
-  return result.status === 0;
+}
+
+function hasCommand(command, probes = [["--version"], ["-version"]]) {
+  return probes.some((probeArgs) =>
+    commandSucceeds(command, probeArgs, {
+      stdio: "ignore",
+    })
+  );
 }
 
 function mediaToolsAvailable() {
-  return commandAvailable("ffmpeg") && commandAvailable("ffprobe");
+  return (
+    hasCommand("ffmpeg", [["-version"], ["--version"]]) &&
+    hasCommand("ffprobe", [["-version"], ["--version"]])
+  );
 }
 
-function hasCommand(command) {
-  const result = cp.spawnSync(command, ["--version"], {
+function hasPasswordlessSudo() {
+  return commandSucceeds("sudo", ["-n", "true"], {
     stdio: "ignore",
-    shell: isWindows,
   });
-  return result.status === 0;
 }
 
 function buildInstallAttempts() {
@@ -83,11 +90,22 @@ function buildInstallAttempts() {
   if (isLinux) {
     const attempts = [];
     const hasSudo = hasCommand("sudo");
+    const sudoWithoutPassword = hasSudo && hasPasswordlessSudo();
+
+    if (hasSudo && !sudoWithoutPassword) {
+      console.warn(
+        "[postinstall] sudo is available but requires a password. Non-interactive auto-install may fail."
+      );
+      console.warn(
+        "[postinstall] Re-run the suggested install command manually with interactive sudo, or set SKIP_FFMPEG_AUTO_INSTALL=1."
+      );
+    }
+
     const addAttempt = (label, command, args) => {
       attempts.push({
         label,
         available: () => hasCommand(command),
-        steps: hasSudo
+        steps: sudoWithoutPassword
           ? [{ command: "sudo", args: ["-n", command, ...args] }]
           : [{ command, args }],
       });

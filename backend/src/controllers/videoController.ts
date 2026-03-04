@@ -213,10 +213,17 @@ export const getVideoById = async (
       if (resolvedVideoWebPath) {
         video.videoPath = resolvedVideoWebPath;
         video.videoFilename = resolvedVideoFilename;
-        storageService.updateVideo(video.id, {
-          videoPath: resolvedVideoWebPath,
-          videoFilename: resolvedVideoFilename,
-        });
+        try {
+          storageService.updateVideo(video.id, {
+            videoPath: resolvedVideoWebPath,
+            videoFilename: resolvedVideoFilename,
+          });
+        } catch (error) {
+          logger.error(
+            `Failed to persist repaired video path for ${video.id}`,
+            error
+          );
+        }
 
         logger.warn(
           `Video file repaired for ${video.id}: ${expectedVideoPath} -> ${resolvedVideoPath}`
