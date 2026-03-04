@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
 import fs from "fs-extra";
+import path from "path";
 import { PassThrough } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -58,6 +59,7 @@ vi.mock("fs-extra", () => ({
   default: {
     ensureDirSync: vi.fn(),
     existsSync: vi.fn(),
+    readdirSync: vi.fn(),
     statSync: vi.fn(),
     writeFileSync: vi.fn(),
     moveSync: vi.fn(),
@@ -67,6 +69,7 @@ vi.mock("fs-extra", () => ({
   },
   ensureDirSync: vi.fn(),
   existsSync: vi.fn(),
+  readdirSync: vi.fn(),
   statSync: vi.fn(),
   writeFileSync: vi.fn(),
   moveSync: vi.fn(),
@@ -84,6 +87,10 @@ vi.mock("child_process", () => ({
     }
     cb(null, "", "");
   }),
+  spawnSync: vi.fn((_cmd: string, _args: any[]) => ({
+    status: 1,
+    stdout: "",
+  })),
 }));
 
 vi.mock("multer", () => {
@@ -154,10 +161,12 @@ describe("videoController extra coverage", () => {
     vi.mocked(storageService.getSettings).mockReturnValue({
       moveSubtitlesToVideoFolder: false,
     } as any);
+    vi.mocked(storageService.updateVideo).mockReturnValue({} as any);
     vi.mocked(fs.moveSync).mockImplementation(() => undefined);
     vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.readdirSync).mockReturnValue([] as any);
   });
 
   it("multer upload storage callbacks generate destination and filename", () => {
@@ -167,7 +176,10 @@ describe("videoController extra coverage", () => {
     expect(state.diskStorageConfig).toBeTruthy();
     state.diskStorageConfig.destination({}, {}, cb);
     expect(fs.ensureDirSync).toHaveBeenCalled();
-    expect(cb).toHaveBeenCalledWith(null, expect.stringContaining("/uploads/videos"));
+    expect(cb).toHaveBeenCalledWith(
+      null,
+      expect.stringMatching(/[\\/]uploads[\\/]videos$/)
+    );
 
     const filenameCb = vi.fn();
     state.diskStorageConfig.filename(
@@ -234,6 +246,82 @@ describe("videoController extra coverage", () => {
 
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ signedUrl: "/api/mount-video/v1" })
+    );
+  });
+
+  it("getVideoById repairs missing merged local files using split artifacts", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "v1",
+      videoPath: "/videos/test.webm",
+      videoFilename: "test.webm",
+    } as any);
+
+    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+      const value = String(target);
+      if (value.endsWith(path.join("uploads", "videos"))) return true;
+      if (value.endsWith(path.join("uploads", "videos", "test.webm")))
+        return false;
+      if (value.endsWith(path.join("uploads", "videos", "test.f248.webm")))
+        return true;
+      if (value.endsWith(path.join("uploads", "videos", "test.f251.webm")))
+        return true;
+      return false;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue([
+      "test.f248.webm",
+      "test.f251.webm",
+    ] as any);
+    vi.mocked(fs.statSync).mockImplementation((target: any) => {
+      const value = String(target);
+      return {
+        size: value.endsWith("test.f248.webm") ? 2048 : 256,
+      } as any;
+    });
+
+    await getVideoById(req as Request, res as Response);
+
+    expect(storageService.updateVideo).toHaveBeenCalledWith("v1", {
+      videoPath: "/videos/test.f248.webm",
+      videoFilename: "test.f248.webm",
+    });
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoPath: "/videos/test.f248.webm",
+        videoFilename: "test.f248.webm",
+      })
+    );
+  });
+
+  it("getVideoById keeps response successful when repair persistence fails", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "v1",
+      videoPath: "/videos/test.webm",
+      videoFilename: "test.webm",
+    } as any);
+    vi.mocked(storageService.updateVideo).mockImplementation(() => {
+      throw new Error("db write failed");
+    });
+
+    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+      const value = String(target);
+      if (value.endsWith(path.join("uploads", "videos"))) return true;
+      if (value.endsWith(path.join("uploads", "videos", "test.webm")))
+        return false;
+      if (value.endsWith(path.join("uploads", "videos", "test.f248.webm")))
+        return true;
+      return false;
+    });
+    vi.mocked(fs.readdirSync).mockReturnValue(["test.f248.webm"] as any);
+    vi.mocked(fs.statSync).mockReturnValue({ size: 2048 } as any);
+
+    await expect(getVideoById(req as Request, res as Response)).resolves.toBeUndefined();
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoPath: "/videos/test.f248.webm",
+        videoFilename: "test.f248.webm",
+      })
     );
   });
 
@@ -355,7 +443,12 @@ describe("videoController extra coverage", () => {
       "Content-Type",
       "video/mp4"
     );
-    expect(sendFile).toHaveBeenCalledWith("video.mp4", { root: "/mnt/media" });
+    expect(sendFile).toHaveBeenCalledWith(
+      "video.mp4",
+      expect.objectContaining({
+        root: expect.stringMatching(/[\\/]mnt[\\/]media$/),
+      })
+    );
   });
 
   it("serveMountVideo throws not found when record is missing", async () => {

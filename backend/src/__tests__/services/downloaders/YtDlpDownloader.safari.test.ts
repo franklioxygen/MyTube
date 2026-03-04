@@ -10,6 +10,7 @@ const mockExecuteYtDlpJson = vi.fn().mockResolvedValue({
     extractor: 'youtube'
 });
 const mockGetUserYtDlpConfig = vi.fn().mockReturnValue({});
+const videoPathExistsChecks = vi.hoisted(() => new Map<string, number>());
 
 vi.mock('../../../utils/ytDlpUtils', () => ({
     executeYtDlpSpawn: (...args: any[]) => mockExecuteYtDlpSpawn(...args),
@@ -45,7 +46,20 @@ vi.mock('fs-extra', () => {
         default: {
             pathExists: vi.fn().mockResolvedValue(false),
             ensureDirSync: vi.fn(),
-            existsSync: vi.fn().mockReturnValue(false),
+            existsSync: vi.fn((target: any) => {
+                const value = String(target);
+                if (
+                    !/[\\/]uploads[\\/]videos[\\/]Test\.Video-Test\.Author-2023(?:_\d+)?\.(mp4|webm)$/.test(
+                        value
+                    )
+                ) {
+                    return false;
+                }
+
+                const seenCount = videoPathExistsChecks.get(value) ?? 0;
+                videoPathExistsChecks.set(value, seenCount + 1);
+                return seenCount > 0;
+            }),
             createWriteStream: vi.fn().mockReturnValue(mockWriter),
             readdirSync: vi.fn().mockReturnValue([]),
             statSync: vi.fn().mockReturnValue({ size: 1000 }),
@@ -86,6 +100,7 @@ import { YtDlpDownloader } from '../../../services/downloaders/YtDlpDownloader';
 describe('YtDlpDownloader Safari Compatibility', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        videoPathExistsChecks.clear();
         mockExecuteYtDlpSpawn.mockReturnValue({
             stdout: { on: vi.fn() },
             kill: vi.fn(),
