@@ -17,7 +17,7 @@ vi.mock("fs-extra", () => ({
 }));
 
 vi.mock("child_process", () => ({
-  spawnSync: (...args: any[]) => mockSpawnSync(...args),
+  spawnSync: (...args: unknown[]) => mockSpawnSync(...args),
 }));
 
 describe("resolvePlayableVideoFilePath", () => {
@@ -31,7 +31,7 @@ describe("resolvePlayableVideoFilePath", () => {
 
   it("returns expected path when merged file exists", () => {
     const expected = path.join("C:", "videos", "movie.mp4");
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       return String(target) === expected;
     });
 
@@ -49,7 +49,7 @@ describe("resolvePlayableVideoFilePath", () => {
     const fallbackAudio = path.join(videoDir, "movie.f251.webm");
     const audioOnlyFile = path.join(videoDir, "movie.f140.m4a");
 
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       const value = String(target);
       return (
         value === videoDir ||
@@ -63,12 +63,12 @@ describe("resolvePlayableVideoFilePath", () => {
       "movie.f248.webm",
       "movie.f140.m4a",
       "movie.webm.part",
-    ] as any);
-    vi.mocked(fs.statSync).mockImplementation((target: any) => {
+    ]);
+    vi.mocked(fs.statSync).mockImplementation((target: unknown) => {
       const value = String(target);
       return {
         size: value.endsWith("movie.f251.webm") ? 4096 : 512,
-      } as any;
+      } as unknown as fs.Stats;
     });
 
     const result = resolvePlayableVideoFilePath(expected);
@@ -82,15 +82,15 @@ describe("resolvePlayableVideoFilePath", () => {
     const fallbackVideo = path.join(videoDir, "movie.f248.webm");
     const fallbackAudio = path.join(videoDir, "movie.f251.webm");
 
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       const value = String(target);
       return value === videoDir || value === fallbackVideo || value === fallbackAudio;
     });
     vi.mocked(fs.readdirSync).mockReturnValue([
       "movie.f251.webm",
       "movie.f248.webm",
-    ] as any);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as any);
+    ]);
+    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as fs.Stats);
     mockSpawnSync.mockImplementation((command: string, args: string[]) => {
       if (command !== "ffprobe") {
         return { status: 1, stdout: "" };
@@ -119,15 +119,15 @@ describe("resolvePlayableVideoFilePath", () => {
     const audioA = path.join(videoDir, "movie.f250.webm");
     const audioB = path.join(videoDir, "movie.f251.webm");
 
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       const value = String(target);
       return value === videoDir || value === audioA || value === audioB;
     });
     vi.mocked(fs.readdirSync).mockReturnValue([
       "movie.f251.webm",
       "movie.f250.webm",
-    ] as any);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as any);
+    ]);
+    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as fs.Stats);
     mockSpawnSync.mockImplementation((command: string, args: string[]) => {
       if (command !== "ffprobe") {
         return { status: 1, stdout: "" };
@@ -146,10 +146,10 @@ describe("resolvePlayableVideoFilePath", () => {
   it("returns null when neither merged nor split video files exist", () => {
     const expected = path.join("C:", "videos", "missing.mp4");
     const videoDir = path.dirname(expected);
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       return String(target) === videoDir;
     });
-    vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+    vi.mocked(fs.readdirSync).mockReturnValue([]);
 
     const result = resolvePlayableVideoFilePath(expected);
 
