@@ -20,6 +20,11 @@ vi.mock("child_process", () => ({
   spawnSync: (...args: unknown[]) => mockSpawnSync(...args),
 }));
 
+const asReaddirResult = (
+  entries: string[]
+): ReturnType<typeof fs.readdirSync> =>
+  entries as unknown as ReturnType<typeof fs.readdirSync>;
+
 describe("resolvePlayableVideoFilePath", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,12 +63,14 @@ describe("resolvePlayableVideoFilePath", () => {
         value === audioOnlyFile
       );
     });
-    vi.mocked(fs.readdirSync).mockReturnValue([
-      "movie.f251.webm",
-      "movie.f248.webm",
-      "movie.f140.m4a",
-      "movie.webm.part",
-    ]);
+    vi.mocked(fs.readdirSync).mockReturnValue(
+      asReaddirResult([
+        "movie.f251.webm",
+        "movie.f248.webm",
+        "movie.f140.m4a",
+        "movie.webm.part",
+      ])
+    );
     vi.mocked(fs.statSync).mockImplementation((target: unknown) => {
       const value = String(target);
       return {
@@ -86,10 +93,9 @@ describe("resolvePlayableVideoFilePath", () => {
       const value = String(target);
       return value === videoDir || value === fallbackVideo || value === fallbackAudio;
     });
-    vi.mocked(fs.readdirSync).mockReturnValue([
-      "movie.f251.webm",
-      "movie.f248.webm",
-    ]);
+    vi.mocked(fs.readdirSync).mockReturnValue(
+      asReaddirResult(["movie.f251.webm", "movie.f248.webm"])
+    );
     vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as fs.Stats);
     mockSpawnSync.mockImplementation((command: string, args: string[]) => {
       if (command !== "ffprobe") {
@@ -123,10 +129,9 @@ describe("resolvePlayableVideoFilePath", () => {
       const value = String(target);
       return value === videoDir || value === audioA || value === audioB;
     });
-    vi.mocked(fs.readdirSync).mockReturnValue([
-      "movie.f251.webm",
-      "movie.f250.webm",
-    ]);
+    vi.mocked(fs.readdirSync).mockReturnValue(
+      asReaddirResult(["movie.f251.webm", "movie.f250.webm"])
+    );
     vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as fs.Stats);
     mockSpawnSync.mockImplementation((command: string, args: string[]) => {
       if (command !== "ffprobe") {
@@ -149,7 +154,7 @@ describe("resolvePlayableVideoFilePath", () => {
     vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       return String(target) === videoDir;
     });
-    vi.mocked(fs.readdirSync).mockReturnValue([]);
+    vi.mocked(fs.readdirSync).mockReturnValue(asReaddirResult([]));
 
     const result = resolvePlayableVideoFilePath(expected);
 
