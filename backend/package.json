@@ -34,7 +34,7 @@
     "fs-extra": "^11.3.3",
     "jimp": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^2.1.0",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.34.0",
     "socks-proxy-agent": "^8.0.5",
