@@ -1,206 +1,550 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '../SettingsPage';
 
-// Mock all external hooks and components
-const mockSettingsData = { data: {} };
+let mockIsDesktop = false;
+let mockIsSticky = false;
+let mockUserRole = 'admin';
+let mockSettingsData: any = {};
+let saveIsPending = false;
+let saveShouldError = false;
+let scanIsPending = false;
+
+const mockSetLanguage = vi.fn();
+const mockSetPreference = vi.fn();
+const mockApiPost = vi.fn();
+
+const mockSaveMutate = vi.fn();
+const mockMigrateMutate = vi.fn();
+const mockCleanupMutate = vi.fn();
+const mockDeleteLegacyMutate = vi.fn();
+const mockFormatFilenamesMutate = vi.fn();
+const mockExportDatabaseMutate = vi.fn();
+const mockImportDatabaseMutate = vi.fn();
+const mockCleanupBackupDatabasesMutate = vi.fn();
+const mockRestoreFromLastBackupMutate = vi.fn();
+const mockRenameTagMutate = vi.fn();
+
+const mockSetShowDeleteLegacyModal = vi.fn();
+const mockSetShowFormatConfirmModal = vi.fn();
+const mockSetShowMigrateConfirmModal = vi.fn();
+const mockSetShowCleanupTempFilesModal = vi.fn();
+const mockSetInfoModal = vi.fn();
+
+let modalState = {
+  showDeleteLegacyModal: false,
+  showFormatConfirmModal: false,
+  showMigrateConfirmModal: false,
+  showCleanupTempFilesModal: false,
+  infoModal: { isOpen: false, title: '', message: '', type: 'info' as 'info' | 'error' },
+};
+
+vi.mock('@mui/material', async () => {
+  const actual = await vi.importActual<any>('@mui/material');
+  return {
+    ...actual,
+    useMediaQuery: () => mockIsDesktop,
+  };
+});
+
 vi.mock('@tanstack/react-query', () => ({
-    useQuery: vi.fn(() => ({
-        ...mockSettingsData,
-        refetch: vi.fn(),
-    })),
-    useMutation: vi.fn(() => ({
-        isPending: false,
-        mutate: vi.fn(),
-        mutateAsync: vi.fn(),
-        reset: vi.fn(),
-    })),
-    useQueryClient: vi.fn(() => ({
-        invalidateQueries: vi.fn(),
-    })),
+  useMutation: (options: any) => ({
+    isPending: scanIsPending,
+    mutate: (variables: any) => {
+      Promise.resolve()
+        .then(() => options.mutationFn(variables))
+        .then((data) => options.onSuccess?.(data))
+        .catch((error) => options.onError?.(error));
+    },
+  }),
+}));
+
+vi.mock('../../utils/apiClient', () => ({
+  api: {
+    post: (...args: any[]) => mockApiPost(...args),
+  },
 }));
 
 vi.mock('../../hooks/useSettings', () => ({
-    useSettings: vi.fn(() => ({
-        ...mockSettingsData,
-        refetch: vi.fn(),
-    })),
+  useSettings: () => ({ data: mockSettingsData }),
 }));
 
-vi.mock('../../contexts/LanguageContext', () => {
-    return {
-        useLanguage: () => ({
-            t: (key: string) => key,
-            setLanguage: vi.fn(),
-        }),
-    };
-});
+vi.mock('../../contexts/LanguageContext', () => ({
+  useLanguage: () => ({
+    t: (key: string) => key,
+    setLanguage: mockSetLanguage,
+  }),
+}));
 
 vi.mock('../../contexts/ThemeContext', () => ({
-    useThemeContext: () => ({
-        setPreference: vi.fn(),
-    }),
+  useThemeContext: () => ({
+    setPreference: mockSetPreference,
+  }),
 }));
 
 vi.mock('../../contexts/DownloadContext', () => ({
-    useDownload: vi.fn(() => ({
-        activeDownloads: [],
-    })),
+  useDownload: () => ({
+    activeDownloads: ['a', 'b'],
+  }),
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({
-    useAuth: vi.fn(() => ({
-        userRole: 'admin',
-    })),
+  useAuth: () => ({
+    userRole: mockUserRole,
+  }),
 }));
 
-// Mock Hooks
 vi.mock('../../hooks/useSettingsModals', () => ({
-    useSettingsModals: vi.fn(() => ({
-        showDeleteLegacyModal: false,
-        setShowDeleteLegacyModal: vi.fn(),
-        showFormatConfirmModal: false,
-        setShowFormatConfirmModal: vi.fn(),
-        showMigrateConfirmModal: false,
-        setShowMigrateConfirmModal: vi.fn(),
-        showCleanupTempFilesModal: false,
-        setShowCleanupTempFilesModal: vi.fn(),
-        infoModal: { isOpen: false, title: '', message: '', type: 'info' },
-        setInfoModal: vi.fn(),
-    })),
+  useSettingsModals: () => ({
+    showDeleteLegacyModal: modalState.showDeleteLegacyModal,
+    setShowDeleteLegacyModal: mockSetShowDeleteLegacyModal,
+    showFormatConfirmModal: modalState.showFormatConfirmModal,
+    setShowFormatConfirmModal: mockSetShowFormatConfirmModal,
+    showMigrateConfirmModal: modalState.showMigrateConfirmModal,
+    setShowMigrateConfirmModal: mockSetShowMigrateConfirmModal,
+    showCleanupTempFilesModal: modalState.showCleanupTempFilesModal,
+    setShowCleanupTempFilesModal: mockSetShowCleanupTempFilesModal,
+    infoModal: modalState.infoModal,
+    setInfoModal: mockSetInfoModal,
+  }),
 }));
 
 vi.mock('../../hooks/useSettingsMutations', () => ({
-    useSettingsMutations: vi.fn(() => ({
-        saveMutation: { isPending: false, mutate: vi.fn() },
-        migrateMutation: { isPending: false, mutate: vi.fn() },
-        cleanupMutation: { isPending: false, mutate: vi.fn() },
-        deleteLegacyMutation: { isPending: false, mutate: vi.fn() },
-        formatFilenamesMutation: { isPending: false, mutate: vi.fn() },
-        exportDatabaseMutation: { isPending: false, mutate: vi.fn() },
-        importDatabaseMutation: { isPending: false, mutate: vi.fn() },
-        cleanupBackupDatabasesMutation: { isPending: false, mutate: vi.fn() },
-        restoreFromLastBackupMutation: { isPending: false, mutate: vi.fn() },
-        renameTagMutation: { isPending: false, mutate: vi.fn() },
-        lastBackupInfo: null,
-        isSaving: false,
-    })),
+  useSettingsMutations: () => ({
+    saveMutation: {
+      isPending: saveIsPending,
+      mutate: (payload: any, options?: any) => {
+        mockSaveMutate(payload, options);
+        if (!options) return;
+        if (saveShouldError) {
+          options.onError?.({ response: { data: { message: 'save failed' } } });
+        } else {
+          options.onSuccess?.();
+        }
+      },
+    },
+    migrateMutation: { isPending: false, mutate: (...args: any[]) => mockMigrateMutate(...args) },
+    cleanupMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupMutate(...args) },
+    deleteLegacyMutation: { isPending: false, mutate: (...args: any[]) => mockDeleteLegacyMutate(...args) },
+    formatFilenamesMutation: { isPending: false, mutate: (...args: any[]) => mockFormatFilenamesMutate(...args) },
+    exportDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockExportDatabaseMutate(...args) },
+    importDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockImportDatabaseMutate(...args) },
+    cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
+    restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
+    renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
+    lastBackupInfo: null,
+    isSaving: false,
+  }),
 }));
 
 vi.mock('../../hooks/useStickyButton', () => ({
-    useStickyButton: vi.fn(() => false),
+  useStickyButton: () => mockIsSticky,
 }));
 
-// Mock Child Components to simplify testing
+vi.mock('../../components/CollapsibleSection', () => ({
+  default: ({ title, children }: any) => (
+    <div data-testid={`section-${title}`}>
+      <h3>{title}</h3>
+      {children}
+    </div>
+  ),
+}));
+
 vi.mock('../../components/Settings/BasicSettings', () => ({
-    default: () => <div data-testid="basic-settings">BasicSettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="basic-settings">
+      <button onClick={() => onChange('language', 'zh')}>basic-change-language</button>
+      <button onClick={() => onChange('theme', 'dark')}>basic-change-theme</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/InterfaceDisplaySettings', () => ({
-    default: () => <div data-testid="interface-display-settings">InterfaceDisplaySettings</div>,
-}));
-
-vi.mock('../../components/Settings/CloudflareSettings', () => ({
-    default: () => <div data-testid="cloudflare-settings">CloudflareSettings</div>,
-}));
-
-vi.mock('../../components/Settings/CookieSettings', () => ({
-    default: () => <div data-testid="cookie-settings">CookieSettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="interface-display-settings">
+      <button onClick={() => onChange('itemsPerPage', 24)}>interface-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/SecuritySettings', () => ({
-    default: () => <div data-testid="security-settings">SecuritySettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="security-settings">
+      <button onClick={() => onChange('loginEnabled', true)}>security-change</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/Settings/CookieSettings', () => ({
+  default: ({ onSuccess, onError }: any) => (
+    <div data-testid="cookie-settings">
+      <button onClick={() => onSuccess('cookie-success')}>cookie-success</button>
+      <button onClick={() => onError('cookie-error')}>cookie-error</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/Settings/CloudflareSettings', () => ({
+  default: ({ onChange }: any) => (
+    <div data-testid="cloudflare-settings">
+      <button onClick={() => onChange('allowedHosts', 'a.com')}>cloudflare-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
-    default: () => <div data-testid="video-default-settings">VideoDefaultSettings</div>,
-}));
-
-vi.mock('../../components/Settings/TagsSettings', () => ({
-    default: () => <div data-testid="tags-settings">TagsSettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="video-default-settings">
+      <button onClick={() => onChange('defaultAutoPlay', true)}>video-default-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/DownloadSettings', () => ({
-    default: () => <div data-testid="download-settings">DownloadSettings</div>,
+  default: ({ onChange, onCleanup }: any) => (
+    <div data-testid="download-settings">
+      <button onClick={() => onChange('maxConcurrentDownloads', 5)}>download-change</button>
+      <button onClick={onCleanup}>download-cleanup</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/CloudDriveSettings', () => ({
-    default: () => <div data-testid="cloud-drive-settings">CloudDriveSettings</div>,
-}));
-
-vi.mock('../../components/Settings/DatabaseSettings', () => ({
-    default: () => <div data-testid="database-settings">DatabaseSettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="cloud-drive-settings">
+      <button onClick={() => onChange('cloudDriveEnabled', true)}>cloud-drive-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/YtDlpSettings', () => ({
-    default: () => <div data-testid="ytdlp-settings">YtDlpSettings</div>,
+  default: ({ onChange, onProxyOnlyYoutubeChange }: any) => (
+    <div data-testid="ytdlp-settings">
+      <button onClick={() => onChange('best')}>ytdlp-change</button>
+      <button onClick={() => onProxyOnlyYoutubeChange(true)}>proxy-youtube-change</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/Settings/TagsSettings', () => ({
+  default: ({ onTagsChange, onRenameTag, onTagConflict }: any) => (
+    <div data-testid="tags-settings">
+      <button onClick={() => onTagsChange(['a', 'b'])}>tags-change</button>
+      <button onClick={() => onRenameTag('old', 'new')}>tags-rename-valid</button>
+      <button onClick={() => onRenameTag('same', 'same')}>tags-rename-same</button>
+      <button onClick={onTagConflict}>tags-conflict</button>
+    </div>
+  ),
+}));
+
+vi.mock('../../components/Settings/DatabaseSettings', () => ({
+  default: ({
+    onMigrate,
+    onDeleteLegacy,
+    onFormatFilenames,
+    onExportDatabase,
+    onImportDatabase,
+    onCleanupBackupDatabases,
+    onRestoreFromLastBackup,
+    onMoveSubtitlesToVideoFolderChange,
+    onMoveThumbnailsToVideoFolderChange,
+    onSaveAuthorFilesToCollectionChange,
+  }: any) => (
+    <div data-testid="database-settings">
+      <button onClick={onMigrate}>open-migrate-modal</button>
+      <button onClick={onDeleteLegacy}>open-delete-legacy-modal</button>
+      <button onClick={onFormatFilenames}>open-format-modal</button>
+      <button onClick={onExportDatabase}>export-db</button>
+      <button onClick={() => onImportDatabase(new File(['db'], 'db.zip'))}>import-db</button>
+      <button onClick={onCleanupBackupDatabases}>cleanup-backups</button>
+      <button onClick={onRestoreFromLastBackup}>restore-last-backup</button>
+      <button onClick={() => onMoveSubtitlesToVideoFolderChange(true)}>move-subtitles</button>
+      <button onClick={() => onMoveThumbnailsToVideoFolderChange(true)}>move-thumbnails</button>
+      <button onClick={() => onSaveAuthorFilesToCollectionChange(true)}>save-author-files</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/AdvancedSettings', () => ({
-    default: () => <div data-testid="advanced-settings">AdvancedSettings</div>,
+  default: ({ onDebugModeChange, onChange }: any) => (
+    <div data-testid="advanced-settings">
+      <button onClick={() => onDebugModeChange(true)}>debug-change</button>
+      <button onClick={() => onChange('telegramEnabled', true)}>telegram-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/Settings/HookSettings', () => ({
-    default: () => <div data-testid="hook-settings">HookSettings</div>,
+  default: ({ onChange }: any) => (
+    <div data-testid="hook-settings">
+      <button onClick={() => onChange('hooks', { postDownload: 'echo ok' })}>hook-change</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../components/ConfirmationModal', () => ({
-    default: ({ isOpen, title }: any) => (
-        isOpen ? <div data-testid="confirmation-modal">{title}</div> : null
-    ),
+  default: ({ isOpen, title, onClose, onConfirm }: any) =>
+    isOpen ? (
+      <div data-testid={`confirmation-${title}`}>
+        <button onClick={onClose}>{`close-${title}`}</button>
+        <button onClick={onConfirm}>{`confirm-${title}`}</button>
+      </div>
+    ) : null,
 }));
 
-// Mock axios
-vi.mock('axios');
+const renderPage = (path = '/settings') =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <SettingsPage />
+    </MemoryRouter>
+  );
 
 describe('SettingsPage', () => {
-    // Reset mocks before each test
-    beforeEach(() => {
-        vi.clearAllMocks();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useRealTimers();
+
+    mockIsDesktop = false;
+    mockIsSticky = false;
+    mockUserRole = 'admin';
+    mockSettingsData = {};
+    saveIsPending = false;
+    saveShouldError = false;
+    scanIsPending = false;
+
+    modalState = {
+      showDeleteLegacyModal: false,
+      showFormatConfirmModal: false,
+      showMigrateConfirmModal: false,
+      showCleanupTempFilesModal: false,
+      infoModal: { isOpen: false, title: '', message: '', type: 'info' },
+    };
+
+    mockApiPost.mockResolvedValue({ data: { addedCount: 2, deletedCount: 1 } });
+
+    document.body.innerHTML = '';
+  });
+
+  it('renders visitor desktop view with only basic tab and no non-basic content', async () => {
+    mockIsDesktop = true;
+    mockUserRole = 'visitor';
+
+    renderPage('/settings?tab=2');
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0]).toHaveTextContent('basicSettings');
+    expect(screen.queryByTestId('interface-display-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
+  });
+
+  it('applies tab query and hash scrolling/highlight behavior', async () => {
+    mockIsDesktop = true;
+    vi.useFakeTimers();
+
+    const target = document.createElement('div');
+    target.id = 'focus-target';
+    target.style.backgroundColor = '';
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    renderPage('/settings?tab=3#focus-target');
+
+    vi.advanceTimersByTime(500);
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    expect(target.style.backgroundColor).toBe('rgba(255, 235, 59, 0.3)');
+    expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
+
+    vi.advanceTimersByTime(2000);
+    expect(target.style.backgroundColor).toBe('');
+  });
+
+  it('switches desktop tabs and renders each tab content', async () => {
+    mockIsDesktop = true;
+    const user = userEvent.setup();
+
+    renderPage('/settings');
+
+    expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'interfaceDisplay' }));
+    expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'securityAccess' }));
+    expect(screen.getByTestId('security-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'videoPlayback' }));
+    expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'downloadStorage' }));
+    expect(screen.getByTestId('download-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'dataManagement' }));
+    expect(screen.getByTestId('database-settings')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'advanced' }));
+    expect(screen.getByTestId('advanced-settings')).toBeInTheDocument();
+  });
+
+  it('updates settings through child callbacks and triggers glow animation', async () => {
+    vi.useFakeTimers();
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('basic-change-language'));
+    fireEvent.click(screen.getByText('basic-change-theme'));
+    fireEvent.click(screen.getByText('interface-change'));
+    fireEvent.click(screen.getByText('security-change'));
+    fireEvent.click(screen.getByText('cloudflare-change'));
+    fireEvent.click(screen.getByText('video-default-change'));
+    fireEvent.click(screen.getByText('download-change'));
+    fireEvent.click(screen.getByText('cloud-drive-change'));
+    fireEvent.click(screen.getByText('ytdlp-change'));
+    fireEvent.click(screen.getByText('proxy-youtube-change'));
+    fireEvent.click(screen.getByText('tags-change'));
+    fireEvent.click(screen.getByText('debug-change'));
+    fireEvent.click(screen.getByText('telegram-change'));
+    fireEvent.click(screen.getByText('hook-change'));
+
+    expect(mockSetLanguage).toHaveBeenCalledWith('zh');
+    expect(mockSetPreference).toHaveBeenCalledWith('dark');
+
+    const saveButton = screen.getAllByRole('button', { name: 'save' })[0];
+
+    vi.advanceTimersByTime(20);
+    fireEvent.animationEnd(saveButton);
+  });
+
+  it('runs save action when not pending and blocks when pending', async () => {
+    renderPage('/settings');
+    fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
+    expect(mockSaveMutate).toHaveBeenCalled();
+
+    saveIsPending = true;
+    renderPage('/settings');
+
+    const savingButton = screen.getByRole('button', { name: 'saving' });
+    expect(savingButton).toBeDisabled();
+  });
+
+  it('shows mount directory empty message when scan is triggered with no directories', async () => {
+    mockSettingsData = { mountDirectories: '' };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
+
+    expect(await screen.findByText('mountDirectoriesEmptyError')).toBeInTheDocument();
+    expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it('scans mount directories and saves settings on successful scan', async () => {
+    mockSettingsData = { mountDirectories: '/a\n/b' };
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/scan-mount-directories', { directories: ['/a', '/b'] });
     });
 
-    it('renders the page title', () => {
-        render(
-            <MemoryRouter>
-                <SettingsPage />
-            </MemoryRouter>
-        );
-        expect(screen.getByText('settings')).toBeInTheDocument();
-    });
+    expect(mockSaveMutate).toHaveBeenCalled();
+    expect(await screen.findByText('scanMountDirectoriesSuccess settingsSaved')).toBeInTheDocument();
+  });
 
-    it('renders all settings sections', async () => {
-        render(
-            <MemoryRouter>
-                <SettingsPage />
-            </MemoryRouter>
-        );
+  it('shows warning snackbar when scan succeeds but saving settings fails', async () => {
+    mockSettingsData = { mountDirectories: '/tmp/videos' };
+    saveShouldError = true;
 
-        expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('cloudflare-settings')).toBeInTheDocument();
-        // Since userRole is mocked to 'admin', these should be visible
-        expect(screen.getByTestId('cookie-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('security-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('download-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('cloud-drive-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('database-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('ytdlp-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('advanced-settings')).toBeInTheDocument();
-        expect(screen.getByTestId('hook-settings')).toBeInTheDocument();
-    });
+    renderPage('/settings');
 
-    it('renders save button', () => {
-        render(
-            <MemoryRouter>
-                <SettingsPage />
-            </MemoryRouter>
-        );
-        // There are two save buttons (one sticky, one normal), so getAllByText
-        const saveButtons = screen.getAllByText('save');
-        expect(saveButtons.length).toBeGreaterThan(0);
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
+    expect(await screen.findByText('scanMountDirectoriesSuccess Warning: save failed')).toBeInTheDocument();
+  });
+
+  it('shows error snackbar when scan request fails', async () => {
+    mockSettingsData = { mountDirectories: '/tmp/videos' };
+    mockApiPost.mockRejectedValueOnce({ response: { data: { details: 'scan failed details' } } });
+
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
+
+    expect(await screen.findByText('scanFilesFailed: scan failed details')).toBeInTheDocument();
+  });
+
+  it('triggers data management callbacks and modal openers', async () => {
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByText('open-migrate-modal'));
+    fireEvent.click(screen.getByText('open-delete-legacy-modal'));
+    fireEvent.click(screen.getByText('open-format-modal'));
+    fireEvent.click(screen.getByText('export-db'));
+    fireEvent.click(screen.getByText('import-db'));
+    fireEvent.click(screen.getByText('cleanup-backups'));
+    fireEvent.click(screen.getByText('restore-last-backup'));
+    fireEvent.click(screen.getByText('move-subtitles'));
+    fireEvent.click(screen.getByText('move-thumbnails'));
+    fireEvent.click(screen.getByText('save-author-files'));
+    fireEvent.click(screen.getByText('tags-rename-same'));
+    fireEvent.click(screen.getByText('tags-rename-valid'));
+    fireEvent.click(screen.getByText('tags-conflict'));
+    fireEvent.click(screen.getByText('cookie-success'));
+    fireEvent.click(screen.getByText('cookie-error'));
+    fireEvent.click(screen.getByText('download-cleanup'));
+
+    expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(true);
+    expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(true);
+    expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(true);
+    expect(mockExportDatabaseMutate).toHaveBeenCalled();
+    expect(mockImportDatabaseMutate).toHaveBeenCalled();
+    expect(mockCleanupBackupDatabasesMutate).toHaveBeenCalled();
+    expect(mockRestoreFromLastBackupMutate).toHaveBeenCalled();
+    expect(mockRenameTagMutate).toHaveBeenCalledTimes(1);
+    expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(true);
+  });
+
+  it('handles sticky save button and confirmation modal confirm/close actions', async () => {
+    mockIsSticky = true;
+    modalState = {
+      showDeleteLegacyModal: true,
+      showFormatConfirmModal: true,
+      showMigrateConfirmModal: true,
+      showCleanupTempFilesModal: true,
+      infoModal: { isOpen: true, title: 'info-title', message: 'info-message', type: 'error' },
+    };
+
+    renderPage('/settings');
+
+    expect(screen.getByTestId('confirmation-removeLegacyDataConfirmTitle')).toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-migrateDataButton')).toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-formatLegacyFilenamesButton')).toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-cleanupTempFilesConfirmTitle')).toBeInTheDocument();
+    expect(screen.getByTestId('confirmation-info-title')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('confirm-removeLegacyDataConfirmTitle'));
+    fireEvent.click(screen.getByText('confirm-migrateDataButton'));
+    fireEvent.click(screen.getByText('confirm-formatLegacyFilenamesButton'));
+    fireEvent.click(screen.getByText('confirm-cleanupTempFilesConfirmTitle'));
+    fireEvent.click(screen.getByText('close-info-title'));
+    fireEvent.click(screen.getByText('confirm-info-title'));
+
+    expect(mockDeleteLegacyMutate).toHaveBeenCalled();
+    expect(mockMigrateMutate).toHaveBeenCalled();
+    expect(mockFormatFilenamesMutate).toHaveBeenCalled();
+    expect(mockCleanupMutate).toHaveBeenCalled();
+    expect(mockSetShowDeleteLegacyModal).toHaveBeenCalledWith(false);
+    expect(mockSetShowMigrateConfirmModal).toHaveBeenCalledWith(false);
+    expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(false);
+    expect(mockSetShowCleanupTempFilesModal).toHaveBeenCalledWith(false);
+    expect(mockSetInfoModal).toHaveBeenCalled();
+
+    const stickySaveButton = screen.getByRole('button', { name: 'save' });
+    fireEvent.animationEnd(stickySaveButton);
+  });
 });
