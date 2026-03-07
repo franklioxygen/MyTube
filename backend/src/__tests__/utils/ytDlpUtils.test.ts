@@ -390,6 +390,7 @@ describe("ytDlpUtils", () => {
       });
 
       const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(args).toContain("--ignore-config");
       expect(args).toContain("--dump-single-json");
       expect(args).toContain("--js-runtime");
       expect(args).toContain("node");
@@ -430,6 +431,7 @@ describe("ytDlpUtils", () => {
       await expect(promise).resolves.toEqual({ ok: true });
 
       const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(secondArgs).toContain("--ignore-config");
       expect(secondArgs).not.toContain("--format");
       expect(secondArgs).not.toContain("--format-sort");
       expect(secondArgs).toContain("https://example.com/video");
@@ -510,6 +512,7 @@ describe("ytDlpUtils", () => {
       await expect(promise).resolves.toBe("https://www.youtube.com/@channel");
 
       const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(args).toContain("--ignore-config");
       expect(args).toContain("--print");
       expect(args).toContain("channel_url");
       expect(args).toContain("--js-runtime");
@@ -562,6 +565,8 @@ describe("ytDlpUtils", () => {
         "/tmp/avatar.jpg"
       );
       await flushAsyncSpawns();
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(args).toContain("--ignore-config");
       proc.stderr?.emit("data", Buffer.from("download failed"));
       proc.emit("close", 1);
 
@@ -664,6 +669,8 @@ describe("ytDlpUtils", () => {
       proc.emit("close", 0);
 
       await expect(promise).resolves.toBeUndefined();
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(args).toContain("--ignore-config");
       expect(subprocess.kill("SIGTERM")).toBe(true);
       expect(proc.kill).toHaveBeenCalledWith("SIGTERM");
     });

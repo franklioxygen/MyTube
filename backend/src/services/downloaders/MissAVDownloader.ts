@@ -541,7 +541,8 @@ export class MissAVDownloader extends BaseDownloader {
       logger.info("Starting yt-dlp process with spawn...");
 
       // Convert flags object to array of args using the utility function
-      const args = [m3u8Url, ...flagsToArgs(flags)];
+      // Ignore external yt-dlp config files so only MyTube settings affect downloads.
+      const args = ["--ignore-config", ...flagsToArgs(flags), m3u8Url];
 
       // Log the full command for debugging
       logger.info("Executing yt-dlp command:", YT_DLP_PATH, args.join(" "));

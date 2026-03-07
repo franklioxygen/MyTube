@@ -9,6 +9,7 @@ import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+const DEFAULT_YT_DLP_ARGS = ["--ignore-config"];
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
@@ -286,7 +287,13 @@ export async function executeYtDlpJson(
 ): Promise<any> {
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
-  const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
+  // Ignore host/container config files so only MyTube-managed settings affect behavior.
+  const args = [
+    ...DEFAULT_YT_DLP_ARGS,
+    "--dump-single-json",
+    "--no-warnings",
+    ...flagsToArgs(flags),
+  ];
 
   // Add cookies if file exists
   const cookiesPath = getCookiesPath();
@@ -440,6 +447,7 @@ export async function getChannelUrlFromVideo(
 
   const videoUrl = preprocessUrl(videoUrlRaw);
   const args = [
+    ...DEFAULT_YT_DLP_ARGS,
     "--print",
     "channel_url",
     "--skip-download",
@@ -518,6 +526,7 @@ export async function downloadChannelAvatar(
   const outputTemplate = path.join(outputDir, `${outputFilename}.%(ext)s`);
 
   const args = [
+    ...DEFAULT_YT_DLP_ARGS,
     "--write-thumbnail",
     "--playlist-items",
     "0",
@@ -631,7 +640,7 @@ export function executeYtDlpSpawn(
   ) => Promise<void>;
 } {
   const url = preprocessUrl(rawUrl);
-  const args = [...flagsToArgs(flags)];
+  const args = [...DEFAULT_YT_DLP_ARGS, ...flagsToArgs(flags)];
 
   // Add cookies if file exists
   const cookiesPath = getCookiesPath();
