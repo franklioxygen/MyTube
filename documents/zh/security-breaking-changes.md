@@ -12,7 +12,7 @@
 
 | 变更项 | 旧行为 | 新行为 | 生效阶段 | 替代方案 |
 | --- | --- | --- | --- | --- |
-| 未认证写接口 | `loginEnabled=false` 时可能放行 | 默认拒绝（`401`/`403`） | `vNext+1` 默认，`vNext+2` 强制 | 先完成管理员认证 |
+| 未认证写接口 | `loginEnabled=false` 时可能放行 | `strict` 下默认拒绝（`401`/`403`）；临时 `legacy` 迁移窗口内在 `loginEnabled=false` 时保留历史兼容行为 | `vNext+1` 默认，`vNext+2` 强制 | 先完成管理员认证；`legacy` 仅限批准的迁移窗口 |
 | `passkeys/register` | legacy 下可能公开或弱保护 | 仅管理员可调用 | `vNext+1` | 登录后通过管理员会话调用 |
 | `reset-password` | 公开路径可触达 | 仅管理员会话或一次性恢复 token | `vNext+1` | 受控恢复 token 流程 |
 | hooks shell 执行 | 可执行用户脚本/命令 | 禁用 shell 执行 | `vNext+1` 默认，`vNext+2` 强制 | 声明式动作（`notify_webhook`） |
@@ -62,4 +62,3 @@
 - 迁移扫描报告应满足：
   - `strictSecurityMigrationVersion >= 1`
   - `ytDlpSafeConfigMigrationVersion >= 1`
-

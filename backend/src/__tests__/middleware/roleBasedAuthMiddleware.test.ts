@@ -171,7 +171,7 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).toHaveBeenCalledWith(401);
   });
 
-  it("blocks unauthenticated write requests in legacy mode when login is not required", () => {
+  it("allows unauthenticated write requests in legacy mode when login is not required", () => {
     vi.mocked(isStrictSecurityModel).mockReturnValue(false);
     vi.mocked(isLoginRequired).mockReturnValue(false);
     req = {
@@ -183,13 +183,8 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-      })
-    );
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
   });
 
   it("allows api-key-authenticated POST /download requests", () => {

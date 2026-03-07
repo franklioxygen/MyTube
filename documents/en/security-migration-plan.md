@@ -39,7 +39,7 @@ Default behavior:
 - `legacy` is explicit, temporary, and auditable only.
 
 Implementation:
-- Enforce unauthenticated write denial by default.
+- Enforce unauthenticated write denial by default in `strict`; keep legacy no-login compatibility only during the approved migration window.
 - Keep bootstrap one-time and atomic.
 - Keep strict controls for:
   - hooks shell execution (disabled)

@@ -229,8 +229,16 @@ export const roleBasedSettingsMiddleware = (
   // For unauthenticated users, check if login is required
   if (!req.user) {
     const strictMode = isStrictSecurityModel();
+    const loginRequired = isLoginRequired();
 
     if (isPublicEndpoint(req, strictMode)) {
+      next();
+      return;
+    }
+
+    // Legacy compatibility: when login is disabled, keep historical anonymous
+    // settings access so upgraded instances can complete migration in-place.
+    if (!strictMode && !loginRequired) {
       next();
       return;
     }
@@ -249,8 +257,6 @@ export const roleBasedSettingsMiddleware = (
       );
       return;
     }
-
-    const loginRequired = isLoginRequired();
 
     // If login is required and this is not a public endpoint, reject the request
     if (loginRequired) {

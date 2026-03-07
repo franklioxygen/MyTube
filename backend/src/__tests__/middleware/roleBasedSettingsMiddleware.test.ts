@@ -263,7 +263,7 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('should BLOCK unauthenticated write routes in legacy mode when login is not required', () => {
+  it('should ALLOW unauthenticated write routes in legacy mode when login is not required', () => {
     req = {
       method: 'POST',
       path: '/tags/rename',
@@ -275,13 +275,8 @@ describe('roleBasedSettingsMiddleware Security', () => {
 
     roleBasedSettingsMiddleware(req as Request, res as Response, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(401);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-      })
-    );
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
   });
 
   it('should BLOCK unauthenticated write routes in strict mode even when login is not required', () => {

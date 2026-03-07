@@ -13,7 +13,7 @@ All client/integration teams should follow this document.
 
 | Change | Old Behavior | New Behavior | Effective Phase | Replacement |
 | --- | --- | --- | --- | --- |
-| Unauthenticated write APIs | Could be allowed when `loginEnabled=false` | Denied by default (`401`/`403`) | `vNext+1` default, `vNext+2` mandatory | Authenticate as admin/session first |
+| Unauthenticated write APIs | Could be allowed when `loginEnabled=false` | `strict`: denied by default (`401`/`403`); temporary `legacy`: historical compatibility preserved while `loginEnabled=false` | `vNext+1` default, `vNext+2` mandatory | Authenticate as admin/session first; use `legacy` only during approved migration window |
 | `passkeys/register` | Previously weak/public path in legacy behavior | Admin-only operation | `vNext+1` | Use authenticated admin session |
 | `reset-password` | Could be reached as public flow | Admin session or one-time recovery token only | `vNext+1` | Controlled recovery token flow |
 | Hooks shell execution | User scripts/commands could execute | Shell execution disabled | `vNext+1` default, `vNext+2` mandatory | Declarative hook actions (`notify_webhook`) |
@@ -63,4 +63,3 @@ New:
 - Migration scan should report:
   - `strictSecurityMigrationVersion >= 1`
   - `ytDlpSafeConfigMigrationVersion >= 1`
-
