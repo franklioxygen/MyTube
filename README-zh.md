@@ -105,6 +105,7 @@ VITE_BACKEND_URL=
 ```env
 PORT=5551
 SECURITY_MODEL=strict
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
 ```
 
 `SECURITY_MODEL` 支持 `strict` 与 `legacy` 两种取值。
@@ -113,6 +114,7 @@ SECURITY_MODEL=strict
 - `legacy`：在迁移窗口内保留兼容行为。
 
 在 `production` 环境中，必须显式配置合法的 `SECURITY_MODEL`；若缺失或非法，服务将拒绝启动（fail-closed）。
+在 `production` 环境中，还必须设置长度不少于 32 个字符的随机 `JWT_SECRET`。
 新安装默认应使用 `strict`。升级实例仅应在短期迁移窗口内临时启用 `legacy`。
 
 安全边界摘要：
