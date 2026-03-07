@@ -222,7 +222,7 @@ vi.mock('../../components/Settings/CloudDriveSettings', () => ({
 vi.mock('../../components/Settings/YtDlpSettings', () => ({
   default: ({ onChange, onProxyOnlyYoutubeChange }: any) => (
     <div data-testid="ytdlp-settings">
-      <button onClick={() => onChange('best')}>ytdlp-change</button>
+      <button onClick={() => onChange({ maxResolution: 1080 })}>ytdlp-change</button>
       <button onClick={() => onProxyOnlyYoutubeChange(true)}>proxy-youtube-change</button>
     </div>
   ),
@@ -433,7 +433,9 @@ describe('SettingsPage', () => {
   });
 
   it('shows mount directory empty message when scan is triggered with no directories', async () => {
-    mockSettingsData = { mountDirectories: '' };
+    mockSettingsData = {
+      platformMountDirectories: [{ id: 'library', label: 'Library' }],
+    };
     renderPage('/settings');
 
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
@@ -442,37 +444,36 @@ describe('SettingsPage', () => {
     expect(mockApiPost).not.toHaveBeenCalled();
   });
 
-  it('scans mount directories and saves settings on successful scan', async () => {
-    mockSettingsData = { mountDirectories: '/a\n/b' };
+  it('scans selected platform mount directory IDs successfully', async () => {
+    mockSettingsData = {
+      platformMountDirectories: [
+        { id: 'a', label: 'Library A' },
+        { id: 'b', label: 'Library B' },
+      ],
+    };
     renderPage('/settings');
 
+    fireEvent.click(screen.getByLabelText('Library A (a)'));
+    fireEvent.click(screen.getByLabelText('Library B (b)'));
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
     await waitFor(() => {
-      expect(mockApiPost).toHaveBeenCalledWith('/scan-mount-directories', { directories: ['/a', '/b'] });
+      expect(mockApiPost).toHaveBeenCalledWith('/scan-mount-directories', { directoryIds: ['a', 'b'] });
     });
 
-    expect(mockSaveMutate).toHaveBeenCalled();
-    expect(await screen.findByText('scanMountDirectoriesSuccess settingsSaved')).toBeInTheDocument();
-  });
-
-  it('shows warning snackbar when scan succeeds but saving settings fails', async () => {
-    mockSettingsData = { mountDirectories: '/tmp/videos' };
-    saveShouldError = true;
-
-    renderPage('/settings');
-
-    fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
-
-    expect(await screen.findByText('scanMountDirectoriesSuccess Warning: save failed')).toBeInTheDocument();
+    expect(mockSaveMutate).not.toHaveBeenCalled();
+    expect(await screen.findByText('scanMountDirectoriesSuccess')).toBeInTheDocument();
   });
 
   it('shows error snackbar when scan request fails', async () => {
-    mockSettingsData = { mountDirectories: '/tmp/videos' };
+    mockSettingsData = {
+      platformMountDirectories: [{ id: 'main', label: 'Main Library' }],
+    };
     mockApiPost.mockRejectedValueOnce({ response: { data: { details: 'scan failed details' } } });
 
     renderPage('/settings');
 
+    fireEvent.click(screen.getByLabelText('Main Library (main)'));
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
     expect(await screen.findByText('scanFilesFailed: scan failed details')).toBeInTheDocument();

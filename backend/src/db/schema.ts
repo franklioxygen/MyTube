@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
     foreignKey,
+    index,
     integer,
     primaryKey,
     sqliteTable,
@@ -97,6 +98,97 @@ export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(), // JSON stringified value
 });
+
+export const authSessions = sqliteTable(
+  "auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    sessionHash: text("session_hash").notNull(),
+    userRole: text("user_role").notNull(),
+    userId: text("user_id"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    lastSeenAt: integer("last_seen_at"),
+    expiresAt: integer("expires_at").notNull(),
+    revokedAt: integer("revoked_at"),
+    revokedReason: text("revoked_reason"),
+    authMethod: text("auth_method"),
+    loginIp: text("login_ip"),
+    loginUserAgent: text("login_user_agent"),
+  },
+  (table) => ({
+    sessionHashUnique: uniqueIndex("auth_sessions_session_hash_uidx").on(
+      table.sessionHash
+    ),
+    roleIndex: index("auth_sessions_role_idx").on(table.userRole),
+    expiresIndex: index("auth_sessions_expires_idx").on(table.expiresAt),
+  })
+);
+
+export const securityAuditLogs = sqliteTable(
+  "security_audit_logs",
+  {
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull(),
+    actor: text("actor").notNull(),
+    sourceIp: text("source_ip").notNull(),
+    userAgent: text("user_agent").notNull(),
+    target: text("target").notNull(),
+    result: text("result").notNull(),
+    summary: text("summary").notNull(),
+    metadataJson: text("metadata_json").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => ({
+    eventCreatedIndex: index("security_audit_logs_event_created_idx").on(
+      table.eventType,
+      table.createdAt
+    ),
+    sourceCreatedIndex: index("security_audit_logs_source_created_idx").on(
+      table.sourceIp,
+      table.createdAt
+    ),
+  })
+);
+
+export const securityAlertWindows = sqliteTable(
+  "security_alert_windows",
+  {
+    windowKey: text("window_key").primaryKey(),
+    timestampsJson: text("timestamps_json").notNull(),
+    lastAlertAt: integer("last_alert_at").notNull().default(0),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    updatedIndex: index("security_alert_windows_updated_idx").on(table.updatedAt),
+  })
+);
+
+export const hookWorkerJobs = sqliteTable(
+  "hook_worker_jobs",
+  {
+    id: text("id").primaryKey(),
+    status: text("status").notNull(),
+    workerId: text("worker_id"),
+    payloadJson: text("payload_json").notNull(),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    availableAt: integer("available_at").notNull(),
+    leaseUntil: integer("lease_until").notNull().default(0),
+    lastError: text("last_error"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    completedAt: integer("completed_at"),
+  },
+  (table) => ({
+    statusAvailableIndex: index("hook_worker_jobs_status_available_idx").on(
+      table.status,
+      table.availableAt
+    ),
+    leaseIndex: index("hook_worker_jobs_lease_idx").on(table.leaseUntil),
+    createdIndex: index("hook_worker_jobs_created_idx").on(table.createdAt),
+  })
+);
 
 export const downloads = sqliteTable("downloads", {
   id: text("id").primaryKey(),

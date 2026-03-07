@@ -3,11 +3,27 @@ services:
     image: franklioxygen/mytube:backend-latest
     pull_policy: always
     container_name: mytube-backend
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
     volumes:
       - /share/CACHEDEV2_DATA/Medias/MyTube/uploads:/app/uploads
       - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
+      # Never mount the Docker daemon socket into the app container.
+      # - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - PORT=5551
+      - SECURITY_MODEL=${SECURITY_MODEL:-strict}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a 32+ character secret in .env}
+      - HOOK_EXECUTION_MODE=worker
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    mem_limit: 2g
+    cpus: "2.0"
     restart: unless-stopped
     networks:
       - mytube-network
@@ -15,6 +31,35 @@ services:
     # uncomment the following lines to use host network mode:
     # network_mode: host
     # Then set NGINX_BACKEND_URL=http://localhost:5551 for frontend service
+
+  hook-worker:
+    image: franklioxygen/mytube:backend-latest
+    pull_policy: always
+    container_name: mytube-hook-worker
+    command: ["node", "dist/src/workers/hookWorker.js"]
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
+    environment:
+      - HOOK_EXECUTION_MODE=worker
+      - HOOK_WORKER_MAX_JOBS_PER_PROCESS=25
+      - HOOK_WORKER_IDLE_EXIT_MS=120000
+      - HOOK_WORKER_POLL_INTERVAL_MS=1000
+      - HOOK_WORKER_MAX_ATTEMPTS=3
+    security_opt:
+      - no-new-privileges:true
+      - apparmor=docker-default
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: "0.50"
+    restart: unless-stopped
+    networks:
+      - mytube-network
 
   frontend:
     image: franklioxygen/mytube:frontend-latest

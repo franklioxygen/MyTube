@@ -8,6 +8,7 @@ import { getCachedThumbnail } from "../services/cloudStorage/cloudThumbnailCache
 import { CloudStorageService } from "../services/CloudStorageService";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
+import { isStrictFeatureDisabled } from "../utils/strictSecurity";
 import {
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
@@ -134,6 +135,13 @@ export const registerCloudRoutes = (app: Express): void => {
 };
 
 export const startCloudflaredIfEnabled = (port: number): void => {
+  if (isStrictFeatureDisabled("cloudflaredControl")) {
+    logger.info(
+      "Skipping cloudflared startup: feature disabled in strict security model"
+    );
+    return;
+  }
+
   const settings = storageService.getSettings();
   if (!settings.cloudflaredTunnelEnabled) {
     return;

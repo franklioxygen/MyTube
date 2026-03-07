@@ -40,7 +40,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **yt-dlp Configuration**: Customize global `yt-dlp` arguments, network proxy, and other advanced settings via settings page.
 - **TMDB Integration**: Configure your TMDB API key in settings to enable automatic metadata scraping for local video files. The scraper intelligently parses filenames to extract titles and matches them with TMDB database.
 - **Cloudflare Tunnel Integration**: Built-in Cloudflare Tunnel support to easily expose your local MyTube instance to the internet without port forwarding.
-- **Task Hooks**: Execute custom shell scripts at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
+- **Task Hooks**: Execute declarative hook actions at various stages of a download task (start, success, fail, cancel) for integration and automation. See [Task Hooks Guide](documents/en/hooks-guide.md).
 - **Telegram Notifications**: Receive instant notifications via Telegram bot when a download task succeeds or fails.
 - **Browser Extension**: A Chrome extension to download videos directly from your browser. Supports all yt-dlp supported sites.
 
@@ -103,7 +103,33 @@ VITE_BACKEND_URL=
 
 ```env
 PORT=5551
+SECURITY_MODEL=strict
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
 ```
+
+`SECURITY_MODEL` supports `strict` and `legacy`.
+
+- `strict`: enables the hardened security model.
+- `legacy`: keeps compatibility behavior for migration windows.
+
+In `production`, `SECURITY_MODEL` must be set to a valid value. Missing or invalid values will fail startup (fail-closed).
+In `production`, `JWT_SECRET` must also be set to a random secret with at least 32 characters.
+New installations should use `strict` by default. Existing deployments can temporarily use `legacy` only within a short migration window.
+
+Security boundary summary:
+
+- `Platform Operator` is TCB.
+- `Security Operator` handles controlled privileged operations.
+- `App Admin` is non-TCB and must not gain direct OS command/container control/host filesystem execution paths.
+- High-risk control surfaces include hooks, free-form `yt-dlp` config, `mountDirectories`, and in-app `cloudflared` control.
+
+Security migration docs:
+
+- [Security Migration Plan (3 phases)](documents/en/security-migration-plan.md)
+- [Security Breaking Changes Matrix](documents/en/security-breaking-changes.md)
+- [Security Migration Runbook](documents/en/security-migration-runbook.md)
+- [Security Rollout and Rollback Gates](documents/en/security-rollout-gates.md)
+- [Security Migration Templates](documents/en/security-migration-templates.md)
 
 Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).
 

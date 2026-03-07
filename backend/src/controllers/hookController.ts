@@ -2,14 +2,23 @@ import { Request, Response } from "express";
 import { ValidationError } from "../errors/DownloadErrors";
 import { HookService } from "../services/hookService";
 import { successMessage } from "../utils/response";
+import {
+  createStrictFeatureDisabledPayload,
+  isStrictFeatureDisabled,
+} from "../utils/strictSecurity";
 
 /**
- * Upload hook script
+ * Upload declarative hook definition
  */
 export const uploadHook = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (isStrictFeatureDisabled("hooks")) {
+    res.status(403).json(createStrictFeatureDisabledPayload("hooks"));
+    return;
+  }
+
   const { name } = req.params;
 
   if (!req.file) {
@@ -32,55 +41,16 @@ export const uploadHook = async (
     throw new ValidationError("Uploaded file is empty", "file");
   }
 
-  // Scan for risk commands
-  const riskCommand = scanForRiskCommands(req.file.buffer.toString("utf-8"));
-  if (riskCommand) {
+  try {
+    HookService.uploadHook(name, req.file.buffer);
+  } catch (error) {
     throw new ValidationError(
-      `Risk command detected: ${riskCommand}. Upload rejected.`,
+      error instanceof Error ? error.message : "Invalid hook definition",
       "file"
     );
   }
 
-  HookService.uploadHook(name, req.file.buffer);
   res.json(successMessage(`Hook ${name} uploaded successfully`));
-};
-
-/**
- * Scan file for risk commands
- * @param content - Hook script content
- */
-const scanForRiskCommands = (content: string): string | null => {
-  // List of risky patterns
-  // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
-  // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
-  const riskyPatterns = [
-    // Check for rm -rf / or rm -fr / with simpler pattern
-    { pattern: /rm\s+-[rf]+\s+\//, name: "rm -rf / (recursive delete)" },
-    { pattern: /rm\s+-[fr]+\s+\//, name: "rm -fr / (recursive delete)" },
-    { pattern: /rm\s+-r\s+-f\s+\//, name: "rm -r -f / (recursive delete)" },
-    { pattern: /rm\s+-f\s+-r\s+\//, name: "rm -f -r / (recursive delete)" },
-    { pattern: /rm\s+-rf\s+\*/, name: "rm -rf * (recursive delete all)" },
-    { pattern: /rm\s+-fr\s+\*/, name: "rm -fr * (recursive delete all)" },
-    { pattern: /mkfs/, name: "mkfs (format disk)" },
-    { pattern: /dd\s+if=/, name: "dd (disk write)" },
-    // Simplified fork bomb pattern - avoid nested quantifiers
-    { pattern: /::\s*;:/, name: "fork bomb" },
-    { pattern: />\s*\/dev\/sd/, name: "write to block device" },
-    { pattern: />\s*\/dev\/nvme/, name: "write to block device" },
-    // Simplified mv pattern
-    { pattern: /mv\s+[^\s]+\s+\//, name: "mv to root" },
-    { pattern: /chmod\s+777\s+\//, name: "chmod 777 root" },
-    { pattern: /wget\s+http/, name: "wget (potential malware download)" },
-    { pattern: /curl\s+http/, name: "curl (potential malware download)" },
-  ];
-
-  for (const risk of riskyPatterns) {
-    if (risk.pattern.test(content)) {
-      return risk.name;
-    }
-  }
-
-  return null;
 };
 
 /**
@@ -90,6 +60,11 @@ export const deleteHook = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (isStrictFeatureDisabled("hooks")) {
+    res.status(403).json(createStrictFeatureDisabledPayload("hooks"));
+    return;
+  }
+
   const { name } = req.params;
   
   // Validate hook name to prevent path traversal

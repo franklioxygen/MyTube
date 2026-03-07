@@ -2,8 +2,19 @@ import { Request, Response } from 'express';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { scanFiles, scanMountDirectories } from '../../controllers/scanController';
+import { resolveMountDirectoriesByIds } from '../../config/mountDirectories';
 import * as storageService from '../../services/storageService';
+import {
+  createStrictFeatureDisabledPayload,
+  isStrictFeatureDisabled,
+} from '../../utils/strictSecurity';
 
+vi.mock('../../config/mountDirectories', () => ({
+  resolveMountDirectoriesByIds: vi.fn(() => ({
+    matchedDirectories: [{ id: 'videos', label: 'videos', path: '/mnt/videos' }],
+    invalidDirectoryIds: [],
+  })),
+}));
 vi.mock('../../services/storageService');
 vi.mock('../../services/tmdbService', () => ({
   scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null), // Default to null (no metadata found)
@@ -48,6 +59,14 @@ vi.mock('../../utils/security', () => ({
   resolveSafePath: vi.fn((path: string) => path),
   validateImagePath: vi.fn((path: string) => path),
 }));
+vi.mock('../../utils/strictSecurity', () => ({
+  isStrictFeatureDisabled: vi.fn(),
+  createStrictFeatureDisabledPayload: vi.fn(() => ({
+    success: false,
+    error: 'feature disabled',
+    feature: 'mountDirectories',
+  })),
+}));
 vi.mock('child_process');
 
 describe('ScanController', () => {
@@ -58,6 +77,11 @@ describe('ScanController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [{ id: 'videos', label: 'videos', path: '/mnt/videos' }],
+      invalidDirectoryIds: [],
+    });
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
     req = {};
@@ -149,10 +173,28 @@ describe('ScanController', () => {
   });
 
   describe('scanMountDirectories', () => {
-    it('should reject relative mount directories', async () => {
+    it('should return 403 when mount directories API is disabled in strict mode', async () => {
+      vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
       req = {
         body: {
-          directories: ['../unsafe/path'],
+          directoryIds: ['videos'],
+        },
+      };
+
+      await scanMountDirectories(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(403);
+      expect(createStrictFeatureDisabledPayload).toHaveBeenCalledWith('mountDirectories');
+    });
+
+    it('should reject unknown platform mount directory IDs', async () => {
+      vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+        matchedDirectories: [],
+        invalidDirectoryIds: ['unknown-id'],
+      });
+      req = {
+        body: {
+          directoryIds: ['unknown-id'],
         },
       };
 
@@ -161,7 +203,7 @@ describe('ScanController', () => {
       expect(status).toHaveBeenCalledWith(400);
       expect(json).toHaveBeenCalledWith(
         expect.objectContaining({
-          invalidDirectories: ['../unsafe/path'],
+          invalidDirectoryIds: ['unknown-id'],
         }),
       );
     });

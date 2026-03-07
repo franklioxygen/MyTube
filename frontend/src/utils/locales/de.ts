@@ -469,7 +469,8 @@ export const de = {
   verifying: "Überprüfen...",
   incorrectPassword: "Falsches Passwort",
   loginFailed: "Fehler beim Überprüfen des Passworts",
-  defaultPasswordHint: "Standardpasswort: 123",
+  defaultPasswordHint:
+    "Kein Standardpasswort. Verwenden Sie Ihr gesetztes Passwort.",
   checkingConnection: "Verbindung wird überprüft...",
   connectionError: "Verbindungsfehler",
   backendConnectionFailed:
@@ -795,7 +796,7 @@ export const de = {
     "Systemparameter konfigurieren, Daten verwalten und Funktionen erweitern.",
   instructionSection3Sub1: "Sicherheitseinstellungen:",
   instructionSection3Text1:
-    "Legen Sie das System-Login-Passwort fest (das Standard-Initialpasswort ist 123, es wird empfohlen, es nach dem ersten Login zu ändern).",
+    "Legen Sie ein starkes, eindeutiges System-Login-Passwort fest.",
   instructionSection3Sub2: "Tag-Verwaltung:",
   instructionSection3Text2:
     'Unterstützt das Hinzufügen oder Löschen von Videoklassifizierungs-Tags. Hinweis: Sie müssen auf die Schaltfläche "Speichern" unten auf der Seite klicken, damit Änderungen wirksam werden.',

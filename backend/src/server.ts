@@ -7,11 +7,15 @@ import cors from "cors";
 import express from "express";
 import fs from "fs-extra";
 import path from "path";
+import { assertSecurityModelConfiguration } from "./config/securityModel";
 import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
+import { assertJwtSecretConfiguration } from "./services/authService";
 import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
+import { runStrictSecurityMigrationIfNeeded } from "./services/strictSecurityMigrationService";
+import { runYtDlpSafeConfigMigrationIfNeeded } from "./services/ytDlpSafeConfigMigrationService";
 import { logger } from "./utils/logger";
 import { VERSION } from "./version";
 import { registerApiRoutes } from "./server/apiRoutes";
@@ -58,10 +62,17 @@ const configureProcessCrashReports = (): void => {
 
 const startServer = async (): Promise<void> => {
   try {
+    const securityModel = assertSecurityModelConfiguration();
+    logger.info(`Security model: ${securityModel}`);
+    assertJwtSecretConfiguration();
+    logger.info("JWT secret configuration validated.");
+
     configureProcessCrashReports();
     await runMigrations();
 
     storageService.initializeStorage();
+    runStrictSecurityMigrationIfNeeded();
+    runYtDlpSafeConfigMigrationIfNeeded();
     downloadManager.initialize();
 
     const frontendDist = path.join(__dirname, "../../frontend/dist");

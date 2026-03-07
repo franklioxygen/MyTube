@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { isStrictSecurityModel } from "../config/securityModel";
 import { defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as loginAttemptService from "./loginAttemptService";
@@ -8,6 +9,31 @@ import * as storageService from "./storageService";
 const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 
 type PasswordMatchResult = "match" | "legacy_plaintext_match" | "mismatch";
+type BootstrapResult =
+  | { success: true }
+  | {
+      success: false;
+      reason: "ALREADY_COMPLETED" | "IN_PROGRESS";
+      message: string;
+    };
+type RecoveryTokenIssueResult = {
+  token: string;
+  expiresAt: number;
+};
+type RecoveryResetResult =
+  | { success: true }
+  | {
+      success: false;
+      reason:
+        | "MISSING_TOKEN"
+        | "INVALID_TOKEN"
+        | "EXPIRED_TOKEN"
+        | "RATE_LIMITED";
+      message: string;
+      retryAfterMs?: number;
+    };
+
+let bootstrapInProgress = false;
 
 async function compareStoredPassword(
   inputPassword: string,
@@ -72,6 +98,63 @@ export function isLoginRequired(): boolean {
   return mergedSettings.loginEnabled === true;
 }
 
+export function isBootstrapCompleted(): boolean {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+  return (
+    mergedSettings.bootstrapCompleted === true ||
+    (typeof mergedSettings.password === "string" &&
+      mergedSettings.password.trim().length > 0)
+  );
+}
+
+export async function bootstrapAdminPassword(
+  password: string
+): Promise<BootstrapResult> {
+  const normalizedPassword =
+    typeof password === "string" ? password.trim() : "";
+  if (normalizedPassword.length < 8) {
+    throw new Error("Bootstrap password must be at least 8 characters.");
+  }
+
+  if (bootstrapInProgress) {
+    return {
+      success: false,
+      reason: "IN_PROGRESS",
+      message:
+        "Bootstrap is already in progress. Please retry after a short delay.",
+    };
+  }
+
+  bootstrapInProgress = true;
+  try {
+    if (isBootstrapCompleted()) {
+      return {
+        success: false,
+        reason: "ALREADY_COMPLETED",
+        message: "Bootstrap has already completed.",
+      };
+    }
+
+    const hashedPassword = await hashPassword(normalizedPassword);
+    const didApply = storageService.tryCompleteBootstrapWithAdminPassword(
+      hashedPassword
+    );
+    if (!didApply) {
+      return {
+        success: false,
+        reason: "ALREADY_COMPLETED",
+        message: "Bootstrap has already completed.",
+      };
+    }
+    loginAttemptService.resetFailedAttempts();
+
+    return { success: true };
+  } finally {
+    bootstrapInProgress = false;
+  }
+}
+
 /**
  * Check if password authentication is enabled
  */
@@ -79,6 +162,7 @@ export function isPasswordEnabled(): {
   enabled: boolean;
   waitTime?: number;
   loginRequired?: boolean;
+  bootstrapRequired?: boolean;
   visitorUserEnabled?: boolean;
   isVisitorPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
@@ -87,12 +171,15 @@ export function isPasswordEnabled(): {
 } {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
+  const strictMode = isStrictSecurityModel();
+  const loginRequired = strictMode ? true : mergedSettings.loginEnabled === true;
+  const bootstrapRequired = strictMode && !isBootstrapCompleted();
 
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
 
   // Return true only if login is enabled AND a password is set AND password login is allowed
-  const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password && passwordLoginAllowed;
+  const isEnabled = loginRequired && !!mergedSettings.password && passwordLoginAllowed;
 
   // Check for remaining wait time
   const remainingWaitTime = loginAttemptService.canAttemptLogin();
@@ -100,7 +187,8 @@ export function isPasswordEnabled(): {
   return {
     enabled: isEnabled,
     waitTime: remainingWaitTime > 0 ? remainingWaitTime : undefined,
-    loginRequired: mergedSettings.loginEnabled === true,
+    loginRequired,
+    bootstrapRequired,
     visitorUserEnabled: mergedSettings.visitorUserEnabled !== false,
     isVisitorPasswordSet: !!mergedSettings.visitorPassword,
     passwordLoginAllowed,
@@ -127,6 +215,7 @@ export async function verifyPassword(
 }> {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
+  const strictMode = isStrictSecurityModel();
 
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
@@ -171,8 +260,8 @@ export async function verifyPassword(
       return { success: true, role: "admin", token };
     }
   } else {
-    // If no admin password set, and login enabled, allow as admin
-    if (mergedSettings.loginEnabled) {
+    // Legacy compatibility: allow passwordless admin login only in legacy mode.
+    if (!strictMode && mergedSettings.loginEnabled) {
        loginAttemptService.resetFailedAttempts();
        const token = generateToken({ role: "admin" });
        return { success: true, role: "admin", token };
@@ -228,6 +317,7 @@ export async function verifyAdminPassword(
 }> {
   const settings = storageService.getSettings();
   const mergedSettings = { ...defaultSettings, ...settings };
+  const strictMode = isStrictSecurityModel();
 
   // Check if password login is allowed (defaults to true for backward compatibility)
   const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
@@ -266,8 +356,8 @@ export async function verifyAdminPassword(
       return { success: true, role: "admin", token };
     }
   } else {
-    // If no admin password set, and login enabled, allow as admin
-    if (mergedSettings.loginEnabled) {
+    // Legacy compatibility: allow passwordless admin login only in legacy mode.
+    if (!strictMode && mergedSettings.loginEnabled) {
        loginAttemptService.resetFailedAttempts();
        const token = generateToken({ role: "admin" });
        return { success: true, role: "admin", token };
@@ -378,6 +468,166 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 const RESET_PASSWORD_COOLDOWN = 60 * 60 * 1000; // 1 hour in milliseconds
+const PASSWORD_RECOVERY_TOKEN_TTL_MS = 15 * 60 * 1000;
+const PASSWORD_RECOVERY_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_RECOVERY_RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RECOVERY_TOKEN_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+interface RecoveryRateLimitState {
+  attempts: number;
+  windowStartedAt: number;
+}
+
+const recoveryRateLimitState = new Map<string, RecoveryRateLimitState>();
+
+const normalizeSourceKey = (sourceKey: string | undefined): string => {
+  const normalized = (sourceKey ?? "").trim().toLowerCase();
+  return normalized.length > 0 ? normalized : "unknown";
+};
+
+const getRecoveryRateLimitState = (sourceKey: string): RecoveryRateLimitState => {
+  const now = Date.now();
+  const existing = recoveryRateLimitState.get(sourceKey);
+  if (!existing || now - existing.windowStartedAt >= PASSWORD_RECOVERY_RATE_LIMIT_WINDOW_MS) {
+    const freshState = { attempts: 0, windowStartedAt: now };
+    recoveryRateLimitState.set(sourceKey, freshState);
+    return freshState;
+  }
+
+  return existing;
+};
+
+const getRecoveryRateLimitResult = (
+  sourceKey: string
+): { allowed: true } | { allowed: false; retryAfterMs: number } => {
+  const state = getRecoveryRateLimitState(sourceKey);
+  if (state.attempts < PASSWORD_RECOVERY_RATE_LIMIT_MAX_ATTEMPTS) {
+    return { allowed: true };
+  }
+
+  const retryAfterMs = Math.max(
+    1,
+    PASSWORD_RECOVERY_RATE_LIMIT_WINDOW_MS - (Date.now() - state.windowStartedAt)
+  );
+  return { allowed: false, retryAfterMs };
+};
+
+const recordRecoveryFailure = (sourceKey: string): void => {
+  const state = getRecoveryRateLimitState(sourceKey);
+  state.attempts += 1;
+  recoveryRateLimitState.set(sourceKey, state);
+};
+
+const clearRecoveryRateLimitState = (sourceKey: string): void => {
+  recoveryRateLimitState.delete(sourceKey);
+};
+
+const normalizeRecoveryToken = (token: string | undefined): string =>
+  typeof token === "string" ? token.trim() : "";
+
+const hashRecoveryToken = (token: string): string =>
+  crypto.createHash("sha256").update(token, "utf8").digest("hex");
+
+const timingSafeStringEqual = (left: string, right: string): boolean => {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  const maxLength = Math.max(leftBuffer.length, rightBuffer.length);
+
+  const paddedLeft = Buffer.alloc(maxLength);
+  const paddedRight = Buffer.alloc(maxLength);
+  leftBuffer.copy(paddedLeft);
+  rightBuffer.copy(paddedRight);
+
+  return (
+    leftBuffer.length === rightBuffer.length &&
+    crypto.timingSafeEqual(paddedLeft, paddedRight)
+  );
+};
+
+const readRecoveryTokenState = (): {
+  hash: string;
+  expiresAt: number;
+} => {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  return {
+    hash:
+      typeof mergedSettings.passwordRecoveryTokenHash === "string"
+        ? mergedSettings.passwordRecoveryTokenHash
+        : "",
+    expiresAt:
+      typeof mergedSettings.passwordRecoveryTokenExpiresAt === "number"
+        ? mergedSettings.passwordRecoveryTokenExpiresAt
+        : 0,
+  };
+};
+
+const clearRecoveryTokenState = (): void => {
+  storageService.saveSettings({
+    passwordRecoveryTokenHash: "",
+    passwordRecoveryTokenExpiresAt: 0,
+    passwordRecoveryTokenIssuedAt: 0,
+  });
+};
+
+const buildRandomPassword = (length: number): string => {
+  const randomBytes = crypto.randomBytes(length);
+  return Array.from(randomBytes, (byte) =>
+    RECOVERY_TOKEN_CHARSET.charAt(byte % RECOVERY_TOKEN_CHARSET.length)
+  ).join("");
+};
+
+async function resetPasswordInternal(
+  options: { skipCooldownCheck?: boolean } = {}
+): Promise<string> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  // Check if password reset is allowed (defaults to true for backward compatibility)
+  const allowResetPassword = mergedSettings.allowResetPassword !== false;
+
+  if (!allowResetPassword) {
+    throw new Error("Password reset is not allowed. The allowResetPassword setting is disabled.");
+  }
+
+  // Check if password login is allowed (defaults to true for backward compatibility)
+  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
+
+  if (!passwordLoginAllowed) {
+    throw new Error("Password reset is not allowed when password login is disabled");
+  }
+
+  // Check cooldown period (1 hour)
+  if (!options.skipCooldownCheck) {
+    const remainingCooldown = getResetPasswordCooldown();
+    if (remainingCooldown > 0) {
+      const minutes = Math.ceil(remainingCooldown / (60 * 1000));
+      throw new Error(`Password reset is on cooldown. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before trying again.`);
+    }
+  }
+
+  const newPassword = buildRandomPassword(8);
+
+  // Hash the new password
+  const hashedPassword = await hashPassword(newPassword);
+
+  // Update settings with new password and reset timestamp
+  mergedSettings.password = hashedPassword;
+  mergedSettings.loginEnabled = true; // Ensure login is enabled
+  mergedSettings.bootstrapCompleted = true;
+  (mergedSettings as any).lastPasswordResetTime = Date.now();
+
+  storageService.saveSettings(mergedSettings);
+
+  // Log that password was reset (redact actual password)
+  logger.info(`Password has been reset. New password: ${newPassword}`);
+
+  // Reset failed login attempts
+  loginAttemptService.resetFailedAttempts();
+
+  return newPassword;
+}
 
 /**
  * Get the remaining cooldown time for password reset
@@ -399,59 +649,90 @@ export function getResetPasswordCooldown(): number {
   return remainingCooldown > 0 ? remainingCooldown : 0;
 }
 
+export function issuePasswordRecoveryToken(): RecoveryTokenIssueResult {
+  const rawToken = buildRandomPassword(32);
+  const tokenHash = hashRecoveryToken(rawToken);
+  const expiresAt = Date.now() + PASSWORD_RECOVERY_TOKEN_TTL_MS;
+
+  storageService.saveSettings({
+    passwordRecoveryTokenHash: tokenHash,
+    passwordRecoveryTokenExpiresAt: expiresAt,
+    passwordRecoveryTokenIssuedAt: Date.now(),
+  });
+
+  logger.info("Issued one-time password recovery token.");
+  return {
+    token: rawToken,
+    expiresAt,
+  };
+}
+
+export async function resetPasswordWithRecoveryToken(
+  recoveryToken: string,
+  sourceKey: string
+): Promise<RecoveryResetResult> {
+  const normalizedSource = normalizeSourceKey(sourceKey);
+  const normalizedToken = normalizeRecoveryToken(recoveryToken);
+  if (normalizedToken.length === 0) {
+    return {
+      success: false,
+      reason: "MISSING_TOKEN",
+      message: "Recovery token is required.",
+    };
+  }
+
+  const rateLimit = getRecoveryRateLimitResult(normalizedSource);
+  if (!rateLimit.allowed) {
+    return {
+      success: false,
+      reason: "RATE_LIMITED",
+      message: "Too many invalid recovery attempts. Please wait before retrying.",
+      retryAfterMs: rateLimit.retryAfterMs,
+    };
+  }
+
+  const tokenState = readRecoveryTokenState();
+  if (tokenState.hash.length === 0 || tokenState.expiresAt <= 0) {
+    recordRecoveryFailure(normalizedSource);
+    return {
+      success: false,
+      reason: "INVALID_TOKEN",
+      message: "Recovery token is invalid.",
+    };
+  }
+
+  if (tokenState.expiresAt <= Date.now()) {
+    clearRecoveryTokenState();
+    recordRecoveryFailure(normalizedSource);
+    return {
+      success: false,
+      reason: "EXPIRED_TOKEN",
+      message: "Recovery token has expired.",
+    };
+  }
+
+  const incomingHash = hashRecoveryToken(normalizedToken);
+  if (!timingSafeStringEqual(incomingHash, tokenState.hash)) {
+    recordRecoveryFailure(normalizedSource);
+    return {
+      success: false,
+      reason: "INVALID_TOKEN",
+      message: "Recovery token is invalid.",
+    };
+  }
+
+  clearRecoveryTokenState();
+  await resetPasswordInternal({ skipCooldownCheck: true });
+  clearRecoveryRateLimitState(normalizedSource);
+
+  logger.info("Password reset completed using one-time recovery token.");
+  return { success: true };
+}
+
 /**
  * Reset password to a random 8-character string
  * Returns the new password (should be logged, not sent to frontend)
  */
 export async function resetPassword(): Promise<string> {
-  const settings = storageService.getSettings();
-  const mergedSettings = { ...defaultSettings, ...settings };
-
-  // Check if password reset is allowed (defaults to true for backward compatibility)
-  const allowResetPassword = mergedSettings.allowResetPassword !== false;
-
-  if (!allowResetPassword) {
-    throw new Error("Password reset is not allowed. The allowResetPassword setting is disabled.");
-  }
-
-  // Check if password login is allowed (defaults to true for backward compatibility)
-  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
-
-  if (!passwordLoginAllowed) {
-    throw new Error("Password reset is not allowed when password login is disabled");
-  }
-
-  // Check cooldown period (1 hour)
-  const remainingCooldown = getResetPasswordCooldown();
-  if (remainingCooldown > 0) {
-    const minutes = Math.ceil(remainingCooldown / (60 * 1000));
-    throw new Error(`Password reset is on cooldown. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before trying again.`);
-  }
-
-  // Generate random 8-character password using cryptographically secure random
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const randomBytes = crypto.randomBytes(8);
-  const newPassword = Array.from(randomBytes, (byte) =>
-    chars.charAt(byte % chars.length)
-  ).join("");
-
-  // Hash the new password
-  const hashedPassword = await hashPassword(newPassword);
-
-  // Update settings with new password and reset timestamp
-  mergedSettings.password = hashedPassword;
-  mergedSettings.loginEnabled = true; // Ensure login is enabled
-  (mergedSettings as any).lastPasswordResetTime = Date.now();
-
-  storageService.saveSettings(mergedSettings);
-
-  // Log that password was reset (redact actual password)
-  logger.info(`Password has been reset. New password: ${newPassword}`);
-
-  // Reset failed login attempts
-  loginAttemptService.resetFailedAttempts();
-
-  return newPassword;
+  return resetPasswordInternal();
 }
-

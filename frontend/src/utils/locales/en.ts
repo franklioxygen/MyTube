@@ -228,9 +228,9 @@ export const en = {
   // Task Hooks
   taskHooks: "Task Hooks",
   taskHooksDescription:
-    "Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+    "Execute declarative hook actions at specific points in the task lifecycle. Upload a JSON definition with allowlisted action types.",
   taskHooksWarning:
-    "Warning: Commands run with the server's permissions. Use with caution.",
+    "Warning: Only allowlisted hook actions are supported. Arbitrary shell commands are not allowed.",
   hookTaskBeforeStart: "Before Task Start",
   hookTaskBeforeStartHelper: "Executes before the download begins.",
   hookTaskSuccess: "Task Success",
@@ -242,11 +242,11 @@ export const en = {
   hookTaskCancelHelper: "Executes when a task is manually cancelled.",
   found: "Found",
   notFound: "Not Set",
-  deleteHook: "Delete Hook Script",
-  confirmDeleteHook: "Are you sure you want to delete this hook script?",
-  uploadHook: "Upload .sh",
+  deleteHook: "Delete Hook Definition",
+  confirmDeleteHook: "Are you sure you want to delete this hook definition?",
+  uploadHook: "Upload .json",
   enterPasswordToUploadHook:
-    "Please enter your password to upload this hook script.",
+    "Please enter your password to upload this hook definition.",
   riskCommandDetected: "Risk command detected: {command}. Upload rejected.",
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
@@ -448,7 +448,7 @@ export const en = {
   verifying: "Verifying...",
   incorrectPassword: "Incorrect password",
   loginFailed: "Failed to verify password",
-  defaultPasswordHint: "Default password: 123",
+  defaultPasswordHint: "No default password. Use your configured password.",
   checkingConnection: "Checking connection...",
   connectionError: "Connection Error",
   backendConnectionFailed:
@@ -778,7 +778,7 @@ export const en = {
     "Configure system parameters, maintain data, and extend functions.",
   instructionSection3Sub1: "Security Settings:",
   instructionSection3Text1:
-    "Set the system login password (default initial password is 123, recommended to change after first login).",
+    "Set the system login password and keep it strong and unique.",
   instructionSection3Sub2: "Tag Management:",
   instructionSection3Text2:
     'Supports adding or deleting video classification tags. Note: You must click the "Save" button at the bottom of the page for changes to take effect.',

@@ -6,7 +6,9 @@ import {
     Alert,
     Box,
     Button,
+    Checkbox,
     Container,
+    FormControlLabel,
     Grid,
     Snackbar,
     Tab,
@@ -75,7 +77,7 @@ const SettingsPage: React.FC = () => {
         openListPublicUrl: '',
         cloudDrivePath: '',
         itemsPerPage: 12,
-        ytDlpConfig: '',
+        ytDlpSafeConfig: {},
         showYoutubeSearch: true,
         proxyOnlyYoutube: false,
         moveSubtitlesToVideoFolder: false,
@@ -83,7 +85,7 @@ const SettingsPage: React.FC = () => {
         saveAuthorFilesToCollection: false,
         hooks: {},
         playSoundOnTaskComplete: '',
-        mountDirectories: '',
+        platformMountDirectories: [],
         defaultSort: 'dateDesc',
         preferredAudioLanguage: ''
     });
@@ -91,6 +93,7 @@ const SettingsPage: React.FC = () => {
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
     const [currentTab, setCurrentTab] = useState(0);
+    const [selectedMountDirectoryIds, setSelectedMountDirectoryIds] = useState<string[]>([]);
 
     const triggerGlow = () => {
         setIsGlowing(false);
@@ -154,12 +157,23 @@ const SettingsPage: React.FC = () => {
 
     useEffect(() => {
         if (settingsData) {
+            const configuredPlatformMountDirectories = Array.isArray(settingsData.platformMountDirectories)
+                ? settingsData.platformMountDirectories
+                : [];
             const newSettings = {
                 ...settingsData,
                 tags: settingsData.tags || [],
-                mountDirectories: settingsData.mountDirectories || ''
+                platformMountDirectories: configuredPlatformMountDirectories,
             };
             setSettings(newSettings);
+            setSelectedMountDirectoryIds((previousIds) => {
+                const allowedIds = new Set(
+                    configuredPlatformMountDirectories
+                        .map((directory) => directory?.id)
+                        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+                );
+                return previousIds.filter((id) => allowedIds.has(id));
+            });
         }
     }, [settingsData]);
 
@@ -182,48 +196,16 @@ const SettingsPage: React.FC = () => {
 
     // Scan mount directories mutation
     const scanMountDirectoriesMutation = useMutation({
-        mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
-            // Send directories to the API
-            const res = await api.post('/scan-mount-directories', { directories });
-            // Return scan results along with mountDirectoriesText for saving
-            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
+        mutationFn: async ({ directoryIds }: { directoryIds: string[] }) => {
+            const res = await api.post('/scan-mount-directories', { directoryIds });
+            return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount };
         },
         onSuccess: (data) => {
-            // Save settings after successful scan to persist mountDirectories
-            // Use the mountDirectoriesText passed to the mutation to ensure we save the latest value
-            const settingsToSave = {
-                ...settings,
-                mountDirectories: data.mountDirectoriesText
-            };
-
-            if (!saveMutation.isPending) {
-                saveMutation.mutate(settingsToSave, {
-                    onSuccess: () => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveMsg = t('settingsSaved') || 'Settings saved.';
-                        setMessage({ text: `${scanMsg} ${saveMsg}`, type: 'success' });
-                        // Update local settings state to reflect saved mountDirectories
-                        setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
-                    },
-                    onError: (saveError: any) => {
-                        const scanMsg = t('scanMountDirectoriesSuccess', {
-                            addedCount: data.addedCount,
-                            deletedCount: data.deletedCount
-                        }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveErrorMsg = saveError.response?.data?.message || t('settingsFailed') || 'Failed to save settings.';
-                        setMessage({ text: `${scanMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
-                    }
-                });
-            } else {
-                const scanMsg = t('scanMountDirectoriesSuccess', {
-                    addedCount: data.addedCount,
-                    deletedCount: data.deletedCount
-                }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                setMessage({ text: scanMsg, type: 'success' });
-            }
+            const scanMsg = t('scanMountDirectoriesSuccess', {
+                addedCount: data.addedCount,
+                deletedCount: data.deletedCount
+            }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
+            setMessage({ text: scanMsg, type: 'success' });
         },
         onError: (error: any) => {
             setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.error || error.response?.data?.details || error.message}`, type: 'error' });
@@ -274,17 +256,46 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleScanMountDirectories = () => {
-        const mountDirectoriesText = settings.mountDirectories || '';
-        const directories = mountDirectoriesText
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
-        if (directories.length === 0) {
+        if (
+            settings.securityModel === 'strict' ||
+            settings.highRiskFeaturesDisabled?.mountDirectories === true
+        ) {
+            setMessage({
+                text: t('featureDisabledInStrictMode') || 'Mount directories API write is disabled in strict security model.',
+                type: 'warning',
+            });
+            return;
+        }
+
+        if (selectedMountDirectoryIds.length === 0) {
             setMessage({ text: t('mountDirectoriesEmptyError'), type: 'error' });
             return;
         }
-        scanMountDirectoriesMutation.mutate({ directories, mountDirectoriesText });
+        scanMountDirectoriesMutation.mutate({ directoryIds: selectedMountDirectoryIds });
     };
+
+    const toggleMountDirectorySelection = (directoryId: string, checked: boolean) => {
+        setSelectedMountDirectoryIds((previousIds) => {
+            if (checked) {
+                if (previousIds.includes(directoryId)) {
+                    return previousIds;
+                }
+                return [...previousIds, directoryId];
+            }
+            return previousIds.filter((id) => id !== directoryId);
+        });
+    };
+
+    const strictDisabledFeatures = settings.highRiskFeaturesDisabled || {};
+    const hooksDisabled = strictDisabledFeatures.hooks === true || settings.securityModel === 'strict';
+    const ytDlpLegacyTextDisabled =
+        strictDisabledFeatures.ytDlpConfig === true || settings.securityModel === 'strict';
+    const mountDirectoriesDisabled =
+        strictDisabledFeatures.mountDirectories === true ||
+        settings.securityModel === 'strict';
+    const cloudflaredControlDisabled =
+        strictDisabledFeatures.cloudflaredControl === true ||
+        settings.securityModel === 'strict';
 
     // Content renderers for each section (used by both desktop and mobile views)
     const renderBasicSettingsContent = () => (
@@ -324,6 +335,7 @@ const SettingsPage: React.FC = () => {
                 enabled={settings.cloudflaredTunnelEnabled}
                 token={settings.cloudflaredToken}
                 allowedHosts={settings.allowedHosts}
+                disabled={cloudflaredControlDisabled}
                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
             />
         </Box>
@@ -358,9 +370,10 @@ const SettingsPage: React.FC = () => {
             <Box>
                 <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>{t('ytDlpConfiguration') || 'yt-dlp Configuration'}</Typography>
                 <YtDlpSettings
-                    config={settings.ytDlpConfig || ''}
+                    config={settings.ytDlpSafeConfig || {}}
                     proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                    onChange={(config) => handleChange('ytDlpConfig', config)}
+                    showLegacyTextDisabledHint={ytDlpLegacyTextDisabled}
+                    onChange={(config) => handleChange('ytDlpSafeConfig', config)}
                     onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
                 />
             </Box>
@@ -372,21 +385,45 @@ const SettingsPage: React.FC = () => {
             <Typography variant="h6" sx={{ mb: 2 }}>
                 {t('mountDirectories')}
             </Typography>
-            <TextField
-                fullWidth
-                multiline
-                rows={4}
-                value={settings.mountDirectories || ''}
-                onChange={(e) => handleChange('mountDirectories' as keyof Settings, e.target.value)}
-                placeholder={t('mountDirectoriesPlaceholder')}
-                helperText={t('mountDirectoriesHelper')}
-            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Select platform-approved mount directory IDs for this scan.
+            </Typography>
+            {(settings.platformMountDirectories || []).length === 0 ? (
+                <Alert severity="info" sx={{ mt: 1 }}>
+                    No platform mount directories are configured by operator.
+                </Alert>
+            ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    {(settings.platformMountDirectories || []).map((directory) => (
+                        <FormControlLabel
+                            key={directory.id}
+                            control={
+                                <Checkbox
+                                    checked={selectedMountDirectoryIds.includes(directory.id)}
+                                    onChange={(_, checked) => toggleMountDirectorySelection(directory.id, checked)}
+                                    disabled={mountDirectoriesDisabled}
+                                />
+                            }
+                            label={`${directory.label} (${directory.id})`}
+                        />
+                    ))}
+                </Box>
+            )}
+            {mountDirectoriesDisabled && (
+                <Alert severity="warning" sx={{ mt: 2 }}>
+                    {t('featureDisabledInStrictMode') || 'Mount directories API write is disabled in strict security model.'}
+                </Alert>
+            )}
             <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                 <Button
                     variant="outlined"
                     startIcon={<FindInPage />}
                     onClick={handleScanMountDirectories}
-                    disabled={scanMountDirectoriesMutation.isPending}
+                    disabled={
+                        scanMountDirectoriesMutation.isPending ||
+                        mountDirectoriesDisabled ||
+                        (settings.platformMountDirectories || []).length === 0
+                    }
                 >
                     {scanMountDirectoriesMutation.isPending ? (t('scanning') || 'Scanning...') : (t('scanFiles') || 'Scan Files')}
                 </Button>
@@ -458,6 +495,7 @@ const SettingsPage: React.FC = () => {
             />
             <HookSettings
                 settings={settings}
+                disabled={hooksDisabled}
                 onChange={handleChange}
             />
         </Box>

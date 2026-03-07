@@ -51,6 +51,14 @@ describe("registerApiRoutes", () => {
       authLimiter
     );
     expect(app.use).toHaveBeenCalledWith(
+      "/api/settings/bootstrap",
+      authLimiter
+    );
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/settings/reset-password/recovery-token",
+      authLimiter
+    );
+    expect(app.use).toHaveBeenCalledWith(
       "/api/settings/reset-password",
       authLimiter
     );
@@ -75,6 +83,6 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.use).toHaveBeenCalledTimes(9);
+    expect(app.use).toHaveBeenCalledTimes(11);
   });
 });

@@ -1,6 +1,7 @@
 import { ValidationError } from "../errors/DownloadErrors";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
+import { normalizeYtDlpSafeConfig } from "../utils/ytDlpSafeConfig";
 import * as storageService from "./storageService";
 
 /**
@@ -28,6 +29,34 @@ function findCaseInsensitiveTagCollision(
  * Validate and normalize settings values
  */
 export function validateSettings(newSettings: Partial<Settings>): void {
+  if (newSettings.mountDirectories !== undefined) {
+    throw new ValidationError(
+      "mountDirectories is platform-managed. Use platform directory IDs for scan requests.",
+      "mountDirectories"
+    );
+  }
+
+  if (newSettings.ytDlpConfig !== undefined) {
+    throw new ValidationError(
+      "ytDlpConfig text field is deprecated. Use ytDlpSafeConfig.",
+      "ytDlpConfig"
+    );
+  }
+
+  if (newSettings.ytDlpSafeConfig !== undefined) {
+    const normalized = normalizeYtDlpSafeConfig(newSettings.ytDlpSafeConfig, {
+      rejectUnknownKeys: true,
+      rejectInvalidValues: true,
+    });
+    newSettings.ytDlpSafeConfig = normalized.config;
+
+    if (normalized.rejectedOptions.length > 0) {
+      logger.warn(
+        `[SecurityAudit] Rejected yt-dlp safe config options: ${normalized.rejectedOptions.join(", ")}`
+      );
+    }
+  }
+
   if (
     newSettings.password !== undefined &&
     typeof newSettings.password !== "string"
