@@ -450,7 +450,8 @@ export const ko = {
   verifying: "확인 중...",
   incorrectPassword: "비밀번호가 올바르지 않습니다",
   loginFailed: "비밀번호 확인 실패",
-  defaultPasswordHint: "기본 비밀번호: 123",
+  defaultPasswordHint:
+    "기본 비밀번호는 없습니다. 설정한 비밀번호를 사용하세요.",
   checkingConnection: "연결 확인 중...",
   connectionError: "연결 오류",
   backendConnectionFailed:

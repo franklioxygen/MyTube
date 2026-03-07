@@ -219,8 +219,8 @@ export const zh = {
   // Task Hooks
   taskHooks: "任务钩子",
   taskHooksDescription:
-    "在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
-  taskHooksWarning: "警告：命令将以服务器权限运行。请谨慎使用。",
+    "在任务生命周期的特定时间点执行声明式 Hook 动作。请上传 JSON 定义文件，仅支持白名单动作类型。",
+  taskHooksWarning: "警告：不支持任意 Shell 命令，仅允许受限动作执行器。",
   hookTaskBeforeStart: "任务开始前",
   hookTaskBeforeStartHelper: "在下载开始前执行。",
   hookTaskSuccess: "任务成功",
@@ -231,10 +231,10 @@ export const zh = {
   hookTaskCancelHelper: "当任务被手动取消时执行。",
   found: "已找到",
   notFound: "未设置",
-  deleteHook: "删除钩子脚本",
-  confirmDeleteHook: "确定要删除此钩子脚本吗？",
-  uploadHook: "上传 .sh",
-  enterPasswordToUploadHook: "请输入密码以上传此 Hook 脚本。",
+  deleteHook: "删除钩子定义",
+  confirmDeleteHook: "确定要删除此钩子定义吗？",
+  uploadHook: "上传 .json",
+  enterPasswordToUploadHook: "请输入密码以上传此 Hook 定义。",
   riskCommandDetected: "检测到危险命令：{command}。上传已拒绝。",
   cleanupTempFilesActiveDownloads:
     "有活动下载时无法清理。请等待所有下载完成或取消它们。",
@@ -432,7 +432,7 @@ export const zh = {
   verifying: "验证中...",
   incorrectPassword: "密码错误",
   loginFailed: "验证密码失败",
-  defaultPasswordHint: "默认密码：123",
+  defaultPasswordHint: "无默认密码，请使用你配置的密码。",
   checkingConnection: "正在检查连接...",
   connectionError: "连接错误",
   backendConnectionFailed:
@@ -736,7 +736,7 @@ export const zh = {
   instructionSection3Desc: "配置系统参数、维护数据及扩展功能。",
   instructionSection3Sub1: "安全设定：",
   instructionSection3Text1:
-    "设置系统登录密码（默认初始密码为 123，建议首次登录后修改）。",
+    "设置系统登录密码，并使用强且唯一的口令。",
   instructionSection3Sub2: "标签管理：",
   instructionSection3Text2:
     "支持添加或删除视频分类标签。注意： 所有操作完成后，必须点击页面底端的“保存”按钮方可生效。",

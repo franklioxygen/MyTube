@@ -10,6 +10,7 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "reset-password": "ts-node scripts/reset-password.ts",
+    "security-migration:scan": "ts-node scripts/security-migration-scan.ts",
     "postinstall": "node scripts/postinstall.cjs"
   },
   "keywords": [],

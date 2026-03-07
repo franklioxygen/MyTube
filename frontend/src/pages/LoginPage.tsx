@@ -87,9 +87,13 @@ const LoginPage: React.FC = () => {
 
     const passwordLoginAllowed = passwordEnabledData?.passwordLoginAllowed !== false;
     const allowResetPassword = passwordEnabledData?.allowResetPassword !== false;
+    const bootstrapRequired = passwordEnabledData?.bootstrapRequired === true;
     // Show visitor tab if visitor user is enabled AND visitorPassword is set
     const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
-    const showVisitorTab = visitorUserEnabled && !!passwordEnabledData?.isVisitorPasswordSet;
+    const showVisitorTab =
+        !bootstrapRequired &&
+        visitorUserEnabled &&
+        !!passwordEnabledData?.isVisitorPasswordSet;
 
     // Update website name when settings are loaded
     useEffect(() => {
@@ -233,13 +237,17 @@ const LoginPage: React.FC = () => {
 
     const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
-            const response = await api.post('/settings/verify-admin-password', { password: passwordToVerify });
+            const endpoint = bootstrapRequired
+                ? '/settings/bootstrap'
+                : '/settings/verify-admin-password';
+            const response = await api.post(endpoint, { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
             if (data.success) {
                 setWaitTime(0); // Reset wait time on success
-                login(data.role);
+                login(bootstrapRequired ? 'admin' : data.role);
+                queryClient.invalidateQueries({ queryKey: ['healthCheck'] });
             } else {
                 // Handle failures (incorrect password or too many attempts)
                 // These are returned as 200 OK with success: false to avoid console errors
@@ -269,6 +277,10 @@ const LoginPage: React.FC = () => {
         },
         onError: (err: any) => {
             console.error('Login error:', err);
+            if (bootstrapRequired && err?.response?.data?.error) {
+                showAlert(t('error'), err.response.data.error);
+                return;
+            }
             // Handle actual network errors or unexpected 500s
             showAlert(t('error'), t('loginFailed'));
         }
@@ -541,12 +553,21 @@ const LoginPage: React.FC = () => {
                                             <>
                                                 {passwordLoginAllowed && (
                                                     <Box component="form" onSubmit={handleSubmit} noValidate>
+                                                        {bootstrapRequired && (
+                                                            <Alert severity="info" sx={{ mt: 1 }}>
+                                                                {t('bootstrapRequired') || 'Initial setup required: create the first admin password.'}
+                                                            </Alert>
+                                                        )}
                                                         <TextField
                                                             margin="normal"
                                                             required
                                                             fullWidth
                                                             name="password"
-                                                            label={t('password') || 'Admin Password'}
+                                                            label={
+                                                                bootstrapRequired
+                                                                    ? (t('newAdminPassword') || 'New Admin Password')
+                                                                    : (t('password') || 'Admin Password')
+                                                            }
                                                             type={showPassword ? 'text' : 'password'}
                                                             id="password"
                                                             autoComplete="current-password"
@@ -554,7 +575,11 @@ const LoginPage: React.FC = () => {
                                                             onChange={(e) => setPassword(e.target.value)}
                                                             autoFocus={!showVisitorTab || activeTab === 0}
                                                             disabled={waitTime > 0 || adminLoginMutation.isPending}
-                                                            helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                                            helperText={
+                                                                bootstrapRequired
+                                                                    ? (t('bootstrapPasswordHint') || 'Use at least 8 characters.')
+                                                                    : undefined
+                                                            }
                                                             slotProps={{
                                                                 input: {
                                                                     endAdornment: (
@@ -578,12 +603,18 @@ const LoginPage: React.FC = () => {
                                                             sx={{ mt: 3, mb: 2 }}
                                                             disabled={adminLoginMutation.isPending || waitTime > 0}
                                                         >
-                                                            {adminLoginMutation.isPending ? (t('verifying') || 'Verifying...') : (t('signIn') || 'Admin Sign In')}
+                                                            {adminLoginMutation.isPending
+                                                                ? (bootstrapRequired
+                                                                    ? (t('settingUp') || 'Setting up...')
+                                                                    : (t('verifying') || 'Verifying...'))
+                                                                : (bootstrapRequired
+                                                                    ? (t('initializeAdmin') || 'Initialize Admin')
+                                                                    : (t('signIn') || 'Admin Sign In'))}
                                                         </Button>
                                                     </Box>
                                                 )}
 
-                                                {passwordLoginAllowed && passkeysExist && (
+                                                {!bootstrapRequired && passwordLoginAllowed && passkeysExist && (
                                                     <>
                                                         <Divider sx={{ my: 2 }}>OR</Divider>
                                                         <Button
@@ -601,7 +632,7 @@ const LoginPage: React.FC = () => {
                                                     </>
                                                 )}
 
-                                                {!passwordLoginAllowed && passkeysExist && (
+                                                {!bootstrapRequired && !passwordLoginAllowed && passkeysExist && (
                                                     <Button
                                                         fullWidth
                                                         variant="contained"
@@ -616,7 +647,7 @@ const LoginPage: React.FC = () => {
                                                     </Button>
                                                 )}
 
-                                                {allowResetPassword && (
+                                                {!bootstrapRequired && allowResetPassword && (
                                                     <Button
                                                         fullWidth
                                                         variant="outlined"
@@ -631,7 +662,7 @@ const LoginPage: React.FC = () => {
                                                     </Button>
                                                 )}
 
-                                                {!allowResetPassword && passwordLoginAllowed && (
+                                                {!bootstrapRequired && !allowResetPassword && passwordLoginAllowed && (
                                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
                                                         <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
                                                             <IconButton

@@ -1,5 +1,26 @@
+export interface YtDlpSafeConfig {
+  maxResolution?: 360 | 480 | 720 | 1080 | 1440 | 2160 | 4320;
+  mergeOutputFormat?: "mp4" | "webm" | "mkv";
+  proxy?: string;
+  limitRate?: string;
+  retries?: number;
+  concurrentFragments?: number;
+  socketTimeout?: number;
+  forceIpVersion?: "ipv4" | "ipv6";
+  xff?: string;
+  sleepRequests?: number;
+  sleepInterval?: number;
+  maxSleepInterval?: number;
+}
+
 export interface Settings {
   loginEnabled: boolean;
+  bootstrapCompleted?: boolean;
+  strictSecurityMigrationVersion?: number;
+  ytDlpSafeConfigMigrationVersion?: number;
+  passwordRecoveryTokenHash?: string;
+  passwordRecoveryTokenExpiresAt?: number;
+  passwordRecoveryTokenIssuedAt?: number;
   password?: string;
   apiKeyEnabled?: boolean;
   apiKey?: string;
@@ -22,6 +43,7 @@ export interface Settings {
   websiteName?: string;
   itemsPerPage?: number;
   ytDlpConfig?: string;
+  ytDlpSafeConfig?: YtDlpSafeConfig;
   showYoutubeSearch?: boolean;
   proxyOnlyYoutube?: boolean;
   moveSubtitlesToVideoFolder?: boolean;
@@ -56,6 +78,13 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   loginEnabled: false,
+  bootstrapCompleted: false,
+  strictSecurityMigrationVersion: 0,
+  ytDlpSafeConfigMigrationVersion: 0,
+  passwordRecoveryTokenHash: "",
+  passwordRecoveryTokenExpiresAt: 0,
+  passwordRecoveryTokenIssuedAt: 0,
+  ytDlpSafeConfig: {},
   password: "",
   apiKeyEnabled: false,
   apiKey: "",

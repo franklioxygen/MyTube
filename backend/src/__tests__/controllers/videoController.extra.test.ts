@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isPathWithinPlatformMountDirectories } from "../../config/mountDirectories";
 import {
   getAuthorChannelUrl,
   getVideoById,
@@ -47,6 +48,10 @@ vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
   isBilibiliUrl: vi.fn(),
   isYouTubeUrl: vi.fn(),
+}));
+
+vi.mock("../../config/mountDirectories", () => ({
+  isPathWithinPlatformMountDirectories: vi.fn(() => true),
 }));
 
 vi.mock("axios", () => ({
@@ -157,6 +162,7 @@ describe("videoController extra coverage", () => {
     vi.mocked(getNetworkConfigFromUserConfig).mockReturnValue({} as any);
     vi.mocked(isYouTubeUrl).mockReturnValue(false);
     vi.mocked(isBilibiliUrl).mockReturnValue(false);
+    vi.mocked(isPathWithinPlatformMountDirectories).mockReturnValue(true);
     vi.mocked(extractBilibiliVideoId).mockReturnValue(null);
     vi.mocked(storageService.getSettings).mockReturnValue({
       moveSubtitlesToVideoFolder: false,
@@ -513,6 +519,19 @@ describe("videoController extra coverage", () => {
     await expect(serveMountVideo(req as Request, res as Response)).rejects.toBeInstanceOf(
       ValidationError
     );
+  });
+
+  it("serveMountVideo rejects paths outside platform allowlist", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "v1",
+      videoPath: "mount:/mnt/media/video.mp4",
+    } as any);
+    vi.mocked(isPathWithinPlatformMountDirectories).mockReturnValue(false);
+
+    await expect(serveMountVideo(req as Request, res as Response)).rejects.toBeInstanceOf(
+      ValidationError
+    );
+    expect(sendFile).not.toHaveBeenCalled();
   });
 
   it("uploadVideo rejects when file is missing", async () => {

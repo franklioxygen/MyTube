@@ -66,6 +66,11 @@ const buildSettingsPatchPayload = (
   // Backend derives these flags; they are not writable settings.
   delete normalized.isPasswordSet;
   delete normalized.isVisitorPasswordSet;
+  delete normalized.authenticatedRole;
+  delete normalized.securityModel;
+  delete normalized.highRiskFeaturesDisabled;
+  delete normalized.platformMountDirectories;
+  delete normalized.mountDirectories;
 
   if (!currentSettings) {
     // Without a baseline we should not submit a full settings object.

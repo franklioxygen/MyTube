@@ -11,6 +11,7 @@ import {
   validateCloudThumbnailCachePath,
   validateRedirectUrl,
 } from "../../utils/security";
+import { isStrictFeatureDisabled } from "../../utils/strictSecurity";
 
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
@@ -36,9 +37,13 @@ vi.mock("../../utils/security", () => ({
   validateCloudThumbnailCachePath: vi.fn((p: string) => p),
   validateRedirectUrl: vi.fn((url: string) => url),
 }));
+vi.mock("../../utils/strictSecurity", () => ({
+  isStrictFeatureDisabled: vi.fn(),
+}));
 
 vi.mock("../../utils/logger", () => ({
   logger: {
+    info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
   },
@@ -49,6 +54,7 @@ const flushAsync = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("server/cloudRoutes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({
       cloudDriveEnabled: true,
       openListApiUrl: "https://openlist.example/api/fs/put",
@@ -257,5 +263,17 @@ describe("server/cloudRoutes", () => {
     } as any);
     startCloudflaredIfEnabled(5551);
     expect(cloudflaredService.start).toHaveBeenCalledWith(undefined, 5551);
+  });
+
+  it("should skip cloudflared startup in strict security mode", () => {
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
+    vi.mocked(storageService.getSettings).mockReturnValue({
+      cloudflaredTunnelEnabled: true,
+      cloudflaredToken: "token-123",
+    } as any);
+
+    startCloudflaredIfEnabled(5551);
+
+    expect(cloudflaredService.start).not.toHaveBeenCalled();
   });
 });

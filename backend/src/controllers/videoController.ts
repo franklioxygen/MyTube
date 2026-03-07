@@ -4,8 +4,10 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import multer from "multer";
 import path from "path";
+import { isPathWithinPlatformMountDirectories } from "../config/mountDirectories";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
+import { recordSecurityAuditEvent } from "../services/securityAuditService";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -864,7 +866,46 @@ export const serveMountVideo = async (
   }
 
   const rawFilePath = video.videoPath.substring(6);
-  const filePath = resolveMountFilePath(rawFilePath);
+  let filePath: string;
+  try {
+    filePath = resolveMountFilePath(rawFilePath);
+  } catch (error) {
+    recordSecurityAuditEvent({
+      eventType: "path.traversal_attempt",
+      req,
+      result: "rejected",
+      target: req.originalUrl || req.path,
+      summary:
+        error instanceof Error
+          ? error.message
+          : "invalid mount video path detected",
+      metadata: {
+        videoId: id,
+        pathPrefix: rawFilePath.slice(0, 120),
+      },
+      level: "warn",
+    });
+    throw error;
+  }
+
+  if (!isPathWithinPlatformMountDirectories(filePath)) {
+    recordSecurityAuditEvent({
+      eventType: "path.traversal_attempt",
+      req,
+      result: "rejected",
+      target: req.originalUrl || req.path,
+      summary: "mount video path outside platform allowlist",
+      metadata: {
+        videoId: id,
+        filePath,
+      },
+      level: "warn",
+    });
+    throw new ValidationError(
+      "Mount video path is outside platform allowlist",
+      "videoPath"
+    );
+  }
   assertMountFileExists(filePath);
   setMountVideoHeaders(res, filePath);
   res.sendFile(path.basename(filePath), { root: path.dirname(filePath) });

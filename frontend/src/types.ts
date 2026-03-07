@@ -62,6 +62,16 @@ export interface Comment {
 }
 
 export interface Settings {
+  platformMountDirectories?: PlatformMountDirectoryDescriptor[];
+  mountDirectories?: string;
+  ytDlpSafeConfig?: YtDlpSafeConfig;
+  securityModel?: "strict" | "legacy";
+  highRiskFeaturesDisabled?: {
+    hooks?: boolean;
+    ytDlpConfig?: boolean;
+    mountDirectories?: boolean;
+    cloudflaredControl?: boolean;
+  };
   loginEnabled: boolean;
   fastRetryMode?: boolean;
   password?: string;
@@ -109,7 +119,6 @@ export interface Settings {
   };
   playSoundOnTaskComplete?: string;
   tmdbApiKey?: string;
-  mountDirectories?: string;
   defaultSort?: string;
   showTagsOnThumbnail?: boolean;
   preferredAudioLanguage?: string;
@@ -124,4 +133,24 @@ export interface Settings {
   telegramChatId?: string;
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
+}
+
+export interface YtDlpSafeConfig {
+  maxResolution?: 360 | 480 | 720 | 1080 | 1440 | 2160 | 4320;
+  mergeOutputFormat?: "mp4" | "webm" | "mkv";
+  proxy?: string;
+  limitRate?: string;
+  retries?: number;
+  concurrentFragments?: number;
+  socketTimeout?: number;
+  forceIpVersion?: "ipv4" | "ipv6";
+  xff?: string;
+  sleepRequests?: number;
+  sleepInterval?: number;
+  maxSleepInterval?: number;
+}
+
+export interface PlatformMountDirectoryDescriptor {
+  id: string;
+  label: string;
 }

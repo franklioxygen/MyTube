@@ -461,7 +461,8 @@ export const pt = {
   verifying: "Verificando...",
   incorrectPassword: "Senha incorreta",
   loginFailed: "Falha ao verificar senha",
-  defaultPasswordHint: "Senha padrão: 123",
+  defaultPasswordHint:
+    "Não há senha padrão. Use a senha que você configurou.",
   checkingConnection: "Verificando conexão...",
   connectionError: "Erro de Conexão",
   backendConnectionFailed:
@@ -787,7 +788,7 @@ export const pt = {
     "Configurar parâmetros do sistema, manter dados e estender funções.",
   instructionSection3Sub1: "Configurações de Segurança:",
   instructionSection3Text1:
-    "Defina a senha de login do sistema (a senha inicial padrão é 123, recomenda-se alterar após o primeiro login).",
+    "Defina uma senha de login forte e exclusiva para o sistema.",
   instructionSection3Sub2: "Gerenciamento de Tags:",
   instructionSection3Text2:
     'Suporta adicionar ou excluir tags de classificação de vídeo. Nota: Você deve clicar no botão "Salvar" na parte inferior da página para que as alterações entrem em vigor.',

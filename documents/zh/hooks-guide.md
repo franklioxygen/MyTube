@@ -1,84 +1,92 @@
-# 任务钩子使用指南 (Task Hooks Guide)
+# 任务钩子使用指南
 
-MyTube 允许您在下载任务的不同阶段执行自定义 Shell 脚本，用于后处理、通知或外部集成。
+MyTube 现在支持声明式任务钩子。  
+钩子配置使用 JSON 动作定义，不再执行 Shell 脚本。
 
-## 可用钩子 (Available Hooks)
+## 可用事件
 
-| 钩子名称 | 触发时机 | 描述 |
+| 钩子名称 | 触发时机 | 说明 |
 | :--- | :--- | :--- |
-| **任务开始前** (`task_before_start`) | 下载开始前 | 在下载开始前立即执行。 |
-| **任务成功** (`task_success`) | 下载成功后 | 下载/合并完成后执行，且在云存储上传（若启用）或删除之前执行。 |
-| **任务失败** (`task_fail`) | 任务失败时 | 下载失败时执行。 |
-| **任务取消** (`task_cancel`) | 任务取消时 | 用户取消正在运行的任务时执行。 |
+| `task_before_start` | 下载开始前 | 在下载启动前执行。 |
+| `task_success` | 下载成功后 | 下载/合并完成后执行，且在云上传/删除前执行。 |
+| `task_fail` | 任务失败时 | 下载失败时执行。 |
+| `task_cancel` | 任务取消时 | 任务被取消时执行。 |
 
-默认脚本目录为 `backend/data/hooks`。
+钩子定义文件存放在 `backend/data/hooks/*.json`。
 
-## 环境变量 (Environment Variables)
+## 执行模型
 
-| 变量 | 描述 | 示例 |
-| :--- | :--- | :--- |
-| `MYTUBE_TASK_ID` | 任务唯一标识 | `335e98f0-15cb-46a4-846d-9d4351368923` |
-| `MYTUBE_TASK_TITLE` | 视频/任务标题 | `Awesome Video Title` |
-| `MYTUBE_SOURCE_URL` | 视频原始 URL | `https://www.youtube.com/watch?v=...` |
-| `MYTUBE_TASK_STATUS` | 当前状态 | `start`, `success`, `fail`, `cancel` |
-| `MYTUBE_VIDEO_PATH` | 视频文件绝对路径 | `/app/uploads/videos/video.mp4` |
-| `MYTUBE_THUMBNAIL_PATH` | 缩略图绝对路径 | `/app/uploads/images/video.jpg` |
-| `MYTUBE_ERROR` | 错误消息（仅 `task_fail`） | `Network timeout` |
+- 事件 -> 队列 -> 受限执行器
+- 钩子按顺序串行执行
+- 不支持任意 Shell 命令
 
-## 配置 (Configuration)
+## 执行模式
 
-1. 进入 **设置 (Settings)**。
-2. 打开 **高级设置 (Advanced Settings)**。
-3. 找到 **任务钩子 (Task Hooks)**。
-4. 上传对应事件的 `.sh` 脚本。
-5. 需要时可删除或重新上传。
+- `HOOK_EXECUTION_MODE=inline`：
+  - 由 backend 进程入队并在本地执行钩子动作。
+  - 适合本地开发或单进程部署。
+- `HOOK_EXECUTION_MODE=worker`：
+  - backend 仅负责写入 `hook_worker_jobs` 队列。
+  - 独立 `hook-worker` 进程/容器轮询并执行动作。
+  - 推荐用于生产隔离。
 
-钩子脚本使用 `bash` 执行，上传后会自动赋予可执行权限。
+worker 模式建议启用容器加固：
+- 非 root 用户
+- 只读根文件系统 + 独立可写数据挂载
+- `no-new-privileges`
+- `cap_drop: [ALL]`
+- 启用 Docker 默认 seccomp 策略与 `apparmor=docker-default`
 
-## 查看日志 (Viewing Logs)
+## 支持的动作类型
 
-脚本输出 (stdout/stderr) 会被后端捕获并记录。
-- 标准输出 (`echo "..."`) 记录为 `INFO`。
-- 标准错误 (`>&2 echo "..."`) 记录为 `WARN`。
+### `notify_webhook`
 
-示例：
-```bash
-echo "Hook started for task $MYTUBE_TASK_ID"
-```
-在服务器日志中将显示为：
-`[INFO] [HookService] task_success stdout: Hook started for task 123...`
+用于发送 HTTP Webhook 请求：
 
-## 示例 (Examples)
-
-### 1. 简单日志记录
-将每个成功的下载记录到自定义文件中。
-**钩子:** `task_success`
-```bash
-#!/bin/bash
-# 请提供日志文件的完整路径
-echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /tmp/mytube_downloads.log
-```
-
-### 2. 发送通知 (例如 ntfy.sh)
-当任务失败时发送通知。
-**钩子:** `task_fail`
-```bash
-#!/bin/bash
-curl -d "MyTube Download Failed: $MYTUBE_TASK_TITLE - $MYTUBE_ERROR" https://ntfy.sh/my_topic
+```json
+{
+  "version": 1,
+  "actions": [
+    {
+      "type": "notify_webhook",
+      "url": "https://example.com/mytube-hook",
+      "method": "POST",
+      "timeoutMs": 5000,
+      "headers": {
+        "X-App": "MyTube"
+      },
+      "bodyTemplate": "任务 {{taskTitle}} ({{taskId}}) -> {{status}}"
+    }
+  ]
+}
 ```
 
-### 3. 文件后处理
-运行 Python 脚本处理文件。
-**钩子:** `task_success`
-```bash
-#!/bin/bash
-python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
-```
+`method` 仅支持：`POST`、`PUT`、`PATCH`。
 
-## 安全警告 (Security Warning)
+## 模板变量
 
-> [!WARNING]
-> 钩子命令以与 MyTube 后端相同的权限执行。
-> - 使用修改或删除文件的命令时请务必小心。
-> - 请勿复制粘贴来自不可信来源的脚本。
-> - 确保脚本能正确处理错误。
+`bodyTemplate` 支持以下变量：
+
+- `{{eventName}}`
+- `{{taskId}}`
+- `{{taskTitle}}`
+- `{{sourceUrl}}`
+- `{{status}}`
+- `{{videoPath}}`
+- `{{thumbnailPath}}`
+- `{{error}}`
+
+如果未提供 `bodyTemplate`，系统会发送包含上述字段的 JSON 请求体。
+
+## 配置步骤
+
+1. 打开 **设置**。
+2. 进入 **高级设置**。
+3. 找到 **任务钩子**。
+4. 为对应事件上传 `.json` 钩子定义。
+5. 需要时可删除并重新上传。
+
+## 说明
+
+- 旧版 `.sh` 钩子脚本将被执行器忽略。
+- 上传的定义若包含无效或不支持的动作，会被拒绝。

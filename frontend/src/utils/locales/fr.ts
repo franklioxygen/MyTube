@@ -463,7 +463,8 @@ export const fr = {
   verifying: "Vérification...",
   incorrectPassword: "Mot de passe incorrect",
   loginFailed: "Échec de la vérification du mot de passe",
-  defaultPasswordHint: "Mot de passe par défaut : 123",
+  defaultPasswordHint:
+    "Aucun mot de passe par défaut. Utilisez le mot de passe configuré.",
   checkingConnection: "Vérification de la connexion...",
   connectionError: "Erreur de Connexion",
   backendConnectionFailed:

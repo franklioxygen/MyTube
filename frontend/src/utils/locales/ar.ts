@@ -445,7 +445,8 @@ export const ar = {
   verifying: "جاري التحقق...",
   incorrectPassword: "كلمة المرور غير صحيحة",
   loginFailed: "فشل التحقق من كلمة المرور",
-  defaultPasswordHint: "كلمة المرور الافتراضية: 123",
+  defaultPasswordHint:
+    "لا توجد كلمة مرور افتراضية. استخدم كلمة المرور التي قمت بإعدادها.",
   checkingConnection: "جارٍ التحقق من الاتصال...",
   connectionError: "خطأ في الاتصال",
   backendConnectionFailed:
