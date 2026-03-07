@@ -104,6 +104,7 @@ VITE_BACKEND_URL=
 ```env
 PORT=5551
 SECURITY_MODEL=strict
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
 ```
 
 `SECURITY_MODEL` supports `strict` and `legacy`.
@@ -112,6 +113,7 @@ SECURITY_MODEL=strict
 - `legacy`: keeps compatibility behavior for migration windows.
 
 In `production`, `SECURITY_MODEL` must be set to a valid value. Missing or invalid values will fail startup (fail-closed).
+In `production`, `JWT_SECRET` must also be set to a random secret with at least 32 characters.
 New installations should use `strict` by default. Existing deployments can temporarily use `legacy` only within a short migration window.
 
 Security boundary summary:
