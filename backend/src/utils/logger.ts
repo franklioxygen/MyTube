@@ -208,13 +208,29 @@ export function redactSensitive(message: string): string {
   if (typeof message !== "string") {
     return String(message);
   }
-  // Redact common sensitive patterns
+  // Redact common sensitive patterns, including JSON payloads and query params.
   return message
-    .replace(/password[=:]\s*[^\s]+/gi, "password=[REDACTED]")
-    .replace(/token[=:]\s*[^\s]+/gi, "token=[REDACTED]")
-    .replace(/secret[=:]\s*[^\s]+/gi, "secret=[REDACTED]")
-    .replace(/api[_-]?key[=:]\s*[^\s]+/gi, "api_key=[REDACTED]")
-    .replace(/authorization[=:]\s*[^\s]+/gi, "authorization=[REDACTED]");
+    .replace(
+      /("([^"]*(token|secret|password|api[_-]?key|authorization|cloudflaredtoken)[^"]*)"\s*:\s*)"[^"]*"/gi,
+      '$1"[REDACTED]"'
+    )
+    .replace(
+      /([?&](token|access_token|api[_-]?key|secret|authorization)=)[^&\s]*/gi,
+      "$1[REDACTED]"
+    )
+    .replace(
+      /(\bauthorization\b\s*[=:]\s*bearer\s+)[^\s,;]+/gi,
+      "$1[REDACTED]"
+    )
+    .replace(/(bearer\s+)[a-z0-9\-._~+/]+=*/gi, "$1[REDACTED]")
+    .replace(
+      /(\bauthorization\b\s*[=:]\s*)(?!bearer\b)[^\s,;]+/gi,
+      "$1[REDACTED]"
+    )
+    .replace(
+      /(\b(password|token|secret|api[_-]?key|cloudflaredtoken)\b\s*[=:]\s*)[^\s,;&]+/gi,
+      "$1[REDACTED]"
+    );
 }
 
 /**

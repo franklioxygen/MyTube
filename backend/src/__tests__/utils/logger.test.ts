@@ -1,6 +1,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Logger, LogLevel } from '../../utils/logger';
+import { Logger, LogLevel, redactSensitive } from '../../utils/logger';
 
 describe('Logger', () => {
     let consoleSpy: any;
@@ -42,5 +42,22 @@ describe('Logger', () => {
         const [prefix, message] = consoleSpy.error.mock.calls[0];
         expect(prefix).toContain('[ERROR]');
         expect(message).toBe('error message');
+    });
+
+    it('should redact JSON token-like fields', () => {
+        const redacted = redactSensitive(
+            '{"cloudflaredToken":"abc123","apiKey":"secret-key","normal":"ok"}'
+        );
+        expect(redacted).toContain('"cloudflaredToken":"[REDACTED]"');
+        expect(redacted).toContain('"apiKey":"[REDACTED]"');
+        expect(redacted).toContain('"normal":"ok"');
+    });
+
+    it('should redact query params and bearer headers', () => {
+        const redacted = redactSensitive(
+            'GET /api?token=abc&foo=bar Authorization=Bearer very.secret.token'
+        );
+        expect(redacted).toContain('token=[REDACTED]');
+        expect(redacted).toContain('Bearer [REDACTED]');
     });
 });

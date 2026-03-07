@@ -38,7 +38,12 @@ export {
 } from "./videoDownloadTracking";
 
 // Settings
-export { getSettings, invalidateSettingsCache, saveSettings } from "./settings";
+export {
+    getSettings,
+    invalidateSettingsCache,
+    saveSettings,
+    tryCompleteBootstrapWithAdminPassword
+} from "./settings";
 
 // Videos
 export {

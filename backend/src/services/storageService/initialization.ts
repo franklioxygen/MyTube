@@ -11,6 +11,13 @@ import {
     VIDEOS_DIR,
 } from "../../config/paths";
 import { db, sqlite } from "../../db";
+import {
+    AUTH_SESSIONS_SCHEMA,
+    HOOK_WORKER_JOBS_SCHEMA,
+    SECURITY_ALERT_WINDOWS_SCHEMA,
+    SECURITY_AUDIT_LOGS_SCHEMA,
+    ensureSqliteTableSchema,
+} from "../../db/sqliteStorageSchemas";
 import { downloads, videos } from "../../db/schema";
 import { MigrationError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
@@ -27,6 +34,124 @@ type VideoDownloadRecord = {
   status: string;
   downloadedAt: number | null;
 };
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_SECURITY_AUDIT_RETENTION_DAYS = 90;
+const DEFAULT_SECURITY_ALERT_WINDOW_RETENTION_DAYS = 7;
+
+const parsePositiveIntEnv = (
+  rawValue: string | undefined,
+  fallback: number
+): number => {
+  if (!rawValue) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+};
+
+const getSecurityAuditRetentionMs = (): number =>
+  parsePositiveIntEnv(
+    process.env.SECURITY_AUDIT_RETENTION_DAYS,
+    DEFAULT_SECURITY_AUDIT_RETENTION_DAYS
+  ) * DAY_IN_MS;
+
+const getSecurityAlertWindowRetentionMs = (): number =>
+  parsePositiveIntEnv(
+    process.env.SECURITY_ALERT_WINDOW_RETENTION_DAYS,
+    DEFAULT_SECURITY_ALERT_WINDOW_RETENTION_DAYS
+  ) * DAY_IN_MS;
+
+function ensureAuthSessionsStorage(): void {
+  ensureSqliteTableSchema(sqlite, AUTH_SESSIONS_SCHEMA, (indexError) => {
+    logger.debug(
+      "Auth sessions index creation skipped (may already exist)",
+      indexError instanceof Error ? indexError : new Error(String(indexError))
+    );
+  });
+
+  try {
+    const cleanupResult = sqlite
+      .prepare("DELETE FROM auth_sessions WHERE expires_at <= ?")
+      .run(Date.now()) as { changes?: number } | undefined;
+    const cleaned = cleanupResult?.changes ?? 0;
+    if (cleaned > 0) {
+      logger.info(`Cleaned up ${cleaned} expired auth sessions on startup`);
+    }
+  } catch (cleanupError) {
+    logger.debug(
+      "Auth sessions cleanup skipped",
+      cleanupError instanceof Error
+        ? cleanupError
+        : new Error(String(cleanupError))
+    );
+  }
+}
+
+function ensureSecurityAuditStorage(): void {
+  ensureSqliteTableSchema(sqlite, SECURITY_AUDIT_LOGS_SCHEMA, (indexError) => {
+    logger.debug(
+      "Security audit index creation skipped (may already exist)",
+      indexError instanceof Error ? indexError : new Error(String(indexError))
+    );
+  });
+  ensureSqliteTableSchema(sqlite, SECURITY_ALERT_WINDOWS_SCHEMA, (indexError) => {
+    logger.debug(
+      "Security alert window index creation skipped (may already exist)",
+      indexError instanceof Error ? indexError : new Error(String(indexError))
+    );
+  });
+
+  try {
+    const auditCutoff = Date.now() - getSecurityAuditRetentionMs();
+    const cleanupResult = sqlite
+      .prepare("DELETE FROM security_audit_logs WHERE created_at < ?")
+      .run(auditCutoff) as { changes?: number } | undefined;
+    const cleaned = cleanupResult?.changes ?? 0;
+    if (cleaned > 0) {
+      logger.info(`Cleaned up ${cleaned} expired security audit log entries on startup`);
+    }
+  } catch (cleanupError) {
+    logger.debug(
+      "Security audit log cleanup skipped",
+      cleanupError instanceof Error
+        ? cleanupError
+        : new Error(String(cleanupError))
+    );
+  }
+
+  try {
+    const alertWindowCutoff = Date.now() - getSecurityAlertWindowRetentionMs();
+    const cleanupResult = sqlite
+      .prepare("DELETE FROM security_alert_windows WHERE updated_at < ?")
+      .run(alertWindowCutoff) as { changes?: number } | undefined;
+    const cleaned = cleanupResult?.changes ?? 0;
+    if (cleaned > 0) {
+      logger.info(`Cleaned up ${cleaned} stale security alert window entries on startup`);
+    }
+  } catch (cleanupError) {
+    logger.debug(
+      "Security alert window cleanup skipped",
+      cleanupError instanceof Error
+        ? cleanupError
+        : new Error(String(cleanupError))
+    );
+  }
+}
+
+function ensureHookWorkerQueueStorage(): void {
+  ensureSqliteTableSchema(sqlite, HOOK_WORKER_JOBS_SCHEMA, (indexError) => {
+    logger.debug(
+      "Hook worker queue index creation skipped (may already exist)",
+      indexError instanceof Error ? indexError : new Error(String(indexError))
+    );
+  });
+}
 
 function deduplicateVideoDownloadsBySourceAndPlatform(): void {
   const duplicateGroups = sqlite
@@ -141,6 +266,48 @@ export function initializeStorage(): void {
   } catch (error) {
     logger.error(
       "Error clearing active downloads from database",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+
+  try {
+    ensureAuthSessionsStorage();
+  } catch (error) {
+    logger.error(
+      "Error initializing auth sessions storage",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to initialize auth sessions storage",
+      "auth_sessions_storage",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+
+  try {
+    ensureSecurityAuditStorage();
+  } catch (error) {
+    logger.error(
+      "Error initializing security audit storage",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to initialize security audit storage",
+      "security_audit_storage",
+      error instanceof Error ? error : new Error(String(error))
+    );
+  }
+
+  try {
+    ensureHookWorkerQueueStorage();
+  } catch (error) {
+    logger.error(
+      "Error initializing hook worker queue storage",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new MigrationError(
+      "Failed to initialize hook worker queue storage",
+      "hook_worker_queue_storage",
       error instanceof Error ? error : new Error(String(error))
     );
   }

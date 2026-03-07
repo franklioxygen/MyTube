@@ -1,84 +1,92 @@
 # Task Hooks Guide
 
-MyTube lets you execute custom shell scripts at different stages of a download task. This is useful for post-processing, notifications, or external integrations.
+MyTube supports declarative task hooks.  
+Hooks are configured as JSON action definitions, not shell scripts.
 
-## Available Hooks
+## Available Hook Events
 
 | Hook Name | Trigger Point | Description |
 | :--- | :--- | :--- |
-| **Before Task Start** (`task_before_start`) | Before download begins | Runs right before the download starts. |
-| **Task Success** (`task_success`) | After successful download | Runs after download/merge completes but **before** cloud upload (if enabled) or deletion. |
-| **Task Failed** (`task_fail`) | On task failure | Runs when a download fails. |
-| **Task Cancelled** (`task_cancel`) | On task cancellation | Runs when a user cancels a running task. |
+| `task_before_start` | Before download begins | Runs before download starts. |
+| `task_success` | After successful download | Runs after download/merge completes, before cloud upload/delete. |
+| `task_fail` | On task failure | Runs when a download fails. |
+| `task_cancel` | On task cancellation | Runs when a task is cancelled. |
 
-Hook scripts are stored under `backend/data/hooks` by default.
+Hook definitions are stored under `backend/data/hooks/*.json`.
 
-## Environment Variables
+## Execution Model
 
-| Variable | Description | Example |
-| :--- | :--- | :--- |
-| `MYTUBE_TASK_ID` | Unique task ID | `335e98f0-15cb-46a4-846d-9d4351368923` |
-| `MYTUBE_TASK_TITLE` | Video/task title | `Awesome Video Title` |
-| `MYTUBE_SOURCE_URL` | Original video URL | `https://www.youtube.com/watch?v=...` |
-| `MYTUBE_TASK_STATUS` | Current status | `start`, `success`, `fail`, `cancel` |
-| `MYTUBE_VIDEO_PATH` | Absolute path to video file | `/app/uploads/videos/video.mp4` |
-| `MYTUBE_THUMBNAIL_PATH` | Absolute path to thumbnail | `/app/uploads/images/video.jpg` |
-| `MYTUBE_ERROR` | Error message (only for `task_fail`) | `Network timeout` |
+- Event -> queue -> restricted executor.
+- Hooks are processed sequentially.
+- Arbitrary shell commands are not supported.
 
-## Configuration
+## Execution Modes
+
+- `HOOK_EXECUTION_MODE=inline`:
+  - Backend process enqueues and executes hook actions locally.
+  - Useful for local development or simple single-process setups.
+- `HOOK_EXECUTION_MODE=worker`:
+  - Backend process only enqueues jobs to `hook_worker_jobs`.
+  - A separate `hook-worker` process/container polls and executes actions.
+  - Recommended for production isolation.
+
+For worker mode, run the worker with hardened container settings:
+- non-root user
+- read-only root filesystem with dedicated writable data mount
+- `no-new-privileges`
+- `cap_drop: [ALL]`
+- Docker default seccomp policy and `apparmor=docker-default`
+
+## Supported Action Types
+
+### `notify_webhook`
+
+Send an HTTP webhook request.
+
+```json
+{
+  "version": 1,
+  "actions": [
+    {
+      "type": "notify_webhook",
+      "url": "https://example.com/mytube-hook",
+      "method": "POST",
+      "timeoutMs": 5000,
+      "headers": {
+        "X-App": "MyTube"
+      },
+      "bodyTemplate": "Task {{taskTitle}} ({{taskId}}) -> {{status}}"
+    }
+  ]
+}
+```
+
+Supported methods: `POST`, `PUT`, `PATCH`.
+
+## Template Variables
+
+`bodyTemplate` supports:
+
+- `{{eventName}}`
+- `{{taskId}}`
+- `{{taskTitle}}`
+- `{{sourceUrl}}`
+- `{{status}}`
+- `{{videoPath}}`
+- `{{thumbnailPath}}`
+- `{{error}}`
+
+If `bodyTemplate` is omitted, MyTube sends a JSON payload with these fields.
+
+## Configuration Steps
 
 1. Go to **Settings**.
 2. Open **Advanced Settings**.
 3. Find **Task Hooks**.
-4. Upload `.sh` scripts for the desired events.
-5. Delete or re-upload as needed.
+4. Upload a `.json` hook definition for the event.
+5. Delete/re-upload when needed.
 
-Hooks are executed with `bash` and are made executable on upload.
+## Notes
 
-## Viewing Logs
-
-Any output from your script (stdout/stderr) is captured and logged by the backend.
-- Standard output (`echo "..."`) is logged as `INFO`.
-- Standard error (`>&2 echo "..."`) is logged as `WARN`.
-
-Example:
-```bash
-echo "Hook started for task $MYTUBE_TASK_ID"
-```
-Will appear in server logs as:
-`[INFO] [HookService] task_success stdout: Hook started for task 123...`
-
-## Examples
-
-### 1. Simple Logging
-Log every successful download to a custom file.
-**Hook:** `task_success`
-```bash
-#!/bin/bash
-# Provide full path to your log file
-echo "[$(date)] Downloaded: $MYTUBE_TASK_TITLE" >> /tmp/mytube_downloads.log
-```
-
-### 2. Send Notification (e.g., ntfy.sh)
-Send a notification when a task fails.
-**Hook:** `task_fail`
-```bash
-#!/bin/bash
-curl -d "MyTube Download Failed: $MYTUBE_TASK_TITLE - $MYTUBE_ERROR" https://ntfy.sh/my_topic
-```
-
-### 3. File Post-Processing
-Run a Python script to process the file.
-**Hook:** `task_success`
-```bash
-#!/bin/bash
-python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
-```
-
-## Security Warning
-
-> [!WARNING]
-> Hook commands run with the same permissions as the MyTube backend.
-> - Be careful when using commands that modify or delete files.
-> - Do not copy/paste scripts from untrusted sources.
-> - Ensure your scripts handle errors gracefully.
+- Legacy `.sh` hook scripts are ignored by the executor.
+- Invalid or unsupported action definitions are rejected on upload.

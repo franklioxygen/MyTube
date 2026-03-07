@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import YtDlpSettings from '../YtDlpSettings';
 
-// Mock language context
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
@@ -11,16 +10,15 @@ vi.mock('../../../contexts/LanguageContext', () => ({
 describe('YtDlpSettings', () => {
     const mockOnChange = vi.fn();
     const mockOnProxyChange = vi.fn();
-    const defaultConfig = '# Default Config';
 
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it('should render initial state', () => {
+    it('should render collapsed state by default', () => {
         render(
             <YtDlpSettings
-                config={defaultConfig}
+                config={{}}
                 proxyOnlyYoutube={false}
                 onChange={mockOnChange}
                 onProxyOnlyYoutubeChange={mockOnProxyChange}
@@ -28,15 +26,14 @@ describe('YtDlpSettings', () => {
         );
 
         expect(screen.getByText('customize')).toBeInTheDocument();
-        // Textarea should be hidden initially
-        expect(screen.queryByPlaceholderText(/yt-dlp Configuration/)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('maxResolution')).not.toBeInTheDocument();
     });
 
-    it('should expand configuration on customize click', async () => {
+    it('should expand and show structured fields', async () => {
         const user = userEvent.setup();
         render(
             <YtDlpSettings
-                config={defaultConfig}
+                config={{ maxResolution: 1080, proxy: 'http://127.0.0.1:7890' }}
                 onChange={mockOnChange}
             />
         );
@@ -44,33 +41,33 @@ describe('YtDlpSettings', () => {
         await user.click(screen.getByText('customize'));
 
         expect(screen.getByText('hide')).toBeInTheDocument();
-        expect(screen.getByRole('textbox')).toBeVisible();
-        expect(screen.getByRole('textbox')).toHaveValue(defaultConfig);
+        expect(screen.getByLabelText('maxResolution')).toBeInTheDocument();
+        expect(screen.getByLabelText('proxy')).toHaveValue('http://127.0.0.1:7890');
     });
 
-    it('should handle config changes', async () => {
+    it('should handle structured config changes', async () => {
         const user = userEvent.setup();
         render(
             <YtDlpSettings
-                config={defaultConfig}
+                config={{}}
                 onChange={mockOnChange}
             />
         );
 
         await user.click(screen.getByText('customize'));
+        await user.click(screen.getByLabelText('maxResolution'));
+        await user.click(screen.getByRole('option', { name: '1080p' }));
 
-        const textarea = screen.getByRole('textbox');
-        await user.clear(textarea);
-        await user.type(textarea, 'New Config');
-
-        expect(mockOnChange).toHaveBeenCalledWith('New Config');
+        expect(mockOnChange).toHaveBeenLastCalledWith(
+            expect.objectContaining({ maxResolution: 1080 })
+        );
     });
 
-    it('should reset config', async () => {
+    it('should reset structured config', async () => {
         const user = userEvent.setup();
         render(
             <YtDlpSettings
-                config="Custom Config"
+                config={{ maxResolution: 2160, retries: 5 }}
                 onChange={mockOnChange}
             />
         );
@@ -78,14 +75,14 @@ describe('YtDlpSettings', () => {
         await user.click(screen.getByText('customize'));
         await user.click(screen.getByText('reset'));
 
-        expect(mockOnChange).toHaveBeenCalledWith(expect.stringContaining('# yt-dlp Configuration File'));
+        expect(mockOnChange).toHaveBeenCalledWith({});
     });
 
     it('should toggle proxy only youtube', async () => {
         const user = userEvent.setup();
         render(
             <YtDlpSettings
-                config={defaultConfig}
+                config={{}}
                 proxyOnlyYoutube={false}
                 onChange={mockOnChange}
                 onProxyOnlyYoutubeChange={mockOnProxyChange}

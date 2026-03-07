@@ -9,10 +9,11 @@ interface CloudflareSettingsProps {
     enabled?: boolean;
     token?: string;
     allowedHosts?: string;
+    disabled?: boolean;
     onChange: (field: string, value: string | number | boolean) => void;
 }
 
-const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, allowedHosts, onChange }) => {
+const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token, allowedHosts, disabled = false, onChange }) => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
@@ -81,11 +82,17 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                     <Switch
                         checked={enabled ?? false}
                         onChange={(e) => onChange('cloudflaredTunnelEnabled', e.target.checked)}
-                        disabled={isVisitor}
+                        disabled={isVisitor || disabled}
                     />
                 }
                 label={t('enableCloudflaredTunnel')}
             />
+
+            {disabled && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                    {t('featureDisabledInStrictMode') || 'Cloudflared in-app control is disabled in strict security model.'}
+                </Alert>
+            )}
 
             {(enabled) && (
                 <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400 }}>
@@ -94,7 +101,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                         label={t('cloudflaredToken')}
                         value={token || ''}
                         onChange={(e) => onChange('cloudflaredToken', e.target.value)}
-                        disabled={isVisitor}
+                        disabled={isVisitor || disabled}
                         helperText={t('cloudflaredTokenHelper') || "Paste your tunnel token here, or leave empty to use a random Quick Tunnel."}
                     />
                     <TextField
@@ -102,7 +109,7 @@ const CloudflareSettings: React.FC<CloudflareSettingsProps> = ({ enabled, token,
                         label={t('allowedHosts') || 'Allowed Hosts'}
                         value={allowedHosts || ''}
                         onChange={(e) => onChange('allowedHosts', e.target.value)}
-                        disabled={isVisitor}
+                        disabled={isVisitor || disabled}
                         error={!!allowedHostsError}
                         helperText={allowedHostsError || t('allowedHostsHelper') || "Comma-separated list of allowed hosts for Vite dev server. Restart dev server after changing."}
                         placeholder="example.com, another-domain.com"

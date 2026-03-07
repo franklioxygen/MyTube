@@ -466,7 +466,8 @@ export const es = {
   verifying: "Verificando...",
   incorrectPassword: "Contraseña incorrecta",
   loginFailed: "Error al verificar la contraseña",
-  defaultPasswordHint: "Contraseña predeterminada: 123",
+  defaultPasswordHint:
+    "No hay contraseña predeterminada. Use la contraseña configurada.",
   checkingConnection: "Comprobando conexión...",
   connectionError: "Error de Conexión",
   backendConnectionFailed:

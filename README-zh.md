@@ -40,7 +40,7 @@
 - **yt-dlp 配置**: 通过用户界面自定义全局 `yt-dlp` 参数、网络代理及其他高级设置。
 - **TMDB 集成**：在设置中配置您的 TMDB API 密钥，即可为本地视频文件启用自动元数据抓取。抓取器会智能解析文件名以提取标题并与 TMDB 数据库匹配。
 - **Cloudflare Tunnel 集成**: 内置 Cloudflare Tunnel 支持，无需端口转发即可轻松将本地 MyTube 实例暴露到互联网。
-- **任务钩子**: 在下载任务的各个阶段（开始、成功、失败、取消）执行自定义 Shell 脚本，以实现集成和自动化。详见 [任务钩子指南](documents/zh/hooks-guide.md)。
+- **任务钩子**: 在下载任务的各个阶段（开始、成功、失败、取消）执行声明式 Hook 动作，以实现集成和自动化。详见 [任务钩子指南](documents/zh/hooks-guide.md)。
 - **Telegram 通知**: 当下载任务成功或失败时，通过 Telegram 机器人接收即时通知。
 - **浏览器扩展**: 提供 Chrome 扩展，支持直接从浏览器下载视频。支持所有 yt-dlp 支持的站点。
 
@@ -103,7 +103,31 @@ VITE_BACKEND_URL=
 
 ```env
 PORT=5551
+SECURITY_MODEL=strict
 ```
+
+`SECURITY_MODEL` 支持 `strict` 与 `legacy` 两种取值。
+
+- `strict`：启用强化安全模型。
+- `legacy`：在迁移窗口内保留兼容行为。
+
+在 `production` 环境中，必须显式配置合法的 `SECURITY_MODEL`；若缺失或非法，服务将拒绝启动（fail-closed）。
+新安装默认应使用 `strict`。升级实例仅应在短期迁移窗口内临时启用 `legacy`。
+
+安全边界摘要：
+
+- `Platform Operator` 属于 TCB。
+- `Security Operator` 负责受控高权限安全操作。
+- `App Admin` 属于非 TCB，不应获得直接 OS 命令执行、容器控制面或宿主文件系统控制能力。
+- 高风险控制面包括 hooks、自由文本 `yt-dlp` 配置、`mountDirectories` 与应用内 `cloudflared` 控制。
+
+安全迁移文档：
+
+- [安全迁移计划（3 阶段）](documents/zh/security-migration-plan.md)
+- [安全 Breaking 变更矩阵](documents/zh/security-breaking-changes.md)
+- [安全迁移 Runbook](documents/zh/security-migration-runbook.md)
+- [安全灰度与回滚阈值](documents/zh/security-rollout-gates.md)
+- [安全迁移产物模板](documents/zh/security-migration-templates.md)
 
 默认数据与上传路径位于 `backend/data` 和 `backend/uploads`（相对于后端工作目录）。
 

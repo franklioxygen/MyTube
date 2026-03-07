@@ -1,5 +1,6 @@
 import { db } from "../../db";
 import { settings } from "../../db/schema";
+import { and, eq, or } from "drizzle-orm";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { logger } from "../../utils/logger";
 
@@ -98,6 +99,12 @@ export function getSettings(): Record<string, any> {
 // Whitelist of allowed settings keys to prevent mass assignment
 const WHITELISTED_SETTINGS = [
   "loginEnabled",
+  "bootstrapCompleted",
+  "strictSecurityMigrationVersion",
+  "ytDlpSafeConfigMigrationVersion",
+  "passwordRecoveryTokenHash",
+  "passwordRecoveryTokenExpiresAt",
+  "passwordRecoveryTokenIssuedAt",
   "password",
   "apiKeyEnabled",
   "apiKey",
@@ -120,6 +127,7 @@ const WHITELISTED_SETTINGS = [
   "websiteName",
   "itemsPerPage",
   "ytDlpConfig",
+  "ytDlpSafeConfig",
   "showYoutubeSearch",
   "proxyOnlyYoutube",
   "moveSubtitlesToVideoFolder",
@@ -134,7 +142,6 @@ const WHITELISTED_SETTINGS = [
   "allowedHosts",
   "pauseOnFocusLoss",
   "playSoundOnTaskComplete",
-  "mountDirectories",
   "defaultSort",
   "preferredAudioLanguage",
   "defaultVideoCodec",
@@ -190,6 +197,104 @@ export function saveSettings(newSettings: Record<string, any>): void {
       "Failed to save settings",
       error instanceof Error ? error : new Error(String(error)),
       "saveSettings"
+    );
+  }
+}
+
+/**
+ * Atomically claim bootstrap initialization by setting the first admin password.
+ * Returns true only for the first successful claimant.
+ */
+export function tryCompleteBootstrapWithAdminPassword(
+  hashedPassword: string
+): boolean {
+  if (typeof hashedPassword !== "string" || hashedPassword.trim().length === 0) {
+    return false;
+  }
+
+  try {
+    const serializedPassword = JSON.stringify(hashedPassword);
+    const serializedTrue = JSON.stringify(true);
+
+    const didApply = db.transaction(() => {
+      const bootstrapCompletedRow = db
+        .select({ value: settings.value })
+        .from(settings)
+        .where(eq(settings.key, "bootstrapCompleted"))
+        .get();
+      if (parseSettingValue(bootstrapCompletedRow?.value ?? "false") === true) {
+        return false;
+      }
+
+      const insertedPassword = db
+        .insert(settings)
+        .values({
+          key: "password",
+          value: serializedPassword,
+        })
+        .onConflictDoNothing()
+        .run();
+
+      let claimedPasswordSlot = insertedPassword.changes > 0;
+      if (!claimedPasswordSlot) {
+        const updatedPassword = db
+          .update(settings)
+          .set({ value: serializedPassword })
+          .where(
+            and(
+              eq(settings.key, "password"),
+              or(
+                eq(settings.value, ""),
+                eq(settings.value, "\"\""),
+                eq(settings.value, "null")
+              )
+            )
+          )
+          .run();
+        claimedPasswordSlot = updatedPassword.changes > 0;
+      }
+
+      if (!claimedPasswordSlot) {
+        return false;
+      }
+
+      db.insert(settings)
+        .values({
+          key: "loginEnabled",
+          value: serializedTrue,
+        })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: serializedTrue },
+        })
+        .run();
+      db.insert(settings)
+        .values({
+          key: "bootstrapCompleted",
+          value: serializedTrue,
+        })
+        .onConflictDoUpdate({
+          target: settings.key,
+          set: { value: serializedTrue },
+        })
+        .run();
+
+      return true;
+    });
+
+    if (didApply) {
+      invalidateSettingsCache();
+    }
+    return didApply;
+  } catch (error) {
+    logger.error(
+      "Error applying bootstrap password transaction",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new DatabaseError(
+      "Failed to apply bootstrap settings",
+      error instanceof Error ? error : new Error(String(error)),
+      "tryCompleteBootstrapWithAdminPassword"
     );
   }
 }

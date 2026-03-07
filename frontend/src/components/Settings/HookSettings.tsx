@@ -10,11 +10,16 @@ import PasswordModal from '../PasswordModal';
 
 interface HookSettingsProps {
     settings: Settings;
+    disabled?: boolean;
     onChange: (field: keyof Settings, value: any) => void;
 }
 
-const HookSettings: React.FC<HookSettingsProps> = () => {
+const HookSettings: React.FC<HookSettingsProps> = ({ settings, disabled = false }) => {
     const { t } = useLanguage();
+    const hooksDisabled =
+        disabled ||
+        settings.securityModel === 'strict' ||
+        settings.highRiskFeaturesDisabled?.hooks === true;
     const [deleteHookName, setDeleteHookName] = useState<string | null>(null);
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [passwordError, setPasswordError] = useState<string | undefined>(undefined);
@@ -46,14 +51,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         onError: (error: any) => {
             console.error('Upload failed:', error);
             const message = error.response?.data?.message || error.message;
-            // Try to match risk command error
-            // Backend sends: "Risk command detected: {command}. Upload rejected."
-            const riskMatch = message?.match(/Risk command detected: (.*)\. Upload rejected\./);
-            if (riskMatch && riskMatch[1]) {
-                setUploadError(t('riskCommandDetected', { command: riskMatch[1] }));
-            } else {
-                setUploadError(message || t('uploadFailed'));
-            }
+            setUploadError(message || t('uploadFailed'));
         }
     });
 
@@ -68,11 +66,15 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
     });
 
     const handleFileUpload = (hookName: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (hooksDisabled) {
+            return;
+        }
+
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!file.name.endsWith('.sh') && !file.name.endsWith('.bash')) {
-            alert('Only .sh files are allowed');
+        if (!file.name.endsWith('.json')) {
+            alert('Only .json files are allowed');
             return;
         }
 
@@ -108,6 +110,9 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
     };
 
     const handleDelete = (hookName: string) => {
+        if (hooksDisabled) {
+            return;
+        }
         setDeleteHookName(hookName);
     };
 
@@ -152,6 +157,12 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                     {t('taskHooksWarning')}
                 </Alert>
 
+                {hooksDisabled && (
+                    <Alert severity="warning" sx={{ mb: 3 }}>
+                        {t('featureDisabledInStrictMode') || 'Task hooks are disabled in strict security model.'}
+                    </Alert>
+                )}
+
                 {uploadError && (
                     <Alert severity="error" sx={{ mb: 3 }} onClose={() => setUploadError(null)}>
                         {uploadError}
@@ -192,13 +203,13 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                                                 component="label"
                                                 size="small"
                                                 startIcon={<CloudUpload />}
-                                                disabled={uploadMutation.isPending}
+                                                disabled={uploadMutation.isPending || hooksDisabled}
                                             >
-                                                {uploadMutation.isPending ? 'Up...' : (t('uploadHook') || 'Upload .sh')}
+                                                {uploadMutation.isPending ? 'Up...' : (t('uploadHook') || 'Upload .json')}
                                                 <input
                                                     type="file"
                                                     hidden
-                                                    accept=".sh,.bash"
+                                                    accept=".json,application/json,text/json"
                                                     onChange={handleFileUpload(hook.name)}
                                                 />
                                             </Button>
@@ -210,7 +221,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                                                     size="small"
                                                     startIcon={<Delete />}
                                                     onClick={() => handleDelete(hook.name)}
-                                                    disabled={deleteMutation.isPending}
+                                                    disabled={deleteMutation.isPending || hooksDisabled}
                                                 >
                                                     {t('delete') || 'Delete'}
                                                 </Button>
@@ -228,8 +239,8 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 isOpen={!!deleteHookName}
                 onClose={() => setDeleteHookName(null)}
                 onConfirm={confirmDelete}
-                title={t('deleteHook') || 'Delete Hook Script'}
-                message={t('confirmDeleteHook') || 'Are you sure you want to delete this hook script?'}
+                title={t('deleteHook') || 'Delete Hook Definition'}
+                message={t('confirmDeleteHook') || 'Are you sure you want to delete this hook definition?'}
                 confirmText={t('delete') || 'Delete'}
                 cancelText={t('cancel') || 'Cancel'}
                 isDanger={true}
@@ -244,7 +255,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 }}
                 onConfirm={handlePasswordConfirm}
                 title={t('enterPassword')}
-                message={t('enterPasswordToUploadHook') || 'Please enter your password to upload this hook script.'}
+                message={t('enterPasswordToUploadHook') || 'Please enter your password to upload this hook definition.'}
                 error={passwordError}
                 isLoading={isVerifying}
             />

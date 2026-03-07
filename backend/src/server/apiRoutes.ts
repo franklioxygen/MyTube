@@ -12,6 +12,8 @@ export const registerApiRoutes = (
   app.use("/api/settings/verify-password", authLimiter);
   app.use("/api/settings/verify-admin-password", authLimiter);
   app.use("/api/settings/verify-visitor-password", authLimiter);
+  app.use("/api/settings/bootstrap", authLimiter);
+  app.use("/api/settings/reset-password/recovery-token", authLimiter);
   app.use("/api/settings/reset-password", authLimiter);
   app.use("/api/settings/passkeys/authenticate", authLimiter);
   app.use("/api/settings/passkeys/authenticate/verify", authLimiter);
