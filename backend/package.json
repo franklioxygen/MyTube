@@ -29,7 +29,7 @@
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.45.1",
     "express": "^4.22.1",
-    "express-rate-limit": "^8.2.1",
+    "express-rate-limit": "^8.2.2",
     "file-type": "^16.5.4",
     "fs-extra": "^11.3.3",
     "jimp": "^1.6.0",
