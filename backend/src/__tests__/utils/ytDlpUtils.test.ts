@@ -410,6 +410,36 @@ describe("ytDlpUtils", () => {
       expect(args[args.length - 1]).toContain("xvideos.com/video/123");
     });
 
+    it("should retry YouTube format errors without cookies first", async () => {
+      const first = createMockProcess();
+      const second = createMockProcess();
+      mockSpawnWithVersionCheck(first, second);
+      vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+        String(target).endsWith(path.join("data", "cookies.txt"))
+      );
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+
+      const firstArgs = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(firstArgs).toContain("--cookies");
+      first.stderr?.emit(
+        "data",
+        Buffer.from("Requested format is not available")
+      );
+      first.emit("close", 1);
+      await flushAsyncSpawns();
+
+      second.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      second.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(secondArgs).not.toContain("--cookies");
+      expect(secondArgs).toContain("--js-runtime");
+      expect(secondArgs).toContain("node");
+    });
+
     it("should retry without format restrictions on format error", async () => {
       const first = createMockProcess();
       const second = createMockProcess();

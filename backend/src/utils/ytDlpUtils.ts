@@ -278,18 +278,20 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
  * @param url - Video URL
  * @param flags - yt-dlp flags
  * @param retryWithoutFormatRestrictions - If true, retry without format restrictions if format error occurs
+ * @param useCookies - If true, append cookies from data/cookies.txt when available
  */
 export async function executeYtDlpJson(
   rawUrl: string,
   flags: Record<string, any> = {},
-  retryWithoutFormatRestrictions: boolean = true
+  retryWithoutFormatRestrictions: boolean = true,
+  useCookies: boolean = true
 ): Promise<any> {
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
   const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
 
   // Add cookies if file exists
-  const cookiesPath = getCookiesPath();
+  const cookiesPath = useCookies ? getCookiesPath() : null;
   if (cookiesPath) {
     args.push("--cookies", cookiesPath);
   }
@@ -331,6 +333,26 @@ export async function executeYtDlpJson(
 
         // If it's a format error and we should retry, try again without format restrictions
         if (isFormatError && retryWithoutFormatRestrictions) {
+          // Some account cookies can make YouTube return only image formats.
+          // Retry once without cookies before touching user format options.
+          if (isYouTubeUrl(url) && cookiesPath) {
+            console.log(
+              "Format not available with cookies, retrying without cookies..."
+            );
+            try {
+              const result = await executeYtDlpJson(url, flags, true, false);
+              resolve(result);
+              return;
+            } catch (retryError) {
+              const error = new Error(
+                `yt-dlp process exited with code ${code}`
+              );
+              (error as any).stderr = stderr;
+              reject(error);
+              return;
+            }
+          }
+
           const hasFormatRestrictions =
             (flags.formatSort !== undefined && flags.formatSort !== null) ||
             (flags.format !== undefined && flags.format !== null) ||
