@@ -6,6 +6,8 @@ This guide provides step-by-step instructions to deploy [MyTube](https://github
 > **Multi-Architecture Support:** The official images support both **amd64** (x86_64) and **arm64** (Apple Silicon, Raspberry Pi, etc.) architectures. Docker will automatically pull the correct image for your system.
 >
 > **Official GitHub Container Image:** `ghcr.io/franklioxygen/mytube:latest` (published by this repository's GitHub Actions workflow).
+>
+> **Image Size Note:** Backend images include the Deno runtime for yt-dlp JavaScript runtime support, which adds roughly ~90MB to image size.
 
 ## 🚀 Quick Start (Pre-built Images)
 

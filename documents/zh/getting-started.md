@@ -52,6 +52,9 @@ pipx inject yt-dlp bgutil-ytdlp-pot-provider
 
 ```env
 PORT=5551
+# 可选：yt-dlp 在 YouTube 挑战处理时使用的 JS 运行时。
+# 默认是 "deno"。在 Alpine Linux（musl）上若 Deno 不稳定，请改为 "node"。
+# YT_DLP_JS_RUNTIME=node
 ```
 
 默认数据与上传路径位于 `backend/data` 和 `backend/uploads`（相对于后端工作目录）。

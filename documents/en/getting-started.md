@@ -52,6 +52,9 @@ Create a `.env` file in the `backend/` directory:
 
 ```env
 PORT=5551
+# Optional: yt-dlp JS runtime for YouTube challenge solving.
+# Default is "deno". On Alpine Linux (musl), set to "node" if Deno is unstable.
+# YT_DLP_JS_RUNTIME=node
 ```
 
 Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).

@@ -9,15 +9,20 @@ import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
+let denoAvailablePromise: Promise<boolean> | null = null;
+const runtimeWarningCache = new Set<string>();
 
 /**
  * @internal Test helper to reset internal availability cache between test cases.
  */
 export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
+  denoAvailablePromise = null;
+  runtimeWarningCache.clear();
 }
 
 /**
@@ -186,6 +191,94 @@ function getCookiesPath(): string | null {
   return null;
 }
 
+async function isDenoAvailable(): Promise<boolean> {
+  if (denoAvailablePromise) {
+    return denoAvailablePromise;
+  }
+
+  denoAvailablePromise = new Promise<boolean>((resolve) => {
+    const proc = spawn("deno", ["--version"], {
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+
+    proc.on("close", (code) => {
+      resolve(code === 0);
+    });
+
+    proc.on("error", () => {
+      resolve(false);
+    });
+  });
+
+  return denoAvailablePromise;
+}
+
+function warnRuntimeOnce(key: string, message: string): void {
+  if (runtimeWarningCache.has(key)) {
+    return;
+  }
+  runtimeWarningCache.add(key);
+  console.warn(message);
+}
+
+async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
+  const rawRuntime = process.env[YT_DLP_JS_RUNTIME_ENV]?.trim();
+  const runtime = rawRuntime?.toLowerCase();
+  const hasRuntimeOverride = Boolean(rawRuntime);
+
+  if (runtime === "node") {
+    return "node";
+  }
+
+  const runtimeIsInvalid = hasRuntimeOverride && runtime !== "deno";
+
+  // Default to Deno because yt-dlp recommends it for JS challenge solving.
+  // If your deployment runs on Alpine Linux (musl) and Deno is problematic,
+  // set YT_DLP_JS_RUNTIME=node explicitly.
+  if (runtimeIsInvalid) {
+    warnRuntimeOnce(
+      "invalid-runtime",
+      `[yt-dlp] Unsupported ${YT_DLP_JS_RUNTIME_ENV}="${rawRuntime}". Falling back to "deno".`
+    );
+  }
+
+  if (await isDenoAvailable()) {
+    return "deno";
+  }
+
+  if (runtime === "deno") {
+    warnRuntimeOnce(
+      "explicit-deno-unavailable",
+      '[yt-dlp] YT_DLP_JS_RUNTIME is set to "deno", but Deno runtime is unavailable. Falling back to "node". Install Deno or set YT_DLP_JS_RUNTIME=node.'
+    );
+    return "node";
+  }
+
+  if (runtimeIsInvalid) {
+    warnRuntimeOnce(
+      "invalid-runtime-deno-unavailable",
+      `[yt-dlp] YT_DLP_JS_RUNTIME="${rawRuntime}" is unsupported and Deno runtime is unavailable. Falling back to "node". Install Deno or set YT_DLP_JS_RUNTIME=node.`
+    );
+    return "node";
+  }
+
+  warnRuntimeOnce(
+    "default-deno-unavailable",
+    '[yt-dlp] Deno runtime is unavailable. Falling back to "node". Set YT_DLP_JS_RUNTIME=node to skip Deno checks.'
+  );
+  return "node";
+}
+
+async function appendYouTubeJsRuntimeArg(
+  args: string[],
+  url: string
+): Promise<void> {
+  if (!isYouTubeUrl(url)) {
+    return;
+  }
+  args.push("--js-runtime", await getYouTubeJsRuntime());
+}
+
 /**
  * Convert camelCase flag names to kebab-case CLI arguments
  */
@@ -294,12 +387,7 @@ export async function executeYtDlpJson(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Node.js runtime for YouTube n challenge solving.
-  // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
-  // Node.js is already available in the container and provides a stable alternative.
-  if (isYouTubeUrl(url)) {
-    args.push("--js-runtime", "node");
-  }
+  await appendYouTubeJsRuntimeArg(args, url);
 
   args.push(url);
 
@@ -453,10 +541,7 @@ export async function getChannelUrlFromVideo(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Node.js runtime for YouTube
-  if (isYouTubeUrl(videoUrl)) {
-    args.push("--js-runtime", "node");
-  }
+  await appendYouTubeJsRuntimeArg(args, videoUrl);
 
   args.push(videoUrl);
 
@@ -534,10 +619,7 @@ export async function downloadChannelAvatar(
     args.push("--cookies", cookiesPath);
   }
 
-  // Add Node.js runtime for YouTube
-  if (isYouTubeUrl(channelUrl)) {
-    args.push("--js-runtime", "node");
-  }
+  await appendYouTubeJsRuntimeArg(args, channelUrl);
 
   args.push(channelUrl);
 
@@ -631,24 +713,13 @@ export function executeYtDlpSpawn(
   ) => Promise<void>;
 } {
   const url = preprocessUrl(rawUrl);
-  const args = [...flagsToArgs(flags)];
+  const baseArgs = [...flagsToArgs(flags)];
 
   // Add cookies if file exists
   const cookiesPath = getCookiesPath();
   if (cookiesPath) {
-    args.push("--cookies", cookiesPath);
+    baseArgs.push("--cookies", cookiesPath);
   }
-
-  // Add Node.js runtime for YouTube n challenge solving.
-  // Although yt-dlp recommends Deno, it fails on Alpine Linux (musl) without complex workarounds.
-  // Node.js is already available in the container and provides a stable alternative.
-  if (isYouTubeUrl(url)) {
-    args.push("--js-runtime", "node");
-  }
-
-  args.push(url);
-
-  console.log(`Spawning: ${YT_DLP_PATH} ${args.join(" ")}`);
 
   // PassThrough streams let callers attach handlers before the subprocess starts.
   const stdoutPass = new PassThrough();
@@ -696,8 +767,14 @@ export function executeYtDlpSpawn(
 
   const promise = ensureYtDlpAvailable()
     .then(
-      () =>
-        new Promise<void>((resolve, reject) => {
+      async () => {
+        const args = [...baseArgs];
+        await appendYouTubeJsRuntimeArg(args, url);
+        args.push(url);
+
+        console.log(`Spawning: ${YT_DLP_PATH} ${args.join(" ")}`);
+
+        return await new Promise<void>((resolve, reject) => {
           if (killRequested) {
             rejected = true;
             endPassThroughStreams();
@@ -743,7 +820,8 @@ export function executeYtDlpSpawn(
               reject(error);
             }
           });
-        })
+        });
+      }
     )
     .catch((err) => {
       // End streams without emitting stream "error" events that callers don't subscribe to.

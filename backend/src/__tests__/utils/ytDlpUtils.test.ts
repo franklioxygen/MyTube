@@ -60,8 +60,22 @@ const createVersionCheckProcess = (): MockProcess => {
   return proc;
 };
 
+const createDenoCheckProcess = (available: boolean = true): MockProcess => {
+  const proc = createMockProcess();
+  queueMicrotask(() => proc.emit("close", available ? 0 : 1));
+  return proc;
+};
+
 const mockSpawnWithVersionCheck = (...processes: MockProcess[]) => {
   vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
+  for (const proc of processes) {
+    vi.mocked(spawn).mockImplementationOnce(() => proc as any);
+  }
+};
+
+const mockSpawnWithVersionAndDenoCheck = (...processes: MockProcess[]) => {
+  vi.mocked(spawn).mockImplementationOnce(() => createVersionCheckProcess() as any);
+  vi.mocked(spawn).mockImplementationOnce(() => createDenoCheckProcess() as any);
   for (const proc of processes) {
     vi.mocked(spawn).mockImplementationOnce(() => proc as any);
   }
@@ -77,6 +91,7 @@ describe("ytDlpUtils", () => {
     resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({});
+    delete process.env.YT_DLP_JS_RUNTIME;
   });
 
   describe("convertFlagToArg", () => {
@@ -370,7 +385,7 @@ describe("ytDlpUtils", () => {
   describe("executeYtDlpJson", () => {
     it("should execute and parse json output with youtube runtime and cookies", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith(path.join("data", "cookies.txt"))
       );
@@ -389,10 +404,10 @@ describe("ytDlpUtils", () => {
         title: "video",
       });
 
-      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
       expect(args).toContain("--dump-single-json");
       expect(args).toContain("--js-runtime");
-      expect(args).toContain("node");
+      expect(args).toContain("deno");
       expect(args).toContain("--cookies");
     });
 
@@ -492,12 +507,159 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).rejects.toThrow("spawn failed");
     });
+
+    it("should use deno runtime when YT_DLP_JS_RUNTIME is set to deno", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "deno";
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("deno");
+      expect(args).not.toContain("node");
+    });
+
+    it("should use node runtime when YT_DLP_JS_RUNTIME is set to node", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "node";
+      const proc = createMockProcess();
+      mockSpawnWithVersionCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("node");
+      expect(args).not.toContain("deno");
+    });
+
+    it("should warn explicitly when YT_DLP_JS_RUNTIME=deno but deno is unavailable", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "deno";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const denoCheckProc = createMockProcess();
+      const ytProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => denoCheckProc as any)
+        .mockImplementationOnce(() => ytProc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      denoCheckProc.emit(
+        "error",
+        Object.assign(new Error("not found"), { code: "ENOENT" })
+      );
+      await flushAsyncSpawns();
+      ytProc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      ytProc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("node");
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[yt-dlp] YT_DLP_JS_RUNTIME is set to "deno", but Deno runtime is unavailable. Falling back to "node". Install Deno or set YT_DLP_JS_RUNTIME=node.'
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("should fall back to deno runtime when YT_DLP_JS_RUNTIME is invalid", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "BUN";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("deno");
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[yt-dlp] Unsupported YT_DLP_JS_RUNTIME="BUN". Falling back to "deno".'
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("should warn clearly when YT_DLP_JS_RUNTIME is invalid and deno is unavailable", async () => {
+      process.env.YT_DLP_JS_RUNTIME = "BUN";
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const denoCheckProc = createMockProcess();
+      const ytProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => denoCheckProc as any)
+        .mockImplementationOnce(() => ytProc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      denoCheckProc.emit(
+        "error",
+        Object.assign(new Error("not found"), { code: "ENOENT" })
+      );
+      await flushAsyncSpawns();
+      ytProc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      ytProc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("node");
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[yt-dlp] Unsupported YT_DLP_JS_RUNTIME="BUN". Falling back to "deno".'
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[yt-dlp] YT_DLP_JS_RUNTIME="BUN" is unsupported and Deno runtime is unavailable. Falling back to "node". Install Deno or set YT_DLP_JS_RUNTIME=node.'
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("should fall back to node when deno is unavailable by default", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const denoCheckProc = createMockProcess();
+      const ytProc = createMockProcess();
+      vi.mocked(spawn)
+        .mockImplementationOnce(() => createVersionCheckProcess() as any)
+        .mockImplementationOnce(() => denoCheckProc as any)
+        .mockImplementationOnce(() => ytProc as any);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      denoCheckProc.emit(
+        "error",
+        Object.assign(new Error("not found"), { code: "ENOENT" })
+      );
+      await flushAsyncSpawns();
+      ytProc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      ytProc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args).toContain("--js-runtime");
+      expect(args).toContain("node");
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[yt-dlp] Deno runtime is unavailable. Falling back to "node". Set YT_DLP_JS_RUNTIME=node to skip Deno checks.'
+      );
+      warnSpy.mockRestore();
+    });
   });
 
   describe("getChannelUrlFromVideo", () => {
     it("should return trimmed channel url on success", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
 
       const promise = getChannelUrlFromVideo("https://www.youtube.com/watch?v=abc", {
         proxy: "http://127.0.0.1:7890",
@@ -509,11 +671,11 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).resolves.toBe("https://www.youtube.com/@channel");
 
-      const args = vi.mocked(spawn).mock.calls[1][1] as string[];
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
       expect(args).toContain("--print");
       expect(args).toContain("channel_url");
       expect(args).toContain("--js-runtime");
-      expect(args).toContain("node");
+      expect(args).toContain("deno");
     });
 
     it("should return null on close with non-zero code", async () => {
@@ -555,7 +717,7 @@ describe("ytDlpUtils", () => {
   describe("downloadChannelAvatar", () => {
     it("should return false on non-zero close code", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
 
       const promise = downloadChannelAvatar(
         "https://www.youtube.com/@channel",
@@ -570,7 +732,7 @@ describe("ytDlpUtils", () => {
 
     it("should rename non-jpg avatar to jpg when needed", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith("avatar.png")
       );
@@ -590,7 +752,7 @@ describe("ytDlpUtils", () => {
 
     it("should return true when output file exists directly", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
       vi.mocked(fs.existsSync).mockImplementation((target: any) =>
         String(target).endsWith("avatar.jpg")
       );
@@ -607,7 +769,7 @@ describe("ytDlpUtils", () => {
 
     it("should return false when no avatar files are found", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const promise = downloadChannelAvatar(
@@ -622,7 +784,7 @@ describe("ytDlpUtils", () => {
 
     it("should return false on spawn error", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
 
       const promise = downloadChannelAvatar(
         "https://www.youtube.com/@channel",
@@ -654,7 +816,7 @@ describe("ytDlpUtils", () => {
   describe("executeYtDlpSpawn", () => {
     it("should resolve when subprocess exits with code 0", async () => {
       const proc = createMockProcess();
-      mockSpawnWithVersionCheck(proc);
+      mockSpawnWithVersionAndDenoCheck(proc);
 
       const subprocess = executeYtDlpSpawn("https://www.youtube.com/watch?v=abc", {
         format: "best",

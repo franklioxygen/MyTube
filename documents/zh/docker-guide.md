@@ -6,6 +6,8 @@
 > **多架构支持：** 官方镜像支持 **amd64** (x86_64) 和 **arm64** (Apple Silicon, Raspberry Pi 等) 架构。Docker 会自动为您的系统拉取正确的镜像。
 >
 > **GitHub 官方容器镜像：** `ghcr.io/franklioxygen/mytube:latest`（由本仓库 GitHub Actions 自动发布）。
+>
+> **镜像体积说明：** 后端镜像包含用于 yt-dlp JavaScript 运行时支持的 Deno，镜像体积大约会增加 ~90MB。
 
 ## 🚀 快速开始 (使用预构建镜像)
 

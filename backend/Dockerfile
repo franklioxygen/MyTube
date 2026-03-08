@@ -66,6 +66,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     curl \
+    unzip \
     libcairo2 \
     libpango-1.0-0 \
     libjpeg62-turbo \
@@ -79,6 +80,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ARG TARGETARCH
 RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
     chmod +x /usr/local/bin/cloudflared
+
+# Install deno for yt-dlp --js-runtime support (pinned + checksum verified)
+ARG DENO_VERSION=2.3.1
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) DENO_ARCH="x86_64" ;; \
+      arm64) DENO_ARCH="aarch64" ;; \
+      *) echo "Unsupported TARGETARCH for deno: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    DENO_ZIP="deno-${DENO_ARCH}-unknown-linux-gnu.zip"; \
+    DENO_URL="https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/${DENO_ZIP}"; \
+    curl -fsSL --retry 5 --retry-delay 2 "${DENO_URL}" -o "/tmp/${DENO_ZIP}"; \
+    curl -fsSL --retry 5 --retry-delay 2 "${DENO_URL}.sha256sum" -o "/tmp/${DENO_ZIP}.sha256sum"; \
+    (cd /tmp && sha256sum -c "${DENO_ZIP}.sha256sum"); \
+    unzip -q "/tmp/${DENO_ZIP}" -d /usr/local/bin; \
+    chmod +x /usr/local/bin/deno; \
+    rm -f "/tmp/${DENO_ZIP}" "/tmp/${DENO_ZIP}.sha256sum"; \
+    deno --version
 
 # Install yt-dlp and related packages. Versions are pinned for reproducible builds.
 # To upgrade: check https://pypi.org/project/yt-dlp/ and update versions below.
