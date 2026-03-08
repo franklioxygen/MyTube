@@ -1,0 +1,16 @@
+# Single-container deployment: backend API + frontend SPA in one image
+# Usage: docker compose -f docker-compose.single-container.yml up -d
+
+services:
+  mytube:
+    image: ${MYTUBE_SINGLE_IMAGE:-ghcr.io/franklioxygen/mytube:latest}
+    pull_policy: always
+    container_name: mytube
+    ports:
+      - "5551:5551"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+    environment:
+      - PORT=5551
+    restart: unless-stopped

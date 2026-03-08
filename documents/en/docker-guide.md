@@ -4,6 +4,8 @@ This guide provides step-by-step instructions to deploy [MyTube](https://github
 
 > [!NOTE]
 > **Multi-Architecture Support:** The official images support both **amd64** (x86_64) and **arm64** (Apple Silicon, Raspberry Pi, etc.) architectures. Docker will automatically pull the correct image for your system.
+>
+> **Official GitHub Container Image:** `ghcr.io/franklioxygen/mytube:latest` (published by this repository's GitHub Actions workflow).
 
 ## 🚀 Quick Start (Pre-built Images)
 
@@ -95,6 +97,39 @@ Once the containers are running, access the application in your browser:
     
 - **Backend API:** `http://localhost:5551`
     
+## 🧩 Single-Container Mode (Frontend + Backend in One Container)
+
+If you prefer a single container, use the backend-integrated image published to GHCR. This image already includes the built frontend static assets.
+
+You can run the compose file included in this repository:
+
+```
+docker-compose -f docker-compose.single-container.yml up -d
+```
+
+Or use an equivalent standalone compose file:
+
+```yaml
+services:
+  mytube:
+    image: ghcr.io/franklioxygen/mytube:latest
+    container_name: mytube
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "5551:5551"
+    environment:
+      - PORT=5551
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+```
+
+Access both frontend and API through the same port:
+
+- **Frontend UI:** `http://localhost:5551`
+- **Backend API:** `http://localhost:5551/api`
+
 
 ## ⚙️ Configuration & Data Persistence
 
@@ -219,4 +254,10 @@ Alternatively, the repo includes `docker-compose.host-network.yml` for host-netw
 
 ```
 docker-compose -f docker-compose.host-network.yml up -d
+```
+
+For unified frontend+backend deployment, the repo also includes:
+
+```
+docker-compose -f docker-compose.single-container.yml up -d
 ```

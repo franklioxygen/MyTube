@@ -8,6 +8,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
 [![Discord](https://img.shields.io/badge/Discord-Join_Us-7289DA?logo=discord&logoColor=white)](https://discord.gg/dXn4u9kQGN)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/master.yml)
+![GHCR Image Workflow Status](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/ghcr.yml?label=GHCR%20Image)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![GitHub Repo stars](https://img.shields.io/github/stars/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
@@ -134,7 +135,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ## Deployment
 
-For detailed instructions on how to deploy MyTube using Docker, please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
+For detailed Docker deployment instructions, including the official GitHub Container image (`ghcr.io/franklioxygen/mytube:latest`) and the single-container compose file (`docker-compose.single-container.yml`), please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
 
 ## Star History
 

@@ -2,7 +2,10 @@
 
 本指南提供了使用 Docker 和 Docker Compose 部署  [MyTube](https://github.com/franklioxygen/MyTube "null")  的详细步骤。仓库中包含面向 QNAP 的 Compose 文件，请按需调整卷路径，或直接使用下面的通用示例。
 
-> [!NOTE] > **多架构支持：** 官方镜像支持 **amd64** (x86_64) 和 **arm64** (Apple Silicon, Raspberry Pi 等) 架构。Docker 会自动为您的系统拉取正确的镜像。
+> [!NOTE]
+> **多架构支持：** 官方镜像支持 **amd64** (x86_64) 和 **arm64** (Apple Silicon, Raspberry Pi 等) 架构。Docker 会自动为您的系统拉取正确的镜像。
+>
+> **GitHub 官方容器镜像：** `ghcr.io/franklioxygen/mytube:latest`（由本仓库 GitHub Actions 自动发布）。
 
 ## 🚀 快速开始 (使用预构建镜像)
 
@@ -94,6 +97,39 @@ docker-compose up -d
 
 - **前端 UI:** `http://localhost:5556`
 - **后端 API:** `http://localhost:5551`
+
+## 🧩 单容器模式（前后端合一）
+
+如果您希望只运行一个容器，可以使用发布到 GHCR 的一体化镜像。该镜像已包含前端构建产物。
+
+可以直接使用仓库内置的 compose 文件：
+
+```
+docker-compose -f docker-compose.single-container.yml up -d
+```
+
+或者使用等价的独立 compose 文件：
+
+```yaml
+services:
+  mytube:
+    image: ghcr.io/franklioxygen/mytube:latest
+    container_name: mytube
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "5551:5551"
+    environment:
+      - PORT=5551
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+```
+
+此模式下前端和 API 共用同一个端口：
+
+- **前端 UI:** `http://localhost:5551`
+- **后端 API:** `http://localhost:5551/api`
 
 ## ⚙️ 配置与数据持久化
 
@@ -207,4 +243,10 @@ docker-compose up -d
 
 ```
 docker-compose -f docker-compose.host-network.yml up -d
+```
+
+如果使用前后端合一的单容器部署，仓库还提供：
+
+```
+docker-compose -f docker-compose.single-container.yml up -d
 ```

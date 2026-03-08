@@ -87,6 +87,7 @@ mytube/
 ├── stacks/                            # 部署栈示例
 ├── docker-compose.yml
 ├── docker-compose.host-network.yml
+├── docker-compose.single-container.yml
 ├── README.md
 ├── README-zh.md
 └── package.json                       # 根目录任务运行脚本

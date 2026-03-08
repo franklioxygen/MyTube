@@ -8,6 +8,7 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/franklioxygen/mytube)
 [![Discord](https://img.shields.io/badge/Discord-Join_Us-7289DA?logo=discord&logoColor=white)](https://discord.gg/dXn4u9kQGN)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/master.yml)
+![GHCR 镜像工作流状态](https://img.shields.io/github/actions/workflow/status/franklioxygen/MyTube/ghcr.yml?label=GHCR%20Image)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codacy Badge](https://app.codacy.com/project/badge/Coverage/266f0b53788f463a97230cb0c9d1d890)](https://app.codacy.com/gh/franklioxygen/MyTube/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_coverage)
 [![GitHub Repo stars](https://img.shields.io/github/stars/franklioxygen/mytube)](https://github.com/franklioxygen/mytube)
@@ -134,7 +135,7 @@ MyTube 使用 **SQLite** 和 **Drizzle ORM** 进行数据持久化。数据库�
 
 ## 部署
 
-有关如何使用 Docker 部署 MyTube 的详细说明，请参阅 [Docker 部署指南](documents/zh/docker-guide.md).
+有关 Docker 部署的详细说明（包括 GitHub 官方容器镜像 `ghcr.io/franklioxygen/mytube:latest` 与单容器 `docker-compose.single-container.yml`），请参阅 [Docker 部署指南](documents/zh/docker-guide.md).
 
 ## 星标历史
 
