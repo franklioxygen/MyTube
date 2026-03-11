@@ -30,7 +30,7 @@
     "drizzle-orm": "^0.45.1",
     "express": "^4.22.1",
     "express-rate-limit": "^8.2.2",
-    "file-type": "^16.5.4",
+    "file-type": "file:vendor/file-type",
     "fs-extra": "^11.3.3",
     "jimp": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
@@ -61,6 +61,9 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "@jimp/core": {
+      "file-type": "file:vendor/file-type"
+    }
   }
 }

@@ -6,6 +6,7 @@ WORKDIR /app
 # Install dependencies
 COPY backend/package*.json ./
 COPY backend/scripts ./scripts
+COPY backend/vendor ./vendor
 # Skip Puppeteer download during build as we only need to compile TS
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
@@ -121,6 +122,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 # Install production dependencies only
 COPY backend/package*.json ./
 COPY backend/scripts ./scripts
+COPY backend/vendor ./vendor
 RUN npm ci --only=production
 
 # Copy built artifacts from builder
