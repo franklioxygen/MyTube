@@ -34,7 +34,12 @@ const validateFilePath = async (filePath) => {
   }
 
   const resolvedPath = path.resolve(filePath);
-  const realPath = await fs.promises.realpath(resolvedPath);
+  let realPath;
+  try {
+    realPath = await fs.promises.realpath(resolvedPath);
+  } catch {
+    throw new Error(`Refusing to read non-existent or invalid file path: ${resolvedPath}`);
+  }
   const resolvedAllowedRoots = await Promise.all(
     ALLOWED_FILE_ROOTS.map(async (allowedRoot) => {
       try {
