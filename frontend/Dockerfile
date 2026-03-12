@@ -1,9 +1,10 @@
-FROM node:21-alpine AS build
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 COPY . .
 

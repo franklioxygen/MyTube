@@ -1,4 +1,20 @@
-# Stage 1: Builder
+# Stage 1: Frontend builder
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+COPY frontend/ ./
+
+ENV VITE_API_URL=/api
+ENV VITE_BACKEND_URL=
+
+RUN npm run build
+
+# Stage 2: Builder
 FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
@@ -31,19 +47,6 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Copy backend source
 COPY backend/ .
-
-# Copy frontend source for building
-COPY frontend/ /app/frontend/
-
-# Build frontend
-WORKDIR /app/frontend
-# Install frontend dependencies
-RUN npm ci
-# Build frontend with relative paths
-ENV VITE_API_URL=/api
-ENV VITE_BACKEND_URL=
-RUN npm run build
-WORKDIR /app
 
 # Build bgutil-ytdlp-pot-provider
 WORKDIR /app/bgutil-ytdlp-pot-provider/server
@@ -128,7 +131,7 @@ RUN npm ci --only=production
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
 # Copy frontend build
-COPY --from=builder /app/frontend/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Copy drizzle migrations
 COPY --from=builder /app/drizzle ./drizzle
 # Copy bgutil-ytdlp-pot-provider
