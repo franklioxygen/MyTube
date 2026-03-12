@@ -87,6 +87,14 @@ describe("file-type compatibility package", () => {
     });
   });
 
+  it("rejects file paths outside the app and temp directories", async () => {
+    const outsidePath = path.resolve(process.cwd(), "..", "package.json");
+
+    await expect(fromFile(outsidePath)).rejects.toThrow(
+      /outside allowed roots/
+    );
+  });
+
   it("stays compatible with Jimp's file-type/core.js import", async () => {
     const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "mytube-jimp-"));
     tempDirectories.push(tempDirectory);

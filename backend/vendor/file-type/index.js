@@ -1,6 +1,8 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const SUPPORTED_FILE_TYPES = [
   { ext: "jpg", mime: "image/jpeg" },
@@ -14,6 +16,44 @@ const SUPPORTED_FILE_TYPES = [
 
 const supportedExtensions = new Set(SUPPORTED_FILE_TYPES.map((entry) => entry.ext));
 const supportedMimeTypes = new Set(SUPPORTED_FILE_TYPES.map((entry) => entry.mime));
+const ALLOWED_FILE_ROOTS = [process.cwd(), os.tmpdir()].map((rootPath) =>
+  path.resolve(rootPath)
+);
+
+const isPathWithinAllowedRoot = (targetPath, allowedRoot) => {
+  const relativePath = path.relative(allowedRoot, targetPath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  );
+};
+
+const validateFilePath = async (filePath) => {
+  if (typeof filePath !== "string" || filePath.trim().length === 0) {
+    throw new TypeError("Expected filePath to be a non-empty string");
+  }
+
+  const resolvedPath = path.resolve(filePath);
+  const realPath = await fs.promises.realpath(resolvedPath);
+  const resolvedAllowedRoots = await Promise.all(
+    ALLOWED_FILE_ROOTS.map(async (allowedRoot) => {
+      try {
+        return await fs.promises.realpath(allowedRoot);
+      } catch {
+        return allowedRoot;
+      }
+    })
+  );
+  const isAllowed = resolvedAllowedRoots.some((allowedRoot) =>
+    isPathWithinAllowedRoot(realPath, allowedRoot)
+  );
+
+  if (!isAllowed) {
+    throw new Error(`Refusing to read file outside allowed roots: ${realPath}`);
+  }
+
+  return realPath;
+};
 
 const hasBytes = (buffer, offset, signature) => {
   if (buffer.length < offset + signature.length) {
@@ -117,7 +157,8 @@ const detectFileType = (input) => {
 const fromBuffer = async (input) => detectFileType(input);
 
 const fromFile = async (filePath) => {
-  const fileHandle = await fs.promises.open(filePath, "r");
+  const safeFilePath = await validateFilePath(filePath);
+  const fileHandle = await fs.promises.open(safeFilePath, "r");
 
   try {
     const sample = Buffer.alloc(4100);
