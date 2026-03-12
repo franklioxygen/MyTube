@@ -1,5 +1,170 @@
 # Change Log
 
+## 1.8.48 (2026-03-12)
+
+### Feat
+
+- Implement database merge workflow (9e19823)
+
+## v1.8.47 (2026-03-11)
+
+### Refactor
+
+- refactor: Add vendor folder for backend dependencies (a1580db)
+
+### Chore
+
+- chore: Add "peer" property to package-lock.json (aa6af9e)
+
+## v1.8.46 (2026-03-08)
+
+### Feat
+
+- feat(backend): add deno runtime fallback for yt-dlp (cf6aee9)
+
+## v1.8.45 (2026-03-08)
+
+### Feat
+
+- feat: Add GHCR image build workflow (19daa39)
+
+### Chore
+
+- chore(deps): bump express-rate-limit from 8.2.1 to 8.2.2 in /backend (2b65a50)
+
+## v1.8.44 (2026-03-05)
+
+### Test
+
+- test: improve test coverage (6c9c142)
+
+### Chore
+
+- chore(deps): bump multer from 2.1.0 to 2.1.1 in /backend (ada80b9)
+
+## v1.8.43 (2026-03-04)
+
+### Refactor
+
+- refactor: Improve readability by extracting asReaddirResult (e3a247d)
+
+### Chore
+
+- chore: Update Dockerfile with environment variable exclusion (5977249)
+- chore: suppress false positives and tighten codacy test typing (ea9a2b1)
+
+## v1.8.42 (2026-03-04)
+
+### Fix
+
+- fix: recover missing merged videos and add ffmpeg postinstall helper (aba451d)
+- fix: harden video fallback resolution and postinstall checks (2caeb20)
+
+## v1.8.41 (2026-03-03)
+
+### Refactor
+
+- refactor: Update better-sqlite3 to version 12.6.2 (8977bff)
+
+## v1.8.40 (2026-03-03)
+
+### Feat
+
+- feat: Add multiple installation options for yt-dlp (f8a11f7)
+
+### Fix
+
+- fix: improve yt-dlp initial installation and utils (28b9c97)
+- fix: harden yt-dlp availability and spawn handling (21cc961)
+
+## v1.8.39 (2026-03-02)
+
+### Feat
+
+- feat: Update workflow to improve coverage reporting (87e3024)
+
+## v1.8.38 (2026-03-02)
+
+### Feat
+
+- feat: Add new build configurations and environment variables (55ac0aa)
+
+### Fix
+
+- fix: fix windows gen image capability issue (2744d1c)
+
+## v1.8.37 (2026-03-02)
+
+### Docs
+
+- docs: Update .gitignore for reports folder (c555e21)
+
+### Revert
+
+- Revert "chore: address codacy findings and tighten scan config" (6694d2d)
+
+## v1.8.36 (2026-03-02)
+
+### Refactor
+
+- refactor: Improve handling of image paths and frozen lists (2329f76)
+
+### Chore
+
+- chore: address codacy findings and tighten scan config (5e355a2)
+
+## v1.8.35 (2026-03-02)
+
+### Feat
+
+- feat: Add secure path sanitization function (fc5a3ef)
+
+## v1.8.34 (2026-03-02)
+
+### Feat
+
+- feat: Add missing columns for legacy databases (816d12c)
+- feat: Add useVideoProgress hook with view count logic (a22021f)
+
+### Fix
+
+- fix: backend/package.json & backend/package-lock.json to reduce vulnerabilities (36f84e1)
+
+### Chore
+
+- chore(deps): bump multer from 2.0.2 to 2.1.0 in /backend (ab80c48)
+
+## v1.8.33 (2026-03-01)
+
+### Style
+
+- style: Update ControlsOverlay styles and position (bed2fd3)
+
+## v1.8.32 (2026-03-01)
+
+### Feat
+
+- feat: add subscription download order (f29c1ba)
+
+### Test
+
+- test: Update videoMetadataController.test.ts and videos.test.ts (a03a839)
+
+## v1.8.31 (2026-02-28)
+
+### Test
+
+- test: Prefer refreshed thumbnailUrl over local thumbnailPath (79905ea)
+
+## v1.8.30 (2026-02-28)
+
+### Feat
+
+- feat: Add optional API key support for MyTube downloads (c888a7c)
+
+### Refactor
+
+- refactor: Normalize language and theme values for consistency (2d7eed0)
 
 ## v1.8.29 (2026-02-28)
 
@@ -594,7 +759,6 @@
 ### Refactor
 
 - refactor: Improve path traversal prevention logic (ce43a03)
-
 
 ## v1.7.83 (2026-01-25)
 
@@ -1227,7 +1391,6 @@
 - test: improve frontend test coverage (cb808a3)
 - test: improve backend test coverage (3a16577)
 
-
 ## v1.7.18 (2025-12-29)
 
 ### Refactor
@@ -1248,7 +1411,6 @@
 
 - test: remove unnecessary text assertions (c9e15a7)
 
-
 ## v1.7.16 (2025-12-29)
 
 ### Feat
@@ -1259,7 +1421,6 @@
 ### Style
 
 - style: Update spacing to use Grid component in UpNextSidebar (21c3f4c)
-
 
 ## v1.7.15 (2025-12-29)
 
