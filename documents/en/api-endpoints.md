@@ -161,6 +161,12 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `GET /api/settings/export-database` - Download current DB backup file
 - `POST /api/settings/import-database` - Import `.db` backup file and overwrite current DB
   - Multipart form-data: `file`
+- `POST /api/settings/merge-database-preview` - Scan uploaded `.db` backup and return merge counts without modifying current DB
+  - Multipart form-data: `file`
+  - Response `summary` includes `videos`, `collections`, `collectionLinks`, `subscriptions`, `downloadHistory`, `videoDownloads`, and `tags`; each item contains `{ merged, skipped }`
+- `POST /api/settings/merge-database` - Merge uploaded `.db` backup into current DB while keeping existing records
+  - Multipart form-data: `file`
+  - Response includes the same merge `summary` shape as preview
 - `GET /api/settings/last-backup-info` - Get latest backup metadata
 - `POST /api/settings/restore-from-last-backup` - Restore from latest backup
 - `POST /api/settings/cleanup-backup-databases` - Cleanup backup DB files

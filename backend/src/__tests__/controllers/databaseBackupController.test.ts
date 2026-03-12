@@ -76,6 +76,46 @@ describe('databaseBackupController', () => {
         });
     });
 
+    describe('mergeDatabase', () => {
+        it('should merge database successfully', async () => {
+            const fileBuffer = Buffer.from('sqlite-bytes');
+            mockReq.file = { buffer: fileBuffer, originalname: 'backup.db' } as any;
+            (databaseBackupService.mergeDatabase as any).mockReturnValue({
+                videos: { merged: 1, skipped: 0 },
+            });
+
+            await databaseBackupController.mergeDatabase(mockReq as Request, mockRes as Response);
+
+            expect(databaseBackupService.mergeDatabase).toHaveBeenCalledWith(fileBuffer);
+            expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
+                success: true,
+                summary: expect.objectContaining({
+                    videos: { merged: 1, skipped: 0 },
+                }),
+            }));
+        });
+    });
+
+    describe('previewMergeDatabase', () => {
+        it('should preview database merge successfully', async () => {
+            const fileBuffer = Buffer.from('sqlite-bytes');
+            mockReq.file = { buffer: fileBuffer, originalname: 'backup.db' } as any;
+            (databaseBackupService.previewMergeDatabase as any).mockReturnValue({
+                videos: { merged: 2, skipped: 1 },
+            });
+
+            await databaseBackupController.previewMergeDatabase(mockReq as Request, mockRes as Response);
+
+            expect(databaseBackupService.previewMergeDatabase).toHaveBeenCalledWith(fileBuffer);
+            expect(mockRes.json).toHaveBeenCalledWith({
+                success: true,
+                summary: {
+                    videos: { merged: 2, skipped: 1 },
+                },
+            });
+        });
+    });
+
     describe('cleanupBackupDatabases', () => {
         it('should return cleanup result', async () => {
              (databaseBackupService.cleanupBackupDatabases as any).mockReturnValue({

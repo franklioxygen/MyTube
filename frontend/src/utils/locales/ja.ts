@@ -891,15 +891,48 @@ export const ja = {
     "データベースをバックアップファイルとしてエクスポートするか、以前にエクスポートしたバックアップをインポートします。インポートすると、既存のデータがバックアップデータで上書きされます。",
   exportDatabase: "データベースをエクスポート",
   importDatabase: "データベースをインポート",
+  mergeDatabase: "データベースをマージ",
   onlyDbFilesAllowed: ".dbファイルのみ許可されています",
   importDatabaseWarning:
     "警告：データベースをインポートすると、既存のすべてのデータが上書きされます。まず現在のデータベースをバックアップとしてエクスポートしてください。",
+  mergeDatabaseWarning:
+    "別の MyTube バックアップをこのインスタンスにマージします。既存のレコードは保持され、アップロードしたバックアップにしかないレコードだけが追加されます。",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "コレクションとその所属動画は同名コレクションにマージされます。",
+  mergeDatabaseContentsSubscriptions:
+    "購読は URL ごとにマージされ、既存の購読は保持されます。",
+  mergeDatabaseContentsHistory:
+    "ダウンロード履歴とダウンロード追跡は、同じ項目がまだない場合に追加されます。",
+  mergeDatabaseContentsTags:
+    "タグ設定もマージされるため、取り込んだ動画のタグを UI で引き続き使えます。",
+  mergeDatabaseKeepsCurrentData:
+    "現在の設定、パスワード、進行中のダウンロード、タスク実行状態は置き換えられません。",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "データベースファイルを選択",
   databaseExportedSuccess: "データベースのエクスポートが成功しました",
   databaseExportFailed: "データベースのエクスポートに失敗しました",
   databaseImportedSuccess:
     "データベースのインポートが成功しました。既存のデータがバックアップデータで上書きされました。",
   databaseImportFailed: "データベースのインポートに失敗しました",
+  databaseMergedSuccess:
+    "データベースのマージに成功しました。既存データを保持したまま、バックアップ内の不足分を追加しました。",
+  databaseMergeFailed: "データベースのマージに失敗しました",
   cleanupBackupDatabases: "バックアップデータベースをクリーンアップ",
   cleanupBackupDatabasesWarning:
     "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",

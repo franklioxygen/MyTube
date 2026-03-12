@@ -890,15 +890,48 @@ export const pt = {
     "Exporte seu banco de dados como arquivo de backup ou importe um backup previamente exportado. A importação substituirá os dados existentes pelos dados de backup.",
   exportDatabase: "Exportar Banco de Dados",
   importDatabase: "Importar Banco de Dados",
+  mergeDatabase: "Mesclar Banco de Dados",
   onlyDbFilesAllowed: "Apenas arquivos .db são permitidos",
   importDatabaseWarning:
     "Aviso: Importar um banco de dados substituirá todos os dados existentes. Certifique-se de exportar primeiro seu banco de dados atual como backup.",
+  mergeDatabaseWarning:
+    "Mescle outro backup do MyTube nesta instância. Os registros existentes são mantidos e apenas os registros ausentes do backup enviado são adicionados.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "As coleções e os vínculos com vídeos são mesclados em coleções com o mesmo nome.",
+  mergeDatabaseContentsSubscriptions:
+    "As inscrições são mescladas pela URL da inscrição, mantendo as inscrições existentes.",
+  mergeDatabaseContentsHistory:
+    "O histórico de downloads e o rastreamento de downloads são adicionados quando uma entrada equivalente ainda não existe.",
+  mergeDatabaseContentsTags:
+    "As configurações de tags também são mescladas para que as tags importadas continuem disponíveis na interface.",
+  mergeDatabaseKeepsCurrentData:
+    "As configurações atuais, senhas, downloads ativos e o estado de execução das tarefas não são substituídos.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "Selecionar Arquivo de Banco de Dados",
   databaseExportedSuccess: "Banco de dados exportado com sucesso",
   databaseExportFailed: "Falha ao exportar banco de dados",
   databaseImportedSuccess:
     "Banco de dados importado com sucesso. Os dados existentes foram substituídos pelos dados de backup.",
   databaseImportFailed: "Falha ao importar banco de dados",
+  databaseMergedSuccess:
+    "Banco de dados mesclado com sucesso. Os dados existentes foram mantidos e os dados ausentes do backup foram adicionados.",
+  databaseMergeFailed: "Falha ao mesclar banco de dados",
   cleanupBackupDatabases: "Limpar Bancos de Dados de Backup",
   cleanupBackupDatabasesWarning:
     "Aviso: Isso excluirá permanentemente todos os arquivos de banco de dados de backup (mytube-backup-*.db.backup) que foram criados durante importações anteriores. Esta ação não pode ser desfeita. Tem certeza de que deseja continuar?",

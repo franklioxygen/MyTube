@@ -839,14 +839,46 @@ export const zh = {
     "将数据库导出为备份文件或导入之前导出的备份。导入将使用备份数据覆盖现有数据。",
   exportDatabase: "导出数据库",
   importDatabase: "导入数据库",
+  mergeDatabase: "合并数据库",
   onlyDbFilesAllowed: "仅允许 .db 文件",
   importDatabaseWarning:
     "警告：导入数据库将覆盖所有现有数据。请确保首先导出当前数据库作为备份。",
+  mergeDatabaseWarning:
+    "将另一个 MyTube 备份合并到当前实例。现有记录会保留，仅添加上传备份中缺失的记录。",
+  mergeDatabaseContentsVideos:
+    "视频按来源 URL 匹配合并，已存在的视频会保留。",
+  mergeDatabaseContentsCollections:
+    "合集及其视频关系会合并到同名合集。",
+  mergeDatabaseContentsSubscriptions:
+    "订阅按订阅 URL 合并，已存在的订阅会保留。",
+  mergeDatabaseContentsHistory:
+    "下载历史和下载跟踪会在不存在匹配项时添加。",
+  mergeDatabaseContentsTags:
+    "标签设置会被合并，以便导入视频的标签仍可在界面中使用。",
+  mergeDatabaseKeepsCurrentData:
+    "当前设置、密码、活动下载和任务运行状态不会被替换。",
+  mergeDatabasePreviewScanning: "正在扫描上传的数据库...",
+  mergeDatabasePreviewResults: "合并预览",
+  mergeDatabasePreviewConfirmHint: "请确认以下数量符合预期后再继续合并。",
+  mergeDatabasePreviewFailed: "扫描上传的数据库失败：{error}",
+  mergeDatabasePreviewErrorDefault: "无法扫描上传的数据库。",
+  mergeDatabaseMergedCount: "将合并 {count}",
+  mergeDatabaseSkippedCount: "将跳过 {count}",
+  mergeDatabasePreviewVideos: "视频",
+  mergeDatabasePreviewCollections: "合集",
+  mergeDatabasePreviewCollectionLinks: "合集关联",
+  mergeDatabasePreviewSubscriptions: "订阅",
+  mergeDatabasePreviewDownloadHistory: "下载历史",
+  mergeDatabasePreviewVideoDownloads: "下载跟踪",
+  mergeDatabasePreviewTags: "标签",
   selectDatabaseFile: "选择数据库文件",
   databaseExportedSuccess: "数据库导出成功",
   databaseExportFailed: "数据库导出失败",
   databaseImportedSuccess: "数据库导入成功。现有数据已被备份数据覆盖。",
   databaseImportFailed: "数据库导入失败",
+  databaseMergedSuccess:
+    "数据库合并成功。现有数据已保留，并已添加备份中的缺失数据。",
+  databaseMergeFailed: "数据库合并失败",
   cleanupBackupDatabases: "清理备份数据库",
   cleanupBackupDatabasesWarning:
     "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",

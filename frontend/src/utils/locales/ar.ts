@@ -868,15 +868,48 @@ export const ar = {
     "قم بتصدير قاعدة البيانات الخاصة بك كملف نسخ احتياطي أو قم باستيراد نسخة احتياطية تم تصديرها مسبقًا. سيؤدي الاستيراد إلى استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
   exportDatabase: "تصدير قاعدة البيانات",
   importDatabase: "استيراد قاعدة البيانات",
+  mergeDatabase: "دمج قاعدة البيانات",
   onlyDbFilesAllowed: "يسمح فقط بملفات .db",
   importDatabaseWarning:
     "تحذير: سيؤدي استيراد قاعدة البيانات إلى استبدال جميع البيانات الموجودة. تأكد من تصدير قاعدة البيانات الحالية أولاً كنسخة احتياطية.",
+  mergeDatabaseWarning:
+    "ادمج نسخة MyTube احتياطية أخرى في هذه النسخة. ستبقى السجلات الحالية كما هي، وسيتم فقط إضافة السجلات المفقودة من النسخة المرفوعة.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "يتم دمج المجموعات وروابط الفيديو داخلها في المجموعات ذات الاسم المطابق.",
+  mergeDatabaseContentsSubscriptions:
+    "يتم دمج الاشتراكات حسب رابط الاشتراك مع الاحتفاظ بالاشتراكات الحالية.",
+  mergeDatabaseContentsHistory:
+    "تتم إضافة سجل التنزيلات وتتبع التنزيل فقط عندما لا يوجد إدخال مطابق بالفعل.",
+  mergeDatabaseContentsTags:
+    "يتم دمج إعدادات الوسوم أيضاً حتى تبقى وسوم الفيديوهات المستوردة متاحة في الواجهة.",
+  mergeDatabaseKeepsCurrentData:
+    "لن يتم استبدال الإعدادات الحالية أو كلمات المرور أو التنزيلات النشطة أو حالة تشغيل المهام.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "اختر ملف قاعدة البيانات",
   databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
   databaseExportFailed: "فشل تصدير قاعدة البيانات",
   databaseImportedSuccess:
     "تم استيراد قاعدة البيانات بنجاح. تم استبدال البيانات الموجودة ببيانات النسخ الاحتياطي.",
   databaseImportFailed: "فشل استيراد قاعدة البيانات",
+  databaseMergedSuccess:
+    "تم دمج قاعدة البيانات بنجاح. تم الاحتفاظ بالبيانات الحالية وإضافة البيانات المفقودة من النسخة الاحتياطية.",
+  databaseMergeFailed: "فشل دمج قاعدة البيانات",
   cleanupBackupDatabases: "تنظيف قواعد البيانات الاحتياطية",
   cleanupBackupDatabasesWarning:
     "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",

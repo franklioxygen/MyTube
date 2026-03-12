@@ -878,15 +878,48 @@ export const ru = {
     "Экспортируйте базу данных как файл резервной копии или импортируйте ранее экспортированную резервную копию. Импорт перезапишет существующие данные данными из резервной копии.",
   exportDatabase: "Экспортировать Базу Данных",
   importDatabase: "Импортировать Базу Данных",
+  mergeDatabase: "Объединить Базу Данных",
   onlyDbFilesAllowed: "Разрешены только файлы .db",
   importDatabaseWarning:
     "Предупреждение: Импорт базы данных перезапишет все существующие данные. Убедитесь, что вы сначала экспортировали текущую базу данных в качестве резервной копии.",
+  mergeDatabaseWarning:
+    "Объедините другую резервную копию MyTube с этим экземпляром. Существующие записи сохраняются, а из загруженной базы добавляются только отсутствующие записи.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "Коллекции и связи видео в них объединяются с коллекциями с таким же именем.",
+  mergeDatabaseContentsSubscriptions:
+    "Подписки объединяются по URL подписки, существующие подписки сохраняются.",
+  mergeDatabaseContentsHistory:
+    "История загрузок и отслеживание загрузок добавляются, если совпадающей записи ещё нет.",
+  mergeDatabaseContentsTags:
+    "Настройки тегов тоже объединяются, чтобы импортированные теги оставались доступными в интерфейсе.",
+  mergeDatabaseKeepsCurrentData:
+    "Текущие настройки, пароли, активные загрузки и состояние выполнения задач не заменяются.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "Выбрать Файл Базы Данных",
   databaseExportedSuccess: "База данных успешно экспортирована",
   databaseExportFailed: "Не удалось экспортировать базу данных",
   databaseImportedSuccess:
     "База данных успешно импортирована. Существующие данные были перезаписаны данными из резервной копии.",
   databaseImportFailed: "Не удалось импортировать базу данных",
+  databaseMergedSuccess:
+    "База данных успешно объединена. Текущие данные сохранены, а недостающие данные из резервной копии добавлены.",
+  databaseMergeFailed: "Не удалось объединить базу данных",
   cleanupBackupDatabases: "Очистить Резервные Копии Базы Данных",
   cleanupBackupDatabasesWarning:
     "Предупреждение: Это навсегда удалит все файлы резервных копий базы данных (mytube-backup-*.db.backup), которые были созданы во время предыдущих импортов. Это действие нельзя отменить. Вы уверены, что хотите продолжить?",

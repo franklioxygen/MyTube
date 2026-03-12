@@ -907,15 +907,48 @@ export const fr = {
     "Exportez votre base de données en tant que fichier de sauvegarde ou importez une sauvegarde précédemment exportée. L'importation remplacera les données existantes par les données de sauvegarde.",
   exportDatabase: "Exporter la Base de Données",
   importDatabase: "Importer la Base de Données",
+  mergeDatabase: "Fusionner la Base de Données",
   onlyDbFilesAllowed: "Seuls les fichiers .db sont autorisés",
   importDatabaseWarning:
     "Avertissement : L'importation d'une base de données remplacera toutes les données existantes. Assurez-vous d'abord d'exporter votre base de données actuelle en tant que sauvegarde.",
+  mergeDatabaseWarning:
+    "Fusionnez une autre sauvegarde MyTube dans cette instance. Les enregistrements existants sont conservés et seules les données manquantes du fichier importé sont ajoutées.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "Les collections et leurs associations de vidéos sont fusionnées dans les collections du même nom.",
+  mergeDatabaseContentsSubscriptions:
+    "Les abonnements sont fusionnés par URL d'abonnement et les abonnements existants sont conservés.",
+  mergeDatabaseContentsHistory:
+    "L'historique des téléchargements et le suivi des téléchargements sont ajoutés si l'entrée n'existe pas déjà.",
+  mergeDatabaseContentsTags:
+    "Les paramètres de tags sont aussi fusionnés afin que les tags importés restent disponibles dans l'interface.",
+  mergeDatabaseKeepsCurrentData:
+    "Les paramètres actuels, mots de passe, téléchargements actifs et états d'exécution des tâches ne sont pas remplacés.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "Sélectionner un Fichier de Base de Données",
   databaseExportedSuccess: "Base de données exportée avec succès",
   databaseExportFailed: "Échec de l'exportation de la base de données",
   databaseImportedSuccess:
     "Base de données importée avec succès. Les données existantes ont été remplacées par les données de sauvegarde.",
   databaseImportFailed: "Échec de l'importation de la base de données",
+  databaseMergedSuccess:
+    "Base de données fusionnée avec succès. Les données existantes ont été conservées et les données manquantes de la sauvegarde ont été ajoutées.",
+  databaseMergeFailed: "Échec de la fusion de la base de données",
   cleanupBackupDatabases: "Nettoyer les Bases de Données de Sauvegarde",
   cleanupBackupDatabasesWarning:
     "Avertissement : Cela supprimera définitivement tous les fichiers de base de données de sauvegarde (mytube-backup-*.db.backup) qui ont été créés lors d'importations précédentes. Cette action ne peut pas être annulée. Êtes-vous sûr de vouloir continuer ?",

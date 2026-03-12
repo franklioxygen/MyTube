@@ -2,6 +2,7 @@ import { Close, Delete, Download, History, Upload } from '@mui/icons-material';
 import {
     Box,
     Button,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -14,6 +15,7 @@ import {
 } from '@mui/material';
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import type { MergePreviewSummary } from '../../hooks/useSettingsMutations';
 
 interface DatabaseSettingsProps {
     onMigrate: () => void;
@@ -21,6 +23,8 @@ interface DatabaseSettingsProps {
     onFormatFilenames: () => void;
     onExportDatabase: () => void;
     onImportDatabase: (file: File) => void;
+    onPreviewMergeDatabase: (file: File) => Promise<MergePreviewSummary>;
+    onMergeDatabase: (file: File) => void;
     onCleanupBackupDatabases: () => void;
     onRestoreFromLastBackup: () => void;
     isSaving: boolean;
@@ -39,6 +43,8 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onFormatFilenames,
     onExportDatabase,
     onImportDatabase,
+    onPreviewMergeDatabase,
+    onMergeDatabase,
     onCleanupBackupDatabases,
     onRestoreFromLastBackup,
     isSaving,
@@ -51,9 +57,16 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
     onSaveAuthorFilesToCollectionChange
 }) => {
     const { t } = useLanguage();
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const importFileInputRef = useRef<HTMLInputElement>(null);
+    const mergeFileInputRef = useRef<HTMLInputElement>(null);
+    const mergePreviewRequestIdRef = useRef(0);
     const [importModalOpen, setImportModalOpen] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [mergeModalOpen, setMergeModalOpen] = useState(false);
+    const [selectedImportFile, setSelectedImportFile] = useState<File | null>(null);
+    const [selectedMergeFile, setSelectedMergeFile] = useState<File | null>(null);
+    const [mergePreviewSummary, setMergePreviewSummary] = useState<MergePreviewSummary | null>(null);
+    const [mergePreviewError, setMergePreviewError] = useState<string | null>(null);
+    const [isScanningMergePreview, setIsScanningMergePreview] = useState(false);
     const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
     const [restoreModalOpen, setRestoreModalOpen] = useState(false);
 
@@ -63,27 +76,102 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
 
     const handleCloseImportModal = () => {
         setImportModalOpen(false);
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+        setSelectedImportFile(null);
+        if (importFileInputRef.current) {
+            importFileInputRef.current.value = '';
         }
     };
 
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleOpenMergeModal = () => {
+        setMergeModalOpen(true);
+    };
+
+    const handleCloseMergeModal = () => {
+        mergePreviewRequestIdRef.current += 1;
+        setMergeModalOpen(false);
+        setSelectedMergeFile(null);
+        setMergePreviewSummary(null);
+        setMergePreviewError(null);
+        setIsScanningMergePreview(false);
+        if (mergeFileInputRef.current) {
+            mergeFileInputRef.current.value = '';
+        }
+    };
+
+    const handleImportFileSelect = (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
         const file = e.target.files?.[0];
         if (file) {
             if (!file.name.endsWith('.db')) {
+                setSelectedImportFile(null);
+                e.target.value = '';
                 alert(t('onlyDbFilesAllowed') || 'Only .db files are allowed');
                 return;
             }
-            setSelectedFile(file);
+            setSelectedImportFile(file);
+        }
+    };
+
+    const handleMergeFileSelect = async (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        if (!file.name.endsWith('.db')) {
+            mergePreviewRequestIdRef.current += 1;
+            setSelectedMergeFile(null);
+            setMergePreviewSummary(null);
+            setMergePreviewError(null);
+            setIsScanningMergePreview(false);
+            e.target.value = '';
+            alert(t('onlyDbFilesAllowed') || 'Only .db files are allowed');
+            return;
+        }
+
+        const requestId = ++mergePreviewRequestIdRef.current;
+        setSelectedMergeFile(file);
+        setMergePreviewSummary(null);
+        setMergePreviewError(null);
+        setIsScanningMergePreview(true);
+
+        try {
+            const summary = await onPreviewMergeDatabase(file);
+            if (mergePreviewRequestIdRef.current !== requestId) {
+                return;
+            }
+            setMergePreviewSummary(summary);
+        } catch (error: any) {
+            if (mergePreviewRequestIdRef.current !== requestId) {
+                return;
+            }
+            const message =
+                error?.response?.data?.details ||
+                error?.response?.data?.message ||
+                error?.message ||
+                t('mergeDatabasePreviewErrorDefault');
+            setMergePreviewError(String(message));
+        } finally {
+            if (mergePreviewRequestIdRef.current === requestId) {
+                setIsScanningMergePreview(false);
+            }
         }
     };
 
     const handleConfirmImport = () => {
-        if (selectedFile) {
-            onImportDatabase(selectedFile);
+        if (selectedImportFile) {
+            onImportDatabase(selectedImportFile);
             handleCloseImportModal();
+        }
+    };
+
+    const handleConfirmMerge = () => {
+        if (selectedMergeFile && mergePreviewSummary && !mergePreviewError) {
+            onMergeDatabase(selectedMergeFile);
+            handleCloseMergeModal();
         }
     };
 
@@ -130,6 +218,20 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
         }
         return timestamp;
     };
+
+    const renderMergePreviewRow = (
+        label: string,
+        counts: { merged: number; skipped: number }
+    ) => (
+        <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 0.5 }}>
+            <Typography variant="body2" color="text.primary">
+                {label}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                {t('mergeDatabaseMergedCount', { count: counts.merged })} · {t('mergeDatabaseSkippedCount', { count: counts.skipped })}
+            </Typography>
+        </Box>
+    );
 
     return (
         <Box>
@@ -251,6 +353,15 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                     >
                         {t('importDatabase')}
                     </Button>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<Upload />}
+                        onClick={handleOpenMergeModal}
+                        disabled={isSaving}
+                    >
+                        {t('mergeDatabase')}
+                    </Button>
                     {lastBackupInfo?.exists && (
                         <Button
                             variant="outlined"
@@ -310,13 +421,13 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                         fullWidth
                         sx={{ borderStyle: 'dashed', height: 56 }}
                     >
-                        {selectedFile ? selectedFile.name : t('selectDatabaseFile')}
+                        {selectedImportFile ? selectedImportFile.name : t('selectDatabaseFile')}
                         <input
-                            ref={fileInputRef}
+                            ref={importFileInputRef}
                             type="file"
                             hidden
                             accept=".db"
-                            onChange={handleFileSelect}
+                            onChange={handleImportFileSelect}
                         />
                     </Button>
                 </DialogContent>
@@ -328,9 +439,120 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                         onClick={handleConfirmImport}
                         variant="contained"
                         color="primary"
-                        disabled={!selectedFile || isSaving}
+                        disabled={!selectedImportFile || isSaving}
                     >
                         {t('importDatabase')}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={mergeModalOpen}
+                onClose={handleCloseMergeModal}
+                maxWidth="sm"
+                fullWidth
+                slotProps={{
+                    paper: {
+                        sx: { borderRadius: 2 }
+                    }
+                }}
+            >
+                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
+                        {t('mergeDatabase')}
+                    </Typography>
+                    <IconButton
+                        aria-label="close"
+                        onClick={handleCloseMergeModal}
+                        sx={{
+                            color: (theme) => theme.palette.grey[500],
+                        }}
+                    >
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent dividers>
+                    <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+                        {t('mergeDatabaseWarning')}
+                    </DialogContentText>
+                    <Box component="ul" sx={{ mt: 0, mb: 2, pl: 3, color: 'text.primary' }}>
+                        <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                            {t('mergeDatabaseContentsVideos')}
+                        </Typography>
+                        <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                            {t('mergeDatabaseContentsCollections')}
+                        </Typography>
+                        <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                            {t('mergeDatabaseContentsSubscriptions')}
+                        </Typography>
+                        <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                            {t('mergeDatabaseContentsHistory')}
+                        </Typography>
+                        <Typography component="li" variant="body2">
+                            {t('mergeDatabaseContentsTags')}
+                        </Typography>
+                    </Box>
+                    <DialogContentText sx={{ mb: 2, color: 'text.secondary' }}>
+                        {t('mergeDatabaseKeepsCurrentData')}
+                    </DialogContentText>
+                    <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<Upload />}
+                        fullWidth
+                        sx={{ borderStyle: 'dashed', height: 56 }}
+                    >
+                        {selectedMergeFile ? selectedMergeFile.name : t('selectDatabaseFile')}
+                        <input
+                            ref={mergeFileInputRef}
+                            type="file"
+                            hidden
+                            accept=".db"
+                            onChange={handleMergeFileSelect}
+                        />
+                    </Button>
+                    {isScanningMergePreview && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 2 }}>
+                            <CircularProgress size={18} />
+                            <Typography variant="body2" color="text.secondary">
+                                {t('mergeDatabasePreviewScanning')}
+                            </Typography>
+                        </Box>
+                    )}
+                    {mergePreviewError && (
+                        <DialogContentText sx={{ mt: 2, color: 'error.main' }}>
+                            {t('mergeDatabasePreviewFailed', { error: mergePreviewError })}
+                        </DialogContentText>
+                    )}
+                    {mergePreviewSummary && !isScanningMergePreview && !mergePreviewError && (
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                {t('mergeDatabasePreviewResults')}
+                            </Typography>
+                            {renderMergePreviewRow(t('mergeDatabasePreviewVideos'), mergePreviewSummary.videos)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewCollections'), mergePreviewSummary.collections)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewCollectionLinks'), mergePreviewSummary.collectionLinks)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewSubscriptions'), mergePreviewSummary.subscriptions)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewDownloadHistory'), mergePreviewSummary.downloadHistory)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewVideoDownloads'), mergePreviewSummary.videoDownloads)}
+                            {renderMergePreviewRow(t('mergeDatabasePreviewTags'), mergePreviewSummary.tags)}
+                            <DialogContentText sx={{ mt: 2, color: 'text.secondary' }}>
+                                {t('mergeDatabasePreviewConfirmHint')}
+                            </DialogContentText>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={handleCloseMergeModal} disabled={isSaving}>
+                        {t('cancel')}
+                    </Button>
+                    <Button
+                        onClick={handleConfirmMerge}
+                        variant="contained"
+                        color="primary"
+                        disabled={!selectedMergeFile || !mergePreviewSummary || Boolean(mergePreviewError) || isScanningMergePreview || isSaving}
+                    >
+                        {t('mergeDatabase')}
                     </Button>
                 </DialogActions>
             </Dialog>

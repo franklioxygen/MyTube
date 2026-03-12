@@ -868,15 +868,48 @@ export const ko = {
     "데이터베이스를 백업 파일로 내보내거나 이전에 내보낸 백업을 가져옵니다. 가져오기는 기존 데이터를 백업 데이터로 덮어씁니다.",
   exportDatabase: "데이터베이스 내보내기",
   importDatabase: "데이터베이스 가져오기",
+  mergeDatabase: "데이터베이스 병합",
   onlyDbFilesAllowed: ".db 파일만 허용됩니다",
   importDatabaseWarning:
     "경고: 데이터베이스를 가져오면 모든 기존 데이터가 덮어씌워집니다. 먼저 현재 데이터베이스를 백업으로 내보내야 합니다.",
+  mergeDatabaseWarning:
+    "다른 MyTube 백업을 현재 인스턴스에 병합합니다. 기존 레코드는 유지되고 업로드한 백업에만 있는 레코드만 추가됩니다.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "컬렉션과 컬렉션 내 비디오 관계는 같은 이름의 컬렉션으로 병합됩니다.",
+  mergeDatabaseContentsSubscriptions:
+    "구독은 구독 URL 기준으로 병합되며 기존 구독은 유지됩니다.",
+  mergeDatabaseContentsHistory:
+    "다운로드 기록과 다운로드 추적은 같은 항목이 없을 때만 추가됩니다.",
+  mergeDatabaseContentsTags:
+    "태그 설정도 병합되어 가져온 비디오 태그를 UI에서 계속 사용할 수 있습니다.",
+  mergeDatabaseKeepsCurrentData:
+    "현재 설정, 비밀번호, 활성 다운로드, 작업 실행 상태는 교체되지 않습니다.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "데이터베이스 파일 선택",
   databaseExportedSuccess: "데이터베이스 내보내기 성공",
   databaseExportFailed: "데이터베이스 내보내기 실패",
   databaseImportedSuccess:
     "데이터베이스 가져오기 성공. 기존 데이터가 백업 데이터로 덮어씌워졌습니다.",
   databaseImportFailed: "데이터베이스 가져오기 실패",
+  databaseMergedSuccess:
+    "데이터베이스 병합이 완료되었습니다. 기존 데이터는 유지되고 백업의 누락 데이터만 추가되었습니다.",
+  databaseMergeFailed: "데이터베이스 병합 실패",
   cleanupBackupDatabases: "백업 데이터베이스 정리",
   cleanupBackupDatabasesWarning:
     "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",

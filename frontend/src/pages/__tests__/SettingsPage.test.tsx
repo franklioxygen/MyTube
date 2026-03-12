@@ -23,6 +23,8 @@ const mockDeleteLegacyMutate = vi.fn();
 const mockFormatFilenamesMutate = vi.fn();
 const mockExportDatabaseMutate = vi.fn();
 const mockImportDatabaseMutate = vi.fn();
+const mockPreviewMergeDatabaseMutateAsync = vi.fn();
+const mockMergeDatabaseMutate = vi.fn();
 const mockCleanupBackupDatabasesMutate = vi.fn();
 const mockRestoreFromLastBackupMutate = vi.fn();
 const mockRenameTagMutate = vi.fn();
@@ -131,6 +133,11 @@ vi.mock('../../hooks/useSettingsMutations', () => ({
     formatFilenamesMutation: { isPending: false, mutate: (...args: any[]) => mockFormatFilenamesMutate(...args) },
     exportDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockExportDatabaseMutate(...args) },
     importDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockImportDatabaseMutate(...args) },
+    previewMergeDatabaseMutation: {
+      isPending: false,
+      mutateAsync: (...args: any[]) => mockPreviewMergeDatabaseMutateAsync(...args),
+    },
+    mergeDatabaseMutation: { isPending: false, mutate: (...args: any[]) => mockMergeDatabaseMutate(...args) },
     cleanupBackupDatabasesMutation: { isPending: false, mutate: (...args: any[]) => mockCleanupBackupDatabasesMutate(...args) },
     restoreFromLastBackupMutation: { isPending: false, mutate: (...args: any[]) => mockRestoreFromLastBackupMutate(...args) },
     renameTagMutation: { isPending: false, mutate: (...args: any[]) => mockRenameTagMutate(...args) },
@@ -246,6 +253,8 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
     onFormatFilenames,
     onExportDatabase,
     onImportDatabase,
+    onPreviewMergeDatabase,
+    onMergeDatabase,
     onCleanupBackupDatabases,
     onRestoreFromLastBackup,
     onMoveSubtitlesToVideoFolderChange,
@@ -258,6 +267,8 @@ vi.mock('../../components/Settings/DatabaseSettings', () => ({
       <button onClick={onFormatFilenames}>open-format-modal</button>
       <button onClick={onExportDatabase}>export-db</button>
       <button onClick={() => onImportDatabase(new File(['db'], 'db.zip'))}>import-db</button>
+      <button onClick={() => onPreviewMergeDatabase(new File(['db'], 'merge-preview.db'))}>preview-merge-db</button>
+      <button onClick={() => onMergeDatabase(new File(['db'], 'merge.db'))}>merge-db</button>
       <button onClick={onCleanupBackupDatabases}>cleanup-backups</button>
       <button onClick={onRestoreFromLastBackup}>restore-last-backup</button>
       <button onClick={() => onMoveSubtitlesToVideoFolderChange(true)}>move-subtitles</button>
@@ -323,6 +334,15 @@ describe('SettingsPage', () => {
     };
 
     mockApiPost.mockResolvedValue({ data: { addedCount: 2, deletedCount: 1 } });
+    mockPreviewMergeDatabaseMutateAsync.mockResolvedValue({
+      videos: { merged: 1, skipped: 0 },
+      collections: { merged: 0, skipped: 0 },
+      collectionLinks: { merged: 0, skipped: 0 },
+      subscriptions: { merged: 0, skipped: 0 },
+      downloadHistory: { merged: 0, skipped: 0 },
+      videoDownloads: { merged: 0, skipped: 0 },
+      tags: { merged: 0, skipped: 0 },
+    });
 
     document.body.innerHTML = '';
   });
@@ -486,6 +506,8 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('open-format-modal'));
     fireEvent.click(screen.getByText('export-db'));
     fireEvent.click(screen.getByText('import-db'));
+    fireEvent.click(screen.getByText('preview-merge-db'));
+    fireEvent.click(screen.getByText('merge-db'));
     fireEvent.click(screen.getByText('cleanup-backups'));
     fireEvent.click(screen.getByText('restore-last-backup'));
     fireEvent.click(screen.getByText('move-subtitles'));
@@ -503,6 +525,8 @@ describe('SettingsPage', () => {
     expect(mockSetShowFormatConfirmModal).toHaveBeenCalledWith(true);
     expect(mockExportDatabaseMutate).toHaveBeenCalled();
     expect(mockImportDatabaseMutate).toHaveBeenCalled();
+    expect(mockPreviewMergeDatabaseMutateAsync).toHaveBeenCalled();
+    expect(mockMergeDatabaseMutate).toHaveBeenCalled();
     expect(mockCleanupBackupDatabasesMutate).toHaveBeenCalled();
     expect(mockRestoreFromLastBackupMutate).toHaveBeenCalled();
     expect(mockRenameTagMutate).toHaveBeenCalledTimes(1);

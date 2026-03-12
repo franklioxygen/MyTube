@@ -4,6 +4,7 @@ import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitializeDatabase as reinitDb, sqlite } from "../../db";
 import * as databaseBackupService from "../../services/databaseBackupService";
+import { invalidateSettingsCache } from "../../services/storageService/settings";
 import { logger } from "../../utils/logger";
 import { isPathWithinDirectory, resolveSafePath } from "../../utils/security";
 
@@ -23,13 +24,19 @@ vi.mock("better-sqlite3", () => ({
 vi.mock("crypto", () => ({
   default: {
     randomBytes: vi.fn(),
+    randomUUID: vi.fn(() => "generated-uuid"),
   },
 }));
 vi.mock("../../db", () => ({
   reinitializeDatabase: vi.fn(),
   sqlite: {
     close: vi.fn(),
+    prepare: vi.fn(),
+    transaction: vi.fn((callback: () => void) => callback),
   },
+}));
+vi.mock("../../services/storageService/settings", () => ({
+  invalidateSettingsCache: vi.fn(),
 }));
 vi.mock("../../utils/helpers", () => ({
   generateTimestamp: vi.fn(() => "20240101010101"),
@@ -46,16 +53,152 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
-const createValidDbHandle = () => {
-  const get = vi.fn();
-  const prepare = vi.fn(() => ({ get }));
+type TableRows = Record<string, Array<Record<string, any>>>;
+type TableColumns = Record<string, string[]>;
+
+const createStatement = ({
+  allResult = [],
+  getResult,
+  runImpl,
+}: {
+  allResult?: any[];
+  getResult?: any;
+  runImpl?: (params?: any) => void;
+} = {}) => ({
+  all: vi.fn(() => allResult),
+  get: vi.fn((..._args: any[]) => getResult),
+  run: vi.fn((params?: any) => {
+    runImpl?.(params);
+    return { changes: 1 };
+  }),
+});
+
+const inferTableColumns = (tables: TableRows): TableColumns =>
+  Object.fromEntries(
+    Object.entries(tables).map(([tableName, rows]) => [
+      tableName,
+      rows.length > 0 ? Object.keys(rows[0]) : [],
+    ])
+  );
+
+const createSourceDbHandle = (
+  tables: TableRows,
+  columns: TableColumns = inferTableColumns(tables)
+) => {
+  const prepare = vi.fn((sql: string) => {
+    if (sql.includes("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1")) {
+      return createStatement({
+        getResult: Object.keys(tables).length > 0 ? { name: Object.keys(tables)[0] } : undefined,
+      });
+    }
+
+    if (sql.includes("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")) {
+      return {
+        all: vi.fn(),
+        run: vi.fn(),
+        get: vi.fn((tableName: string) =>
+          Object.prototype.hasOwnProperty.call(columns, tableName) ? { 1: 1 } : undefined
+        ),
+      };
+    }
+
+    const pragmaMatch = sql.match(/^PRAGMA table_info\("(.+)"\)$/);
+    if (pragmaMatch) {
+      const [, tableName] = pragmaMatch;
+      return createStatement({
+        allResult: (columns[tableName] || []).map((name) => ({ name })),
+      });
+    }
+
+    if (sql === "SELECT value FROM settings WHERE key = 'tags' LIMIT 1") {
+      const tagsRow = tables.settings?.find((row) => row.key === "tags");
+      return createStatement({ getResult: tagsRow ? { value: tagsRow.value } : undefined });
+    }
+
+    const tableMatch = sql.match(/FROM "([^"]+)"/);
+    if (sql.startsWith("SELECT") && tableMatch) {
+      return createStatement({ allResult: tables[tableMatch[1]] || [] });
+    }
+
+    return createStatement();
+  });
+
   const close = vi.fn();
   return { prepare, close };
 };
 
+const createSqlitePrepareMock = (
+  tables: TableRows,
+  columns: TableColumns = inferTableColumns(tables)
+) =>
+  vi.fn((sql: string) => {
+    if (sql.includes("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")) {
+      return {
+        all: vi.fn(),
+        run: vi.fn(),
+        get: vi.fn((tableName: string) =>
+          Object.prototype.hasOwnProperty.call(columns, tableName) ? { 1: 1 } : undefined
+        ),
+      };
+    }
+
+    const pragmaMatch = sql.match(/^PRAGMA table_info\("(.+)"\)$/);
+    if (pragmaMatch) {
+      const [, tableName] = pragmaMatch;
+      return createStatement({
+        allResult: (columns[tableName] || []).map((name) => ({ name })),
+      });
+    }
+
+    if (sql === "SELECT id, source_url AS source_url FROM videos") {
+      return createStatement({ allResult: tables.videos || [] });
+    }
+
+    if (sql === "SELECT id, name, title FROM collections") {
+      return createStatement({ allResult: tables.collections || [] });
+    }
+
+    if (
+      sql ===
+      "SELECT collection_id AS collection_id, video_id AS video_id FROM collection_videos"
+    ) {
+      return createStatement({ allResult: tables.collection_videos || [] });
+    }
+
+    if (sql === "SELECT id, author_url AS author_url FROM subscriptions") {
+      return createStatement({ allResult: tables.subscriptions || [] });
+    }
+
+    if (
+      sql ===
+      "SELECT id, title, source_url AS source_url, finished_at AS finished_at, status FROM download_history"
+    ) {
+      return createStatement({ allResult: tables.download_history || [] });
+    }
+
+    if (
+      sql ===
+      "SELECT id, source_video_id AS source_video_id, platform FROM video_downloads"
+    ) {
+      return createStatement({ allResult: tables.video_downloads || [] });
+    }
+
+    if (sql === "SELECT value FROM settings WHERE key = 'tags' LIMIT 1") {
+      const tagsRow = tables.settings?.find((row) => row.key === "tags");
+      return createStatement({ getResult: tagsRow ? { value: tagsRow.value } : undefined });
+    }
+
+    if (sql.startsWith("INSERT INTO")) {
+      return createStatement();
+    }
+
+    return createStatement();
+  });
+
 describe("databaseBackupService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    let uuidCounter = 0;
 
     vi.mocked(fs.existsSync as any).mockReturnValue(true);
     vi.mocked(fs.readdirSync as any).mockReturnValue([]);
@@ -68,7 +211,16 @@ describe("databaseBackupService", () => {
     vi.mocked(isPathWithinDirectory as any).mockReturnValue(true);
 
     vi.mocked(crypto.randomBytes as any).mockReturnValue(Buffer.from("12345678"));
-    vi.mocked(Database as any).mockImplementation(() => createValidDbHandle());
+    vi.mocked(crypto.randomUUID as any).mockImplementation(
+      () => `generated-uuid-${++uuidCounter}`
+    );
+    vi.mocked(Database as any).mockImplementation(() =>
+      createSourceDbHandle({ videos: [{ id: "db", source_url: "source" }] })
+    );
+    vi.mocked(sqlite.prepare as any).mockImplementation(() => createStatement());
+    vi.mocked(sqlite.transaction as any).mockImplementation(
+      (callback: () => void) => callback
+    );
   });
 
   describe("exportDatabase", () => {
@@ -194,6 +346,451 @@ describe("databaseBackupService", () => {
         "Error cleaning up temp file:",
         expect.any(Error)
       );
+    });
+  });
+
+  describe("mergeDatabase", () => {
+    it("merges missing records while keeping existing data", () => {
+      const sourceTables = {
+        videos: [
+          {
+            id: "source-video-existing",
+            title: "Existing Source Video",
+            source_url: "https://example.com/watch/existing",
+            video_path: "/videos/existing.mp4",
+            created_at: "2024-01-01T00:00:00.000Z",
+            tags: JSON.stringify(["local", "video-only"]),
+          },
+          {
+            id: "source-video-new",
+            title: "New Source Video",
+            source_url: "https://example.com/watch/new",
+            video_path: "/videos/new.mp4",
+            created_at: "2024-01-02T00:00:00.000Z",
+            tags: JSON.stringify(["local", "video-only"]),
+          },
+        ],
+        collections: [
+          {
+            id: "source-collection-existing",
+            name: "Watch Later",
+            title: "Watch Later",
+            created_at: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "collection-existing",
+            name: "Imported Queue",
+            title: "Imported Queue",
+            created_at: "2024-01-02T00:00:00.000Z",
+          },
+        ],
+        collection_videos: [
+          {
+            collection_id: "source-collection-existing",
+            video_id: "source-video-existing",
+            order: 1,
+          },
+          {
+            collection_id: "collection-existing",
+            video_id: "source-video-new",
+            order: 2,
+          },
+        ],
+        subscriptions: [
+          {
+            id: "source-subscription-existing",
+            author: "Existing Author",
+            author_url: "https://example.com/channel/existing",
+            interval: 60,
+            created_at: 1704067200000,
+            collection_id: "source-collection-existing",
+          },
+          {
+            id: "subscription-existing",
+            author: "New Author",
+            author_url: "https://example.com/channel/new",
+            interval: 120,
+            created_at: 1704153600000,
+            collection_id: "collection-existing",
+          },
+        ],
+        download_history: [
+          {
+            id: "source-history-existing",
+            title: "Existing History",
+            source_url: "https://example.com/watch/existing",
+            finished_at: 1704067200000,
+            status: "success",
+            video_id: "source-video-existing",
+            subscription_id: "source-subscription-existing",
+            task_id: "task-old",
+          },
+          {
+            id: "history-existing",
+            title: "Merged History",
+            source_url: "https://example.com/watch/new",
+            finished_at: 1704153600000,
+            status: "success",
+            video_id: "source-video-new",
+            subscription_id: "subscription-existing",
+            task_id: "task-new",
+          },
+        ],
+        video_downloads: [
+          {
+            id: "source-vd-existing",
+            source_video_id: "platform-existing",
+            source_url: "https://example.com/watch/existing",
+            platform: "YouTube",
+            video_id: "source-video-existing",
+            status: "exists",
+            downloaded_at: 1704067200000,
+          },
+          {
+            id: "vd-existing",
+            source_video_id: "platform-new",
+            source_url: "https://example.com/watch/new",
+            platform: "YouTube",
+            video_id: "source-video-new",
+            status: "exists",
+            downloaded_at: 1704153600000,
+          },
+        ],
+        settings: [
+          {
+            key: "tags",
+            value: JSON.stringify(["local", "imported-setting"]),
+          },
+        ],
+      };
+
+      const sourceColumns = {
+        videos: ["id", "title", "source_url", "video_path", "created_at", "tags"],
+        collections: ["id", "name", "title", "created_at"],
+        collection_videos: ["collection_id", "video_id", "order"],
+        subscriptions: [
+          "id",
+          "author",
+          "author_url",
+          "interval",
+          "created_at",
+          "collection_id",
+        ],
+        download_history: [
+          "id",
+          "title",
+          "source_url",
+          "finished_at",
+          "status",
+          "video_id",
+          "subscription_id",
+          "task_id",
+        ],
+        video_downloads: [
+          "id",
+          "source_video_id",
+          "source_url",
+          "platform",
+          "video_id",
+          "status",
+          "downloaded_at",
+        ],
+        settings: ["key", "value"],
+      };
+
+      const targetTables = {
+        videos: [
+          {
+            id: "video-existing",
+            source_url: "https://example.com/watch/existing",
+          },
+        ],
+        collections: [
+          {
+            id: "collection-existing",
+            name: "Watch Later",
+            title: "Watch Later",
+          },
+        ],
+        collection_videos: [
+          {
+            collection_id: "collection-existing",
+            video_id: "video-existing",
+          },
+        ],
+        subscriptions: [
+          {
+            id: "subscription-existing",
+            author_url: "https://example.com/channel/existing",
+          },
+        ],
+        download_history: [
+          {
+            id: "history-existing-local",
+            title: "Existing History",
+            source_url: "https://example.com/watch/existing",
+            finished_at: 1704067200000,
+            status: "success",
+          },
+        ],
+        video_downloads: [
+          {
+            id: "vd-existing",
+            source_video_id: "platform-existing",
+            platform: "YouTube",
+          },
+        ],
+        settings: [
+          {
+            key: "tags",
+            value: JSON.stringify(["local"]),
+          },
+        ],
+      };
+
+      const targetColumns = {
+        videos: ["id", "title", "source_url", "video_path", "created_at"],
+        collections: ["id", "name", "title", "created_at"],
+        collection_videos: ["collection_id", "video_id", "order"],
+        subscriptions: [
+          "id",
+          "author",
+          "author_url",
+          "interval",
+          "created_at",
+          "collection_id",
+        ],
+        download_history: [
+          "id",
+          "title",
+          "source_url",
+          "finished_at",
+          "status",
+          "video_id",
+          "subscription_id",
+          "task_id",
+        ],
+        video_downloads: [
+          "id",
+          "source_video_id",
+          "source_url",
+          "platform",
+          "video_id",
+          "status",
+          "downloaded_at",
+        ],
+        settings: ["key", "value"],
+      };
+
+      vi.mocked(Database as any).mockImplementation(() =>
+        createSourceDbHandle(sourceTables, sourceColumns)
+      );
+      vi.mocked(sqlite.prepare as any).mockImplementation(
+        createSqlitePrepareMock(targetTables, targetColumns)
+      );
+
+      const summary = databaseBackupService.mergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      expect(summary).toEqual({
+        videos: { merged: 1, skipped: 1 },
+        collections: { merged: 1, skipped: 1 },
+        collectionLinks: { merged: 1, skipped: 1 },
+        subscriptions: { merged: 1, skipped: 1 },
+        downloadHistory: { merged: 1, skipped: 1 },
+        videoDownloads: { merged: 1, skipped: 1 },
+        tags: { merged: 2, skipped: 1 },
+      });
+      expect(sqlite.transaction).toHaveBeenCalledTimes(1);
+      expect(invalidateSettingsCache).toHaveBeenCalledTimes(1);
+      expect(fs.copyFileSync).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not deduplicate videos by local path across instances", () => {
+      const sourceTables = {
+        videos: [
+          {
+            id: "source-video-path-only",
+            title: "Imported Local Video",
+            source_url: null,
+            video_path: "/videos/shared.mp4",
+            created_at: "2024-01-03T00:00:00.000Z",
+          },
+        ],
+      };
+
+      const targetTables = {
+        videos: [
+          {
+            id: "target-video-path-only",
+            source_url: null,
+            video_path: "/videos/shared.mp4",
+          },
+        ],
+        settings: [],
+      };
+
+      const videoInsertRun = vi.fn(() => ({ changes: 1 }));
+      vi.mocked(Database as any).mockImplementation(() =>
+        createSourceDbHandle(sourceTables, {
+          videos: ["id", "title", "source_url", "video_path", "created_at"],
+        })
+      );
+      vi.mocked(sqlite.prepare as any).mockImplementation((sql: string) => {
+        if (sql === "SELECT id, source_url AS source_url FROM videos") {
+          return createStatement({ allResult: targetTables.videos });
+        }
+
+        if (sql.includes("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")) {
+          return {
+            all: vi.fn(),
+            run: vi.fn(),
+            get: vi.fn((tableName: string) =>
+              tableName === "videos" || tableName === "settings"
+                ? { 1: 1 }
+                : undefined
+            ),
+          };
+        }
+
+        if (sql === 'PRAGMA table_info("videos")') {
+          return createStatement({
+            allResult: [
+              { name: "id" },
+              { name: "title" },
+              { name: "source_url" },
+              { name: "video_path" },
+              { name: "created_at" },
+            ],
+          });
+        }
+
+        if (sql === 'PRAGMA table_info("settings")') {
+          return createStatement({
+            allResult: [
+              { name: "key" },
+              { name: "value" },
+            ],
+          });
+        }
+
+        if (sql.startsWith('INSERT INTO "videos"')) {
+          return {
+            all: vi.fn(() => []),
+            get: vi.fn(),
+            run: videoInsertRun,
+          };
+        }
+
+        if (sql === "SELECT value FROM settings WHERE key = 'tags' LIMIT 1") {
+          return createStatement({ getResult: undefined });
+        }
+
+        return createStatement();
+      });
+
+      const summary = databaseBackupService.mergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      expect(summary.videos).toEqual({ merged: 1, skipped: 0 });
+      expect(videoInsertRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "source-video-path-only",
+          video_path: "/videos/shared.mp4",
+        })
+      );
+    });
+
+    it("rejects databases without compatible tables", () => {
+      vi.mocked(Database as any).mockImplementation(() =>
+        createSourceDbHandle({})
+      );
+
+      expect(() =>
+        databaseBackupService.mergeDatabase(Buffer.from("sqlite-bytes"))
+      ).toThrow("compatible MyTube tables");
+      expect(logger.error).toHaveBeenCalledWith(
+        "Database merge failed:",
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe("previewMergeDatabase", () => {
+    it("summarizes the merge without mutating current data", () => {
+      const sourceTables = {
+        videos: [
+          {
+            id: "source-video-existing",
+            title: "Existing Source Video",
+            source_url: "https://example.com/watch/existing",
+            tags: JSON.stringify(["video-tag", "shared"]),
+          },
+          {
+            id: "source-video-new",
+            title: "New Source Video",
+            source_url: "https://example.com/watch/new",
+            tags: JSON.stringify(["video-tag", "imported"]),
+          },
+        ],
+        settings: [
+          {
+            key: "tags",
+            value: JSON.stringify(["shared", "settings-tag"]),
+          },
+        ],
+      };
+
+      const sourceColumns = {
+        videos: ["id", "title", "source_url", "tags"],
+        settings: ["key", "value"],
+      };
+
+      const targetTables = {
+        videos: [
+          {
+            id: "video-existing",
+            source_url: "https://example.com/watch/existing",
+          },
+        ],
+        settings: [
+          {
+            key: "tags",
+            value: JSON.stringify(["shared"]),
+          },
+        ],
+      };
+
+      const targetColumns = {
+        videos: ["id", "title", "source_url"],
+        settings: ["key", "value"],
+      };
+
+      vi.mocked(Database as any).mockImplementation(() =>
+        createSourceDbHandle(sourceTables, sourceColumns)
+      );
+      vi.mocked(sqlite.prepare as any).mockImplementation(
+        createSqlitePrepareMock(targetTables, targetColumns)
+      );
+
+      const summary = databaseBackupService.previewMergeDatabase(
+        Buffer.from("sqlite-bytes")
+      );
+
+      expect(summary).toEqual({
+        videos: { merged: 1, skipped: 1 },
+        collections: { merged: 0, skipped: 0 },
+        collectionLinks: { merged: 0, skipped: 0 },
+        subscriptions: { merged: 0, skipped: 0 },
+        downloadHistory: { merged: 0, skipped: 0 },
+        videoDownloads: { merged: 0, skipped: 0 },
+        tags: { merged: 3, skipped: 1 },
+      });
+      expect(sqlite.transaction).not.toHaveBeenCalled();
+      expect(fs.copyFileSync).not.toHaveBeenCalled();
+      expect(invalidateSettingsCache).not.toHaveBeenCalled();
     });
   });
 

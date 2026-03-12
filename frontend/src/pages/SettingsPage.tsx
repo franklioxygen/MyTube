@@ -173,6 +173,8 @@ const SettingsPage: React.FC = () => {
         formatFilenamesMutation,
         exportDatabaseMutation,
         importDatabaseMutation,
+        previewMergeDatabaseMutation,
+        mergeDatabaseMutation,
         cleanupBackupDatabasesMutation,
         restoreFromLastBackupMutation,
         renameTagMutation,
@@ -263,6 +265,14 @@ const SettingsPage: React.FC = () => {
 
     const handleImportDatabase = (file: File) => {
         importDatabaseMutation.mutate(file);
+    };
+
+    const handleMergeDatabase = (file: File) => {
+        mergeDatabaseMutation.mutate(file);
+    };
+
+    const handlePreviewMergeDatabase = async (file: File) => {
+        return await previewMergeDatabaseMutation.mutateAsync(file);
     };
 
     const handleCleanupBackupDatabases = () => {
@@ -431,6 +441,8 @@ const SettingsPage: React.FC = () => {
             onFormatFilenames={() => setShowFormatConfirmModal(true)}
             onExportDatabase={handleExportDatabase}
             onImportDatabase={handleImportDatabase}
+            onPreviewMergeDatabase={handlePreviewMergeDatabase}
+            onMergeDatabase={handleMergeDatabase}
             onCleanupBackupDatabases={handleCleanupBackupDatabases}
             onRestoreFromLastBackup={handleRestoreFromLastBackup}
             isSaving={isSaving}

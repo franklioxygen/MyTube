@@ -4,6 +4,22 @@ import * as databaseBackupService from "../services/databaseBackupService";
 import { generateTimestamp } from "../utils/helpers";
 import { successMessage } from "../utils/response";
 
+function getValidatedDatabaseUpload(req: Request): Buffer {
+  if (!req.file) {
+    throw new ValidationError("No file uploaded", "file");
+  }
+
+  if (!req.file.originalname.endsWith(".db")) {
+    throw new ValidationError("Only .db files are allowed", "file");
+  }
+
+  if (!req.file.buffer || req.file.buffer.length === 0) {
+    throw new ValidationError("Uploaded file is empty", "file");
+  }
+
+  return req.file.buffer;
+}
+
 /**
  * Export database as backup file
  * Errors are automatically handled by asyncHandler middleware
@@ -33,26 +49,51 @@ export const importDatabase = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  if (!req.file) {
-    throw new ValidationError("No file uploaded", "file");
-  }
-
-  // Validate file extension using original filename
-  if (!req.file.originalname.endsWith(".db")) {
-    throw new ValidationError("Only .db files are allowed", "file");
-  }
-
-  if (!req.file.buffer || req.file.buffer.length === 0) {
-    throw new ValidationError("Uploaded file is empty", "file");
-  }
-
-  databaseBackupService.importDatabase(req.file.buffer);
+  databaseBackupService.importDatabase(getValidatedDatabaseUpload(req));
 
   res.json(
     successMessage(
       "Database imported successfully. Existing data has been overwritten with the backup data."
     )
   );
+};
+
+/**
+ * Merge database data from backup file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const mergeDatabase = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const summary = databaseBackupService.mergeDatabase(
+    getValidatedDatabaseUpload(req)
+  );
+
+  res.json({
+    ...successMessage(
+      "Database merged successfully. Existing data was kept, and missing data from the backup was added.",
+    ),
+    summary,
+  });
+};
+
+/**
+ * Preview database merge results from backup file
+ * Errors are automatically handled by asyncHandler middleware
+ */
+export const previewMergeDatabase = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const summary = databaseBackupService.previewMergeDatabase(
+    getValidatedDatabaseUpload(req)
+  );
+
+  res.json({
+    success: true,
+    summary,
+  });
 };
 
 /**

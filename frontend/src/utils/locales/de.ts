@@ -903,15 +903,48 @@ export const de = {
     "Exportieren Sie Ihre Datenbank als Backup-Datei oder importieren Sie ein zuvor exportiertes Backup. Der Import überschreibt vorhandene Daten mit den Backup-Daten.",
   exportDatabase: "Datenbank Exportieren",
   importDatabase: "Datenbank Importieren",
+  mergeDatabase: "Datenbank Zusammenführen",
   onlyDbFilesAllowed: "Nur .db-Dateien erlaubt",
   importDatabaseWarning:
     "Warnung: Das Importieren einer Datenbank überschreibt alle vorhandenen Daten. Stellen Sie sicher, dass Sie zuerst Ihre aktuelle Datenbank als Backup exportieren.",
+  mergeDatabaseWarning:
+    "Führen Sie ein weiteres MyTube-Backup mit dieser Instanz zusammen. Bestehende Einträge bleiben erhalten, und nur fehlende Einträge aus dem hochgeladenen Backup werden hinzugefügt.",
+  mergeDatabaseContentsVideos:
+    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsCollections:
+    "Sammlungen und ihre Video-Zuordnungen werden in gleichnamige Sammlungen zusammengeführt.",
+  mergeDatabaseContentsSubscriptions:
+    "Abonnements werden anhand der Abonnement-URL zusammengeführt; vorhandene Abonnements bleiben erhalten.",
+  mergeDatabaseContentsHistory:
+    "Download-Verlauf und Download-Tracking werden hinzugefügt, wenn noch kein passender Eintrag existiert.",
+  mergeDatabaseContentsTags:
+    "Auch die Tag-Einstellungen werden zusammengeführt, damit importierte Tags in der Oberfläche verfügbar bleiben.",
+  mergeDatabaseKeepsCurrentData:
+    "Aktuelle Einstellungen, Passwörter, aktive Downloads und der Laufzeitstatus von Aufgaben werden nicht ersetzt.",
+  mergeDatabasePreviewScanning: "Scanning uploaded database...",
+  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewConfirmHint:
+    "Continue only if these counts match what you expect.",
+  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
+  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
+  mergeDatabaseMergedCount: "Merged: {count}",
+  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewVideos: "Videos",
+  mergeDatabasePreviewCollections: "Collections",
+  mergeDatabasePreviewCollectionLinks: "Collection links",
+  mergeDatabasePreviewSubscriptions: "Subscriptions",
+  mergeDatabasePreviewDownloadHistory: "Download history",
+  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "Datenbankdatei Auswählen",
   databaseExportedSuccess: "Datenbank erfolgreich exportiert",
   databaseExportFailed: "Fehler beim Exportieren der Datenbank",
   databaseImportedSuccess:
     "Datenbank erfolgreich importiert. Vorhandene Daten wurden mit den Backup-Daten überschrieben.",
   databaseImportFailed: "Fehler beim Importieren der Datenbank",
+  databaseMergedSuccess:
+    "Datenbank erfolgreich zusammengeführt. Vorhandene Daten wurden beibehalten und fehlende Daten aus dem Backup ergänzt.",
+  databaseMergeFailed: "Fehler beim Zusammenführen der Datenbank",
   cleanupBackupDatabases: "Backup-Datenbanken Bereinigen",
   cleanupBackupDatabasesWarning:
     "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",

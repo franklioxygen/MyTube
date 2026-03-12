@@ -161,6 +161,12 @@
 - `GET /api/settings/export-database` - 下载当前数据库备份文件
 - `POST /api/settings/import-database` - 导入 `.db` 备份文件并覆盖当前数据库
   - 多部分表单数据: `file`
+- `POST /api/settings/merge-database-preview` - 扫描上传的 `.db` 备份文件并返回合并数量预览，不修改当前数据库
+  - 多部分表单数据: `file`
+  - 响应中的 `summary` 包含 `videos`、`collections`、`collectionLinks`、`subscriptions`、`downloadHistory`、`videoDownloads` 和 `tags`；每项都包含 `{ merged, skipped }`
+- `POST /api/settings/merge-database` - 将上传的 `.db` 备份合并到当前数据库，同时保留现有记录
+  - 多部分表单数据: `file`
+  - 响应包含与预览相同结构的合并 `summary`
 - `GET /api/settings/last-backup-info` - 获取最新备份元数据
 - `POST /api/settings/restore-from-last-backup` - 从最新备份恢复
 - `POST /api/settings/cleanup-backup-databases` - 清理备份数据库文件

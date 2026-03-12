@@ -10,6 +10,8 @@ import {
     exportDatabase,
     getLastBackupInfo,
     importDatabase,
+    mergeDatabase,
+    previewMergeDatabase,
     restoreFromLastBackup,
 } from "../controllers/databaseBackupController";
 import {
@@ -104,6 +106,16 @@ router.post(
   "/import-database",
   uploadDatabaseFile,
   asyncHandler(importDatabase)
+);
+router.post(
+  "/merge-database-preview",
+  uploadDatabaseFile,
+  asyncHandler(previewMergeDatabase)
+);
+router.post(
+  "/merge-database",
+  uploadDatabaseFile,
+  asyncHandler(mergeDatabase)
 );
 router.post("/cleanup-backup-databases", asyncHandler(cleanupBackupDatabases));
 router.get("/last-backup-info", asyncHandler(getLastBackupInfo));

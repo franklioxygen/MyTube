@@ -20,6 +20,16 @@ interface SaveSettingsMutationResult {
   patchPayload: Partial<Settings>;
 }
 
+export interface MergePreviewSummary {
+  videos: { merged: number; skipped: number };
+  collections: { merged: number; skipped: number };
+  collectionLinks: { merged: number; skipped: number };
+  subscriptions: { merged: number; skipped: number };
+  downloadHistory: { merged: number; skipped: number };
+  videoDownloads: { merged: number; skipped: number };
+  tags: { merged: number; skipped: number };
+}
+
 const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
 
@@ -82,6 +92,15 @@ export function useSettingsMutations({
 }: UseSettingsMutationsProps) {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+
+  const invalidateDatabaseQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: ["videos"] });
+    queryClient.invalidateQueries({ queryKey: ["collections"] });
+    queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    queryClient.invalidateQueries({ queryKey: ["subscriptionTasks"] });
+    queryClient.invalidateQueries({ queryKey: ["downloadHistory"] });
+  };
 
   // Save settings mutation
   const saveMutation = useMutation({
@@ -391,6 +410,63 @@ export function useSettingsMutations({
     },
   });
 
+  // Merge database mutation
+  const previewMergeDatabaseMutation = useMutation({
+    mutationFn: async (file: File): Promise<MergePreviewSummary> => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post(
+        "/settings/merge-database-preview",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data.summary;
+    },
+  });
+
+  // Merge database mutation
+  const mergeDatabaseMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post(
+        "/settings/merge-database",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      setInfoModal({
+        isOpen: true,
+        title: t("success"),
+        message: t("databaseMergedSuccess"),
+        type: "success",
+      });
+      invalidateDatabaseQueries();
+      refetchLastBackupInfo();
+    },
+    onError: (error: any) => {
+      const errorDetails = error.response?.data?.details || error.message;
+      setInfoModal({
+        isOpen: true,
+        title: t("error"),
+        message: `${t("databaseMergeFailed")}${
+          errorDetails ? `: ${errorDetails}` : ""
+        }`,
+        type: "error",
+      });
+    },
+  });
+
   // Cleanup backup databases mutation
   const cleanupBackupDatabasesMutation = useMutation({
     mutationFn: async () => {
@@ -497,6 +573,7 @@ export function useSettingsMutations({
     formatFilenamesMutation.isPending ||
     exportDatabaseMutation.isPending ||
     importDatabaseMutation.isPending ||
+    mergeDatabaseMutation.isPending ||
     cleanupBackupDatabasesMutation.isPending ||
     restoreFromLastBackupMutation.isPending;
 
@@ -508,6 +585,8 @@ export function useSettingsMutations({
     formatFilenamesMutation,
     exportDatabaseMutation,
     importDatabaseMutation,
+    previewMergeDatabaseMutation,
+    mergeDatabaseMutation,
     cleanupBackupDatabasesMutation,
     restoreFromLastBackupMutation,
     renameTagMutation,
