@@ -959,4 +959,20 @@ export const ko = {
   subtitleDeleted: "자막이 삭제되었습니다",
   // History Filter
   filterAll: "전체",
+  videoLoadTimeout:
+    "동영상 로딩에 너무 오래 걸리고 있습니다. 다시 시도하거나 네트워크 연결을 확인해 주세요.",
+  failedToLoadVideo: "동영상을 불러오지 못했습니다.",
+  videoLoadingAborted: "동영상 로딩이 중단되었습니다.",
+  videoLoadNetworkError:
+    "동영상을 로드하는 중 네트워크 오류가 발생했습니다. 네트워크 연결을 확인해 주세요.",
+  safariWebmLimitedSupportError:
+    "Safari는 WebM/VP9 코덱 지원이 제한적이며, 특히 4K 동영상에서 그렇습니다. Safari 호환성을 높이려면 H.264/MP4 형식으로 다시 다운로드해 주세요.",
+  safariVideoDecodeError:
+    "동영상 디코딩 오류입니다. Safari가 이 동영상 코덱을 지원하지 않을 수 있습니다. H.264/MP4 형식으로 다시 다운로드해 보세요.",
+  videoDecodeError:
+    "동영상 디코딩 오류입니다. 파일이 손상되었거나 지원되지 않는 코덱을 사용할 수 있습니다.",
+  safariVideoFormatNotSupported:
+    "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드해 주세요.",
+  browserVideoFormatNotSupported:
+    "브라우저에서 이 동영상 형식을 지원하지 않습니다.",
 };

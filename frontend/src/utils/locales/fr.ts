@@ -999,4 +999,20 @@ export const fr = {
   subtitleDeleted: "Sous-titre supprimé",
   // History Filter
   filterAll: "Tous",
+  videoLoadTimeout:
+    "Le chargement de la vidéo prend trop de temps. Veuillez réessayer ou vérifier votre connexion.",
+  failedToLoadVideo: "Impossible de charger la vidéo.",
+  videoLoadingAborted: "Le chargement de la vidéo a été interrompu.",
+  videoLoadNetworkError:
+    "Erreur réseau lors du chargement de la vidéo. Veuillez vérifier votre connexion.",
+  safariWebmLimitedSupportError:
+    "Safari prend en charge le codec WebM/VP9 de manière limitée, surtout pour les vidéos 4K. Veuillez retélécharger la vidéo au format H.264/MP4 pour une meilleure compatibilité avec Safari.",
+  safariVideoDecodeError:
+    "Erreur de décodage vidéo. Safari ne prend peut-être pas en charge ce codec vidéo. Essayez de retélécharger la vidéo au format H.264/MP4.",
+  videoDecodeError:
+    "Erreur de décodage vidéo. Le fichier est peut-être corrompu ou utilise un codec non pris en charge.",
+  safariVideoFormatNotSupported:
+    "Format vidéo non pris en charge par Safari. Safari fonctionne mieux avec les vidéos H.264/MP4. Veuillez retélécharger la vidéo avec le codec H.264.",
+  browserVideoFormatNotSupported:
+    "Le format vidéo n'est pas pris en charge par votre navigateur.",
 };

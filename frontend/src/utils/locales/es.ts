@@ -994,4 +994,20 @@ export const es = {
   subtitleDeleted: "Subtítulo eliminado",
   // History Filter
   filterAll: "Todos",
+  videoLoadTimeout:
+    "El video está tardando demasiado en cargar. Inténtelo de nuevo o revise su conexión.",
+  failedToLoadVideo: "No se pudo cargar el video.",
+  videoLoadingAborted: "La carga del video fue cancelada.",
+  videoLoadNetworkError:
+    "Error de red al cargar el video. Revise su conexión.",
+  safariWebmLimitedSupportError:
+    "Safari tiene compatibilidad limitada con el códec WebM/VP9, especialmente para videos 4K. Vuelva a descargar el video en formato H.264/MP4 para una mejor compatibilidad con Safari.",
+  safariVideoDecodeError:
+    "Error al decodificar el video. Es posible que Safari no admita este códec de video. Intente volver a descargarlo en formato H.264/MP4.",
+  videoDecodeError:
+    "Error al decodificar el video. El archivo puede estar dañado o usar un códec no compatible.",
+  safariVideoFormatNotSupported:
+    "Safari no admite este formato de video. Safari funciona mejor con videos H.264/MP4. Vuelva a descargarlo con códec H.264.",
+  browserVideoFormatNotSupported:
+    "El formato de video no es compatible con su navegador.",
 };

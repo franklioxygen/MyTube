@@ -87,4 +87,40 @@ describe("translations", () => {
       expect(translation).not.toBeNull();
     }
   });
+
+  it("should include video loading error messages in every language", async () => {
+    const requiredKeys: TranslationKey[] = [
+      "videoLoadTimeout",
+      "failedToLoadVideo",
+      "videoLoadingAborted",
+      "videoLoadNetworkError",
+      "safariWebmLimitedSupportError",
+      "safariVideoDecodeError",
+      "videoDecodeError",
+      "safariVideoFormatNotSupported",
+      "browserVideoFormatNotSupported",
+    ];
+    const expectedLanguages: Language[] = [
+      "en",
+      "zh",
+      "es",
+      "de",
+      "ja",
+      "fr",
+      "ko",
+      "ar",
+      "pt",
+      "ru",
+    ];
+
+    for (const lang of expectedLanguages) {
+      const translation = await loadLocale(lang);
+
+      requiredKeys.forEach((key) => {
+        expect(translation[key]).toBeDefined();
+        expect(typeof translation[key]).toBe("string");
+        expect(translation[key].length).toBeGreaterThan(0);
+      });
+    }
+  });
 });

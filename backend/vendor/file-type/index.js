@@ -28,12 +28,23 @@ const isPathWithinAllowedRoot = (targetPath, allowedRoot) => {
   );
 };
 
+const ensurePathWithinAllowedRoots = (targetPath, allowedRoots) => {
+  const isAllowed = allowedRoots.some((allowedRoot) =>
+    isPathWithinAllowedRoot(targetPath, allowedRoot)
+  );
+
+  if (!isAllowed) {
+    throw new Error(`Refusing to read file outside allowed roots: ${targetPath}`);
+  }
+};
+
 const validateFilePath = async (filePath) => {
   if (typeof filePath !== "string" || filePath.trim().length === 0) {
     throw new TypeError("Expected filePath to be a non-empty string");
   }
 
   const resolvedPath = path.resolve(filePath);
+  ensurePathWithinAllowedRoots(resolvedPath, ALLOWED_FILE_ROOTS);
   const realPath = await fs.promises.realpath(resolvedPath);
   const resolvedAllowedRoots = await Promise.all(
     ALLOWED_FILE_ROOTS.map(async (allowedRoot) => {
@@ -44,14 +55,7 @@ const validateFilePath = async (filePath) => {
       }
     })
   );
-  const isAllowed = resolvedAllowedRoots.some((allowedRoot) =>
-    isPathWithinAllowedRoot(realPath, allowedRoot)
-  );
-
-  if (!isAllowed) {
-    throw new Error(`Refusing to read file outside allowed roots: ${realPath}`);
-  }
-
+  ensurePathWithinAllowedRoots(realPath, resolvedAllowedRoots);
   return realPath;
 };
 

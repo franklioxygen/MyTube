@@ -981,4 +981,20 @@ export const ja = {
   subtitleDeleted: "字幕を削除しました",
   // History Filter
   filterAll: "すべて",
+  videoLoadTimeout:
+    "動画の読み込みに時間がかかりすぎています。もう一度お試しいただくか、接続をご確認ください。",
+  failedToLoadVideo: "動画を読み込めませんでした。",
+  videoLoadingAborted: "動画の読み込みが中止されました。",
+  videoLoadNetworkError:
+    "動画の読み込み中にネットワークエラーが発生しました。接続をご確認ください。",
+  safariWebmLimitedSupportError:
+    "Safari は WebM/VP9 コーデックのサポートが限定的で、特に 4K 動画では顕著です。Safari との互換性を高めるため、H.264/MP4 形式で動画を再ダウンロードしてください。",
+  safariVideoDecodeError:
+    "動画のデコードエラーです。Safari はこの動画コーデックをサポートしていない可能性があります。H.264/MP4 形式で再ダウンロードしてみてください。",
+  videoDecodeError:
+    "動画のデコードエラーです。ファイルが破損しているか、未対応のコーデックを使用している可能性があります。",
+  safariVideoFormatNotSupported:
+    "Safari ではこの動画形式はサポートされていません。Safari では H.264/MP4 動画が最も適しています。H.264 コーデックで再ダウンロードしてください。",
+  browserVideoFormatNotSupported:
+    "お使いのブラウザではこの動画形式はサポートされていません。",
 };

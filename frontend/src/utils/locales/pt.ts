@@ -981,4 +981,20 @@ export const pt = {
   subtitleDeleted: "Legenda excluída",
   // History Filter
   filterAll: "Todos",
+  videoLoadTimeout:
+    "O vídeo está demorando muito para carregar. Tente novamente ou verifique sua conexão.",
+  failedToLoadVideo: "Falha ao carregar o vídeo.",
+  videoLoadingAborted: "O carregamento do vídeo foi cancelado.",
+  videoLoadNetworkError:
+    "Erro de rede ao carregar o vídeo. Verifique sua conexão.",
+  safariWebmLimitedSupportError:
+    "O Safari tem suporte limitado ao codec WebM/VP9, especialmente para vídeos em 4K. Baixe novamente o vídeo no formato H.264/MP4 para melhor compatibilidade com o Safari.",
+  safariVideoDecodeError:
+    "Erro de decodificação de vídeo. O Safari pode não oferecer suporte a este codec de vídeo. Tente baixar novamente no formato H.264/MP4.",
+  videoDecodeError:
+    "Erro de decodificação de vídeo. O arquivo pode estar corrompido ou usar um codec não compatível.",
+  safariVideoFormatNotSupported:
+    "Formato de vídeo não compatível com o Safari. O Safari funciona melhor com vídeos H.264/MP4. Baixe novamente com o codec H.264.",
+  browserVideoFormatNotSupported:
+    "O formato de vídeo não é compatível com seu navegador.",
 };

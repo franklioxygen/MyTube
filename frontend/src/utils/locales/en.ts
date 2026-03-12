@@ -959,4 +959,20 @@ export const en = {
   soundNotification: "New Notification",
   soundDrop: "Object Drops in Water",
   soundWater: "Waterdrop on Metal",
+  videoLoadTimeout:
+    "Video is taking too long to load. Please try again or check your connection.",
+  failedToLoadVideo: "Failed to load video.",
+  videoLoadingAborted: "Video loading was aborted.",
+  videoLoadNetworkError:
+    "Network error while loading video. Please check your connection.",
+  safariWebmLimitedSupportError:
+    "Safari has limited support for WebM/VP9 codec, especially for 4K videos. Please re-download the video with H.264/MP4 format for better Safari compatibility.",
+  safariVideoDecodeError:
+    "Video decoding error. Safari may not support this video codec. Try re-downloading with H.264/MP4 format.",
+  videoDecodeError:
+    "Video decoding error. The file may be corrupted or use an unsupported codec.",
+  safariVideoFormatNotSupported:
+    "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec.",
+  browserVideoFormatNotSupported:
+    "Video format not supported by your browser.",
 };

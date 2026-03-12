@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
 export const useVideoLoading = () => {
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -23,9 +25,7 @@ export const useVideoLoading = () => {
 
     // Set a timeout for loading (30 seconds for large files)
     loadTimeoutRef.current = setTimeout(() => {
-      setLoadError(
-        "Video is taking too long to load. Please try again or check your connection."
-      );
+      setLoadError(t("videoLoadTimeout"));
       setIsLoading(false);
     }, 30000);
   };
@@ -54,38 +54,39 @@ export const useVideoLoading = () => {
     if (videoElement.error) {
       console.error("Video error code:", videoElement.error.code);
       console.error("Video error message:", videoElement.error.message);
-      
+
       // Detect Safari browser
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      
-      let errorMessage = "Failed to load video.";
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent,
+      );
+
+      let errorMessage = t("failedToLoadVideo");
       switch (videoElement.error?.code) {
         case 1: // MEDIA_ERR_ABORTED
-          errorMessage = "Video loading was aborted.";
+          errorMessage = t("videoLoadingAborted");
           break;
         case 2: // MEDIA_ERR_NETWORK
-          errorMessage =
-            "Network error while loading video. Please check your connection.";
+          errorMessage = t("videoLoadNetworkError");
           break;
         case 3: // MEDIA_ERR_DECODE
           // Safari-specific message for decode errors (often codec-related)
           if (isSafari) {
-            const src = videoElement.src || '';
-            const isWebM = src.toLowerCase().includes('.webm');
+            const src = videoElement.src || "";
+            const isWebM = src.toLowerCase().includes(".webm");
             if (isWebM) {
-              errorMessage = "Safari has limited support for WebM/VP9 codec, especially for 4K videos. Please re-download the video with H.264/MP4 format for better Safari compatibility.";
+              errorMessage = t("safariWebmLimitedSupportError");
             } else {
-              errorMessage = "Video decoding error. Safari may not support this video codec. Try re-downloading with H.264/MP4 format.";
+              errorMessage = t("safariVideoDecodeError");
             }
           } else {
-            errorMessage = "Video decoding error. The file may be corrupted or use an unsupported codec.";
+            errorMessage = t("videoDecodeError");
           }
           break;
         case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
           if (isSafari) {
-            errorMessage = "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec.";
+            errorMessage = t("safariVideoFormatNotSupported");
           } else {
-            errorMessage = "Video format not supported.";
+            errorMessage = t("browserVideoFormatNotSupported");
           }
           break;
       }

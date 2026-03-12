@@ -1,7 +1,8 @@
 import fs from "fs-extra";
+import nodeFs from "fs";
 import os from "os";
 import path from "path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Jimp } from "jimp";
 import { fromBuffer, fromFile } from "file-type";
 
@@ -93,6 +94,18 @@ describe("file-type compatibility package", () => {
     await expect(fromFile(outsidePath)).rejects.toThrow(
       /outside allowed roots/
     );
+  });
+
+  it("rejects outside-root paths before resolving them on disk", async () => {
+    const outsidePath = path.resolve(process.cwd(), "..", "package.json");
+    const realpathSpy = vi.spyOn(nodeFs.promises, "realpath");
+
+    try {
+      await expect(fromFile(outsidePath)).rejects.toThrow(/outside allowed roots/);
+      expect(realpathSpy).not.toHaveBeenCalled();
+    } finally {
+      realpathSpy.mockRestore();
+    }
   });
 
   it("stays compatible with Jimp's file-type/core.js import", async () => {

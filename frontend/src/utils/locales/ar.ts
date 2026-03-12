@@ -953,4 +953,20 @@ export const ar = {
   subtitleDeleted: "تم حذف الترجمة",
   // History Filter
   filterAll: "الكل",
+  videoLoadTimeout:
+    "يستغرق تحميل الفيديو وقتًا أطول من اللازم. يرجى المحاولة مرة أخرى أو التحقق من اتصالك.",
+  failedToLoadVideo: "فشل تحميل الفيديو.",
+  videoLoadingAborted: "تم إلغاء تحميل الفيديو.",
+  videoLoadNetworkError:
+    "حدث خطأ في الشبكة أثناء تحميل الفيديو. يرجى التحقق من اتصالك.",
+  safariWebmLimitedSupportError:
+    "يدعم Safari ترميز WebM/VP9 بشكل محدود، خاصةً لمقاطع الفيديو بدقة 4K. يرجى إعادة تنزيل الفيديو بصيغة H.264/MP4 لتحسين التوافق مع Safari.",
+  safariVideoDecodeError:
+    "خطأ في فك ترميز الفيديو. قد لا يدعم Safari هذا الترميز. جرّب إعادة تنزيل الفيديو بصيغة H.264/MP4.",
+  videoDecodeError:
+    "خطأ في فك ترميز الفيديو. قد يكون الملف تالفًا أو يستخدم ترميزًا غير مدعوم.",
+  safariVideoFormatNotSupported:
+    "صيغة الفيديو غير مدعومة في Safari. يعمل Safari بشكل أفضل مع فيديوهات H.264/MP4. يرجى إعادة تنزيل الفيديو بترميز H.264.",
+  browserVideoFormatNotSupported:
+    "صيغة الفيديو غير مدعومة في متصفحك.",
 };

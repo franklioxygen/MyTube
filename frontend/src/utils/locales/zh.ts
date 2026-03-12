@@ -921,4 +921,17 @@ export const zh = {
   subtitleDeleted: "字幕已删除",
   // History Filter
   filterAll: "全部",
+  videoLoadTimeout: "视频加载时间过长。请重试或检查您的网络连接。",
+  failedToLoadVideo: "视频加载失败。",
+  videoLoadingAborted: "视频加载已中止。",
+  videoLoadNetworkError: "加载视频时发生网络错误。请检查您的网络连接。",
+  safariWebmLimitedSupportError:
+    "Safari 对 WebM/VP9 编解码器的支持有限，尤其是 4K 视频。请重新下载为 H.264/MP4 格式，以获得更好的 Safari 兼容性。",
+  safariVideoDecodeError:
+    "视频解码错误。Safari 可能不支持此视频编解码器。请尝试重新下载为 H.264/MP4 格式。",
+  videoDecodeError:
+    "视频解码错误。文件可能已损坏或使用了不受支持的编解码器。",
+  safariVideoFormatNotSupported:
+    "Safari 不支持此视频格式。Safari 最适合播放 H.264/MP4 视频。请使用 H.264 编解码器重新下载。",
+  browserVideoFormatNotSupported: "您的浏览器不支持此视频格式。",
 };
