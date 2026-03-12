@@ -114,6 +114,20 @@ const validateMountDirectory = (dir: string): string => {
   return resolvedDir;
 };
 
+const isSameOrNestedDirectory = (targetDir: string, baseDir: string): boolean => {
+  const relative = path.relative(baseDir, targetDir);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+};
+
+const overlapsLocalVideosDirectory = (dir: string): boolean => {
+  const normalizedDir = path.resolve(path.normalize(dir));
+  const normalizedVideosDir = path.resolve(path.normalize(VIDEOS_DIR));
+  return (
+    isSameOrNestedDirectory(normalizedDir, normalizedVideosDir) ||
+    isSameOrNestedDirectory(normalizedVideosDir, normalizedDir)
+  );
+};
+
 // Recursive function to get all files from a mount directory (no VIDEOS_DIR restriction)
 const getFilesRecursivelyFromMount = async (
   dir: string,
@@ -616,7 +630,13 @@ export const scanMountDirectories = async (
   const invalidDirectories: string[] = [];
   for (const directory of trimmedDirectories) {
     try {
-      validDirectories.push(validateMountDirectory(directory));
+      const validatedDirectory = validateMountDirectory(directory);
+      if (overlapsLocalVideosDirectory(validatedDirectory)) {
+        invalidDirectories.push(directory);
+        continue;
+      }
+
+      validDirectories.push(validatedDirectory);
     } catch {
       invalidDirectories.push(directory);
     }
@@ -677,14 +697,11 @@ export const scanMountDirectories = async (
   const normalizedDirectories = validDirectories;
 
   for (const video of existingVideos) {
-    if (!video.videoPath) {
+    if (!video.videoPath?.startsWith("mount:")) {
       continue;
     }
 
-    let actualVideoPath = video.videoPath;
-    if (actualVideoPath.startsWith("mount:")) {
-      actualVideoPath = actualVideoPath.substring(6);
-    }
+    const actualVideoPath = video.videoPath.substring(6);
 
     let normalizedVideoPath: string;
     try {

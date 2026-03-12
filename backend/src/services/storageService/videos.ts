@@ -533,10 +533,49 @@ export function deleteVideo(id: string): boolean {
   }
 }
 
+function isLocalManagedVideo(
+  video: import("./types").Video
+): boolean {
+  return !video.videoPath || video.videoPath.startsWith("/videos/");
+}
+
+function isThumbnailReferencedByOtherVideo(
+  video: import("./types").Video,
+  exceptionId: string
+): boolean {
+  if (!video.thumbnailFilename && !video.thumbnailPath) {
+    return false;
+  }
+
+  const allVideos = getVideos();
+
+  return allVideos.some((candidate) => {
+    if (candidate.id === exceptionId) {
+      return false;
+    }
+
+    if (video.thumbnailPath && candidate.thumbnailPath === video.thumbnailPath) {
+      return true;
+    }
+
+    return Boolean(
+      video.thumbnailFilename &&
+        candidate.thumbnailFilename === video.thumbnailFilename &&
+        (!video.thumbnailPath ||
+          !candidate.thumbnailPath ||
+          candidate.thumbnailPath === video.thumbnailPath)
+    );
+  });
+}
+
 function deleteVideoFile(
   video: import("./types").Video,
   allCollections: import("./types").Collection[]
 ): void {
+  if (!isLocalManagedVideo(video)) {
+    return;
+  }
+
   if (video.videoFilename) {
     const actualPath = findVideoFile(video.videoFilename, allCollections);
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
@@ -552,6 +591,7 @@ function deleteThumbnailFile(
   allCollections: import("./types").Collection[]
 ): void {
   if (video.thumbnailFilename) {
+    const canUseLocalFallbacks = isLocalManagedVideo(video);
     let thumbnailPath: string | null = null;
 
     // Determine the actual file path based on thumbnailPath
@@ -573,7 +613,10 @@ function deleteThumbnailFile(
 
     // Fallback: try to find by filename if path-based lookup fails
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+    if (
+      canUseLocalFallbacks &&
+      (!thumbnailPath || !fs.existsSync(thumbnailPath))
+    ) {
       // Try alongside video file (when moveThumbnailsToVideoFolder is enabled)
       if (video.videoFilename) {
         const videoPath = findVideoFile(video.videoFilename, allCollections);
@@ -589,13 +632,23 @@ function deleteThumbnailFile(
     }
 
     // Final fallback: try standard image locations
-    if (!thumbnailPath || !fs.existsSync(thumbnailPath)) {
+    if (
+      canUseLocalFallbacks &&
+      (!thumbnailPath || !fs.existsSync(thumbnailPath))
+    ) {
       thumbnailPath = findImageFile(video.thumbnailFilename, allCollections);
     }
 
     // Delete the thumbnail file if it exists
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (thumbnailPath && fs.existsSync(thumbnailPath)) {
+      if (isThumbnailReferencedByOtherVideo(video, video.id)) {
+        logger.info(
+          `Skipping thumbnail deletion - another video still references it: ${thumbnailPath}`
+        );
+        return;
+      }
+
       try {
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         fs.unlinkSync(thumbnailPath);
@@ -682,6 +735,7 @@ function deleteSubtitleFiles(
   allCollections: import("./types").Collection[]
 ): void {
   if (video.subtitles && video.subtitles.length > 0) {
+    const canUseLocalFallbacks = isLocalManagedVideo(video);
     for (const subtitle of video.subtitles) {
       let subtitlePath: string | null = null;
 
@@ -704,7 +758,10 @@ function deleteSubtitleFiles(
 
       // Fallback: try to find by filename if path-based lookup fails
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!subtitlePath || !fs.existsSync(subtitlePath)) {
+      if (
+        canUseLocalFallbacks &&
+        (!subtitlePath || !fs.existsSync(subtitlePath))
+      ) {
         // Try root subtitles directory
         subtitlePath = path.join(SUBTITLES_DIR, subtitle.filename);
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename

@@ -514,6 +514,64 @@ describe("storageService videos", () => {
       );
     });
 
+    it("should not delete local video files when removing a mount video record", () => {
+      const video = {
+        id: "1",
+        author: "Author 1",
+        videoFilename: "shared-name.mp4",
+        videoPath: "mount:/mnt/library/shared-name.mp4",
+      };
+      setupDeleteVideoSelect({ video, allVideos: [video] });
+      vi.mocked(collections.getCollections).mockReturnValue([]);
+      vi.mocked(fileHelpers.findVideoFile).mockReturnValue("/abs/videos/shared-name.mp4");
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(db.delete).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn() }),
+      } as any);
+
+      const ok = deleteVideo("1");
+
+      expect(ok).toBe(true);
+      expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
+      expect(fs.unlinkSync).not.toHaveBeenCalledWith("/abs/videos/shared-name.mp4");
+      expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
+    });
+
+    it("should not delete a thumbnail that is still referenced by another video", () => {
+      const sharedThumbnailPath = path.join(IMAGES_DIR, "shared-name.jpg");
+      const video = {
+        id: "1",
+        author: "Author 1",
+        videoFilename: "shared-name.mp4",
+        videoPath: "mount:/mnt/library/shared-name.mp4",
+        thumbnailFilename: "shared-name.jpg",
+        thumbnailPath: "/images/shared-name.jpg",
+      };
+      const otherVideo = {
+        id: "2",
+        author: "Author 2",
+        videoFilename: "shared-name.mp4",
+        videoPath: "/videos/shared-name.mp4",
+        thumbnailFilename: "shared-name.jpg",
+        thumbnailPath: "/images/shared-name.jpg",
+      };
+
+      setupDeleteVideoSelect({ video, allVideos: [video, otherVideo] });
+      vi.mocked(collections.getCollections).mockReturnValue([]);
+      vi.mocked(fs.existsSync).mockImplementation(
+        (target: any) => String(target) === sharedThumbnailPath
+      );
+      vi.mocked(db.delete).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn() }),
+      } as any);
+
+      const ok = deleteVideo("1");
+
+      expect(ok).toBe(true);
+      expect(fs.unlinkSync).not.toHaveBeenCalledWith(sharedThumbnailPath);
+      expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
+    });
+
     it("should throw DatabaseError when delete flow fails", () => {
       vi.mocked(db.select).mockImplementation(() => {
         throw new Error("db fail");
