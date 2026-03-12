@@ -43,10 +43,16 @@ echo "🏗️ Building multi-architecture images using buildx..."
 echo "Platforms: $PLATFORMS"
 echo ""
 
+# Docker Buildx adds provenance attestations by default. Some registries,
+# including Docker Hub in practice, can fail multi-arch pushes with
+# "blob upload unknown" when these attestation manifests are attached.
+ATTESTATION_FLAGS="--provenance=false --sbom=false"
+
 # Build and push backend (multi-arch, single step)
 echo "🏗️ Building and pushing backend..."
 $DOCKER_PATH buildx build \
   --platform $PLATFORMS \
+  $ATTESTATION_FLAGS \
   -f backend/Dockerfile \
   $BACKEND_TAGS \
   --push \
@@ -58,6 +64,7 @@ echo ""
 echo "🏗️ Building and pushing frontend..."
 $DOCKER_PATH buildx build \
   --platform $PLATFORMS \
+  $ATTESTATION_FLAGS \
   --build-arg VITE_API_URL="$VITE_API_URL" \
   --build-arg VITE_BACKEND_URL="$VITE_BACKEND_URL" \
   $FRONTEND_TAGS \
