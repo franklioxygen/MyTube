@@ -7,7 +7,7 @@ export function fromBuffer(
   input: Uint8Array | ArrayBuffer
 ): Promise<FileTypeResult | undefined>;
 
-export function fromFile(filePath: string): Promise<FileTypeResult | undefined>;
+export function fromFile(filePath: string): Promise<never>;
 
 export const fileTypeFromBuffer: typeof fromBuffer;
 export const fileTypeFromFile: typeof fromFile;

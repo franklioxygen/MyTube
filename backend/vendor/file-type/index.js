@@ -1,9 +1,5 @@
 "use strict";
 
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-
 const SUPPORTED_FILE_TYPES = [
   { ext: "jpg", mime: "image/jpeg" },
   { ext: "png", mime: "image/png" },
@@ -16,48 +12,6 @@ const SUPPORTED_FILE_TYPES = [
 
 const supportedExtensions = new Set(SUPPORTED_FILE_TYPES.map((entry) => entry.ext));
 const supportedMimeTypes = new Set(SUPPORTED_FILE_TYPES.map((entry) => entry.mime));
-const ALLOWED_FILE_ROOTS = [process.cwd(), os.tmpdir()].map((rootPath) =>
-  path.resolve(rootPath)
-);
-
-const isPathWithinAllowedRoot = (targetPath, allowedRoot) => {
-  const relativePath = path.relative(allowedRoot, targetPath);
-  return (
-    relativePath === "" ||
-    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
-  );
-};
-
-const ensurePathWithinAllowedRoots = (targetPath, allowedRoots) => {
-  const isAllowed = allowedRoots.some((allowedRoot) =>
-    isPathWithinAllowedRoot(targetPath, allowedRoot)
-  );
-
-  if (!isAllowed) {
-    throw new Error(`Refusing to read file outside allowed roots: ${targetPath}`);
-  }
-};
-
-const validateFilePath = async (filePath) => {
-  if (typeof filePath !== "string" || filePath.trim().length === 0) {
-    throw new TypeError("Expected filePath to be a non-empty string");
-  }
-
-  const resolvedPath = path.resolve(filePath);
-  ensurePathWithinAllowedRoots(resolvedPath, ALLOWED_FILE_ROOTS);
-  const realPath = await fs.promises.realpath(resolvedPath);
-  const resolvedAllowedRoots = await Promise.all(
-    ALLOWED_FILE_ROOTS.map(async (allowedRoot) => {
-      try {
-        return await fs.promises.realpath(allowedRoot);
-      } catch {
-        return allowedRoot;
-      }
-    })
-  );
-  ensurePathWithinAllowedRoots(realPath, resolvedAllowedRoots);
-  return realPath;
-};
 
 const hasBytes = (buffer, offset, signature) => {
   if (buffer.length < offset + signature.length) {
@@ -160,17 +114,10 @@ const detectFileType = (input) => {
 
 const fromBuffer = async (input) => detectFileType(input);
 
-const fromFile = async (filePath) => {
-  const safeFilePath = await validateFilePath(filePath);
-  const fileHandle = await fs.promises.open(safeFilePath, "r");
-
-  try {
-    const sample = Buffer.alloc(4100);
-    const { bytesRead } = await fileHandle.read(sample, 0, sample.length, 0);
-    return detectFileType(sample.subarray(0, bytesRead));
-  } finally {
-    await fileHandle.close();
-  }
+const fromFile = async () => {
+  throw new Error(
+    "file-type.fromFile is not supported in this vendored build; read the file in application code and call fromBuffer instead"
+  );
 };
 
 const api = {

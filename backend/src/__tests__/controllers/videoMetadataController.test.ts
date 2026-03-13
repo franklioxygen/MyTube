@@ -15,7 +15,7 @@ import {
   validateVideoPath,
 } from "../../utils/security";
 
-const fromFileMock = vi.hoisted(() => vi.fn());
+const fromBufferMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../services/storageService", () => ({
   getVideoById: vi.fn(),
@@ -49,6 +49,7 @@ vi.mock("fs-extra", () => ({
     ensureDirSync: vi.fn(),
     ensureFileSync: vi.fn(),
     pathExists: vi.fn(),
+    readFile: vi.fn(),
     remove: vi.fn(),
     stat: vi.fn(),
     writeFile: vi.fn(),
@@ -60,7 +61,7 @@ vi.mock("axios", () => ({
   },
 }));
 vi.mock("file-type", () => ({
-  fromFile: fromFileMock,
+  fromBuffer: fromBufferMock,
 }));
 
 const createResponse = () => {
@@ -72,10 +73,11 @@ const createResponse = () => {
 describe("videoMetadataController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    fromFileMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
+    fromBufferMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
 
     vi.mocked(fs.existsSync as any).mockReturnValue(true);
     vi.mocked(fs.pathExists as any).mockResolvedValue(true);
+    vi.mocked(fs.readFile as any).mockResolvedValue(Buffer.from("test-image"));
     vi.mocked(fs.stat as any).mockResolvedValue({
       isFile: () => true,
       size: 100,
@@ -584,7 +586,7 @@ describe("videoMetadataController", () => {
     });
 
     it("accepts an allowed MIME type and returns 200 with thumbnailUrl", async () => {
-      fromFileMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
+      fromBufferMock.mockResolvedValue({ mime: "image/jpeg", ext: "jpg" });
       const { res, status, json } = createResponse();
 
       await videoMetadataController.uploadThumbnail(
@@ -599,7 +601,7 @@ describe("videoMetadataController", () => {
     });
 
     it("rejects a disallowed MIME type with ValidationError", async () => {
-      fromFileMock.mockResolvedValue({ mime: "image/tiff", ext: "tiff" });
+      fromBufferMock.mockResolvedValue({ mime: "image/tiff", ext: "tiff" });
       const { res } = createResponse();
 
       await expect(
@@ -610,8 +612,8 @@ describe("videoMetadataController", () => {
       ).rejects.toThrow(ValidationError);
     });
 
-    it("rejects when fromFile returns undefined (unrecognised bytes) with ValidationError", async () => {
-      fromFileMock.mockResolvedValue(undefined);
+    it("rejects when fromBuffer returns undefined (unrecognised bytes) with ValidationError", async () => {
+      fromBufferMock.mockResolvedValue(undefined);
       const { res } = createResponse();
 
       await expect(
@@ -622,8 +624,8 @@ describe("videoMetadataController", () => {
       ).rejects.toThrow(ValidationError);
     });
 
-    it("rejects when fromFile throws with ValidationError", async () => {
-      fromFileMock.mockRejectedValue(new Error("read error"));
+    it("rejects when fromBuffer throws with ValidationError", async () => {
+      fromBufferMock.mockRejectedValue(new Error("read error"));
       const { res } = createResponse();
 
       await expect(

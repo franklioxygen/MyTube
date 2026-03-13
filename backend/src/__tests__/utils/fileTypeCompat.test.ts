@@ -1,8 +1,7 @@
 import fs from "fs-extra";
-import nodeFs from "fs";
 import os from "os";
 import path from "path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { Jimp } from "jimp";
 import { fromBuffer, fromFile } from "file-type";
 
@@ -76,36 +75,24 @@ describe("file-type compatibility package", () => {
     await expect(fromBuffer(Buffer.from("not-an-image"))).resolves.toBeUndefined();
   });
 
-  it("detects file types from disk", async () => {
+  it("detects file types from bytes read from disk", async () => {
     const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "mytube-file-type-"));
     tempDirectories.push(tempDirectory);
     const pngPath = path.join(tempDirectory, "avatar.png");
     await fs.writeFile(pngPath, png1x1);
 
-    await expect(fromFile(pngPath)).resolves.toEqual({
+    const pngBytes = await fs.readFile(pngPath);
+
+    await expect(fromBuffer(pngBytes)).resolves.toEqual({
       ext: "png",
       mime: "image/png",
     });
   });
 
-  it("rejects file paths outside the app and temp directories", async () => {
-    const outsidePath = path.resolve(process.cwd(), "..", "package.json");
+  it("rejects path-based detection in the vendored build", async () => {
+    const pngPath = path.join(os.tmpdir(), "avatar.png");
 
-    await expect(fromFile(outsidePath)).rejects.toThrow(
-      /outside allowed roots/
-    );
-  });
-
-  it("rejects outside-root paths before resolving them on disk", async () => {
-    const outsidePath = path.resolve(process.cwd(), "..", "package.json");
-    const realpathSpy = vi.spyOn(nodeFs.promises, "realpath");
-
-    try {
-      await expect(fromFile(outsidePath)).rejects.toThrow(/outside allowed roots/);
-      expect(realpathSpy).not.toHaveBeenCalled();
-    } finally {
-      realpathSpy.mockRestore();
-    }
+    await expect(fromFile(pngPath)).rejects.toThrow(/not supported/);
   });
 
   it("stays compatible with Jimp's file-type/core.js import", async () => {

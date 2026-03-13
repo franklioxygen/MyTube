@@ -4,7 +4,7 @@ import fs from "fs-extra";
 import multer from "multer";
 import crypto from "crypto";
 import path from "path";
-import { fromFile } from "file-type";
+import { fromBuffer } from "file-type";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
@@ -102,7 +102,8 @@ const validateUploadedImageContent = async (
   const safeResolvedPath = validateImagePath(uploadedFilePath);
 
   try {
-    const type = await fromFile(safeResolvedPath);
+    const uploadedFile = await fs.readFile(safeResolvedPath);
+    const type = await fromBuffer(uploadedFile);
     if (!type?.mime || !ALLOWED_IMAGE_MIME_SET.has(type.mime)) {
       throw new ValidationError(
         "Uploaded file is not a valid supported image",
