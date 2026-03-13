@@ -247,7 +247,7 @@ export const ru = {
   notFound: "Не Задано",
   deleteHook: "Удалить Скрипт Хука",
   confirmDeleteHook: "Вы уверены, что хотите удалить этот скрипт хука?",
-  uploadHook: "Загрузить .sh",
+  uploadHook: "Загрузить .json",
   enterPasswordToUploadHook:
     "Пожалуйста, введите пароль для загрузки этого Hook-скрипта.",
   riskCommandDetected:

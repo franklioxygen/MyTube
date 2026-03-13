@@ -146,8 +146,11 @@ const run = (): void => {
       : formatSecurityMigrationScanReportMarkdown(report);
 
   if (parsed.outPath) {
+    // nosemgrep -- outPath is an operator-supplied local output target for this CLI tool
     const resolvedOutPath = path.resolve(parsed.outPath);
+    // nosemgrep -- outPath is an operator-supplied local output target for this CLI tool
     fs.mkdirSync(path.dirname(resolvedOutPath), { recursive: true });
+    // nosemgrep -- outPath is an operator-supplied local output target for this CLI tool
     fs.writeFileSync(resolvedOutPath, output, "utf-8");
     console.log(`Security migration report written to: ${resolvedOutPath}`);
   }

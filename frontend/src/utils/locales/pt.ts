@@ -249,7 +249,7 @@ export const pt = {
   notFound: "Não Definido",
   deleteHook: "Excluir Script de Gancho",
   confirmDeleteHook: "Tem certeza que deseja excluir este script de gancho?",
-  uploadHook: "Enviar .sh",
+  uploadHook: "Enviar .json",
   enterPasswordToUploadHook:
     "Por favor, digite sua senha para fazer upload deste script Hook.",
   riskCommandDetected:

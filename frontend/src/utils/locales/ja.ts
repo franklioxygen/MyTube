@@ -249,7 +249,7 @@ export const ja = {
   notFound: "未設定",
   deleteHook: "フックスクリプトを削除",
   confirmDeleteHook: "このフックスクリプトを削除してもよろしいですか？",
-  uploadHook: "アップロード .sh",
+  uploadHook: "アップロード .json",
   enterPasswordToUploadHook:
     "このフック・スクリプトをアップロードするにはパスワードを入力してください。",
   riskCommandDetected:

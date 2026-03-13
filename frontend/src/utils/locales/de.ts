@@ -254,7 +254,7 @@ export const de = {
   deleteHook: "Hook-Skript Löschen",
   confirmDeleteHook:
     "Sind Sie sicher, dass Sie dieses Hook-Skript löschen möchten?",
-  uploadHook: "Hochladen .sh",
+  uploadHook: "Hochladen .json",
   enterPasswordToUploadHook:
     "Bitte geben Sie Ihr Passwort ein, um dieses Hook-Skript hochzuladen.",
   riskCommandDetected: "Risikobefehl erkannt: {command}. Upload abgelehnt.",

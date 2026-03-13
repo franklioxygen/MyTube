@@ -72,13 +72,16 @@ const countNonEmptyLines = (value: string): number =>
     .filter((entry) => entry.length > 0).length;
 
 const readHookFileNames = (hookDirectoryPath: string): string[] => {
+  // nosemgrep -- this is an admin/local scan input, not a path from an HTTP request
   const resolvedHooksDir = path.resolve(hookDirectoryPath);
+  // nosemgrep -- this is an admin/local scan input, not a path from an HTTP request
   if (!fs.existsSync(resolvedHooksDir)) {
     return [];
   }
 
   let entries: fs.Dirent[];
   try {
+    // nosemgrep -- this is an admin/local scan input, not a path from an HTTP request
     entries = fs.readdirSync(resolvedHooksDir, { withFileTypes: true });
   } catch {
     return [];

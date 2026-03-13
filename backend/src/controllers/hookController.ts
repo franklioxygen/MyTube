@@ -8,7 +8,7 @@ import {
 } from "../utils/strictSecurity";
 
 /**
- * Upload declarative hook definition
+ * Upload hook definition (.json) or legacy shell script (.sh/.bash)
  */
 export const uploadHook = async (
   req: Request,
@@ -42,7 +42,7 @@ export const uploadHook = async (
   }
 
   try {
-    HookService.uploadHook(name, req.file.buffer);
+    HookService.uploadHook(name, req.file.buffer, req.file.originalname);
   } catch (error) {
     throw new ValidationError(
       error instanceof Error ? error.message : "Invalid hook definition",
@@ -54,7 +54,7 @@ export const uploadHook = async (
 };
 
 /**
- * Delete hook script
+ * Delete hook definition or legacy shell script
  */
 export const deleteHook = async (
   req: Request,

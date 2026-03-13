@@ -250,7 +250,7 @@ export const fr = {
   deleteHook: "Supprimer le Script de Crochet",
   confirmDeleteHook:
     "Êtes-vous sûr de vouloir supprimer ce script de crochet ?",
-  uploadHook: "Téléverser .sh",
+  uploadHook: "Téléverser .json",
   enterPasswordToUploadHook:
     "Veuillez entrer votre mot de passe pour télécharger ce script Hook.",
   riskCommandDetected:

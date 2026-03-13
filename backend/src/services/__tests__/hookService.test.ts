@@ -3,6 +3,7 @@ import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  execFile: vi.fn(),
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   unlinkSync: vi.fn(),
@@ -12,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   httpsRequest: vi.fn(),
   enqueueHookWorkerJob: vi.fn(() => "job-test-id"),
   recordSecurityAuditEvent: vi.fn(),
+}));
+
+vi.mock("child_process", () => ({
+  execFile: mocks.execFile,
 }));
 
 vi.mock("fs", () => ({
@@ -47,6 +52,10 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
+vi.mock("../../config/securityModel", () => ({
+  isStrictSecurityModel: vi.fn(() => false),
+}));
+
 vi.mock("../../utils/strictSecurity", () => ({
   isStrictFeatureDisabled: vi.fn(() => false),
 }));
@@ -60,6 +69,7 @@ vi.mock("../securityAuditService", () => ({
 }));
 
 import { HOOKS_DIR } from "../../config/paths";
+import { isStrictSecurityModel } from "../../config/securityModel";
 import { logger } from "../../utils/logger";
 import { isStrictFeatureDisabled } from "../../utils/strictSecurity";
 import { HookService } from "../hookService";
@@ -91,10 +101,19 @@ describe("HookService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.HOOK_EXECUTION_MODE;
+    vi.mocked(isStrictSecurityModel).mockReturnValue(false);
     vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
     createSuccessfulRequestMock(mocks.httpRequest);
     createSuccessfulRequestMock(mocks.httpsRequest);
     mocks.existsSync.mockReturnValue(false);
+    mocks.execFile.mockImplementation(
+      (
+        _command: string,
+        _args: string[],
+        _options: Record<string, unknown>,
+        callback: (error: Error | null, stdout: string, stderr: string) => void
+      ) => callback(null, "ok", "")
+    );
   });
 
   it("uploads normalized declarative hook config", () => {
@@ -235,27 +254,21 @@ describe("HookService", () => {
     expect(mocks.httpsRequest).not.toHaveBeenCalled();
   });
 
-  it("warns and ignores legacy shell hooks", async () => {
+  it("warns and ignores legacy shell hooks in strict mode", async () => {
     mocks.existsSync.mockImplementation((target: string) =>
       String(target).endsWith("task_fail.sh")
     );
+    vi.mocked(isStrictSecurityModel).mockReturnValue(true);
 
     await HookService.executeHook("task_fail", {
       taskId: "1",
       taskTitle: "Legacy",
       status: "fail",
     });
-    await HookService.executeHook("task_fail", {
-      taskId: "2",
-      taskTitle: "Legacy 2",
-      status: "fail",
-    });
 
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Legacy shell hook detected")
+      expect.stringContaining("shell execution is disabled in strict security model")
     );
-    expect(logger.warn).toHaveBeenCalledTimes(2);
-    expect(mocks.recordSecurityAuditEvent).toHaveBeenCalledTimes(2);
     expect(mocks.recordSecurityAuditEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "config.legacy_hook_ignored",
@@ -263,7 +276,131 @@ describe("HookService", () => {
         target: "task_fail",
       })
     );
-    expect(mocks.httpRequest).not.toHaveBeenCalled();
+    expect(mocks.execFile).not.toHaveBeenCalled();
+  });
+
+  it("executes legacy shell hooks in legacy mode", async () => {
+    mocks.existsSync.mockImplementation((target: string) =>
+      String(target).endsWith("task_fail.sh")
+    );
+
+    await HookService.executeHook("task_fail", {
+      taskId: "1",
+      taskTitle: "Legacy",
+      sourceUrl: "https://example.com/video",
+      status: "fail",
+      error: "boom",
+    });
+
+    expect(mocks.execFile).toHaveBeenCalledWith(
+      "bash",
+      [path.join(HOOKS_DIR, "task_fail.sh")],
+      expect.objectContaining({
+        cwd: HOOKS_DIR,
+        timeout: 30000,
+        env: expect.objectContaining({
+          MYTUBE_TASK_ID: "1",
+          MYTUBE_TASK_TITLE: "Legacy",
+          MYTUBE_SOURCE_URL: "https://example.com/video",
+          MYTUBE_TASK_STATUS: "fail",
+          MYTUBE_ERROR: "boom",
+        }),
+      }),
+      expect.any(Function)
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining("Legacy shell hook task_fail executed successfully")
+    );
+  });
+
+  it("uploads legacy shell hooks and removes existing JSON definition", () => {
+    mocks.existsSync.mockImplementation((target: string) =>
+      String(target).endsWith("task_success.json")
+    );
+
+    HookService.uploadHook(
+      "task_success",
+      Buffer.from("#!/bin/sh\necho hi\n", "utf-8"),
+      "task_success.sh"
+    );
+
+    expect(mocks.writeFileSync).toHaveBeenCalledWith(
+      path.join(HOOKS_DIR, "task_success.sh"),
+      expect.any(Buffer)
+    );
+    expect(mocks.unlinkSync).toHaveBeenCalledWith(
+      path.join(HOOKS_DIR, "task_success.json")
+    );
+  });
+
+  it("rejects dangerous legacy shell uploads", () => {
+    expect(() =>
+      HookService.uploadHook(
+        "task_success",
+        Buffer.from("#!/bin/sh\nrm -rf /\n", "utf-8"),
+        "task_success.sh"
+      )
+    ).toThrow("Risk command detected: rm -rf / (recursive delete). Upload rejected.");
+    expect(mocks.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it("getHookStatus reports legacy shell hooks as configured", () => {
+    mocks.existsSync.mockImplementation((target: string) =>
+      String(target).endsWith("task_cancel.sh")
+    );
+
+    const status = HookService.getHookStatus();
+
+    expect(status.task_cancel).toBe(true);
+    expect(status.task_success).toBe(false);
+  });
+
+  it("uploads JSON hooks and removes existing shell definition", () => {
+    mocks.existsSync.mockImplementation((target: string) =>
+      String(target).endsWith("task_success.sh")
+    );
+
+    HookService.uploadHook(
+      "task_success",
+      Buffer.from(
+        JSON.stringify({
+          actions: [
+            {
+              type: "notify_webhook",
+              url: "https://example.com/hook",
+              method: "POST",
+            },
+          ],
+        })
+      )
+    );
+
+    expect(mocks.unlinkSync).toHaveBeenCalledWith(
+      path.join(HOOKS_DIR, "task_success.sh")
+    );
+  });
+
+  it("rejects shell uploads in strict security model", () => {
+    vi.mocked(isStrictSecurityModel).mockReturnValue(true);
+
+    expect(() =>
+      HookService.uploadHook(
+        "task_success",
+        Buffer.from("#!/bin/sh\necho hi\n", "utf-8"),
+        "task_success.sh"
+      )
+    ).toThrow("Shell hook upload is disabled in strict security model");
+    expect(mocks.writeFileSync).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported hook upload extensions", () => {
+    expect(() =>
+      HookService.uploadHook(
+        "task_success",
+        Buffer.from("hello", "utf-8"),
+        "task_success.txt"
+      )
+    ).toThrow("Hook file must be .json, .sh, or .bash");
   });
 
   it("skips hook execution when strict feature toggle is enabled", async () => {

@@ -246,7 +246,7 @@ export const ko = {
   notFound: "설정되지 않음",
   deleteHook: "훅 스크립트 삭제",
   confirmDeleteHook: "이 훅 스크립트를 삭제하시겠습니까?",
-  uploadHook: "업로드 .sh",
+  uploadHook: "업로드 .json",
   enterPasswordToUploadHook:
     "이 훅 스크립트를 업로드하려면 비밀번호를 입력하십시오.",
   riskCommandDetected: "위험한 명령 감지됨: {command}. 업로드 거부됨.",

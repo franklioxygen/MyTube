@@ -251,7 +251,7 @@ export const es = {
   deleteHook: "Eliminar Script de Gancho",
   confirmDeleteHook:
     "¿Está seguro de que desea eliminar este script de gancho?",
-  uploadHook: "Subir .sh",
+  uploadHook: "Subir .json",
   enterPasswordToUploadHook:
     "Por favor ingrese su contraseña para subir este script de gancho.",
   riskCommandDetected:

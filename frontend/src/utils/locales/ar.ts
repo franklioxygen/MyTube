@@ -242,7 +242,7 @@ export const ar = {
   notFound: "غير معين",
   deleteHook: "حذف سكريبت الخطاف",
   confirmDeleteHook: "هل أنت متأكد أنك تريد حذف سكريبت الخطاف هذا؟",
-  uploadHook: "رفع .sh",
+  uploadHook: "رفع .json",
   enterPasswordToUploadHook: "الرجاء إدخال كلمة المرور لتحميل نص Hook هذا.",
   riskCommandDetected: "تم اكتشاف أمر خطر: {command}. تم رفض التحميل.",
   cleanupTempFilesActiveDownloads:

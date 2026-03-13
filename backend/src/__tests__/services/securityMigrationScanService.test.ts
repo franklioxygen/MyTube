@@ -102,7 +102,9 @@ describe("securityMigrationScanService", () => {
   it("reads hook files from provided hooks directory when hookFileNames is not provided", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mytube-hooks-"));
     tempDirs.push(tempDir);
+    // nosemgrep -- tempDir is a test-controlled directory created in this test
     fs.writeFileSync(path.join(tempDir, "task_success.sh"), "#!/bin/sh\necho hi");
+    // nosemgrep -- tempDir is a test-controlled directory created in this test
     fs.writeFileSync(
       path.join(tempDir, "task_success.json"),
       JSON.stringify({ version: 1, actions: [] })

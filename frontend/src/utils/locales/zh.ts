@@ -221,6 +221,10 @@ export const zh = {
   taskHooksDescription:
     "在任务生命周期的特定时间点执行声明式 Hook 动作。请上传 JSON 定义文件，仅支持白名单动作类型。",
   taskHooksWarning: "警告：不支持任意 Shell 命令，仅允许受限动作执行器。",
+  legacyTaskHooksDescription:
+    "Legacy 模式支持在每个任务事件上使用声明式 JSON Hook 和传统 Shell 脚本；严格模式下任务 Hook 被禁用。",
+  legacyHookShellWarning:
+    "Legacy 模式接受 .json Hook 和 .sh 脚本。Shell Hook 会以服务器操作系统权限运行，因此只能上传可信脚本。",
   hookTaskBeforeStart: "任务开始前",
   hookTaskBeforeStartHelper: "在下载开始前执行。",
   hookTaskSuccess: "任务成功",
@@ -229,12 +233,44 @@ export const zh = {
   hookTaskFailHelper: "当任务失败时执行。",
   hookTaskCancel: "任务取消",
   hookTaskCancelHelper: "当任务被手动取消时执行。",
+  hookGuideButton: "JSON Hook 说明",
+  hookGuideTitle: "JSON Hook 如何执行",
+  hookGuideIntro:
+    "JSON Hook 是声明式定义。任务事件触发后，MyTube 会加载对应的 .json Hook 文件，先校验动作内容，再只执行白名单中的动作。",
+  hookGuideLegacyShellNote:
+    "Legacy 模式也支持 .sh Hook。Shell 脚本会通过 bash 执行，并接收 `MYTUBE_*` 环境变量；它们不受下方 JSON 动作模型的限制。",
+  hookGuideExecutionTitle: "执行流程",
+  hookGuideExecutionQueue:
+    "事件 -> 队列 -> 受限执行器。Hook 不会执行任意 Shell 命令。",
+  hookGuideExecutionSerial:
+    "单个 Hook 中的动作会按照 JSON 文件中的顺序串行执行。",
+  hookGuideExecutionValidation:
+    "无效 JSON、不支持的动作类型或不允许的字段会在执行前被拒绝。",
+  hookGuideEventsTitle: "可用事件",
+  hookGuideModesTitle: "执行模式",
+  hookGuideInlineMode:
+    "`HOOK_EXECUTION_MODE=inline`：由 backend 入队并在本地执行 Hook，适合本地开发或单进程部署。",
+  hookGuideWorkerMode:
+    "`HOOK_EXECUTION_MODE=worker`：backend 只负责写入 `hook_worker_jobs` 队列，由独立的 `hook-worker` 进程或容器轮询并执行，推荐用于生产隔离。",
+  hookGuideActionTitle: "支持的动作",
+  hookGuideActionBody:
+    "目前只支持 `notify_webhook`。任务事件触发后，它会向你的目标地址发送 HTTP 请求。",
+  hookGuideActionDetails:
+    "`method` 只能是 `POST`、`PUT` 或 `PATCH`。如果省略 `bodyTemplate`，MyTube 会自动发送带任务上下文的 JSON 请求体。",
+  hookGuideVariablesTitle: "模板变量",
+  hookGuideTemplateFallback:
+    "如果没有提供 `bodyTemplate`，Webhook 会收到这些字段组成的 JSON，并额外包含 `emittedAt`。",
+  hookGuideExampleTitle: "JSON 示例",
+  featureDisabledInStrictMode: "此功能在严格安全模型下已被禁用。",
   found: "已找到",
   notFound: "未设置",
   deleteHook: "删除钩子定义",
   confirmDeleteHook: "确定要删除此钩子定义吗？",
+  uploadJsonHook: "上传 .json",
+  uploadLegacyHook: "上传 .json 或 .sh",
   uploadHook: "上传 .json",
   enterPasswordToUploadHook: "请输入密码以上传此 Hook 定义。",
+  enterPasswordToUploadLegacyHook: "请输入密码以上传此 Hook 定义或 Shell 脚本。",
   riskCommandDetected: "检测到危险命令：{command}。上传已拒绝。",
   cleanupTempFilesActiveDownloads:
     "有活动下载时无法清理。请等待所有下载完成或取消它们。",
