@@ -227,39 +227,16 @@ describe("scanController extra coverage", () => {
     });
   });
 
-  it("scanMountDirectories does not delete local /videos records when scanning /videos as a mount path", async () => {
-    req.body = {
-      directories: ["/videos"],
-    };
-
-    vi.mocked(storageService.getVideos).mockReturnValue([
-      {
-        id: "local-video",
-        title: "Local Video",
-        videoPath: "/videos/local-video.mp4",
-        fileSize: "200",
-      },
-    ] as any);
-
-    vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
-      return String(target) === "/videos";
+  it("scanMountDirectories rejects configured directories that overlap the local videos directory", async () => {
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [
+        { id: "videos", label: "videos", path: VIDEOS_DIR },
+        { id: "parent", label: "parent", path: path.dirname(VIDEOS_DIR) },
+      ],
+      invalidDirectoryIds: [],
     });
-    vi.mocked(fs.readdir).mockResolvedValue([] as any);
-
-    await scanMountDirectories(req as Request, res as Response);
-
-    expect(storageService.deleteVideo).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith({
-      addedCount: 0,
-      deletedCount: 0,
-      scannedDirectories: 1,
-    });
-  });
-
-  it("scanMountDirectories rejects directories that overlap the local videos directory", async () => {
     req.body = {
-      directories: [VIDEOS_DIR, path.dirname(VIDEOS_DIR)],
+      directoryIds: ["videos", "parent"],
     };
 
     await scanMountDirectories(req as Request, res as Response);
@@ -271,6 +248,7 @@ describe("scanController extra coverage", () => {
         invalidDirectories: [VIDEOS_DIR, path.dirname(VIDEOS_DIR)],
       })
     );
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
     expect(storageService.saveVideo).not.toHaveBeenCalled();
   });
 
