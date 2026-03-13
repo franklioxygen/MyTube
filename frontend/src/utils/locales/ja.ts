@@ -13,6 +13,7 @@ export const ja = {
   manageVideos: "動画の管理",
   instruction: "説明書",
 
+
   // Home
   pasteUrl: "動画またはコレクションのURLを貼り付け",
   download: "ダウンロード",
@@ -36,11 +37,13 @@ export const ja = {
     "動画はまだありません。動画のURLを送信して最初の動画をダウンロードしましょう！",
   views: "回視聴",
 
+
   // Settings
   general: "一般",
   security: "セキュリティ",
   videoDefaults: "動画プレーヤーのデフォルト",
   downloadSettings: "ダウンロード設定",
+
   // Settings Categories
   basicSettings: "基本設定",
   interfaceDisplay: "インターフェースと表示",
@@ -51,13 +54,13 @@ export const ja = {
   dataManagement: "データ管理",
   advanced: "詳細設定",
   language: "言語",
+  websiteName: "ウェブサイト名",
+  websiteNameHelper: "{current}/{max} 文字 (デフォルト: {default})",
   theme: "テーマ",
   themeLight: "常にライト",
   themeDark: "常にダーク",
   themeSystem: "システムに合わせる",
   showThemeButtonInHeader: "ヘッダーにテーマボタンを表示",
-  websiteName: "ウェブサイト名",
-  websiteNameHelper: "{current}/{max} 文字 (デフォルト: {default})",
   tmdbApiKey: "TMDB APIキー",
   tmdbApiKeyHelper:
     "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
@@ -162,8 +165,8 @@ export const ja = {
   playFromBeginning: "常に最初からビデオを再開する",
   tagsManagement: "タグ管理",
   newTag: "新しいタグ",
-  tags: "タグ",
   selectTags: "タグを選択",
+  tags: "タグ",
   noTagsAvailable: "利用可能なタグはありません",
   addTag: "タグを追加",
   addTags: "タグを追加",
@@ -177,6 +180,7 @@ export const ja = {
   renameTagDescription:
     "タグ名を変更すると、現在このタグを使用しているすべての動画が検証され、更新されます。",
   enterNewTagName: "タグ '{tag}' の新しい名前を入力してください",
+
   // Database
   database: "データベース",
   migrateDataDescription:
@@ -230,6 +234,7 @@ export const ja = {
   cleanupTempFilesConfirmMessage:
     "これにより、アップロードディレクトリ内のすべての.ytdlおよび.partファイルが永久に削除されます。続行する前に、アクティブなダウンロードがないことを確認してください。",
 
+
   // Task Hooks
   taskHooks: "タスクフック",
   taskHooksDescription:
@@ -263,8 +268,8 @@ export const ja = {
   formatFilenamesError: "ファイル名のフォーマットに失敗しました: {error}",
   itemsPerPage: "1ページあたりの項目数",
   itemsPerPageHelper: "1ページに表示する動画の数 (デフォルト: 12)",
-  defaultSort: "デフォルトの動画並べ替え方法",
   showYoutubeSearch: "YouTube検索結果を表示",
+  defaultSort: "デフォルトの動画並べ替え方法",
   showTagsOnThumbnail: "サムネイルにタグを表示",
   playSoundOnTaskComplete: "タスク完了時に音を再生",
   soundSuccess: "成功音",
@@ -281,6 +286,7 @@ export const ja = {
   cleanupTempFilesSuccess: "{count}個の一時ファイルを正常に削除しました。",
   cleanupTempFilesFailed: "一時ファイルのクリーンアップに失敗しました",
 
+
   // Cookie Settings
   cookieSettings: "Cookie設定",
   cookieUploadDescription:
@@ -296,6 +302,7 @@ export const ja = {
     "cookiesファイルを削除してもよろしいですか？年齢制限のある動画やメンバー限定動画のダウンロードに影響する可能性があります。",
   cookiesDeletedSuccess: "Cookiesが正常に削除されました",
   cookiesDeleteFailed: "Cookiesの削除に失敗しました",
+
 
   // Cloud Drive
   cloudDriveSettings: "クラウドストレージ (OpenList)",
@@ -347,6 +354,7 @@ export const ja = {
   clearThumbnailCacheConfirmMessage:
     "クラウド動画用にローカルにキャッシュされたすべてのサムネイルをクリアします。サムネイルは次回のアクセス時にクラウドストレージから再生成されます。続行しますか？",
 
+
   // Manage
   manageContent: "コンテンツの管理",
   videos: "動画",
@@ -382,6 +390,7 @@ export const ja = {
   moveCollection: "コレクションに移動",
   confirmBulkDelete:
     "これらの動画を削除してもよろしいですか？この操作は取り消せません。",
+
 
   // Video Player
   playing: "再生",
@@ -451,6 +460,7 @@ export const ja = {
   deleteFilteredVideosSuccess: "{count} 本の動画を削除しました。",
   deletingVideos: "動画を削除中...",
 
+
   // Login
   signIn: "サインイン",
   admin: "管理者",
@@ -478,6 +488,7 @@ export const ja = {
     "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
+
   // Passkeys
   createPasskey: "パスキーを作成",
   creatingPasskey: "作成中...",
@@ -505,11 +516,13 @@ export const ja = {
   copyFailed: "リンクのコピーに失敗しました",
   copyUrl: "URLをコピー",
 
+
   // Collection Page
   loadingCollection: "コレクションを読み込み中...",
   collectionNotFound: "コレクションが見つかりません",
   noVideosInCollection: "このコレクションには動画がありません。",
   back: "戻る",
+
 
   // Author Videos
   loadVideosError: "動画の読み込みに失敗しました。後でもう一度お試しください。",
@@ -539,12 +552,14 @@ export const ja = {
   addVideosToExistingCollectionConfirmationWithMove:
     '著者 "{author}" の動画 {count} 本を既存のコレクション "{author}" に追加します。現在他のコレクションにある {moveCount} 本の動画がこのコレクションに移動されます。続行しますか？',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "コレクションを削除",
   deleteCollectionConfirmation: "コレクションを削除してもよろしいですか",
   collectionContains: "このコレクションには以下が含まれています",
   deleteCollectionOnly: "コレクションのみ削除",
   deleteCollectionAndVideos: "コレクションとすべての動画を削除",
+
 
   // Common
   loading: "読み込み中...",
@@ -562,6 +577,7 @@ export const ja = {
   expand: "展開",
   collapse: "折りたたむ",
 
+
   // Video Card
   unknownDate: "不明な日付",
   part: "パート",
@@ -572,6 +588,7 @@ export const ja = {
   today: "今日",
   thisWeek: "今週",
   weeksAgo: "{weeks}週間前",
+
 
   // Upload Modal
   selectVideoFile: "動画ファイルを選択",
@@ -585,6 +602,7 @@ export const ja = {
   changeImage: "画像を変更",
   selectImage: "画像を選択",
   thumbnailUploaded: "サムネイルがアップロードされました",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibiliコレクションを検出しました",
@@ -612,6 +630,7 @@ export const ja = {
   queued: "キューに追加済み",
   waitingInQueue: "待機中",
 
+
   // Downloads
   downloads: "ダウンロード",
   activeDownloads: "アクティブなダウンロード",
@@ -634,6 +653,7 @@ export const ja = {
   finishedAt: "完了日時",
   failed: "失敗",
 
+
   // Snackbar Messages
   videoDownloading: "動画をダウンロード中",
   downloadStartedSuccessfully: "ダウンロードが正常に開始されました",
@@ -644,6 +664,19 @@ export const ja = {
   collectionDeletedSuccessfully: "コレクションが正常に削除されました",
   failedToDeleteCollection: "コレクションの削除に失敗しました",
 
+  collectionUpdatedSuccessfully: "コレクションが正常に更新されました",
+  failedToUpdateCollection:
+    "コレクションの更新に失敗しました。別の名前を使用してください",
+  collectionNameRequired: "コレクション名は必須です",
+  collectionNameTooLong: "コレクション名は200文字以下である必要があります",
+  collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
+  collectionNameReserved: "コレクション名は予約されています",
+  updateCollectionFailed: "コレクションの更新に失敗しました",
+  uploadSubtitle: "字幕をアップロード",
+  subtitleUploaded: "字幕のアップロードに成功しました",
+  confirmDeleteSubtitle: "この字幕を削除しますか？",
+  subtitleDeleted: "字幕を削除しました",
+
   // Batch Download
   batchDownload: "一括ダウンロード",
   batchDownloadDescription: "以下に複数のURLを1行に1つずつ貼り付けてください。",
@@ -651,6 +684,7 @@ export const ja = {
   addToQueue: "キューに追加",
   batchTasksAdded: "{count} 件のタスクを追加しました",
   addBatchTasks: "一括タスクを追加",
+
 
   // Subscriptions
   subscribeToAuthor: "著者を購読する",
@@ -715,6 +749,7 @@ export const ja = {
     "完了したタスク（完了、キャンセル済み）をすべてクリアしてもよろしいですか？これによりリストからは削除されますが、ダウンロードされたファイルは削除されません。",
   clear: "クリア",
 
+
   // Subscription Pause/Resume
   pause: "一時停止",
   resume: "再開",
@@ -729,6 +764,7 @@ export const ja = {
   viaSubscription: "購読経由",
   viaContinuousDownload: "連続ダウンロード経由",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "このプレイリストを購読する",
   subscribePlaylistDescription:
@@ -736,6 +772,7 @@ export const ja = {
   playlistSubscribedSuccessfully: "プレイリストの購読に成功しました",
   downloadAndSubscribe: "すべてダウンロードして購読",
   playlistSubscription: "プレイリスト",
+
 
   // Instruction Page
   instructionSection1Title: "1. ダウンロードとタスク管理",
@@ -797,11 +834,13 @@ export const ja = {
   instructionSection3Item3Text:
     "（開発中）ユーザーがデプロイした OpenList サービスへの接続をサポートします。ここで構成を追加して、クラウドドライブ統合を有効にします。",
 
+
   // Disclaimer
   disclaimerTitle: "免責事項",
   disclaimerText:
     "1. 目的と制限\nこのソフトウェア（コードおよびドキュメントを含む）は、個人の学習、研究、および技術交流のみを目的としています。このソフトウェアを商業目的で使用すること、または地域の法律や規制に違反する違法行為に使用することは固く禁じられています。\n\n2. 責任\n開発者は、ユーザーがこのソフトウェアをどのように使用するかについて認識しておらず、管理もしていません。このソフトウェアの違法または不適切な使用（著作権侵害を含むがこれに限定されない）から生じる法的責任、紛争、または損害は、ユーザーのみが負担するものとします。開発者は、直接的、間接的、または連帯責任を負いません。\n\n3. 修正と配布\nこのプロジェクトはオープンソースです。このコードを修正またはフォークする個人または組織は、オープンソースライセンスを遵守する必要があります。重要：第三者が元のユーザー認証/セキュリティメカニズムを回避または削除するためにコードを修正し、そのようなバージョンを配布する場合、修正者/配布者はすべての結果に対して全責任を負います。セキュリティ検証メカニズムを回避または改ざんすることを強くお勧めしません。\n\n4. 非営利声明\nこれは完全に無料のオープンソースプロジェクトです。開発者は寄付を受け付けておらず、寄付ページを公開したこともありません。ソフトウェア自体は料金を許可しておらず、有料サービスも提供していません。このプロジェクトに代わって料金を徴収すると主張する詐欺や誤解を招く情報には十分ご注意ください。",
   history: "履歴",
+
 
   // Existing Video Detection
   existingVideoDetected: "既存の動画が検出されました",
@@ -822,6 +861,7 @@ export const ja = {
   poweredBy: "MyTubeによって提供",
   changeSettings: "設定を変更",
 
+
   // Sorting
   sort: "並び替え",
   sortBy: "並び替え順",
@@ -833,6 +873,7 @@ export const ja = {
   videoDateDesc: "動画作成日 (新しい順)",
   videoDateAsc: "動画作成日 (古い順)",
   random: "ランダム",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp 設定",
@@ -862,6 +903,7 @@ export const ja = {
   saveAuthorFilesToCollectionDescription:
     "著者のファイルを別のコレクションに自動的に保存します。",
 
+
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare トンネル",
   enableCloudflaredTunnel: "Cloudflare Tunnelを有効にする",
@@ -885,6 +927,7 @@ export const ja = {
   managedInDashboard:
     "パブリックホスト名はCloudflare Zero Trustダッシュボードで管理されています。",
 
+
   // Database Export/Import
   exportImportDatabase: "データベースのエクスポート/インポート",
   exportImportDatabaseDescription:
@@ -897,8 +940,7 @@ export const ja = {
     "警告：データベースをインポートすると、既存のすべてのデータが上書きされます。まず現在のデータベースをバックアップとしてエクスポートしてください。",
   mergeDatabaseWarning:
     "別の MyTube バックアップをこのインスタンスにマージします。既存のレコードは保持され、アップロードしたバックアップにしかないレコードだけが追加されます。",
-  mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsVideos: "動画はソース URL で照合され、既存の動画は保持されます。",
   mergeDatabaseContentsCollections:
     "コレクションとその所属動画は同名コレクションにマージされます。",
   mergeDatabaseContentsSubscriptions:
@@ -909,21 +951,20 @@ export const ja = {
     "タグ設定もマージされるため、取り込んだ動画のタグを UI で引き続き使えます。",
   mergeDatabaseKeepsCurrentData:
     "現在の設定、パスワード、進行中のダウンロード、タスク実行状態は置き換えられません。",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
-  mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
-  mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
-  mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewScanning: "アップロードされたデータベースをスキャン中...",
+  mergeDatabasePreviewResults: "マージプレビュー",
+  mergeDatabasePreviewConfirmHint: "件数が想定どおりの場合にのみ続行してください。",
+  mergeDatabasePreviewFailed: "アップロードされたデータベースのスキャンに失敗しました: {error}",
+  mergeDatabasePreviewErrorDefault: "アップロードされたデータベースをスキャンできませんでした。",
+  mergeDatabaseMergedCount: "マージ対象: {count}",
+  mergeDatabaseSkippedCount: "スキップ: {count}",
+  mergeDatabasePreviewVideos: "動画",
+  mergeDatabasePreviewCollections: "コレクション",
+  mergeDatabasePreviewCollectionLinks: "コレクション関連",
+  mergeDatabasePreviewSubscriptions: "購読",
+  mergeDatabasePreviewDownloadHistory: "ダウンロード履歴",
+  mergeDatabasePreviewVideoDownloads: "ダウンロード追跡",
+  mergeDatabasePreviewTags: "タグ",
   selectDatabaseFile: "データベースファイルを選択",
   databaseExportedSuccess: "データベースのエクスポートが成功しました",
   databaseExportFailed: "データベースのエクスポートに失敗しました",
@@ -938,6 +979,9 @@ export const ja = {
     "警告：これにより、以前のインポート時に作成されたすべてのバックアップデータベースファイル（mytube-backup-*.db.backup）が永続的に削除されます。この操作は元に戻せません。続行してもよろしいですか？",
   backupDatabasesCleanedUp:
     "バックアップデータベースのクリーンアップが成功しました",
+
+  // History Filter
+  filterAll: "すべて",
   backupDatabasesCleanupFailed:
     "バックアップデータベースのクリーンアップに失敗しました",
   restoreFromLastBackup: "最後のバックアップから復元",
@@ -966,21 +1010,6 @@ export const ja = {
   soundNotification: "新着通知",
   soundDrop: "水に物が落ちる音",
   soundWater: "金属に水滴が落ちる音",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "コレクションが正常に更新されました",
-  failedToUpdateCollection:
-    "コレクションの更新に失敗しました。別の名前を使用してください",
-  collectionNameRequired: "コレクション名は必須です",
-  collectionNameTooLong: "コレクション名は200文字以下である必要があります",
-  collectionNameInvalidChars: "コレクション名に無効な文字が含まれています",
-  collectionNameReserved: "コレクション名は予約されています",
-  updateCollectionFailed: "コレクションの更新に失敗しました",
-  uploadSubtitle: "字幕をアップロード",
-  subtitleUploaded: "字幕のアップロードに成功しました",
-  confirmDeleteSubtitle: "この字幕を削除しますか？",
-  subtitleDeleted: "字幕を削除しました",
-  // History Filter
-  filterAll: "すべて",
   videoLoadTimeout:
     "動画の読み込みに時間がかかりすぎています。もう一度お試しいただくか、接続をご確認ください。",
   failedToLoadVideo: "動画を読み込めませんでした。",

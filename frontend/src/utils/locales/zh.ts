@@ -12,6 +12,7 @@ export const zh = {
   manageVideos: "管理视频",
   instruction: "使用说明",
 
+
   // Home
   pasteUrl: "粘贴视频或合集链接",
   download: "下载",
@@ -34,11 +35,13 @@ export const zh = {
   noVideosYet: "暂无视频。提交视频链接以开始下载您的第一个视频！",
   views: "次观看",
 
+
   // Settings
   general: "常规",
   security: "安全",
   videoDefaults: "播放器默认设置",
   downloadSettings: "下载设置",
+
   // Settings Categories
   basicSettings: "基础设置",
   interfaceDisplay: "界面与显示",
@@ -49,13 +52,13 @@ export const zh = {
   dataManagement: "数据管理",
   advanced: "高级设置",
   language: "语言",
+  websiteName: "网站名称",
+  websiteNameHelper: "{current}/{max} 字符 (默认: {default})",
   theme: "主题",
   themeLight: "始终浅色",
   themeDark: "始终深色",
   themeSystem: "跟随系统",
   showThemeButtonInHeader: "在页眉显示主题按钮",
-  websiteName: "网站名称",
-  websiteNameHelper: "{current}/{max} 字符 (默认: {default})",
   tmdbApiKey: "TMDB API 密钥",
   tmdbApiKeyHelper:
     "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",
@@ -154,8 +157,8 @@ export const zh = {
   playFromBeginning: "始终从头开始播放视频",
   tagsManagement: "标签管理",
   newTag: "新标签",
-  tags: "标签",
   selectTags: "选择标签",
+  tags: "标签",
   noTagsAvailable: "暂无可用标签",
   addTag: "添加标签",
   addTags: "添加标签",
@@ -167,6 +170,7 @@ export const zh = {
   tagConflictCaseInsensitive: "已存在同名标签（标签不区分大小写）。",
   renameTagDescription: "重命名标签将验证并更新当前使用此标签的所有视频。",
   enterNewTagName: "请输入标签 '{tag}' 的新名称",
+
   // Database
   database: "数据库",
   migrateDataDescription:
@@ -216,6 +220,7 @@ export const zh = {
   cleanupTempFilesConfirmMessage:
     "这将永久删除上传目录中的所有.ytdl和.part文件。请确保没有正在进行的下载。",
 
+
   // Task Hooks
   taskHooks: "任务钩子",
   taskHooksDescription:
@@ -245,8 +250,8 @@ export const zh = {
   formatFilenamesError: "格式化文件名失败: {error}",
   itemsPerPage: "每页显示数量",
   itemsPerPageHelper: "每页显示的视频数量 (默认: 12)",
-  defaultSort: "默认视频排序方式",
   showYoutubeSearch: "显示 YouTube 搜索结果",
+  defaultSort: "默认视频排序方式",
   showTagsOnThumbnail: "在缩略图上显示标签",
   playSoundOnTaskComplete: "任务完成时播放声音",
   soundSuccess: "成功提示音",
@@ -261,6 +266,7 @@ export const zh = {
   visitorPasswordSetHelper: "密码已设置。留空以保持不变。",
   cleanupTempFilesSuccess: "成功删除了 {count} 个临时文件。",
   cleanupTempFilesFailed: "清理临时文件失败",
+
 
   // Cookie Settings
   cookieSettings: "Cookie 设置",
@@ -277,6 +283,7 @@ export const zh = {
     "您确定要删除 cookies 文件吗？这将影响您下载有年龄限制或仅限会员视频的能力。",
   cookiesDeletedSuccess: "Cookies 删除成功",
   cookiesDeleteFailed: "删除 Cookies 失败",
+
 
   // Cloud Drive
   cloudDriveSettings: "云端存储 (OpenList)",
@@ -324,6 +331,7 @@ export const zh = {
   clearThumbnailCacheConfirmMessage:
     "这将清除所有云端视频的本地缩略图缓存。下次访问时将从云端重新生成。确定继续吗？",
 
+
   // Manage
   manageContent: "内容管理",
   videos: "视频",
@@ -358,6 +366,7 @@ export const zh = {
   selected: "已选择",
   moveCollection: "移动到合集",
   confirmBulkDelete: "确定要删除这些视频吗？此操作无法撤销。",
+
 
   // Video Player
   playing: "播放",
@@ -424,6 +433,7 @@ export const zh = {
   deleteFilteredVideosSuccess: "成功删除 {count} 个视频。",
   deletingVideos: "正在删除视频...",
 
+
   // Login
   signIn: "登录",
   admin: "管理员",
@@ -450,6 +460,7 @@ export const zh = {
     "要手动重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n如果未提供密码，将生成一个随机的8位密码。",
   waitTimeMessage: "请等待 {time} 后再试。",
   tooManyAttempts: "失败尝试次数过多。",
+
   // Passkeys
   createPasskey: "创建通行密钥",
   creatingPasskey: "创建中...",
@@ -474,11 +485,13 @@ export const zh = {
   copyFailed: "复制链接失败",
   copyUrl: "复制链接",
 
+
   // Collection Page
   loadingCollection: "加载合集中...",
   collectionNotFound: "未找到合集",
   noVideosInCollection: "此合集中没有视频。",
   back: "返回",
+
 
   // Author Videos
   loadVideosError: "加载视频失败，请稍后再试。",
@@ -505,12 +518,14 @@ export const zh = {
   addVideosToExistingCollectionConfirmationWithMove:
     '将作者 "{author}" 的 {count} 个视频添加到现有合集 "{author}"。{moveCount} 个当前在其他合集中的视频将被移动到此合集。是否继续？',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "删除合集",
   deleteCollectionConfirmation: "确定要删除合集",
   collectionContains: "此合集包含",
   deleteCollectionOnly: "仅删除合集",
   deleteCollectionAndVideos: "删除合集及所有视频",
+
 
   // Common
   loading: "加载中...",
@@ -528,6 +543,7 @@ export const zh = {
   expand: "展开",
   collapse: "收起",
 
+
   // Video Card
   unknownDate: "未知日期",
   part: "分P",
@@ -538,6 +554,7 @@ export const zh = {
   today: "今天",
   thisWeek: "本周",
   weeksAgo: "{weeks}周前",
+
 
   // Upload Modal
   selectVideoFile: "选择视频文件",
@@ -551,6 +568,7 @@ export const zh = {
   changeImage: "更改图片",
   selectImage: "选择图片",
   thumbnailUploaded: "缩略图已上传",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "检测到 Bilibili 合集",
@@ -576,6 +594,7 @@ export const zh = {
   queued: "已排队",
   waitingInQueue: "等待中",
 
+
   // Downloads
   downloads: "下载",
   activeDownloads: "进行中的下载",
@@ -598,6 +617,7 @@ export const zh = {
   finishedAt: "完成时间",
   failed: "失败",
 
+
   // Snackbar Messages
   videoDownloading: "视频下载中",
   downloadStartedSuccessfully: "下载已成功开始",
@@ -608,6 +628,18 @@ export const zh = {
   collectionDeletedSuccessfully: "集合删除成功",
   failedToDeleteCollection: "删除集合失败",
 
+  collectionUpdatedSuccessfully: "合集更新成功",
+  failedToUpdateCollection: "更新合集失败，请使用其他名称",
+  collectionNameRequired: "合集名称不能为空",
+  collectionNameTooLong: "合集名称必须少于 200 个字符",
+  collectionNameInvalidChars: "合集名称包含无效字符",
+  collectionNameReserved: "合集名称为保留名称",
+  updateCollectionFailed: "更新合集失败",
+  uploadSubtitle: "上传字幕",
+  subtitleUploaded: "字幕上传成功",
+  confirmDeleteSubtitle: "确定要删除这条字幕吗？",
+  subtitleDeleted: "字幕已删除",
+
   // Batch Download
   batchDownload: "批量下载",
   batchDownloadDescription: "在下方粘贴多个链接，每行一个。",
@@ -615,6 +647,7 @@ export const zh = {
   addToQueue: "添加到队列",
   batchTasksAdded: "已添加 {count} 个任务",
   addBatchTasks: "添加批量任务",
+
 
   // Subscriptions
   subscribeToAuthor: "订阅作者",
@@ -674,6 +707,7 @@ export const zh = {
     "您确定要清除所有已完成的任务（包括已完成和已取消）吗？这只会将其从列表中移除，不会删除任何已下载的文件。",
   clear: "清除",
 
+
   // Subscription Pause/Resume
   pause: "暂停",
   resume: "恢复",
@@ -688,12 +722,14 @@ export const zh = {
   viaSubscription: "通过订阅",
   viaContinuousDownload: "通过连续下载",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "订阅此播放列表",
   subscribePlaylistDescription: "自动检查播放列表中新增的视频",
   playlistSubscribedSuccessfully: "成功订阅播放列表",
   downloadAndSubscribe: "下载全部并订阅",
   playlistSubscription: "播放列表",
+
 
   // Instruction Page
   instructionSection1Title: "1. 下载与任务管理",
@@ -752,11 +788,13 @@ export const zh = {
   instructionSection3Item3Text:
     "（开发中）支持连接用户自行部署的 OpenList 服务，在此处添加配置后可实现云盘联动。",
 
+
   // Disclaimer
   disclaimerTitle: "免责声明",
   disclaimerText:
     "1. 用途与限制\n本软件（包括代码和文档）仅供个人学习、研究和技术交流使用。严禁将本软件用于任何商业用途或违反当地法律法规的非法活动。\n\n2. 责任\n开发者不知道也无法控制用户如何使用本软件。因非法或不当使用本软件而产生的任何法律责任、争议或损害（包括但不限于侵犯版权）应由用户自行承担。开发者不承担任何直接、间接或连带责任。\n\n3. 修改和分发\n本项目是开源的。任何修改或复刻此代码的个人或组织必须遵守开源许可证。重要提示：如果第三方修改代码以绕过或移除原始用户验证/安全机制并分发此类版本，修改者/分发者将承担所有后果的全责。我们强烈不建议绕过或篡改任何安全验证机制。\n\n4. 非盈利声明\n这是一个完全免费的开源项目。开发者不接受捐赠，也从未发布过任何捐赠页面。本软件本身不收费，也不提供任何付费服务。请提高警惕，谨防任何声称代表本项目收费的诈骗或误导信息。",
   history: "历史",
+
 
   // Existing Video Detection
   existingVideoDetected: "检测到已下载视频",
@@ -776,6 +814,7 @@ export const zh = {
   poweredBy: "由 MyTube 提供支持",
   changeSettings: "更改设置",
 
+
   // Sorting
   sort: "排序",
   sortBy: "排序方式",
@@ -787,6 +826,7 @@ export const zh = {
   videoDateDesc: "视频创建日期 (最新)",
   videoDateAsc: "视频创建日期 (最早)",
   random: "随机播放",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp 配置",
@@ -814,6 +854,7 @@ export const zh = {
   saveAuthorFilesToCollectionDescription:
     "启用后，新下载的视频、缩略图和字幕将自动整理到以视频作者命名的合集中。如果合集不存在，将自动创建。",
 
+
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 穿透",
   enableCloudflaredTunnel: "启用 Cloudflare 穿透",
@@ -832,6 +873,7 @@ export const zh = {
   clickToCopy: "点击复制",
   quickTunnelWarning: "每次重启隧道时，Quick Tunnel URL 都会更改。",
   managedInDashboard: "公开主机名在您的 Cloudflare Zero Trust 仪表板中管理。",
+
 
   // Database Export/Import
   exportImportDatabase: "导出/导入数据库",
@@ -883,6 +925,9 @@ export const zh = {
   cleanupBackupDatabasesWarning:
     "警告：此操作将永久删除所有在之前导入时创建的备份数据库文件（mytube-backup-*.db.backup）。此操作无法撤销。您确定要继续吗？",
   backupDatabasesCleanedUp: "备份数据库清理成功",
+
+  // History Filter
+  filterAll: "全部",
   backupDatabasesCleanupFailed: "清理备份数据库失败",
   restoreFromLastBackup: "从最后备份恢复",
   restoreFromLastBackupWarning:
@@ -907,20 +952,6 @@ export const zh = {
   soundNotification: "新通知",
   soundDrop: "物体落水声",
   soundWater: "水滴金属声",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "合集更新成功",
-  failedToUpdateCollection: "更新合集失败，请使用其他名称",
-  collectionNameRequired: "合集名称不能为空",
-  collectionNameTooLong: "合集名称必须少于 200 个字符",
-  collectionNameInvalidChars: "合集名称包含无效字符",
-  collectionNameReserved: "合集名称为保留名称",
-  updateCollectionFailed: "更新合集失败",
-  uploadSubtitle: "上传字幕",
-  subtitleUploaded: "字幕上传成功",
-  confirmDeleteSubtitle: "确定要删除这条字幕吗？",
-  subtitleDeleted: "字幕已删除",
-  // History Filter
-  filterAll: "全部",
   videoLoadTimeout: "视频加载时间过长。请重试或检查您的网络连接。",
   failedToLoadVideo: "视频加载失败。",
   videoLoadingAborted: "视频加载已中止。",

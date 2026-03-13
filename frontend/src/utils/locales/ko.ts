@@ -13,6 +13,7 @@ export const ko = {
   manageVideos: "동영상 관리",
   instruction: "설명서",
 
+
   // Home
   pasteUrl: "동영상 또는 컬렉션 URL 붙여넣기",
   download: "다운로드",
@@ -36,11 +37,13 @@ export const ko = {
     "아직 동영상이 없습니다. 동영상 URL을 제출하여 첫 번째 동영상을 다운로드하세요!",
   views: "조회수",
 
+
   // Settings
   general: "일반",
   security: "보안",
   videoDefaults: "동영상 플레이어 기본값",
   downloadSettings: "다운로드 설정",
+
   // Settings Categories
   basicSettings: "기본 설정",
   interfaceDisplay: "인터페이스 및 디스플레이",
@@ -51,13 +54,13 @@ export const ko = {
   dataManagement: "데이터 관리",
   advanced: "고급",
   language: "언어",
+  websiteName: "웹사이트 이름",
+  websiteNameHelper: "{current}/{max} 자 (기본값: {default})",
   theme: "테마",
   themeLight: "항상 라이트",
   themeDark: "항상 다크",
   themeSystem: "시스템 설정 따름",
   showThemeButtonInHeader: "헤더에 테마 버튼 표시",
-  websiteName: "웹사이트 이름",
-  websiteNameHelper: "{current}/{max} 자 (기본값: {default})",
   tmdbApiKey: "TMDB API 키",
   tmdbApiKeyHelper:
     "영화/TV 프로그램 메타데이터 및 포스터를 가져오기 위한 TheMovieDB API 키. https://www.themoviedb.org/settings/api 에서 키를 받으세요",
@@ -159,8 +162,8 @@ export const ko = {
   playFromBeginning: "항상 처음부터 동영상 다시 시작",
   tagsManagement: "태그 관리",
   newTag: "새 태그",
-  tags: "태그",
   selectTags: "태그 선택",
+  tags: "태그",
   noTagsAvailable: "사용 가능한 태그 없음",
   addTag: "태그 추가",
   addTags: "태그 추가",
@@ -174,6 +177,7 @@ export const ko = {
   renameTagDescription:
     "태그 이름을 변경하면 현재 이 태그를 사용하는 모든 동영상이 확인되고 업데이트됩니다.",
   enterNewTagName: "'{tag}' 태그의 새 이름을 입력하세요",
+
   // Database
   database: "데이터베이스",
   migrateDataDescription:
@@ -227,6 +231,7 @@ export const ko = {
   cleanupTempFilesConfirmMessage:
     "업로드 디렉토리의 모든 .ytdl 및 .part 파일이 영구적으로 삭제됩니다. 계속하기 전에 활성 다운로드가 없는지 확인하세요.",
 
+
   // Task Hooks
   taskHooks: "태스크 훅",
   taskHooksDescription:
@@ -259,8 +264,8 @@ export const ko = {
   formatFilenamesError: "파일 이름 형식을 지정하지 못했습니다: {error}",
   itemsPerPage: "페이지 당 항목 수",
   itemsPerPageHelper: "페이지 당 표시할 비디오 수 (기본값: 12)",
-  defaultSort: "기본 동영상 정렬 방법",
   showYoutubeSearch: "YouTube 검색 결과 표시",
+  defaultSort: "기본 동영상 정렬 방법",
   showTagsOnThumbnail: "썸네일에 태그 표시",
   playSoundOnTaskComplete: "작업 완료 시 소리 재생",
   soundSuccess: "성공 알림음",
@@ -277,6 +282,7 @@ export const ko = {
   cleanupTempFilesSuccess: "{count}개의 임시 파일을 성공적으로 삭제했습니다.",
   cleanupTempFilesFailed: "임시 파일 정리 실패",
 
+
   // Cookie Settings
   cookieSettings: "쿠키 설정",
   cookieUploadDescription:
@@ -292,6 +298,7 @@ export const ko = {
     "쿠키 파일을 삭제하시겠습니까? 연령 제한 또는 회원 전용 비디오를 다운로드하는 데 영향을 줄 수 있습니다.",
   cookiesDeletedSuccess: "쿠키가 성공적으로 삭제되었습니다",
   cookiesDeleteFailed: "쿠키 삭제 실패",
+
 
   // Cloud Drive
   cloudDriveSettings: "클라우드 드라이브 (OpenList)",
@@ -341,6 +348,7 @@ export const ko = {
   clearThumbnailCacheConfirmMessage:
     "이 작업은 클라우드 비디오에 대해 로컬로 캐시된 모든 썸네일을 지웁니다. 썸네일은 다음에 액세스할 때 클라우드 저장소에서 재생성됩니다. 계속하시겠습니까?",
 
+
   // Manage
   manageContent: "콘텐츠 관리",
   videos: "동영상",
@@ -376,6 +384,7 @@ export const ko = {
   moveCollection: "컬렉션으로 이동",
   confirmBulkDelete:
     "이 동영상들을 삭제하시겠습니까? 이 작업을 취소할 수 없습니다.",
+
 
   // Video Player
   playing: "재생",
@@ -442,6 +451,7 @@ export const ko = {
   deleteFilteredVideosSuccess: "{count}개의 동영상을 성공적으로 삭제했습니다.",
   deletingVideos: "동영상 삭제 중...",
 
+
   // Login
   signIn: "로그인",
   admin: "관리자",
@@ -469,6 +479,7 @@ export const ko = {
     "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
+
   // Passkeys
   createPasskey: "패스키 만들기",
   creatingPasskey: "만드는 중...",
@@ -494,11 +505,13 @@ export const ko = {
   copyFailed: "링크 복사 실패",
   copyUrl: "URL 복사",
 
+
   // Collection Page
   loadingCollection: "컬렉션 로드 중...",
   collectionNotFound: "컬렉션을 찾을 수 없음",
   noVideosInCollection: "이 컬렉션에는 동영상이 없습니다.",
   back: "뒤로",
+
 
   // Author Videos
   loadVideosError: "동영상을 로드하지 못했습니다. 나중에 다시 시도해 주세요.",
@@ -527,12 +540,14 @@ export const ko = {
   addVideosToExistingCollectionConfirmationWithMove:
     '작성자 "{author}"의 동영상 {count}개를 기존 컬렉션 "{author}"에 추가합니다. 현재 다른 컬렉션에 있는 {moveCount}개의 동영상도 이 컬렉션으로 이동됩니다. 계속하시겠습니까?',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "컬렉션 삭제",
   deleteCollectionConfirmation: "컬렉션을 삭제하시겠습니까",
   collectionContains: "이 컬렉션 포함 내용",
   deleteCollectionOnly: "컬렉션만 삭제",
   deleteCollectionAndVideos: "컬렉션 및 모든 동영상 삭제",
+
 
   // Common
   loading: "로드 중...",
@@ -550,6 +565,7 @@ export const ko = {
   expand: "확장",
   collapse: "접기",
 
+
   // Video Card
   unknownDate: "알 수 없는 날짜",
   part: "파트",
@@ -560,6 +576,7 @@ export const ko = {
   today: "오늘",
   thisWeek: "이번 주",
   weeksAgo: "{weeks}주 전",
+
 
   // Upload Modal
   selectVideoFile: "동영상 파일 선택",
@@ -573,6 +590,7 @@ export const ko = {
   changeImage: "이미지 변경",
   selectImage: "이미지 선택",
   thumbnailUploaded: "썸네일 업로드됨",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili 컬렉션 감지됨",
@@ -599,6 +617,7 @@ export const ko = {
   queued: "대기열에 추가됨",
   waitingInQueue: "대기 중",
 
+
   // Downloads
   downloads: "다운로드",
   activeDownloads: "진행 중인 다운로드",
@@ -621,6 +640,7 @@ export const ko = {
   finishedAt: "완료 시간",
   failed: "실패",
 
+
   // Snackbar Messages
   videoDownloading: "비디오 다운로드 중",
   downloadStartedSuccessfully: "다운로드가 성공적으로 시작되었습니다",
@@ -631,6 +651,19 @@ export const ko = {
   collectionDeletedSuccessfully: "컬렉션이 성공적으로 삭제되었습니다",
   failedToDeleteCollection: "컬렉션 삭제 실패",
 
+  collectionUpdatedSuccessfully: "컬렉션이 성공적으로 업데이트되었습니다",
+  failedToUpdateCollection: "컬렉션 업데이트 실패, 다른 이름을 사용하세요",
+  collectionNameRequired: "컬렉션 이름은 필수입니다",
+  collectionNameTooLong: "컬렉션 이름은 200자 이하여야 합니다",
+  collectionNameInvalidChars:
+    "컬렉션 이름에 유효하지 않은 문자가 포함되어 있습니다",
+  collectionNameReserved: "컬렉션 이름은 예약어입니다",
+  updateCollectionFailed: "컬렉션 업데이트 실패",
+  uploadSubtitle: "자막 업로드",
+  subtitleUploaded: "자막이 성공적으로 업로드되었습니다",
+  confirmDeleteSubtitle: "이 자막을 삭제하시겠습니까?",
+  subtitleDeleted: "자막이 삭제되었습니다",
+
   // Batch Download
   batchDownload: "일괄 다운로드",
   batchDownloadDescription: "아래에 여러 URL을 한 줄에 하나씩 붙여넣으세요.",
@@ -638,6 +671,7 @@ export const ko = {
   addToQueue: "대기열에 추가",
   batchTasksAdded: "{count}개의 작업이 추가되었습니다",
   addBatchTasks: "일괄 작업 추가",
+
 
   // Subscriptions
   subscribeToAuthor: "작가 구독",
@@ -700,6 +734,7 @@ export const ko = {
     "완료된 모든 작업(완료됨, 취소됨)을 지우시겠습니까? 목록에서 제거되지만 다운로드된 파일은 삭제되지 않습니다.",
   clear: "지우기",
 
+
   // Subscription Pause/Resume
   pause: "일시 중지",
   resume: "재개",
@@ -714,6 +749,7 @@ export const ko = {
   viaSubscription: "구독을 통해",
   viaContinuousDownload: "연속 다운로드를 통해",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "이 재생목록 구독하기",
   subscribePlaylistDescription:
@@ -721,6 +757,7 @@ export const ko = {
   playlistSubscribedSuccessfully: "재생목록 구독 성공",
   downloadAndSubscribe: "모두 다운로드 및 구독",
   playlistSubscription: "재생목록",
+
 
   // Instruction Page
   instructionSection1Title: "1. 다운로드 및 작업 관리",
@@ -782,11 +819,13 @@ export const ko = {
   instructionSection3Item3Text:
     "(개발 중) 사용자 배포 OpenList 서비스 연결을 지원합니다. 클라우드 드라이브 통합을 활성화하려면 여기에 구성을 추가하십시오.",
 
+
   // Disclaimer
   disclaimerTitle: "면책 조항",
   disclaimerText:
     "1. 목적 및 제한\n이 소프트웨어(코드 및 문서 포함)는 개인적인 학습, 연구 및 기술 교류만을 목적으로 합니다. 이 소프트웨어를 상업적 목적으로 사용하거나 현지 법률 및 규정을 위반하는 불법 활동에 사용하는 것은 엄격히 금지됩니다.\n\n2. 책임\n개발자는 사용자가 이 소프트웨어를 어떻게 사용하는지 알지 못하며 통제할 수 없습니다. 이 소프트웨어의 불법적 또는 부적절한 사용(저작권 침해를 포함하되 이에 국한되지 않음)으로 인해 발생하는 모든 법적 책임, 분쟁 또는 손해는 전적으로 사용자가 부담해야 합니다. 개발자는 어떠한 직접적, 간접적 또는 공동 책임도 지지 않습니다.\n\n3. 수정 및 배포\n이 프로젝트는 오픈 소스입니다. 이 코드를 수정하거나 포크하는 개인이나 조직은 오픈 소스 라이선스를 준수해야 합니다. 중요: 제3자가 원래의 사용자 인증/보안 메커니즘을 우회하거나 제거하기 위해 코드를 수정하고 이러한 버전을 배포하는 경우, 수정자/배포자는 모든 결과에 대해 전적인 책임을 집니다. 보안 검증 메커니즘을 우회하거나 변조하는 것을 강력히 권장하지 않습니다.\n\n4. 비영리 성명\n이것은 완전히 무료인 오픈 소스 프로젝트입니다. 개발자는 기부를 받지 않으며 기부 페이지를 게시한 적이 없습니다. 소프트웨어 자체는 요금을 부과하지 않으며 유료 서비스를 제공하지 않습니다. 이 프로젝트를 대신하여 수수료를 징수한다고 주장하는 사기나 오해의 소지가 있는 정보에 주의하시기 바랍니다.",
   history: "기록",
+
 
   // Existing Video Detection
   existingVideoDetected: "기존 동영상 감지됨",
@@ -806,6 +845,7 @@ export const ko = {
   poweredBy: "MyTube 제공",
   changeSettings: "설정 변경",
 
+
   // Sorting
   sort: "정렬",
   sortBy: "정렬 기준",
@@ -817,6 +857,7 @@ export const ko = {
   videoDateDesc: "동영상 생성 날짜 (최신순)",
   videoDateAsc: "동영상 생성 날짜 (오래된순)",
   random: "무작위",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp 설정",
@@ -838,6 +879,12 @@ export const ko = {
   moveThumbnailsToVideoFolderOff: "분리된 이미지 폴더",
   moveThumbnailsToVideoFolderDescription:
     "활성화하면 썸네일 파일이 동영상 파일과 같은 폴더로 이동합니다. 비활성화하면 분리된 이미지 폴더로 이동합니다.",
+
+  saveAuthorFilesToCollection: "작성자 파일을 컬렉션에 저장",
+  saveAuthorFilesToCollectionOn: "켜짐",
+  saveAuthorFilesToCollectionOff: "꺼짐",
+  saveAuthorFilesToCollectionDescription:
+    "작성자 파일을 별도의 컬렉션에 자동으로 저장합니다.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare 터널",
@@ -862,6 +909,7 @@ export const ko = {
   managedInDashboard:
     "공개 호스트 이름은 Cloudflare Zero Trust 대시보드에서 관리됩니다.",
 
+
   // Database Export/Import
   exportImportDatabase: "데이터베이스 내보내기/가져오기",
   exportImportDatabaseDescription:
@@ -874,8 +922,7 @@ export const ko = {
     "경고: 데이터베이스를 가져오면 모든 기존 데이터가 덮어씌워집니다. 먼저 현재 데이터베이스를 백업으로 내보내야 합니다.",
   mergeDatabaseWarning:
     "다른 MyTube 백업을 현재 인스턴스에 병합합니다. 기존 레코드는 유지되고 업로드한 백업에만 있는 레코드만 추가됩니다.",
-  mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+  mergeDatabaseContentsVideos: "동영상은 원본 URL로 매칭되며, 기존 동영상은 유지됩니다.",
   mergeDatabaseContentsCollections:
     "컬렉션과 컬렉션 내 비디오 관계는 같은 이름의 컬렉션으로 병합됩니다.",
   mergeDatabaseContentsSubscriptions:
@@ -886,21 +933,20 @@ export const ko = {
     "태그 설정도 병합되어 가져온 비디오 태그를 UI에서 계속 사용할 수 있습니다.",
   mergeDatabaseKeepsCurrentData:
     "현재 설정, 비밀번호, 활성 다운로드, 작업 실행 상태는 교체되지 않습니다.",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
-  mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
-  mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
-  mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewScanning: "업로드된 데이터베이스를 검사하는 중...",
+  mergeDatabasePreviewResults: "병합 미리보기",
+  mergeDatabasePreviewConfirmHint: "이 수치가 예상과 일치할 때만 계속하세요.",
+  mergeDatabasePreviewFailed: "업로드된 데이터베이스를 검사하지 못했습니다: {error}",
+  mergeDatabasePreviewErrorDefault: "업로드된 데이터베이스를 검사할 수 없습니다.",
+  mergeDatabaseMergedCount: "병합됨: {count}",
+  mergeDatabaseSkippedCount: "건너뜀: {count}",
+  mergeDatabasePreviewVideos: "동영상",
+  mergeDatabasePreviewCollections: "컬렉션",
+  mergeDatabasePreviewCollectionLinks: "컬렉션 연결",
+  mergeDatabasePreviewSubscriptions: "구독",
+  mergeDatabasePreviewDownloadHistory: "다운로드 기록",
+  mergeDatabasePreviewVideoDownloads: "다운로드 추적",
+  mergeDatabasePreviewTags: "태그",
   selectDatabaseFile: "데이터베이스 파일 선택",
   databaseExportedSuccess: "데이터베이스 내보내기 성공",
   databaseExportFailed: "데이터베이스 내보내기 실패",
@@ -914,6 +960,9 @@ export const ko = {
   cleanupBackupDatabasesWarning:
     "경고: 이 작업은 이전 가져오기 중에 생성된 모든 백업 데이터베이스 파일(mytube-backup-*.db.backup)을 영구적으로 삭제합니다. 이 작업은 취소할 수 없습니다. 계속하시겠습니까?",
   backupDatabasesCleanedUp: "백업 데이터베이스 정리 성공",
+
+  // History Filter
+  filterAll: "전체",
   backupDatabasesCleanupFailed: "백업 데이터베이스 정리 실패",
   restoreFromLastBackup: "마지막 백업에서 복원",
   restoreFromLastBackupWarning:
@@ -932,11 +981,6 @@ export const ko = {
   hideSensitiveContent: "민감한 콘텐츠 숨기기",
   sensitiveContentWarning:
     "이 동영상에는 민감한 콘텐츠가 포함되어 있을 수 있습니다. 보려면 클릭하세요.",
-  saveAuthorFilesToCollection: "작성자 파일을 컬렉션에 저장",
-  saveAuthorFilesToCollectionOn: "켜짐",
-  saveAuthorFilesToCollectionOff: "꺼짐",
-  saveAuthorFilesToCollectionDescription:
-    "작성자 파일을 별도의 컬렉션에 자동으로 저장합니다.",
   soundNone: "없음",
   soundBell: "벨 소리",
   soundMessage: "메시지 수신",
@@ -944,21 +988,6 @@ export const ko = {
   soundNotification: "새 알림",
   soundDrop: "물에 떨어지는 소리",
   soundWater: "금속에 물방울 떨어지는 소리",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "컬렉션이 성공적으로 업데이트되었습니다",
-  failedToUpdateCollection: "컬렉션 업데이트 실패, 다른 이름을 사용하세요",
-  collectionNameRequired: "컬렉션 이름은 필수입니다",
-  collectionNameTooLong: "컬렉션 이름은 200자 이하여야 합니다",
-  collectionNameInvalidChars:
-    "컬렉션 이름에 유효하지 않은 문자가 포함되어 있습니다",
-  collectionNameReserved: "컬렉션 이름은 예약어입니다",
-  updateCollectionFailed: "컬렉션 업데이트 실패",
-  uploadSubtitle: "자막 업로드",
-  subtitleUploaded: "자막이 성공적으로 업로드되었습니다",
-  confirmDeleteSubtitle: "이 자막을 삭제하시겠습니까?",
-  subtitleDeleted: "자막이 삭제되었습니다",
-  // History Filter
-  filterAll: "전체",
   videoLoadTimeout:
     "동영상 로딩에 너무 오래 걸리고 있습니다. 다시 시도하거나 네트워크 연결을 확인해 주세요.",
   failedToLoadVideo: "동영상을 불러오지 못했습니다.",

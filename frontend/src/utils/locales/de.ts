@@ -14,6 +14,7 @@ export const de = {
   manageVideos: "Videos Verwalten",
   instruction: "Anleitung",
 
+
   // Home
   pasteUrl: "Video- oder Sammlungs-URL einfügen",
   download: "Herunterladen",
@@ -37,11 +38,13 @@ export const de = {
     "Noch keine Videos. Reichen Sie eine Video-URL ein, um Ihr erstes herunterzuladen!",
   views: "Aufrufe",
 
+
   // Settings
   general: "Allgemein",
   security: "Sicherheit",
   videoDefaults: "Player-Standardeinstellungen",
   downloadSettings: "Download-Einstellungen",
+
   // Settings Categories
   basicSettings: "Grundeinstellungen",
   interfaceDisplay: "Oberfläche & Anzeige",
@@ -52,13 +55,13 @@ export const de = {
   dataManagement: "Datenverwaltung",
   advanced: "Erweitert",
   language: "Sprache",
+  websiteName: "Website-Name",
+  websiteNameHelper: "{current}/{max} Zeichen (Standard: {default})",
   theme: "Design",
   themeLight: "Immer Hell",
   themeDark: "Immer Dunkel",
   themeSystem: "Systemstandard",
   showThemeButtonInHeader: "Design-Button in der Kopfzeile anzeigen",
-  websiteName: "Website-Name",
-  websiteNameHelper: "{current}/{max} Zeichen (Standard: {default})",
   tmdbApiKey: "TMDB API-Schlüssel",
   tmdbApiKeyHelper:
     "TheMovieDB API-Schlüssel zum Abrufen von Film-/Serien-Metadaten und Postern. Holen Sie sich Ihren Schlüssel unter https://www.themoviedb.org/settings/api",
@@ -165,8 +168,8 @@ export const de = {
   playFromBeginning: "Videos immer von Anfang an neu starten",
   tagsManagement: "Tag-Verwaltung",
   newTag: "Neues Tag",
-  tags: "Tags",
   selectTags: "Tags auswählen",
+  tags: "Tags",
   noTagsAvailable: "Keine Tags verfügbar",
   addTag: "Tag hinzufügen",
   addTags: "Tags hinzufügen",
@@ -180,6 +183,7 @@ export const de = {
   renameTagDescription:
     "Das Umbenennen eines Tags überprüft und aktualisiert alle Videos, die diesen Tag derzeit verwenden.",
   enterNewTagName: "Neuen Namen für Tag '{tag}' eingeben",
+
   // Database
   database: "Datenbank",
   migrateDataDescription:
@@ -233,6 +237,7 @@ export const de = {
   cleanupTempFilesConfirmMessage:
     "Dadurch werden alle .ytdl- und .part-Dateien im Upload-Verzeichnis dauerhaft gelöscht. Stellen Sie sicher, dass keine Downloads aktiv sind, bevor Sie fortfahren.",
 
+
   // Task Hooks
   taskHooks: "Aufgaben-Hoks",
   taskHooksDescription:
@@ -267,8 +272,8 @@ export const de = {
   formatFilenamesError: "Fehler beim Formatieren der Dateinamen: {error}",
   itemsPerPage: "Elemente pro Seite",
   itemsPerPageHelper: "Anzahl der Videos pro Seite (Standard: 12)",
-  defaultSort: "Standardsortierung",
   showYoutubeSearch: "YouTube-Suchergebnisse anzeigen",
+  defaultSort: "Standardsortierung",
   showTagsOnThumbnail: "Tags auf dem Miniaturbild anzeigen",
   playSoundOnTaskComplete: "Ton bei Aufgabenabschluss abspielen",
   soundSuccess: "Erfolgston",
@@ -285,6 +290,7 @@ export const de = {
   cleanupTempFilesSuccess: "Erfolgreich {count} temporäre Datei(en) gelöscht.",
   cleanupTempFilesFailed: "Fehler beim Bereinigen temporärer Dateien",
 
+
   // Cookie Settings
   cookieSettings: "Cookie-Einstellungen",
   cookieUploadDescription:
@@ -300,6 +306,7 @@ export const de = {
     "Sind Sie sicher, dass Sie die Cookie-Datei löschen möchten? Dies beeinträchtigt Ihre Fähigkeit, altersbeschränkte oder nur für Mitglieder zugängliche Videos herunterzuladen.",
   cookiesDeletedSuccess: "Cookies erfolgreich gelöscht",
   cookiesDeleteFailed: "Fehler beim Löschen der Cookies",
+
 
   // Cloud Drive
   cloudDriveSettings: "Cloud-Speicher (OpenList)",
@@ -356,6 +363,7 @@ export const de = {
   clearThumbnailCacheConfirmMessage:
     "Dies löscht alle lokal zwischengespeicherten Thumbnails für Cloud-Videos. Thumbnails werden beim nächsten Zugriff aus dem Cloud-Speicher neu generiert. Fortfahren?",
 
+
   // Manage
   manageContent: "Inhalte Verwalten",
   videos: "Videos",
@@ -391,6 +399,7 @@ export const de = {
   moveCollection: "In Sammlung verschieben",
   confirmBulkDelete:
     "Sind Sie sicher, dass Sie diese Videos löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+
 
   // Video Player
   playing: "Abspielen",
@@ -461,6 +470,7 @@ export const de = {
   deleteFilteredVideosSuccess: "Erfolgreich {count} Videos gelöscht.",
   deletingVideos: "Videos werden gelöscht...",
 
+
   // Login
   signIn: "Anmelden",
   admin: "Admin",
@@ -488,6 +498,7 @@ export const de = {
     "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
+
   // Passkeys
   createPasskey: "Passkey erstellen",
   creatingPasskey: "Wird erstellt...",
@@ -517,11 +528,13 @@ export const de = {
   copyFailed: "Link konnte nicht kopiert werden",
   copyUrl: "URL kopieren",
 
+
   // Collection Page
   loadingCollection: "Sammlung wird geladen...",
   collectionNotFound: "Sammlung nicht gefunden",
   noVideosInCollection: "Keine Videos in dieser Sammlung.",
   back: "Zurück",
+
 
   // Author Videos
   loadVideosError:
@@ -551,6 +564,7 @@ export const de = {
   addVideosToExistingCollectionConfirmationWithMove:
     '{count} Video(s) von Autor "{author}" zur bestehenden Sammlung "{author}" hinzufügen. {moveCount} Video(s), die sich derzeit in anderen Sammlungen befinden, werden in diese Sammlung verschoben. Fortfahren?',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "Sammlung Löschen",
   deleteCollectionConfirmation:
@@ -558,6 +572,7 @@ export const de = {
   collectionContains: "Diese Sammlung enthält",
   deleteCollectionOnly: "Nur Sammlung Löschen",
   deleteCollectionAndVideos: "Sammlung und Alle Videos Löschen",
+
 
   // Common
   loading: "Laden...",
@@ -575,6 +590,7 @@ export const de = {
   expand: "Erweitern",
   collapse: "Einklappen",
 
+
   // Video Card
   unknownDate: "Unbekanntes Datum",
   part: "Teil",
@@ -585,6 +601,7 @@ export const de = {
   today: "Heute",
   thisWeek: "Diese Woche",
   weeksAgo: "vor {weeks} Wochen",
+
 
   // Upload Modal
   selectVideoFile: "Videodatei Auswählen",
@@ -598,6 +615,7 @@ export const de = {
   changeImage: "Bild ändern",
   selectImage: "Bild auswählen",
   thumbnailUploaded: "Miniaturansicht hochgeladen",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Bilibili-Sammlung Erkannt",
@@ -624,6 +642,7 @@ export const de = {
   queued: "In Warteschlange",
   waitingInQueue: "Warten in Warteschlange",
 
+
   // Downloads
   downloads: "Downloads",
   activeDownloads: "Aktive Downloads",
@@ -646,6 +665,7 @@ export const de = {
   finishedAt: "Beendet am",
   failed: "Fehlgeschlagen",
 
+
   // Snackbar Messages
   videoDownloading: "Video wird heruntergeladen",
   downloadStartedSuccessfully: "Download erfolgreich gestartet",
@@ -656,6 +676,20 @@ export const de = {
   collectionDeletedSuccessfully: "Sammlung erfolgreich gelöscht",
   failedToDeleteCollection: "Fehler beim Löschen der Sammlung",
 
+  collectionUpdatedSuccessfully: "Sammlung erfolgreich aktualisiert",
+  failedToUpdateCollection:
+    "Sammlung konnte nicht aktualisiert werden, bitte anderen Namen verwenden",
+  collectionNameRequired: "Name der Sammlung ist erforderlich",
+  collectionNameTooLong:
+    "Name der Sammlung muss 200 Zeichen oder weniger lang sein",
+  collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
+  collectionNameReserved: "Name der Sammlung ist reserviert",
+  updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
+  uploadSubtitle: "Untertitel hochladen",
+  subtitleUploaded: "Untertitel erfolgreich hochgeladen",
+  confirmDeleteSubtitle: "Diesen Untertitel löschen?",
+  subtitleDeleted: "Untertitel gelöscht",
+
   // Batch Download
   batchDownload: "Stapel-Download",
   batchDownloadDescription: "Fügen Sie unten mehrere URLs ein, eine pro Zeile.",
@@ -663,6 +697,7 @@ export const de = {
   addToQueue: "Zur Warteschlange hinzufügen",
   batchTasksAdded: "{count} Aufgaben hinzugefügt",
   addBatchTasks: "Stapelaufgaben hinzufügen",
+
 
   // Subscriptions
   subscribeToAuthor: "Autor abonnieren",
@@ -729,6 +764,7 @@ export const de = {
     "Sind Sie sicher, dass Sie alle beendeten Aufgaben (abgeschlossen, abgebrochen) löschen möchten? Dies entfernt sie aus der Liste, löscht aber keine heruntergeladenen Dateien.",
   clear: "Löschen",
 
+
   // Subscription Pause/Resume
   pause: "Pause",
   resume: "Fortsetzen",
@@ -743,6 +779,7 @@ export const de = {
   viaSubscription: "via Abonnement",
   viaContinuousDownload: "via kontinuierlichen Download",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "Diese Playlist abonnieren",
   subscribePlaylistDescription:
@@ -750,6 +787,7 @@ export const de = {
   playlistSubscribedSuccessfully: "Playlist erfolgreich abonniert",
   downloadAndSubscribe: "Alle herunterladen & abonnieren",
   playlistSubscription: "Playlist",
+
 
   // Instruction Page
   instructionSection1Title: "1. Download & Aufgabenverwaltung",
@@ -807,15 +845,17 @@ export const de = {
   instructionSection3Item2Text:
     "Entwickelt für Benutzer früherer Versionen. Verwenden Sie diese Funktion, um Daten von JSON in die neue SQLite-Datenbank zu migrieren. Klicken Sie nach erfolgreicher Migration auf die Löschen-Schaltfläche, um alte Verlaufsdaten zu bereinigen.",
   instructionSection3Sub4: "Erweiterte Dienste:",
-  instructionSection3Item3Label: "OpenList Cloud Drive:",
+  instructionSection3Item3Label: "OpenList-Cloudspeicher:",
   instructionSection3Item3Text:
     "(In Entwicklung) Unterstützt die Verbindung zu benutzerbereitgestellten OpenList-Diensten. Fügen Sie hier eine Konfiguration hinzu, um die Cloud-Laufwerksintegration zu aktivieren.",
+
 
   // Disclaimer
   disclaimerTitle: "Haftungsausschluss",
   disclaimerText:
     "1. Zweck und Einschränkungen\nDiese Software (einschließlich Code und Dokumentation) ist ausschließlich für persönliches Lernen, Forschung und technischen Austausch bestimmt. Es ist strengstens untersagt, diese Software für kommerzielle Zwecke oder illegale Aktivitäten zu verwenden, die gegen lokale Gesetze und Vorschriften verstoßen.\n\n2. Haftung\nDer Entwickler hat keine Kontrolle darüber, wie Benutzer diese Software verwenden. Jegliche rechtliche Haftung, Streitigkeiten oder Schäden, die aus der illegalen oder unsachgemäßen Verwendung dieser Software entstehen (einschließlich, aber nicht beschränkt auf Urheberrechtsverletzungen), liegen allein beim Benutzer. Der Entwickler übernimmt keine direkte, indirekte oder gesamtschuldnerische Haftung.\n\n3. Änderungen und Verbreitung\nDieses Projekt ist Open Source. Jede Einzelperson oder Organisation, die diesen Code ändert oder forkt, muss die Open-Source-Lizenz einhalten. Wichtig: Wenn Dritte den Code ändern, um die ursprünglichen Benutzerauthentifizierungs-/Sicherheitsmechanismen zu umgehen oder zu entfernen, und solche Versionen verbreiten, trägt der Modifikator/Verteiler die volle Verantwortung für alle Konsequenzen. Wir raten dringend davon ab, Sicherheitsüberprüfungsmechanismen zu umgehen oder zu manipulieren.\n\n4. Gemeinnützige Erklärung\nDies ist ein komplett kostenloses Open-Source-Projekt. Der Entwickler akzeptiert keine Spenden und hat nie Spendenseiten veröffentlicht. Die Software selbst erlaubt keine Gebühren und bietet keine kostenpflichtigen Dienste an. Bitte seien Sie wachsam und hüten Sie sich vor Betrug oder irreführenden Informationen, die behaupten, Gebühren im Namen dieses Projekts zu erheben.",
   history: "Verlauf",
+
 
   // Existing Video Detection
   existingVideoDetected: "Vorhandenes Video erkannt",
@@ -835,6 +875,7 @@ export const de = {
   poweredBy: "Bereitgestellt von MyTube",
   changeSettings: "Einstellungen ändern",
 
+
   // Sorting
   sort: "Sortieren",
   sortBy: "Sortieren nach",
@@ -842,10 +883,11 @@ export const de = {
   dateAsc: "Hinzugefügt (Älteste)",
   viewsDesc: "Aufrufe (Absteigend)",
   viewsAsc: "Aufrufe (Aufsteigend)",
+  nameAsc: "Name (A-Z)",
   videoDateDesc: "Video-Erstellungsdatum (neueste)",
   videoDateAsc: "Video-Erstellungsdatum (älteste)",
-  nameAsc: "Name (A-Z)",
   random: "Zufallswiedergabe",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "yt-dlp Konfiguration",
@@ -874,6 +916,7 @@ export const de = {
   saveAuthorFilesToCollectionDescription:
     "Wenn aktiviert, werden neu heruntergeladene Videos, Thumbnails und Untertitel automatisch in Sammlungen organisiert, die nach dem Videoautor benannt sind. Wenn eine Sammlung nicht existiert, wird sie automatisch erstellt.",
 
+
   // Cloudflare Tunnel
   cloudflaredTunnel: "Cloudflare Tunnel",
   enableCloudflaredTunnel: "Cloudflare Tunnel aktivieren",
@@ -897,6 +940,7 @@ export const de = {
   managedInDashboard:
     "Öffentlicher Hostname wird in Ihrem Cloudflare Zero Trust Dashboard verwaltet.",
 
+
   // Database Export/Import
   exportImportDatabase: "Datenbank Exportieren/Importieren",
   exportImportDatabaseDescription:
@@ -910,7 +954,7 @@ export const de = {
   mergeDatabaseWarning:
     "Führen Sie ein weiteres MyTube-Backup mit dieser Instanz zusammen. Bestehende Einträge bleiben erhalten, und nur fehlende Einträge aus dem hochgeladenen Backup werden hinzugefügt.",
   mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+    "Videos werden anhand der Quell-URL abgeglichen; vorhandene Videos bleiben erhalten.",
   mergeDatabaseContentsCollections:
     "Sammlungen und ihre Video-Zuordnungen werden in gleichnamige Sammlungen zusammengeführt.",
   mergeDatabaseContentsSubscriptions:
@@ -921,20 +965,20 @@ export const de = {
     "Auch die Tag-Einstellungen werden zusammengeführt, damit importierte Tags in der Oberfläche verfügbar bleiben.",
   mergeDatabaseKeepsCurrentData:
     "Aktuelle Einstellungen, Passwörter, aktive Downloads und der Laufzeitstatus von Aufgaben werden nicht ersetzt.",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
+  mergeDatabasePreviewScanning: "Hochgeladene Datenbank wird gescannt...",
+  mergeDatabasePreviewResults: "Zusammenführungsvorschau",
   mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
+    "Fahren Sie nur fort, wenn diese Anzahlen Ihren Erwartungen entsprechen.",
+  mergeDatabasePreviewFailed: "Hochgeladene Datenbank konnte nicht gescannt werden: {error}",
+  mergeDatabasePreviewErrorDefault: "Die hochgeladene Datenbank konnte nicht gescannt werden.",
+  mergeDatabaseMergedCount: "Zusammengeführt: {count}",
+  mergeDatabaseSkippedCount: "Übersprungen: {count}",
   mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
+  mergeDatabasePreviewCollections: "Sammlungen",
+  mergeDatabasePreviewCollectionLinks: "Sammlungszuordnungen",
+  mergeDatabasePreviewSubscriptions: "Abonnements",
+  mergeDatabasePreviewDownloadHistory: "Download-Verlauf",
+  mergeDatabasePreviewVideoDownloads: "Download-Tracking",
   mergeDatabasePreviewTags: "Tags",
   selectDatabaseFile: "Datenbankdatei Auswählen",
   databaseExportedSuccess: "Datenbank erfolgreich exportiert",
@@ -949,6 +993,9 @@ export const de = {
   cleanupBackupDatabasesWarning:
     "Warnung: Dies löscht dauerhaft alle Backup-Datenbankdateien (mytube-backup-*.db.backup), die bei vorherigen Importen erstellt wurden. Diese Aktion kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?",
   backupDatabasesCleanedUp: "Backup-Datenbanken erfolgreich bereinigt",
+
+  // History Filter
+  filterAll: "Alle",
   backupDatabasesCleanupFailed: "Fehler beim Bereinigen der Backup-Datenbanken",
   restoreFromLastBackup: "Von Letztem Backup Wiederherstellen",
   restoreFromLastBackupWarning:
@@ -976,22 +1023,6 @@ export const de = {
   soundNotification: "Neue Benachrichtigung",
   soundDrop: "Objekt fällt ins Wasser",
   soundWater: "Wassertropfen auf Metall",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "Sammlung erfolgreich aktualisiert",
-  failedToUpdateCollection:
-    "Sammlung konnte nicht aktualisiert werden, bitte anderen Namen verwenden",
-  collectionNameRequired: "Name der Sammlung ist erforderlich",
-  collectionNameTooLong:
-    "Name der Sammlung muss 200 Zeichen oder weniger lang sein",
-  collectionNameInvalidChars: "Name der Sammlung enthält ungültige Zeichen",
-  collectionNameReserved: "Name der Sammlung ist reserviert",
-  updateCollectionFailed: "Sammlung konnte nicht aktualisiert werden",
-  uploadSubtitle: "Untertitel hochladen",
-  subtitleUploaded: "Untertitel erfolgreich hochgeladen",
-  confirmDeleteSubtitle: "Diesen Untertitel löschen?",
-  subtitleDeleted: "Untertitel gelöscht",
-  // History Filter
-  filterAll: "Alle",
   videoLoadTimeout:
     "Das Video lädt zu lange. Bitte versuchen Sie es erneut oder prüfen Sie Ihre Verbindung.",
   failedToLoadVideo: "Video konnte nicht geladen werden.",

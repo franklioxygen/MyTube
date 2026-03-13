@@ -14,6 +14,7 @@ export const ru = {
   manageVideos: "Управление видео",
   instruction: "Инструкция",
 
+
   // Home
   pasteUrl: "Вставьте URL видео или коллекции",
   download: "Скачать",
@@ -36,11 +37,13 @@ export const ru = {
   noVideosYet: "Видео пока нет. Отправьте URL видео, чтобы скачать первое!",
   views: "просмотров",
 
+
   // Settings
   general: "Общие",
   security: "Безопасность",
   videoDefaults: "Настройки плеера по умолчанию",
   downloadSettings: "Настройки загрузки",
+
   // Settings Categories
   basicSettings: "Основные настройки",
   interfaceDisplay: "Интерфейс и отображение",
@@ -51,13 +54,13 @@ export const ru = {
   dataManagement: "Управление данными",
   advanced: "Дополнительно",
   language: "Язык",
+  websiteName: "Название веб-сайта",
+  websiteNameHelper: "{current}/{max} символов (По умолчанию: {default})",
   theme: "Тема",
   themeLight: "Всегда светлая",
   themeDark: "Всегда темная",
   themeSystem: "Как в системе",
   showThemeButtonInHeader: "Показывать кнопку темы в заголовке",
-  websiteName: "Название веб-сайта",
-  websiteNameHelper: "{current}/{max} символов (По умолчанию: {default})",
   tmdbApiKey: "Ключ API TMDB",
   tmdbApiKeyHelper:
     "Ключ API TheMovieDB для получения метаданных и постеров фильмов/сериалов. Получите свой ключ на https://www.themoviedb.org/settings/api",
@@ -161,8 +164,8 @@ export const ru = {
   playFromBeginning: "Всегда перезапускать видео с начала",
   tagsManagement: "Управление тегами",
   newTag: "Новый тег",
-  tags: "Теги",
   selectTags: "Выбрать теги",
+  tags: "Теги",
   noTagsAvailable: "Нет доступных тегов",
   addTag: "Добавить тег",
   addTags: "Добавить теги",
@@ -176,6 +179,7 @@ export const ru = {
   renameTagDescription:
     "Переименование тега приведет к проверке и обновлению всех видео, которые в настоящее время используют этот тег.",
   enterNewTagName: "Введите новое имя для тега '{tag}'",
+
   // Database
   database: "База данных",
   migrateDataDescription:
@@ -228,6 +232,7 @@ export const ru = {
   cleanupTempFilesConfirmMessage:
     "Это навсегда удалит все файлы .ytdl и .part в каталоге загрузок. Убедитесь, что нет активных загрузок перед продолжением.",
 
+
   // Task Hooks
   taskHooks: "Хуки Задач",
   taskHooksDescription:
@@ -261,8 +266,8 @@ export const ru = {
   formatFilenamesError: "Не удалось отформатировать имена файлов: {error}",
   itemsPerPage: "Элементов на странице",
   itemsPerPageHelper: "Количество видео на странице (По умолчанию: 12)",
-  defaultSort: "Сортировка по умолчанию",
   showYoutubeSearch: "Показать результаты поиска YouTube",
+  defaultSort: "Сортировка по умолчанию",
   showTagsOnThumbnail: "Показывать теги на миниатюре",
   playSoundOnTaskComplete: "Воспроизводить звук при завершении задачи",
   soundSuccess: "Звук успеха",
@@ -279,6 +284,7 @@ export const ru = {
   cleanupTempFilesSuccess: "Успешно удалено {count} временных файлов.",
   cleanupTempFilesFailed: "Не удалось очистить временные файлы",
 
+
   // Cookie Settings
   cookieSettings: "Настройки Cookie",
   cookieUploadDescription:
@@ -294,6 +300,7 @@ export const ru = {
     "Вы уверены, что хотите удалить файл cookie? Это повлияет на возможность скачивания видео с возрастными ограничениями или только для участников.",
   cookiesDeletedSuccess: "Cookie успешно удалены",
   cookiesDeleteFailed: "Не удалось удалить cookie",
+
 
   // Cloud Drive
   cloudDriveSettings: "Облачное хранилище (OpenList)",
@@ -344,6 +351,7 @@ export const ru = {
   clearThumbnailCacheConfirmMessage:
     "Это удалит все локально кэшированные миниатюры для облачных видео. Миниатюры будут сгенерированы заново из облачного хранилища при следующем доступе. Продолжить?",
 
+
   // Manage
   manageContent: "Управление контентом",
   videos: "Видео",
@@ -379,6 +387,7 @@ export const ru = {
   moveCollection: "Переместить в коллекцию",
   confirmBulkDelete:
     "Вы уверены, что хотите удалить эти видео? Это действие нельзя отменить.",
+
 
   // Video Player
   playing: "Воспроизведение",
@@ -447,6 +456,7 @@ export const ru = {
   deleteFilteredVideosSuccess: "Успешно удалено {count} видео.",
   deletingVideos: "Удаление видео...",
 
+
   // Login
   signIn: "Войти",
   admin: "Администратор",
@@ -474,6 +484,7 @@ export const ru = {
     "Чтобы вручную сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЕсли пароль не указан, будет сгенерирован случайный 8-символьный пароль.",
   waitTimeMessage: "Пожалуйста, подождите {time} перед повторной попыткой.",
   tooManyAttempts: "Слишком много неудачных попыток.",
+
   // Passkeys
   createPasskey: "Создать ключ доступа",
   creatingPasskey: "Создание...",
@@ -502,11 +513,13 @@ export const ru = {
   copyFailed: "Не удалось скопировать ссылку",
   copyUrl: "Копировать URL",
 
+
   // Collection Page
   loadingCollection: "Загрузка коллекции...",
   collectionNotFound: "Коллекция не найдена",
   noVideosInCollection: "В этой коллекции нет видео.",
   back: "Назад",
+
 
   // Author Videos
   loadVideosError: "Не удалось загрузить видео. Пожалуйста, попробуйте позже.",
@@ -535,12 +548,14 @@ export const ru = {
   addVideosToExistingCollectionConfirmationWithMove:
     'Добавить {count} видео автора "{author}" в существующую коллекцию "{author}". {moveCount} видео, находящиеся в других коллекциях, будут перемещены в эту коллекцию. Продолжить?',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "Удалить коллекцию",
   deleteCollectionConfirmation: "Вы уверены, что хотите удалить коллекцию",
   collectionContains: "Эта коллекция содержит",
   deleteCollectionOnly: "Удалить только коллекцию",
   deleteCollectionAndVideos: "Удалить коллекцию и все видео",
+
 
   // Common
   loading: "Загрузка...",
@@ -558,6 +573,7 @@ export const ru = {
   expand: "Развернуть",
   collapse: "Свернуть",
 
+
   // Video Card
   unknownDate: "Неизвестная дата",
   part: "Часть",
@@ -568,6 +584,7 @@ export const ru = {
   today: "Сегодня",
   thisWeek: "На этой неделе",
   weeksAgo: "{weeks} недель назад",
+
 
   // Upload Modal
   selectVideoFile: "Выберите видеофайл",
@@ -581,6 +598,7 @@ export const ru = {
   changeImage: "Изменить изображение",
   selectImage: "Выбрать изображение",
   thumbnailUploaded: "Миниатюра загружена",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Обнаружена коллекция Bilibili",
@@ -607,6 +625,7 @@ export const ru = {
   queued: "В очереди",
   waitingInQueue: "Ожидание в очереди",
 
+
   // Downloads
   downloads: "Загрузки",
   activeDownloads: "Активные загрузки",
@@ -629,6 +648,7 @@ export const ru = {
   finishedAt: "Завершено в",
   failed: "Ошибка",
 
+
   // Snackbar Messages
   videoDownloading: "Видео скачивается",
   downloadStartedSuccessfully: "Загрузка успешно началась",
@@ -639,6 +659,21 @@ export const ru = {
   collectionDeletedSuccessfully: "Коллекция успешно удалена",
   failedToDeleteCollection: "Не удалось удалить коллекцию",
 
+  collectionUpdatedSuccessfully: "Коллекция успешно обновлена",
+  failedToUpdateCollection:
+    "Не удалось обновить коллекцию, используйте другое имя",
+  collectionNameRequired: "Требуется название коллекции",
+  collectionNameTooLong:
+    "Название коллекции должно содержать не более 200 символов",
+  collectionNameInvalidChars:
+    "Название коллекции содержит недопустимые символы",
+  collectionNameReserved: "Название коллекции зарезервировано",
+  updateCollectionFailed: "Не удалось обновить коллекцию",
+  uploadSubtitle: "Загрузить субтитры",
+  subtitleUploaded: "Субтитры успешно загружены",
+  confirmDeleteSubtitle: "Удалить этот субтитр?",
+  subtitleDeleted: "Субтитр удалён",
+
   // Batch Download
   batchDownload: "Пакетная загрузка",
   batchDownloadDescription: "Вставьте несколько URL ниже, по одному в строке.",
@@ -646,6 +681,7 @@ export const ru = {
   addToQueue: "Добавить в очередь",
   batchTasksAdded: "Добавлено задач: {count}",
   addBatchTasks: "Добавить пакетные задачи",
+
 
   // Subscriptions
   subscribeToAuthor: "Подписаться на автора",
@@ -709,6 +745,7 @@ export const ru = {
     "Вы уверены, что хотите очистить все завершенные задачи (завершенные, отмененные)? Это удалит их из списка, но не удалит загруженные файлы.",
   clear: "Очистить",
 
+
   // Subscription Pause/Resume
   pause: "Пауза",
   resume: "Возобновить",
@@ -723,6 +760,7 @@ export const ru = {
   viaSubscription: "через подписку",
   viaContinuousDownload: "через непрерывную загрузку",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "Подписаться на этот плейлист",
   subscribePlaylistDescription:
@@ -730,6 +768,7 @@ export const ru = {
   playlistSubscribedSuccessfully: "Успешная подписка на плейлист",
   downloadAndSubscribe: "Скачать все и подписаться",
   playlistSubscription: "Плейлист",
+
 
   // Instruction Page
   instructionSection1Title: "1. Загрузка и управление задачами",
@@ -792,11 +831,13 @@ export const ru = {
   instructionSection3Item3Text:
     "(В разработке) Поддерживает подключение к развернутым пользователем сервисам OpenList. Добавьте конфигурацию здесь, чтобы включить интеграцию с облачным диском.",
 
+
   // Disclaimer
   disclaimerTitle: "Отказ от ответственности",
   disclaimerText:
     "1. Цель и Ограничения\nЭто программное обеспечение (включая код и документацию) предназначено исключительно для личного обучения, исследований и технического обмена. Строго запрещено использовать это программное обеспечение в коммерческих целях или для любой незаконной деятельности, нарушающей местные законы и правила.\n\n2. Ответственность\nРазработчик не знает и не контролирует, как пользователи используют это программное обеспечение. Любая юридическая ответственность, споры или ущерб, возникающие в результате незаконного или ненадлежащего использования этого программного обеспечения (включая, помимо прочего, нарушение авторских прав), возлагаются исключительно на пользователя. Разработчик не несет никакой прямой, косвенной или солидарной ответственности.\n\n3. Модификации и Распространение\nЭтот проект с открытым исходным кодом. Любое физическое лицо или организация, изменяющая или создающая форк этого кода, должна соблюдать лицензию с открытым исходным кодом. Важно: Если третья сторона изменяет код для обхода или удаления оригинальных механизмов аутентификации/безопасности пользователей и распространяет такие версии, модификатор/распространитель несет полную ответственность за любые последствия. Мы настоятельно не рекомендуем обходить или вмешиваться в любые механизмы проверки безопасности.\n\n4. Некоммерческое Заявление\nЭто полностью бесплатный проект с открытым исходным кодом. Разработчик не принимает пожертвования и никогда не публиковал страницы для пожертвований. Сама программа не предусматривает взимания платы и не предлагает платных услуг. Пожалуйста, будьте бдительны и остерегайтесь мошенничества или вводящей в заблуждение информации, утверждающей о сборе средств от имени этого проекта.",
   history: "История",
+
 
   // Existing Video Detection
   existingVideoDetected: "Обнаружено существующее видео",
@@ -816,6 +857,7 @@ export const ru = {
   poweredBy: "Работает на MyTube",
   changeSettings: "Изменить настройки",
 
+
   // Sorting
   sort: "Сортировка",
   sortBy: "Сортировать по",
@@ -823,10 +865,11 @@ export const ru = {
   dateAsc: "Дата добавления (Сначала старые)",
   viewsDesc: "Просмотры (По убыванию)",
   viewsAsc: "Просмотры (По возрастанию)",
+  nameAsc: "Название (А-Я)",
   videoDateDesc: "Дата создания видео (сначала новые)",
   videoDateAsc: "Дата создания видео (сначала старые)",
-  nameAsc: "Название (А-Я)",
   random: "Случайно",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "Конфигурация yt-dlp",
@@ -848,6 +891,12 @@ export const ru = {
   moveThumbnailsToVideoFolderOff: "В отдельной папке изображений",
   moveThumbnailsToVideoFolderDescription:
     "Если включено, файлы миниатюр будут перемещены в ту же папку, что и видеофайл. Если выключено, они будут перемещены в отдельную папку изображений.",
+
+  saveAuthorFilesToCollection: "Сохранять файлы автора в коллекцию",
+  saveAuthorFilesToCollectionOn: "Вкл",
+  saveAuthorFilesToCollectionOff: "Выкл",
+  saveAuthorFilesToCollectionDescription:
+    "Автоматически сохранять файлы автора в отдельную коллекцию.",
 
   // Cloudflare Tunnel
   cloudflaredTunnel: "Туннель Cloudflare",
@@ -872,6 +921,7 @@ export const ru = {
   managedInDashboard:
     "Публичное имя хоста управляется в панели управления Cloudflare Zero Trust.",
 
+
   // Database Export/Import
   exportImportDatabase: "Экспорт/Импорт Базы Данных",
   exportImportDatabaseDescription:
@@ -885,7 +935,7 @@ export const ru = {
   mergeDatabaseWarning:
     "Объедините другую резервную копию MyTube с этим экземпляром. Существующие записи сохраняются, а из загруженной базы добавляются только отсутствующие записи.",
   mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+    "Видео сопоставляются по исходному URL, существующие видео сохраняются.",
   mergeDatabaseContentsCollections:
     "Коллекции и связи видео в них объединяются с коллекциями с таким же именем.",
   mergeDatabaseContentsSubscriptions:
@@ -896,21 +946,20 @@ export const ru = {
     "Настройки тегов тоже объединяются, чтобы импортированные теги оставались доступными в интерфейсе.",
   mergeDatabaseKeepsCurrentData:
     "Текущие настройки, пароли, активные загрузки и состояние выполнения задач не заменяются.",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
-  mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
-  mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
-  mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewScanning: "Сканирование загруженной базы данных...",
+  mergeDatabasePreviewResults: "Предпросмотр объединения",
+  mergeDatabasePreviewConfirmHint: "Продолжайте, только если эти значения соответствуют ожидаемым.",
+  mergeDatabasePreviewFailed: "Не удалось просканировать загруженную базу данных: {error}",
+  mergeDatabasePreviewErrorDefault: "Не удалось просканировать загруженную базу данных.",
+  mergeDatabaseMergedCount: "Будет объединено: {count}",
+  mergeDatabaseSkippedCount: "Пропущено: {count}",
+  mergeDatabasePreviewVideos: "Видео",
+  mergeDatabasePreviewCollections: "Коллекции",
+  mergeDatabasePreviewCollectionLinks: "Связи коллекций",
+  mergeDatabasePreviewSubscriptions: "Подписки",
+  mergeDatabasePreviewDownloadHistory: "История загрузок",
+  mergeDatabasePreviewVideoDownloads: "Отслеживание загрузок",
+  mergeDatabasePreviewTags: "Теги",
   selectDatabaseFile: "Выбрать Файл Базы Данных",
   databaseExportedSuccess: "База данных успешно экспортирована",
   databaseExportFailed: "Не удалось экспортировать базу данных",
@@ -924,6 +973,9 @@ export const ru = {
   cleanupBackupDatabasesWarning:
     "Предупреждение: Это навсегда удалит все файлы резервных копий базы данных (mytube-backup-*.db.backup), которые были созданы во время предыдущих импортов. Это действие нельзя отменить. Вы уверены, что хотите продолжить?",
   backupDatabasesCleanedUp: "Резервные копии базы данных успешно очищены",
+
+  // History Filter
+  filterAll: "Все",
   backupDatabasesCleanupFailed:
     "Не удалось очистить резервные копии базы данных",
   restoreFromLastBackup: "Восстановить из Последней Резервной Копии",
@@ -945,11 +997,6 @@ export const ru = {
   hideSensitiveContent: "Скрыть чувствительный контент",
   sensitiveContentWarning:
     "Это видео может содержать чувствительный контент. Нажмите для просмотра.",
-  saveAuthorFilesToCollection: "Сохранять файлы автора в коллекцию",
-  saveAuthorFilesToCollectionOn: "Вкл",
-  saveAuthorFilesToCollectionOff: "Выкл",
-  saveAuthorFilesToCollectionDescription:
-    "Автоматически сохранять файлы автора в отдельную коллекцию.",
   soundNone: "Нет",
   soundBell: "Звонок колокольчика",
   soundMessage: "Входящее сообщение",
@@ -957,23 +1004,6 @@ export const ru = {
   soundNotification: "Новое уведомление",
   soundDrop: "Предмет падает в воду",
   soundWater: "Капля воды на металл",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "Коллекция успешно обновлена",
-  failedToUpdateCollection:
-    "Не удалось обновить коллекцию, используйте другое имя",
-  collectionNameRequired: "Требуется название коллекции",
-  collectionNameTooLong:
-    "Название коллекции должно содержать не более 200 символов",
-  collectionNameInvalidChars:
-    "Название коллекции содержит недопустимые символы",
-  collectionNameReserved: "Название коллекции зарезервировано",
-  updateCollectionFailed: "Не удалось обновить коллекцию",
-  uploadSubtitle: "Загрузить субтитры",
-  subtitleUploaded: "Субтитры успешно загружены",
-  confirmDeleteSubtitle: "Удалить этот субтитр?",
-  subtitleDeleted: "Субтитр удалён",
-  // History Filter
-  filterAll: "Все",
   videoLoadTimeout:
     "Видео загружается слишком долго. Пожалуйста, попробуйте еще раз или проверьте подключение.",
   failedToLoadVideo: "Не удалось загрузить видео.",

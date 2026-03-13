@@ -14,6 +14,7 @@ export const es = {
   manageVideos: "Gestionar Videos",
   instruction: "Instrucciones",
 
+
   // Home
   pasteUrl: "Pegar URL de video o colección",
   download: "Descargar",
@@ -37,11 +38,13 @@ export const es = {
     "Aún no hay videos. ¡Envía una URL de video para descargar el primero!",
   views: "vistas",
 
+
   // Settings
   general: "General",
   security: "Seguridad",
   videoDefaults: "Predeterminados del Reproductor",
   downloadSettings: "Configuración de Descarga",
+
   // Settings Categories
   basicSettings: "Configuración Básica",
   interfaceDisplay: "Interfaz y Visualización",
@@ -52,13 +55,13 @@ export const es = {
   dataManagement: "Gestión de Datos",
   advanced: "Avanzado",
   language: "Idioma",
+  websiteName: "Nombre del sitio web",
+  websiteNameHelper: "{current}/{max} caracteres (Predeterminado: {default})",
   theme: "Tema",
   themeLight: "Siempre Claro",
   themeDark: "Siempre Oscuro",
   themeSystem: "Sistema",
   showThemeButtonInHeader: "Mostrar botón de tema en el encabezado",
-  websiteName: "Nombre del sitio web",
-  websiteNameHelper: "{current}/{max} caracteres (Predeterminado: {default})",
   tmdbApiKey: "Clave API de TMDB",
   tmdbApiKeyHelper:
     "Clave API de TheMovieDB para obtener metadatos y pósters de películas/series. Obtenga su clave en https://www.themoviedb.org/settings/api",
@@ -163,8 +166,8 @@ export const es = {
   playFromBeginning: "Reiniciar siempre los videos desde el principio",
   tagsManagement: "Gestión de Etiquetas",
   newTag: "Nueva Etiqueta",
-  tags: "Etiquetas",
   selectTags: "Seleccionar Etiquetas",
+  tags: "Etiquetas",
   noTagsAvailable: "No hay etiquetas disponibles",
   addTag: "Añadir Etiqueta",
   addTags: "Añadir Etiquetas",
@@ -178,6 +181,7 @@ export const es = {
   renameTagDescription:
     "Renombrar una etiqueta verificará y actualizará todos los videos que usan actualmente esta etiqueta.",
   enterNewTagName: "Ingrese el nuevo nombre para la etiqueta '{tag}'",
+
   // Database
   database: "Base de Datos",
   migrateDataDescription:
@@ -231,6 +235,7 @@ export const es = {
   cleanupTempFilesConfirmMessage:
     "Esto eliminará permanentemente todos los archivos .ytdl y .part en el directorio de cargas. Asegúrate de que no haya descargas activas antes de continuar.",
 
+
   // Task Hooks
   taskHooks: "Ganchos de Tarea",
   taskHooksDescription:
@@ -266,8 +271,8 @@ export const es = {
   itemsPerPage: "Elementos por página",
   itemsPerPageHelper:
     "Número de videos para mostrar por página (Predeterminado: 12)",
-  defaultSort: "Orden por defecto",
   showYoutubeSearch: "Mostrar resultados de búsqueda de YouTube",
+  defaultSort: "Orden por defecto",
   showTagsOnThumbnail: "Mostrar etiquetas en la miniatura",
   playSoundOnTaskComplete: "Reproducir sonido al completar tarea",
   soundSuccess: "Sonido de éxito",
@@ -286,6 +291,7 @@ export const es = {
     "Se eliminaron exitosamente {count} archivo(s) temporal(es).",
   cleanupTempFilesFailed: "Error al limpiar archivos temporales",
 
+
   // Cookie Settings
   cookieSettings: "Configuración de Cookies",
   cookieUploadDescription:
@@ -301,6 +307,7 @@ export const es = {
     "¿Estás seguro de que deseas eliminar el archivo de cookies? Esto afectará tu capacidad para descargar videos con restricción de edad o solo para miembros.",
   cookiesDeletedSuccess: "Cookies eliminadas con éxito",
   cookiesDeleteFailed: "Error al eliminar cookies",
+
 
   // Cloud Drive
   cloudDriveSettings: "Almacenamiento en la Nube (OpenList)",
@@ -353,6 +360,7 @@ export const es = {
   clearThumbnailCacheConfirmMessage:
     "Esto borrará todas las miniaturas almacenadas en caché localmente para videos en la nube. Las miniaturas se regenerarán desde el almacenamiento en la nube la próxima vez que se acceda a ellas. ¿Continuar?",
 
+
   // Manage
   manageContent: "Gestionar Contenido",
   videos: "Videos",
@@ -389,6 +397,7 @@ export const es = {
   moveCollection: "Mover a la colección",
   confirmBulkDelete:
     "¿Está seguro de que desea eliminar estos videos? Esta acción no se puede deshacer.",
+
 
   // Video Player
   playing: "Reproducir",
@@ -458,6 +467,7 @@ export const es = {
   deleteFilteredVideosSuccess: "Se han eliminado {count} videos con éxito.",
   deletingVideos: "Eliminando videos...",
 
+
   // Login
   signIn: "Iniciar Sesión",
   admin: "Administrador",
@@ -485,6 +495,7 @@ export const es = {
     "Para restablecer la contraseña manualmente, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nSi no se proporciona una contraseña, se generará una contraseña aleatoria de 8 caracteres.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
+
   // Passkeys
   createPasskey: "Crear clave de acceso",
   creatingPasskey: "Creando...",
@@ -514,11 +525,13 @@ export const es = {
   copyFailed: "Error al copiar enlace",
   copyUrl: "Copiar URL",
 
+
   // Collection Page
   loadingCollection: "Cargando colección...",
   collectionNotFound: "Colección no encontrada",
   noVideosInCollection: "No hay videos en esta colección.",
   back: "Volver",
+
 
   // Author Videos
   loadVideosError:
@@ -549,6 +562,7 @@ export const es = {
   addVideosToExistingCollectionConfirmationWithMove:
     'Añadir {count} video(s) del autor "{author}" a la colección existente "{author}". {moveCount} video(s) que actualmente están en otras colecciones se moverán a esta colección. ¿Continuar?',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "Eliminar Colección",
   deleteCollectionConfirmation:
@@ -556,6 +570,7 @@ export const es = {
   collectionContains: "Esta colección contiene",
   deleteCollectionOnly: "Eliminar Solo Colección",
   deleteCollectionAndVideos: "Eliminar Colección y Todos los Videos",
+
 
   // Common
   loading: "Cargando...",
@@ -573,6 +588,7 @@ export const es = {
   expand: "Expandir",
   collapse: "Contraer",
 
+
   // Video Card
   unknownDate: "Fecha desconocida",
   part: "Parte",
@@ -583,6 +599,7 @@ export const es = {
   today: "Hoy",
   thisWeek: "Esta semana",
   weeksAgo: "Hace {weeks} semanas",
+
 
   // Upload Modal
   selectVideoFile: "Seleccionar Archivo de Video",
@@ -596,6 +613,7 @@ export const es = {
   changeImage: "Cambiar imagen",
   selectImage: "Seleccionar imagen",
   thumbnailUploaded: "Miniatura subida",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "Colección de Bilibili Detectada",
@@ -622,6 +640,7 @@ export const es = {
   queued: "En cola",
   waitingInQueue: "Esperando en cola",
 
+
   // Downloads
   downloads: "Descargas",
   activeDownloads: "Descargas Activas",
@@ -644,6 +663,7 @@ export const es = {
   finishedAt: "Finalizado en",
   failed: "Fallido",
 
+
   // Snackbar Messages
   videoDownloading: "Descargando video",
   downloadStartedSuccessfully: "Descarga iniciada exitosamente",
@@ -654,6 +674,21 @@ export const es = {
   collectionDeletedSuccessfully: "Colección eliminada exitosamente",
   failedToDeleteCollection: "Error al eliminar la colección",
 
+  collectionUpdatedSuccessfully: "Colección actualizada con éxito",
+  failedToUpdateCollection:
+    "Error al actualizar la colección, use un nombre diferente",
+  collectionNameRequired: "El nombre de la colección es obligatorio",
+  collectionNameTooLong:
+    "El nombre de la colección debe tener 200 caracteres o menos",
+  collectionNameInvalidChars:
+    "El nombre de la colección contiene caracteres no válidos",
+  collectionNameReserved: "El nombre de la colección está reservado",
+  updateCollectionFailed: "Error al actualizar la colección",
+  uploadSubtitle: "Subir subtítulo",
+  subtitleUploaded: "Subtítulo subido correctamente",
+  confirmDeleteSubtitle: "¿Eliminar este subtítulo?",
+  subtitleDeleted: "Subtítulo eliminado",
+
   // Batch Download
   batchDownload: "Descarga por lotes",
   batchDownloadDescription: "Pegue varias URL a continuación, una por línea.",
@@ -661,6 +696,7 @@ export const es = {
   addToQueue: "Añadir a la cola",
   batchTasksAdded: "{count} tareas añadidas",
   addBatchTasks: "Añadir tareas por lotes",
+
 
   // Subscriptions
   subscribeToAuthor: "Suscribirse al autor",
@@ -726,6 +762,7 @@ export const es = {
     "¿Está seguro de que desea borrar todas las tareas finalizadas (completadas, canceladas)? Esto las eliminará de la lista pero no borrará ningún archivo descargado.",
   clear: "Borrar",
 
+
   // Subscription Pause/Resume
   pause: "Pausar",
   resume: "Reanudar",
@@ -740,6 +777,7 @@ export const es = {
   viaSubscription: "vía suscripción",
   viaContinuousDownload: "vía descarga continua",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "Suscribirse a esta lista de reproducción",
   subscribePlaylistDescription:
@@ -748,6 +786,7 @@ export const es = {
     "Suscrito a la lista de reproducción con éxito",
   downloadAndSubscribe: "Descargar todo y suscribirse",
   playlistSubscription: "Lista de reproducción",
+
 
   // Instruction Page
   instructionSection1Title: "1. Descarga y Gestión de Tareas",
@@ -810,11 +849,13 @@ export const es = {
   instructionSection3Item3Text:
     "(En Desarrollo) Admite conectar servicios OpenList implementados por el usuario. Agregue configuración aquí para habilitar la integración de la unidad en la nube.",
 
+
   // Disclaimer
   disclaimerTitle: "Descargo de responsabilidad",
   disclaimerText:
     "1. Propósito y Restricciones\nEste software (incluyendo código y documentación) está destinado únicamente para aprendizaje personal, investigación e intercambio técnico. Está estrictamente prohibido utilizar este software para fines comerciales o actividades ilegales que violen las leyes y regulaciones locales.\n\n2. Responsabilidad\nEl desarrollador desconoce y no tiene control sobre cómo los usuarios utilizan este software. Cualquier responsabilidad legal, disputa o daño derivado del uso ilegal o indebido de este software (incluyendo, entre otros, la infracción de derechos de autor) recaerá únicamente en el usuario. El desarrollador no asume ninguna responsabilidad directa, indirecta o conjunta.\n\n3. Modificaciones y Distribución\nEste proyecto es de código abierto. Cualquier individuo u organización que modifique o bifurque este código debe cumplir con la licencia de código abierto. Importante: Si un tercero modifica el código para eludir o eliminar los mecanismos originales de autenticación/seguridad del usuario y distribuye dichas versiones, el modificador/distribuidor asume toda la responsabilidad por cualquier consecuencia. Desaconsejamos encarecidamente eludir o manipular cualquier mecanismo de verificación de seguridad.\n\n4. Declaración Sin Fines de Lucro\nEste es un proyecto de código abierto completamente gratuito. El desarrollador no acepta donaciones y nunca ha publicado páginas de donación. El software en sí no permite cargos y no ofrece servicios pagos. Por favor, esté atento y tenga cuidado con cualquier estafa o información engañosa que reclame cobrar tarifas en nombre de este proyecto.",
   history: "Historial",
+
 
   // Existing Video Detection
   existingVideoDetected: "Video existente detectado",
@@ -835,6 +876,7 @@ export const es = {
   poweredBy: "Con tecnología de MyTube",
   changeSettings: "Cambiar configuración",
 
+
   // Sorting
   sort: "Ordenar",
   sortBy: "Ordenar por",
@@ -842,10 +884,11 @@ export const es = {
   dateAsc: "Fecha de adición (Más antiguo)",
   viewsDesc: "Vistas (De más a menos)",
   viewsAsc: "Vistas (De menos a más)",
+  nameAsc: "Nombre (A-Z)",
   videoDateDesc: "Fecha de creación del video (más reciente)",
   videoDateAsc: "Fecha de creación del video (más antiguo)",
-  nameAsc: "Nombre (A-Z)",
   random: "Aleatorio",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "Configuración de yt-dlp",
@@ -875,6 +918,7 @@ export const es = {
   saveAuthorFilesToCollectionDescription:
     "Guardar automáticamente los archivos del autor en una colección separada.",
 
+
   // Cloudflare Tunnel
   cloudflaredTunnel: "Túnel Cloudflare",
   enableCloudflaredTunnel: "Habilitar túnel Cloudflare",
@@ -898,6 +942,7 @@ export const es = {
   managedInDashboard:
     "El nombre de host público se gestiona en su panel de control de Cloudflare Zero Trust.",
 
+
   // Database Export/Import
   exportImportDatabase: "Exportar/Importar Base de Datos",
   exportImportDatabaseDescription:
@@ -911,7 +956,7 @@ export const es = {
   mergeDatabaseWarning:
     "Fusiona otro respaldo de MyTube en esta instancia. Los registros existentes se conservan y solo se agregan los registros faltantes del respaldo cargado.",
   mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+    "Los videos se comparan por URL de origen y se conservan los videos existentes.",
   mergeDatabaseContentsCollections:
     "Las colecciones y sus vínculos de videos se fusionan en colecciones con el mismo nombre.",
   mergeDatabaseContentsSubscriptions:
@@ -922,21 +967,20 @@ export const es = {
     "La configuración de etiquetas también se fusiona para que las etiquetas importadas sigan disponibles en la interfaz.",
   mergeDatabaseKeepsCurrentData:
     "La configuración actual, las contraseñas, las descargas activas y el estado de ejecución de tareas no se reemplazan.",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
-  mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
+  mergeDatabasePreviewScanning: "Escaneando la base de datos cargada...",
+  mergeDatabasePreviewResults: "Vista previa de la fusión",
+  mergeDatabasePreviewConfirmHint: "Continúe solo si estas cantidades coinciden con lo esperado.",
+  mergeDatabasePreviewFailed: "No se pudo escanear la base de datos cargada: {error}",
+  mergeDatabasePreviewErrorDefault: "No se pudo escanear la base de datos cargada.",
+  mergeDatabaseMergedCount: "Fusionados: {count}",
+  mergeDatabaseSkippedCount: "Omitidos: {count}",
   mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
-  mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewCollections: "Colecciones",
+  mergeDatabasePreviewCollectionLinks: "Vínculos de colecciones",
+  mergeDatabasePreviewSubscriptions: "Suscripciones",
+  mergeDatabasePreviewDownloadHistory: "Historial de descargas",
+  mergeDatabasePreviewVideoDownloads: "Seguimiento de descargas",
+  mergeDatabasePreviewTags: "Etiquetas",
   selectDatabaseFile: "Seleccionar Archivo de Base de Datos",
   databaseExportedSuccess: "Base de datos exportada exitosamente",
   databaseExportFailed: "Error al exportar la base de datos",
@@ -950,6 +994,9 @@ export const es = {
   cleanupBackupDatabasesWarning:
     "Advertencia: Esto eliminará permanentemente todos los archivos de base de datos de respaldo (mytube-backup-*.db.backup) que se crearon durante importaciones anteriores. Esta acción no se puede deshacer. ¿Está seguro de que desea continuar?",
   backupDatabasesCleanedUp: "Bases de datos de respaldo limpiadas exitosamente",
+
+  // History Filter
+  filterAll: "Todos",
   backupDatabasesCleanupFailed:
     "Error al limpiar las bases de datos de respaldo",
   restoreFromLastBackup: "Restaurar desde Última Copia de Respaldo",
@@ -977,23 +1024,6 @@ export const es = {
   soundNotification: "Nueva notificación",
   soundDrop: "Objeto cayendo al agua",
   soundWater: "Gota de agua en metal",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "Colección actualizada con éxito",
-  failedToUpdateCollection:
-    "Error al actualizar la colección, use un nombre diferente",
-  collectionNameRequired: "El nombre de la colección es obligatorio",
-  collectionNameTooLong:
-    "El nombre de la colección debe tener 200 caracteres o menos",
-  collectionNameInvalidChars:
-    "El nombre de la colección contiene caracteres no válidos",
-  collectionNameReserved: "El nombre de la colección está reservado",
-  updateCollectionFailed: "Error al actualizar la colección",
-  uploadSubtitle: "Subir subtítulo",
-  subtitleUploaded: "Subtítulo subido correctamente",
-  confirmDeleteSubtitle: "¿Eliminar este subtítulo?",
-  subtitleDeleted: "Subtítulo eliminado",
-  // History Filter
-  filterAll: "Todos",
   videoLoadTimeout:
     "El video está tardando demasiado en cargar. Inténtelo de nuevo o revise su conexión.",
   failedToLoadVideo: "No se pudo cargar el video.",

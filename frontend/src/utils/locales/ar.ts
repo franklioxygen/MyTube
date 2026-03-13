@@ -12,6 +12,7 @@ export const ar = {
   manageVideos: "إدارة الفيديوهات",
   instruction: "تعليمات",
 
+
   // Home
   pasteUrl: "لصق رابط الفيديو أو المجموعة",
   download: "تحميل",
@@ -34,11 +35,13 @@ export const ar = {
   noVideosYet: "لا توجد فيديوهات بعد. أرسل رابط فيديو لتنزيل أول فيديو لك!",
   views: "مشاهدات",
 
+
   // Settings
   general: "عام",
   security: "الأمان",
   videoDefaults: "إعدادات مشغل الفيديو الافتراضية",
   downloadSettings: "إعدادات التحميل",
+
   // Settings Categories
   basicSettings: "الإعدادات الأساسية",
   interfaceDisplay: "الواجهة والعرض",
@@ -49,13 +52,13 @@ export const ar = {
   dataManagement: "إدارة البيانات",
   advanced: "متقدم",
   language: "اللغة",
+  websiteName: "اسم الموقع",
+  websiteNameHelper: "{current}/{max} أحرف (الافتراضي: {default})",
   theme: "المظهر",
   themeLight: "فاتح دائماً",
   themeDark: "داكن دائماً",
   themeSystem: "محاذاة النظام",
   showThemeButtonInHeader: "إظهار زر السمة في الترويسة",
-  websiteName: "اسم الموقع",
-  websiteNameHelper: "{current}/{max} أحرف (الافتراضي: {default})",
   tmdbApiKey: "مفتاح API الخاص بـ TMDB",
   tmdbApiKeyHelper:
     "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
@@ -156,8 +159,8 @@ export const ar = {
   playFromBeginning: "دائما إعادة تشغيل مقاطع الفيديو من البداية",
   tagsManagement: "إدارة العلامات",
   newTag: "علامة جديدة",
-  tags: "العلامات",
   selectTags: "تحديد العلامات",
+  tags: "العلامات",
   noTagsAvailable: "لا توجد علامات متاحة",
   addTag: "إضافة علامة",
   addTags: "إضافة علامات",
@@ -171,6 +174,7 @@ export const ar = {
   renameTagDescription:
     "ستؤدي إعادة تسمية العلامة إلى التحقق من وتحديث جميع مقاطع الفيديو التي تستخدم هذه العلامة حاليًا.",
   enterNewTagName: "أدخل اسمًا جديدًا للعلامة '{tag}'",
+
   // Database
   database: "قاعدة البيانات",
   migrateDataDescription:
@@ -224,6 +228,7 @@ export const ar = {
   cleanupTempFilesConfirmMessage:
     "سيؤدي هذا إلى حذف جميع ملفات .ytdl و .part في دليل التحميلات نهائيًا. تأكد من عدم وجود تنزيلات نشطة قبل المتابعة.",
 
+
   // Task Hooks
   taskHooks: "خطافات المهام",
   taskHooksDescription:
@@ -254,8 +259,8 @@ export const ar = {
   formatFilenamesError: "فشل تنسيق أسماء الملفات: {error}",
   itemsPerPage: "عناصر لكل صفحة",
   itemsPerPageHelper: "عدد مقاطع الفيديو التي ستظهر في كل صفحة (الافتراضي: 12)",
-  defaultSort: "الترتيب الافتراضي",
   showYoutubeSearch: "عرض نتائج بحث YouTube",
+  defaultSort: "الترتيب الافتراضي",
   showTagsOnThumbnail: "عرض العلامات على الصورة المصغرة",
   playSoundOnTaskComplete: "تشغيل صوت عند اكتمال المهمة",
   soundSuccess: "صوت النجاح",
@@ -270,6 +275,7 @@ export const ar = {
   visitorPasswordSetHelper: "تم تعيين كلمة المرور. اتركها فارغة للاحتفاظ بها.",
   cleanupTempFilesSuccess: "تم حذف {count} ملف (ملفات) مؤقت بنجاح.",
   cleanupTempFilesFailed: "فشل تنظيف الملفات المؤقتة",
+
 
   // Cookie Settings
   cookieSettings: "إعدادات ملفات تعريف الارتباط",
@@ -286,6 +292,7 @@ export const ar = {
     "هل أنت متأكد أنك تريد حذف ملف تعريف الارتباط؟ سيؤثر هذا على قدرتك على تنزيل مقاطع الفيديو المقيدة بالعمر أو الخاصة بالأعضاء فقط.",
   cookiesDeletedSuccess: "تم حذف ملفات تعريف الارتباط بنجاح",
   cookiesDeleteFailed: "فشل حذف ملفات تعريف الارتباط",
+
 
   // Cloud Drive
   cloudDriveSettings: "التخزين السحابي (OpenList)",
@@ -334,6 +341,7 @@ export const ar = {
   clearThumbnailCacheConfirmMessage:
     "سيؤدي هذا إلى مسح جميع الصور المصغرة المخزنة مؤقتًا محليًا لمقاطع الفيديو السحابية. سيتم إعادة إنشاء الصور المصغرة من التخزين السحابي عند الوصول إليها في المرة القادمة. هل تريد المتابعة؟",
 
+
   // Manage
   manageContent: "إدارة المحتوى",
   videos: "فيديوهات",
@@ -369,6 +377,7 @@ export const ar = {
   moveCollection: "نقل إلى المجموعة",
   confirmBulkDelete:
     "هل أنت متأكد أنك تريد حذف هذه الفيديوهات؟ لا يمكن التراجع عن هذا الإجراء.",
+
 
   // Video Player
   playing: "تشغيل",
@@ -437,6 +446,7 @@ export const ar = {
   deleteFilteredVideosSuccess: "تم حذف {count} فيديو بنجاح.",
   deletingVideos: "جاري حذف الفيديوهات...",
 
+
   // Login
   signIn: "تسجيل الدخول",
   admin: "مشرف",
@@ -464,6 +474,7 @@ export const ar = {
     "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
+
   // Passkeys
   createPasskey: "إنشاء مفتاح مرور",
   creatingPasskey: "جاري الإنشاء...",
@@ -489,11 +500,13 @@ export const ar = {
   copyFailed: "فشل نسخ الرابط",
   copyUrl: "نسخ الرابط",
 
+
   // Collection Page
   loadingCollection: "جاري تحميل المجموعة...",
   collectionNotFound: "المجموعة غير موجودة",
   noVideosInCollection: "لا توجد فيديوهات في هذه المجموعة.",
   back: "رجوع",
+
 
   // Author Videos
   loadVideosError: "فشل تحميل الفيديوهات. يرجى المحاولة مرة أخرى لاحقاً.",
@@ -522,12 +535,14 @@ export const ar = {
   addVideosToExistingCollectionConfirmationWithMove:
     'إضافة {count} مقطع فيديو من المؤلف "{author}" إلى المجموعة الموجودة "{author}". سيتم نقل {moveCount} مقطع فيديو موجود حاليًا في مجموعات أخرى إلى هذه المجموعة. هل تريد الاستمرار؟',
 
+
   // Delete Collection Modal
   deleteCollectionTitle: "حذف المجموعة",
   deleteCollectionConfirmation: "هل أنت متأكد أنك تريد حذف المجموعة",
   collectionContains: "تحتوي هذه المجموعة على",
   deleteCollectionOnly: "حذف المجموعة فقط",
   deleteCollectionAndVideos: "حذف المجموعة وكل الفيديوهات",
+
 
   // Common
   loading: "جاري التحميل...",
@@ -545,6 +560,7 @@ export const ar = {
   expand: "توسيع",
   collapse: "طي",
 
+
   // Video Card
   unknownDate: "تاريخ غير معروف",
   part: "جزء",
@@ -555,6 +571,7 @@ export const ar = {
   today: "اليوم",
   thisWeek: "هذا الأسبوع",
   weeksAgo: "منذ {weeks} أسبوع",
+
 
   // Upload Modal
   selectVideoFile: "اختر ملف فيديو",
@@ -568,6 +585,7 @@ export const ar = {
   changeImage: "تغيير الصورة",
   selectImage: "تحديد صورة",
   thumbnailUploaded: "تم تحميل الصورة المصغرة",
+
 
   // Bilibili Modal
   bilibiliCollectionDetected: "تم اكتشاف مجموعة Bilibili",
@@ -594,6 +612,7 @@ export const ar = {
   queued: "في الانتظار",
   waitingInQueue: "في قائمة الانتظار",
 
+
   // Downloads
   downloads: "التنزيلات",
   activeDownloads: "التنزيلات النشطة",
@@ -616,6 +635,7 @@ export const ar = {
   finishedAt: "انتهى في",
   failed: "فشل",
 
+
   // Snackbar Messages
   videoDownloading: "جاري تنزيل الفيديو",
   downloadStartedSuccessfully: "بدأ التنزيل بنجاح",
@@ -626,6 +646,18 @@ export const ar = {
   collectionDeletedSuccessfully: "تم حذف المجموعة بنجاح",
   failedToDeleteCollection: "فشل حذف المجموعة",
 
+  collectionUpdatedSuccessfully: "تم تحديث المجموعة بنجاح",
+  failedToUpdateCollection: "فشل تحديث المجموعة، استخدم اسماً مختلفاً",
+  collectionNameRequired: "اسم المجموعة مطلوب",
+  collectionNameTooLong: "يجب أن يكون اسم المجموعة 200 حرف أو أقل",
+  collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
+  collectionNameReserved: "اسم المجموعة محجوز",
+  updateCollectionFailed: "فشل تحديث المجموعة",
+  uploadSubtitle: "رفع الترجمة",
+  subtitleUploaded: "تم رفع الترجمة بنجاح",
+  confirmDeleteSubtitle: "حذف هذه الترجمة؟",
+  subtitleDeleted: "تم حذف الترجمة",
+
   // Batch Download
   batchDownload: "تحميل مجمع",
   batchDownloadDescription: "الصق روابط متعددة أدناه، واحد في كل سطر.",
@@ -633,6 +665,7 @@ export const ar = {
   addToQueue: "إضافة إلى قائمة الانتظار",
   batchTasksAdded: "تمت إضافة {count} مهمة",
   addBatchTasks: "إضافة مهام مجمعة",
+
 
   // Subscriptions
   subscribeToAuthor: "الاشتراك في المؤلف",
@@ -696,6 +729,7 @@ export const ar = {
     "هل أنت متأكد أنك تريد مسح جميع المهام المنتهية (المكتملة، الملغاة)؟ سيؤدي هذا إلى إزالتها من القائمة ولكن لن يحذف أي ملفات تم تنزيلها.",
   clear: "مسح",
 
+
   // Subscription Pause/Resume
   pause: "إيقاف مؤقت",
   resume: "استئناف",
@@ -710,6 +744,7 @@ export const ar = {
   viaSubscription: "عبر الاشتراك",
   viaContinuousDownload: "عبر التنزيل المستمر",
 
+
   // Playlist Subscription
   subscribeToPlaylist: "الاشتراك في قائمة التشغيل هذه",
   subscribePlaylistDescription:
@@ -717,6 +752,7 @@ export const ar = {
   playlistSubscribedSuccessfully: "تم الاشتراك في قائمة التشغيل بنجاح",
   downloadAndSubscribe: "تنزيل الكل والاشتراك",
   playlistSubscription: "قائمة التشغيل",
+
 
   // Instruction Page
   instructionSection1Title: "1. التنزيل وإدارة المهام",
@@ -774,15 +810,17 @@ export const ar = {
   instructionSection3Item2Text:
     "مصمم لمستخدمي الإصدارات المبكرة. استخدم هذه الوظيفة لترحيل البيانات من JSON إلى قاعدة بيانات SQLite الجديدة. بعد الترحيل الناجح، انقر فوق زر الحذف لتنظيف بيانات السجل القديمة.",
   instructionSection3Sub4: "الخدمات الموسعة:",
-  instructionSection3Item3Label: "OpenList Cloud Drive:",
+  instructionSection3Item3Label: "التخزين السحابي OpenList:",
   instructionSection3Item3Text:
     "(قيد التطوير) يدعم الاتصال بخدمات OpenList التي ينشرها المستخدم. أضف التكوين هنا لتمكين تكامل محرك الأقراط السحابية.",
+
 
   // Disclaimer
   disclaimerTitle: "إخلاء المسؤولية",
   disclaimerText:
     "1. الغرض والقيود\nهذا البرنامج (بما في ذلك الكود والوثائق) مخصص فقط للتعلم الشخصي والبحث والتبادل التقني. يُحظر تمامًا استخدام هذا البرنامج لأي أغراض تجارية أو لأي أنشطة غير قانونية تنتهك القوانين واللوائح المحلية.\n\n2. المسؤولية\nالمطور ليس على علم ولا يملك أي سيطرة على كيفية استخدام المستخدمين لهذا البرنامج. يتحمل المستخدم وحده أي مسؤوليات قانونية أو نزاعات أو أضرار تنشأ عن الاستخدام غير القانوني أو غير السليم لهذا البرنامج (بما في ذلك على سبيل المثال لا الحصر انتهاك حقوق الطبع والنشر). لا يتحمل المطور أي مسؤولية مباشرة أو غير مباشرة أو مشتركة.\n\n3. التعديلات والتوزيع\nهذا المشروع مفتوح المصدر. يجب على أي فرد أو منظمة تقوم بتعديل أو تفرع هذا الكود الالتزام بترخيص المصدر المفتوح. هام: إذا قام طرف ثالث بتعديل الكود لتجاوز أو إزالة آليات مصادقة/أمان المستخدم الأصلية وتوزيع مثل هذه الإصدارات، فإن المعدل/الموزع يتحمل المسؤولية الكاملة عن أي عواقب. ننصح بشدة بعدم تجاوز أو العبث بأي آليات للتحقق من الأمان.\n\n4. بيان غير ربحي\nهذا مشروع مفتوح المصدر مجاني تمامًا. لا يقبل المطور التبرعات ولم ينشر أي صفحات للتبرع. لا يسمح البرنامج نفسه بأي رسوم ولا يقدم أي خدمات مدفوعة. يرجى توخي الحذر والحذر من أي عمليات احتيال أو معلومات مضللة تدعي تحصيل رسوم نيابة عن هذا المشروع.",
   history: "سجل",
+
 
   // Existing Video Detection
   existingVideoDetected: "تم اكتشاف فيديو موجود",
@@ -802,6 +840,7 @@ export const ar = {
   poweredBy: "مدعوم من MyTube",
   changeSettings: "تغيير الإعدادات",
 
+
   // Sorting
   sort: "فرز",
   sortBy: "فرز حسب",
@@ -809,10 +848,11 @@ export const ar = {
   dateAsc: "تاريخ الإضافة (الأقدم)",
   viewsDesc: "المشاهدات (من الأعلى للأقل)",
   viewsAsc: "المشاهدات (من الأقل للأعلى)",
+  nameAsc: "الاسم (تصاعدي)",
   videoDateDesc: "تاريخ إنشاء الفيديو (الأحدث)",
   videoDateAsc: "تاريخ إنشاء الفيديو (الأقدم)",
-  nameAsc: "الاسم (تصاعدي)",
   random: "تشغيل عشوائي",
+
 
   // yt-dlp Configuration
   ytDlpConfiguration: "إعدادات yt-dlp",
@@ -840,6 +880,7 @@ export const ar = {
   saveAuthorFilesToCollectionDescription:
     "عند التفعيل، سيتم تنظيم مقاطع الفيديو والصور المصغرة والترجمات التي تم تنزيلها حديثًا تلقائيًا في مجموعات مسماة باسم مؤلف الفيديو. إذا لم تكن المجموعة موجودة، فسيتم إنشاؤها تلقائيًا.",
 
+
   // Cloudflare Tunnel
   cloudflaredTunnel: "نفق Cloudflare",
   enableCloudflaredTunnel: "تمكين نفق Cloudflare",
@@ -862,6 +903,7 @@ export const ar = {
   managedInDashboard:
     "تتم إدارة اسم المضيف العام في لوحة تحكم Cloudflare Zero Trust الخاصة بك.",
 
+
   // Database Export/Import
   exportImportDatabase: "تصدير/استيراد قاعدة البيانات",
   exportImportDatabaseDescription:
@@ -875,7 +917,7 @@ export const ar = {
   mergeDatabaseWarning:
     "ادمج نسخة MyTube احتياطية أخرى في هذه النسخة. ستبقى السجلات الحالية كما هي، وسيتم فقط إضافة السجلات المفقودة من النسخة المرفوعة.",
   mergeDatabaseContentsVideos:
-    "Videos are matched by source URL, and existing videos are kept.",
+    "تتم مطابقة الفيديوهات حسب رابط المصدر، ويتم الاحتفاظ بالفيديوهات الموجودة.",
   mergeDatabaseContentsCollections:
     "يتم دمج المجموعات وروابط الفيديو داخلها في المجموعات ذات الاسم المطابق.",
   mergeDatabaseContentsSubscriptions:
@@ -886,21 +928,20 @@ export const ar = {
     "يتم دمج إعدادات الوسوم أيضاً حتى تبقى وسوم الفيديوهات المستوردة متاحة في الواجهة.",
   mergeDatabaseKeepsCurrentData:
     "لن يتم استبدال الإعدادات الحالية أو كلمات المرور أو التنزيلات النشطة أو حالة تشغيل المهام.",
-  mergeDatabasePreviewScanning: "Scanning uploaded database...",
-  mergeDatabasePreviewResults: "Merge Preview",
-  mergeDatabasePreviewConfirmHint:
-    "Continue only if these counts match what you expect.",
-  mergeDatabasePreviewFailed: "Failed to scan uploaded database: {error}",
-  mergeDatabasePreviewErrorDefault: "Unable to scan uploaded database.",
-  mergeDatabaseMergedCount: "Merged: {count}",
-  mergeDatabaseSkippedCount: "Skipped: {count}",
-  mergeDatabasePreviewVideos: "Videos",
-  mergeDatabasePreviewCollections: "Collections",
-  mergeDatabasePreviewCollectionLinks: "Collection links",
-  mergeDatabasePreviewSubscriptions: "Subscriptions",
-  mergeDatabasePreviewDownloadHistory: "Download history",
-  mergeDatabasePreviewVideoDownloads: "Download tracking",
-  mergeDatabasePreviewTags: "Tags",
+  mergeDatabasePreviewScanning: "جارٍ فحص قاعدة البيانات المرفوعة...",
+  mergeDatabasePreviewResults: "معاينة الدمج",
+  mergeDatabasePreviewConfirmHint: "تابع فقط إذا كانت هذه الأعداد مطابقة لما تتوقعه.",
+  mergeDatabasePreviewFailed: "فشل فحص قاعدة البيانات المرفوعة: {error}",
+  mergeDatabasePreviewErrorDefault: "تعذر فحص قاعدة البيانات المرفوعة.",
+  mergeDatabaseMergedCount: "سيُدمج: {count}",
+  mergeDatabaseSkippedCount: "سيُتخطى: {count}",
+  mergeDatabasePreviewVideos: "فيديوهات",
+  mergeDatabasePreviewCollections: "مجموعات",
+  mergeDatabasePreviewCollectionLinks: "روابط المجموعات",
+  mergeDatabasePreviewSubscriptions: "الاشتراكات",
+  mergeDatabasePreviewDownloadHistory: "سجل التنزيلات",
+  mergeDatabasePreviewVideoDownloads: "تتبع التنزيل",
+  mergeDatabasePreviewTags: "العلامات",
   selectDatabaseFile: "اختر ملف قاعدة البيانات",
   databaseExportedSuccess: "تم تصدير قاعدة البيانات بنجاح",
   databaseExportFailed: "فشل تصدير قاعدة البيانات",
@@ -914,6 +955,9 @@ export const ar = {
   cleanupBackupDatabasesWarning:
     "تحذير: سيؤدي هذا إلى حذف جميع ملفات قاعدة البيانات الاحتياطية (mytube-backup-*.db.backup) التي تم إنشاؤها أثناء عمليات الاستيراد السابقة بشكل دائم. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد أنك تريد المتابعة؟",
   backupDatabasesCleanedUp: "تم تنظيف قواعد البيانات الاحتياطية بنجاح",
+
+  // History Filter
+  filterAll: "الكل",
   backupDatabasesCleanupFailed: "فشل تنظيف قواعد البيانات الاحتياطية",
   restoreFromLastBackup: "استعادة من آخر نسخة احتياطية",
   restoreFromLastBackupWarning:
@@ -939,20 +983,6 @@ export const ar = {
   soundNotification: "إشعار جديد",
   soundDrop: "جسم يسقط في الماء",
   soundWater: "قطرة ماء على المعدن",
-  // Collection Renaming
-  collectionUpdatedSuccessfully: "تم تحديث المجموعة بنجاح",
-  failedToUpdateCollection: "فشل تحديث المجموعة، استخدم اسماً مختلفاً",
-  collectionNameRequired: "اسم المجموعة مطلوب",
-  collectionNameTooLong: "يجب أن يكون اسم المجموعة 200 حرف أو أقل",
-  collectionNameInvalidChars: "اسم المجموعة يحتوي على أحرف غير صالحة",
-  collectionNameReserved: "اسم المجموعة محجوز",
-  updateCollectionFailed: "فشل تحديث المجموعة",
-  uploadSubtitle: "رفع الترجمة",
-  subtitleUploaded: "تم رفع الترجمة بنجاح",
-  confirmDeleteSubtitle: "حذف هذه الترجمة؟",
-  subtitleDeleted: "تم حذف الترجمة",
-  // History Filter
-  filterAll: "الكل",
   videoLoadTimeout:
     "يستغرق تحميل الفيديو وقتًا أطول من اللازم. يرجى المحاولة مرة أخرى أو التحقق من اتصالك.",
   failedToLoadVideo: "فشل تحميل الفيديو.",
