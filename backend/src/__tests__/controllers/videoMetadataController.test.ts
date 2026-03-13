@@ -49,7 +49,6 @@ vi.mock("fs-extra", () => ({
     ensureDirSync: vi.fn(),
     ensureFileSync: vi.fn(),
     pathExists: vi.fn(),
-    readFile: vi.fn(),
     remove: vi.fn(),
     stat: vi.fn(),
     writeFile: vi.fn(),
@@ -77,7 +76,6 @@ describe("videoMetadataController", () => {
 
     vi.mocked(fs.existsSync as any).mockReturnValue(true);
     vi.mocked(fs.pathExists as any).mockResolvedValue(true);
-    vi.mocked(fs.readFile as any).mockResolvedValue(Buffer.from("test-image"));
     vi.mocked(fs.stat as any).mockResolvedValue({
       isFile: () => true,
       size: 100,
@@ -569,8 +567,8 @@ describe("videoMetadataController", () => {
 
   describe("uploadThumbnail", () => {
     const fakeFile = {
-      path: "/uploads/thumb.jpg",
-      filename: "thumb.jpg",
+      buffer: Buffer.from("test-image"),
+      originalname: "thumb.jpg",
       mimetype: "image/jpeg",
     };
 

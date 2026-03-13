@@ -97,12 +97,9 @@ const removeImageFileSafely = async (imagePath: string): Promise<void> => {
 };
 
 const validateUploadedImageContent = async (
-  uploadedFilePath: string
-): Promise<void> => {
-  const safeResolvedPath = validateImagePath(uploadedFilePath);
-
+  uploadedFile: Buffer
+): Promise<string> => {
   try {
-    const uploadedFile = await fs.readFile(safeResolvedPath);
     const type = await fromBuffer(uploadedFile);
     if (!type?.mime || !ALLOWED_IMAGE_MIME_SET.has(type.mime)) {
       throw new ValidationError(
@@ -110,6 +107,8 @@ const validateUploadedImageContent = async (
         "file"
       );
     }
+
+    return type.mime;
   } catch (error) {
     if (error instanceof ValidationError) {
       throw error;
@@ -119,6 +118,12 @@ const validateUploadedImageContent = async (
       "file"
     );
   }
+};
+
+const createThumbnailFilename = (mimeType: string): string => {
+  const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
+  const ext = ALLOWED_IMAGE_MIMES[mimeType] ?? ".jpg";
+  return `${uniqueSuffix}${ext}`;
 };
 
 const refreshThumbnailFromSource = async (
@@ -186,20 +191,8 @@ const refreshThumbnailFromSource = async (
   return `${newThumbnailPath}?t=${Date.now()}`;
 };
 
-const imageStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    fs.ensureDirSync(IMAGES_DIR);
-    cb(null, IMAGES_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + crypto.randomBytes(8).toString("hex");
-    const ext = ALLOWED_IMAGE_MIMES[file.mimetype] ?? ".jpg";
-    cb(null, uniqueSuffix + ext);
-  },
-});
-
 export const thumbnailUpload = multer({
-  storage: imageStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
     if (Object.prototype.hasOwnProperty.call(ALLOWED_IMAGE_MIMES, file.mimetype)) {
@@ -578,14 +571,6 @@ export const uploadThumbnail = async (
   const video = storageService.getVideoById(id);
 
   if (!video) {
-    // multer has already written the file — clean it up before throwing
-    if (req.file) {
-      try {
-        await removeImageFileSafely(req.file.filename);
-      } catch {
-        // best effort
-      }
-    }
     throw new NotFoundError("Video", id);
   }
 
@@ -593,12 +578,21 @@ export const uploadThumbnail = async (
     throw new ValidationError("No image file provided", "file");
   }
 
-  const newThumbnailFilename = req.file.filename;
+  const uploadedThumbnailBuffer = req.file.buffer;
+  if (!Buffer.isBuffer(uploadedThumbnailBuffer) || uploadedThumbnailBuffer.length === 0) {
+    throw new ValidationError("No image file provided", "file");
+  }
+
+  const detectedMimeType = await validateUploadedImageContent(uploadedThumbnailBuffer);
+  const newThumbnailFilename = createThumbnailFilename(detectedMimeType);
   const newThumbnailRelativePath =
     normalizeImageRelativePath(newThumbnailFilename) ?? newThumbnailFilename;
-  const uploadedThumbnailAbsPath = validateImagePath(req.file.path);
+  const uploadedThumbnailAbsPath = validateImagePath(
+    path.join(IMAGES_DIR, newThumbnailFilename)
+  );
+  fs.ensureDirSync(IMAGES_DIR);
   try {
-    await validateUploadedImageContent(uploadedThumbnailAbsPath);
+    await fs.writeFile(uploadedThumbnailAbsPath, uploadedThumbnailBuffer);
   } catch (error) {
     try {
       await removeImageFileSafely(newThumbnailRelativePath);
