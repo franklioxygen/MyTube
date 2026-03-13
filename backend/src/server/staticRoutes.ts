@@ -1,4 +1,6 @@
-import express, { Express } from "express";
+import express, { Express, NextFunction, Request, Response } from "express";
+import fs from "fs-extra";
+import { Jimp } from "jimp";
 import path from "path";
 import {
   AVATARS_DIR,
@@ -7,6 +9,96 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
+import { validateImagePath } from "../utils/security";
+
+const DEFAULT_RESPONSIVE_IMAGE_QUALITY = 72;
+const MAX_RESPONSIVE_IMAGE_WIDTH = 1600;
+const MIN_RESPONSIVE_IMAGE_WIDTH = 64;
+
+const parsePositiveInteger = (value: unknown): number | null => {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.min(Math.max(value, min), max);
+
+const isOptimizableThumbnail = (filePath: string): boolean =>
+  /\.(jpe?g)$/i.test(filePath);
+
+const serveResponsiveImage = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const requestedWidth = parsePositiveInteger(
+    Array.isArray(req.query.w) ? req.query.w[0] : req.query.w,
+  );
+  const requestedQuality = parsePositiveInteger(
+    Array.isArray(req.query.q) ? req.query.q[0] : req.query.q,
+  );
+
+  if (!requestedWidth && !requestedQuality) {
+    next();
+    return;
+  }
+
+  const relativeImagePath = req.path.replace(/^\/images\/+/, "");
+  if (!relativeImagePath) {
+    next();
+    return;
+  }
+
+  let absoluteImagePath: string;
+  try {
+    absoluteImagePath = validateImagePath(path.join(IMAGES_DIR, relativeImagePath));
+  } catch {
+    res.status(400).send("Invalid image path");
+    return;
+  }
+
+  if (!isOptimizableThumbnail(absoluteImagePath) || !(await fs.pathExists(absoluteImagePath))) {
+    next();
+    return;
+  }
+
+  const targetWidth = requestedWidth
+    ? clamp(requestedWidth, MIN_RESPONSIVE_IMAGE_WIDTH, MAX_RESPONSIVE_IMAGE_WIDTH)
+    : null;
+  const targetQuality = clamp(
+    requestedQuality ?? DEFAULT_RESPONSIVE_IMAGE_QUALITY,
+    40,
+    90,
+  );
+
+  try {
+    const image = await Jimp.read(absoluteImagePath);
+
+    if (targetWidth && image.bitmap.width > targetWidth) {
+      image.scaleToFit({ w: targetWidth, h: image.bitmap.height });
+    }
+
+    const imageBuffer = await image.getBuffer("image/jpeg", {
+      quality: targetQuality,
+    });
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(imageBuffer);
+  } catch {
+    next();
+  }
+};
 
 export const registerStaticRoutes = (
   app: Express,
@@ -51,6 +143,10 @@ export const registerStaticRoutes = (
       },
     })
   );
+
+  app.get("/images/*", (req, res, next) => {
+    void serveResponsiveImage(req, res, next);
+  });
 
   app.use(
     "/images",

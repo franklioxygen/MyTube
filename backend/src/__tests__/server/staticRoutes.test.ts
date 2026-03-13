@@ -29,10 +29,12 @@ describe("server/staticRoutes", () => {
 
   it("should register static mounts and set headers for media files", () => {
     const use = vi.fn();
-    const app = { use } as any;
+    const get = vi.fn();
+    const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
     expect(use).toHaveBeenCalledTimes(6);
+    expect(get).toHaveBeenCalledWith("/images/*", expect.any(Function));
     const [videosPath, videosStatic] = use.mock.calls[0];
     expect(videosPath).toBe("/videos");
     expect(videosStatic.dir).toContain("/uploads/videos");
@@ -57,7 +59,8 @@ describe("server/staticRoutes", () => {
 
   it("should set subtitle content-type headers by extension", () => {
     const use = vi.fn();
-    const app = { use } as any;
+    const get = vi.fn();
+    const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
     const subtitlesStatic = use.mock.calls[4][1];

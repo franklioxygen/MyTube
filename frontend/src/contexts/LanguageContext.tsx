@@ -1,6 +1,8 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import React, { createContext, ReactNode, useContext, useEffect, useEffectEvent, useState } from 'react';
 import { defaultTranslations, Language, loadLocale, TranslationKey } from '../utils/translations';
 import { api } from '../utils/apiClient';
+import { fetchReadableSettings } from '../utils/settingsQueries';
 
 interface LanguageContextType {
     language: Language;
@@ -53,6 +55,7 @@ const getStoredLanguage = (): Language => {
 };
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const queryClient = useQueryClient();
     // Initialize from localStorage first for immediate language display
     const [language, setLanguageState] = useState<Language>(getStoredLanguage());
     const [translations, setTranslations] = useState<any>(defaultTranslations);
@@ -67,40 +70,20 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // Always try to fetch settings on mount so language persists across browsers
     // (backend returns language when login is disabled, or when cookies are sent)
-    useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    // Refetch settings when user logs in (e.g. opening app in another browser)
-    useEffect(() => {
-        const onLogin = () => fetchSettings();
-        window.addEventListener('mytube-login', onLogin);
-        return () => window.removeEventListener('mytube-login', onLogin);
-    }, []);
-
-    const fetchSettings = async () => {
+    const syncLanguagePreference = useEffectEvent(async () => {
         try {
-            const statusResponse = await api.get('/settings/password-enabled');
-            const authenticatedRole = statusResponse.data?.authenticatedRole;
-            const canReadSettings =
-                statusResponse.data?.loginRequired === false ||
-                authenticatedRole === 'admin' ||
-                authenticatedRole === 'visitor';
-
-            if (!canReadSettings) {
+            const settings = await fetchReadableSettings(queryClient, { forceRefresh: true });
+            if (!settings || settings.language === undefined) {
                 return;
             }
 
-            const response = await api.get('/settings');
-            if (response.data?.language !== undefined) {
-                const backendLanguage = normalizeLanguage(response.data.language);
-                setLanguageState(backendLanguage);
-                // Sync localStorage with backend
-                try {
-                    localStorage.setItem(LANGUAGE_STORAGE_KEY, backendLanguage);
-                } catch (error) {
-                    console.error('Error saving language to localStorage:', error);
-                }
+            const backendLanguage = normalizeLanguage(settings.language);
+            setLanguageState(backendLanguage);
+            // Sync localStorage with backend
+            try {
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, backendLanguage);
+            } catch (error) {
+                console.error('Error saving language to localStorage:', error);
             }
         } catch (error: any) {
             // Silently handle auth-related failures when not authenticated
@@ -109,7 +92,18 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             }
             // If backend fails, keep using localStorage value
         }
-    };
+    });
+
+    useEffect(() => {
+        syncLanguagePreference();
+    }, [queryClient]);
+
+    // Refetch settings when user logs in (e.g. opening app in another browser)
+    useEffect(() => {
+        const onLogin = () => syncLanguagePreference();
+        window.addEventListener('mytube-login', onLogin);
+        return () => window.removeEventListener('mytube-login', onLogin);
+    }, [queryClient]);
 
     const setLanguage = async (lang: Language) => {
         const normalizedLanguage = normalizeLanguage(lang);

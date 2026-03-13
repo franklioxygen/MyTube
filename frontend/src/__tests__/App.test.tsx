@@ -90,6 +90,10 @@ vi.mock('../components/BilibiliPartsModal', () => ({
         isOpen ? <button onClick={onClose}>close-bilibili-modal</button> : null
 }));
 
+vi.mock('../pages/Home', () => ({
+    default: () => <div>Home</div>
+}));
+
 vi.mock('../contexts/LanguageContext', () => ({
     LanguageProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     useLanguage: () => ({

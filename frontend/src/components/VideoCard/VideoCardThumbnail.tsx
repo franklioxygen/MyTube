@@ -9,6 +9,8 @@ import { VideoCardCollectionInfo } from '../../utils/videoCardUtils';
 interface VideoCardThumbnailProps {
     video: Video;
     thumbnailSrc?: string;
+    thumbnailSrcSet?: string;
+    thumbnailSizes?: string;
     videoUrl?: string;
     isHovered: boolean;
     isVideoPlaying: boolean;
@@ -17,6 +19,7 @@ interface VideoCardThumbnailProps {
     collectionInfo: VideoCardCollectionInfo;
     isNew: boolean;
     isAboveTheFold?: boolean; // For LCP optimization
+    isHeroImage?: boolean;
     showTagsOnThumbnail?: boolean;
     availableTags?: string[]; // Available tags from settings - used to filter displayed tags
     selectedTags?: string[];
@@ -26,6 +29,8 @@ interface VideoCardThumbnailProps {
 export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     video,
     thumbnailSrc,
+    thumbnailSrcSet,
+    thumbnailSizes,
     videoUrl,
     isHovered,
     isVideoPlaying,
@@ -34,6 +39,7 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
     collectionInfo,
     isNew,
     isAboveTheFold = false,
+    isHeroImage = false,
     showTagsOnThumbnail = false,
     availableTags = [],
     selectedTags = [],
@@ -109,8 +115,10 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 image={thumbnailSrc || 'https://via.placeholder.com/480x360?text=No+Thumbnail'}
                 alt={`${video.title} thumbnail`}
                 loading={isAboveTheFold ? "eager" : "lazy"}
-                fetchPriority={isAboveTheFold ? "high" : "auto"}
-                decoding={isAboveTheFold ? "sync" : "async"}
+                fetchPriority={isHeroImage ? "high" : "auto"}
+                decoding={isHeroImage ? "sync" : "async"}
+                srcSet={thumbnailSrcSet}
+                sizes={thumbnailSizes}
                 width="480"
                 height="270"
                 onLoad={() => setIsImageLoaded(true)}
@@ -132,6 +140,10 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                     setIsImageLoaded(true);
                     const target = e.target as HTMLImageElement;
                     target.onerror = null;
+                    target.srcset = '';
+                    target.sizes = '';
+                    target.removeAttribute('srcset');
+                    target.removeAttribute('sizes');
                     target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
                 }}
             />

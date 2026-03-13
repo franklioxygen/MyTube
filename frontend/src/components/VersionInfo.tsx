@@ -2,6 +2,7 @@ import { Chip, Link, Tooltip, Typography } from '@mui/material';
 import type { TypographyProps } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { api } from '../utils/apiClient';
+import { scheduleNonCriticalTask } from '../utils/scheduleNonCriticalTask';
 
 // Helper to compare semantic versions (v1 > v2)
 const isNewerVersion = (latest: string, current: string): boolean => {
@@ -39,6 +40,8 @@ const VersionInfo = ({ showUpdateBadge = true, textColor = 'text.secondary' }: V
             return;
         }
 
+        let isActive = true;
+
         const checkVersion = async () => {
             try {
                 const response = await api.get('/system/version');
@@ -48,12 +51,14 @@ const VersionInfo = ({ showUpdateBadge = true, textColor = 'text.secondary' }: V
                     const hasUpdate = isNewerVersion(latestVersion, currentVersion);
 
                     if (hasUpdate) {
-                        setUpdateInfo({
-                            hasUpdate: true,
-                            latestVersion,
-                            releaseUrl: response.data.releaseUrl || ''
-                        });
-                    } else {
+                        if (isActive) {
+                            setUpdateInfo({
+                                hasUpdate: true,
+                                latestVersion,
+                                releaseUrl: response.data.releaseUrl || ''
+                            });
+                        }
+                    } else if (isActive) {
                         setUpdateInfo(null);
                     }
                 }
@@ -63,7 +68,14 @@ const VersionInfo = ({ showUpdateBadge = true, textColor = 'text.secondary' }: V
             }
         };
 
-        checkVersion();
+        const cancelScheduledCheck = scheduleNonCriticalTask(() => {
+            void checkVersion();
+        });
+
+        return () => {
+            isActive = false;
+            cancelScheduledCheck();
+        };
     }, [showUpdateBadge]);
 
     return (

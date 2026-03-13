@@ -1,7 +1,9 @@
-import { AccessTime, Shuffle, Sort, SortByAlpha, Visibility } from '@mui/icons-material';
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, SxProps, Theme } from '@mui/material';
-import React from 'react';
+import { Sort } from '@mui/icons-material';
+import { Box, Button, SxProps, Theme } from '@mui/material';
+import React, { Suspense, lazy } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+
+const SortControlMenu = lazy(() => import('./SortControlMenu'));
 
 interface SortControlProps {
     sortOption: string;
@@ -40,60 +42,15 @@ const SortControl: React.FC<SortControlProps> = ({
                     {t('sort')}
                 </Box>
             </Button>
-            <Menu
-                anchorEl={sortAnchorEl}
-                open={Boolean(sortAnchorEl)}
-                onClose={() => onSortClose()}
-            >
-                <MenuItem onClick={() => onSortClose('dateDesc')} selected={sortOption === 'dateDesc'}>
-                    <ListItemIcon>
-                        <AccessTime fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('dateDesc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('dateAsc')} selected={sortOption === 'dateAsc'}>
-                    <ListItemIcon>
-                        <AccessTime fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('dateAsc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('viewsDesc')} selected={sortOption === 'viewsDesc'}>
-                    <ListItemIcon>
-                        <Visibility fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('viewsDesc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('viewsAsc')} selected={sortOption === 'viewsAsc'}>
-                    <ListItemIcon>
-                        <Visibility fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('viewsAsc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('nameAsc')} selected={sortOption === 'nameAsc'}>
-                    <ListItemIcon>
-                        <SortByAlpha fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('nameAsc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('videoDateDesc')} selected={sortOption === 'videoDateDesc'}>
-                    <ListItemIcon>
-                        <AccessTime fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('videoDateDesc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('videoDateAsc')} selected={sortOption === 'videoDateAsc'}>
-                    <ListItemIcon>
-                        <AccessTime fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('videoDateAsc')}</ListItemText>
-                </MenuItem>
-                <MenuItem onClick={() => onSortClose('random')} selected={sortOption === 'random'}>
-                    <ListItemIcon>
-                        <Shuffle fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{t('random')}</ListItemText>
-                </MenuItem>
-            </Menu>
+            {sortAnchorEl && (
+                <Suspense fallback={null}>
+                    <SortControlMenu
+                        sortOption={sortOption}
+                        sortAnchorEl={sortAnchorEl}
+                        onSortClose={onSortClose}
+                    />
+                </Suspense>
+            )}
         </Box>
     );
 };

@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../utils/apiClient';
 import { ThemeContextProvider, useThemeContext } from '../ThemeContext';
@@ -11,6 +13,22 @@ vi.mock('../../utils/apiClient', () => ({
 }));
 
 const mockedApi = vi.mocked(api, true);
+
+const createWrapper = () => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+            },
+        },
+    });
+
+    return ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+            <ThemeContextProvider>{children}</ThemeContextProvider>
+        </QueryClientProvider>
+    );
+};
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -92,7 +110,7 @@ describe('ThemeContext', () => {
         } as MediaQueryList);
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         expect(result.current.mode).toBe('light');
@@ -111,7 +129,7 @@ describe('ThemeContext', () => {
         } as MediaQueryList);
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         expect(result.current.mode).toBe('dark');
@@ -121,7 +139,7 @@ describe('ThemeContext', () => {
         localStorageMock.setItem('themeMode', 'dark');
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         expect(result.current.mode).toBe('dark');
@@ -150,7 +168,7 @@ describe('ThemeContext', () => {
         });
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         await waitFor(() => expect(result.current.preference).toBe('system'));
@@ -161,7 +179,7 @@ describe('ThemeContext', () => {
         localStorageMock.setItem('themeMode', 'light');
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         expect(result.current.mode).toBe('light');
@@ -178,7 +196,7 @@ describe('ThemeContext', () => {
         localStorageMock.setItem('themeMode', 'dark');
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         expect(result.current.mode).toBe('dark');
@@ -196,7 +214,7 @@ describe('ThemeContext', () => {
         localStorageMock.setItem('themeMode', 'light');
 
         const { result } = renderHook(() => useThemeContext(), {
-            wrapper: ThemeContextProvider
+            wrapper: createWrapper()
         });
 
         // Verify initial state

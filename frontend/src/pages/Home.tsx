@@ -1,8 +1,8 @@
-import { Alert, Box, CircularProgress, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
-import React, { useState } from 'react';
+import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
+import React, { Suspense, lazy, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import ConfirmationModal from '../components/ConfirmationModal';
 import { HomeHeader } from '../components/HomeHeader';
+import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
 import { HomeSidebar } from '../components/HomeSidebar';
 import { LCPImagePreloader } from '../components/LCPImagePreloader';
 import { VideoGrid } from '../components/VideoGrid';
@@ -16,6 +16,8 @@ import { useSettings } from '../hooks/useSettings';
 import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useViewMode } from '../hooks/useViewMode';
+
+const ConfirmationModal = lazy(() => import('../components/ConfirmationModal'));
 
 const Home: React.FC = () => {
     const { t } = useLanguage();
@@ -98,12 +100,11 @@ const Home: React.FC = () => {
         selectedTags
     });
 
+    const loadingSkeletonCount = Math.min(Math.max(itemsPerPage, 6), 12);
+    const priorityVideos = infiniteScroll ? sortedVideos : displayedVideos;
+
     if (!settingsLoaded || (loading && videoArray.length === 0)) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <HomeLoadingSkeleton gridProps={gridProps} isSidebarOpen={isSidebarOpen} cardsCount={loadingSkeletonCount} />;
     }
 
     if (error && videoArray.length === 0) {
@@ -121,25 +122,29 @@ const Home: React.FC = () => {
     return (
         <Container maxWidth={false} sx={{ py: 4, px: { xs: 0, sm: 3 } }}>
             {/* Preload first video thumbnail for better LCP */}
-            {videoArray.length > 0 && <LCPImagePreloader videos={videoArray} />}
+            {priorityVideos.length > 0 && <LCPImagePreloader videos={priorityVideos} />}
 
             {/* Delete Filtered Videos Modal - deletes the same set as currently shown when filtering */}
-            <ConfirmationModal
-                isOpen={isDeleteFilteredOpen}
-                onClose={() => setIsDeleteFilteredOpen(false)}
-                onConfirm={async () => {
-                    if (filteredVideos.length > 0) {
-                        await deleteVideos(filteredVideos.map((v) => v.id));
-                    }
-                }}
-                title={t('deleteAllFilteredVideos')}
-                message={t('confirmDeleteFilteredVideos', {
-                    count: filteredVideos.length
-                })}
-                confirmText={t('delete')}
-                cancelText={t('cancel')}
-                isDanger={true}
-            />
+            {isDeleteFilteredOpen && (
+                <Suspense fallback={null}>
+                    <ConfirmationModal
+                        isOpen={isDeleteFilteredOpen}
+                        onClose={() => setIsDeleteFilteredOpen(false)}
+                        onConfirm={async () => {
+                            if (filteredVideos.length > 0) {
+                                await deleteVideos(filteredVideos.map((v) => v.id));
+                            }
+                        }}
+                        title={t('deleteAllFilteredVideos')}
+                        message={t('confirmDeleteFilteredVideos', {
+                            count: filteredVideos.length
+                        })}
+                        confirmText={t('delete')}
+                        cancelText={t('cancel')}
+                        isDanger={true}
+                    />
+                </Suspense>
+            )}
 
             {videoArray.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>

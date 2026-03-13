@@ -1,10 +1,11 @@
-import { Grid } from '@mui/material';
-import React, { useMemo } from 'react';
-import { VirtuosoGrid } from 'react-virtuoso';
+import { Grid, useMediaQuery, useTheme } from '@mui/material';
+import React, { Suspense, lazy, useCallback, useMemo } from 'react';
 import { ViewMode } from '../hooks/useViewMode';
 import { Collection, Video } from '../types';
 import CollectionCard from './CollectionCard';
 import VideoCard from './VideoCard';
+
+const VirtualizedVideoGrid = lazy(() => import('./VirtualizedVideoGrid'));
 
 interface GridProps {
     xs: number;
@@ -37,6 +38,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     onDeleteVideo,
     showTagsOnThumbnail
 }) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const firstVideoCollectionMap = useMemo(() => {
         const map = new Map<string, Collection>();
         for (const collection of collections) {
@@ -47,56 +50,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         return map;
     }, [collections]);
 
-    // Components for VirtuosoGrid - MUST be defined before any conditional returns
-    // Using useMemo to create stable component references
-    // These components must work with virtualization - avoid forcing all items to render
-    const VirtuosoList = useMemo(() =>
-        React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
-            // Extract style and other props, but ensure we don't force all items to render
-            const { style, ...restProps } = props;
-            return (
-                <Grid
-                    container
-                    rowSpacing={{ xs: 2, sm: 3 }}
-                    columnSpacing={{ xs: 0, sm: 3 }}
-                    {...restProps}
-                    ref={ref}
-                    style={{
-                        ...style,
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        // Critical: Don't set height or minHeight that would force all items to render
-                        // Let VirtuosoGrid handle the height calculation
-                    }}
-                />
-            );
-        }),
-        []
-    );
-
-    const VirtuosoItem = useMemo(() =>
-        React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<typeof Grid>>((props, ref) => {
-            const { style, ...restProps } = props;
-            return (
-                <Grid
-                    size={gridProps}
-                    {...restProps}
-                    ref={ref}
-                    style={{
-                        ...style,
-                        // Remove width override to let Grid handle sizing
-                        // VirtuosoGrid will manage which items are rendered
-                    }}
-                />
-            );
-        }),
-        [gridProps]
-    );
-
-    const renderVideoItem = (video: Video, index?: number) => {
-        // First 4 videos are considered above-the-fold for mobile (2x2 grid)
-        // First 6 videos for desktop (3x2 grid)
-        const isAboveTheFold = index !== undefined && index < 6;
+    const renderVideoItem = useCallback((video: Video, index?: number) => {
+        const eagerImageCount = isMobile ? 1 : 3;
+        const isHeroImage = index === 0;
+        const isAboveTheFold = index !== undefined && index < eagerImageCount;
 
         // In all-videos and history mode, ALWAYS render as VideoCard
         if (viewMode === 'all-videos' || viewMode === 'history') {
@@ -108,6 +65,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                     onDeleteVideo={onDeleteVideo}
                     showDeleteButton={true}
                     isAboveTheFold={isAboveTheFold}
+                    isHeroImage={isHeroImage}
                     showTagsOnThumbnail={showTagsOnThumbnail}
                 />
             );
@@ -133,65 +91,52 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
                 onDeleteVideo={onDeleteVideo}
                 showDeleteButton={true}
                 isAboveTheFold={isAboveTheFold}
+                isHeroImage={isHeroImage}
                 showTagsOnThumbnail={showTagsOnThumbnail}
             />
         );
-    };
+    }, [
+        collections,
+        firstVideoCollectionMap,
+        isMobile,
+        onDeleteVideo,
+        showTagsOnThumbnail,
+        videos,
+        viewMode
+    ]);
 
-    if (infiniteScroll) {
-        return (
-            <VirtuosoGrid
-                key={`virtuoso-${viewMode}-${sortedVideos.length}`}
-                useWindowScroll
-                data={sortedVideos}
-                components={{
-                    List: VirtuosoList,
-                    Item: VirtuosoItem
-                }}
-                overscan={5}
-                itemContent={(index, video) => renderVideoItem(video, index)}
-            />
-        );
-    }
-
-    return (
+    const renderRegularGrid = (items: Video[]) => (
         <Grid
             container
             rowSpacing={{ xs: 2, sm: 3 }}
             columnSpacing={{ xs: 0, sm: 3 }}
         >
-            {displayedVideos.map((video, index) => {
-                // In all-videos and history mode, ALWAYS render as VideoCard
-                if (viewMode === 'all-videos' || viewMode === 'history') {
-                    return (
-                        <Grid size={gridProps} key={video.id}>
-                            {renderVideoItem(video, index)}
-                        </Grid>
-                    );
-                }
-
-                // In collections mode, check if this video is the first in a collection
+            {items.map((video, index) => {
                 const collection = firstVideoCollectionMap.get(video.id);
+                const itemKey = viewMode === 'collections' && collection
+                    ? `collection-${collection.id}`
+                    : video.id;
 
-                // If it is, render CollectionCard
-                if (collection) {
-                    return (
-                        <Grid size={gridProps} key={`collection-${collection.id}`}>
-                            <CollectionCard
-                                collection={collection}
-                                videos={videos}
-                            />
-                        </Grid>
-                    );
-                }
-
-                // Otherwise render VideoCard for non-collection videos
                 return (
-                    <Grid size={gridProps} key={video.id}>
+                    <Grid size={gridProps} key={itemKey}>
                         {renderVideoItem(video, index)}
                     </Grid>
                 );
             })}
         </Grid>
     );
+
+    if (infiniteScroll) {
+        return (
+            <Suspense fallback={renderRegularGrid(sortedVideos)}>
+                <VirtualizedVideoGrid
+                    sortedVideos={sortedVideos}
+                    gridProps={gridProps}
+                    renderVideoItem={renderVideoItem}
+                />
+            </Suspense>
+        );
+    }
+
+    return renderRegularGrid(displayedVideos);
 };

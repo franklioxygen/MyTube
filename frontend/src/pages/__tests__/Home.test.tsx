@@ -51,7 +51,7 @@ vi.mock('../../hooks/useHomeSettings', () => ({
 }));
 
 vi.mock('../../hooks/useGridLayout', () => ({
-    useGridLayout: () => ({}),
+    useGridLayout: () => ({ xs: 12, sm: 6, lg: 4, xl: 3 }),
 }));
 
 const mockUseVideoFiltering = vi.fn().mockReturnValue([] as any[]);
@@ -146,10 +146,10 @@ describe('Home Page', () => {
         );
     };
 
-    it('renders loading spinner when loading and no videos', () => {
+    it('renders loading skeleton when loading and no videos', () => {
         mockUseVideoReturn.loading = true;
         renderHome();
-        expect(screen.getByRole('progressbar')).toBeInTheDocument();
+        expect(screen.getByTestId('home-loading-skeleton')).toBeInTheDocument();
     });
 
     it('renders error message when error and no videos', () => {
@@ -202,7 +202,7 @@ describe('Home Page', () => {
         fireEvent.click(deleteBtn);
 
         // Confirm delete
-        const confirmBtn = screen.getByTestId('confirm-delete');
+        const confirmBtn = await screen.findByTestId('confirm-delete');
         fireEvent.click(confirmBtn);
 
         // Expect deleteVideos to be called with IDs of videos having 'tag1'
@@ -211,7 +211,7 @@ describe('Home Page', () => {
         expect(mockUseVideoReturn.deleteVideos).toHaveBeenCalledWith(['1', '3']);
     });
 
-    it('closes the delete filtered videos modal', () => {
+    it('closes the delete filtered videos modal', async () => {
         const mockVideos = [{ id: '1', tags: ['tag1'] }];
         mockUseVideoReturn.videos = mockVideos as any;
         mockUseVideoReturn.selectedTags = ['tag1'];
@@ -220,7 +220,7 @@ describe('Home Page', () => {
 
         // Open modal
         fireEvent.click(screen.getByTestId('delete-filtered-btn'));
-        expect(screen.getByTestId('cancel-delete')).toBeInTheDocument();
+        expect(await screen.findByTestId('cancel-delete')).toBeInTheDocument();
 
         // Close modal
         fireEvent.click(screen.getByTestId('cancel-delete'));

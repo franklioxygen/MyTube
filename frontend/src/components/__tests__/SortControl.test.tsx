@@ -45,19 +45,19 @@ describe('SortControl', () => {
         expect(onSortClick).toHaveBeenCalled();
     });
 
-    it('should call onSortClose without option when menu is closed', () => {
+    it('should call onSortClose without option when menu is closed', async () => {
         const dummyElement = document.createElement('button');
         const { onSortClose } = renderControl('dateDesc', dummyElement);
 
-        fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape', code: 'Escape' });
+        fireEvent.keyDown(await screen.findByRole('menu'), { key: 'Escape', code: 'Escape' });
         expect(onSortClose).toHaveBeenCalledWith();
     });
 
-    it.each(sortOptions)('should mark %s as selected and call onSortClose on click', (option) => {
+    it.each(sortOptions)('should mark %s as selected and call onSortClose on click', async (option) => {
         const dummyElement = document.createElement('button');
         const { onSortClose } = renderControl(option, dummyElement);
 
-        const menuItem = screen.getByRole('menuitem', { name: option });
+        const menuItem = await screen.findByRole('menuitem', { name: option });
         expect(menuItem).toHaveClass('Mui-selected');
 
         fireEvent.click(menuItem);

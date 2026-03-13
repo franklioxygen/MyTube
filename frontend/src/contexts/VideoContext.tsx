@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Video } from '../types';
 import { api } from '../utils/apiClient';
+import { settingsQueryOptions } from '../utils/settingsQueries';
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
@@ -94,24 +95,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Settings Query (tags and showYoutubeSearch)
     const { data: settingsData } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            const response = await api.get('/settings');
-            return response.data;
-        },
+        ...settingsQueryOptions,
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
-        retry: (failureCount, error: any) => {
-            // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
-                return false;
-            }
-            // Retry other errors up to 3 times
-            return failureCount < 3;
-        },
-        retryDelay: 1000,
-        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-        gcTime: 5 * 60 * 1000, // Garbage collect after 5 minutes (reduced from 15 to save memory)
     });
 
     const availableTags = settingsData?.tags || [];

@@ -1,9 +1,10 @@
-import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, ViewSidebar } from '@mui/icons-material';
+import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, ViewSidebar } from '@mui/icons-material';
 import { Box, Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ViewMode } from '../hooks/useViewMode';
-import SortControl from './SortControl';
+
+const SortControlMenu = lazy(() => import('./SortControlMenu'));
 
 interface HomeHeaderProps {
     viewMode: ViewMode;
@@ -93,12 +94,34 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                     </ToggleButton>
                 </ToggleButtonGroup>
 
-                <SortControl
-                    sortOption={sortOption}
-                    sortAnchorEl={sortAnchorEl}
-                    onSortClick={onSortClick}
-                    onSortClose={onSortClose}
-                />
+                <Box sx={{ display: 'flex' }}>
+                    <Button
+                        variant="outlined"
+                        onClick={onSortClick}
+                        size="small"
+                        sx={{
+                            minWidth: 'auto',
+                            px: { xs: 1, md: 2 },
+                            height: '100%',
+                            color: 'text.secondary',
+                            borderColor: 'text.secondary',
+                        }}
+                    >
+                        <Sort fontSize="small" sx={{ mr: { xs: 0, md: 1 } }} />
+                        <Box component="span" sx={{ display: { xs: 'none', md: 'block' } }}>
+                            {t('sort')}
+                        </Box>
+                    </Button>
+                    {sortAnchorEl && (
+                        <Suspense fallback={null}>
+                            <SortControlMenu
+                                sortOption={sortOption}
+                                sortAnchorEl={sortAnchorEl}
+                                onSortClose={onSortClose}
+                            />
+                        </Suspense>
+                    )}
+                </Box>
             </Box>
         </Box>
     );

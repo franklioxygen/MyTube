@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '../../utils/apiClient';
+import { scheduleNonCriticalTask } from '../../utils/scheduleNonCriticalTask';
 
 interface SubscriptionTask {
     status?: string;
@@ -19,6 +20,9 @@ export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
             return;
         }
 
+        let isActive = true;
+        let intervalId: number | undefined;
+
         const checkActiveSubscriptions = async () => {
             try {
                 const [subscriptionsRes, tasksRes] = await Promise.all([
@@ -28,18 +32,30 @@ export const useHeaderSubscriptions = (isVisitor: boolean): boolean => {
 
                 const subscriptions = Array.isArray(subscriptionsRes.data) ? subscriptionsRes.data : [];
                 const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
-                setHasActiveSubscriptions(subscriptions.length > 0 || hasActiveTask(tasks));
+                if (isActive) {
+                    setHasActiveSubscriptions(subscriptions.length > 0 || hasActiveTask(tasks));
+                }
             } catch (error) {
                 console.error('Error checking subscriptions:', error);
-                setHasActiveSubscriptions(false);
+                if (isActive) {
+                    setHasActiveSubscriptions(false);
+                }
             }
         };
 
-        checkActiveSubscriptions();
-        const interval = setInterval(checkActiveSubscriptions, 30000);
+        const cancelScheduledStart = scheduleNonCriticalTask(() => {
+            void checkActiveSubscriptions();
+            intervalId = window.setInterval(() => {
+                void checkActiveSubscriptions();
+            }, 30000);
+        });
 
         return () => {
-            clearInterval(interval);
+            isActive = false;
+            cancelScheduledStart();
+            if (intervalId !== undefined) {
+                window.clearInterval(intervalId);
+            }
         };
     }, [isVisitor]);
 

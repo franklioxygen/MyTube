@@ -13,27 +13,16 @@ vi.mock('../CollectionCard', () => ({
     default: ({ collection }: any) => <div data-testid={`collection-card-${collection.id}`}>{collection.name}</div>
 }));
 
-// Mock react-virtuoso
-vi.mock('react-virtuoso', () => ({
-    VirtuosoGrid: ({ data, itemContent, components }: any) => {
-        const ListComponent = components?.List || 'div';
-        const ItemComponent = components?.Item || 'div';
-        return (
+vi.mock('../VirtualizedVideoGrid', () => ({
+    default: ({ sortedVideos, renderVideoItem }: any) => (
         <div data-testid="virtuoso-grid">
-            <ListComponent data-testid="virtuoso-list" style={{}}>
-                {data.map((item: any, index: number) => (
-                    <ItemComponent
-                        key={item.id || index}
-                        data-testid={`virtuoso-item-${index}`}
-                        style={{}}
-                    >
-                        {itemContent(index, item)}
-                    </ItemComponent>
-                ))}
-            </ListComponent>
+            {sortedVideos.map((item: any, index: number) => (
+                <div key={item.id || index} data-testid={`virtuoso-item-${index}`}>
+                    {renderVideoItem(item, index)}
+                </div>
+            ))}
         </div>
-        );
-    }
+    )
 }));
 
 describe('VideoGrid', () => {
@@ -64,11 +53,11 @@ describe('VideoGrid', () => {
         expect(screen.getByTestId('video-card-2')).toBeInTheDocument();
     });
 
-    it('should render virtuoso grid when infiniteScroll is true', () => {
+    it('should render virtuoso grid when infiniteScroll is true', async () => {
         render(<VideoGrid {...defaultProps} infiniteScroll={true} />);
 
-        expect(screen.getByTestId('virtuoso-grid')).toBeInTheDocument();
-        expect(screen.getByTestId('video-card-1')).toBeInTheDocument();
+        expect(await screen.findByTestId('virtuoso-grid')).toBeInTheDocument();
+        expect(await screen.findByTestId('video-card-1')).toBeInTheDocument();
     });
 
     it('should render collection cards in collections mode', () => {
@@ -81,14 +70,14 @@ describe('VideoGrid', () => {
         expect(screen.getByTestId('video-card-2')).toBeInTheDocument();
     });
 
-    it('should render collection cards in virtualized collections mode', () => {
+    it('should render collection cards in virtualized collections mode', async () => {
         render(<VideoGrid {...defaultProps} viewMode="collections" infiniteScroll={true} />);
 
-        expect(screen.getByTestId('virtuoso-grid')).toBeInTheDocument();
-        expect(screen.getByTestId('collection-card-c1')).toBeInTheDocument();
+        expect(await screen.findByTestId('virtuoso-grid')).toBeInTheDocument();
+        expect(await screen.findByTestId('collection-card-c1')).toBeInTheDocument();
     });
 
-    it('should ignore duplicate first-video collections in grouping map', () => {
+    it('should ignore duplicate first-video collections in grouping map', async () => {
         const duplicatedCollections: Collection[] = [
             { id: 'c1', name: 'Collection 1', videos: ['1'] } as Collection,
             { id: 'c2', name: 'Collection 2', videos: ['1'] } as Collection,
@@ -103,7 +92,7 @@ describe('VideoGrid', () => {
             />
         );
 
-        expect(screen.getByTestId('collection-card-c1')).toBeInTheDocument();
+        expect(await screen.findByTestId('collection-card-c1')).toBeInTheDocument();
         expect(screen.queryByTestId('collection-card-c2')).not.toBeInTheDocument();
     });
 });

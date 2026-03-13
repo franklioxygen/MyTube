@@ -1,7 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { CssBaseline, ThemeProvider as MuiThemeProvider, PaletteMode, useMediaQuery } from '@mui/material';
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useEffectEvent, useMemo, useState } from 'react';
 import getTheme from '../theme';
 import { api } from '../utils/apiClient';
+import { fetchReadableSettings } from '../utils/settingsQueries';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -38,6 +40,7 @@ export const useThemeContext = () => {
 
 export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const systemPrefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+    const queryClient = useQueryClient();
 
     // Initialize preference from localStorage, defaulting to 'system'
     const [preference, setPreferenceState] = useState<ThemePreference>(() => {
@@ -50,44 +53,35 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return 'system';
     });
 
-    const fetchSettings = async () => {
+    const syncThemePreference = useEffectEvent(async () => {
         try {
-            const statusResponse = await api.get('/settings/password-enabled');
-            const authenticatedRole = statusResponse.data?.authenticatedRole;
-            const canReadSettings =
-                statusResponse.data?.loginRequired === false ||
-                authenticatedRole === 'admin' ||
-                authenticatedRole === 'visitor';
-
-            if (!canReadSettings) {
+            const settings = await fetchReadableSettings(queryClient, { forceRefresh: true });
+            if (!settings || settings.theme === undefined) {
                 return;
             }
 
-            const response = await api.get('/settings');
-            if (response.data?.theme !== undefined) {
-                const backendTheme = normalizeThemePreference(response.data.theme);
-                setPreferenceState(backendTheme);
-                localStorage.setItem('themeMode', backendTheme);
-            }
+            const backendTheme = normalizeThemePreference(settings.theme);
+            setPreferenceState(backendTheme);
+            localStorage.setItem('themeMode', backendTheme);
         } catch (error: any) {
             // Silently handle auth-related failures when not authenticated
             if (error?.response?.status !== 401 && error?.response?.status !== 403) {
                 console.error('Error fetching settings for theme:', error);
             }
         }
-    };
+    });
 
     // Fetch settings on mount
     useEffect(() => {
-        fetchSettings();
-    }, []);
+        syncThemePreference();
+    }, [queryClient]);
 
     // Listen for login events to refetch
     useEffect(() => {
-        const onLogin = () => fetchSettings();
+        const onLogin = () => syncThemePreference();
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, []);
+    }, [queryClient]);
 
     const setPreference = async (newPreference: ThemePreference) => {
         const normalizedPreference = normalizeThemePreference(newPreference);

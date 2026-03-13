@@ -1,8 +1,8 @@
-import { Add, Cast, Delete, Label, MoreVert, Share, Visibility, VisibilityOff } from '@mui/icons-material';
-import { Button, IconButton, Menu, Stack, Tooltip, useMediaQuery } from '@mui/material';
-import React, { useState } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { MoreVert } from '@mui/icons-material';
+import { IconButton, Tooltip, useMediaQuery } from '@mui/material';
+import React, { Suspense, lazy, useState } from 'react';
+
+const VideoKebabMenu = lazy(() => import('./VideoKebabMenu'));
 
 interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;
@@ -27,9 +27,6 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
     video,
     sx
 }) => {
-    const { t } = useLanguage();
-    const { userRole } = useAuth();
-    const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
     const [kebabMenuAnchor, setKebabMenuAnchor] = useState<null | HTMLElement>(null);
 
@@ -40,35 +37,6 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
 
     const handleKebabMenuClose = () => {
         setKebabMenuAnchor(null);
-    };
-
-    const handlePlayWith = () => {
-        const anchor = kebabMenuAnchor;
-        handleKebabMenuClose();
-        if (anchor) {
-            // Pass the anchor element to the parent so it can open the player menu at the same position
-            onPlayWith(anchor);
-        }
-    };
-
-    const handleShare = () => {
-        handleKebabMenuClose();
-        onShare();
-    };
-
-    const handleAddToCollection = () => {
-        handleKebabMenuClose();
-        onAddToCollection();
-    };
-
-    const handleDelete = () => {
-        handleKebabMenuClose();
-        if (onDelete) onDelete();
-    };
-
-    const handleToggleVisibility = () => {
-        handleKebabMenuClose();
-        if (onToggleVisibility) onToggleVisibility();
     };
 
     // Close menu on scroll
@@ -98,110 +66,24 @@ const VideoKebabMenuButtons: React.FC<VideoKebabMenuButtonsProps> = ({
                     <MoreVert />
                 </IconButton>
             </Tooltip>
-            <Menu
-                anchorEl={kebabMenuAnchor}
-                open={Boolean(kebabMenuAnchor)}
-                onClose={handleKebabMenuClose}
-                disableScrollLock
-                anchorOrigin={{
-                    vertical: 'center',
-                    horizontal: 'left',
-                }}
-                transformOrigin={{
-                    vertical: 'center',
-                    horizontal: 'right',
-                }}
-                slotProps={{
-                    paper: {
-                        sx: {
-                            minWidth: 'auto',
-                            p: 1,
-                            px: 2,
-                            borderRadius: 4,
-                        }
-                    }
-                }}
-            >
-                <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-                    <Tooltip title={t('playWith')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={handlePlayWith}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                        >
-                            <Cast />
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title={t('share')} disableHoverListener={isTouch}>
-                        <Button
-                            variant="outlined"
-                            color="inherit"
-                            onClick={handleShare}
-                            sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                        >
-                            <Share />
-                        </Button>
-                    </Tooltip>
-                    {!isVisitor && (
-                        <>
-                            {onToggleVisibility && (
-                                <Tooltip title={video?.visibility === 0 ? t('showVideo') : t('hideVideo')} disableHoverListener={isTouch}>
-                                    <Button
-                                        variant="outlined"
-                                        color="inherit"
-                                        onClick={handleToggleVisibility}
-                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                                    >
-                                        {video?.visibility === 0 ? <Visibility /> : <VisibilityOff />}
-                                    </Button>
-                                </Tooltip>
-                            )}
-                            <Tooltip title={t('addToCollection')} disableHoverListener={isTouch}>
-                                <Button
-                                    variant="outlined"
-                                    color="inherit"
-                                    onClick={handleAddToCollection}
-                                    sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                                >
-                                    <Add />
-                                </Button>
-                            </Tooltip>
-                            {onDelete && (
-                                <Tooltip title={t('delete')} disableHoverListener={isTouch}>
-                                    <Button
-                                        variant="outlined"
-                                        color="inherit"
-                                        onClick={handleDelete}
-                                        disabled={isDeleting}
-                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-                                    >
-                                        <Delete />
-                                    </Button>
-                                </Tooltip>
-                            )}
-                            {onAddTag && (
-                                <Tooltip title={t('addTag') || 'Add Tag'} disableHoverListener={isTouch}>
-                                    <Button
-                                        variant="outlined"
-                                        color="inherit"
-                                        onClick={() => {
-                                            handleKebabMenuClose();
-                                            onAddTag();
-                                        }}
-                                        sx={{ minWidth: 'auto', p: 1, color: 'text.secondary', borderColor: 'text.secondary', '&:hover': { color: 'primary.main', borderColor: 'primary.main' } }}
-                                    >
-                                        <Label />
-                                    </Button>
-                                </Tooltip>
-                            )}
-                        </>
-                    )}
-                </Stack>
-            </Menu>
+            {kebabMenuAnchor && (
+                <Suspense fallback={null}>
+                    <VideoKebabMenu
+                        kebabMenuAnchor={kebabMenuAnchor}
+                        onClose={handleKebabMenuClose}
+                        onPlayWith={onPlayWith}
+                        onShare={onShare}
+                        onAddToCollection={onAddToCollection}
+                        onDelete={onDelete}
+                        isDeleting={isDeleting}
+                        onToggleVisibility={onToggleVisibility}
+                        onAddTag={onAddTag}
+                        video={video}
+                    />
+                </Suspense>
+            )}
         </>
     );
 };
 
 export default VideoKebabMenuButtons;
-

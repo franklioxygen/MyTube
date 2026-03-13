@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
-import { stableQueryConfig } from '../utils/queryConfig';
+import { settingsQueryOptions } from '../utils/settingsQueries';
 
 /**
  * Custom hook to manage video player settings (subtitles, loop, auto-play)
@@ -16,22 +16,9 @@ export function useVideoPlayerSettings() {
 
     // Fetch settings
     const { data: settings } = useQuery({
-        queryKey: ['settings'],
-        queryFn: async () => {
-            const response = await api.get('/settings');
-            return response.data;
-        },
-        ...stableQueryConfig,
+        ...settingsQueryOptions,
         // Only query when authenticated to avoid 401 errors
         enabled: isAuthenticated,
-        retry: (failureCount, error: any) => {
-            // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
-                return false;
-            }
-            // Retry other errors up to 3 times
-            return failureCount < 3;
-        },
     });
 
     const autoPlay = settings?.defaultAutoPlay || false;

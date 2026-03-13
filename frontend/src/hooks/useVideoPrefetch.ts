@@ -58,6 +58,8 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
 
   // Set up IntersectionObserver for viewport-based prefetching
   useEffect(() => {
+    hasPrefetchedRef.current = false;
+
     const element = cardRef.current;
     if (!element) return;
 
@@ -66,8 +68,14 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
       return;
     }
 
-    // Reset prefetch flag when video changes
-    hasPrefetchedRef.current = false;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    const shouldSkipViewportPrefetch =
+      window.matchMedia("(hover: none), (pointer: coarse)").matches ||
+      Boolean(connection?.saveData);
+
+    if (shouldSkipViewportPrefetch) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {

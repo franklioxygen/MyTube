@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
 import { Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
+import {
+    buildOptimizedImageSrcSet,
+    buildOptimizedImageUrl,
+    CARD_THUMBNAIL_SIZES
+} from '../utils/imageOptimization';
 import { isNewVideo } from '../utils/videoCardUtils';
 import { useCloudStorageUrl } from './useCloudStorageUrl';
 
@@ -20,7 +25,14 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
     const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
         ? `${getBackendUrl()}${video.thumbnailPath}`
         : undefined;
-    const thumbnailSrc = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl;
+    const thumbnailSrcSet = !thumbnailUrl && localThumbnailUrl
+        ? buildOptimizedImageSrcSet(localThumbnailUrl)
+        : undefined;
+    const thumbnailSizes = thumbnailSrcSet ? CARD_THUMBNAIL_SIZES : undefined;
+    const thumbnailSrc = thumbnailUrl
+        || (localThumbnailUrl ? buildOptimizedImageUrl(localThumbnailUrl) : undefined)
+        || localThumbnailUrl
+        || video.thumbnailUrl;
 
     // Use cloud storage hook for video URL
     const videoUrl = useCloudStorageUrl(video.videoPath, 'video');
@@ -57,6 +69,8 @@ export const useVideoCardMetadata = ({ video }: UseVideoCardMetadataProps) => {
 
     return {
         thumbnailSrc,
+        thumbnailSrcSet,
+        thumbnailSizes,
         videoUrl,
         getVideoUrl,
         isNew

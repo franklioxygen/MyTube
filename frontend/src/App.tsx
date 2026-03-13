@@ -116,16 +116,18 @@ function AppContent() {
 
                         {/* Bilibili Parts Modal */}
                         <Suspense fallback={null}>
-                            <BilibiliPartsModal
-                                isOpen={showBilibiliPartsModal}
-                                onClose={() => setShowBilibiliPartsModal(false)}
-                                videosNumber={bilibiliPartsInfo.videosNumber}
-                                videoTitle={bilibiliPartsInfo.title}
-                                onDownloadAll={handleDownloadAllBilibiliParts}
-                                onDownloadCurrent={handleDownloadCurrentBilibiliPart}
-                                isLoading={loading || isCheckingParts}
-                                type={bilibiliPartsInfo.type}
-                            />
+                            {showBilibiliPartsModal && (
+                                <BilibiliPartsModal
+                                    isOpen={showBilibiliPartsModal}
+                                    onClose={() => setShowBilibiliPartsModal(false)}
+                                    videosNumber={bilibiliPartsInfo.videosNumber}
+                                    videoTitle={bilibiliPartsInfo.title}
+                                    onDownloadAll={handleDownloadAllBilibiliParts}
+                                    onDownloadCurrent={handleDownloadCurrentBilibiliPart}
+                                    isLoading={loading || isCheckingParts}
+                                    type={bilibiliPartsInfo.type}
+                                />
+                            )}
                         </Suspense>
 
                         <Box component="main" sx={{ flexGrow: 1, p: 0, width: '100%', overflowX: 'hidden' }}>

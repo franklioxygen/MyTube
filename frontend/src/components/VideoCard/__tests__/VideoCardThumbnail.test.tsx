@@ -195,4 +195,31 @@ describe('VideoCardThumbnail', () => {
         expect(screen.getByText('NewTag1')).toBeInTheDocument();
         expect(screen.getByText('MixedCaseTag')).toBeInTheDocument();
     });
+
+    it('clears responsive image attributes when falling back after an image error', () => {
+        render(
+            <VideoCardThumbnail
+                video={defaultVideo}
+                thumbnailSrc="http://localhost/images/thumb.jpg?w=828&q=72"
+                thumbnailSrcSet="http://localhost/images/thumb.jpg?w=480&q=72 480w, http://localhost/images/thumb.jpg?w=828&q=72 828w"
+                thumbnailSizes="100vw"
+                isHovered={false}
+                isVideoPlaying={false}
+                setIsVideoPlaying={mockSetIsVideoPlaying}
+                videoRef={mockVideoRef}
+                collectionInfo={defaultCollectionInfo}
+                isNew={false}
+            />
+        );
+
+        const img = screen.getByRole('img');
+        expect(img).toHaveAttribute('srcset');
+        expect(img).toHaveAttribute('sizes', '100vw');
+
+        fireEvent.error(img);
+
+        expect(img).toHaveAttribute('src', 'https://via.placeholder.com/480x360?text=No+Thumbnail');
+        expect(img).not.toHaveAttribute('srcset');
+        expect(img).not.toHaveAttribute('sizes');
+    });
 });

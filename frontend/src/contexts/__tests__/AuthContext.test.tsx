@@ -10,11 +10,12 @@ vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
 const TestComponent = () => {
-    const { isAuthenticated, loginRequired, login, logout } = useAuth();
+    const { isAuthenticated, loginRequired, checkingAuth, login, logout } = useAuth();
     return (
         <div>
             <div data-testid="auth-status">{isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</div>
             <div data-testid="login-required">{loginRequired ? 'Required' : 'Optional'}</div>
+            <div data-testid="checking-auth">{checkingAuth ? 'Checking' : 'Settled'}</div>
             <button onClick={() => login('admin')}>Login</button>
             <button onClick={logout}>Logout</button>
         </div>
@@ -122,6 +123,49 @@ describe('AuthContext', () => {
             expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
             expect(screen.getByTestId('login-required')).toHaveTextContent('Required');
         });
+    });
+
+    it('should automatically retry auth probe after a rate limit response', async () => {
+        mockedAxios.get
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: { status: 429, data: { waitTime: 1 } }
+            })
+            .mockResolvedValueOnce({
+                data: { loginRequired: false, authenticatedRole: 'admin' }
+            });
+
+        renderWithProviders(<TestComponent />);
+
+        expect(screen.getByTestId('checking-auth')).toHaveTextContent('Checking');
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+            expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
+            expect(screen.getByTestId('login-required')).toHaveTextContent('Optional');
+            expect(screen.getByTestId('checking-auth')).toHaveTextContent('Settled');
+        }, { timeout: 4000 });
+    });
+
+    it('should stop checking auth after a persistent rate limit and fall back to login state', async () => {
+        mockedAxios.get
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: { status: 429, data: { waitTime: 1 } }
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: { status: 429, data: { waitTime: 1 } }
+            });
+
+        renderWithProviders(<TestComponent />);
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+            expect(screen.getByTestId('checking-auth')).toHaveTextContent('Settled');
+            expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
+            expect(screen.getByTestId('login-required')).toHaveTextContent('Required');
+        }, { timeout: 4000 });
     });
 
     it('should handle login', async () => {

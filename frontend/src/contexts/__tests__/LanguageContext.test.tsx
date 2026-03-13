@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../utils/apiClient';
 import { loadLocale } from '../../utils/translations';
@@ -26,6 +28,22 @@ vi.mock('../../utils/translations', () => ({
 
 const mockedApi = vi.mocked(api, true);
 const mockedLoadLocale = vi.mocked(loadLocale);
+
+const createWrapper = () => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+            },
+        },
+    });
+
+    return ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+            <LanguageProvider>{children}</LanguageProvider>
+        </QueryClientProvider>
+    );
+};
 
 const setLocalStorageMock = ({
     initial = {},
@@ -94,14 +112,14 @@ describe('LanguageContext', () => {
     });
 
     it('initializes with default language when nothing is stored', () => {
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
         expect(result.current.language).toBe('en');
     });
 
     it('initializes with stored language', async () => {
         setLocalStorageMock({ initial: { mytube_language: 'es' } });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await waitFor(() => expect(result.current.language).toBe('es'));
     });
@@ -118,7 +136,7 @@ describe('LanguageContext', () => {
             return Promise.resolve({ data: {} });
         });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await waitFor(() => expect(result.current.language).toBe('fr'));
         expect(localStorageMock.setItem).toHaveBeenCalledWith('mytube_language', 'fr');
@@ -136,7 +154,7 @@ describe('LanguageContext', () => {
             return Promise.resolve({ data: {} });
         });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await waitFor(() => expect(result.current.language).toBe('en'));
         expect(localStorageMock.setItem).toHaveBeenCalledWith('mytube_language', 'en');
@@ -145,7 +163,7 @@ describe('LanguageContext', () => {
     it('logs when reading localStorage fails', () => {
         setLocalStorageMock({ throwOnGet: true });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         expect(result.current.language).toBe('en');
         expect(console.error).toHaveBeenCalledWith(
@@ -166,7 +184,7 @@ describe('LanguageContext', () => {
             return Promise.resolve({ data: {} });
         });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await waitFor(() => expect(result.current.language).toBe('de'));
         expect(console.error).toHaveBeenCalledWith(
@@ -176,9 +194,9 @@ describe('LanguageContext', () => {
     });
 
     it('logs non-auth errors while fetching backend settings', async () => {
-        mockedApi.get.mockRejectedValueOnce({ response: { status: 500 } });
+        mockedApi.get.mockRejectedValue({ response: { status: 500 } });
 
-        renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await waitFor(() => {
             expect(console.error).toHaveBeenCalledWith(
@@ -192,7 +210,7 @@ describe('LanguageContext', () => {
         setLocalStorageMock({ throwOnSet: true });
         mockedApi.patch.mockRejectedValueOnce({ response: { status: 500 } });
 
-        const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+        const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
 
         await act(async () => {
             await result.current.setLanguage('de');
@@ -218,7 +236,7 @@ describe('LanguageContext', () => {
         });
 
         try {
-            const { result } = renderHook(() => useLanguage(), { wrapper: LanguageProvider });
+            const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
             expect(result.current.t('helloName' as any, { name: 'Alice' })).toBe('Hello Alice Alice');
         } finally {
             if (originalDescriptor) {

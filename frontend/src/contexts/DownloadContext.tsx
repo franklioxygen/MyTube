@@ -1,9 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import AlertModal from '../components/AlertModal';
-import ChannelSubscribeChoiceModal from '../components/ChannelSubscribeChoiceModal';
-import ConfirmationModal from '../components/ConfirmationModal';
-import SubscribeModal from '../components/SubscribeModal';
+import React, { Suspense, createContext, lazy, useContext, useEffect, useRef, useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
 import { api } from '../utils/apiClient';
@@ -17,6 +13,10 @@ const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const ACTIVE_POLL_INTERVAL_MS = 2000;
 const IDLE_POLL_INTERVAL_MS = 10000;
+const AlertModal = lazy(() => import('../components/AlertModal'));
+const ChannelSubscribeChoiceModal = lazy(() => import('../components/ChannelSubscribeChoiceModal'));
+const ConfirmationModal = lazy(() => import('../components/ConfirmationModal'));
+const SubscribeModal = lazy(() => import('../components/SubscribeModal'));
 
 interface BilibiliPartsInfo {
     videosNumber: number;
@@ -607,42 +607,52 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             handleDownloadCurrentBilibiliPart
         }}>
             {children}
-            <ChannelSubscribeChoiceModal
-                open={showChannelSubscribeChoiceModal}
-                onClose={() => {
-                    setShowChannelSubscribeChoiceModal(false);
-                    setSubscribeUrl('');
-                }}
-                onChooseVideos={handleChooseSubscribeVideos}
-                onChoosePlaylists={handleChooseSubscribePlaylists}
-            />
-            <SubscribeModal
-                open={showSubscribeModal}
-                onClose={() => setShowSubscribeModal(false)}
-                onConfirm={handleSubscribeConfirm}
-                url={subscribeUrl}
-                title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
-                description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
-                enableDownloadOrder={subscribeMode !== 'playlist'}
-            />
-            <AlertModal
-                open={showDuplicateModal}
-                onClose={() => setShowDuplicateModal(false)}
-                title={t('error')}
-                message={t('subscriptionAlreadyExists')}
-            />
-            <ConfirmationModal
-                isOpen={showChannelPlaylistsModal}
-                onClose={() => {
-                    setShowChannelPlaylistsModal(false);
-                    setChannelPlaylistsUrl('');
-                }}
-                onConfirm={handleConfirmChannelPlaylists}
-                title={t('downloadAll') || 'Download All Playlists'}
-                message={t('confirmDownloadAllPlaylists') || "Download all playlists from this channel? This will create a collection for each playlist."}
-                confirmText={t('downloadAll') || 'Download All'}
-                cancelText={t('cancel') || 'Cancel'}
-            />
+            <Suspense fallback={null}>
+                {showChannelSubscribeChoiceModal && (
+                    <ChannelSubscribeChoiceModal
+                        open={showChannelSubscribeChoiceModal}
+                        onClose={() => {
+                            setShowChannelSubscribeChoiceModal(false);
+                            setSubscribeUrl('');
+                        }}
+                        onChooseVideos={handleChooseSubscribeVideos}
+                        onChoosePlaylists={handleChooseSubscribePlaylists}
+                    />
+                )}
+                {showSubscribeModal && (
+                    <SubscribeModal
+                        open={showSubscribeModal}
+                        onClose={() => setShowSubscribeModal(false)}
+                        onConfirm={handleSubscribeConfirm}
+                        url={subscribeUrl}
+                        title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
+                        description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
+                        enableDownloadOrder={subscribeMode !== 'playlist'}
+                    />
+                )}
+                {showDuplicateModal && (
+                    <AlertModal
+                        open={showDuplicateModal}
+                        onClose={() => setShowDuplicateModal(false)}
+                        title={t('error')}
+                        message={t('subscriptionAlreadyExists')}
+                    />
+                )}
+                {showChannelPlaylistsModal && (
+                    <ConfirmationModal
+                        isOpen={showChannelPlaylistsModal}
+                        onClose={() => {
+                            setShowChannelPlaylistsModal(false);
+                            setChannelPlaylistsUrl('');
+                        }}
+                        onConfirm={handleConfirmChannelPlaylists}
+                        title={t('downloadAll') || 'Download All Playlists'}
+                        message={t('confirmDownloadAllPlaylists') || "Download all playlists from this channel? This will create a collection for each playlist."}
+                        confirmText={t('downloadAll') || 'Download All'}
+                        cancelText={t('cancel') || 'Cancel'}
+                    />
+                )}
+            </Suspense>
         </DownloadContext.Provider>
     );
 };

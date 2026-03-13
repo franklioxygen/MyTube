@@ -134,34 +134,40 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                 <MenuItem onClick={() => handlePlayerSelect('copy')}>{t('copyUrl')}</MenuItem>
             </Menu>
 
-            <ConfirmationModal
-                isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
-                onConfirm={confirmDelete}
-                title={t('deleteVideo')}
-                message={`${t('confirmDelete')} "${video.title}"?`}
-                confirmText={t('delete')}
-                cancelText={t('cancel')}
-                isDanger={true}
-            />
+            {showDeleteModal && (
+                <ConfirmationModal
+                    isOpen={showDeleteModal}
+                    onClose={() => setShowDeleteModal(false)}
+                    onConfirm={confirmDelete}
+                    title={t('deleteVideo')}
+                    message={`${t('confirmDelete')} "${video.title}"?`}
+                    confirmText={t('delete')}
+                    cancelText={t('cancel')}
+                    isDanger={true}
+                />
+            )}
 
-            <CollectionModal
-                open={showCollectionModal}
-                onClose={() => setShowCollectionModal(false)}
-                videoCollections={currentVideoCollections}
-                collections={allCollections}
-                onAddToCollection={handleAddToCollection}
-                onCreateCollection={handleCreateCollection}
-                onRemoveFromCollection={handleRemoveFromCollection}
-            />
+            {showCollectionModal && (
+                <CollectionModal
+                    open={showCollectionModal}
+                    onClose={() => setShowCollectionModal(false)}
+                    videoCollections={currentVideoCollections}
+                    collections={allCollections}
+                    onAddToCollection={handleAddToCollection}
+                    onCreateCollection={handleCreateCollection}
+                    onRemoveFromCollection={handleRemoveFromCollection}
+                />
+            )}
 
-            <TagsModal
-                open={showTagsModal}
-                onClose={() => setShowTagsModal(false)}
-                videoTags={video.tags || []}
-                availableTags={availableTags}
-                onSave={handleSaveTags}
-            />
+            {showTagsModal && (
+                <TagsModal
+                    open={showTagsModal}
+                    onClose={() => setShowTagsModal(false)}
+                    videoTags={video.tags || []}
+                    availableTags={availableTags}
+                    onSave={handleSaveTags}
+                />
+            )}
         </>
     );
 };

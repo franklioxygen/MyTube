@@ -87,7 +87,9 @@ describe('useVideoCardMetadata', () => {
 
         const { result } = renderHook(() => useVideoCardMetadata({ video: mockVideo as any }));
 
-        expect(result.current.thumbnailSrc).toContain('/images/thumb.jpg');
+        expect(result.current.thumbnailSrc).toContain('/images/thumb.jpg?w=828&q=72');
+        expect(result.current.thumbnailSrcSet).toContain('/images/thumb.jpg?w=480&q=72 480w');
+        expect(result.current.thumbnailSizes).toContain('100vw');
         await expect(result.current.getVideoUrl()).resolves.toBe(`${window.location.origin}/videos/local.mp4`);
     });
 

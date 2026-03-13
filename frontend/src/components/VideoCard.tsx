@@ -25,6 +25,7 @@ interface VideoCardProps {
     showDeleteButton?: boolean;
     disableCollectionGrouping?: boolean;
     isAboveTheFold?: boolean; // For LCP optimization
+    isHeroImage?: boolean;
     showTagsOnThumbnail?: boolean;
 }
 
@@ -35,6 +36,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
     showDeleteButton = false,
     disableCollectionGrouping = false,
     isAboveTheFold = false,
+    isHeroImage = false,
     showTagsOnThumbnail = false
 }) => {
     const theme = useTheme();
@@ -111,6 +113,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 <VideoCardThumbnail
                     video={video}
                     thumbnailSrc={metadata.thumbnailSrc}
+                    thumbnailSrcSet={metadata.thumbnailSrcSet}
+                    thumbnailSizes={metadata.thumbnailSizes}
                     videoUrl={metadata.videoUrl}
                     isHovered={hoverPreview.isHovered}
                     isVideoPlaying={hoverPreview.isVideoPlaying}
@@ -119,6 +123,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                     collectionInfo={collectionInfo}
                     isNew={metadata.isNew}
                     isAboveTheFold={isAboveTheFold}
+                    isHeroImage={isHeroImage}
                     showTagsOnThumbnail={showTagsOnThumbnail}
                     availableTags={availableTags}
                     selectedTags={selectedTags}

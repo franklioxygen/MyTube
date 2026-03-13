@@ -326,7 +326,9 @@ describe('DownloadContext', () => {
       await result.current.handleVideoSubmit('https://www.youtube.com/@some-channel/playlists');
     });
     fireEvent.click(screen.getByText('close-downloadAll'));
-    expect(screen.queryByTestId('confirmation-downloadAll')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('confirmation-downloadAll')).not.toBeInTheDocument();
+    });
   });
 
   it('handles YouTube channel subscribe choice and video subscription duplicate conflict', async () => {
@@ -341,8 +343,8 @@ describe('DownloadContext', () => {
     });
 
     fireEvent.click(screen.getByText('choose-videos'));
-    expect(screen.getByTestId('subscribe-modal')).toBeInTheDocument();
-    expect(screen.getByText('mode-video')).toBeInTheDocument();
+    expect(await screen.findByTestId('subscribe-modal')).toBeInTheDocument();
+    expect(await screen.findByText('mode-video')).toBeInTheDocument();
 
     // success path
     fireEvent.click(screen.getByText('confirm-subscribe'));
@@ -384,7 +386,7 @@ describe('DownloadContext', () => {
     });
     fireEvent.click(screen.getByText('choose-playlists'));
 
-    expect(screen.getByText('mode-playlist')).toBeInTheDocument();
+    expect(await screen.findByText('mode-playlist')).toBeInTheDocument();
     fireEvent.click(screen.getByText('confirm-subscribe'));
 
     await waitFor(() => {
@@ -529,6 +531,8 @@ describe('DownloadContext', () => {
       expect(screen.getByTestId('subscribe-modal')).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('close-subscribe'));
-    expect(screen.queryByTestId('subscribe-modal')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('subscribe-modal')).not.toBeInTheDocument();
+    });
   });
 });

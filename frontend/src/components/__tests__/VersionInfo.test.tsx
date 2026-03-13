@@ -13,6 +13,16 @@ vi.mock("../../utils/apiClient", () => ({
 describe("VersionInfo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (window as typeof window & {
+      requestIdleCallback?: (callback: IdleRequestCallback) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    }).requestIdleCallback = ((callback: IdleRequestCallback) => {
+      callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
+      return 1;
+    });
+    (window as typeof window & {
+      cancelIdleCallback?: (handle: number) => void;
+    }).cancelIdleCallback = vi.fn();
   });
 
   it("shows update badge when latest version is newer", async () => {
