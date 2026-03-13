@@ -1,12 +1,17 @@
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
+import { resolveMountDirectoriesByIds } from "../config/mountDirectories";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import {
+  createStrictFeatureDisabledPayload,
+  isStrictFeatureDisabled,
+} from "../utils/strictSecurity";
 import {
   execFileSafe,
   isPathWithinDirectory,
@@ -600,45 +605,68 @@ export const scanFiles = async (
 
 /**
  * Scan mount directories for video files
- * Accepts array of directory paths in request body: { directories: string[] }
+ * Accepts array of platform directory ids in request body: { directoryIds: string[] }
  */
 export const scanMountDirectories = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  logger.info("Starting mount directories scan...");
-
-  const { directories } = req.body;
-
-  if (!directories || !Array.isArray(directories) || directories.length === 0) {
-    res
-      .status(400)
-      .json({ error: "Directories array is required and must not be empty" });
+  if (isStrictFeatureDisabled("mountDirectories")) {
+    res.status(403).json(createStrictFeatureDisabledPayload("mountDirectories"));
     return;
   }
 
-  const trimmedDirectories = directories
-    .map((dir: string) => dir.trim())
-    .filter((dir: string) => dir.length > 0);
+  logger.info("Starting mount directories scan...");
 
-  if (trimmedDirectories.length === 0) {
-    res.status(400).json({ error: "No valid directories provided" });
+  const { directoryIds } = req.body;
+
+  if (
+    !directoryIds ||
+    !Array.isArray(directoryIds) ||
+    directoryIds.length === 0
+  ) {
+    res
+      .status(400)
+      .json({ error: "Directory IDs array is required and must not be empty" });
+    return;
+  }
+
+  const trimmedDirectoryIds = directoryIds
+    .map((directoryId: unknown) =>
+      typeof directoryId === "string" ? directoryId.trim() : ""
+    )
+    .filter((directoryId: string) => directoryId.length > 0);
+
+  if (trimmedDirectoryIds.length === 0) {
+    res.status(400).json({ error: "No valid directory IDs provided" });
+    return;
+  }
+
+  const { matchedDirectories, invalidDirectoryIds } = resolveMountDirectoriesByIds(
+    trimmedDirectoryIds
+  );
+
+  if (invalidDirectoryIds.length > 0) {
+    res.status(400).json({
+      error: "Unknown platform mount directory IDs",
+      invalidDirectoryIds,
+    });
     return;
   }
 
   const validDirectories: string[] = [];
   const invalidDirectories: string[] = [];
-  for (const directory of trimmedDirectories) {
+  for (const directory of matchedDirectories) {
     try {
-      const validatedDirectory = validateMountDirectory(directory);
+      const validatedDirectory = validateMountDirectory(directory.path);
       if (overlapsLocalVideosDirectory(validatedDirectory)) {
-        invalidDirectories.push(directory);
+        invalidDirectories.push(directory.path);
         continue;
       }
 
       validDirectories.push(validatedDirectory);
     } catch {
-      invalidDirectories.push(directory);
+      invalidDirectories.push(directory.path);
     }
   }
 
@@ -650,10 +678,17 @@ export const scanMountDirectories = async (
     return;
   }
 
+  if (matchedDirectories.length === 0) {
+    res.status(400).json({
+      error: "No platform mount directories are configured",
+    });
+    return;
+  }
+
   logger.info(
-    `Scanning ${validDirectories.length} mount directory/directories: ${validDirectories.join(
-      ", "
-    )}`
+    `Scanning ${validDirectories.length} mount directory/directories by IDs: ${matchedDirectories
+      .map((directory) => directory.id)
+      .join(", ")}`
   );
 
   const existingVideos = storageService.getVideos();
@@ -741,5 +776,6 @@ export const scanMountDirectories = async (
     addedCount: totalAddedCount,
     deletedCount,
     scannedDirectories: validDirectories.length,
+    scannedDirectoryIds: matchedDirectories.map((directory) => directory.id),
   });
 };

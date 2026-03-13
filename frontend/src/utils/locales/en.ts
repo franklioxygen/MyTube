@@ -228,9 +228,13 @@ export const en = {
   // Task Hooks
   taskHooks: "Task Hooks",
   taskHooksDescription:
-    "Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
+    "Execute declarative hook actions at specific points in the task lifecycle. Upload a JSON definition with allowlisted action types.",
   taskHooksWarning:
-    "Warning: Commands run with the server's permissions. Use with caution.",
+    "Warning: Only allowlisted hook actions are supported. Arbitrary shell commands are not allowed.",
+  legacyTaskHooksDescription:
+    "Legacy mode supports declarative JSON hooks and legacy shell scripts for each task event. Strict mode disables task hooks.",
+  legacyHookShellWarning:
+    "Legacy mode accepts .json hooks and .sh scripts. Shell hooks run with the server OS permissions, so only upload trusted scripts.",
   hookTaskBeforeStart: "Before Task Start",
   hookTaskBeforeStartHelper: "Executes before the download begins.",
   hookTaskSuccess: "Task Success",
@@ -240,13 +244,47 @@ export const en = {
   hookTaskFailHelper: "Executes when a task fails.",
   hookTaskCancel: "Task Cancelled",
   hookTaskCancelHelper: "Executes when a task is manually cancelled.",
+  hookGuideButton: "JSON Hook Guide",
+  hookGuideTitle: "How JSON Hooks Run",
+  hookGuideIntro:
+    "JSON hooks are declarative definitions. When a task event fires, MyTube loads the matching .json hook file, validates each action, and executes only allowlisted actions.",
+  hookGuideLegacyShellNote:
+    "Legacy mode also supports .sh hooks. Shell scripts are executed by bash with MYTUBE_* environment variables and are not limited to the JSON action model described below.",
+  hookGuideExecutionTitle: "Execution Flow",
+  hookGuideExecutionQueue:
+    "Event -> queue -> restricted executor. Hooks do not run arbitrary shell commands.",
+  hookGuideExecutionSerial:
+    "Actions inside one hook are executed serially in the order they appear in the JSON file.",
+  hookGuideExecutionValidation:
+    "Invalid JSON, unsupported action types, or disallowed fields are rejected before execution.",
+  hookGuideEventsTitle: "Available Events",
+  hookGuideModesTitle: "Execution Modes",
+  hookGuideInlineMode:
+    "`HOOK_EXECUTION_MODE=inline`: backend queues and executes the hook locally. Best for local development or single-process deployments.",
+  hookGuideWorkerMode:
+    "`HOOK_EXECUTION_MODE=worker`: backend writes jobs to `hook_worker_jobs`, and a separate `hook-worker` process or container polls and executes them. Recommended for production isolation.",
+  hookGuideActionTitle: "Supported Action",
+  hookGuideActionBody:
+    "Currently only `notify_webhook` is supported. It sends an HTTP request to your endpoint after a hook event is triggered.",
+  hookGuideActionDetails:
+    "`method` may be `POST`, `PUT`, or `PATCH`. If `bodyTemplate` is omitted, MyTube sends a JSON request body with the task context automatically.",
+  hookGuideVariablesTitle: "Template Variables",
+  hookGuideTemplateFallback:
+    "If you do not provide `bodyTemplate`, the webhook receives these fields as JSON plus `emittedAt`.",
+  hookGuideExampleTitle: "Example JSON",
+  featureDisabledInStrictMode:
+    "This feature is disabled in the strict security model.",
   found: "Found",
   notFound: "Not Set",
-  deleteHook: "Delete Hook Script",
-  confirmDeleteHook: "Are you sure you want to delete this hook script?",
-  uploadHook: "Upload .sh",
+  deleteHook: "Delete Hook Definition",
+  confirmDeleteHook: "Are you sure you want to delete this hook definition?",
+  uploadJsonHook: "Upload .json",
+  uploadLegacyHook: "Upload .json or .sh",
+  uploadHook: "Upload .json",
   enterPasswordToUploadHook:
-    "Please enter your password to upload this hook script.",
+    "Please enter your password to upload this hook definition.",
+  enterPasswordToUploadLegacyHook:
+    "Please enter your password to upload this hook definition or shell script.",
   riskCommandDetected: "Risk command detected: {command}. Upload rejected.",
   cleanupTempFilesActiveDownloads:
     "Cannot clean up temporary files while downloads are active. Please wait for all downloads to complete or cancel them first.",
@@ -448,7 +486,7 @@ export const en = {
   verifying: "Verifying...",
   incorrectPassword: "Incorrect password",
   loginFailed: "Failed to verify password",
-  defaultPasswordHint: "Default password: 123",
+  defaultPasswordHint: "No default password. Use your configured password.",
   checkingConnection: "Checking connection...",
   connectionError: "Connection Error",
   backendConnectionFailed:
@@ -778,7 +816,7 @@ export const en = {
     "Configure system parameters, maintain data, and extend functions.",
   instructionSection3Sub1: "Security Settings:",
   instructionSection3Text1:
-    "Set the system login password (default initial password is 123, recommended to change after first login).",
+    "Set the system login password and keep it strong and unique.",
   instructionSection3Sub2: "Tag Management:",
   instructionSection3Text2:
     'Supports adding or deleting video classification tags. Note: You must click the "Save" button at the bottom of the page for changes to take effect.',

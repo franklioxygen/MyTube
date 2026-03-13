@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resolveMountDirectoriesByIds } from "../../config/mountDirectories";
 import { VIDEOS_DIR } from "../../config/paths";
 import { scanFiles, scanMountDirectories } from "../../controllers/scanController";
 import * as storageService from "../../services/storageService";
@@ -24,6 +25,13 @@ vi.mock("../../services/storageService", () => ({
 
 vi.mock("../../services/tmdbService", () => ({
   scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../../config/mountDirectories", () => ({
+  resolveMountDirectoriesByIds: vi.fn(() => ({
+    matchedDirectories: [{ id: "library", label: "library", path: "/mnt/library" }],
+    invalidDirectoryIds: [],
+  })),
 }));
 
 vi.mock("../../utils/helpers", () => ({
@@ -67,6 +75,10 @@ describe("scanController extra coverage", () => {
     req = { body: {} };
     res = { status, json };
 
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [{ id: "library", label: "library", path: "/mnt/library" }],
+      invalidDirectoryIds: [],
+    });
     vi.mocked(storageService.getCollections).mockReturnValue([] as any);
     vi.mocked(storageService.deleteVideo).mockReturnValue(true as any);
     vi.mocked(fs.pathExists).mockResolvedValue(true as any);
@@ -113,31 +125,37 @@ describe("scanController extra coverage", () => {
     expect(json).toHaveBeenCalledWith({ addedCount: 0, deletedCount: 2 });
   });
 
-  it("scanMountDirectories rejects empty/missing directory list", async () => {
+  it("scanMountDirectories rejects empty/missing directory id list", async () => {
     req.body = {};
 
     await scanMountDirectories(req as Request, res as Response);
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({
-      error: "Directories array is required and must not be empty",
+      error: "Directory IDs array is required and must not be empty",
     });
   });
 
-  it("scanMountDirectories rejects blank directory values", async () => {
+  it("scanMountDirectories rejects blank directory id values", async () => {
     req.body = {
-      directories: ["   ", ""],
+      directoryIds: ["   ", ""],
     };
 
     await scanMountDirectories(req as Request, res as Response);
 
     expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({ error: "No valid directories provided" });
+    expect(json).toHaveBeenCalledWith({
+      error: "No valid directory IDs provided",
+    });
   });
 
-  it("scanMountDirectories rejects invalid mount directories", async () => {
+  it("scanMountDirectories rejects invalid platform directory ids", async () => {
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [{ id: "library", label: "library", path: "/mnt/library" }],
+      invalidDirectoryIds: ["unknown", "bad"],
+    });
     req.body = {
-      directories: ["../unsafe", "/tmp/ok", "/tmp/../still-bad"],
+      directoryIds: ["unknown", "bad", "library"],
     };
 
     await scanMountDirectories(req as Request, res as Response);
@@ -145,15 +163,15 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: "Invalid mount directories detected (must be absolute safe paths)",
-        invalidDirectories: ["../unsafe", "/tmp/../still-bad"],
+        error: "Unknown platform mount directory IDs",
+        invalidDirectoryIds: ["unknown", "bad"],
       })
     );
   });
 
   it("scanMountDirectories scans mount paths and removes missing mount videos", async () => {
     req.body = {
-      directories: ["/mnt/library"],
+      directoryIds: ["library"],
     };
 
     vi.mocked(storageService.getVideos).mockReturnValue([
@@ -205,42 +223,20 @@ describe("scanController extra coverage", () => {
       addedCount: 1,
       deletedCount: 1,
       scannedDirectories: 1,
+      scannedDirectoryIds: ["library"],
     });
   });
 
-  it("scanMountDirectories does not delete local /videos records when scanning /videos as a mount path", async () => {
-    req.body = {
-      directories: ["/videos"],
-    };
-
-    vi.mocked(storageService.getVideos).mockReturnValue([
-      {
-        id: "local-video",
-        title: "Local Video",
-        videoPath: "/videos/local-video.mp4",
-        fileSize: "200",
-      },
-    ] as any);
-
-    vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
-      return String(target) === "/videos";
+  it("scanMountDirectories rejects configured directories that overlap the local videos directory", async () => {
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [
+        { id: "videos", label: "videos", path: VIDEOS_DIR },
+        { id: "parent", label: "parent", path: path.dirname(VIDEOS_DIR) },
+      ],
+      invalidDirectoryIds: [],
     });
-    vi.mocked(fs.readdir).mockResolvedValue([] as any);
-
-    await scanMountDirectories(req as Request, res as Response);
-
-    expect(storageService.deleteVideo).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith({
-      addedCount: 0,
-      deletedCount: 0,
-      scannedDirectories: 1,
-    });
-  });
-
-  it("scanMountDirectories rejects directories that overlap the local videos directory", async () => {
     req.body = {
-      directories: [VIDEOS_DIR, path.dirname(VIDEOS_DIR)],
+      directoryIds: ["videos", "parent"],
     };
 
     await scanMountDirectories(req as Request, res as Response);
@@ -252,6 +248,7 @@ describe("scanController extra coverage", () => {
         invalidDirectories: [VIDEOS_DIR, path.dirname(VIDEOS_DIR)],
       })
     );
+    expect(storageService.deleteVideo).not.toHaveBeenCalled();
     expect(storageService.saveVideo).not.toHaveBeenCalled();
   });
 
@@ -404,8 +401,12 @@ describe("scanController extra coverage", () => {
 
   it("scanMountDirectories handles missing directories and malformed existing mount paths", async () => {
     req.body = {
-      directories: ["/mnt/missing"],
+      directoryIds: ["library"],
     };
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [{ id: "library", label: "library", path: "/mnt/missing" }],
+      invalidDirectoryIds: [],
+    });
     vi.mocked(storageService.getVideos).mockReturnValue([
       {
         id: "no-path",
@@ -432,12 +433,17 @@ describe("scanController extra coverage", () => {
       addedCount: 0,
       deletedCount: 0,
       scannedDirectories: 1,
+      scannedDirectoryIds: ["library"],
     });
   });
 
-  it("scanMountDirectories rejects null-byte paths in request", async () => {
+  it("scanMountDirectories rejects unknown ids in request", async () => {
+    vi.mocked(resolveMountDirectoriesByIds).mockReturnValue({
+      matchedDirectories: [],
+      invalidDirectoryIds: ["unknown-id"],
+    });
     req.body = {
-      directories: ["/mnt/\0bad"],
+      directoryIds: ["unknown-id"],
     };
 
     await scanMountDirectories(req as Request, res as Response);
@@ -445,7 +451,7 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: "Invalid mount directories detected (must be absolute safe paths)",
+        error: "Unknown platform mount directory IDs",
       })
     );
   });

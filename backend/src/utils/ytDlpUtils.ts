@@ -6,10 +6,19 @@ import { SocksProxyAgent } from "socks-proxy-agent";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
+import { logger } from "./logger";
+import { isStrictFeatureDisabled } from "./strictSecurity";
+import {
+  convertYtDlpSafeConfigToFlags,
+  deriveYtDlpSafeConfigFromLegacyText,
+  normalizeYtDlpSafeConfig,
+  parseLegacyYtDlpConfigText,
+} from "./ytDlpSafeConfig";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
+export type YtDlpFlagMap = Record<string, unknown>;
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
@@ -849,77 +858,8 @@ export function executeYtDlpSpawn(
  * Parse yt-dlp configuration text into flags object
  * Supports standard yt-dlp config file format (one option per line, # for comments)
  */
-export function parseYtDlpConfig(configText: string): Record<string, any> {
-  const flags: Record<string, any> = {};
-
-  if (!configText || typeof configText !== "string") {
-    return flags;
-  }
-
-  const lines = configText.split("\n");
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-
-    // Skip empty lines and comments
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    // Parse the option
-    // Options can be:
-    // -f value
-    // --format value
-    // --some-flag (boolean)
-    // -x (short boolean)
-
-    let optionName: string | null = null;
-    let optionValue: string | boolean = true;
-
-    if (line.startsWith("--")) {
-      // Long option
-      const spaceIndex = line.indexOf(" ");
-      if (spaceIndex === -1) {
-        // Boolean flag (no value)
-        optionName = line.substring(2);
-      } else {
-        optionName = line.substring(2, spaceIndex);
-        optionValue = line.substring(spaceIndex + 1).trim();
-        // Remove surrounding quotes if present
-        if (
-          (optionValue.startsWith('"') && optionValue.endsWith('"')) ||
-          (optionValue.startsWith("'") && optionValue.endsWith("'"))
-        ) {
-          optionValue = optionValue.slice(1, -1);
-        }
-      }
-    } else if (line.startsWith("-") && !line.startsWith("--")) {
-      // Short option
-      const parts = line.split(/\s+/);
-      optionName = parts[0].substring(1);
-      if (parts.length > 1) {
-        optionValue = parts.slice(1).join(" ");
-        // Remove surrounding quotes if present
-        if (
-          typeof optionValue === "string" &&
-          ((optionValue.startsWith('"') && optionValue.endsWith('"')) ||
-            (optionValue.startsWith("'") && optionValue.endsWith("'")))
-        ) {
-          optionValue = optionValue.slice(1, -1);
-        }
-      }
-    }
-
-    if (optionName) {
-      // Convert kebab-case to camelCase for flags object
-      const camelCaseName = optionName.replace(/-([a-z])/g, (_, letter) =>
-        letter.toUpperCase()
-      );
-      flags[camelCaseName] = optionValue;
-    }
-  }
-
-  return flags;
+export function parseYtDlpConfig(configText: string): YtDlpFlagMap {
+  return parseLegacyYtDlpConfigText(configText);
 }
 
 /**
@@ -929,32 +869,58 @@ export function parseYtDlpConfig(configText: string): Record<string, any> {
 export function getUserYtDlpConfig(url?: string): Record<string, any> {
   try {
     const settings = storageService.getSettings();
-    const configText = settings.ytDlpConfig;
     const proxyOnlyYoutube = settings.proxyOnlyYoutube === true;
-
-    if (configText) {
-      const parsedConfig = parseYtDlpConfig(configText);
-      console.log("Parsed user yt-dlp config:", parsedConfig);
-
-      // If proxy is restricted to YouTube only, and we have a non-YouTube URL
-      if (proxyOnlyYoutube && url) {
-        const isYoutube = isYouTubeUrl(url);
-        if (!isYoutube) {
-          console.log(
-            "Proxy restricted to YouTube only. Removing proxy settings for:",
-            url
-          );
-          // Remove proxy-related settings
-          delete parsedConfig.proxy;
-          // Also remove potentially related network options if they are usually proxy-specific?
-          // sticking to just 'proxy' as per request and standard usage.
-        }
-      }
-
-      return parsedConfig;
+    const normalizedSafe = normalizeYtDlpSafeConfig(settings.ytDlpSafeConfig, {
+      rejectUnknownKeys: false,
+      rejectInvalidValues: false,
+    });
+    if (normalizedSafe.rejectedOptions.length > 0) {
+      logger.warn(
+        `[SecurityAudit] Ignored invalid ytDlpSafeConfig options: ${normalizedSafe.rejectedOptions.join(", ")}`
+      );
     }
+
+    const parsedSafeConfig = convertYtDlpSafeConfigToFlags(normalizedSafe.config);
+    if (Object.keys(parsedSafeConfig).length > 0) {
+      if (proxyOnlyYoutube && url && !isYouTubeUrl(url)) {
+        delete parsedSafeConfig.proxy;
+      }
+      return parsedSafeConfig as Record<string, any>;
+    }
+
+    const configText = settings.ytDlpConfig;
+    if (!configText || typeof configText !== "string") {
+      return {};
+    }
+
+    if (isStrictFeatureDisabled("ytDlpConfig")) {
+      if (configText.trim().length > 0) {
+        logger.warn(
+          "[SecurityAudit] Ignored legacy ytDlpConfig text in strict security model."
+        );
+      }
+      return {};
+    }
+
+    const migrated = deriveYtDlpSafeConfigFromLegacyText(configText);
+    if (migrated.rejectedOptions.length > 0) {
+      logger.warn(
+        `[SecurityAudit] Rejected legacy yt-dlp options: ${migrated.rejectedOptions.join(", ")}`
+      );
+    }
+
+    const parsedLegacyConfig = convertYtDlpSafeConfigToFlags(migrated.config);
+
+    if (proxyOnlyYoutube && url && !isYouTubeUrl(url)) {
+      delete parsedLegacyConfig.proxy;
+    }
+
+    return parsedLegacyConfig as Record<string, any>;
   } catch (error) {
-    console.error("Error reading user yt-dlp config:", error);
+    logger.error(
+      "Error reading user yt-dlp config",
+      error instanceof Error ? error : new Error(String(error))
+    );
   }
   return {};
 }

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isStrictSecurityModel } from "../../config/securityModel";
 import { generateToken } from "../../services/authService";
 import * as loginAttemptService from "../../services/loginAttemptService";
 import * as passwordService from "../../services/passwordService";
@@ -21,6 +22,9 @@ vi.mock("../../services/authService", () => ({
     `token-${payload.role}`
   ),
 }));
+vi.mock("../../config/securityModel", () => ({
+  isStrictSecurityModel: vi.fn(() => false),
+}));
 vi.mock("bcryptjs", () => ({
   default: {
     compare: vi.fn(),
@@ -28,11 +32,17 @@ vi.mock("bcryptjs", () => ({
     genSalt: vi.fn(),
   },
 }));
-vi.mock("crypto", () => ({
-  default: {
-    randomBytes: vi.fn(),
-  },
-}));
+vi.mock("crypto", async () => {
+  const actual = await vi.importActual<typeof import("crypto")>("crypto");
+  return {
+    default: {
+      ...actual,
+      randomBytes: vi.fn(),
+      createHash: actual.createHash,
+      timingSafeEqual: actual.timingSafeEqual,
+    },
+  };
+});
 
 const BCRYPT_HASH = `$2b$10$${"a".repeat(53)}`;
 
@@ -50,8 +60,12 @@ const buildSettings = (overrides: Record<string, unknown> = {}) => ({
 describe("passwordService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isStrictSecurityModel).mockReturnValue(false);
 
     vi.mocked(storageService.getSettings).mockReturnValue(buildSettings() as any);
+    vi.mocked(storageService.tryCompleteBootstrapWithAdminPassword).mockReturnValue(
+      true
+    );
     vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(0);
     vi.mocked(loginAttemptService.recordFailedAttempt).mockReturnValue(60);
     vi.mocked(loginAttemptService.getFailedAttempts).mockReturnValue(1);
@@ -60,8 +74,8 @@ describe("passwordService", () => {
     vi.mocked(bcrypt.genSalt as any).mockResolvedValue("salt-10");
     vi.mocked(bcrypt.hash as any).mockResolvedValue("hashed-password");
 
-    vi.mocked(crypto.randomBytes as any).mockReturnValue(
-      Buffer.from([0, 1, 2, 3, 4, 5, 6, 7])
+    vi.mocked(crypto.randomBytes as any).mockImplementation((size: number) =>
+      Buffer.from(Array.from({ length: size }, (_, i) => i % 256))
     );
   });
 
@@ -83,6 +97,93 @@ describe("passwordService", () => {
     });
   });
 
+  describe("isBootstrapCompleted", () => {
+    it("returns true when bootstrapCompleted is true", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: true, password: "" }) as any
+      );
+
+      expect(passwordService.isBootstrapCompleted()).toBe(true);
+    });
+
+    it("returns true when admin password is present", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: false, password: BCRYPT_HASH }) as any
+      );
+
+      expect(passwordService.isBootstrapCompleted()).toBe(true);
+    });
+
+    it("returns false when no bootstrap marker and no admin password", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: false, password: "" }) as any
+      );
+
+      expect(passwordService.isBootstrapCompleted()).toBe(false);
+    });
+  });
+
+  describe("bootstrapAdminPassword", () => {
+    it("creates the first admin password and marks bootstrap as complete", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: false, password: "" }) as any
+      );
+
+      const result = await passwordService.bootstrapAdminPassword("StrongPass123");
+
+      expect(result).toEqual({ success: true });
+      expect(
+        storageService.tryCompleteBootstrapWithAdminPassword
+      ).toHaveBeenCalledWith("hashed-password");
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+      expect(loginAttemptService.resetFailedAttempts).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns conflict result when bootstrap has already completed", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: true, password: BCRYPT_HASH }) as any
+      );
+
+      const result = await passwordService.bootstrapAdminPassword("StrongPass123");
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: false,
+          reason: "ALREADY_COMPLETED",
+        })
+      );
+      expect(
+        storageService.tryCompleteBootstrapWithAdminPassword
+      ).not.toHaveBeenCalled();
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("returns conflict result when bootstrap slot is claimed concurrently", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ bootstrapCompleted: false, password: "" }) as any
+      );
+      vi.mocked(storageService.tryCompleteBootstrapWithAdminPassword).mockReturnValue(
+        false
+      );
+
+      const result = await passwordService.bootstrapAdminPassword("StrongPass123");
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: false,
+          reason: "ALREADY_COMPLETED",
+        })
+      );
+      expect(loginAttemptService.resetFailedAttempts).not.toHaveBeenCalled();
+    });
+
+    it("rejects weak bootstrap passwords", async () => {
+      await expect(
+        passwordService.bootstrapAdminPassword("short")
+      ).rejects.toThrow("Bootstrap password must be at least 8 characters.");
+    });
+  });
+
   describe("isPasswordEnabled", () => {
     it("returns rich state fields when enabled", () => {
       vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(0);
@@ -96,6 +197,7 @@ describe("passwordService", () => {
         enabled: true,
         waitTime: undefined,
         loginRequired: true,
+        bootstrapRequired: false,
         visitorUserEnabled: true,
         isVisitorPasswordSet: true,
         passwordLoginAllowed: true,
@@ -122,6 +224,23 @@ describe("passwordService", () => {
 
       expect(result.enabled).toBe(false);
       expect(result.passwordLoginAllowed).toBe(false);
+    });
+
+    it("reports bootstrapRequired and loginRequired in strict mode before admin setup", () => {
+      vi.mocked(isStrictSecurityModel).mockReturnValue(true);
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({
+          loginEnabled: false,
+          bootstrapCompleted: false,
+          password: "",
+        }) as any
+      );
+
+      const result = passwordService.isPasswordEnabled();
+
+      expect(result.loginRequired).toBe(true);
+      expect(result.bootstrapRequired).toBe(true);
+      expect(result.enabled).toBe(false);
     });
   });
 
@@ -326,6 +445,18 @@ describe("passwordService", () => {
       expect(result.role).toBe("admin");
     });
 
+    it("disables passwordless admin fallback in strict mode", async () => {
+      vi.mocked(isStrictSecurityModel).mockReturnValue(true);
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ password: "" }) as any
+      );
+
+      const result = await passwordService.verifyAdminPassword("admin");
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("Incorrect admin password");
+    });
+
     it("returns incorrect admin password on mismatch", async () => {
       vi.mocked(bcrypt.compare as any).mockResolvedValue(false);
 
@@ -479,6 +610,109 @@ describe("passwordService", () => {
       expect(passwordService.getResetPasswordCooldown()).toBe(0);
 
       nowSpy.mockRestore();
+    });
+  });
+
+  describe("issuePasswordRecoveryToken", () => {
+    it("stores hashed token with expiration and returns plain token once", () => {
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+
+      const result = passwordService.issuePasswordRecoveryToken();
+
+      expect(result.token).toHaveLength(32);
+      expect(result.expiresAt).toBe(1_000_000 + 15 * 60 * 1000);
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          passwordRecoveryTokenHash: expect.any(String),
+          passwordRecoveryTokenExpiresAt: 1_000_000 + 15 * 60 * 1000,
+          passwordRecoveryTokenIssuedAt: 1_000_000,
+        })
+      );
+
+      nowSpy.mockRestore();
+    });
+  });
+
+  describe("resetPasswordWithRecoveryToken", () => {
+    it("resets password when recovery token is valid", async () => {
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2_000_000);
+      const token = "valid-recovery-token";
+      const tokenHash = crypto
+        .createHash("sha256")
+        .update(token, "utf8")
+        .digest("hex");
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({
+          passwordRecoveryTokenHash: tokenHash,
+          passwordRecoveryTokenExpiresAt: 2_000_000 + 60_000,
+          allowResetPassword: true,
+          passwordLoginAllowed: true,
+          lastPasswordResetTime: undefined,
+        }) as any
+      );
+
+      const result = await passwordService.resetPasswordWithRecoveryToken(
+        token,
+        "source-valid"
+      );
+
+      expect(result).toEqual({ success: true });
+      expect(storageService.saveSettings).toHaveBeenCalled();
+
+      nowSpy.mockRestore();
+    });
+
+    it("rejects invalid recovery token", async () => {
+      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
+      const tokenHash = crypto
+        .createHash("sha256")
+        .update("expected-token", "utf8")
+        .digest("hex");
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({
+          passwordRecoveryTokenHash: tokenHash,
+          passwordRecoveryTokenExpiresAt: 3_000_000 + 60_000,
+        }) as any
+      );
+
+      const result = await passwordService.resetPasswordWithRecoveryToken(
+        "wrong-token",
+        "source-invalid"
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          success: false,
+          reason: "INVALID_TOKEN",
+        })
+      );
+
+      nowSpy.mockRestore();
+    });
+
+    it("rate limits repeated invalid recovery token attempts", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({
+          passwordRecoveryTokenHash: "",
+          passwordRecoveryTokenExpiresAt: 0,
+        }) as any
+      );
+
+      let lastResult: any;
+      for (let i = 0; i < 6; i += 1) {
+        lastResult = await passwordService.resetPasswordWithRecoveryToken(
+          "invalid",
+          "source-rate-limit"
+        );
+      }
+
+      expect(lastResult).toEqual(
+        expect.objectContaining({
+          success: false,
+          reason: "RATE_LIMITED",
+        })
+      );
+      expect(lastResult.retryAfterMs).toBeGreaterThan(0);
     });
   });
 

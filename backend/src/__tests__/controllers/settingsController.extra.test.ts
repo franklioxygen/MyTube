@@ -14,6 +14,10 @@ import downloadManager from "../../services/downloadManager";
 import * as settingsValidationService from "../../services/settingsValidationService";
 import * as storageService from "../../services/storageService";
 import { logger } from "../../utils/logger";
+import {
+  createStrictFeatureDisabledPayload,
+  isStrictFeatureDisabled,
+} from "../../utils/strictSecurity";
 
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
@@ -54,6 +58,10 @@ vi.mock("../../services/thumbnailService", () => ({
   moveAllThumbnails: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock("../../services/securityAuditService", () => ({
+  recordSecurityAuditEvent: vi.fn(),
+}));
+
 vi.mock("../../services/tagService", () => ({
   renameTag: vi.fn(),
   deleteTagsFromVideos: vi.fn(),
@@ -65,6 +73,15 @@ vi.mock("../../utils/logger", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+vi.mock("../../utils/strictSecurity", () => ({
+  isStrictFeatureDisabled: vi.fn(),
+  createStrictFeatureDisabledPayload: vi.fn((feature: string) => ({
+    success: false,
+    error: "feature disabled",
+    feature,
+  })),
 }));
 
 vi.mock("fs-extra", () => ({
@@ -99,6 +116,7 @@ describe("settingsController extra coverage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
 
     json = vi.fn();
     status = vi.fn(() => ({ json }));
@@ -215,15 +233,10 @@ describe("settingsController extra coverage", () => {
       "utf8"
     );
 
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: true,
-        settings: expect.objectContaining({
-          password: undefined,
-          visitorPassword: undefined,
-        }),
-      })
-    );
+    const responsePayload = json.mock.calls[0][0] as any;
+    expect(responsePayload.success).toBe(true);
+    expect(responsePayload.settings?.password).toBeUndefined();
+    expect(responsePayload.settings?.visitorPassword).toBeUndefined();
   });
 
   it("patchSettings persists only patch fields and keeps merged output", async () => {
@@ -286,5 +299,27 @@ describe("settingsController extra coverage", () => {
       expect.any(Error)
     );
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  it("returns 403 when strict mode blocks yt-dlp text configuration updates", async () => {
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
+    req.body = { ytDlpConfig: "--proxy http://127.0.0.1:7890" };
+
+    await patchSettings(req as Request, res as Response);
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(createStrictFeatureDisabledPayload).toHaveBeenCalledWith("ytDlpConfig");
+    expect(storageService.saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when strict mode blocks cloudflared control updates", async () => {
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
+    req.body = { cloudflaredTunnelEnabled: true };
+
+    await updateSettings(req as Request, res as Response);
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(createStrictFeatureDisabledPayload).toHaveBeenCalledWith("cloudflaredControl");
+    expect(storageService.saveSettings).not.toHaveBeenCalled();
   });
 });

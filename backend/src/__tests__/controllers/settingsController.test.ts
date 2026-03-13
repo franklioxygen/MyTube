@@ -4,8 +4,10 @@ import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteLegacyData, getSettings, migrateData, patchSettings, updateSettings } from '../../controllers/settingsController';
 import { verifyPassword } from '../../controllers/passwordController';
+import { resolveSecurityModel } from '../../config/securityModel';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
+import { isStrictFeatureDisabled } from '../../utils/strictSecurity';
 
 vi.mock('../../services/storageService');
 vi.mock('../../services/downloadManager');
@@ -16,6 +18,17 @@ vi.mock('fs-extra');
 vi.mock('../../services/migrationService', () => ({
   runMigration: vi.fn(),
 }));
+vi.mock('../../config/securityModel', () => ({
+  resolveSecurityModel: vi.fn(() => 'legacy'),
+}));
+vi.mock('../../utils/strictSecurity', () => ({
+  isStrictFeatureDisabled: vi.fn(() => false),
+  createStrictFeatureDisabledPayload: vi.fn((feature: string) => ({
+    success: false,
+    error: 'feature disabled',
+    feature,
+  })),
+}));
 
 describe('SettingsController', () => {
   let req: Partial<Request>;
@@ -25,6 +38,8 @@ describe('SettingsController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveSecurityModel).mockReturnValue('legacy');
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
     req = {};
@@ -41,7 +56,12 @@ describe('SettingsController', () => {
 
       await getSettings(req as Request, res as Response);
 
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          theme: 'dark',
+          mountDirectories: expect.any(String),
+        })
+      );
     });
 
     it('should hide api key from visitor users', async () => {
@@ -57,6 +77,7 @@ describe('SettingsController', () => {
       const responsePayload = json.mock.calls[0][0];
       expect(responsePayload.apiKey).toBeUndefined();
       expect(responsePayload.apiKeyEnabled).toBeUndefined();
+      expect(responsePayload.mountDirectories).toBeUndefined();
     });
 
     it('should save defaults if empty', async () => {
@@ -66,6 +87,24 @@ describe('SettingsController', () => {
 
       expect(storageService.saveSettings).toHaveBeenCalled();
       expect(json).toHaveBeenCalled();
+    });
+
+    it('should expose strict security metadata flags in response', async () => {
+      req.user = { role: 'admin' } as any;
+      vi.mocked(resolveSecurityModel).mockReturnValue('strict');
+      vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
+      (storageService.getSettings as any).mockReturnValue({ theme: 'dark' });
+
+      await getSettings(req as Request, res as Response);
+
+      const payload = json.mock.calls[0][0];
+      expect(payload.securityModel).toBe('strict');
+      expect(payload.highRiskFeaturesDisabled).toEqual({
+        hooks: true,
+        ytDlpConfig: true,
+        mountDirectories: true,
+        cloudflaredControl: true,
+      });
     });
   });
 

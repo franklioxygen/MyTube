@@ -53,11 +53,12 @@ describe('settings mass assignment protection', () => {
         const payload = {
             password: 'hashedpassword',
             allowedHosts: 'localhost',
-            ytDlpConfig: 'config'
+            ytDlpConfig: 'config',
+            ytDlpSafeConfig: { maxResolution: 1080 }
         };
 
         saveSettings(payload);
 
-        expect(db.insert).toHaveBeenCalledTimes(3);
+        expect(db.insert).toHaveBeenCalledTimes(4);
     });
 });

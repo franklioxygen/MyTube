@@ -7,6 +7,9 @@ import * as passkeyService from "../../services/passkeyService";
 // Mock dependencies
 vi.mock("../../services/passkeyService");
 vi.mock("../../services/authService");
+vi.mock("../../services/securityAuditService", () => ({
+  recordSecurityAuditEvent: vi.fn(),
+}));
 
 describe("PasskeyController", () => {
     let req: Partial<Request>;
@@ -16,6 +19,9 @@ describe("PasskeyController", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(authService.getAuthCookieName).mockReturnValue(
+          "mytube_auth_session"
+        );
         json = vi.fn();
         status = vi.fn().mockReturnValue({ json });
         
@@ -70,6 +76,7 @@ describe("PasskeyController", () => {
     describe("generateRegistrationOptions", () => {
         it("should generate options using correct RPID and Origin", async () => {
             req.body = { userName: "testuser" };
+            req.user = { role: "admin" } as any;
             const mockResult = { challenge: "c", options: {} };
             vi.mocked(passkeyService.generatePasskeyRegistrationOptions).mockResolvedValue(mockResult as any);
 
@@ -85,6 +92,7 @@ describe("PasskeyController", () => {
         
         it("should fallback to host if origin missing", async () => {
             req.headers = { host: "example.com" }; // secure false implies http
+            req.user = { role: "admin" } as any;
             vi.mocked(passkeyService.generatePasskeyRegistrationOptions).mockResolvedValue({} as any);
             
             await passkeyController.generateRegistrationOptions(req as Request, res as Response);
@@ -95,11 +103,21 @@ describe("PasskeyController", () => {
                 "example.com"
             );
         });
+
+        it("should reject unauthenticated registration option requests", async () => {
+            req.user = undefined;
+
+            await passkeyController.generateRegistrationOptions(req as Request, res as Response);
+
+            expect(status).toHaveBeenCalledWith(403);
+            expect(passkeyService.generatePasskeyRegistrationOptions).not.toHaveBeenCalled();
+        });
     });
 
     describe("verifyRegistration", () => {
         it("should verify successfully", async () => {
             req.body = { body: {}, challenge: "c" };
+            req.user = { role: "admin" } as any;
             vi.mocked(passkeyService.verifyPasskeyRegistration).mockResolvedValue({ verified: true, passkey: {} } as any);
 
             await passkeyController.verifyRegistration(req as Request, res as Response);
@@ -109,16 +127,28 @@ describe("PasskeyController", () => {
 
         it("should fail validation if missing fields", async () => {
              req.body = {};
+             req.user = { role: "admin" } as any;
              await passkeyController.verifyRegistration(req as Request, res as Response);
              expect(status).toHaveBeenCalledWith(400);
         });
 
         it("should fail if service verification fails", async () => {
              req.body = { body: {}, challenge: "c" };
+             req.user = { role: "admin" } as any;
              vi.mocked(passkeyService.verifyPasskeyRegistration).mockResolvedValue({ verified: false });
 
              await passkeyController.verifyRegistration(req as Request, res as Response);
              expect(status).toHaveBeenCalledWith(400);
+        });
+
+        it("should reject unauthenticated registration verification requests", async () => {
+             req.body = { body: {}, challenge: "c" };
+             req.user = undefined;
+
+             await passkeyController.verifyRegistration(req as Request, res as Response);
+
+             expect(status).toHaveBeenCalledWith(403);
+             expect(passkeyService.verifyPasskeyRegistration).not.toHaveBeenCalled();
         });
     });
 
@@ -143,7 +173,14 @@ describe("PasskeyController", () => {
              
              await passkeyController.verifyAuthentication(req as Request, res as Response);
              
-             expect(authService.setAuthCookie).toHaveBeenCalledWith(res, "t", "admin");
+             expect(authService.setAuthCookie).toHaveBeenCalledWith(
+               res,
+               "t",
+               "admin",
+               expect.objectContaining({
+                 authMethod: "passkey",
+               })
+             );
              expect(json).toHaveBeenCalledWith({ success: true, role: "admin" });
         });
 
@@ -164,9 +201,17 @@ describe("PasskeyController", () => {
 
     describe("removeAllPasskeys", () => {
         it("should remove all passkeys", async () => {
+            req.user = { role: "admin" } as any;
             await passkeyController.removeAllPasskeys(req as Request, res as Response);
             expect(passkeyService.removeAllPasskeys).toHaveBeenCalled();
             expect(json).toHaveBeenCalledWith({ success: true });
+        });
+
+        it("should reject unauthenticated passkey deletion", async () => {
+            req.user = undefined;
+            await passkeyController.removeAllPasskeys(req as Request, res as Response);
+            expect(status).toHaveBeenCalledWith(403);
+            expect(passkeyService.removeAllPasskeys).not.toHaveBeenCalled();
         });
     });
 });
