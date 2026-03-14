@@ -62,6 +62,8 @@
   },
   "overrides": {
     "esbuild": "^0.25.0",
+    "undici": "^7.24.0",
+    "yauzl": "^3.2.1",
     "@jimp/core": {
       "file-type": "file:vendor/file-type"
     }

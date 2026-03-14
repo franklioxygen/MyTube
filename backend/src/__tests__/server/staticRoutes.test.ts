@@ -1,11 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import path from "path";
 
-const { staticMock } = vi.hoisted(() => ({
+const {
+  staticMock,
+  jimpReadMock,
+  pathExistsMock,
+  realpathMock,
+  statMock,
+} = vi.hoisted(() => ({
   staticMock: vi.fn((dir: string, options?: any) => ({
     dir,
     options,
   })),
+  jimpReadMock: vi.fn(),
+  pathExistsMock: vi.fn(),
+  realpathMock: vi.fn(),
+  statMock: vi.fn(),
 }));
 
 vi.mock("express", () => {
@@ -17,6 +28,20 @@ vi.mock("express", () => {
   };
 });
 
+vi.mock("fs-extra", () => ({
+  default: {
+    pathExists: pathExistsMock,
+    realpath: realpathMock,
+    stat: statMock,
+  },
+}));
+
+vi.mock("jimp", () => ({
+  Jimp: {
+    read: jimpReadMock,
+  },
+}));
+
 import {
   registerSpaFallback,
   registerStaticRoutes,
@@ -25,6 +50,16 @@ import {
 describe("server/staticRoutes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pathExistsMock.mockResolvedValue(false);
+    realpathMock.mockImplementation(async (value: string) => value);
+    statMock.mockResolvedValue({
+      isFile: () => true,
+    });
+    jimpReadMock.mockResolvedValue({
+      bitmap: { width: 200 },
+      scaleToFit: vi.fn(),
+      getBuffer: vi.fn().mockResolvedValue(Buffer.from("image")),
+    });
   });
 
   it("should register static mounts and set headers for media files", () => {
@@ -33,11 +68,21 @@ describe("server/staticRoutes", () => {
     const app = { use, get } as any;
     registerStaticRoutes(app, "/frontend-dist");
 
-    expect(use).toHaveBeenCalledTimes(6);
+    expect(use).toHaveBeenCalledTimes(7);
     expect(get).toHaveBeenCalledWith("/images/*", expect.any(Function));
     const [videosPath, videosStatic] = use.mock.calls[0];
     expect(videosPath).toBe("/videos");
     expect(videosStatic.dir).toContain("/uploads/videos");
+    expect(videosStatic.options.fallthrough).toBe(false);
+
+    const [imagesPath, imagesStatic] = use.mock.calls[1];
+    expect(imagesPath).toBe("/images");
+    expect(imagesStatic.options.fallthrough).toBe(false);
+
+    const [assetsPath, assetsStatic] = use.mock.calls[5];
+    expect(assetsPath).toBe("/assets");
+    expect(assetsStatic.dir).toBe("/frontend-dist/assets");
+    expect(assetsStatic.options.fallthrough).toBe(false);
 
     const setHeaders = videosStatic.options.setHeaders as (
       res: any,
@@ -116,5 +161,152 @@ describe("server/staticRoutes", () => {
     expect(spaRes.sendFile).toHaveBeenCalledWith("index.html", {
       root: "/frontend-dist"
     });
+  });
+
+  it("should reject responsive image traversal attempts before accessing the filesystem", async () => {
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    const imageHandler = get.mock.calls[0][1];
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      setHeader: vi.fn(),
+    };
+    const next = vi.fn();
+
+    imageHandler(
+      {
+        path: "/images/../secrets.jpg",
+        query: { w: "320" },
+      } as any,
+      res,
+      next,
+    );
+    await Promise.resolve();
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.send).toHaveBeenCalledWith("Invalid image path");
+    expect(pathExistsMock).not.toHaveBeenCalled();
+    expect(jimpReadMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should reject responsive image symlink targets that escape the image root", async () => {
+    pathExistsMock.mockResolvedValue(true);
+    realpathMock.mockResolvedValue("/tmp/escaped.jpg");
+
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    const imageHandler = get.mock.calls[0][1];
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      setHeader: vi.fn(),
+    };
+    const next = vi.fn();
+
+    imageHandler(
+      {
+        path: "/images/posters/cover.jpg",
+        query: { q: "80" },
+      } as any,
+      res,
+      next,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.send).toHaveBeenCalledWith("Invalid image path");
+    expect(statMock).not.toHaveBeenCalled();
+    expect(jimpReadMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should fall through to static image handling when the responsive target is missing", async () => {
+    pathExistsMock.mockResolvedValue(false);
+
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    const imageHandler = get.mock.calls[0][1];
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      setHeader: vi.fn(),
+    };
+    const next = vi.fn();
+
+    imageHandler(
+      {
+        path: "/images/posters/cover.jpg",
+        query: { w: "320" },
+      } as any,
+      res,
+      next,
+    );
+    await Promise.resolve();
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+    expect(jimpReadMock).not.toHaveBeenCalled();
+  });
+
+  it("should use decoded wildcard params for responsive image lookups", async () => {
+    pathExistsMock.mockResolvedValue(true);
+
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    const imageHandler = get.mock.calls[0][1];
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      setHeader: vi.fn(),
+    };
+    const next = vi.fn();
+
+    imageHandler(
+      {
+        path: "/images/%E4%BD%A0%E5%A5%BD.2024.jpg",
+        params: { 0: "你好.2024.jpg" },
+        query: { w: "320" },
+      } as any,
+      res,
+      next,
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(pathExistsMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(
+          `${path.sep}uploads${path.sep}images${path.sep}你好\\.2024\\.jpg$`,
+        ),
+      ),
+    );
+    expect(jimpReadMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(
+          `${path.sep}uploads${path.sep}images${path.sep}你好\\.2024\\.jpg$`,
+        ),
+      ),
+    );
+    expect(res.send).toHaveBeenCalledWith(Buffer.from("image"));
+    expect(next).not.toHaveBeenCalled();
   });
 });

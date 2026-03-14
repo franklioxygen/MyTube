@@ -45,5 +45,10 @@
         "swc-node": "^1.0.0",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.38.0"
+    },
+    "overrides": {
+        "ajv": "^6.14.0",
+        "flatted": "^3.4.0",
+        "undici": "^6.24.0"
     }
 }

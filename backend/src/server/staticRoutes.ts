@@ -14,6 +14,7 @@ import { validateImagePath } from "../utils/security";
 const DEFAULT_RESPONSIVE_IMAGE_QUALITY = 72;
 const MAX_RESPONSIVE_IMAGE_WIDTH = 1600;
 const MIN_RESPONSIVE_IMAGE_WIDTH = 64;
+const IMAGE_ROOT_PATH = path.resolve(IMAGES_DIR);
 
 const parsePositiveInteger = (value: unknown): number | null => {
   if (typeof value !== "string" || value.trim() === "") {
@@ -34,6 +35,49 @@ const clamp = (value: number, min: number, max: number): number =>
 const isOptimizableThumbnail = (filePath: string): boolean =>
   /\.(jpe?g)$/i.test(filePath);
 
+const isPathInsideImageRoot = (candidatePath: string): boolean => {
+  const relativePath = path.relative(IMAGE_ROOT_PATH, candidatePath);
+  return (
+    relativePath !== "" &&
+    !relativePath.startsWith("..") &&
+    !path.isAbsolute(relativePath)
+  );
+};
+
+const resolveResponsiveImageCandidatePath = (
+  requestPath: string,
+): string | null => {
+  const relativeImagePath = requestPath.startsWith("/images/")
+    ? requestPath.replace(/^\/images\/+/, "")
+    : requestPath;
+  if (!relativeImagePath) {
+    return null;
+  }
+
+  const normalizedSegments = relativeImagePath.replace(/\\/g, "/").split("/");
+  if (
+    normalizedSegments.some((segment) => {
+      return segment === "." || segment === ".." || segment.includes("\0");
+    })
+  ) {
+    return null;
+  }
+
+  const safeSegments = normalizedSegments
+    .map((segment) => path.basename(segment))
+    .filter((segment) => segment.length > 0);
+  if (safeSegments.length === 0) {
+    return null;
+  }
+
+  const candidatePath = path.resolve(IMAGE_ROOT_PATH, ...safeSegments);
+  if (!isPathInsideImageRoot(candidatePath)) {
+    return null;
+  }
+
+  return validateImagePath(candidatePath);
+};
+
 const serveResponsiveImage = async (
   req: Request,
   res: Response,
@@ -51,21 +95,38 @@ const serveResponsiveImage = async (
     return;
   }
 
-  const relativeImagePath = req.path.replace(/^\/images\/+/, "");
-  if (!relativeImagePath) {
+  const wildcardImagePath = req.params?.["0"];
+  const candidateImagePath = resolveResponsiveImageCandidatePath(
+    typeof wildcardImagePath === "string" ? wildcardImagePath : req.path,
+  );
+  if (!candidateImagePath) {
+    res.status(400).send("Invalid image path");
+    return;
+  }
+
+  if (
+    !isOptimizableThumbnail(candidateImagePath) ||
+    !(await fs.pathExists(candidateImagePath))
+  ) {
     next();
     return;
   }
 
   let absoluteImagePath: string;
   try {
-    absoluteImagePath = validateImagePath(path.join(IMAGES_DIR, relativeImagePath));
-  } catch {
-    res.status(400).send("Invalid image path");
-    return;
-  }
+    absoluteImagePath = await fs.realpath(candidateImagePath);
 
-  if (!isOptimizableThumbnail(absoluteImagePath) || !(await fs.pathExists(absoluteImagePath))) {
+    if (!isPathInsideImageRoot(absoluteImagePath)) {
+      res.status(400).send("Invalid image path");
+      return;
+    }
+
+    const imageStats = await fs.stat(absoluteImagePath);
+    if (!imageStats.isFile()) {
+      next();
+      return;
+    }
+  } catch {
     next();
     return;
   }
@@ -107,6 +168,7 @@ export const registerStaticRoutes = (
   app.use(
     "/videos",
     express.static(VIDEOS_DIR, {
+      fallthrough: false,
       setHeaders: (res, filePath) => {
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader(
@@ -151,6 +213,7 @@ export const registerStaticRoutes = (
   app.use(
     "/images",
     express.static(IMAGES_DIR, {
+      fallthrough: false,
       setHeaders: (res) => {
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("X-Content-Type-Options", "nosniff");
@@ -161,6 +224,7 @@ export const registerStaticRoutes = (
   app.use(
     "/avatars",
     express.static(AVATARS_DIR, {
+      fallthrough: false,
       setHeaders: (res) => {
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("X-Content-Type-Options", "nosniff");
@@ -170,12 +234,15 @@ export const registerStaticRoutes = (
 
   app.use(
     "/api/cloud/thumbnail-cache",
-    express.static(CLOUD_THUMBNAIL_CACHE_DIR)
+    express.static(CLOUD_THUMBNAIL_CACHE_DIR, {
+      fallthrough: false,
+    })
   );
 
   app.use(
     "/subtitles",
     express.static(SUBTITLES_DIR, {
+      fallthrough: false,
       setHeaders: (res, filePath) => {
         const lower = filePath.toLowerCase();
         if (lower.endsWith(".vtt")) {
@@ -189,6 +256,13 @@ export const registerStaticRoutes = (
           res.setHeader("Access-Control-Allow-Origin", "*");
         }
       },
+    })
+  );
+
+  app.use(
+    "/assets",
+    express.static(path.join(frontendDist, "assets"), {
+      fallthrough: false,
     })
   );
 
