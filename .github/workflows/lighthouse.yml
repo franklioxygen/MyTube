@@ -1,0 +1,113 @@
+name: Lighthouse Desktop Score Badge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths-ignore:
+      - "badges/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lighthouse-desktop-score-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse-score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm run install:all
+
+      - name: Build Frontend
+        run: npm --prefix frontend run build
+
+      - name: Run Lighthouse
+        run: |
+          set -euo pipefail
+
+          mkdir -p .lighthouseci badges
+          (
+            cd backend
+            npm run start
+          ) > /tmp/mytube-lighthouse-backend.log 2>&1 &
+          BACKEND_PID=$!
+
+          cleanup() {
+            kill "$BACKEND_PID" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for _ in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:5551/ >/dev/null; then
+              break
+            fi
+
+            sleep 1
+          done
+
+          curl --silent --fail http://127.0.0.1:5551/ >/dev/null
+
+          CHROME_PATH="$(node -e "console.log(require('./backend/node_modules/puppeteer').executablePath())")"
+
+          for run in 1 2 3; do
+            npx --yes lighthouse@12.8.2 http://127.0.0.1:5551/ \
+              --preset=desktop \
+              --only-categories=performance \
+              --chrome-path="$CHROME_PATH" \
+              --chrome-flags="--headless --no-sandbox" \
+              --quiet \
+              --output=json \
+              --output-path=".lighthouseci/lighthouse-desktop-${run}.json"
+          done
+
+      - name: Generate Badge Payload
+        run: >
+          node scripts/lighthouse/generate-badge.mjs
+          .lighthouseci/lighthouse-desktop-1.json
+          .lighthouseci/lighthouse-desktop-2.json
+          .lighthouseci/lighthouse-desktop-3.json
+          --output badges/lighthouse-performance.json
+          --label "Lighthouse desktop"
+
+      - name: Upload Lighthouse Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-desktop-reports
+          path: .lighthouseci/*.json
+
+      - name: Commit Badge Update
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- badges/lighthouse-performance.json; then
+            exit 0
+          fi
+
+          git add badges/lighthouse-performance.json
+          git commit -m "Update Lighthouse performance badge"
+          git push
