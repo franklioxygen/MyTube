@@ -1,65 +1,70 @@
-import { fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Video } from '../../../types';
+import type { Video } from '../../../types';
 import VideosTable from '../VideosTable';
 import { api } from '../../../utils/apiClient';
-import { useSnackbar } from '../../../contexts/SnackbarContext';
-import { useQueryClient } from '@tanstack/react-query';
 
-// Get mocked functions - these will be set up in beforeEach
-let mockShowSnackbar: ReturnType<typeof vi.fn>;
-let mockInvalidateQueries: ReturnType<typeof vi.fn>;
-let mockPost: ReturnType<typeof vi.fn>;
+let mockUserRole = 'admin';
+let mockCollections = [
+    { id: 'collection-1', name: 'Collection 1', videos: [] },
+    { id: 'collection-2', name: 'Collection 2', videos: [] },
+];
+let mockActiveDownloads: Array<{ sourceUrl: string }> = [];
+let mockQueuedDownloads: Array<{ sourceUrl: string }> = [];
+
+const mockDeleteVideo = vi.fn();
+const mockAddToCollection = vi.fn();
+const mockCreateCollection = vi.fn();
+const mockFetchCollections = vi.fn();
+const mockShowSnackbar = vi.fn();
+const mockInvalidateQueries = vi.fn();
 
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
 vi.mock('../../../contexts/AuthContext', () => ({
-    useAuth: () => ({ userRole: 'admin' }),
+    useAuth: () => ({ userRole: mockUserRole }),
 }));
 
 vi.mock('../../../contexts/VideoContext', () => ({
     useVideo: () => ({
-        deleteVideo: vi.fn(),
+        deleteVideo: mockDeleteVideo,
     }),
 }));
 
 vi.mock('../../../contexts/CollectionContext', () => ({
     useCollection: () => ({
-        collections: [],
-        addToCollection: vi.fn(),
-        createCollection: vi.fn(),
-        fetchCollections: vi.fn(),
+        collections: mockCollections,
+        addToCollection: mockAddToCollection,
+        createCollection: mockCreateCollection,
+        fetchCollections: mockFetchCollections,
     }),
 }));
 
 vi.mock('../../../contexts/DownloadContext', () => ({
     useDownload: () => ({
-        activeDownloads: [],
-        queuedDownloads: [],
-        handleVideoSubmit: vi.fn(),
-        showBilibiliPartsModal: false,
-        setShowBilibiliPartsModal: vi.fn(),
-        bilibiliPartsInfo: {},
-        isCheckingParts: false,
-        handleDownloadAllBilibiliParts: vi.fn(),
-        handleDownloadCurrentBilibiliPart: vi.fn(),
+        activeDownloads: mockActiveDownloads,
+        queuedDownloads: mockQueuedDownloads,
     }),
 }));
 
 vi.mock('../../../contexts/SnackbarContext', () => ({
     useSnackbar: () => ({
-        showSnackbar: vi.fn(),
+        showSnackbar: mockShowSnackbar,
     }),
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-    useQueryClient: () => ({
-        invalidateQueries: vi.fn(),
-    }),
-}));
+vi.mock('@tanstack/react-query', async () => {
+    const actual = await vi.importActual('@tanstack/react-query');
+    return {
+        ...actual,
+        useQueryClient: vi.fn(),
+    };
+});
 
 vi.mock('../../../utils/apiClient', () => ({
     api: {
@@ -71,7 +76,51 @@ vi.mock('../../../utils/apiClient', () => ({
 }));
 
 vi.mock('../../../hooks/useCloudStorageUrl', () => ({
-    useCloudStorageUrl: (path: string | null | undefined) => path ? 'mock-url' : undefined,
+    useCloudStorageUrl: (path: string | null | undefined) => (path ? 'mock-cloud-url' : undefined),
+}));
+
+vi.mock('../../CollectionModal', () => ({
+    default: ({
+        open,
+        collections,
+        onClose,
+        onAddToCollection,
+        onCreateCollection,
+    }: {
+        open: boolean;
+        collections?: Array<{ id: string; name: string }>;
+        onClose: () => void;
+        onAddToCollection?: (collectionId: string) => Promise<void>;
+        onCreateCollection?: (name: string) => Promise<void>;
+    }) =>
+        open ? (
+            <div data-testid="collection-modal">
+                <span data-testid="collection-modal-count">{collections?.length ?? 0}</span>
+                <button onClick={() => onAddToCollection?.('collection-1')}>mock-add-existing</button>
+                <button onClick={() => onCreateCollection?.('Created Collection')}>mock-create-collection</button>
+                <button onClick={onClose}>mock-close-collection</button>
+            </div>
+        ) : null,
+}));
+
+vi.mock('../../UploadThumbnailModal', () => ({
+    default: ({
+        open,
+        onClose,
+        onUpload,
+    }: {
+        open: boolean;
+        onClose: () => void;
+        onUpload: (file: File) => Promise<void>;
+    }) =>
+        open ? (
+            <div data-testid="upload-thumbnail-modal">
+                <button onClick={() => onUpload(new File(['thumb'], 'thumb.png', { type: 'image/png' }))}>
+                    trigger-upload-thumbnail
+                </button>
+                <button onClick={onClose}>close-upload-thumbnail</button>
+            </div>
+        ) : null,
 }));
 
 describe('VideosTable', () => {
@@ -80,19 +129,22 @@ describe('VideosTable', () => {
             id: '1',
             title: 'Video 1',
             author: 'Author 1',
-            fileSize: 1024,
+            fileSize: '1024',
             duration: 60,
             addedAt: '2023-01-01',
-            sourceUrl: 'https://youtube.com/watch?v=test1'
+            sourceUrl: 'https://youtube.com/watch?v=test1',
+            thumbnailPath: '/images/thumb-1.jpg',
+            thumbnailUrl: '/images/thumb-1.jpg?t=123',
         },
         {
             id: '2',
             title: 'Video 2',
             author: 'Author 2',
-            fileSize: 2048,
+            fileSize: '2048',
             duration: 120,
             addedAt: '2023-01-02',
-            sourceUrl: 'https://youtube.com/watch?v=test2'
+            sourceUrl: 'https://youtube.com/watch?v=test2',
+            thumbnailPath: '/images/thumb-2.jpg',
         },
     ] as unknown as Video[];
 
@@ -111,181 +163,212 @@ describe('VideosTable', () => {
         onDeleteClick: vi.fn(),
         deletingId: null,
         onRefreshThumbnail: vi.fn(),
+        onUploadThumbnail: vi.fn().mockResolvedValue(undefined),
         refreshingId: null,
         onRefreshFileSizes: vi.fn(),
         isRefreshingFileSizes: false,
-        onUpdateVideo: vi.fn(),
+        onUpdateVideo: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const renderTable = (props = {}) => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+            },
+        });
+
+        return render(
+            <QueryClientProvider client={queryClient}>
+                <BrowserRouter>
+                    <VideosTable {...defaultProps} {...props} />
+                </BrowserRouter>
+            </QueryClientProvider>
+        );
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Get the mocked functions
-        mockShowSnackbar = vi.mocked(useSnackbar().showSnackbar);
-        mockInvalidateQueries = vi.mocked(useQueryClient().invalidateQueries);
-        mockPost = vi.mocked(api.post);
+        mockUserRole = 'admin';
+        mockCollections = [
+            { id: 'collection-1', name: 'Collection 1', videos: [] },
+            { id: 'collection-2', name: 'Collection 2', videos: [] },
+        ];
+        mockActiveDownloads = [];
+        mockQueuedDownloads = [];
+        mockDeleteVideo.mockResolvedValue(undefined);
+        mockAddToCollection.mockResolvedValue(undefined);
+        mockCreateCollection.mockResolvedValue({ id: 'created-collection' });
+        mockFetchCollections.mockResolvedValue(undefined);
+        mockShowSnackbar.mockReset();
+        mockInvalidateQueries.mockReset();
+        vi.mocked(useQueryClient).mockReturnValue({
+            invalidateQueries: mockInvalidateQueries,
+        } as any);
+        vi.mocked(api.post).mockReset();
     });
 
-    it('should render video rows', () => {
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} />
-            </BrowserRouter>
-        );
+    it('renders video rows and thumbnail sources', () => {
+        renderTable();
 
         expect(screen.getByText('Video 1')).toBeInTheDocument();
-        expect(screen.getByText('Video 2')).toBeInTheDocument();
         expect(screen.getByText('Author 1')).toBeInTheDocument();
+        expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images/thumb-1.jpg?t=123');
     });
 
-    it('should call onSort when header clicked', () => {
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} />
-            </BrowserRouter>
-        );
+    it('calls onSearchChange and onSort from the header controls', () => {
+        renderTable();
 
+        fireEvent.change(screen.getByPlaceholderText('searchVideos'), { target: { value: 'cats' } });
         fireEvent.click(screen.getByText('title'));
+
+        expect(defaultProps.onSearchChange).toHaveBeenCalledWith('cats');
         expect(defaultProps.onSort).toHaveBeenCalledWith('title');
     });
 
-    it('should prefer local thumbnailPath url when thumbnailUrl is stale', () => {
-        const staleThumbnailUrlVideo = {
-            ...mockVideos[0],
-            thumbnailPath: '/images/old-thumbnail.jpg',
-            thumbnailUrl: '/images/new-thumbnail.jpg?t=123456',
-        } as unknown as Video;
+    it('renders an empty-state alert when there are no videos', () => {
+        renderTable({ displayedVideos: [], totalVideosCount: 0, totalSize: 0 });
 
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} displayedVideos={[staleThumbnailUrlVideo]} />
-            </BrowserRouter>
-        );
-
-        const thumbnail = screen.getByAltText('Video 1');
-        expect(thumbnail).toHaveAttribute('src', expect.stringContaining('/images/old-thumbnail.jpg'));
+        expect(screen.getByText('noVideosFoundMatching')).toBeInTheDocument();
     });
 
-    it('should use cache-busted thumbnailUrl when it matches thumbnailPath', () => {
-        const refreshedVideo = {
-            ...mockVideos[0],
-            thumbnailPath: '/images/new-thumbnail.jpg',
-            thumbnailUrl: '/images/new-thumbnail.jpg?t=123456',
-        } as unknown as Video;
+    it('hides admin-only controls for visitor users', () => {
+        mockUserRole = 'visitor';
 
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} displayedVideos={[refreshedVideo]} />
-            </BrowserRouter>
-        );
+        renderTable();
 
-        const thumbnail = screen.getByAltText('Video 1');
-        expect(thumbnail).toHaveAttribute('src', '/images/new-thumbnail.jpg?t=123456');
+        expect(screen.queryByLabelText('select all videos')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Refresh all file sizes')).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('button', { name: /redownloadVideo/i })).toHaveLength(0);
     });
 
-    it('should call onDeleteClick when delete button clicked', () => {
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} />
-            </BrowserRouter>
-        );
+    it('shows a spinner for the refresh file sizes action while refreshing', () => {
+        renderTable({ isRefreshingFileSizes: true });
 
-        // Find all delete buttons (Action column)
-        // Since we mocked useLanguage t => key, tooltip title is 'deleteVideo'
-        // But tooltip might not be in DOM. 
-        // We can find by testid if we had one, or by picking the buttons in the last column.
-
-        // Let's rely on finding by role button in the row.
-        const rows = screen.getAllByRole('row');
-        // Row 0 is header. Row 1 is Video 1.
-        const row = rows[1];
-        expect(within(row).getAllByRole('button').length).toBeGreaterThan(0);
-
-        // Actually, let's just use a more robust selector if possible.
-        // We can check for the Delete icon if we didn't use `within` which is not imported.
-        // Let's import within.
+        expect(screen.getByLabelText('Refresh all file sizes')).toBeDisabled();
+        expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    it('should call onRefreshFileSizes when file size refresh button clicked', () => {
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} />
-            </BrowserRouter>
-        );
+    it('hides redownload buttons for videos already downloading', () => {
+        mockActiveDownloads = [{ sourceUrl: 'https://youtube.com/watch?v=test1' }];
 
-        fireEvent.click(screen.getByLabelText('Refresh all file sizes'));
-        expect(defaultProps.onRefreshFileSizes).toHaveBeenCalledTimes(1);
+        renderTable();
+
+        expect(screen.getAllByRole('button', { name: /redownloadVideo/i })).toHaveLength(1);
     });
 
-    it('should handle inline editing cancellation', async () => {
-        render(
-            <BrowserRouter>
-                <VideosTable {...defaultProps} />
-            </BrowserRouter>
-        );
+    it('selects all videos and deletes them through the bulk delete modal', async () => {
+        const user = userEvent.setup();
+        renderTable();
 
-        // Click edit on first video
-        // Skip complex interaction tests without proper testIds in the source component
+        await user.click(screen.getByLabelText('select all videos'));
 
-        // Let's skip complex interaction tests without proper testIds in the source component
-        // and focus on rendering and basic props.
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
 
-        // Use regex for flexible matching of "videos (2) - 3 KB" regardless of exact formatting
-        expect(screen.getByText(/videos.*\(2\).*3.*KB/i)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'delete' }));
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'delete' }));
+
+        await waitFor(() => {
+            expect(mockDeleteVideo).toHaveBeenCalledWith('1');
+            expect(mockDeleteVideo).toHaveBeenCalledWith('2');
+        });
     });
 
-    describe('Re-download feature', () => {
-        it('should render re-download button for videos with sourceUrl', () => {
-            render(
-                <BrowserRouter>
-                    <VideosTable {...defaultProps} />
-                </BrowserRouter>
+    it('adds selected videos to an existing collection from the bulk modal', async () => {
+        const user = userEvent.setup();
+        renderTable();
+
+        await user.click(screen.getByLabelText('select video Video 1'));
+        await user.click(screen.getByRole('button', { name: 'moveCollection' }));
+
+        expect(screen.getByTestId('collection-modal-count')).toHaveTextContent('2');
+
+        await user.click(screen.getByRole('button', { name: 'mock-add-existing' }));
+
+        await waitFor(() => {
+            expect(mockAddToCollection).toHaveBeenCalledWith('collection-1', '1');
+            expect(mockFetchCollections).toHaveBeenCalled();
+        });
+    });
+
+    it('creates a new collection from the selected videos', async () => {
+        const user = userEvent.setup();
+        renderTable();
+
+        await user.click(screen.getByLabelText('select all videos'));
+        await user.click(screen.getByRole('button', { name: 'moveCollection' }));
+        await user.click(screen.getByRole('button', { name: 'mock-create-collection' }));
+
+        await waitFor(() => {
+            expect(mockCreateCollection).toHaveBeenCalledWith('Created Collection', '1');
+            expect(mockAddToCollection).toHaveBeenCalledWith('created-collection', '2');
+            expect(mockFetchCollections).toHaveBeenCalled();
+        });
+    });
+
+    it('opens the upload thumbnail modal and forwards uploads to the selected video', async () => {
+        const user = userEvent.setup();
+        renderTable();
+
+        const firstRow = screen.getAllByRole('row')[1];
+        await user.click(within(firstRow).getAllByRole('button')[1]);
+        await user.click(screen.getByRole('button', { name: 'trigger-upload-thumbnail' }));
+
+        await waitFor(() => {
+            expect(defaultProps.onUploadThumbnail).toHaveBeenCalledWith(
+                '1',
+                expect.objectContaining({ name: 'thumb.png' })
             );
+        });
+    });
 
-            // Find re-download buttons by aria-label
-            const redownloadButtons = screen.getAllByRole('button', { name: /redownloadVideo/i });
-            expect(redownloadButtons.length).toBe(2); // One for each video with sourceUrl
+    it('supports inline title editing with Enter and Escape', async () => {
+        const user = userEvent.setup();
+        renderTable();
+
+        const firstRow = screen.getAllByRole('row')[1];
+        await user.click(within(firstRow).getAllByRole('button')[2]);
+
+        const input = screen.getByDisplayValue('Video 1');
+        await user.clear(input);
+        await user.type(input, 'Renamed Video');
+        fireEvent.keyDown(input, { key: 'Enter' });
+
+        await waitFor(() => {
+            expect(defaultProps.onUpdateVideo).toHaveBeenCalledWith('1', { title: 'Renamed Video' });
         });
 
-        it('should not render re-download button for videos without sourceUrl', () => {
-            const videosWithoutSource = [
-                { ...mockVideos[0], sourceUrl: undefined },
-            ] as unknown as Video[];
+        const secondRow = screen.getAllByRole('row')[2];
+        await user.click(within(secondRow).getAllByRole('button')[2]);
+        const secondInput = screen.getByDisplayValue('Video 2');
+        fireEvent.keyDown(secondInput, { key: 'Escape' });
 
-            render(
-                <BrowserRouter>
-                    <VideosTable {...defaultProps} displayedVideos={videosWithoutSource} />
-                </BrowserRouter>
-            );
-
-            // Should not find any re-download buttons
-            const redownloadButtons = screen.queryAllByRole('button', { name: /redownloadVideo/i });
-            expect(redownloadButtons.length).toBe(0);
+        await waitFor(() => {
+            expect(screen.queryByDisplayValue('Video 2')).not.toBeInTheDocument();
         });
+    });
 
-        it('should call API with forceDownload when re-download button clicked', async () => {
-            render(
-                <BrowserRouter>
-                    <VideosTable {...defaultProps} />
-                </BrowserRouter>
-            );
+    it('triggers row-level thumbnail refresh, delete, and re-download actions', async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { downloadId: 'download-1' } } as any);
 
-            // Find and click the first re-download button
-            const redownloadButtons = screen.getAllByRole('button', { name: /redownloadVideo/i });
+        renderTable();
 
-            // Mock the API response
-            mockPost.mockResolvedValueOnce({ data: { downloadId: 'test-id' } });
+        const firstRow = screen.getAllByRole('row')[1];
+        const rowButtons = within(firstRow).getAllByRole('button');
 
-            fireEvent.click(redownloadButtons[0]);
+        await user.click(rowButtons[0]);
+        await user.click(rowButtons[4]);
+        await user.click(rowButtons[3]);
 
-            // Verify API was called with correct parameters
-            await waitFor(() => {
-                expect(mockPost).toHaveBeenCalled();
-            });
-
-            expect(mockPost).toHaveBeenCalledWith('/download', {
+        expect(defaultProps.onRefreshThumbnail).toHaveBeenCalledWith('1');
+        expect(defaultProps.onDeleteClick).toHaveBeenCalledWith('1');
+        await waitFor(() => {
+            expect(api.post).toHaveBeenCalledWith('/download', {
                 youtubeUrl: 'https://youtube.com/watch?v=test1',
-                forceDownload: true
+                forceDownload: true,
             });
+            expect(mockShowSnackbar).toHaveBeenCalledWith('videoDownloading');
+            expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['downloadStatus'] });
         });
     });
 });

@@ -86,7 +86,7 @@ describe('VideoCard Kebab Menu', () => {
         expect(kebabButton).toBeInTheDocument();
     });
 
-    it('opens kebab menu on click', () => {
+    it('opens kebab menu on click', async () => {
         render(
             <BrowserRouter>
                 <VideoCard video={mockVideo} />
@@ -96,16 +96,15 @@ describe('VideoCard Kebab Menu', () => {
         const kebabButton = screen.getByRole('button', { name: /more actions/i });
         fireEvent.click(kebabButton);
 
-        expect(screen.getByRole('menu')).toBeInTheDocument();
-        // Use accessible names (tooltip titles)
-        expect(screen.getByRole('button', { name: /playWith/i })).toBeInTheDocument();
+        expect(await screen.findByRole('menu')).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /playWith/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /addToCollection/i })).toBeInTheDocument();
         // Delete shouldn't be there as we didn't pass props
         expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
     });
 
-    it('shows delete option when props provided', () => {
+    it('shows delete option when props provided', async () => {
         render(
             <BrowserRouter>
                 <VideoCard
@@ -119,7 +118,7 @@ describe('VideoCard Kebab Menu', () => {
         const kebabButton = screen.getByRole('button', { name: /more actions/i });
         fireEvent.click(kebabButton);
 
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /delete/i })).toBeInTheDocument();
     });
 
     it('opens player menu when Play With is clicked', async () => {
@@ -132,7 +131,7 @@ describe('VideoCard Kebab Menu', () => {
         const kebabButton = screen.getByRole('button', { name: /more actions/i });
         fireEvent.click(kebabButton);
 
-        const playWithButton = screen.getByRole('button', { name: /playWith/i });
+        const playWithButton = await screen.findByRole('button', { name: /playWith/i });
         fireEvent.click(playWithButton);
 
         // Kebab menu closes, player menu opens

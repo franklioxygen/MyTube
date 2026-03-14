@@ -46,13 +46,14 @@ vi.mock('../../../contexts/VideoContext', () => {
 
 // Mock child components that trigger complex logic or portals
 vi.mock('../../VideoPlayer/VideoInfo/VideoKebabMenuButtons', () => ({
-    default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility }: any) => (
+    default: ({ onPlayWith, onShare, onAddToCollection, onDelete, onToggleVisibility, onAddTag }: any) => (
         <div data-testid="kebab-menu">
             <button onClick={(e) => onPlayWith(e.currentTarget)}>Play With</button>
             <button onClick={onShare}>Share</button>
             <button onClick={onAddToCollection}>Add to Collection</button>
             {onDelete && <button onClick={onDelete}>Delete</button>}
             <button onClick={onToggleVisibility}>Toggle Visibility</button>
+            {onAddTag && <button onClick={onAddTag}>Add Tag</button>}
         </div>
     )
 }));
@@ -66,9 +67,11 @@ vi.mock('../../ConfirmationModal', () => ({
 }));
 
 vi.mock('../../CollectionModal', () => ({
-    default: ({ open, onAddToCollection }: any) => open ? (
+    default: ({ open, onAddToCollection, onCreateCollection, onRemoveFromCollection }: any) => open ? (
         <div data-testid="collection-modal">
             <button onClick={() => onAddToCollection('col2')}>Add to Col 2</button>
+            <button onClick={() => onCreateCollection('Collection 3')}>Create Col 3</button>
+            <button onClick={onRemoveFromCollection}>Remove From Collection</button>
         </div>
     ) : null
 }));
@@ -76,7 +79,7 @@ vi.mock('../../CollectionModal', () => ({
 vi.mock('../../TagsModal', () => ({
     default: ({ open, onSave }: any) => open ? (
         <div data-testid="tags-modal">
-            <button onClick={() => onSave(['tag1'])}>Save Tags</button>
+            <button onClick={() => onSave([' tag1 ', 'tag1', '', 'tag2 '])}>Save Tags</button>
         </div>
     ) : null
 }));
@@ -129,6 +132,16 @@ describe('VideoCardActions', () => {
         expect(mockHandleShare).toHaveBeenCalled();
     });
 
+    it('should set the player menu anchor when Play With is clicked', async () => {
+        const user = userEvent.setup();
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Play With'));
+
+        expect(mockSetPlayerMenuAnchor).toHaveBeenCalledTimes(1);
+        expect(mockSetPlayerMenuAnchor.mock.calls[0][0]).toBeInstanceOf(HTMLButtonElement);
+    });
+
     it('should handle toggle visibility', async () => {
         const user = userEvent.setup();
         render(<VideoCardActions {...defaultProps} />);
@@ -168,6 +181,38 @@ describe('VideoCardActions', () => {
         // Add to collection
         await user.click(screen.getByText('Add to Col 2'));
         expect(mockAddToCollection).toHaveBeenCalledWith('col2', 'vid1');
+    });
+
+    it('should handle create collection flow', async () => {
+        const user = userEvent.setup();
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Add to Collection'));
+        await user.click(screen.getByText('Create Col 3'));
+
+        expect(mockCreateCollection).toHaveBeenCalledWith('Collection 3', 'vid1');
+    });
+
+    it('should handle remove from collection flow', async () => {
+        const user = userEvent.setup();
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Add to Collection'));
+        await user.click(screen.getByText('Remove From Collection'));
+
+        expect(mockRemoveFromCollection).toHaveBeenCalledWith('vid1');
+    });
+
+    it('should open tags modal and normalize tags before saving', async () => {
+        const user = userEvent.setup();
+        render(<VideoCardActions {...defaultProps} />);
+
+        await user.click(screen.getByText('Add Tag'));
+        expect(screen.getByTestId('tags-modal')).toBeInTheDocument();
+
+        await user.click(screen.getByText('Save Tags'));
+
+        expect(mockUpdateVideo).toHaveBeenCalledWith('vid1', { tags: ['tag1', 'tag2'] });
     });
 
     it('should handle player menu selection', async () => {

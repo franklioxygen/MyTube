@@ -100,4 +100,59 @@ describe('DownloadSettings', () => {
 
         expect(screen.getByText('defaultVideoCodecDescription')).toBeInTheDocument();
     });
+
+    it('should toggle dont skip deleted video setting', async () => {
+        const user = userEvent.setup();
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, dontSkipDeletedVideo: false }} />);
+
+        await user.click(screen.getByRole('switch', { name: 'dontSkipDeletedVideo' }));
+
+        expect(mockOnChange).toHaveBeenCalledWith('dontSkipDeletedVideo', true);
+    });
+
+    it('should disable cleanup button while saving', () => {
+        render(<DownloadSettings {...defaultProps} isSaving={true} />);
+
+        expect(screen.getByRole('button', { name: 'cleanupTempFiles' })).toBeDisabled();
+    });
+
+    it('should render the default preferred audio language label when empty', () => {
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: '' }} />);
+
+        expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('preferredAudioLanguageDefault');
+    });
+
+    it('should render the translated preferred audio language label for known values', () => {
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: 'ja' }} />);
+
+        expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('preferredAudioLanguage_ja');
+    });
+
+    it('should render the raw preferred audio language value when it is unknown', () => {
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, preferredAudioLanguage: 'xx' }} />);
+
+        expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('xx');
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('should render the default video codec label when empty', () => {
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: '' }} />);
+
+        expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('defaultVideoCodecDefault');
+    });
+
+    it('should render the translated video codec label for known values', () => {
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: 'av1' }} />);
+
+        expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('defaultVideoCodec_av1');
+    });
+
+    it('should render the raw video codec value when it is unknown', () => {
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        render(<DownloadSettings {...defaultProps} settings={{ ...defaultProps.settings, defaultVideoCodec: 'xvid' }} />);
+
+        expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('xvid');
+        consoleWarnSpy.mockRestore();
+    });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SearchInput from '../SearchInput';
 
@@ -8,18 +8,18 @@ vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: mockT }),
 }));
 
-const mockVisitorMode = false;
+let mockUserRole = 'admin';
 vi.mock('../../../contexts/AuthContext', () => ({
-    useAuth: () => ({ userRole: mockVisitorMode ? 'visitor' : 'admin' }),
+    useAuth: () => ({ userRole: mockUserRole }),
 }));
 
 // Mock useMediaQuery
-const mockIsMobile = false;
+let mockIsMobile = false;
 vi.mock('@mui/material', async () => {
     const actual = await vi.importActual('@mui/material');
     return {
         ...actual,
-        useMediaQuery: () => mockIsMobile, // Default to desktop
+        useMediaQuery: () => mockIsMobile,
     };
 });
 
@@ -38,13 +38,28 @@ describe('SearchInput', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        // Default mock implementation
+        mockUserRole = 'admin';
+        mockIsMobile = false;
         vi.mocked(mockT).mockImplementation((key) => key);
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                readText: vi.fn().mockResolvedValue('https://example.com/video')
+            }
+        });
     });
 
     it('should render input field', () => {
         render(<SearchInput {...defaultProps} />);
         expect(screen.getByPlaceholderText('enterUrlOrSearchTerm')).toBeInTheDocument();
+    });
+
+    it('should render visitor placeholder in visitor mode', () => {
+        mockUserRole = 'visitor';
+
+        render(<SearchInput {...defaultProps} />);
+
+        expect(screen.getByPlaceholderText('enterSearchTerm')).toBeInTheDocument();
     });
 
     it('should display error message when error prop is provided', () => {
@@ -71,18 +86,60 @@ describe('SearchInput', () => {
         expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
 
-    it('should show clear button when there is input', () => {
-        render(<SearchInput {...defaultProps} videoUrl="some url" />);
-        // We look for Clear icon button. Since we aren't testing the icon itself easily, 
-        // we can check if the button with clear handler exists. 
-        // In this component, there are two clear buttons potentially (reset search vs clear input).
-        // The "clear input" button is always last or second to last.
+    it('should paste clipboard content on desktop', async () => {
+        render(<SearchInput {...defaultProps} />);
 
-        const buttons = screen.getAllByRole('button');
-        // Filter for the clear button (it has onClick calling handleClear)
-        // Since we can't easily check the handler, let's assume if it renders, it's there. 
-        // The implementation shows IconButtons.
-        // A better way is to test functionality if possible, or assume rendering works if no crash.
-        expect(buttons.length).toBeGreaterThan(1); // Paste + Clear + Search
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(window.navigator.clipboard.readText).toHaveBeenCalled();
+            expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('https://example.com/video');
+        });
+    });
+
+    it('should log an error when clipboard paste fails', async () => {
+        const pasteError = new Error('clipboard blocked');
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        Object.defineProperty(window.navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                readText: vi.fn().mockRejectedValue(pasteError)
+            }
+        });
+
+        render(<SearchInput {...defaultProps} />);
+
+        fireEvent.click(screen.getAllByRole('button')[0]);
+
+        await waitFor(() => {
+            expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to paste from clipboard:', pasteError);
+        });
+
+        consoleErrorSpy.mockRestore();
+    });
+
+    it('should hide paste button on mobile', () => {
+        mockIsMobile = true;
+
+        render(<SearchInput {...defaultProps} />);
+
+        expect(screen.getAllByRole('button')).toHaveLength(1);
+    });
+
+    it('should call onResetSearch when reset search button is clicked', () => {
+        render(<SearchInput {...defaultProps} isSearchMode={true} searchTerm="cats" videoUrl="cats" />);
+
+        fireEvent.click(screen.getAllByRole('button')[1]);
+
+        expect(defaultProps.onResetSearch).toHaveBeenCalled();
+        expect(defaultProps.setVideoUrl).not.toHaveBeenCalled();
+    });
+
+    it('should clear the input when clear button is clicked', () => {
+        render(<SearchInput {...defaultProps} isSearchMode={true} searchTerm="cats" videoUrl="cats" />);
+
+        fireEvent.click(screen.getAllByRole('button')[2]);
+
+        expect(defaultProps.setVideoUrl).toHaveBeenCalledWith('');
     });
 });

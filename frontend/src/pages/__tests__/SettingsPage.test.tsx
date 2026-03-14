@@ -382,33 +382,32 @@ describe('SettingsPage', () => {
     expect(target.style.backgroundColor).toBe('');
   });
 
-  it('switches desktop tabs and renders each tab content', async () => {
+  it('switches desktop tabs and renders each tab content', () => {
     mockIsDesktop = true;
-    const user = userEvent.setup();
 
     renderPage('/settings');
 
     expect(screen.getByTestId('basic-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'interfaceDisplay' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'interfaceDisplay' }));
     expect(screen.getByTestId('interface-display-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'securityAccess' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'securityAccess' }));
     expect(screen.getByTestId('security-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'videoPlayback' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'videoPlayback' }));
     expect(screen.getByTestId('video-default-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'downloadStorage' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'downloadStorage' }));
     expect(screen.getByTestId('download-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
     expect(screen.getByTestId('tags-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'dataManagement' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'dataManagement' }));
     expect(screen.getByTestId('database-settings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'advanced' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'advanced' }));
     expect(screen.getByTestId('advanced-settings')).toBeInTheDocument();
   });
 

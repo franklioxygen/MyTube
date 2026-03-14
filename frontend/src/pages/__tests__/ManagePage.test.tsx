@@ -18,6 +18,10 @@ const mockDeleteCollection = vi.fn();
 const mockUpdateCollection = vi.fn();
 const mockShowSnackbar = vi.fn();
 const mockMutate = vi.fn(), mockRefreshFileSizesMutate = vi.fn();
+let scanMutationCallbacks: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown } = {};
+let refreshFileSizesMutationCallbacks: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown } = {};
+let scanMutationPending = false;
+let refreshFileSizesMutationPending = false;
 
 // --- Mocks ---
 
@@ -27,7 +31,17 @@ vi.mock('react-router-dom', () => ({
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
-    useLanguage: () => ({ t: (key: string) => key }),
+    useLanguage: () => ({
+        t: (key: string) =>
+            ({
+                scanFilesSuccess: 'scanFilesSuccess {count}',
+                scanFilesDeleted: 'scanFilesDeleted {count}',
+                refreshFileSizesSuccess: 'refreshFileSizesSuccess {count}',
+                refreshFileSizesFailed: 'refreshFileSizesFailed {count}',
+                refreshFileSizesSkipped: 'refreshFileSizesSkipped {count}',
+                refreshFileSizesError: 'refreshFileSizesError {error}',
+            }[key] ?? key),
+    }),
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({
@@ -59,19 +73,21 @@ vi.mock('../../contexts/CollectionContext', () => ({
 // Track useMutation calls per render cycle using a counter that resets
 let mutationCallIndex = 0;
 vi.mock('@tanstack/react-query', () => ({
-    useMutation: () => {
+    useMutation: ({ onSuccess, onError }: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown }) => {
         const index = mutationCallIndex++;
         if (index % 2 === 0) {
             // First call in each render = scanMutation
+            scanMutationCallbacks = { onSuccess, onError };
             return {
                 mutate: mockMutate,
-                isPending: false,
+                isPending: scanMutationPending,
             };
         } else {
             // Second call in each render = refreshFileSizesMutation
+            refreshFileSizesMutationCallbacks = { onSuccess, onError };
             return {
                 mutate: mockRefreshFileSizesMutate,
-                isPending: false,
+                isPending: refreshFileSizesMutationPending,
             };
         }
     },
@@ -92,32 +108,52 @@ vi.mock('../../utils/formatUtils', () => ({
 // They render as real components so their code is covered.
 
 let capturedVideosTableProps: CapturedVideosTableProps | null = null;
+let capturedCollectionsTableProps: CollectionsTableProps | null = null;
 
 vi.mock('../../components/ManagePage/CollectionsTable', () => ({
-    default: (props: CollectionsTableProps) => (
-        <div data-testid="collections-table">
-            <span data-testid="collections-count">{props.totalCollectionsCount}</span>
-            <span data-testid="collections-page">{props.page}</span>
-            <button
-                data-testid="collections-delete-btn"
-                onClick={() => props.onDelete?.({ id: 'col-1', name: 'Test Collection', videos: ['vid-1', 'vid-2'], createdAt: '2024-01-01' })}
-            >
-                Delete Collection
-            </button>
-            <button
-                data-testid="collections-page-change-btn"
-                onClick={() => props.onPageChange?.({}, 2)}
-            >
-                Next Page
-            </button>
-            <button
-                data-testid="collections-sort-btn"
-                onClick={() => props.onSort?.('name')}
-            >
-                Sort
-            </button>
-        </div>
-    ),
+    default: (props: CollectionsTableProps) => {
+        capturedCollectionsTableProps = props;
+        return (
+            <div data-testid="collections-table">
+                <span data-testid="collections-count">{props.totalCollectionsCount}</span>
+                <span data-testid="collections-page">{props.page}</span>
+                <span data-testid="collections-first-name">{props.displayedCollections[0]?.name ?? 'none'}</span>
+                <span data-testid="collections-first-size">
+                    {props.displayedCollections[0] ? props.getCollectionSize(props.displayedCollections[0].videos) : 'none'}
+                </span>
+                <button
+                    data-testid="collections-delete-btn"
+                    onClick={() => props.onDelete?.({ id: 'col-1', name: 'Test Collection', videos: ['vid-1', 'vid-2'], createdAt: '2024-01-01' })}
+                >
+                    Delete Collection
+                </button>
+                <button
+                    data-testid="collections-page-change-btn"
+                    onClick={() => props.onPageChange?.({}, 2)}
+                >
+                    Next Page
+                </button>
+                <button
+                    data-testid="collections-sort-name-btn"
+                    onClick={() => props.onSort?.('name')}
+                >
+                    Sort Name
+                </button>
+                <button
+                    data-testid="collections-sort-size-btn"
+                    onClick={() => props.onSort?.('size')}
+                >
+                    Sort Size
+                </button>
+                <button
+                    data-testid="collections-sort-video-count-btn"
+                    onClick={() => props.onSort?.('videoCount')}
+                >
+                    Sort Video Count
+                </button>
+            </div>
+        );
+    },
 }));
 
 vi.mock('../../components/ManagePage/VideosTable', () => ({
@@ -128,6 +164,8 @@ vi.mock('../../components/ManagePage/VideosTable', () => ({
                 <span data-testid="videos-count">{props.totalVideosCount}</span>
                 <span data-testid="videos-search-term">{props.searchTerm}</span>
                 <span data-testid="videos-page">{props.page}</span>
+                <span data-testid="videos-first-title">{props.displayedVideos[0]?.title ?? 'none'}</span>
+                <span data-testid="videos-order">{props.order}</span>
                 <input
                     data-testid="videos-search-input"
                     value={props.searchTerm}
@@ -163,6 +201,12 @@ vi.mock('../../components/ManagePage/VideosTable', () => ({
                 >
                     Sort
                 </button>
+                <button
+                    data-testid="videos-sort-file-size-btn"
+                    onClick={() => props.onSort?.('fileSize')}
+                >
+                    Sort File Size
+                </button>
             </div>
         );
     },
@@ -175,6 +219,12 @@ describe('ManagePage', () => {
         vi.clearAllMocks();
         mutationCallIndex = 0;
         capturedVideosTableProps = null;
+        capturedCollectionsTableProps = null;
+        scanMutationCallbacks = {};
+        refreshFileSizesMutationCallbacks = {};
+        scanMutationPending = false;
+        refreshFileSizesMutationPending = false;
+        window.scrollTo = vi.fn();
 
         mockUserRole = 'admin';
         mockVideos = [
@@ -495,6 +545,69 @@ describe('ManagePage', () => {
             expect(screen.getByTestId('videos-page')).toHaveTextContent('1');
             fireEvent.click(screen.getByTestId('videos-page-change-btn'));
             expect(screen.getByTestId('videos-page')).toHaveTextContent('2');
+            expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+        });
+    });
+
+    describe('sorting and derived data', () => {
+        it('sorts collections by name, size, and video count while calculating sizes safely', () => {
+            mockVideos = [
+                { id: 'vid-1', title: 'Video 1', author: 'Author A', addedAt: '2024-01-01T00:00:00Z', fileSize: '400' },
+                { id: 'vid-2', title: 'Video 2', author: 'Author B', addedAt: '2024-01-02T00:00:00Z', fileSize: 'not-a-number' },
+                { id: 'vid-3', title: 'Video 3', author: 'Author C', addedAt: '2024-01-03T00:00:00Z', fileSize: '800' },
+            ];
+            mockCollections = [
+                { id: 'col-1', name: 'Zoo', videos: ['vid-1'], createdAt: '2024-01-01T00:00:00Z' },
+                { id: 'col-2', name: 'Alpha', videos: ['vid-1', 'vid-3'], createdAt: '2024-02-01T00:00:00Z' },
+                { id: 'col-3', name: 'Beta', videos: [], createdAt: '2024-03-01T00:00:00Z' },
+            ];
+
+            renderManagePage();
+
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Beta');
+            expect(screen.getByTestId('collections-first-size')).toHaveTextContent('0 bytes');
+
+            fireEvent.click(screen.getByTestId('collections-sort-name-btn'));
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Alpha');
+
+            fireEvent.click(screen.getByTestId('collections-sort-name-btn'));
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Zoo');
+
+            fireEvent.click(screen.getByTestId('collections-sort-size-btn'));
+            fireEvent.click(screen.getByTestId('collections-sort-size-btn'));
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Alpha');
+
+            fireEvent.click(screen.getByTestId('collections-sort-video-count-btn'));
+            fireEvent.click(screen.getByTestId('collections-sort-video-count-btn'));
+            expect(screen.getByTestId('collections-first-name')).toHaveTextContent('Alpha');
+        });
+
+        it('sorts videos by title and file size while ignoring invalid file sizes in totals', () => {
+            mockVideos = [
+                { id: 'vid-1', title: 'Beta Video', author: 'Author A', addedAt: '2024-01-01T00:00:00Z', fileSize: 'not-a-number' },
+                { id: 'vid-2', title: 'Alpha Video', author: 'Author B', addedAt: '2024-01-03T00:00:00Z', fileSize: '500' },
+                { id: 'vid-3', title: 'Gamma Video', author: 'Author C', addedAt: '2024-01-02T00:00:00Z', fileSize: '200' },
+            ];
+
+            renderManagePage();
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+
+            expect(screen.getByTestId('videos-first-title')).toHaveTextContent('Alpha Video');
+            expect(capturedVideosTableProps!.totalSize).toBe(700);
+
+            fireEvent.click(screen.getByTestId('videos-sort-btn'));
+            expect(screen.getByTestId('videos-first-title')).toHaveTextContent('Alpha Video');
+            expect(screen.getByTestId('videos-order')).toHaveTextContent('asc');
+
+            fireEvent.click(screen.getByTestId('videos-sort-btn'));
+            expect(screen.getByTestId('videos-first-title')).toHaveTextContent('Gamma Video');
+            expect(screen.getByTestId('videos-order')).toHaveTextContent('desc');
+
+            fireEvent.click(screen.getByTestId('videos-sort-file-size-btn'));
+            expect(screen.getByTestId('videos-first-title')).toHaveTextContent('Beta Video');
+
+            fireEvent.click(screen.getByTestId('videos-sort-file-size-btn'));
+            expect(screen.getByTestId('videos-first-title')).toHaveTextContent('Beta Video');
         });
     });
 
@@ -514,6 +627,50 @@ describe('ManagePage', () => {
             fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
             fireEvent.click(screen.getByTestId('videos-refresh-file-sizes-btn'));
             expect(mockRefreshFileSizesMutate).toHaveBeenCalled();
+        });
+
+        it('renders pending scan and refresh-file-size states', () => {
+            scanMutationPending = true;
+            refreshFileSizesMutationPending = true;
+
+            renderManagePage();
+
+            expect(screen.getByText('scanning')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('tab', { name: /videos/i }));
+            expect(capturedVideosTableProps!.isRefreshingFileSizes).toBe(true);
+        });
+
+        it('shows snackbar messages for scan mutation success and error callbacks', () => {
+            renderManagePage();
+
+            scanMutationCallbacks.onSuccess?.({ addedCount: 2, deletedCount: 1 });
+            expect(mockShowSnackbar).toHaveBeenCalledWith('scanFilesSuccess 2scanFilesDeleted 1');
+
+            scanMutationCallbacks.onError?.({ response: { data: { details: 'scan exploded' } } });
+            expect(mockShowSnackbar).toHaveBeenLastCalledWith('scanFilesFailed: scan exploded');
+        });
+
+        it('shows snackbar messages for refresh-file-size success, skipped, failed, and error callbacks', async () => {
+            renderManagePage();
+
+            await refreshFileSizesMutationCallbacks.onSuccess?.({ updatedCount: 4, failedCount: 1, skippedCount: 0 });
+            expect(mockFetchVideos).toHaveBeenCalled();
+            expect(mockShowSnackbar).toHaveBeenLastCalledWith('refreshFileSizesSuccess 4refreshFileSizesFailed 1');
+
+            await refreshFileSizesMutationCallbacks.onSuccess?.({ updatedCount: 2, failedCount: 0, skippedCount: 3 });
+            expect(mockShowSnackbar).toHaveBeenLastCalledWith('refreshFileSizesSuccess 2refreshFileSizesSkipped 3');
+
+            refreshFileSizesMutationCallbacks.onError?.({ message: 'refresh exploded' });
+            expect(mockShowSnackbar).toHaveBeenLastCalledWith('refreshFileSizesError refresh exploded');
+        });
+
+        it('throws when collection updates return an unsuccessful result', async () => {
+            mockUpdateCollection.mockResolvedValueOnce({ success: false, error: 'update failed' });
+
+            renderManagePage();
+
+            await expect(capturedCollectionsTableProps!.onUpdate('col-1', 'Broken Name')).rejects.toThrow('update failed');
         });
     });
 });

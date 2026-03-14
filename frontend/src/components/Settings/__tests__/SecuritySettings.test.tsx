@@ -1,119 +1,183 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render as rtlRender, screen } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { startRegistration } from '@simplewebauthn/browser';
 import SecuritySettings from '../SecuritySettings';
+import { api } from '../../../utils/apiClient';
 
-// Mock language context
 vi.mock('../../../contexts/LanguageContext', () => ({
     useLanguage: () => ({ t: (key: string) => key }),
 }));
 
 vi.mock('../../../utils/apiClient', () => ({
     api: {
-        get: vi.fn().mockResolvedValue({ data: { exists: false } }),
+        get: vi.fn(),
         post: vi.fn(),
         delete: vi.fn(),
     },
 }));
 
-const createTestQueryClient = () => new QueryClient({
-    defaultOptions: {
-        queries: {
-            retry: false,
+vi.mock('@simplewebauthn/browser', () => ({
+    startRegistration: vi.fn(),
+}));
+
+const createTestQueryClient = () =>
+    new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+            },
         },
-    },
-});
+    });
 
 const render = (ui: React.ReactElement) => {
     const queryClient = createTestQueryClient();
-    return rtlRender(
-        <QueryClientProvider client={queryClient}>
-            {ui}
-        </QueryClientProvider>
-    );
+    return rtlRender(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 };
+
+let mockPasskeysExist = false;
+let mockWriteText = vi.fn();
 
 describe('SecuritySettings', () => {
     const mockOnChange = vi.fn();
     const defaultSettings: any = {
         loginEnabled: false,
         password: '',
+        passwordLoginAllowed: true,
+        allowResetPassword: true,
         apiKeyEnabled: false,
         apiKey: '',
+        fastRetryMode: false,
         isPasswordSet: false,
+        visitorUserEnabled: true,
         visitorPassword: '',
+        isVisitorPasswordSet: false,
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockPasskeysExist = false;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: mockPasskeysExist } } as any);
+        vi.mocked(api.post).mockReset();
+        vi.mocked(api.delete).mockReset();
+        vi.mocked(startRegistration).mockReset();
+
+        Object.defineProperty(window, 'isSecureContext', {
+            configurable: true,
+            value: true,
+        });
+        Object.defineProperty(window, 'PublicKeyCredential', {
+            configurable: true,
+            value: class PublicKeyCredentialMock {},
+        });
+        Object.defineProperty(navigator, 'credentials', {
+            configurable: true,
+            value: { create: vi.fn() },
+        });
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: mockWriteText,
+            },
+        });
+        mockWriteText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: mockWriteText,
+            },
+        });
     });
 
-    it('should render enable switch', () => {
+    it('renders login controls and fast retry fallback text', () => {
         render(<SecuritySettings settings={defaultSettings} onChange={mockOnChange} />);
 
-        expect(screen.getByLabelText('enableLogin')).toBeInTheDocument();
-        expect(screen.queryByLabelText('password')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('visitorPassword')).not.toBeInTheDocument();
+        expect(screen.getByRole('switch', { name: 'enableLogin' })).toBeInTheDocument();
+        expect(screen.getByText('Quick Retry Mode')).toBeInTheDocument();
+        expect(screen.getByText('Wait times: 5s, 5s, 10s, 30s, 1m, 3m (max 3m)')).toBeInTheDocument();
+        expect(screen.getByText('Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)')).toBeInTheDocument();
     });
 
-    it('should show password field when enabled', () => {
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
-
-        expect(screen.getByLabelText('password')).toBeInTheDocument();
-        expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
-        expect(screen.getByText('passwordSetHelper')).toBeInTheDocument();
-    });
-
-    it('should show visitor password field when login is enabled', () => {
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
-
-        expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
-        expect(screen.getByText('visitorPasswordHelper')).toBeInTheDocument();
-    });
-
-    it('should handle switch change', async () => {
-        const user = userEvent.setup();
-        render(<SecuritySettings settings={defaultSettings} onChange={mockOnChange} />);
-
-        await user.click(screen.getByLabelText('enableLogin'));
-        expect(mockOnChange).toHaveBeenCalledWith('loginEnabled', true);
-    });
-
-    // Visitor mode switch has been removed - visitor password is always visible when login is enabled
-
-    it('should handle password change', async () => {
-        const user = userEvent.setup();
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
-
-        const input = screen.getByLabelText('password');
-        await user.type(input, 'secret');
-        expect(mockOnChange).toHaveBeenCalledWith('password', 's');
-    });
-
-    it('should handle visitor password change', async () => {
-        const user = userEvent.setup();
-        render(<SecuritySettings settings={{ ...defaultSettings, loginEnabled: true }} onChange={mockOnChange} />);
-
-        const input = screen.getByLabelText('visitorPassword');
-        await user.type(input, 'guest');
-        expect(mockOnChange).toHaveBeenCalledWith('visitorPassword', 'g');
-    });
-
-    it('should show api key input and refresh button when enabled', () => {
+    it('shows password and visitor password fields when login is enabled', () => {
         render(
             <SecuritySettings
-                settings={{ ...defaultSettings, loginEnabled: true, apiKeyEnabled: true, apiKey: 'abc123' }}
+                settings={{ ...defaultSettings, loginEnabled: true, isPasswordSet: true, isVisitorPasswordSet: true }}
                 onChange={mockOnChange}
             />
         );
 
-        expect(screen.getByLabelText('apiKey')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'refreshApiKey' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'copyApiKey' })).toBeInTheDocument();
+        expect(screen.getByLabelText('password')).toBeInTheDocument();
+        expect(screen.getByText('passwordHelper')).toBeInTheDocument();
+        expect(screen.getByLabelText('visitorPassword')).toBeInTheDocument();
+        expect(screen.getByText('visitorPasswordSetHelper')).toBeInTheDocument();
     });
 
-    it('should generate api key when enabling api key auth', async () => {
+    it('hides visitor password field when visitor user is disabled', () => {
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, visitorUserEnabled: false }}
+                onChange={mockOnChange}
+            />
+        );
+
+        expect(screen.queryByLabelText('visitorPassword')).not.toBeInTheDocument();
+    });
+
+    it('auto-enables password login when no passkeys exist', async () => {
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: false }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(mockOnChange).toHaveBeenCalledWith('passwordLoginAllowed', true);
+        });
+    });
+
+    it('enables the allow password login switch once passkeys exist', async () => {
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'allowPasswordLogin' })).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'removePasskeys' })).toBeEnabled();
+        });
+    });
+
+    it('handles login, password, visitor, and reset-password switches', async () => {
+        const user = userEvent.setup();
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, visitorUserEnabled: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('switch', { name: 'enableLogin' }));
+        await user.click(screen.getByRole('switch', { name: 'allowResetPassword' }));
+        await user.click(screen.getByRole('switch', { name: 'enableVisitorUser' }));
+        await user.type(screen.getByLabelText('password'), 'secret');
+        await user.type(screen.getByLabelText('visitorPassword'), 'guest');
+
+        expect(mockOnChange).toHaveBeenCalledWith('loginEnabled', false);
+        expect(mockOnChange).toHaveBeenCalledWith('allowResetPassword', false);
+        expect(mockOnChange).toHaveBeenCalledWith('visitorUserEnabled', false);
+        expect(mockOnChange).toHaveBeenCalledWith('password', 's');
+        expect(mockOnChange).toHaveBeenCalledWith('visitorPassword', 'g');
+    });
+
+    it('generates an api key when enabling api key auth without an existing key', async () => {
         const user = userEvent.setup();
         render(
             <SecuritySettings
@@ -122,13 +186,28 @@ describe('SecuritySettings', () => {
             />
         );
 
-        await user.click(screen.getByLabelText('enableApiKeyAuth'));
+        await user.click(screen.getByRole('switch', { name: 'enableApiKeyAuth' }));
 
         expect(mockOnChange).toHaveBeenCalledWith('apiKeyEnabled', true);
         expect(mockOnChange).toHaveBeenCalledWith('apiKey', expect.stringMatching(/^[a-f0-9]{64}$/));
     });
 
-    it('should refresh api key value after confirming the modal', async () => {
+    it('does not regenerate the api key when enabling auth with an existing key', async () => {
+        const user = userEvent.setup();
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, apiKeyEnabled: false, apiKey: 'existing-key' }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('switch', { name: 'enableApiKeyAuth' }));
+
+        expect(mockOnChange).toHaveBeenCalledWith('apiKeyEnabled', true);
+        expect(mockOnChange).not.toHaveBeenCalledWith('apiKey', expect.anything());
+    });
+
+    it('refreshes the api key after confirmation', async () => {
         const user = userEvent.setup();
         render(
             <SecuritySettings
@@ -138,13 +217,180 @@ describe('SecuritySettings', () => {
         );
 
         await user.click(screen.getByRole('button', { name: 'refreshApiKey' }));
-
-        // Refresh now requires confirmation via a modal
-        const confirmButton = screen.getByRole('button', { name: 'confirm' });
-        await user.click(confirmButton);
+        await user.click(screen.getByRole('button', { name: 'confirm' }));
 
         expect(mockOnChange).toHaveBeenCalledWith('apiKey', expect.stringMatching(/^[a-f0-9]{64}$/));
     });
 
-    // Visitor mode switch has been removed - this test is no longer applicable
+    it('copies the api key to the clipboard and shows a success alert', async () => {
+        const user = userEvent.setup();
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, apiKeyEnabled: true, apiKey: 'abc123' }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'copyApiKey' }));
+
+        expect(await screen.findByText('apiKeyCopied')).toBeInTheDocument();
+    });
+
+    it('shows an error alert when copying the api key fails', async () => {
+        const user = userEvent.setup();
+        const copyError = new Error('copy failed');
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockWriteText = vi.fn().mockRejectedValue(copyError);
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: mockWriteText,
+            },
+        });
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, apiKeyEnabled: true, apiKey: 'abc123' }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'copyApiKey' }));
+
+        expect(await screen.findByText('apiKeyCopyFailed')).toBeInTheDocument();
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error copying API key:', copyError);
+        consoleErrorSpy.mockRestore();
+    });
+
+    it('shows an unsupported alert when WebAuthn is unavailable', async () => {
+        const user = userEvent.setup();
+        Object.defineProperty(window, 'PublicKeyCredential', {
+            configurable: true,
+            value: undefined,
+        });
+        Object.defineProperty(navigator, 'credentials', {
+            configurable: true,
+            value: {},
+        });
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'createPasskey' }));
+
+        expect(await screen.findByText('passkeyWebAuthnNotSupported')).toBeInTheDocument();
+    });
+
+    it('creates a passkey successfully and refetches passkeys', async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.post)
+            .mockResolvedValueOnce({ data: { options: { rp: { name: 'MyTube' } }, challenge: 'challenge-1' } } as any)
+            .mockResolvedValueOnce({ data: { success: true } } as any);
+        vi.mocked(startRegistration).mockResolvedValue({ id: 'cred-1' } as any);
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'createPasskey' }));
+
+        await waitFor(() => {
+            expect(api.post).toHaveBeenNthCalledWith(1, '/settings/passkeys/register', {
+                userName: 'MyTube User',
+            });
+            expect(startRegistration).toHaveBeenCalledWith({
+                optionsJSON: { rp: { name: 'MyTube' } },
+            });
+            expect(api.post).toHaveBeenNthCalledWith(2, '/settings/passkeys/register/verify', {
+                body: { id: 'cred-1' },
+                challenge: 'challenge-1',
+            });
+            expect(api.get).toHaveBeenCalledTimes(2);
+        });
+
+        expect(await screen.findByText('passkeyCreated')).toBeInTheDocument();
+    });
+
+    it('translates WebAuthn permission errors when creating a passkey fails', async () => {
+        const user = userEvent.setup();
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { options: { rp: { name: 'MyTube' } }, challenge: 'challenge-1' },
+        } as any);
+        vi.mocked(startRegistration).mockRejectedValue(new Error('Not allowed by user'));
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'createPasskey' }));
+
+        expect(await screen.findByText('passkeyErrorPermissionDenied')).toBeInTheDocument();
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        consoleErrorSpy.mockRestore();
+    });
+
+    it('removes passkeys after confirmation and shows a success alert', async () => {
+        const user = userEvent.setup();
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        vi.mocked(api.delete).mockResolvedValue({} as any);
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'removePasskeys' })).toBeEnabled();
+        });
+
+        await user.click(screen.getByRole('button', { name: 'removePasskeys' }));
+        await user.click(screen.getByRole('button', { name: 'remove' }));
+
+        await waitFor(() => {
+            expect(api.delete).toHaveBeenCalledWith('/settings/passkeys');
+            expect(api.get).toHaveBeenCalledTimes(2);
+        });
+
+        expect(await screen.findByText('passkeysRemoved')).toBeInTheDocument();
+    });
+
+    it('shows an error alert when removing passkeys fails', async () => {
+        const user = userEvent.setup();
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockPasskeysExist = true;
+        vi.mocked(api.get).mockResolvedValue({ data: { exists: true } } as any);
+        vi.mocked(api.delete).mockRejectedValue(new Error('delete failed'));
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, passwordLoginAllowed: true }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'removePasskeys' })).toBeEnabled();
+        });
+
+        await user.click(screen.getByRole('button', { name: 'removePasskeys' }));
+        await user.click(screen.getByRole('button', { name: 'remove' }));
+
+        expect(await screen.findByText('passkeysRemoveFailed')).toBeInTheDocument();
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        consoleErrorSpy.mockRestore();
+    });
 });

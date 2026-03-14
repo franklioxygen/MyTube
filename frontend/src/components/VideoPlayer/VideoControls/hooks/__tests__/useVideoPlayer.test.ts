@@ -1,6 +1,26 @@
-import { act, renderHook } from "@testing-library/react";
+import React, { useEffect } from "react";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useVideoPlayer } from "../useVideoPlayer";
+
+const HookHarness = ({
+  props,
+  onReady,
+}: {
+  props: Parameters<typeof useVideoPlayer>[0];
+  onReady: (hook: ReturnType<typeof useVideoPlayer>) => void;
+}) => {
+  const hook = useVideoPlayer(props);
+
+  useEffect(() => {
+    onReady(hook);
+  }, [hook, onReady]);
+
+  return React.createElement("video", {
+    "data-testid": "player",
+    ref: hook.videoRef,
+  });
+};
 
 describe("useVideoPlayer seek behavior", () => {
   let videoElement: HTMLVideoElement;
@@ -268,5 +288,258 @@ describe("useVideoPlayer playbackRate behavior", () => {
 
     expect(result.current.playbackRate).toBe(2);
     expect(videoElement.playbackRate).toBe(2);
+  });
+});
+
+describe("useVideoPlayer lifecycle and interaction behavior", () => {
+  let videoElement: HTMLVideoElement;
+
+  beforeEach(() => {
+    videoElement = screen.queryByTestId("player") as HTMLVideoElement;
+  });
+
+  const setupVideoElement = () => {
+    videoElement = screen.getByTestId("player") as HTMLVideoElement;
+    Object.defineProperty(videoElement, "duration", {
+      configurable: true,
+      writable: true,
+      value: 100,
+    });
+    Object.defineProperty(videoElement, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
+    Object.defineProperty(videoElement, "playbackRate", {
+      configurable: true,
+      writable: true,
+      value: 1,
+    });
+    videoElement.play = vi.fn().mockResolvedValue(undefined);
+    videoElement.pause = vi.fn();
+    videoElement.load = vi.fn();
+    videoElement.fastSeek = vi.fn();
+    return videoElement;
+  };
+
+  it("cleans up the previous source and resets state when src changes", async () => {
+    let latestHook!: ReturnType<typeof useVideoPlayer>;
+    const onReady = (hook: ReturnType<typeof useVideoPlayer>) => {
+      latestHook = hook;
+    };
+
+    const { rerender } = render(
+      React.createElement(HookHarness, {
+        props: { src: "first.mp4" },
+        onReady,
+      })
+    );
+
+    const player = setupVideoElement();
+
+    act(() => {
+      latestHook.handleLoadedMetadata({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+      player.currentTime = 25;
+      latestHook.handleTimeUpdate({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+      latestHook.handlePlay();
+    });
+
+    rerender(
+      React.createElement(HookHarness, {
+        props: { src: "second.mp4" },
+        onReady,
+      })
+    );
+
+    await waitFor(() => {
+      expect(player.pause).toHaveBeenCalled();
+      expect(player.load).toHaveBeenCalled();
+      expect(latestHook.isPlaying).toBe(false);
+      expect(latestHook.currentTime).toBe(0);
+      expect(latestHook.duration).toBe(0);
+    });
+  });
+
+  it("applies autoplay and loop settings when they change", async () => {
+    let latestHook!: ReturnType<typeof useVideoPlayer>;
+    const { rerender } = render(
+      React.createElement(HookHarness, {
+        props: { src: "test.mp4", autoPlay: false, autoLoop: false },
+        onReady: (hook: ReturnType<typeof useVideoPlayer>) => {
+          latestHook = hook;
+        },
+      })
+    );
+
+    const player = setupVideoElement();
+
+    rerender(
+      React.createElement(HookHarness, {
+        props: { src: "test.mp4", autoPlay: true, autoLoop: true },
+        onReady: (hook: ReturnType<typeof useVideoPlayer>) => {
+          latestHook = hook;
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(player.autoplay).toBe(true);
+      expect(player.loop).toBe(true);
+      expect(latestHook.isLooping).toBe(true);
+    });
+  });
+
+  it("updates duration from durationchange events and canplay within tolerance", async () => {
+    let latestHook!: ReturnType<typeof useVideoPlayer>;
+    render(
+      React.createElement(HookHarness, {
+        props: { src: "test.mp4" },
+        onReady: (hook: ReturnType<typeof useVideoPlayer>) => {
+          latestHook = hook;
+        },
+      })
+    );
+
+    const player = setupVideoElement();
+    player.duration = 100;
+    fireEvent(player, new Event("durationchange"));
+
+    await waitFor(() => {
+      expect(latestHook.duration).toBe(100);
+    });
+
+    player.duration = 105;
+    act(() => {
+      latestHook.handleCanPlay();
+    });
+
+    expect(latestHook.duration).toBe(105);
+  });
+
+  it("toggles playback and loop state through handlers", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    const player = document.createElement("video");
+    player.play = vi.fn().mockResolvedValue(undefined);
+    player.pause = vi.fn();
+    Object.defineProperty(player, "loop", {
+      configurable: true,
+      writable: true,
+      value: false,
+    });
+    result.current.videoRef.current = player;
+
+    act(() => {
+      result.current.handlePlayPause();
+    });
+    expect(player.play).toHaveBeenCalled();
+    expect(result.current.isPlaying).toBe(true);
+
+    act(() => {
+      result.current.handlePlayPause();
+    });
+    expect(player.pause).toHaveBeenCalled();
+    expect(result.current.isPlaying).toBe(false);
+
+    act(() => {
+      result.current.handleToggleLoop();
+    });
+    expect(player.loop).toBe(true);
+    expect(result.current.isLooping).toBe(true);
+  });
+
+  it("falls back to currentTime when fastSeek is unavailable", () => {
+    const { result } = renderHook(() => useVideoPlayer({ src: "test.mp4" }));
+    const player = document.createElement("video");
+    Object.defineProperty(player, "duration", {
+      configurable: true,
+      writable: true,
+      value: 100,
+    });
+    Object.defineProperty(player, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 50,
+    });
+    // @ts-expect-error test fallback path
+    player.fastSeek = undefined;
+    result.current.videoRef.current = player;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    act(() => {
+      result.current.handleSeek(-20);
+    });
+
+    act(() => {
+      result.current.handleProgressChangeCommitted(25);
+    });
+
+    expect(player.currentTime).toBe(25);
+  });
+
+  it("tracks dragging and seeking state around time updates", () => {
+    const onTimeUpdate = vi.fn();
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", onTimeUpdate })
+    );
+    const player = document.createElement("video");
+    Object.defineProperty(player, "duration", {
+      configurable: true,
+      writable: true,
+      value: 100,
+    });
+    Object.defineProperty(player, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 10,
+    });
+    result.current.videoRef.current = player;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    act(() => {
+      result.current.handleProgressMouseDown();
+    });
+
+    act(() => {
+      result.current.handleTimeUpdate({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(result.current.isDragging).toBe(true);
+    expect(result.current.currentTime).toBe(0);
+    expect(onTimeUpdate).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleProgressChangeCommitted(50);
+      result.current.handleSeeking();
+    });
+
+    act(() => {
+      player.currentTime = 30;
+      result.current.handleTimeUpdate({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+      result.current.handleSeeked({ currentTarget: player } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(result.current.isDragging).toBe(false);
+    expect(result.current.currentTime).toBe(30);
+    expect(onTimeUpdate).toHaveBeenCalledWith(30);
+  });
+
+  it("returns the existing loop state when no video element is attached", () => {
+    const { result } = renderHook(() =>
+      useVideoPlayer({ src: "test.mp4", autoLoop: true })
+    );
+
+    let loopState = false;
+    act(() => {
+      loopState = result.current.handleToggleLoop();
+    });
+
+    expect(loopState).toBe(true);
+    expect(result.current.isLooping).toBe(true);
   });
 });
