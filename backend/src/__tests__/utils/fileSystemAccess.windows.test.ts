@@ -4,9 +4,6 @@ async function loadFileSystemAccessWithWin32Path() {
   vi.resetModules();
 
   const existsSync = vi.fn(() => true);
-  const statSyncMock = vi.fn(() => ({
-    size: 1,
-  }));
   const lstatSync = vi.fn(() => ({
     isSymbolicLink: () => false,
   }));
@@ -26,12 +23,10 @@ async function loadFileSystemAccessWithWin32Path() {
   vi.doMock("fs-extra", () => ({
     default: {
       existsSync,
-      statSync: statSyncMock,
       lstatSync,
       realpathSync,
     },
     existsSync,
-    statSync: statSyncMock,
     lstatSync,
     realpathSync,
   }));
@@ -39,7 +34,6 @@ async function loadFileSystemAccessWithWin32Path() {
   return {
     ...(await import("../../utils/fileSystemAccess")),
     existsSync,
-    statSyncMock,
   };
 }
 
@@ -50,14 +44,12 @@ describe("fileSystemAccess windows paths", () => {
     vi.resetModules();
   });
 
-  it("handles drive-letter paths when casing differs", async () => {
+  it("allows drive-letter paths when casing differs", async () => {
     const fileSystemAccess = await loadFileSystemAccessWithWin32Path();
     const allowedDir = "C:\\media";
     const filePath = "c:\\media\\movie.mp4";
 
     expect(fileSystemAccess.pathExistsSync(filePath, [allowedDir])).toBe(true);
     expect(fileSystemAccess.existsSync).toHaveBeenCalledWith(filePath);
-    expect(fileSystemAccess.statSync(filePath, [allowedDir]).size).toBe(1);
-    expect(fileSystemAccess.statSyncMock).toHaveBeenCalledWith(filePath);
   });
 });

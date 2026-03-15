@@ -5,9 +5,6 @@ type PathEntryStats = {
   isSymbolicLink(): boolean;
 };
 
-const createPathTraversalError = (targetPath: string): Error =>
-  new Error(`Path traversal detected: ${targetPath} is outside allowed directories`);
-
 const existsSyncIfAvailable = (targetPath: string): boolean => {
   const existsSync = (fs as typeof fs & {
     existsSync?: (currentPath: string) => boolean;
@@ -31,52 +28,7 @@ export const isPathInsideDir = (
   );
 };
 
-export const findContainingAllowedDir = (
-  candidatePath: string,
-  normalizedAllowedDirs: readonly string[],
-): string | null => {
-  for (const allowedDir of normalizedAllowedDirs) {
-    if (isPathInsideDir(candidatePath, allowedDir)) {
-      return allowedDir;
-    }
-  }
-
-  return null;
-};
-
-const assertAllowedDirsProvided = (
-  normalizedAllowedDirs: readonly string[],
-): void => {
-  if (normalizedAllowedDirs.length === 0) {
-    throw new Error("Path traversal detected: no allowed directories were provided");
-  }
-};
-
-const lstatIfExists = (
-  targetPath: string,
-  normalizedAllowedDirs: readonly string[],
-): PathEntryStats | null => {
-  const absoluteTargetPath = path.resolve(targetPath);
-  const matchedAllowedDir = findContainingAllowedDir(
-    absoluteTargetPath,
-    normalizedAllowedDirs,
-  );
-  if (!matchedAllowedDir) {
-    throw createPathTraversalError(targetPath);
-  }
-
-  const relativeTargetPath = path.relative(
-    matchedAllowedDir,
-    absoluteTargetPath,
-  );
-  if (
-    relativeTargetPath === ".." ||
-    relativeTargetPath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeTargetPath)
-  ) {
-    throw createPathTraversalError(targetPath);
-  }
-
+const lstatIfExists = (targetPath: string): PathEntryStats | null => {
   const lstatSync = (fs as typeof fs & {
     lstatSync?: (currentPath: string) => PathEntryStats;
   }).lstatSync;
@@ -86,7 +38,7 @@ const lstatIfExists = (
   }
 
   try {
-    return lstatSync(absoluteTargetPath);
+    return lstatSync(targetPath);
   } catch (error) {
     const maybeErrno = error as NodeJS.ErrnoException;
     if (maybeErrno.code === "ENOENT") {
@@ -113,32 +65,14 @@ const resolveExistingRealPathSync = (targetPath: string): string => {
 
 const resolveSymlinkEntryPath = (
   entryPath: string,
-  normalizedAllowedDirs: readonly string[],
   seen = new Set<string>(),
 ): string => {
   const absoluteEntryPath = path.resolve(entryPath);
-  const matchedAllowedDir = findContainingAllowedDir(
-    absoluteEntryPath,
-    normalizedAllowedDirs,
-  );
-  if (!matchedAllowedDir) {
-    throw createPathTraversalError(entryPath);
-  }
-
-  const relativeEntryPath = path.relative(matchedAllowedDir, absoluteEntryPath);
-  if (
-    relativeEntryPath === ".." ||
-    relativeEntryPath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeEntryPath)
-  ) {
-    throw createPathTraversalError(entryPath);
-  }
-
   if (seen.has(absoluteEntryPath)) {
     throw new Error(`Symlink loop detected: ${absoluteEntryPath}`);
   }
 
-  const stats = lstatIfExists(absoluteEntryPath, normalizedAllowedDirs);
+  const stats = lstatIfExists(absoluteEntryPath);
   if (!stats || !stats.isSymbolicLink()) {
     return absoluteEntryPath;
   }
@@ -155,7 +89,7 @@ const resolveSymlinkEntryPath = (
   const linkTarget = readlinkSync(absoluteEntryPath);
   const nextPath = path.resolve(path.dirname(absoluteEntryPath), linkTarget);
 
-  return resolveSymlinkEntryPath(nextPath, normalizedAllowedDirs, seen);
+  return resolveSymlinkEntryPath(nextPath, seen);
 };
 
 export const normalizeAllowedDirs = (
@@ -163,7 +97,7 @@ export const normalizeAllowedDirs = (
 ): string[] => {
   const normalizedDirs = new Set<string>();
 
-  for (const allowedDir of allowedDirs) {
+  allowedDirs.forEach((allowedDir) => {
     const resolvedAllowedDir = path.resolve(allowedDir);
     normalizedDirs.add(resolvedAllowedDir);
 
@@ -174,35 +108,21 @@ export const normalizeAllowedDirs = (
         normalizedDirs.add(resolvedAllowedDir);
       }
     }
-  }
+  });
 
   return [...normalizedDirs];
 };
 
-export const resolvePathThroughSymlinks = (
-  targetPath: string,
-  normalizedAllowedDirs: readonly string[],
-): string => {
+export const resolvePathThroughSymlinks = (targetPath: string): string => {
   const absolutePath = path.resolve(targetPath);
-  const matchedAllowedDir = normalizedAllowedDirs.find((allowedDir) =>
-    isPathInsideDir(absolutePath, allowedDir),
-  );
-  if (!matchedAllowedDir) {
-    throw new Error(
-      `Path traversal detected: ${targetPath} is outside allowed directories`,
-    );
-  }
-
-  const relativePath = path.relative(matchedAllowedDir, absolutePath);
+  const { root } = path.parse(absolutePath);
+  const relativePath = path.relative(root, absolutePath);
   const segments =
     relativePath.length > 0 ? relativePath.split(path.sep).filter(Boolean) : [];
 
-  let currentPath = matchedAllowedDir;
+  let currentPath = root;
   for (const segment of segments) {
-    currentPath = resolveSymlinkEntryPath(
-      path.join(currentPath, segment),
-      normalizedAllowedDirs,
-    );
+    currentPath = resolveSymlinkEntryPath(path.join(currentPath, segment));
   }
 
   return currentPath;
@@ -210,7 +130,6 @@ export const resolvePathThroughSymlinks = (
 
 export const resolvePathThroughSymlinkAncestors = (
   targetPath: string,
-  normalizedAllowedDirs: readonly string[],
 ): string => {
   const absolutePath = path.resolve(targetPath);
   const { dir, base } = path.parse(absolutePath);
@@ -219,10 +138,7 @@ export const resolvePathThroughSymlinkAncestors = (
     return absolutePath;
   }
 
-  const resolvedParentPath = resolvePathThroughSymlinks(
-    dir,
-    normalizedAllowedDirs,
-  );
+  const resolvedParentPath = resolvePathThroughSymlinks(dir);
   return path.join(resolvedParentPath, base);
 };
 
@@ -237,21 +153,29 @@ export const assertSafePathInAllowedDirs = (
   const absolutePath = path.resolve(filePath);
   const normalizedAllowedDirs = normalizeAllowedDirs(allowedDirs);
 
-  assertAllowedDirsProvided(normalizedAllowedDirs);
-  if (
-    findContainingAllowedDir(absolutePath, normalizedAllowedDirs) === null
-  ) {
-    throw createPathTraversalError(filePath);
+  if (normalizedAllowedDirs.length === 0) {
+    throw new Error("Path traversal detected: no allowed directories were provided");
   }
 
-  const traversedPath = resolvePathThroughSymlinks(
-    absolutePath,
-    normalizedAllowedDirs,
-  );
   if (
-    findContainingAllowedDir(traversedPath, normalizedAllowedDirs) === null
+    !normalizedAllowedDirs.some((allowedDir) =>
+      isPathInsideDir(absolutePath, allowedDir)
+    )
   ) {
-    throw createPathTraversalError(filePath);
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
+  }
+
+  const traversedPath = resolvePathThroughSymlinks(absolutePath);
+  if (
+    !normalizedAllowedDirs.some((allowedDir) =>
+      isPathInsideDir(traversedPath, allowedDir)
+    )
+  ) {
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
   }
 
   return {
@@ -272,21 +196,29 @@ export const assertSafePathEntryInAllowedDirs = (
   const absolutePath = path.resolve(filePath);
   const normalizedAllowedDirs = normalizeAllowedDirs(allowedDirs);
 
-  assertAllowedDirsProvided(normalizedAllowedDirs);
-  if (
-    findContainingAllowedDir(absolutePath, normalizedAllowedDirs) === null
-  ) {
-    throw createPathTraversalError(filePath);
+  if (normalizedAllowedDirs.length === 0) {
+    throw new Error("Path traversal detected: no allowed directories were provided");
   }
 
-  const traversedEntryPath = resolvePathThroughSymlinkAncestors(
-    absolutePath,
-    normalizedAllowedDirs,
-  );
   if (
-    findContainingAllowedDir(traversedEntryPath, normalizedAllowedDirs) === null
+    !normalizedAllowedDirs.some((allowedDir) =>
+      isPathInsideDir(absolutePath, allowedDir)
+    )
   ) {
-    throw createPathTraversalError(filePath);
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
+  }
+
+  const traversedEntryPath = resolvePathThroughSymlinkAncestors(absolutePath);
+  if (
+    !normalizedAllowedDirs.some((allowedDir) =>
+      isPathInsideDir(traversedEntryPath, allowedDir)
+    )
+  ) {
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
   }
 
   return {

@@ -1,84 +1,38 @@
 import fs from "fs-extra";
 import type { Stats } from "fs";
-import path from "path";
 import {
   assertSafePathEntryInAllowedDirs,
   assertSafePathInAllowedDirs,
-  findContainingAllowedDir,
+  isPathInsideDir,
   isPathInsideAllowedDirs,
 } from "./pathSafety";
 
-type SafePathResolution = {
-  absolutePath: string;
-  normalizedAllowedDirs: string[];
-};
+const resolveSafeFilePath = (
+  filePath: string,
+  allowedDirs: readonly string[],
+): ReturnType<typeof assertSafePathInAllowedDirs> =>
+  assertSafePathInAllowedDirs(filePath, allowedDirs);
 
-type LstatSyncAccessor = typeof fs & {
-  lstatSync?: (currentPath: string) => Stats;
-};
-
-const createPathTraversalError = (originalPath: string): Error =>
-  new Error(`Path traversal detected: ${originalPath} is outside allowed directories`);
+const resolveSafeEntryPath = (
+  filePath: string,
+  allowedDirs: readonly string[],
+): ReturnType<typeof assertSafePathEntryInAllowedDirs> =>
+  assertSafePathEntryInAllowedDirs(filePath, allowedDirs);
 
 const assertPathWithinNormalizedAllowedDirs = (
   safePath: string,
   normalizedAllowedDirs: readonly string[],
   originalPath: string,
 ): void => {
-  if (findContainingAllowedDir(safePath, normalizedAllowedDirs) !== null) {
-    return;
-  }
-
-  throw createPathTraversalError(originalPath);
-};
-
-const assertCodeQlSafePath = (
-  safePath: string,
-  normalizedAllowedDirs: readonly string[],
-  originalPath: string,
-): void => {
-  const matchedAllowedDir = findContainingAllowedDir(
-    safePath,
-    normalizedAllowedDirs,
-  );
-  if (!matchedAllowedDir) {
-    throw createPathTraversalError(originalPath);
-  }
-
-  const relativeSafePath = path.relative(matchedAllowedDir, safePath);
   if (
-    relativeSafePath === ".." ||
-    relativeSafePath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeSafePath)
+    !normalizedAllowedDirs.some((allowedDir) =>
+      isPathInsideDir(safePath, allowedDir),
+    )
   ) {
-    throw createPathTraversalError(originalPath);
+    throw new Error(
+      `Path traversal detected: ${originalPath} is outside allowed directories`,
+    );
   }
-};
-
-const resolveCheckedSafeFilePath = (
-  filePath: string,
-  allowedDirs: readonly string[],
-): SafePathResolution => {
-  const resolvedPath = assertSafePathInAllowedDirs(filePath, allowedDirs);
-  assertPathWithinNormalizedAllowedDirs(
-    resolvedPath.absolutePath,
-    resolvedPath.normalizedAllowedDirs,
-    filePath,
-  );
-  return resolvedPath;
-};
-
-const resolveCheckedSafeEntryPath = (
-  filePath: string,
-  allowedDirs: readonly string[],
-): SafePathResolution => {
-  const resolvedPath = assertSafePathEntryInAllowedDirs(filePath, allowedDirs);
-  assertPathWithinNormalizedAllowedDirs(
-    resolvedPath.absolutePath,
-    resolvedPath.normalizedAllowedDirs,
-    filePath,
-  );
-  return resolvedPath;
 };
 
 const lstatEntryIfExists = (
@@ -86,15 +40,26 @@ const lstatEntryIfExists = (
   normalizedAllowedDirs: readonly string[],
   originalPath: string,
 ): Stats | null => {
-  assertCodeQlSafePath(safePath, normalizedAllowedDirs, originalPath);
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    originalPath,
+  );
 
-  const lstatSync = (fs as LstatSyncAccessor).lstatSync;
+  const lstatSync = (fs as typeof fs & {
+    lstatSync?: (currentPath: string) => Stats;
+  }).lstatSync;
+
   if (typeof lstatSync !== "function") {
     return fs.existsSync(safePath) ? ({} as Stats) : null;
   }
 
   try {
-    return lstatSync(safePath) ?? (fs.existsSync(safePath) ? ({} as Stats) : null);
+    const stats = lstatSync(safePath);
+    if (stats) {
+      return stats;
+    }
+    return fs.existsSync(safePath) ? ({} as Stats) : null;
   } catch (error) {
     const maybeErrno = error as NodeJS.ErrnoException;
     if (maybeErrno.code === "ENOENT") {
@@ -104,41 +69,29 @@ const lstatEntryIfExists = (
   }
 };
 
-const readDirectory = (safePath: string): string[] => fs.readdirSync(safePath);
-
 export const resolveSafePathInAllowedDirs = (
   filePath: string,
   allowedDirs: readonly string[],
-): string => assertSafePathInAllowedDirs(filePath, allowedDirs).absolutePath;
+): string => resolveSafeFilePath(filePath, allowedDirs).absolutePath;
 
 export const resolveSafePathEntryInAllowedDirs = (
   filePath: string,
   allowedDirs: readonly string[],
-): string => assertSafePathEntryInAllowedDirs(filePath, allowedDirs).absolutePath;
+): string => resolveSafeEntryPath(filePath, allowedDirs).absolutePath;
 
 export const pathExistsSync = (
   filePath: string,
   allowedDirs: readonly string[],
 ): boolean => {
-  const { absolutePath: safePath, normalizedAllowedDirs } =
-    resolveCheckedSafeFilePath(filePath, allowedDirs);
-  const matchedAllowedDir = findContainingAllowedDir(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
+    filePath,
+    allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
     safePath,
     normalizedAllowedDirs,
+    filePath,
   );
-  if (!matchedAllowedDir) {
-    throw createPathTraversalError(filePath);
-  }
-
-  const relativeSafePath = path.relative(matchedAllowedDir, safePath);
-  if (
-    relativeSafePath === ".." ||
-    relativeSafePath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeSafePath)
-  ) {
-    throw createPathTraversalError(filePath);
-  }
-
   return fs.existsSync(safePath);
 };
 
@@ -146,26 +99,41 @@ export const pathEntryExistsSync = (
   filePath: string,
   allowedDirs: readonly string[],
 ): boolean => {
-  const { absolutePath: safePath, normalizedAllowedDirs } =
-    resolveCheckedSafeEntryPath(filePath, allowedDirs);
-  return lstatEntryIfExists(safePath, normalizedAllowedDirs, filePath) !== null;
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeEntryPath(
+    filePath,
+    allowedDirs,
+  );
+  return (
+    lstatEntryIfExists(safePath, normalizedAllowedDirs, filePath) !== null
+  );
 };
 
 export const readUtf8FileSync = (
   filePath: string,
   allowedDirs: readonly string[],
 ): string => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   return fs.readFileSync(safePath, "utf8");
 };
 
 export const ensureDirSync = (dirPath: string, allowedDir: string): void => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(dirPath, [
-    allowedDir,
-  ]);
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
+    dirPath,
+    [allowedDir],
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    dirPath,
+  );
   fs.mkdirSync(safePath, { recursive: true });
 };
 
@@ -174,9 +142,14 @@ export const writeUtf8FileSync = (
   content: string,
   allowedDirs: readonly string[],
 ): void => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   fs.writeFileSync(safePath, content, "utf8");
 };
@@ -186,9 +159,14 @@ export const writeFileData = async (
   data: string | Buffer | Uint8Array,
   allowedDirs: readonly string[],
 ): Promise<void> => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   await fs.writeFile(safePath, data);
 };
@@ -197,9 +175,14 @@ export const removeFileSync = (
   filePath: string,
   allowedDirs: readonly string[],
 ): void => {
-  const { absolutePath: safePath } = resolveCheckedSafeEntryPath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeEntryPath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   fs.unlinkSync(safePath);
 };
@@ -209,14 +192,26 @@ export const renamePathSync = (
   destinationPath: string,
   allowedDirs: readonly string[],
 ): void => {
-  const { absolutePath: safeSourcePath } = resolveCheckedSafeEntryPath(
+  const {
+    absolutePath: safeSourcePath,
+    normalizedAllowedDirs: normalizedSourceDirs,
+  } = resolveSafeEntryPath(sourcePath, allowedDirs);
+  assertPathWithinNormalizedAllowedDirs(
+    safeSourcePath,
+    normalizedSourceDirs,
     sourcePath,
-    allowedDirs,
   );
-  const { absolutePath: safeDestinationPath } = resolveCheckedSafeEntryPath(
+
+  const {
+    absolutePath: safeDestinationPath,
+    normalizedAllowedDirs: normalizedDestinationDirs,
+  } = resolveSafeEntryPath(destinationPath, allowedDirs);
+  assertPathWithinNormalizedAllowedDirs(
+    safeDestinationPath,
+    normalizedDestinationDirs,
     destinationPath,
-    allowedDirs,
   );
+
   fs.renameSync(safeSourcePath, safeDestinationPath);
 };
 
@@ -224,9 +219,14 @@ export const removeDirSync = (
   dirPath: string,
   allowedDirs: readonly string[],
 ): void => {
-  const { absolutePath: safePath } = resolveCheckedSafeEntryPath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeEntryPath(
     dirPath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    dirPath,
   );
   fs.rmdirSync(safePath);
 };
@@ -235,9 +235,14 @@ export const removePathRecursivelySync = (
   targetPath: string,
   allowedDirs: readonly string[],
 ): void => {
-  const { absolutePath: safePath } = resolveCheckedSafeEntryPath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeEntryPath(
     targetPath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    targetPath,
   );
   fs.rmSync(safePath, {
     recursive: true,
@@ -249,36 +254,31 @@ export const readDirSync = (
   dirPath: string,
   allowedDirs: readonly string[],
 ): string[] => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     dirPath,
     allowedDirs,
   );
-  return readDirectory(safePath);
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    dirPath,
+  );
+  return fs.readdirSync(safePath);
 };
 
 export const statSync = (
   filePath: string,
   allowedDirs: readonly string[],
 ): Stats => {
-  const { absolutePath: safePath, normalizedAllowedDirs } =
-    resolveCheckedSafeFilePath(filePath, allowedDirs);
-  const matchedAllowedDir = findContainingAllowedDir(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
+    filePath,
+    allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
     safePath,
     normalizedAllowedDirs,
+    filePath,
   );
-  if (!matchedAllowedDir) {
-    throw createPathTraversalError(filePath);
-  }
-
-  const relativeSafePath = path.relative(matchedAllowedDir, safePath);
-  if (
-    relativeSafePath === ".." ||
-    relativeSafePath.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeSafePath)
-  ) {
-    throw createPathTraversalError(filePath);
-  }
-
   return fs.statSync(safePath);
 };
 
@@ -286,14 +286,21 @@ export const resolveRealPath = async (
   filePath: string,
   allowedDirs: readonly string[],
 ): Promise<string> => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   const realPath = await fs.realpath(safePath);
 
   if (!isPathInsideAllowedDirs(realPath, allowedDirs)) {
-    throw createPathTraversalError(filePath);
+    throw new Error(
+      `Path traversal detected: ${filePath} is outside allowed directories`,
+    );
   }
 
   return realPath;
@@ -303,9 +310,14 @@ export const statPath = async (
   filePath: string,
   allowedDirs: readonly string[],
 ): Promise<Stats> => {
-  const { absolutePath: safePath } = resolveCheckedSafeFilePath(
+  const { absolutePath: safePath, normalizedAllowedDirs } = resolveSafeFilePath(
     filePath,
     allowedDirs,
+  );
+  assertPathWithinNormalizedAllowedDirs(
+    safePath,
+    normalizedAllowedDirs,
+    filePath,
   );
   return fs.stat(safePath);
 };

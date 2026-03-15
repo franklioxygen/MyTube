@@ -12,7 +12,9 @@ import {
 describe("fileSystemAccess", () => {
   const tempRoots: string[] = [];
 
-  const getManagedTempPath = (targetPath: string): string => {
+  const getManagedTempPath = (
+    targetPath: string,
+  ): { safePath: string; safePathPrefix: string } => {
     const safePath = path.resolve(targetPath);
     const managedRoot = tempRoots.find(
       (tempRoot) =>
@@ -23,7 +25,65 @@ describe("fileSystemAccess", () => {
       throw new Error(`Unmanaged temp path: ${targetPath}`);
     }
 
-    return safePath;
+    return {
+      safePath,
+      safePathPrefix:
+        safePath === managedRoot || managedRoot.endsWith(path.sep)
+          ? managedRoot
+          : `${managedRoot}${path.sep}`,
+    };
+  };
+
+  const tempPathExists = (targetPath: string): boolean => {
+    const { safePath, safePathPrefix } = getManagedTempPath(targetPath);
+    if (!safePath.startsWith(safePathPrefix)) {
+      throw new Error(`Temp path escaped test root: ${targetPath}`);
+    }
+    return fs.existsSync(safePath);
+  };
+
+  const writeTempFileSync = (targetPath: string, content: string): void => {
+    const { safePath, safePathPrefix } = getManagedTempPath(targetPath);
+    if (!safePath.startsWith(safePathPrefix)) {
+      throw new Error(`Temp path escaped test root: ${targetPath}`);
+    }
+    fs.writeFileSync(safePath, content);
+  };
+
+  const createTempSymlinkSync = (
+    targetPath: string,
+    symlinkPath: string,
+    type?: "dir" | "file" | "junction",
+  ): void => {
+    const { safePath: safeTargetPath, safePathPrefix: safeTargetPrefix } =
+      getManagedTempPath(targetPath);
+    if (!safeTargetPath.startsWith(safeTargetPrefix)) {
+      throw new Error(`Symlink target escaped test root: ${targetPath}`);
+    }
+
+    const { safePath: safeSymlinkPath, safePathPrefix: safeSymlinkPrefix } =
+      getManagedTempPath(symlinkPath);
+    if (!safeSymlinkPath.startsWith(safeSymlinkPrefix)) {
+      throw new Error(`Symlink path escaped test root: ${symlinkPath}`);
+    }
+
+    fs.symlinkSync(safeTargetPath, safeSymlinkPath, type);
+  };
+
+  const lstatTempPath = (targetPath: string): fs.Stats => {
+    const { safePath, safePathPrefix } = getManagedTempPath(targetPath);
+    if (!safePath.startsWith(safePathPrefix)) {
+      throw new Error(`Temp path escaped test root: ${targetPath}`);
+    }
+    return fs.lstatSync(safePath);
+  };
+
+  const readTempSymlink = (targetPath: string): string => {
+    const { safePath, safePathPrefix } = getManagedTempPath(targetPath);
+    if (!safePath.startsWith(safePathPrefix)) {
+      throw new Error(`Temp path escaped test root: ${targetPath}`);
+    }
+    return fs.readlinkSync(safePath);
   };
 
   afterEach(() => {
@@ -47,16 +107,12 @@ describe("fileSystemAccess", () => {
 
     fs.ensureDirSync(allowedDir);
     fs.ensureDirSync(outsideDir);
-    fs.symlinkSync(
-      getManagedTempPath(path.join(outsideDir, "missing")),
-      getManagedTempPath(symlinkDir),
-      "dir",
-    );
+    createTempSymlinkSync(path.join(outsideDir, "missing"), symlinkDir, "dir");
 
     expect(() =>
       writeUtf8FileSync(path.join(symlinkDir, "created.txt"), "hello", [allowedDir])
     ).toThrow("outside allowed directories");
-    expect(fs.existsSync(getManagedTempPath(escapedTargetPath))).toBe(false);
+    expect(tempPathExists(escapedTargetPath)).toBe(false);
   });
 
   it("removes the symlink entry without deleting its target", () => {
@@ -72,13 +128,13 @@ describe("fileSystemAccess", () => {
     const symlinkPath = path.join(allowedDir, "link.txt");
 
     fs.ensureDirSync(allowedDir);
-    fs.writeFileSync(getManagedTempPath(targetPath), "hello");
-    fs.symlinkSync(getManagedTempPath(targetPath), getManagedTempPath(symlinkPath));
+    writeTempFileSync(targetPath, "hello");
+    createTempSymlinkSync(targetPath, symlinkPath);
 
     removeFileSync(symlinkPath, [allowedDir]);
 
-    expect(fs.existsSync(getManagedTempPath(targetPath))).toBe(true);
-    expect(() => fs.lstatSync(getManagedTempPath(symlinkPath))).toThrow(/ENOENT/);
+    expect(tempPathExists(targetPath)).toBe(true);
+    expect(() => lstatTempPath(symlinkPath)).toThrow(/ENOENT/);
   });
 
   it("treats escaped symlink leaf entries as removable local entries", () => {
@@ -96,15 +152,15 @@ describe("fileSystemAccess", () => {
 
     fs.ensureDirSync(allowedDir);
     fs.ensureDirSync(outsideDir);
-    fs.writeFileSync(getManagedTempPath(targetPath), "hello");
-    fs.symlinkSync(getManagedTempPath(targetPath), getManagedTempPath(symlinkPath));
+    writeTempFileSync(targetPath, "hello");
+    createTempSymlinkSync(targetPath, symlinkPath);
 
     expect(pathEntryExistsSync(symlinkPath, [allowedDir])).toBe(true);
 
     removeFileSync(symlinkPath, [allowedDir]);
 
-    expect(fs.existsSync(getManagedTempPath(targetPath))).toBe(true);
-    expect(() => fs.lstatSync(getManagedTempPath(symlinkPath))).toThrow(/ENOENT/);
+    expect(tempPathExists(targetPath)).toBe(true);
+    expect(() => lstatTempPath(symlinkPath)).toThrow(/ENOENT/);
   });
 
   it("renames symlink entries without traversing to escaped targets", () => {
@@ -123,16 +179,14 @@ describe("fileSystemAccess", () => {
 
     fs.ensureDirSync(allowedDir);
     fs.ensureDirSync(outsideDir);
-    fs.writeFileSync(getManagedTempPath(targetPath), "hello");
-    fs.symlinkSync(getManagedTempPath(targetPath), getManagedTempPath(sourcePath));
+    writeTempFileSync(targetPath, "hello");
+    createTempSymlinkSync(targetPath, sourcePath);
 
     renamePathSync(sourcePath, destinationPath, [allowedDir]);
 
-    expect(fs.existsSync(getManagedTempPath(targetPath))).toBe(true);
-    expect(() => fs.lstatSync(getManagedTempPath(sourcePath))).toThrow(/ENOENT/);
-    expect(fs.lstatSync(getManagedTempPath(destinationPath)).isSymbolicLink()).toBe(
-      true
-    );
-    expect(fs.readlinkSync(getManagedTempPath(destinationPath))).toBe(targetPath);
+    expect(tempPathExists(targetPath)).toBe(true);
+    expect(() => lstatTempPath(sourcePath)).toThrow(/ENOENT/);
+    expect(lstatTempPath(destinationPath).isSymbolicLink()).toBe(true);
+    expect(readTempSymlink(destinationPath)).toBe(targetPath);
   });
 });
