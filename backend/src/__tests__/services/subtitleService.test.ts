@@ -20,12 +20,21 @@ vi.mock('../../db', () => ({
 
 vi.mock('fs-extra');
 vi.mock('../../services/storageService');
-vi.mock('../../config/paths', () => ({
-  SUBTITLES_DIR: '/test/subtitles',
-  VIDEOS_DIR: '/test/videos',
-  IMAGES_DIR: '/test/images',
-  DATA_DIR: '/test/data',
-}));
+vi.mock('../../config/paths', async () => {
+  const actual = await vi.importActual<typeof import('../../config/paths')>(
+    '../../config/paths'
+  );
+
+  return {
+    ...actual,
+    SUBTITLES_DIR: '/test/subtitles',
+    VIDEOS_DIR: '/test/videos',
+    IMAGES_DIR: '/test/images',
+    AVATARS_DIR: '/test/avatars',
+    UPLOADS_DIR: '/test/uploads',
+    DATA_DIR: '/test/data',
+  };
+});
 
 describe('SubtitleService', () => {
   beforeEach(() => {
@@ -332,4 +341,3 @@ describe('SubtitleService', () => {
     });
   });
 });
-

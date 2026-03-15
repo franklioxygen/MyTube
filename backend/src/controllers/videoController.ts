@@ -16,6 +16,7 @@ import {
 } from "../utils/fileSystemAccess";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { assertSafePathInAllowedDirs } from "../utils/pathSafety";
 import { successResponse } from "../utils/response";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
@@ -544,6 +545,39 @@ const resolveChannelUrl = async (sourceUrl: string): Promise<string | null> => {
 const isMountVideoPath = (videoPath: string | undefined): boolean =>
   typeof videoPath === "string" && videoPath.startsWith("mount:");
 
+const parseConfiguredMountDirectories = (): string[] => {
+  const rawMountDirectories = storageService.getSettings().mountDirectories;
+  if (typeof rawMountDirectories !== "string") {
+    return [];
+  }
+
+  return rawMountDirectories
+    .split(/\r?\n/)
+    .map((dir) => dir.trim())
+    .filter(Boolean)
+    .map((dir) => {
+      if (!path.isAbsolute(dir) || dir.includes("..") || dir.includes("\0")) {
+        return null;
+      }
+
+      return path.resolve(path.normalize(dir));
+    })
+    .filter((dir): dir is string => Boolean(dir));
+};
+
+const assertMountPathWithinConfiguredDirectories = (
+  filePath: string,
+): void => {
+  try {
+    assertSafePathInAllowedDirs(filePath, parseConfiguredMountDirectories());
+  } catch {
+    throw new ValidationError(
+      "Invalid file path: outside configured mount directories",
+      "videoPath"
+    );
+  }
+};
+
 const validateRawMountFilePath = (rawFilePath: string): void => {
   if (!rawFilePath) {
     throw new ValidationError("Invalid file path: empty or invalid", "videoPath");
@@ -588,6 +622,8 @@ const assertMountFileExists = (filePath: string): string => {
     }
     throw error;
   }
+
+  assertMountPathWithinConfiguredDirectories(resolvedFilePath);
 
   let stats;
   try {

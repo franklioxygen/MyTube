@@ -60,6 +60,7 @@ vi.mock("fs-extra", () => ({
     ensureDirSync: vi.fn(),
     existsSync: vi.fn(),
     readdirSync: vi.fn(),
+    realpathSync: vi.fn(),
     statSync: vi.fn(),
     writeFile: vi.fn(),
     writeFileSync: vi.fn(),
@@ -71,6 +72,7 @@ vi.mock("fs-extra", () => ({
   ensureDirSync: vi.fn(),
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
+  realpathSync: vi.fn(),
   statSync: vi.fn(),
   writeFile: vi.fn(),
   writeFileSync: vi.fn(),
@@ -162,12 +164,14 @@ describe("videoController extra coverage", () => {
     vi.mocked(extractBilibiliVideoId).mockReturnValue(null);
     vi.mocked(storageService.getSettings).mockReturnValue({
       moveSubtitlesToVideoFolder: false,
+      mountDirectories: "/mnt/media\n/mnt",
     } as any);
     vi.mocked(storageService.updateVideo).mockReturnValue({} as any);
     vi.mocked(fs.moveSync).mockImplementation(() => undefined);
     vi.mocked(fs.writeFile).mockResolvedValue(undefined as any);
     vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
+    vi.mocked(fs.realpathSync).mockImplementation((targetPath: any) => targetPath);
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(fs.readdirSync).mockReturnValue([] as any);
   });
@@ -509,6 +513,38 @@ describe("videoController extra coverage", () => {
     await serveMountVideo(req as Request, res as Response);
 
     expect(setHeader).toHaveBeenCalledWith("Content-Type", "video/x-matroska");
+  });
+
+  it("serveMountVideo allows files from symlinked mount roots", async () => {
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "v1",
+      videoPath: "mount:/mnt/media-link/video.mp4",
+    } as any);
+    vi.mocked(storageService.getSettings).mockReturnValue({
+      moveSubtitlesToVideoFolder: false,
+      mountDirectories: "/mnt/media-link",
+    } as any);
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.realpathSync).mockImplementation((targetPath: any) => {
+      if (targetPath === "/mnt/media-link") {
+        return "/srv/media";
+      }
+      if (targetPath === "/mnt/media-link/video.mp4") {
+        return "/srv/media/video.mp4";
+      }
+      return targetPath;
+    });
+    vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any);
+
+    await serveMountVideo(req as Request, res as Response);
+
+    expect(setHeader).toHaveBeenCalledWith("Content-Type", "video/mp4");
+    expect(sendFile).toHaveBeenCalledWith(
+      "video.mp4",
+      expect.objectContaining({
+        root: "/srv/media",
+      })
+    );
   });
 
   it("serveMountVideo rejects unsafe mount paths", async () => {

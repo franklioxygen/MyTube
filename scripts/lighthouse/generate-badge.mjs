@@ -10,6 +10,34 @@ const args = [...process.argv.slice(2)];
 let outputPath = "badges/lighthouse-performance.json";
 let label = "Lighthouse mobile";
 const inputPaths = [];
+const workspaceRoot = path.resolve(process.cwd());
+
+const isPathInsideDir = (candidatePath, allowedDir) => {
+  const relativePath = path.relative(allowedDir, candidatePath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  );
+};
+
+const assertPathInsideWorkspace = (candidatePath, labelForError) => {
+  if (!isPathInsideDir(candidatePath, workspaceRoot)) {
+    throw new Error(`${labelForError} path must stay within ${workspaceRoot}`);
+  }
+};
+
+const resolveWorkspacePath = (rawPath, labelForError) => {
+  if (typeof rawPath !== "string" || rawPath.length === 0) {
+    throw new Error(`Missing ${labelForError} path`);
+  }
+  if (rawPath.includes("\0")) {
+    throw new Error(`Invalid ${labelForError} path`);
+  }
+
+  const resolvedPath = path.resolve(workspaceRoot, rawPath);
+  assertPathInsideWorkspace(resolvedPath, labelForError);
+  return resolvedPath;
+};
 
 while (args.length > 0) {
   const arg = args.shift();
@@ -39,7 +67,7 @@ if (inputPaths.length === 0) {
 
 const reportScores = inputPaths
   .map((inputPath) => {
-    const resolvedInputPath = path.resolve(process.cwd(), inputPath);
+    const resolvedInputPath = resolveWorkspacePath(inputPath, "input");
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     const report = JSON.parse(fs.readFileSync(resolvedInputPath, "utf8"));
     const score = report?.categories?.performance?.score;
@@ -79,9 +107,11 @@ const badgePayload = {
   cacheSeconds: 43200,
 };
 
-const resolvedOutputPath = path.resolve(process.cwd(), outputPath);
+const resolvedOutputPath = resolveWorkspacePath(outputPath, "output");
+const resolvedOutputDir = path.dirname(resolvedOutputPath);
+assertPathInsideWorkspace(resolvedOutputDir, "output directory");
 // eslint-disable-next-line security/detect-non-literal-fs-filename
-fs.mkdirSync(path.dirname(resolvedOutputPath), { recursive: true });
+fs.mkdirSync(resolvedOutputDir, { recursive: true });
 // eslint-disable-next-line security/detect-non-literal-fs-filename
 fs.writeFileSync(resolvedOutputPath, `${JSON.stringify(badgePayload, null, 2)}\n`);
 

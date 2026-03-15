@@ -17,7 +17,7 @@ const existsSyncIfAvailable = (targetPath: string): boolean => {
   return existsSync(targetPath);
 };
 
-const isPathInsideDir = (
+export const isPathInsideDir = (
   candidatePath: string,
   allowedDir: string,
 ): boolean => {
@@ -34,9 +34,7 @@ const lstatIfExists = (targetPath: string): PathEntryStats | null => {
   }).lstatSync;
 
   if (typeof lstatSync !== "function") {
-    return fs.existsSync(targetPath)
-      ? { isSymbolicLink: () => false }
-      : null;
+    return null;
   }
 
   try {

@@ -19,12 +19,21 @@ vi.mock('../../db', () => ({
 
 vi.mock('fs-extra');
 vi.mock('../../services/storageService');
-vi.mock('../../config/paths', () => ({
-  IMAGES_DIR: '/test/images',
-  VIDEOS_DIR: '/test/videos',
-  SUBTITLES_DIR: '/test/subtitles',
-  DATA_DIR: '/test/data',
-}));
+vi.mock('../../config/paths', async () => {
+  const actual = await vi.importActual<typeof import('../../config/paths')>(
+    '../../config/paths'
+  );
+
+  return {
+    ...actual,
+    IMAGES_DIR: '/test/images',
+    VIDEOS_DIR: '/test/videos',
+    SUBTITLES_DIR: '/test/subtitles',
+    AVATARS_DIR: '/test/avatars',
+    UPLOADS_DIR: '/test/uploads',
+    DATA_DIR: '/test/data',
+  };
+});
 
 describe('ThumbnailService', () => {
   beforeEach(() => {
@@ -270,4 +279,3 @@ describe('ThumbnailService', () => {
     });
   });
 });
-
