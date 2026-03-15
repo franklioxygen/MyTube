@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { startBackgroundJobs } from "../../server/startupJobs";
 import { subscriptionService } from "../../services/subscriptionService";

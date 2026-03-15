@@ -23,9 +23,15 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 5556
 
 # Add a script to replace environment variables at runtime
-RUN apk add --no-cache bash
+RUN apk add --no-cache bash && \
+    sed -i 's|^user .*;|# user disabled for non-root container;|' /etc/nginx/nginx.conf && \
+    sed -i 's|^pid .*;|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf
 COPY ./entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    mkdir -p /var/cache/nginx /var/run /var/log/nginx /tmp && \
+    chown -R nginx:nginx /usr/share/nginx/html /etc/nginx/conf.d /var/cache/nginx /var/run /var/log/nginx /tmp /entrypoint.sh
+
+USER nginx
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"] 

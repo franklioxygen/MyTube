@@ -1,6 +1,10 @@
-import fs from "fs";
 import { logger } from "../../utils/logger";
+import { readUtf8FileSync } from "../../utils/fileSystemAccess";
 import * as storageService from "../storageService";
+import {
+  getFrozenListsRoot,
+  resolveStoredFrozenListPath,
+} from "./frozenListPaths";
 import { ContinuousDownloadTask } from "./types";
 import { VideoUrlFetcher } from "./videoUrlFetcher";
 
@@ -29,7 +33,12 @@ export class TaskCleanup {
 
       if (task.frozenVideoListPath) {
         try {
-          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+          const safeFrozenListPath = resolveStoredFrozenListPath(
+            task.frozenVideoListPath
+          );
+          const raw = readUtf8FileSync(safeFrozenListPath, [
+            getFrozenListsRoot(),
+          ]);
           videoUrls = JSON.parse(raw) as string[];
         } catch (err) {
           logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);

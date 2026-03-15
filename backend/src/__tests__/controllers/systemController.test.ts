@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import axios from "axios";
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";

@@ -3,31 +3,57 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const args = process.argv.slice(2);
+const usage =
+  "Usage: node scripts/lighthouse/generate-badge.mjs REPORT_JSON... [--output OUTPUT_PATH] [--label LABEL]";
+const args = [...process.argv.slice(2)];
 
 let outputPath = "badges/lighthouse-performance.json";
 let label = "Lighthouse mobile";
 const inputPaths = [];
+const workspaceRoot = path.resolve(process.cwd());
 
-for (let index = 0; index < args.length; index += 1) {
-  const arg = args[index];
+const isPathInsideDir = (candidatePath, allowedDir) => {
+  const relativePath = path.relative(allowedDir, candidatePath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  );
+};
+
+const assertPathInsideWorkspace = (candidatePath, labelForError) => {
+  if (!isPathInsideDir(candidatePath, workspaceRoot)) {
+    throw new Error(`${labelForError} path must stay within ${workspaceRoot}`);
+  }
+};
+
+const resolveWorkspacePath = (rawPath, labelForError) => {
+  if (typeof rawPath !== "string" || rawPath.length === 0) {
+    throw new Error(`Missing ${labelForError} path`);
+  }
+  if (rawPath.includes("\0")) {
+    throw new Error(`Invalid ${labelForError} path`);
+  }
+
+  const resolvedPath = path.resolve(workspaceRoot, rawPath);
+  assertPathInsideWorkspace(resolvedPath, labelForError);
+  return resolvedPath;
+};
+
+while (args.length > 0) {
+  const arg = args.shift();
 
   if (arg === "--help" || arg === "-h") {
-    console.log(
-      "Usage: node scripts/lighthouse/generate-badge.mjs <report.json...> [--output <path>] [--label <label>]"
-    );
+    console.log(usage);
     process.exit(0);
   }
 
   if (arg === "--output") {
-    outputPath = args[index + 1] ?? outputPath;
-    index += 1;
+    outputPath = args.shift() ?? outputPath;
     continue;
   }
 
   if (arg === "--label") {
-    label = args[index + 1] ?? label;
-    index += 1;
+    label = args.shift() ?? label;
     continue;
   }
 
@@ -35,15 +61,15 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 if (inputPaths.length === 0) {
-  console.error(
-    "Usage: node scripts/lighthouse/generate-badge.mjs <report.json...> [--output <path>] [--label <label>]"
-  );
+  console.error(usage);
   process.exit(1);
 }
 
 const reportScores = inputPaths
   .map((inputPath) => {
-    const report = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+    const resolvedInputPath = resolveWorkspacePath(inputPath, "input");
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const report = JSON.parse(fs.readFileSync(resolvedInputPath, "utf8"));
     const score = report?.categories?.performance?.score;
 
     if (typeof score !== "number") {
@@ -81,13 +107,18 @@ const badgePayload = {
   cacheSeconds: 43200,
 };
 
-fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, `${JSON.stringify(badgePayload, null, 2)}\n`);
+const resolvedOutputPath = resolveWorkspacePath(outputPath, "output");
+const resolvedOutputDir = path.dirname(resolvedOutputPath);
+assertPathInsideWorkspace(resolvedOutputDir, "output directory");
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+fs.mkdirSync(resolvedOutputDir, { recursive: true });
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+fs.writeFileSync(resolvedOutputPath, `${JSON.stringify(badgePayload, null, 2)}\n`);
 
 console.log(
   JSON.stringify(
     {
-      outputPath,
+      outputPath: resolvedOutputPath,
       medianScore,
       reports: reportScores,
     },

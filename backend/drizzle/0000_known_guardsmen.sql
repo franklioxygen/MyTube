@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 CREATE TABLE IF NOT EXISTS "collection_videos" (
 	"collection_id" text NOT NULL,
 	"video_id" text NOT NULL,

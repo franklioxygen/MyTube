@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 CREATE TABLE "continuous_download_tasks" (
 	"id" text PRIMARY KEY NOT NULL,
 	"subscription_id" text,

@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 CREATE TABLE "subscriptions" (
     "id" text PRIMARY KEY NOT NULL,
     "author" text NOT NULL,

@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import fs from "fs-extra";
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import * as videoMetadataController from "../../controllers/videoMetadataController";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { getVideoDuration } from "../../services/metadataService";
@@ -185,14 +187,15 @@ describe("videoMetadataController", () => {
 
     it("throws when source video file does not exist", async () => {
       const { res } = createResponse();
+      const safeVideoPath = path.join(VIDEOS_DIR, "a.mp4");
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
         videoPath: "/videos/a.mp4",
         thumbnailPath: "/images/a.jpg",
       });
-      vi.mocked(validateVideoPath as any).mockReturnValue("/safe/a.mp4");
+      vi.mocked(validateVideoPath as any).mockReturnValue(safeVideoPath);
       vi.mocked(fs.existsSync as any).mockImplementation(
-        (targetPath: string) => targetPath !== "/safe/a.mp4"
+        (targetPath: string) => targetPath !== safeVideoPath
       );
 
       await expect(
@@ -206,6 +209,7 @@ describe("videoMetadataController", () => {
     it("falls back to source thumbnail when local video file is missing", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(111);
+      const safeMissingThumbnailPath = path.join(IMAGES_DIR, "missing.jpg");
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v4",
@@ -213,7 +217,7 @@ describe("videoMetadataController", () => {
         thumbnailPath: "/images/missing.jpg",
         sourceUrl: "https://www.youtube.com/watch?v=test",
       });
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/missing.jpg");
+      vi.mocked(validateImagePath as any).mockReturnValue(safeMissingThumbnailPath);
       vi.mocked(validateUrl as any).mockReturnValue("https://example.com/thumb.jpg");
       vi.mocked(fs.existsSync as any).mockReturnValue(false);
       vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
@@ -229,7 +233,10 @@ describe("videoMetadataController", () => {
         responseType: "arraybuffer",
         timeout: 15000,
       });
-      expect(fs.writeFile).toHaveBeenCalledWith("/safe/missing.jpg", expect.any(Buffer));
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        safeMissingThumbnailPath,
+        expect.any(Buffer)
+      );
       expect(storageService.updateVideo).toHaveBeenCalledWith("v4", {
         thumbnailFilename: "missing.jpg",
         thumbnailPath: "/images/missing.jpg",
@@ -247,6 +254,8 @@ describe("videoMetadataController", () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(123456);
       const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const safeVideoPath = path.join(VIDEOS_DIR, "folder", "video.mp4");
+      const safeThumbnailPath = path.join(IMAGES_DIR, "folder", "video.jpg");
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
@@ -254,8 +263,8 @@ describe("videoMetadataController", () => {
         thumbnailPath: "/images/folder/video.jpg",
         thumbnailFilename: "folder/video.jpg",
       });
-      vi.mocked(validateVideoPath as any).mockReturnValue("/safe/video.mp4");
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/video.jpg");
+      vi.mocked(validateVideoPath as any).mockReturnValue(safeVideoPath);
+      vi.mocked(validateImagePath as any).mockReturnValue(safeThumbnailPath);
       vi.mocked(getVideoDuration as any).mockResolvedValue(3661);
 
       await videoMetadataController.refreshThumbnail(
@@ -265,12 +274,12 @@ describe("videoMetadataController", () => {
 
       expect(execFileSafe).toHaveBeenCalledWith("ffmpeg", [
         "-i",
-        "/safe/video.mp4",
+        safeVideoPath,
         "-ss",
         "00:30:30",
         "-vframes",
         "1",
-        "/safe/video.jpg",
+        safeThumbnailPath,
         "-y",
       ]);
       expect(storageService.updateVideo).not.toHaveBeenCalled();
@@ -286,14 +295,16 @@ describe("videoMetadataController", () => {
     it("creates local thumbnail path for remote thumbnail and updates db", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(999);
+      const safeMoviePath = path.join(VIDEOS_DIR, "movie.mp4");
+      const safeMovieThumbnailPath = path.join(IMAGES_DIR, "movie.jpg");
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v2",
         videoFilename: "movie.mp4",
         thumbnailPath: "https://remote/image.jpg",
       });
-      vi.mocked(validateVideoPath as any).mockReturnValue("/safe/movie.mp4");
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/movie.jpg");
+      vi.mocked(validateVideoPath as any).mockReturnValue(safeMoviePath);
+      vi.mocked(validateImagePath as any).mockReturnValue(safeMovieThumbnailPath);
       vi.mocked(getVideoDuration as any).mockResolvedValue(0);
 
       await videoMetadataController.refreshThumbnail(
@@ -316,7 +327,8 @@ describe("videoMetadataController", () => {
 
     it("falls back to collection path when root video filename path is missing", async () => {
       const { res } = createResponse();
-      const fallbackVideoPath = "/safe/videos/MyCollection/movie.mp4";
+      const fallbackVideoPath = path.join(VIDEOS_DIR, "MyCollection", "movie.mp4");
+      const safeMovieThumbnailPath = path.join(IMAGES_DIR, "movie.jpg");
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v3",
@@ -332,7 +344,7 @@ describe("videoMetadataController", () => {
       vi.mocked(fs.existsSync as any).mockImplementation(
         (targetPath: string) => targetPath === fallbackVideoPath
       );
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/movie.jpg");
+      vi.mocked(validateImagePath as any).mockReturnValue(safeMovieThumbnailPath);
 
       await videoMetadataController.refreshThumbnail(
         { params: { id: "v3" } } as unknown as Request,
@@ -350,13 +362,15 @@ describe("videoMetadataController", () => {
 
     it("falls back to default timestamp when duration lookup fails", async () => {
       const { res } = createResponse();
+      const safeVideoPath = path.join(VIDEOS_DIR, "a.mp4");
+      const safeThumbnailPath = path.join(IMAGES_DIR, "a.jpg");
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
         videoPath: "/videos/a.mp4",
         thumbnailPath: "/images/a.jpg",
       });
-      vi.mocked(validateVideoPath as any).mockReturnValue("/safe/a.mp4");
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/a.jpg");
+      vi.mocked(validateVideoPath as any).mockReturnValue(safeVideoPath);
+      vi.mocked(validateImagePath as any).mockReturnValue(safeThumbnailPath);
       vi.mocked(getVideoDuration as any).mockRejectedValue(new Error("ffprobe failed"));
 
       await videoMetadataController.refreshThumbnail(
@@ -376,13 +390,15 @@ describe("videoMetadataController", () => {
 
     it("logs and rethrows ffmpeg errors", async () => {
       const { res } = createResponse();
+      const safeVideoPath = path.join(VIDEOS_DIR, "a.mp4");
+      const safeThumbnailPath = path.join(IMAGES_DIR, "a.jpg");
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
         videoPath: "/videos/a.mp4",
         thumbnailPath: "/images/a.jpg",
       });
-      vi.mocked(validateVideoPath as any).mockReturnValue("/safe/a.mp4");
-      vi.mocked(validateImagePath as any).mockReturnValue("/safe/a.jpg");
+      vi.mocked(validateVideoPath as any).mockReturnValue(safeVideoPath);
+      vi.mocked(validateImagePath as any).mockReturnValue(safeThumbnailPath);
       vi.mocked(execFileSafe as any).mockRejectedValue(new Error("ffmpeg failed"));
 
       await expect(

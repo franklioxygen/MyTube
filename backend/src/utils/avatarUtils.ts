@@ -1,9 +1,18 @@
 import fs from "fs-extra";
 import path from "path";
+import os from "os";
 import { Jimp } from "jimp";
 import { AVATARS_DIR } from "../config/paths";
+import {
+  pathEntryExistsSync,
+  pathExistsSync,
+  removeFileSync,
+  writeFileData,
+} from "./fileSystemAccess";
 import { logger } from "./logger";
 import { formatAvatarFilename } from "./helpers";
+
+const AVATAR_ALLOWED_DIRS = [AVATARS_DIR, os.tmpdir(), "/tmp"];
 
 /**
  * Check if avatar exists for a given platform and author
@@ -17,7 +26,7 @@ export function getExistingAvatarPath(
   const avatarPath = path.join(AVATARS_DIR, avatarFilename);
 
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(avatarPath)) {
+  if (pathExistsSync(avatarPath, AVATAR_ALLOWED_DIRS)) {
     logger.info(`Avatar already exists for ${platform} author ${author}: ${avatarPath}`);
     return avatarPath;
   }
@@ -41,8 +50,7 @@ export async function resizeAvatar(
     const image = await Jimp.read(inputPath);
     image.cover({ w: 100, h: 100 });
     const imageBuffer = await image.getBuffer("image/jpeg", { quality: 90 });
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    await fs.writeFile(outputPath, imageBuffer);
+    await writeFileData(outputPath, imageBuffer, AVATAR_ALLOWED_DIRS);
 
     logger.info(`Resized avatar to 100x100px: ${outputPath}`);
     return true;
@@ -82,7 +90,8 @@ export async function downloadAndProcessAvatar(
 
   // Check if the input is already a local file path (for yt-dlp downloaded avatars)
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const isLocalFile = fs.existsSync(avatarUrl) && !avatarUrl.startsWith('http');
+  const isLocalFile = !avatarUrl.startsWith("http") &&
+    pathExistsSync(avatarUrl, AVATAR_ALLOWED_DIRS);
   
   let tempAvatarPath: string;
   if (isLocalFile) {
@@ -112,16 +121,15 @@ export async function downloadAndProcessAvatar(
       logger.warn(`Failed to resize avatar: ${tempAvatarPath}`);
       // Clean up temp file (only if we created it)
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!isLocalFile && fs.existsSync(tempAvatarPath)) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(tempAvatarPath);
+      if (!isLocalFile && pathEntryExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
+        removeFileSync(tempAvatarPath, AVATAR_ALLOWED_DIRS);
       }
       return null;
     }
 
     // Clean up temp file (only if we created it)
-    if (!isLocalFile && fs.existsSync(tempAvatarPath)) {
-      fs.unlinkSync(tempAvatarPath);
+    if (!isLocalFile && pathEntryExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
+      removeFileSync(tempAvatarPath, AVATAR_ALLOWED_DIRS);
     }
 
     logger.info(`Successfully processed avatar: ${finalAvatarPath}`);
@@ -129,9 +137,9 @@ export async function downloadAndProcessAvatar(
   } catch (error) {
     logger.error(`Error processing avatar: ${error instanceof Error ? error.message : String(error)}`);
     // Clean up temp file on error (only if we created it)
-    if (!isLocalFile && fs.existsSync(tempAvatarPath)) {
+    if (!isLocalFile && pathEntryExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
       try {
-        fs.unlinkSync(tempAvatarPath);
+        removeFileSync(tempAvatarPath, AVATAR_ALLOWED_DIRS);
       } catch (cleanupError) {
         logger.error(`Error cleaning up temp avatar: ${cleanupError}`);
       }

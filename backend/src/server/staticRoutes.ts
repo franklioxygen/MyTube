@@ -9,7 +9,7 @@ import {
   SUBTITLES_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
-import { validateImagePath } from "../utils/security";
+import { resolveRealPath, statPath } from "../utils/fileSystemAccess";
 
 const DEFAULT_RESPONSIVE_IMAGE_QUALITY = 72;
 const MAX_RESPONSIVE_IMAGE_WIDTH = 1600;
@@ -75,7 +75,7 @@ const resolveResponsiveImageCandidatePath = (
     return null;
   }
 
-  return validateImagePath(candidatePath);
+  return candidatePath;
 };
 
 const serveResponsiveImage = async (
@@ -114,14 +114,14 @@ const serveResponsiveImage = async (
 
   let absoluteImagePath: string;
   try {
-    absoluteImagePath = await fs.realpath(candidateImagePath);
+    absoluteImagePath = await resolveRealPath(candidateImagePath, [IMAGES_DIR]);
 
     if (!isPathInsideImageRoot(absoluteImagePath)) {
       res.status(400).send("Invalid image path");
       return;
     }
 
-    const imageStats = await fs.stat(absoluteImagePath);
+    const imageStats = await statPath(absoluteImagePath, [IMAGES_DIR]);
     if (!imageStats.isFile()) {
       next();
       return;
