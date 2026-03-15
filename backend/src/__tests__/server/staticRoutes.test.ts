@@ -36,6 +36,11 @@ vi.mock("fs-extra", () => ({
   },
 }));
 
+vi.mock("../../utils/fileSystemAccess", () => ({
+  resolveRealPath: realpathMock,
+  statPath: statMock,
+}));
+
 vi.mock("jimp", () => ({
   Jimp: {
     read: jimpReadMock,
@@ -292,20 +297,9 @@ describe("server/staticRoutes", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(pathExistsMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        new RegExp(
-          `${path.sep}uploads${path.sep}images${path.sep}你好\\.2024\\.jpg$`,
-        ),
-      ),
-    );
-    expect(jimpReadMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        new RegExp(
-          `${path.sep}uploads${path.sep}images${path.sep}你好\\.2024\\.jpg$`,
-        ),
-      ),
-    );
+    const expectedImageSuffix = path.join("uploads", "images", "你好.2024.jpg");
+    expect(pathExistsMock).toHaveBeenCalledWith(expect.stringContaining(expectedImageSuffix));
+    expect(jimpReadMock).toHaveBeenCalledWith(expect.stringContaining(expectedImageSuffix));
     expect(res.send).toHaveBeenCalledWith(Buffer.from("image"));
     expect(next).not.toHaveBeenCalled();
   });

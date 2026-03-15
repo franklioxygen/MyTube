@@ -4,8 +4,16 @@ import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import {
   cleanupSubtitleFiles,
+  safeRemove,
   cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
+import {
+  pathEntryExistsSync,
+  pathExistsSync,
+  removeFileSync,
+  renamePathSync,
+  statSync,
+} from "../../../utils/fileSystemAccess";
 import { formatVideoFilename, isYouTubeUrl } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
@@ -27,6 +35,10 @@ import { prepareDownloadFlags } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
 import { extractVideoMetadata } from "./ytdlpMetadata";
 import { processSubtitles } from "./ytdlpSubtitle";
+
+const VIDEO_ALLOWED_DIRS = [VIDEOS_DIR];
+const THUMBNAIL_ALLOWED_DIRS = [VIDEOS_DIR, IMAGES_DIR];
+const AVATAR_ALLOWED_DIRS = [AVATARS_DIR];
 
 // Helper class to access BaseDownloader methods without circular dependency
 class YtDlpDownloaderHelper extends BaseDownloader {
@@ -221,12 +233,12 @@ export async function downloadVideo(
     );
 
     // If file already exists (e.g. redownload), deduplicate the filename
-    if (fs.existsSync(newVideoPathWithFormat)) {
+    if (pathEntryExistsSync(newVideoPathWithFormat, VIDEO_ALLOWED_DIRS)) {
       let counter = 1;
       const ext = `.${videoExtension}`;
       const basePath = newVideoPathWithFormat.replace(new RegExp(`\\${ext}$`), "");
       const baseName = finalVideoFilename.replace(new RegExp(`\\${ext}$`), "");
-      while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+      while (pathEntryExistsSync(`${basePath}_${counter}${ext}`, VIDEO_ALLOWED_DIRS)) {
         counter++;
       }
       newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
@@ -267,8 +279,8 @@ export async function downloadVideo(
         }
 
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newThumbnailPath)) {
-          await fs.remove(newThumbnailPath);
+        if (pathEntryExistsSync(newThumbnailPath, THUMBNAIL_ALLOWED_DIRS)) {
+          await safeRemove(newThumbnailPath);
         }
         await cleanupSubtitleFiles(newSafeBaseFilename);
       });
@@ -414,7 +426,7 @@ export async function downloadVideo(
       );
 
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (downloaded && fs.existsSync(tempAvatarPath)) {
+      if (downloaded && pathExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
         // Process the downloaded avatar (check if exists, resize)
         authorAvatarPath = await downloadAndProcessAvatar(
           tempAvatarPath, // Use temp file path as "URL" for processing
@@ -423,8 +435,8 @@ export async function downloadVideo(
           async (url: string, savePath: string) => {
             // This function just moves the temp file
             // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (fs.existsSync(url)) {
-              fs.moveSync(url, savePath, { overwrite: true });
+            if (pathExistsSync(url, AVATAR_ALLOWED_DIRS)) {
+              renamePathSync(url, savePath, AVATAR_ALLOWED_DIRS);
               return true;
             }
             return false;
@@ -434,10 +446,9 @@ export async function downloadVideo(
 
         // Clean up temp file if it still exists (in case processing failed or file wasn't moved)
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(tempAvatarPath)) {
+        if (pathEntryExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
           try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(tempAvatarPath);
+            removeFileSync(tempAvatarPath, AVATAR_ALLOWED_DIRS);
             logger.info(`Cleaned up temp avatar file: ${tempAvatarPath}`);
           } catch (cleanupError) {
             logger.warn(
@@ -447,10 +458,10 @@ export async function downloadVideo(
           }
         }
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      } else if (fs.existsSync(tempAvatarPath)) {
+      } else if (pathEntryExistsSync(tempAvatarPath, AVATAR_ALLOWED_DIRS)) {
         // Clean up temp file if download failed
         try {
-          fs.unlinkSync(tempAvatarPath);
+          removeFileSync(tempAvatarPath, AVATAR_ALLOWED_DIRS);
           logger.info(
             `Cleaned up temp avatar file after failed download: ${tempAvatarPath}`
           );
@@ -584,9 +595,8 @@ export async function downloadVideo(
   // Get file size
   try {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(finalVideoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(finalVideoPath);
+    if (pathExistsSync(finalVideoPath, VIDEO_ALLOWED_DIRS)) {
+      const stats = statSync(finalVideoPath, VIDEO_ALLOWED_DIRS);
       videoData.fileSize = stats.size.toString();
     }
   } catch (e) {
@@ -607,8 +617,8 @@ export async function downloadVideo(
       // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const oldVideoPath = path.join(VIDEOS_DIR, existingVideo.videoFilename);
       try {
-        if (fs.existsSync(oldVideoPath)) {
-          fs.unlinkSync(oldVideoPath);
+        if (pathEntryExistsSync(oldVideoPath, VIDEO_ALLOWED_DIRS)) {
+          removeFileSync(oldVideoPath, VIDEO_ALLOWED_DIRS);
           logger.info(`Deleted old video file: ${existingVideo.videoFilename}`);
         }
       } catch (e) {
@@ -622,8 +632,8 @@ export async function downloadVideo(
       // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
       const oldThumbnailPath = path.join(oldThumbnailDir, existingVideo.thumbnailFilename);
       try {
-        if (fs.existsSync(oldThumbnailPath)) {
-          fs.unlinkSync(oldThumbnailPath);
+        if (pathEntryExistsSync(oldThumbnailPath, THUMBNAIL_ALLOWED_DIRS)) {
+          removeFileSync(oldThumbnailPath, THUMBNAIL_ALLOWED_DIRS);
           logger.info(`Deleted old thumbnail file: ${existingVideo.thumbnailFilename}`);
         }
       } catch (e) {

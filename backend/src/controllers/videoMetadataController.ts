@@ -9,6 +9,10 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
+import {
+  pathExistsSync,
+  writeFileData,
+} from "../utils/fileSystemAccess";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import { execFileSafe, validateImagePath, validateUrl, validateVideoPath } from "../utils/security";
@@ -180,7 +184,7 @@ const refreshThumbnailFromSource = async (
     timeout: 15000,
   });
 
-  await fs.writeFile(thumbnailAbsolutePath, Buffer.from(response.data));
+  await writeFileData(thumbnailAbsolutePath, Buffer.from(response.data), [IMAGES_DIR]);
 
   storageService.updateVideo(id, {
     thumbnailFilename: newThumbnailFilename,
@@ -254,8 +258,7 @@ export const refreshThumbnail = async (
     const relativePath = video.videoPath.replace(/^\/videos\//, "");
     const candidatePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
     attemptedPaths.push(candidatePath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(candidatePath)) {
+    if (pathExistsSync(candidatePath, [VIDEOS_DIR])) {
       validatedVideoPath = candidatePath;
     }
   }
@@ -264,8 +267,7 @@ export const refreshThumbnail = async (
     const safeVideoFilename = path.basename(video.videoFilename);
     const rootPath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
     attemptedPaths.push(rootPath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(rootPath)) {
+    if (pathExistsSync(rootPath, [VIDEOS_DIR])) {
       validatedVideoPath = rootPath;
     } else {
       const fallbackPath = storageService.findVideoFile(
@@ -275,8 +277,7 @@ export const refreshThumbnail = async (
       if (fallbackPath) {
         const safeFallbackPath = validateVideoPath(fallbackPath);
         attemptedPaths.push(safeFallbackPath);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(safeFallbackPath)) {
+        if (pathExistsSync(safeFallbackPath, [VIDEOS_DIR])) {
           validatedVideoPath = safeFallbackPath;
         }
       }
@@ -592,7 +593,7 @@ export const uploadThumbnail = async (
   );
   fs.ensureDirSync(IMAGES_DIR);
   try {
-    await fs.writeFile(uploadedThumbnailAbsPath, uploadedThumbnailBuffer);
+    await writeFileData(uploadedThumbnailAbsPath, uploadedThumbnailBuffer, [IMAGES_DIR]);
   } catch (error) {
     try {
       await removeImageFileSafely(newThumbnailRelativePath);

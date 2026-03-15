@@ -5,6 +5,10 @@ import {
   IMAGES_DIR,
   VIDEOS_DIR,
 } from "../config/paths";
+import {
+  isPathInsideAllowedDirs,
+  resolveSafePathInAllowedDirs as resolveSafeFilesystemPathInAllowedDirs,
+} from "./pathSafety";
 
 /**
  * Safely rebuild a path from validated components while preserving absolute roots
@@ -50,14 +54,6 @@ function sanitizePathWithoutTraversal(pathValue: string): string {
   return sanitizedPath;
 }
 
-function isResolvedPathInsideDir(
-  resolvedPath: string,
-  resolvedAllowedDir: string,
-): boolean {
-  const relative = path.relative(resolvedAllowedDir, resolvedPath);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-}
-
 /**
  * Checks if a path is inside (or equal to) an allowed directory.
  * Both inputs are resolved before comparison.
@@ -75,9 +71,7 @@ export function isPathWithinDirectory(
     return false;
   }
 
-  const resolvedPath = path.resolve(pathToCheck);
-  const resolvedAllowedDir = path.resolve(allowedDir);
-  return isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir);
+  return isPathInsideAllowedDirs(pathToCheck, [allowedDir]);
 }
 
 /**
@@ -91,10 +85,7 @@ export function isPathWithinDirectories(
     return false;
   }
 
-  const resolvedPath = path.resolve(pathToCheck);
-  return allowedDirs.some((allowedDir) =>
-    isPathWithinDirectory(resolvedPath, allowedDir),
-  );
+  return isPathInsideAllowedDirs(pathToCheck, allowedDirs);
 }
 
 /**
@@ -124,11 +115,7 @@ export function validatePathWithinDirectory(
     return false;
   }
 
-  // Now safe to resolve - paths are constructed from validated components only
-  const resolvedPath = path.resolve(sanitizedFilePath);
-  const resolvedAllowedDir = path.resolve(sanitizedAllowedDir);
-
-  return isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir);
+  return isPathInsideAllowedDirs(sanitizedFilePath, [sanitizedAllowedDir]);
 }
 
 /**
@@ -161,17 +148,15 @@ export function resolveSafePath(filePath: string, allowedDir: string): string {
     throw new Error(`Invalid allowed directory: ${allowedDir}`);
   }
 
-  // Now safe to resolve - paths are constructed from validated components only
-  const resolvedPath = path.resolve(sanitizedFilePath);
-  const resolvedAllowedDir = path.resolve(sanitizedAllowedDir);
-
-  if (!isResolvedPathInsideDir(resolvedPath, resolvedAllowedDir)) {
+  try {
+    return resolveSafeFilesystemPathInAllowedDirs(sanitizedFilePath, [
+      sanitizedAllowedDir,
+    ]);
+  } catch {
     throw new Error(
       `Path traversal detected: ${filePath} is outside ${allowedDir}`,
     );
   }
-
-  return resolvedPath;
 }
 
 /**
@@ -197,13 +182,29 @@ export function resolveSafePathInDirectories(
   filePath: string,
   allowedDirs: string[],
 ): string {
-  const resolvedPath = path.resolve(filePath);
-  if (!validatePathWithinDirectories(resolvedPath, allowedDirs)) {
+  if (!filePath || typeof filePath !== "string") {
+    throw new Error(`Invalid file path: ${filePath}`);
+  }
+  if (!Array.isArray(allowedDirs) || allowedDirs.length === 0) {
+    throw new Error("Path traversal detected: no allowed directories were provided");
+  }
+
+  let sanitizedFilePath: string;
+  try {
+    sanitizedFilePath = sanitizePathWithoutTraversal(filePath);
+  } catch {
+    throw new Error(
+      `Path traversal detected: ${filePath} contains invalid path components`,
+    );
+  }
+
+  try {
+    return resolveSafeFilesystemPathInAllowedDirs(sanitizedFilePath, allowedDirs);
+  } catch {
     throw new Error(
       `Path traversal detected: ${filePath} is outside allowed directories`,
     );
   }
-  return resolvedPath;
 }
 
 /**

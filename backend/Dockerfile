@@ -138,7 +138,10 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
 
 # Create necessary directories
-RUN mkdir -p uploads/videos uploads/images uploads/subtitles data
+RUN mkdir -p uploads/videos uploads/images uploads/subtitles data && \
+    chown -R node:node /app
+
+USER node
 
 EXPOSE 5551
 

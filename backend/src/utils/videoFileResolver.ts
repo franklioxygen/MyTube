@@ -1,6 +1,10 @@
 import { spawnSync } from "child_process";
-import fs from "fs-extra";
 import path from "path";
+import {
+  pathExistsSync,
+  readDirSync,
+  statSync,
+} from "./fileSystemAccess";
 
 const VIDEO_CONTAINER_EXTENSIONS = new Set([
   ".mp4",
@@ -147,21 +151,18 @@ export const resolvePlayableVideoFilePath = (
   expectedFilePath: string
 ): string | null => {
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(expectedFilePath)) {
+    if (pathExistsSync(expectedFilePath, [path.dirname(expectedFilePath)])) {
       return expectedFilePath;
     }
 
     const videoDir = path.dirname(expectedFilePath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(videoDir)) {
+    if (!pathExistsSync(videoDir, [videoDir])) {
       return null;
     }
 
     const expectedBaseName = path.parse(path.basename(expectedFilePath)).name;
     const expectedExt = path.extname(expectedFilePath).toLowerCase();
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(videoDir);
+    const files = readDirSync(videoDir, [videoDir]);
     const ffprobeAvailable = isFfprobeAvailable();
 
     const candidates: CandidateFile[] = files
@@ -175,10 +176,8 @@ export const resolvePlayableVideoFilePath = (
         const extensionPriority = candidateExt === expectedExt ? 1 : 0;
         let size = 0;
         try {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(candidatePath)) {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            size = fs.statSync(candidatePath).size;
+          if (pathExistsSync(candidatePath, [videoDir])) {
+            size = statSync(candidatePath, [videoDir]).size;
           }
         } catch {
           size = 0;

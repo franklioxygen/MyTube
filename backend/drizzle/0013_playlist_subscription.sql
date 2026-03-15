@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 -- Add playlist subscription fields to subscriptions table
 -- Note: These columns are also added conditionally in initialization.ts as a safety net
 -- If this migration fails due to duplicate columns, initialization.ts will ensure they exist

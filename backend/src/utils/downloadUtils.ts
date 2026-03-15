@@ -16,8 +16,13 @@ import {
   isAnyCancellationError,
 } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import {
+  pathEntryExistsSync,
+  pathExistsSync,
+  readDirSync,
+  resolveSafePathEntryInAllowedDirs,
+} from "./fileSystemAccess";
 import { sanitizeLogMessage } from "./logger";
-import { validatePathWithinDirectories } from "./security";
 
 const SAFE_REMOVE_ALLOWED_DIRS = [
   VIDEOS_DIR,
@@ -74,21 +79,18 @@ export async function cleanupSubtitleFiles(
   const deletedFiles: string[] = [];
 
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(directory)) {
+    if (!pathExistsSync(directory, SAFE_REMOVE_ALLOWED_DIRS)) {
       return deletedFiles;
     }
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(directory);
+    const files = readDirSync(directory, SAFE_REMOVE_ALLOWED_DIRS);
     const subtitleFiles = files.filter(
       (file: string) => file.startsWith(baseFilename) && file.endsWith(".vtt")
     );
 
     for (const subtitleFile of subtitleFiles) {
       const subtitlePath = path.join(directory, subtitleFile);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(subtitlePath)) {
+      if (pathEntryExistsSync(subtitlePath, SAFE_REMOVE_ALLOWED_DIRS)) {
         await safeRemove(subtitlePath);
         deletedFiles.push(subtitlePath);
         console.log("Deleted subtitle file:", subtitlePath);
@@ -113,13 +115,11 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
     const videoDir = path.dirname(videoPath);
     const videoBasename = path.basename(videoPath);
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(videoDir)) {
+    if (!pathExistsSync(videoDir, SAFE_REMOVE_ALLOWED_DIRS)) {
       return deletedFiles;
     }
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(videoDir);
+    const files = readDirSync(videoDir, SAFE_REMOVE_ALLOWED_DIRS);
     const tempFiles = files.filter((file: string) => {
       // Match files like: filename.mp4.part, filename.mp4.ytdl, etc.
       // but not the final video file itself
@@ -135,8 +135,7 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
 
     for (const tempFile of tempFiles) {
       const tempFilePath = path.join(videoDir, tempFile);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(tempFilePath)) {
+      if (pathEntryExistsSync(tempFilePath, SAFE_REMOVE_ALLOWED_DIRS)) {
         await safeRemove(tempFilePath);
         deletedFiles.push(tempFilePath);
         console.log("Deleted temporary file:", tempFilePath);
@@ -144,8 +143,7 @@ export async function cleanupTemporaryFiles(videoPath: string): Promise<string[]
     }
 
     // Also check for the main video file if it exists (partial download)
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) {
+    if (pathEntryExistsSync(videoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(videoPath);
       deletedFiles.push(videoPath);
       console.log("Deleted partial video file:", videoPath);
@@ -168,14 +166,13 @@ export async function cleanupPartialVideoFiles(videoPath: string): Promise<strin
   try {
     const partVideoPath = `${videoPath}.part`;
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(partVideoPath)) {
+    if (pathEntryExistsSync(partVideoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(partVideoPath);
       deletedFiles.push(partVideoPath);
       console.log("Deleted partial video file:", partVideoPath);
     }
 
-    if (fs.existsSync(videoPath)) {
+    if (pathEntryExistsSync(videoPath, SAFE_REMOVE_ALLOWED_DIRS)) {
       await safeRemove(videoPath);
       deletedFiles.push(videoPath);
       console.log("Deleted video file:", videoPath);
@@ -259,11 +256,11 @@ export async function cleanupVideoArtifacts(
   const deletedFiles: string[] = [];
 
   try {
-    if (!fs.existsSync(directory)) {
+    if (!pathExistsSync(directory, SAFE_REMOVE_ALLOWED_DIRS)) {
       return deletedFiles;
     }
 
-    const files = fs.readdirSync(directory);
+    const files = readDirSync(directory, SAFE_REMOVE_ALLOWED_DIRS);
     
     // Filter files that start with the base filename and are likely download artifacts
     const artifactFiles = files.filter((file: string) => {
@@ -287,8 +284,7 @@ export async function cleanupVideoArtifacts(
 
     for (const artifact of artifactFiles) {
       const artifactPath = path.join(directory, artifact);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(artifactPath)) {
+      if (pathEntryExistsSync(artifactPath, SAFE_REMOVE_ALLOWED_DIRS)) {
         await safeRemove(artifactPath);
         deletedFiles.push(artifactPath);
         console.log("Deleted artifact file:", artifactPath);
@@ -311,9 +307,14 @@ export async function safeRemove(
   initialDelay: number = 500
 ): Promise<void> {
   const resolvedPath = path.resolve(pathToRemove);
-  if (
-    !validatePathWithinDirectories(resolvedPath, SAFE_REMOVE_ALLOWED_DIRS)
-  ) {
+  let safePath: string;
+
+  try {
+    safePath = resolveSafePathEntryInAllowedDirs(
+      resolvedPath,
+      SAFE_REMOVE_ALLOWED_DIRS,
+    );
+  } catch {
     console.error(
       "Refusing to remove path outside allowed directories:",
       sanitizeLogMessage(resolvedPath),
@@ -328,16 +329,15 @@ export async function safeRemove(
 
   for (let i = 0; i < retryCount; i++) {
     try {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(resolvedPath)) {
-        await fs.remove(resolvedPath);
+      if (pathEntryExistsSync(safePath, SAFE_REMOVE_ALLOWED_DIRS)) {
+        await fs.remove(safePath);
       }
       return;
     } catch (err) {
       if (i === retryCount - 1) {
         console.error(
           "Failed to remove path after retry attempts:",
-          sanitizeLogMessage(resolvedPath),
+          sanitizeLogMessage(safePath),
           retryCount,
           err,
         );

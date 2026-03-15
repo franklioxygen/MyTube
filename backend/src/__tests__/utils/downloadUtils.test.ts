@@ -1,5 +1,7 @@
 import fs from "fs-extra";
+import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import * as storageService from "../../services/storageService";
 import * as downloadUtils from "../../utils/downloadUtils";
@@ -109,7 +111,7 @@ describe("downloadUtils", () => {
     });
 
     it("removes matching vtt subtitle files", async () => {
-      const dir = "/tmp/subtitles";
+      const dir = SUBTITLES_DIR;
 
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "video.en.vtt",
@@ -154,14 +156,16 @@ describe("downloadUtils", () => {
     it("returns empty list when video directory does not exist", async () => {
       vi.mocked(fs.existsSync as any).mockReturnValue(false);
 
-      const result = await downloadUtils.cleanupTemporaryFiles("/tmp/a/video.mp4");
+      const result = await downloadUtils.cleanupTemporaryFiles(
+        path.join(VIDEOS_DIR, "a", "video.mp4")
+      );
 
       expect(result).toEqual([]);
     });
 
     it("removes temp files and partial video file", async () => {
-      const videoPath = "/tmp/videos/movie.mp4";
-      const videoDir = "/tmp/videos";
+      const videoPath = path.join(VIDEOS_DIR, "movie.mp4");
+      const videoDir = VIDEOS_DIR;
 
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "movie.mp4",
@@ -198,7 +202,9 @@ describe("downloadUtils", () => {
         throw new Error("boom");
       });
 
-      const result = await downloadUtils.cleanupTemporaryFiles("/tmp/x.mp4");
+      const result = await downloadUtils.cleanupTemporaryFiles(
+        path.join(VIDEOS_DIR, "x.mp4")
+      );
 
       expect(result).toEqual([]);
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -209,7 +215,7 @@ describe("downloadUtils", () => {
 
   describe("cleanupPartialVideoFiles", () => {
     it("removes .part and full video file when both exist", async () => {
-      const videoPath = "/tmp/videos/m.mp4";
+      const videoPath = path.join(VIDEOS_DIR, "m.mp4");
 
       vi.mocked(fs.existsSync as any).mockImplementation((filePath: string) => {
         return filePath === `${videoPath}.part` || filePath === videoPath;
@@ -230,7 +236,9 @@ describe("downloadUtils", () => {
         throw new Error("exists failed");
       });
 
-      const result = await downloadUtils.cleanupPartialVideoFiles("/tmp/videos/m.mp4");
+      const result = await downloadUtils.cleanupPartialVideoFiles(
+        path.join(VIDEOS_DIR, "m.mp4")
+      );
 
       expect(result).toEqual([]);
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -267,13 +275,16 @@ describe("downloadUtils", () => {
     it("returns empty list when directory is missing", async () => {
       vi.mocked(fs.existsSync as any).mockReturnValue(false);
 
-      const result = await downloadUtils.cleanupVideoArtifacts("video", "/tmp/x");
+      const result = await downloadUtils.cleanupVideoArtifacts(
+        "video",
+        path.join(VIDEOS_DIR, "x")
+      );
 
       expect(result).toEqual([]);
     });
 
     it("deletes artifact files matching known patterns", async () => {
-      const dir = "/tmp/artifacts";
+      const dir = path.join(VIDEOS_DIR, "artifacts");
 
       vi.mocked(fs.readdirSync as any).mockReturnValue([
         "video.part",
@@ -312,7 +323,10 @@ describe("downloadUtils", () => {
         throw new Error("failed");
       });
 
-      const result = await downloadUtils.cleanupVideoArtifacts("video", "/tmp/x");
+      const result = await downloadUtils.cleanupVideoArtifacts(
+        "video",
+        path.join(VIDEOS_DIR, "x")
+      );
 
       expect(result).toEqual([]);
       expect(consoleErrorSpy).toHaveBeenCalled();
@@ -341,49 +355,57 @@ describe("downloadUtils", () => {
     });
 
     it("removes path when it exists", async () => {
+      const removablePath = path.join(VIDEOS_DIR, "file.tmp");
       vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
+      vi.mocked(fs.existsSync as any).mockImplementation(
+        (filePath: string) => filePath === removablePath
+      );
 
-      await downloadUtils.safeRemove("/tmp/file.tmp", 1, 0);
+      await downloadUtils.safeRemove(removablePath, 1, 0);
 
       expect(fs.remove).toHaveBeenCalledTimes(1);
     });
 
     it("does nothing when path does not exist", async () => {
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
       vi.mocked(fs.existsSync as any).mockReturnValue(false);
 
-      await downloadUtils.safeRemove("/tmp/file.tmp", 1, 0);
+      await downloadUtils.safeRemove(path.join(VIDEOS_DIR, "file.tmp"), 1, 0);
 
       expect(fs.remove).not.toHaveBeenCalled();
     });
 
     it("retries after a failure and succeeds", async () => {
+      const removablePath = path.join(VIDEOS_DIR, "retry.tmp");
       vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
+      vi.mocked(fs.existsSync as any).mockImplementation(
+        (filePath: string) => filePath === removablePath
+      );
       vi.mocked(fs.remove as any)
         .mockRejectedValueOnce(new Error("locked"))
         .mockResolvedValueOnce(undefined);
 
-      await downloadUtils.safeRemove("/tmp/retry.tmp", 2, 0);
+      await downloadUtils.safeRemove(removablePath, 2, 0);
 
       expect(fs.remove).toHaveBeenCalledTimes(2);
     });
 
     it("logs error after final retry failure", async () => {
+      const removablePath = path.join(VIDEOS_DIR, "fail.tmp");
       const consoleErrorSpy = vi
         .spyOn(console, "error")
         .mockImplementation(() => undefined);
 
       vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
+      vi.mocked(fs.existsSync as any).mockImplementation(
+        (filePath: string) => filePath === removablePath
+      );
       vi.mocked(fs.remove as any).mockRejectedValue(new Error("still locked"));
 
-      await downloadUtils.safeRemove("/tmp/fail.tmp", 1, 0);
+      await downloadUtils.safeRemove(removablePath, 1, 0);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Failed to remove path after retry attempts:",
-        "/tmp/fail.tmp",
+        removablePath,
         1,
         expect.any(Error)
       );

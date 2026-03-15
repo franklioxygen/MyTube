@@ -1,3 +1,5 @@
+import fs from "fs-extra";
+import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
@@ -9,6 +11,7 @@ import {
   resolveSafePath,
   resolveSafePathInDirectories,
   sanitizePathSegment,
+  validatePathWithinDirectory,
   validateCloudThumbnailCachePath,
   validateImagePath,
   validatePathWithinDirectories,
@@ -52,6 +55,50 @@ describe("security extra", () => {
         "Path traversal detected"
       );
       expect(() => resolveSafePath("", VIDEOS_DIR)).toThrow("Invalid file path");
+    });
+
+    it("rejects symlink escapes for existing and pending files", () => {
+      if (process.platform === "win32") {
+        return;
+      }
+
+      const tempRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), "mytube-security-")
+      );
+      const allowedDir = path.join(tempRoot, "allowed");
+      const outsideDir = path.join(tempRoot, "outside");
+      const symlinkPath = path.join(allowedDir, "escape");
+      const escapedFilePath = path.join(symlinkPath, "file.txt");
+      const pendingEscapedFilePath = path.join(symlinkPath, "pending.txt");
+      const danglingSymlinkPath = path.join(allowedDir, "dangling-escape");
+      const danglingEscapedFilePath = path.join(
+        danglingSymlinkPath,
+        "pending.txt"
+      );
+
+      try {
+        fs.ensureDirSync(allowedDir);
+        fs.ensureDirSync(path.join(outsideDir, "nested"));
+        fs.writeFileSync(path.join(outsideDir, "nested", "file.txt"), "hello");
+        fs.symlinkSync(path.join(outsideDir, "nested"), symlinkPath, "dir");
+        fs.symlinkSync(path.join(outsideDir, "missing"), danglingSymlinkPath, "dir");
+
+        expect(isPathWithinDirectory(escapedFilePath, allowedDir)).toBe(false);
+        expect(validatePathWithinDirectory(escapedFilePath, allowedDir)).toBe(
+          false
+        );
+        expect(() => resolveSafePath(escapedFilePath, allowedDir)).toThrow(
+          "outside"
+        );
+        expect(() => resolveSafePath(pendingEscapedFilePath, allowedDir)).toThrow(
+          "outside"
+        );
+        expect(() => resolveSafePath(danglingEscapedFilePath, allowedDir)).toThrow(
+          "outside"
+        );
+      } finally {
+        fs.removeSync(tempRoot);
+      }
     });
 
     it("validates against multiple directories", () => {
