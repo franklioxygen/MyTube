@@ -43,6 +43,8 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      - SECURITY_MODEL=${SECURITY_MODEL:-strict}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a 32+ character secret in .env}
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -151,10 +153,19 @@ services:
 | 变量                | 服务     | 描述                                | 默认值                |
 | ------------------- | -------- | ----------------------------------- | --------------------- |
 | `PORT`              | Backend  | 后端内部监听端口                    | `5551`                |
+| `SECURITY_MODEL`    | Backend  | 安全模型；新安装使用 `strict`，迁移窗口内才可临时使用 `legacy` | `strict`              |
+| `JWT_SECRET`        | Backend  | 生产环境必填；必须是至少 32 个字符的随机密钥 | _(必填)_              |
 | `VITE_API_URL`      | Frontend | API 端点路径                        | `/api`                |
 | `API_HOST`          | Frontend | **高级：**  强制指定后端 IP         | _(自动检测)_          |
 | `API_PORT`          | Frontend | **高级：**  强制指定后端端口        | `5551`                |
 | `NGINX_BACKEND_URL` | Frontend | **高级：**  覆盖 Nginx 后端上游 URL | `http://backend:5551` |
+
+建议在 `docker-compose.yml` 同目录放置 `.env`：
+
+```env
+SECURITY_MODEL=strict
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
+```
 
 ## 🛠️ 高级网络 (远程/NAS 部署)
 
@@ -213,6 +224,16 @@ services:
 
 - **原因:**  浏览器无法访问后端 API。
 - **解决方法:**  确保端口  `5551`  在您的防火墙上已打开。如果在远程服务器上运行，请尝试按照“高级网络”部分的说明在  `.env`  文件中设置  `API_HOST`。
+
+### 1a. 前端访问 `/settings/password-enabled` 返回 `502 Bad Gateway`
+
+- **原因:** 通常是后端容器启动时因缺少生产环境必需变量而直接退出。
+- **解决方法:** 在 compose 环境变量或 `.env` 中设置 `SECURITY_MODEL` 和 `JWT_SECRET`，然后重启并查看后端日志：
+
+  ```bash
+  docker compose logs --tail=100 backend
+  docker compose up -d
+  ```
 
 ### 2. `./uploads`  权限被拒绝 (Permission Denied)
 

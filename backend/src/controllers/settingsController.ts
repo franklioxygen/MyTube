@@ -3,6 +3,12 @@ import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import {
+  getLegacyMountDirectoriesValue,
+  getPlatformMountDirectoryDescriptors,
+} from "../config/mountDirectories";
+import { resolveSecurityModel } from "../config/securityModel";
+import { ValidationError } from "../errors/DownloadErrors";
+import {
     COLLECTIONS_DATA_PATH,
     STATUS_DATA_PATH,
     VIDEOS_DATA_PATH,
@@ -10,10 +16,16 @@ import {
 import { cloudflaredService } from "../services/cloudflaredService";
 import downloadManager from "../services/downloadManager";
 import * as passwordService from "../services/passwordService";
+import { recordSecurityAuditEvent } from "../services/securityAuditService";
 import * as settingsValidationService from "../services/settingsValidationService";
 import * as storageService from "../services/storageService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
+import {
+  createStrictFeatureDisabledPayload,
+  isStrictFeatureDisabled,
+  StrictDisabledFeature,
+} from "../utils/strictSecurity";
 
 /**
  * Get application settings
@@ -25,12 +37,32 @@ export const getSettings = async (
   res: Response
 ): Promise<void> => {
   const settings = storageService.getSettings();
+  const platformMountDirectories = getPlatformMountDirectoryDescriptors();
+  const legacyMountDirectories = getLegacyMountDirectoriesValue();
 
   // If empty (first run), save defaults
   if (Object.keys(settings).length === 0) {
     storageService.saveSettings(defaultSettings);
+    const hooksDisabled = isStrictFeatureDisabled("hooks");
+    const ytDlpConfigDisabled = isStrictFeatureDisabled("ytDlpConfig");
+    const mountDirectoriesDisabled = isStrictFeatureDisabled("mountDirectories");
+    const cloudflaredControlDisabled = isStrictFeatureDisabled("cloudflaredControl");
     // Return data directly for backward compatibility
-    res.json(defaultSettings);
+    res.json({
+      ...defaultSettings,
+      securityModel: resolveSecurityModel(),
+      highRiskFeaturesDisabled: {
+        hooks: hooksDisabled,
+        ytDlpConfig: ytDlpConfigDisabled,
+        mountDirectories: mountDirectoriesDisabled,
+        cloudflaredControl: cloudflaredControlDisabled,
+      },
+      platformMountDirectories,
+      mountDirectories: legacyMountDirectories,
+      isPasswordSet: false,
+      isVisitorPasswordSet: false,
+      authenticatedRole: req.user?.role ?? null,
+    });
     return;
   }
 
@@ -38,13 +70,45 @@ export const getSettings = async (
   const mergedSettings = { ...defaultSettings, ...settings };
 
   // Do not send the hashed password to the frontend
-  const { password, visitorPassword, apiKey, apiKeyEnabled, ...safeSettings } = mergedSettings;
+  const {
+    password,
+    visitorPassword,
+    apiKey,
+    apiKeyEnabled,
+    strictSecurityMigrationVersion: _strictSecurityMigrationVersion,
+    ytDlpSafeConfigMigrationVersion: _ytDlpSafeConfigMigrationVersion,
+    mountDirectories: _mountDirectories,
+    passwordRecoveryTokenHash,
+    passwordRecoveryTokenExpiresAt,
+    passwordRecoveryTokenIssuedAt,
+    ...safeSettings
+  } = mergedSettings;
   const canExposeApiKey =
     req.user?.role === "admin" || mergedSettings.loginEnabled !== true;
+  const canExposeLegacyMountDirectories =
+    req.user?.role === "admin" || mergedSettings.loginEnabled !== true;
+  const hooksDisabled = isStrictFeatureDisabled("hooks");
+  const ytDlpConfigDisabled = isStrictFeatureDisabled("ytDlpConfig");
+  const mountDirectoriesDisabled = isStrictFeatureDisabled("mountDirectories");
+  const cloudflaredControlDisabled = isStrictFeatureDisabled("cloudflaredControl");
+  void _strictSecurityMigrationVersion;
+  void _ytDlpSafeConfigMigrationVersion;
+  void _mountDirectories;
 
   // Return data directly for backward compatibility
   res.json({
     ...safeSettings,
+    securityModel: resolveSecurityModel(),
+    highRiskFeaturesDisabled: {
+      hooks: hooksDisabled,
+      ytDlpConfig: ytDlpConfigDisabled,
+      mountDirectories: mountDirectoriesDisabled,
+      cloudflaredControl: cloudflaredControlDisabled,
+    },
+    platformMountDirectories,
+    mountDirectories: canExposeLegacyMountDirectories
+      ? legacyMountDirectories
+      : undefined,
     apiKeyEnabled: canExposeApiKey ? apiKeyEnabled : undefined,
     apiKey: canExposeApiKey ? apiKey : undefined,
     isPasswordSet: !!password,
@@ -139,7 +203,36 @@ const sanitizeIncomingSettings = (
   const sanitized: Partial<Settings> = { ...incomingSettings };
   delete sanitized.password;
   delete sanitized.visitorPassword;
+  delete sanitized.mountDirectories;
   return sanitized;
+};
+
+const STRICT_DISABLED_SETTINGS_FIELDS = [
+  "ytDlpConfig",
+  "mountDirectories",
+  "cloudflaredTunnelEnabled",
+  "cloudflaredToken",
+] as const satisfies ReadonlyArray<keyof Settings>;
+
+const STRICT_DISABLED_FIELD_FEATURE_MAP: Record<
+  (typeof STRICT_DISABLED_SETTINGS_FIELDS)[number],
+  StrictDisabledFeature
+> = {
+  ytDlpConfig: "ytDlpConfig",
+  mountDirectories: "mountDirectories",
+  cloudflaredTunnelEnabled: "cloudflaredControl",
+  cloudflaredToken: "cloudflaredControl",
+};
+
+const getStrictDisabledFeatureFromIncomingSettings = (
+  incomingSettings: Partial<Settings>
+): StrictDisabledFeature | null => {
+  for (const field of STRICT_DISABLED_SETTINGS_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(incomingSettings, field)) {
+      return STRICT_DISABLED_FIELD_FEATURE_MAP[field];
+    }
+  }
+  return null;
 };
 
 const removeUndefinedSettings = (settings: Partial<Settings>): void => {
@@ -296,6 +389,18 @@ const applyCloudflaredSettingChanges = (
   settingsToPersist: Partial<Settings>,
   finalSettings: Settings
 ): void => {
+  if (isStrictFeatureDisabled("cloudflaredControl")) {
+    if (
+      hasOwnSetting(settingsToPersist, "cloudflaredTunnelEnabled") ||
+      hasOwnSetting(settingsToPersist, "cloudflaredToken")
+    ) {
+      logger.warn(
+        "Skipped cloudflared runtime control update: feature disabled in strict security model"
+      );
+    }
+    return;
+  }
+
   const cloudflaredEnabledChanged = didCloudflaredEnabledChange(
     existingSettings,
     settingsToPersist
@@ -410,8 +515,54 @@ const persistSettingsUpdate = async (
     {}
   );
 
+  if (
+    isStrictFeatureDisabled("ytDlpConfig") ||
+    isStrictFeatureDisabled("mountDirectories") ||
+    isStrictFeatureDisabled("cloudflaredControl")
+  ) {
+    const disabledFeature =
+      getStrictDisabledFeatureFromIncomingSettings(incomingSettings);
+    if (disabledFeature !== null) {
+      recordSecurityAuditEvent({
+        eventType: "config.dangerous_rejected",
+        req,
+        result: "rejected",
+        target: req.originalUrl || req.path,
+        summary: `strict mode blocked high-risk settings feature: ${disabledFeature}`,
+        metadata: {
+          disabledFeature,
+          attemptedKeys: Object.keys(incomingSettings),
+        },
+        level: "warn",
+      });
+      res.status(403).json(createStrictFeatureDisabledPayload(disabledFeature));
+      return;
+    }
+  }
+
   // Permission control is handled by roleBasedSettingsMiddleware
-  settingsValidationService.validateSettings(incomingSettings);
+  try {
+    settingsValidationService.validateSettings(incomingSettings);
+  } catch (error) {
+    if (
+      error instanceof ValidationError &&
+      (error.field === "mountDirectories" || error.field === "ytDlpConfig")
+    ) {
+      recordSecurityAuditEvent({
+        eventType: "config.dangerous_rejected",
+        req,
+        result: "rejected",
+        target: req.originalUrl || req.path,
+        summary: error.message,
+        metadata: {
+          field: error.field,
+          attemptedKeys: Object.keys(incomingSettings),
+        },
+        level: "warn",
+      });
+    }
+    throw error;
+  }
 
   const preparedSettings = await settingsValidationService.prepareSettingsForSave(
     existingSettings,
@@ -455,13 +606,19 @@ const persistSettingsUpdate = async (
   persistAllowedHostsEnv(existingSettings, settingsToPersist, finalSettings);
   applyRuntimeSettingChanges(settingsToPersist, finalSettings);
 
+  const {
+    password: _password,
+    visitorPassword: _visitorPassword,
+    mountDirectories: _mountDirectories,
+    ...safeFinalSettings
+  } = finalSettings;
+  void _password;
+  void _visitorPassword;
+  void _mountDirectories;
+
   res.json({
     success: true,
-    settings: {
-      ...finalSettings,
-      password: undefined,
-      visitorPassword: undefined,
-    },
+    settings: safeFinalSettings,
   });
 };
 

@@ -252,7 +252,7 @@ export const ru = {
   notFound: "Не Задано",
   deleteHook: "Удалить Скрипт Хука",
   confirmDeleteHook: "Вы уверены, что хотите удалить этот скрипт хука?",
-  uploadHook: "Загрузить .sh",
+  uploadHook: "Загрузить .json",
   enterPasswordToUploadHook:
     "Пожалуйста, введите пароль для загрузки этого Hook-скрипта.",
   riskCommandDetected:
@@ -465,7 +465,8 @@ export const ru = {
   verifying: "Проверка...",
   incorrectPassword: "Неверный пароль",
   loginFailed: "Ошибка проверки пароля",
-  defaultPasswordHint: "Пароль по умолчанию: 123",
+  defaultPasswordHint:
+    "Пароля по умолчанию нет. Используйте настроенный пароль.",
   checkingConnection: "Проверка соединения...",
   connectionError: "Ошибка соединения",
   backendConnectionFailed:
@@ -815,7 +816,7 @@ export const ru = {
     "Настройка параметров системы, обслуживание данных и расширение функций.",
   instructionSection3Sub1: "Настройки безопасности:",
   instructionSection3Text1:
-    "Установите пароль для входа в систему (начальный пароль по умолчанию — 123, рекомендуется изменить после первого входа).",
+    "Установите надежный и уникальный пароль для входа в систему.",
   instructionSection3Sub2: "Управление тегами:",
   instructionSection3Text2:
     "Поддерживает добавление или удаление тегов классификации видео. Примечание: Вы должны нажать кнопку «Сохранить» внизу страницы, чтобы изменения вступили в силу.",

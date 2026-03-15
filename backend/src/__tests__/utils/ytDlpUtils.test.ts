@@ -5,6 +5,7 @@ import path from "path";
 import { PassThrough } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
+import { isStrictFeatureDisabled } from "../../utils/strictSecurity";
 import {
   InvalidProxyError,
   convertFlagToArg,
@@ -27,6 +28,17 @@ vi.mock("child_process", () => ({
 vi.mock("fs-extra");
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
+}));
+vi.mock("../../utils/strictSecurity", () => ({
+  isStrictFeatureDisabled: vi.fn(),
+}));
+vi.mock("../../utils/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 vi.mock("socks-proxy-agent", () => ({
   SocksProxyAgent: vi.fn().mockImplementation((url: string) => ({
@@ -90,6 +102,7 @@ describe("ytDlpUtils", () => {
     vi.clearAllMocks();
     resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({});
     delete process.env.YT_DLP_JS_RUNTIME;
   });
@@ -199,37 +212,71 @@ describe("ytDlpUtils", () => {
   });
 
   describe("getUserYtDlpConfig", () => {
-    it("should parse user config from settings", () => {
+    it("should parse structured user config from settings", () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
-        ytDlpConfig: "--format best\n--proxy http://127.0.0.1:7890",
+        ytDlpSafeConfig: {
+          maxResolution: 1080,
+          proxy: "http://127.0.0.1:7890",
+          retries: 3,
+        },
       } as any);
 
       const parsed = getUserYtDlpConfig();
       expect(parsed).toEqual({
-        format: "best",
+        formatSort: "res:1080",
         proxy: "http://127.0.0.1:7890",
+        retries: 3,
       });
     });
 
     it("should remove proxy for non-youtube urls when proxyOnlyYoutube is enabled", () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
-        ytDlpConfig: "--format best\n--proxy http://127.0.0.1:7890",
+        ytDlpSafeConfig: {
+          maxResolution: 1080,
+          proxy: "http://127.0.0.1:7890",
+        },
         proxyOnlyYoutube: true,
       } as any);
 
       const parsed = getUserYtDlpConfig("https://www.bilibili.com/video/BV123");
-      expect(parsed.format).toBe("best");
+      expect(parsed.formatSort).toBe("res:1080");
       expect(parsed.proxy).toBeUndefined();
     });
 
     it("should keep proxy for youtube urls when proxyOnlyYoutube is enabled", () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
-        ytDlpConfig: "--proxy http://127.0.0.1:7890",
+        ytDlpSafeConfig: {
+          proxy: "http://127.0.0.1:7890",
+        },
         proxyOnlyYoutube: true,
       } as any);
 
       const parsed = getUserYtDlpConfig("https://www.youtube.com/watch?v=abc");
       expect(parsed.proxy).toBe("http://127.0.0.1:7890");
+    });
+
+    it("should fallback to legacy text config allowlist in non-strict mode", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpSafeConfig: {},
+        ytDlpConfig: "--proxy http://127.0.0.1:7890\n--merge-output-format webm\n--exec echo hacked",
+      } as any);
+      vi.mocked(isStrictFeatureDisabled).mockReturnValue(false);
+
+      const parsed = getUserYtDlpConfig();
+      expect(parsed).toEqual({
+        proxy: "http://127.0.0.1:7890",
+        mergeOutputFormat: "webm",
+      });
+      expect((parsed as any).exec).toBeUndefined();
+    });
+
+    it("should ignore legacy text config in strict mode", () => {
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpConfig: "--proxy http://127.0.0.1:7890",
+      } as any);
+      vi.mocked(isStrictFeatureDisabled).mockReturnValue(true);
+
+      expect(getUserYtDlpConfig()).toEqual({});
     });
 
     it("should return empty config when storage read fails", () => {

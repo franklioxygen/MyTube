@@ -49,6 +49,40 @@ describe("settingsValidationService", () => {
         });
       }).toThrow(ValidationError);
     });
+
+    it("should throw when deprecated ytDlpConfig text field is provided", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          ytDlpConfig: "--proxy http://127.0.0.1:7890",
+        } as any);
+      }).toThrow(ValidationError);
+    });
+
+    it("should throw when mountDirectories text field is provided", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          mountDirectories: "/mnt/media",
+        } as any);
+      }).toThrow(ValidationError);
+    });
+
+    it("should normalize valid structured ytDlpSafeConfig", () => {
+      const settings: any = {
+        ytDlpSafeConfig: {
+          maxResolution: 1080,
+          retries: "3",
+          forceIpVersion: "ipv4",
+        },
+      };
+
+      settingsValidationService.validateSettings(settings);
+
+      expect(settings.ytDlpSafeConfig).toEqual({
+        maxResolution: 1080,
+        retries: 3,
+        forceIpVersion: "ipv4",
+      });
+    });
   });
 
   describe("mergeSettings", () => {

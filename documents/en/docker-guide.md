@@ -41,6 +41,8 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      - SECURITY_MODEL=${SECURITY_MODEL:-strict}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a 32+ character secret in .env}
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -153,10 +155,19 @@ You can customize the deployment by adding a `.env` file or modifying the `en
 |Variable|Service|Description|Default|
 |---|---|---|---|
 |`PORT`|Backend|Port the backend listens on internally|`5551`|
+|`SECURITY_MODEL`|Backend|Security model, `strict` for new installs and `legacy` only during approved migration windows|`strict`|
+|`JWT_SECRET`|Backend|Required in production; must be a random secret with at least 32 characters|_(Required)_|
 |`VITE_API_URL`|Frontend|API endpoint path|`/api`|
 |`API_HOST`|Frontend|**Advanced:** Force a specific backend IP|_(Auto-detected)_|
 |`API_PORT`|Frontend|**Advanced:** Force a specific backend Port|`5551`|
 |`NGINX_BACKEND_URL`|Frontend|**Advanced:** Override Nginx backend upstream URL|`http://backend:5551`|
+
+Recommended `.env` alongside `docker-compose.yml`:
+
+```env
+SECURITY_MODEL=strict
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
+```
 
 ## 🛠️ Advanced Networking (Remote/NAS Deployment)
 
@@ -218,6 +229,16 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
 - **Cause:** The browser cannot reach the backend API.
     
 - **Fix:** Ensure port `5551` is open on your firewall. If running on a remote server, try setting the `API_HOST` in a `.env` file as described in the "Advanced Networking" section.
+
+### 1a. Frontend shows `502 Bad Gateway` for `/settings/password-enabled`
+
+- **Cause:** The backend container usually exited during startup because required production env vars are missing.
+- **Fix:** Set `SECURITY_MODEL` and `JWT_SECRET` in the compose environment or `.env`, then restart and inspect backend logs:
+
+  ```bash
+  docker compose logs --tail=100 backend
+  docker compose up -d
+  ```
     
 
 ### 2. Permission Denied for `./uploads`

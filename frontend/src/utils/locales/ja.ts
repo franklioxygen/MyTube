@@ -254,7 +254,7 @@ export const ja = {
   notFound: "未設定",
   deleteHook: "フックスクリプトを削除",
   confirmDeleteHook: "このフックスクリプトを削除してもよろしいですか？",
-  uploadHook: "アップロード .sh",
+  uploadHook: "アップロード .json",
   enterPasswordToUploadHook:
     "このフック・スクリプトをアップロードするにはパスワードを入力してください。",
   riskCommandDetected:
@@ -469,7 +469,8 @@ export const ja = {
   verifying: "確認中...",
   incorrectPassword: "パスワードが間違っています",
   loginFailed: "パスワードの確認に失敗しました",
-  defaultPasswordHint: "デフォルトのパスワード: 123",
+  defaultPasswordHint:
+    "デフォルトパスワードはありません。設定したパスワードを使用してください。",
   checkingConnection: "接続を確認中...",
   connectionError: "接続エラー",
   backendConnectionFailed:
