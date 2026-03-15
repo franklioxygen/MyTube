@@ -28,47 +28,16 @@ import {
 
 describe("security extra", () => {
   describe("path guards", () => {
-    const writeManagedTempFileSync = (
-      tempRoot: string,
-      targetPath: string,
-      content: string,
-    ): void => {
+    const resolveManagedTempPath = (tempRoot: string, targetPath: string): string => {
       const safePath = path.resolve(targetPath);
       const safePathPrefix =
         safePath === tempRoot || tempRoot.endsWith(path.sep)
           ? tempRoot
           : `${tempRoot}${path.sep}`;
       if (!safePath.startsWith(safePathPrefix)) {
-        throw new Error(`Temp file escaped test root: ${targetPath}`);
+        throw new Error(`Temp path escaped test root: ${targetPath}`);
       }
-      fs.writeFileSync(safePath, content);
-    };
-
-    const createManagedTempSymlinkSync = (
-      tempRoot: string,
-      targetPath: string,
-      symlinkPath: string,
-      type?: "dir" | "file" | "junction",
-    ): void => {
-      const safeTargetPath = path.resolve(targetPath);
-      const safeTargetPrefix =
-        safeTargetPath === tempRoot || tempRoot.endsWith(path.sep)
-          ? tempRoot
-          : `${tempRoot}${path.sep}`;
-      if (!safeTargetPath.startsWith(safeTargetPrefix)) {
-        throw new Error(`Symlink target escaped test root: ${targetPath}`);
-      }
-
-      const safeSymlinkPath = path.resolve(symlinkPath);
-      const safeSymlinkPrefix =
-        safeSymlinkPath === tempRoot || tempRoot.endsWith(path.sep)
-          ? tempRoot
-          : `${tempRoot}${path.sep}`;
-      if (!safeSymlinkPath.startsWith(safeSymlinkPrefix)) {
-        throw new Error(`Symlink path escaped test root: ${symlinkPath}`);
-      }
-
-      fs.symlinkSync(safeTargetPath, safeSymlinkPath, type);
+      return safePath;
     };
 
     it("checks whether a path is within one directory", () => {
@@ -122,21 +91,21 @@ describe("security extra", () => {
       try {
         fs.ensureDirSync(allowedDir);
         fs.ensureDirSync(path.join(outsideDir, "nested"));
-        writeManagedTempFileSync(
-          tempRoot,
-          path.join(outsideDir, "nested", "file.txt"),
+        fs.writeFileSync(
+          resolveManagedTempPath(
+            tempRoot,
+            path.join(outsideDir, "nested", "file.txt")
+          ),
           "hello"
         );
-        createManagedTempSymlinkSync(
-          tempRoot,
-          path.join(outsideDir, "nested"),
-          symlinkPath,
+        fs.symlinkSync(
+          resolveManagedTempPath(tempRoot, path.join(outsideDir, "nested")),
+          resolveManagedTempPath(tempRoot, symlinkPath),
           "dir"
         );
-        createManagedTempSymlinkSync(
-          tempRoot,
-          path.join(outsideDir, "missing"),
-          danglingSymlinkPath,
+        fs.symlinkSync(
+          resolveManagedTempPath(tempRoot, path.join(outsideDir, "missing")),
+          resolveManagedTempPath(tempRoot, danglingSymlinkPath),
           "dir"
         );
 
