@@ -7,6 +7,13 @@ import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import {
+  pathEntryExistsSync,
+  pathExistsSync,
+  removeFileSync,
+  statSync,
+  writeFileData,
+} from "../utils/fileSystemAccess";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
@@ -77,19 +84,19 @@ const execFileSafe = async (
 
 // Helper validate paths functions
 const validateVideoPath = (inputPath: string): string => {
-  const normalized = path.normalize(inputPath);
-  if (!normalized.startsWith(VIDEOS_DIR)) {
+  try {
+    return resolveSafePath(inputPath, VIDEOS_DIR);
+  } catch {
     throw new ValidationError("Invalid video path", "path");
   }
-  return normalized;
 };
 
 const validateImagePath = (inputPath: string): string => {
-  const normalized = path.normalize(inputPath);
-  if (!normalized.startsWith(IMAGES_DIR)) {
+  try {
+    return resolveSafePath(inputPath, IMAGES_DIR);
+  } catch {
     throw new ValidationError("Invalid image path", "path");
   }
-  return normalized;
 };
 
 // Helper for video duration
@@ -329,20 +336,13 @@ export const uploadVideo = async (
   const videoFilename = req.file.filename;
   const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
 
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const videoPath = path.normalize(path.join(VIDEOS_DIR, videoFilename));
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const thumbnailPath = path.normalize(
-    path.join(IMAGES_DIR, thumbnailFilename)
-  );
-
-  // Validate paths to ensure they are within the intended directories
-  if (!videoPath.startsWith(VIDEOS_DIR)) {
-    throw new ValidationError("Invalid video filename", "file");
-  }
-  if (!thumbnailPath.startsWith(IMAGES_DIR)) {
-    // Should technically not happen if generated from safe filename, but good to check
-    throw new ValidationError("Invalid thumbnail path", "file");
+  let videoPath: string;
+  let thumbnailPath: string;
+  try {
+    videoPath = validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
+    thumbnailPath = validateImagePath(path.join(IMAGES_DIR, thumbnailFilename));
+  } catch {
+    throw new ValidationError("Invalid uploaded file path", "file");
   }
 
   // Validate paths to prevent path traversal (using existing helper for file existence/permission checks if any)
@@ -371,15 +371,15 @@ export const uploadVideo = async (
   // Get file size
   let fileSize: string | undefined;
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(videoPath);
+    if (pathExistsSync(videoPath, [VIDEOS_DIR])) {
+      const stats = statSync(videoPath, [VIDEOS_DIR]);
       fileSize = stats.size.toString();
     }
   } catch (e) {
     logger.error("Failed to get file size:", e);
   }
+
+  const thumbnailExists = pathExistsSync(thumbnailPath, [IMAGES_DIR]);
 
   const newVideo = {
     id: videoId,
@@ -388,19 +388,10 @@ export const uploadVideo = async (
     source: "local",
     sourceUrl: "", // No source URL for uploaded videos
     videoFilename: videoFilename,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailFilename: fs.existsSync(thumbnailPath)
-      ? thumbnailFilename
-      : undefined,
+    thumbnailFilename: thumbnailExists ? thumbnailFilename : undefined,
     videoPath: `/videos/${videoFilename}`,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailPath: fs.existsSync(thumbnailPath)
-      ? `/images/${thumbnailFilename}`
-      : undefined,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailUrl: fs.existsSync(thumbnailPath)
-      ? `/images/${thumbnailFilename}`
-      : undefined,
+    thumbnailPath: thumbnailExists ? `/images/${thumbnailFilename}` : undefined,
+    thumbnailUrl: thumbnailExists ? `/images/${thumbnailFilename}` : undefined,
     duration: duration ? duration.toString() : undefined,
     fileSize: fileSize,
     createdAt: new Date().toISOString(),
@@ -576,15 +567,44 @@ const resolveMountFilePath = (rawFilePath: string): string => {
   return filePath;
 };
 
-const assertMountFileExists = (filePath: string): void => {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(filePath)) {
-    throw new NotFoundError("Video file", filePath);
+const assertMountFileExists = (filePath: string): string => {
+  let resolvedFilePath = filePath;
+  const realpathSync = (fs as typeof fs & {
+    realpathSync?: (targetPath: string) => string;
+  }).realpathSync;
+
+  try {
+    if (typeof realpathSync === "function") {
+      const maybeRealPath = realpathSync(filePath);
+      if (typeof maybeRealPath === "string" && maybeRealPath.length > 0) {
+        resolvedFilePath = maybeRealPath;
+        validateRawMountFilePath(resolvedFilePath);
+      }
+    }
+  } catch (error) {
+    const maybeErrno = error as NodeJS.ErrnoException;
+    if (maybeErrno.code === "ENOENT") {
+      throw new NotFoundError("Video file", filePath);
+    }
+    throw error;
   }
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.statSync(filePath).isFile()) {
+
+  let stats;
+  try {
+    stats = fs.statSync(resolvedFilePath);
+  } catch (error) {
+    const maybeErrno = error as NodeJS.ErrnoException;
+    if (maybeErrno.code === "ENOENT") {
+      throw new NotFoundError("Video file", resolvedFilePath);
+    }
+    throw error;
+  }
+
+  if (!stats.isFile()) {
     throw new ValidationError("Path is not a file", "videoPath");
   }
+
+  return resolvedFilePath;
 };
 
 const getVideoContentType = (filePath: string): string =>
@@ -667,8 +687,7 @@ export const uploadSubtitle = async (
   fs.ensureDirSync(SUBTITLES_DIR);
   // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   let sourcePath = resolveSafePath(path.join(SUBTITLES_DIR, sourceFilename), SUBTITLES_DIR);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  fs.writeFileSync(sourcePath, req.file.buffer);
+  await writeFileData(sourcePath, req.file.buffer, [SUBTITLES_DIR]);
   let filename = sourceFilename;
 
   // Find the video first
@@ -677,10 +696,8 @@ export const uploadSubtitle = async (
     // Clean up the uploaded file if video doesn't exist
     if (req.file) {
       try {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(sourcePath)) {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(sourcePath);
+        if (pathEntryExistsSync(sourcePath, [SUBTITLES_DIR])) {
+          removeFileSync(sourcePath, [SUBTITLES_DIR]);
         }
       } catch {
         // Ignore cleanup path validation errors for already-missing/invalid temp paths.
@@ -715,12 +732,13 @@ export const uploadSubtitle = async (
           .on("error", reject);
         readStream.on("error", reject);
       });
-      fs.unlinkSync(sourcePath);
+      removeFileSync(sourcePath, [SUBTITLES_DIR]);
       sourcePath = vttPath;
       filename = path.basename(vttPath);
     } catch (err) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(sourcePath)) fs.unlinkSync(sourcePath);
+      if (pathEntryExistsSync(sourcePath, [SUBTITLES_DIR])) {
+        removeFileSync(sourcePath, [SUBTITLES_DIR]);
+      }
       logger.error("ASS/SSA to VTT conversion failed:", err);
       throw new ValidationError(
         "Invalid ASS/SSA file or conversion failed. Try uploading VTT or SRT.",
@@ -865,7 +883,9 @@ export const serveMountVideo = async (
 
   const rawFilePath = video.videoPath.substring(6);
   const filePath = resolveMountFilePath(rawFilePath);
-  assertMountFileExists(filePath);
-  setMountVideoHeaders(res, filePath);
-  res.sendFile(path.basename(filePath), { root: path.dirname(filePath) });
+  const canonicalFilePath = assertMountFileExists(filePath);
+  setMountVideoHeaders(res, canonicalFilePath);
+  res.sendFile(path.basename(canonicalFilePath), {
+    root: path.dirname(canonicalFilePath),
+  });
 };

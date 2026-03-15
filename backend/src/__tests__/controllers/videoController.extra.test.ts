@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -61,6 +61,7 @@ vi.mock("fs-extra", () => ({
     existsSync: vi.fn(),
     readdirSync: vi.fn(),
     statSync: vi.fn(),
+    writeFile: vi.fn(),
     writeFileSync: vi.fn(),
     moveSync: vi.fn(),
     unlinkSync: vi.fn(),
@@ -71,6 +72,7 @@ vi.mock("fs-extra", () => ({
   existsSync: vi.fn(),
   readdirSync: vi.fn(),
   statSync: vi.fn(),
+  writeFile: vi.fn(),
   writeFileSync: vi.fn(),
   moveSync: vi.fn(),
   unlinkSync: vi.fn(),
@@ -163,6 +165,7 @@ describe("videoController extra coverage", () => {
     } as any);
     vi.mocked(storageService.updateVideo).mockReturnValue({} as any);
     vi.mocked(fs.moveSync).mockImplementation(() => undefined);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined as any);
     vi.mocked(fs.writeFileSync).mockImplementation(() => undefined);
     vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
     vi.mocked(fs.existsSync).mockReturnValue(false);
@@ -473,7 +476,11 @@ describe("videoController extra coverage", () => {
       id: "v1",
       videoPath: "mount:/mnt/missing.mp4",
     } as any);
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(fs.statSync).mockImplementation(() => {
+      const error = new Error("ENOENT") as NodeJS.ErrnoException;
+      error.code = "ENOENT";
+      throw error;
+    });
     await expect(serveMountVideo(req as Request, res as Response)).rejects.toThrow(
       "Video file not found"
     );
@@ -521,6 +528,18 @@ describe("videoController extra coverage", () => {
     await expect(uploadVideo(req as Request, res as Response)).rejects.toBeInstanceOf(
       ValidationError
     );
+  });
+
+  it("uploadVideo rejects sibling paths that only match uploads prefix", async () => {
+    req.file = {
+      filename: "../videos-escape/evil.mp4",
+      originalname: "evil.mp4",
+    } as any;
+
+    await expect(uploadVideo(req as Request, res as Response)).rejects.toBeInstanceOf(
+      ValidationError
+    );
+    expect(storageService.saveVideo).not.toHaveBeenCalled();
   });
 
   it("uploadVideo saves video metadata", async () => {

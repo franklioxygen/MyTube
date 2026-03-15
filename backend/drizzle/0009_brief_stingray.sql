@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 CREATE TABLE "passkeys" (
 	"id" text PRIMARY KEY NOT NULL,
 	"credential_id" text NOT NULL,

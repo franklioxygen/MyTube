@@ -6,10 +6,19 @@ import {
   UPLOADS_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
+import {
+  pathExistsSync,
+  readDirSync,
+  removeDirSync,
+  removePathRecursivelySync,
+  renamePathSync,
+} from "../../utils/fileSystemAccess";
 import { logger } from "../../utils/logger";
 import { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
 import { getSettings } from "./settings";
 import { Collection, Video } from "./types";
+
+const MEDIA_ALLOWED_DIRS = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR, UPLOADS_DIR];
 
 /**
  * Sanitizes a collection name to prevent path traversal attacks
@@ -130,8 +139,10 @@ export function moveThumbnailToCollection(
       }
     }
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+    if (
+      !currentImagePath ||
+      !pathExistsSync(currentImagePath, [VIDEOS_DIR, IMAGES_DIR])
+    ) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
     }
@@ -200,7 +211,10 @@ export function moveThumbnailFromCollection(
       }
     }
 
-    if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+    if (
+      !currentImagePath ||
+      !pathExistsSync(currentImagePath, [VIDEOS_DIR, IMAGES_DIR])
+    ) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
     }
@@ -427,31 +441,22 @@ export function cleanupCollectionDirectories(collectionName: string): void {
 
   try {
     if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionVideoDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionVideoDir).length === 0
+      pathExistsSync(collectionVideoDir, [VIDEOS_DIR]) &&
+      readDirSync(collectionVideoDir, [VIDEOS_DIR]).length === 0
     ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionVideoDir);
+      removeDirSync(collectionVideoDir, [VIDEOS_DIR]);
     }
     if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionImageDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionImageDir).length === 0
+      pathExistsSync(collectionImageDir, [IMAGES_DIR]) &&
+      readDirSync(collectionImageDir, [IMAGES_DIR]).length === 0
     ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionImageDir);
+      removeDirSync(collectionImageDir, [IMAGES_DIR]);
     }
     if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionSubtitleDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionSubtitleDir).length === 0
+      pathExistsSync(collectionSubtitleDir, [SUBTITLES_DIR]) &&
+      readDirSync(collectionSubtitleDir, [SUBTITLES_DIR]).length === 0
     ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionSubtitleDir);
+      removeDirSync(collectionSubtitleDir, [SUBTITLES_DIR]);
     }
   } catch (e) {
     logger.error(
@@ -559,8 +564,7 @@ function processSubtitleFileMove(
     const { absoluteSourcePath, targetSubPath, newWebPath } = paths;
     
     if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(absoluteSourcePath) &&
+      pathExistsSync(absoluteSourcePath, MEDIA_ALLOWED_DIRS) &&
       absoluteSourcePath !== targetSubPath
     ) {
       try {
@@ -654,10 +658,8 @@ function processDirectoryRename(
   }
 
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(oldDir)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(newDir)) {
+    if (pathExistsSync(oldDir, [baseDir])) {
+      if (pathExistsSync(newDir, [baseDir])) {
         // If target directory already exists, we fail for now or merge.
         // Let's assume name collision check is done before.
         // But if it exists, merging is safer than overwriting.
@@ -666,8 +668,7 @@ function processDirectoryRename(
         );
 
         // Move all files from old to new
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const files = fs.readdirSync(oldDir);
+        const files = readDirSync(oldDir, [baseDir]);
         files.forEach((file) => {
           const oldFile = path.join(oldDir, file);
           const newFile = path.join(newDir, file);
@@ -680,8 +681,8 @@ function processDirectoryRename(
         });
         // Remove old directory (use recursive to handle non-empty dirs)
         try {
-          if (fs.existsSync(oldDir)) {
-            fs.rmSync(oldDir, { recursive: true, force: true });
+          if (pathExistsSync(oldDir, [baseDir])) {
+            removePathRecursivelySync(oldDir, [baseDir]);
           }
         } catch (e) {
           logger.error(`Error removing old directory ${oldDir}: ${e}`);
@@ -689,8 +690,7 @@ function processDirectoryRename(
         }
       } else {
         // Simple rename
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.renameSync(oldDir, newDir);
+        renamePathSync(oldDir, newDir, [baseDir]);
       }
     }
   } catch (e) {
@@ -740,7 +740,7 @@ function processSubtitleMoveFromCollection(
 
     // Ensure correct paths for move
     if (
-      fs.existsSync(absoluteSourcePath) &&
+      pathExistsSync(absoluteSourcePath, MEDIA_ALLOWED_DIRS) &&
       absoluteSourcePath !== targetSubPath
     ) {
       try {

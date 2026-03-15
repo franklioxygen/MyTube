@@ -5,23 +5,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-const CATEGORY_LABELS = {
-  BestPractice: "Best practice",
-  CodeStyle: "Code style",
-  Compatibility: "Compatibility",
-  ErrorProne: "Error prone",
-  Performance: "Performance",
-  Security: "Security",
-  UnusedCode: "Unused code",
-};
+const CATEGORY_LABELS = new Map([
+  ["BestPractice", "Best practice"],
+  ["CodeStyle", "Code style"],
+  ["Compatibility", "Compatibility"],
+  ["ErrorProne", "Error prone"],
+  ["Performance", "Performance"],
+  ["Security", "Security"],
+  ["UnusedCode", "Unused code"],
+]);
+const usage =
+  "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider PROVIDER] [--owner OWNER] [--repo REPO] [--out OUTPUT_PATH]";
 
 function usageAndExit(message) {
   if (message) {
     console.error(`Error: ${message}`);
   }
-  console.error(
-    "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider gh] [--owner <owner>] [--repo <repo>] [--out <path>]",
-  );
+  console.error(usage);
   process.exit(1);
 }
 
@@ -33,26 +33,24 @@ function parseArgs(argv) {
     out: "reports/codacy-current-issues.md",
   };
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
+  const remaining = [...argv];
+
+  while (remaining.length > 0) {
+    const arg = remaining.shift();
     if (arg === "--provider") {
-      args.provider = argv[i + 1];
-      i += 1;
+      args.provider = remaining.shift();
       continue;
     }
     if (arg === "--owner") {
-      args.owner = argv[i + 1];
-      i += 1;
+      args.owner = remaining.shift();
       continue;
     }
     if (arg === "--repo") {
-      args.repo = argv[i + 1];
-      i += 1;
+      args.repo = remaining.shift();
       continue;
     }
     if (arg === "--out") {
-      args.out = argv[i + 1];
-      i += 1;
+      args.out = remaining.shift();
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
@@ -145,7 +143,7 @@ function escapePipes(text) {
 }
 
 function categoryLabel(raw) {
-  return CATEGORY_LABELS[raw] || raw || "Unknown";
+  return CATEGORY_LABELS.get(raw) || raw || "Unknown";
 }
 
 function buildMarkdown({
@@ -290,7 +288,9 @@ async function main() {
   });
 
   const outputPath = path.resolve(process.cwd(), out);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.writeFile(outputPath, markdown, "utf8");
 
   console.log(`Report written: ${outputPath}`);

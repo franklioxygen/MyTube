@@ -5,6 +5,12 @@ import path from "path";
 import puppeteer from "puppeteer";
 import { DATA_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { cleanupTemporaryFiles, safeRemove } from "../../utils/downloadUtils";
+import {
+  pathEntryExistsSync,
+  pathExistsSync,
+  statSync,
+  writeUtf8FileSync,
+} from "../../utils/fileSystemAccess";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
@@ -397,8 +403,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       if (!m3u8Url) {
         const debugFile = path.join(DATA_DIR, `missav_debug_${timestamp}.html`);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.writeFileSync(debugFile, html);
+        writeUtf8FileSync(debugFile, html, [DATA_DIR]);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
           "Could not find m3u8 URL in page source or network requests",
@@ -432,12 +437,12 @@ export class MissAVDownloader extends BaseDownloader {
         : IMAGES_DIR;
 
       // If file already exists (e.g. redownload), deduplicate the filename
-      if (fs.existsSync(newVideoPath)) {
+      if (pathEntryExistsSync(newVideoPath, [VIDEOS_DIR])) {
         let counter = 1;
         const ext = `.${mergeOutputFormat}`;
         const basePath = newVideoPath.replace(new RegExp(`\\${ext}$`), "");
         const baseName = newSafeBaseFilename;
-        while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+        while (pathEntryExistsSync(`${basePath}_${counter}${ext}`, [VIDEOS_DIR])) {
           counter++;
         }
         newVideoPath = `${basePath}_${counter}${ext}`;
@@ -646,10 +651,8 @@ export class MissAVDownloader extends BaseDownloader {
       // 10. Get file size
       let fileSize: string | undefined;
       try {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newVideoPath)) {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          const stats = fs.statSync(newVideoPath);
+        if (pathExistsSync(newVideoPath, [VIDEOS_DIR])) {
+          const stats = statSync(newVideoPath, [VIDEOS_DIR]);
           fileSize = stats.size.toString();
         }
       } catch (e) {
@@ -718,18 +721,17 @@ export class MissAVDownloader extends BaseDownloader {
           IMAGES_DIR,
           `${cleanupSafeBaseFilename}.jpg`,
         );
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupThumbnailPath))
+        if (pathEntryExistsSync(cleanupVideoPath, [VIDEOS_DIR])) {
+          await safeRemove(cleanupVideoPath);
+        }
+        if (pathEntryExistsSync(cleanupThumbnailPath, [IMAGES_DIR]))
           await safeRemove(cleanupThumbnailPath);
         // Also try mp4 in case the file was created with default extension
         const cleanupVideoPathMp4 = path.join(
           VIDEOS_DIR,
           `${cleanupSafeBaseFilename}.mp4`,
         );
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupVideoPathMp4))
+        if (pathEntryExistsSync(cleanupVideoPathMp4, [VIDEOS_DIR]))
           await safeRemove(cleanupVideoPathMp4);
       } catch (cleanupError) {
         // If cleanup fails, try with default mp4 extension
@@ -746,8 +748,10 @@ export class MissAVDownloader extends BaseDownloader {
           IMAGES_DIR,
           `${cleanupSafeBaseFilename}.jpg`,
         );
-        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
-        if (fs.existsSync(cleanupThumbnailPath))
+        if (pathEntryExistsSync(cleanupVideoPath, [VIDEOS_DIR])) {
+          await safeRemove(cleanupVideoPath);
+        }
+        if (pathEntryExistsSync(cleanupThumbnailPath, [IMAGES_DIR]))
           await safeRemove(cleanupThumbnailPath);
       }
       throw error;

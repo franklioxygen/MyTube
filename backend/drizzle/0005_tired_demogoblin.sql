@@ -1,3 +1,4 @@
+/* tsqllint-disable set-quoted-identifier */
 -- Add channel_url column to videos table
 -- Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN
 -- This migration assumes the column doesn't exist yet

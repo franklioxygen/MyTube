@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/unbound-method */
 import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {

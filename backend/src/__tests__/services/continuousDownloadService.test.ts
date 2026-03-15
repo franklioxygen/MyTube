@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import fs from "fs";
 import path from "path";
 import downloadManager from "../../services/downloadManager";
 import { ContinuousDownloadService } from "../../services/continuousDownloadService";
 import * as storageService from "../../services/storageService";
+import * as fileSystemAccess from "../../utils/fileSystemAccess";
 
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -334,8 +334,10 @@ describe("ContinuousDownloadService", () => {
         { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
       ]);
 
-      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+      const mkdirSpy = vi.spyOn(fileSystemAccess, "ensureDirSync").mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(fileSystemAccess, "writeUtf8FileSync")
+        .mockImplementation(() => undefined);
 
       await (service as any).processTask("freeze-create");
 
@@ -370,12 +372,15 @@ describe("ContinuousDownloadService", () => {
         .mockResolvedValueOnce(task);
 
       const readSpy = vi
-        .spyOn(fs, "readFileSync")
+        .spyOn(fileSystemAccess, "readUtf8FileSync")
         .mockReturnValue(JSON.stringify(["r1", "r2"]));
 
       await (service as any).processTask("freeze-resume");
 
-      expect(readSpy).toHaveBeenCalledWith(frozenListPath, "utf8");
+      expect(readSpy).toHaveBeenCalledWith(
+        frozenListPath,
+        [frozenListsRoot]
+      );
       expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
       expect(processor.processTask).toHaveBeenCalledWith(task, ["r1", "r2"]);
 
@@ -402,13 +407,20 @@ describe("ContinuousDownloadService", () => {
         { url: "d1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
       ]);
 
-      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
-      const unlinkSpy = vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+      const mkdirSpy = vi.spyOn(fileSystemAccess, "ensureDirSync").mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(fileSystemAccess, "writeUtf8FileSync")
+        .mockImplementation(() => undefined);
+      const unlinkSpy = vi
+        .spyOn(fileSystemAccess, "removeFileSync")
+        .mockImplementation(() => undefined);
 
       await (service as any).processTask("freeze-done");
 
-      expect(unlinkSpy).toHaveBeenCalledWith(frozenListPath);
+      expect(unlinkSpy).toHaveBeenCalledWith(
+        frozenListPath,
+        [frozenListsRoot]
+      );
       expect(repo.clearFrozenVideoListPath).toHaveBeenCalledWith("freeze-done");
 
       mkdirSpy.mockRestore();

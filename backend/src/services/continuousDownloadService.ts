@@ -1,16 +1,21 @@
-import fs from "fs";
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { DATA_DIR } from "../config/paths";
+import {
+  ensureDirSync,
+  readUtf8FileSync,
+  removeFileSync,
+  writeUtf8FileSync,
+} from "../utils/fileSystemAccess";
 import { logger } from "../utils/logger";
 import { TaskCleanup } from "./continuousDownload/taskCleanup";
+import {
+  buildFrozenListPath,
+  getFrozenListsRoot,
+  resolveStoredFrozenListPath,
+} from "./continuousDownload/frozenListPaths";
 import { TaskProcessor } from "./continuousDownload/taskProcessor";
 import { TaskRepository } from "./continuousDownload/taskRepository";
 import { ContinuousDownloadTask, DownloadOrder } from "./continuousDownload/types";
 import { sortVideoEntries, VideoUrlFetcher } from "./continuousDownload/videoUrlFetcher";
-
-const FROZEN_LISTS_DIR = path.join(DATA_DIR, "frozen-lists");
-const SAFE_FROZEN_LIST_TASK_ID = /^[A-Za-z0-9_-]+$/;
 
 /**
  * Main service for managing continuous download tasks
@@ -42,45 +47,6 @@ export class ContinuousDownloadService {
       ContinuousDownloadService.instance = new ContinuousDownloadService();
     }
     return ContinuousDownloadService.instance;
-  }
-
-  private getFrozenListsRoot(): string {
-    return path.resolve(FROZEN_LISTS_DIR);
-  }
-
-  private buildFrozenListPath(taskId: string): string {
-    const normalizedTaskId = String(taskId).trim();
-    if (!SAFE_FROZEN_LIST_TASK_ID.test(normalizedTaskId)) {
-      throw new Error(`Invalid task id for frozen list path: ${taskId}`);
-    }
-
-    const frozenPath = path.join(this.getFrozenListsRoot(), `${normalizedTaskId}.json`);
-    const resolvedFrozenPath = path.resolve(frozenPath);
-    const root = this.getFrozenListsRoot();
-    if (!resolvedFrozenPath.startsWith(`${root}${path.sep}`)) {
-      throw new Error(`Frozen list path escaped root directory for task ${taskId}`);
-    }
-    return resolvedFrozenPath;
-  }
-
-  private resolveStoredFrozenListPath(rawPath: string): string {
-    const resolvedPath = path.resolve(rawPath);
-    const root = this.getFrozenListsRoot();
-    if (!resolvedPath.startsWith(`${root}${path.sep}`)) {
-      throw new Error(`Frozen list path outside allowed directory: ${rawPath}`);
-    }
-
-    const fileName = path.basename(resolvedPath);
-    if (!fileName.endsWith(".json")) {
-      throw new Error(`Frozen list file must be a .json file: ${rawPath}`);
-    }
-
-    const taskIdFromFileName = fileName.slice(0, -".json".length);
-    if (!SAFE_FROZEN_LIST_TASK_ID.test(taskIdFromFileName)) {
-      throw new Error(`Frozen list file name is invalid: ${rawPath}`);
-    }
-
-    return resolvedPath;
   }
 
   /**
@@ -212,12 +178,11 @@ export class ContinuousDownloadService {
       let taskVideoUrls: string[] = [];
       if (task.frozenVideoListPath) {
         try {
-          const safeFrozenListPath = this.resolveStoredFrozenListPath(
-            task.frozenVideoListPath
-          );
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          const raw = fs.readFileSync(safeFrozenListPath, "utf8");
-          taskVideoUrls = JSON.parse(raw) as string[];
+            const safeFrozenListPath = resolveStoredFrozenListPath(
+              task.frozenVideoListPath
+            );
+            const raw = readUtf8FileSync(safeFrozenListPath, [getFrozenListsRoot()]);
+            taskVideoUrls = JSON.parse(raw) as string[];
         } catch (err) {
           logger.debug(`Could not load frozen list for task ${id} cancellation:`, err);
         }
@@ -395,11 +360,10 @@ export class ContinuousDownloadService {
         if (task.frozenVideoListPath) {
           // Resume: load existing frozen list
           try {
-            const safeFrozenListPath = this.resolveStoredFrozenListPath(
+            const safeFrozenListPath = resolveStoredFrozenListPath(
               task.frozenVideoListPath
             );
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            const raw = fs.readFileSync(safeFrozenListPath, "utf8");
+            const raw = readUtf8FileSync(safeFrozenListPath, [getFrozenListsRoot()]);
             cachedVideoUrls = JSON.parse(raw) as string[];
             logger.info(`Loaded frozen list (${cachedVideoUrls.length} URLs) for task ${taskId}`);
           } catch (err) {
@@ -417,11 +381,11 @@ export class ContinuousDownloadService {
 
           // Persist frozen list
           try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.mkdirSync(this.getFrozenListsRoot(), { recursive: true });
-            const frozenPath = this.buildFrozenListPath(taskId);
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.writeFileSync(frozenPath, JSON.stringify(cachedVideoUrls), "utf8");
+            ensureDirSync(getFrozenListsRoot(), getFrozenListsRoot());
+            const frozenPath = buildFrozenListPath(taskId);
+            writeUtf8FileSync(frozenPath, JSON.stringify(cachedVideoUrls), [
+              getFrozenListsRoot(),
+            ]);
             await this.taskRepository.updateFrozenVideoListPath(taskId, frozenPath);
             // Update total from frozen list (source of truth)
             await this.taskRepository.updateTotalVideos(taskId, cachedVideoUrls.length);
@@ -469,11 +433,10 @@ export class ContinuousDownloadService {
   private async deleteFrozenList(task: ContinuousDownloadTask): Promise<void> {
     if (!task.frozenVideoListPath) return;
     try {
-      const safeFrozenListPath = this.resolveStoredFrozenListPath(
+      const safeFrozenListPath = resolveStoredFrozenListPath(
         task.frozenVideoListPath
       );
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(safeFrozenListPath);
+      removeFileSync(safeFrozenListPath, [getFrozenListsRoot()]);
       logger.debug(`Deleted frozen list for task ${task.id}`);
     } catch (err) {
       logger.warn(`Could not delete frozen list file for task ${task.id}:`, err);

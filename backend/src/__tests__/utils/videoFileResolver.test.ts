@@ -35,7 +35,7 @@ describe("resolvePlayableVideoFilePath", () => {
   });
 
   it("returns expected path when merged file exists", () => {
-    const expected = path.join("C:", "videos", "movie.mp4");
+    const expected = path.join("/tmp", "videos", "movie.mp4");
     vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       return String(target) === expected;
     });
@@ -48,7 +48,7 @@ describe("resolvePlayableVideoFilePath", () => {
   });
 
   it("prefers likely video split artifacts over audio-only format ids when ffprobe is unavailable", () => {
-    const expected = path.join("C:", "videos", "movie.webm");
+    const expected = path.join("/tmp", "videos", "movie.webm");
     const videoDir = path.dirname(expected);
     const fallbackVideo = path.join(videoDir, "movie.f248.webm");
     const fallbackAudio = path.join(videoDir, "movie.f251.webm");
@@ -84,7 +84,7 @@ describe("resolvePlayableVideoFilePath", () => {
   });
 
   it("uses ffprobe stream inspection when available", () => {
-    const expected = path.join("C:", "videos", "movie.webm");
+    const expected = path.join("/tmp", "videos", "movie.webm");
     const videoDir = path.dirname(expected);
     const fallbackVideo = path.join(videoDir, "movie.f248.webm");
     const fallbackAudio = path.join(videoDir, "movie.f251.webm");
@@ -120,7 +120,7 @@ describe("resolvePlayableVideoFilePath", () => {
   });
 
   it("returns null when ffprobe confirms split artifacts are audio-only", () => {
-    const expected = path.join("C:", "videos", "movie.webm");
+    const expected = path.join("/tmp", "videos", "movie.webm");
     const videoDir = path.dirname(expected);
     const audioA = path.join(videoDir, "movie.f250.webm");
     const audioB = path.join(videoDir, "movie.f251.webm");
@@ -149,7 +149,7 @@ describe("resolvePlayableVideoFilePath", () => {
   });
 
   it("returns null when neither merged nor split video files exist", () => {
-    const expected = path.join("C:", "videos", "missing.mp4");
+    const expected = path.join("/tmp", "videos", "missing.mp4");
     const videoDir = path.dirname(expected);
     vi.mocked(fs.existsSync).mockImplementation((target: unknown) => {
       return String(target) === videoDir;

@@ -446,6 +446,10 @@ describe("storageService videos", () => {
     });
 
     it("should delete video, thumbnail, avatar and subtitles then remove db row", () => {
+      const actualVideoPath = path.join(VIDEOS_DIR, "video.mp4");
+      const actualThumbnailPath = path.join(IMAGES_DIR, "col/thumb.jpg");
+      const actualAvatarPath = path.join(AVATARS_DIR, "avatar.jpg");
+      const actualSubtitlePath = path.join(SUBTITLES_DIR, "en.vtt");
       const video = {
         id: "1",
         author: "Author 1",
@@ -458,16 +462,15 @@ describe("storageService videos", () => {
       };
       setupDeleteVideoSelect({ video, allVideos: [video] });
       vi.mocked(collections.getCollections).mockReturnValue([]);
-      vi.mocked(fileHelpers.findVideoFile).mockReturnValue("/abs/videos/video.mp4");
-      vi.mocked(fileHelpers.findImageFile).mockReturnValue("/abs/images/thumb.jpg");
+      vi.mocked(fileHelpers.findVideoFile).mockReturnValue(actualVideoPath);
+      vi.mocked(fileHelpers.findImageFile).mockReturnValue(actualThumbnailPath);
       vi.mocked(fs.existsSync).mockImplementation((target: any) => {
         const p = String(target);
         return (
-          p === "/abs/videos/video.mp4" ||
-          p === path.join(IMAGES_DIR, "col/thumb.jpg") ||
-          p === path.join(AVATARS_DIR, "avatar.jpg") ||
-          p === path.join(path.join(process.cwd(), "uploads"), "avatars/avatar.jpg") ||
-          p === path.join(path.join(process.cwd(), "uploads"), "subtitles/en.vtt")
+          p === actualVideoPath ||
+          p === actualThumbnailPath ||
+          p === actualAvatarPath ||
+          p === actualSubtitlePath
         );
       });
       vi.mocked(db.delete).mockReturnValue({
@@ -477,16 +480,14 @@ describe("storageService videos", () => {
       const ok = deleteVideo("1");
       expect(ok).toBe(true);
       expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
-      expect(fs.unlinkSync).toHaveBeenCalledWith("/abs/videos/video.mp4");
-      expect(fs.unlinkSync).toHaveBeenCalledWith(
-        path.join(path.join(process.cwd(), "uploads"), "avatars/avatar.jpg")
-      );
-      expect(fs.unlinkSync).toHaveBeenCalledWith(
-        path.join(path.join(process.cwd(), "uploads"), "subtitles/en.vtt")
-      );
+      expect(fs.unlinkSync).toHaveBeenCalledWith(actualVideoPath);
+      expect(fs.unlinkSync).toHaveBeenCalledWith(actualAvatarPath);
+      expect(fs.unlinkSync).toHaveBeenCalledWith(actualSubtitlePath);
     });
 
     it("should skip avatar deletion when other author videos exist", () => {
+      const actualVideoPath = path.join(VIDEOS_DIR, "video.mp4");
+      const actualAvatarPath = path.join(AVATARS_DIR, "avatar.jpg");
       const video = {
         id: "1",
         author: "Author 1",
@@ -502,19 +503,18 @@ describe("storageService videos", () => {
         ],
       });
       vi.mocked(collections.getCollections).mockReturnValue([]);
-      vi.mocked(fileHelpers.findVideoFile).mockReturnValue("/abs/videos/video.mp4");
+      vi.mocked(fileHelpers.findVideoFile).mockReturnValue(actualVideoPath);
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(db.delete).mockReturnValue({
         where: vi.fn().mockReturnValue({ run: vi.fn() }),
       } as any);
 
       deleteVideo("1");
-      expect(fs.unlinkSync).not.toHaveBeenCalledWith(
-        path.join(path.join(process.cwd(), "uploads"), "avatars/avatar.jpg")
-      );
+      expect(fs.unlinkSync).not.toHaveBeenCalledWith(actualAvatarPath);
     });
 
     it("should not delete local video files when removing a mount video record", () => {
+      const actualVideoPath = path.join(VIDEOS_DIR, "shared-name.mp4");
       const video = {
         id: "1",
         author: "Author 1",
@@ -523,7 +523,7 @@ describe("storageService videos", () => {
       };
       setupDeleteVideoSelect({ video, allVideos: [video] });
       vi.mocked(collections.getCollections).mockReturnValue([]);
-      vi.mocked(fileHelpers.findVideoFile).mockReturnValue("/abs/videos/shared-name.mp4");
+      vi.mocked(fileHelpers.findVideoFile).mockReturnValue(actualVideoPath);
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(db.delete).mockReturnValue({
         where: vi.fn().mockReturnValue({ run: vi.fn() }),
@@ -533,7 +533,7 @@ describe("storageService videos", () => {
 
       expect(ok).toBe(true);
       expect(fileHelpers.findVideoFile).not.toHaveBeenCalled();
-      expect(fs.unlinkSync).not.toHaveBeenCalledWith("/abs/videos/shared-name.mp4");
+      expect(fs.unlinkSync).not.toHaveBeenCalledWith(actualVideoPath);
       expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
     });
 
@@ -569,6 +569,44 @@ describe("storageService videos", () => {
 
       expect(ok).toBe(true);
       expect(fs.unlinkSync).not.toHaveBeenCalledWith(sharedThumbnailPath);
+      expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
+    });
+
+    it("should delete records even when managed files are symlink entries", () => {
+      const actualVideoPath = path.join(VIDEOS_DIR, "video.mp4");
+      const escapedThumbnailPath = path.join(IMAGES_DIR, "escaped-thumb.jpg");
+      const video = {
+        id: "1",
+        author: "Author 1",
+        videoFilename: "video.mp4",
+        thumbnailFilename: "escaped-thumb.jpg",
+        thumbnailPath: "/images/escaped-thumb.jpg",
+      };
+
+      setupDeleteVideoSelect({ video, allVideos: [video] });
+      vi.mocked(collections.getCollections).mockReturnValue([]);
+      vi.mocked(fileHelpers.findVideoFile).mockReturnValue(actualVideoPath);
+      vi.mocked(fs.lstatSync as any).mockImplementation((target: any) => {
+        const currentPath = String(target);
+        if (currentPath === actualVideoPath) {
+          return { isSymbolicLink: () => false } as any;
+        }
+        if (currentPath === escapedThumbnailPath) {
+          return { isSymbolicLink: () => true } as any;
+        }
+        const error = new Error("ENOENT") as NodeJS.ErrnoException;
+        error.code = "ENOENT";
+        throw error;
+      });
+      vi.mocked(db.delete).mockReturnValue({
+        where: vi.fn().mockReturnValue({ run: vi.fn() }),
+      } as any);
+
+      const ok = deleteVideo("1");
+
+      expect(ok).toBe(true);
+      expect(fs.unlinkSync).toHaveBeenCalledWith(actualVideoPath);
+      expect(fs.unlinkSync).toHaveBeenCalledWith(escapedThumbnailPath);
       expect(markVideoDownloadDeleted).toHaveBeenCalledWith("1");
     });
 
