@@ -92,7 +92,7 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
-  it("blocks unauthenticated upload requests even when login is disabled", () => {
+  it("allows unauthenticated upload requests when login is disabled", () => {
     vi.mocked(isLoginRequired).mockReturnValue(false);
     req = {
       method: "POST",
@@ -102,14 +102,8 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(403);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: expect.stringContaining("authenticated admin session"),
-      })
-    );
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
   });
 
   it("blocks unauthenticated upload requests with 401 when login is required", () => {

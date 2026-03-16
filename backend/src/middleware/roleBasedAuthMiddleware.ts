@@ -144,8 +144,8 @@ export const roleBasedAuthMiddleware = (
   if (!req.user) {
     const loginRequired = isLoginRequired();
 
-    if (isAdminUploadEndpoint(req)) {
-      res.status(loginRequired ? 401 : 403).json({
+    if (loginRequired && isAdminUploadEndpoint(req)) {
+      res.status(401).json({
         success: false,
         error:
           "Video upload endpoints require an authenticated admin session.",

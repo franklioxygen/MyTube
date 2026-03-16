@@ -32,14 +32,14 @@ interface UploadBatchSummary {
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
-    const { userRole } = useAuth();
+    const { userRole, loginRequired } = useAuth();
     const { activeDownloads, queuedDownloads, handleVideoSubmit } = useDownload();
     const queryClient = useQueryClient();
     const [tabValue, setTabValue] = useState(0);
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [downloadingItems, setDownloadingItems] = useState<Set<string>>(new Set());
-    const canUpload = userRole === 'admin';
+    const canUpload = userRole === 'admin' || loginRequired === false;
 
     const handleUploadSuccess = (summary: UploadBatchSummary) => {
         void queryClient.invalidateQueries({ queryKey: ['videos'] });

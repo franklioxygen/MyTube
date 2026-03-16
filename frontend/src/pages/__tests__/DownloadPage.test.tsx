@@ -38,7 +38,10 @@ const {
     const mockCancelQueries = vi.fn();
     const mockSetQueryData = vi.fn();
     const mockGetQueryData = vi.fn();
-    const mockAuthState = { userRole: 'admin' as 'admin' | 'visitor' | null };
+    const mockAuthState = {
+        userRole: 'admin' as 'admin' | 'visitor' | null,
+        loginRequired: true,
+    };
     const mockHistoryDataRef = { current: [] as unknown[] };
     const capturedActiveDownloadsPropsRef = { current: {} as Record<string, unknown> };
     const capturedQueuePropsRef = { current: {} as Record<string, unknown> };
@@ -198,6 +201,7 @@ describe('DownloadPage', () => {
         mockApi.post.mockResolvedValue({ data: {} });
         mockApi.delete.mockResolvedValue({ data: {} });
         mockAuthState.userRole = 'admin';
+        mockAuthState.loginRequired = true;
         capturedActiveDownloadsPropsRef.current = {};
         capturedQueuePropsRef.current = {};
         capturedHistoryPropsRef.current = {};
@@ -227,9 +231,18 @@ describe('DownloadPage', () => {
 
         it('hides the upload button for non-admin users', () => {
             mockAuthState.userRole = null;
+            mockAuthState.loginRequired = true;
             renderPage();
             expect(screen.getByText('addBatchTasks')).toBeInTheDocument();
             expect(screen.queryByText('uploadVideo')).not.toBeInTheDocument();
+        });
+
+        it('shows the upload button when login protection is disabled', () => {
+            mockAuthState.userRole = null;
+            mockAuthState.loginRequired = false;
+            renderPage();
+            expect(screen.getByText('addBatchTasks')).toBeInTheDocument();
+            expect(screen.getByText('uploadVideo')).toBeInTheDocument();
         });
 
         it('renders tab panels with correct roles', () => {
