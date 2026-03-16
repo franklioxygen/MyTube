@@ -558,11 +558,16 @@ export const zh = {
 
   // Upload Modal
   selectVideoFile: "选择视频文件",
+  selectVideoFolder: "选择文件夹",
   pleaseSelectVideo: "请选择一个视频文件",
+  noSupportedVideosFound: "所选内容中没有受支持的视频文件",
   uploadFailed: "上传失败",
   failedToUpload: "视频上传失败",
   uploading: "上传中...",
   upload: "上传",
+  uploadSummary: "已上传 {uploaded} 个，重复跳过 {duplicates} 个，失败 {failed} 个",
+  unsupportedFilesSkipped: "已跳过 {count} 个不支持的文件",
+  multipleUploadUsesFilename: "批量上传时将自动使用各文件名作为标题",
   uploadThumbnail: "上传缩略图",
   clickToSelectImage: "点击选择图片",
   changeImage: "更改图片",

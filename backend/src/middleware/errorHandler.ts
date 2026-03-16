@@ -17,7 +17,9 @@ export function errorHandler(
     const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
     const message =
       err.code === "LIMIT_FILE_SIZE"
-        ? "File too large. Maximum size is 10 MB."
+        ? req.path.includes("/subtitles")
+          ? "File too large. Maximum size is 10 MB."
+          : "File too large. Maximum size is 100 GB per file."
         : err.message;
     res.status(status).json({ error: message, type: "validation" });
     return;

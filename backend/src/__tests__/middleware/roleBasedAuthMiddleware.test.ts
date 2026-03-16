@@ -92,6 +92,40 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it("blocks unauthenticated upload requests even when login is disabled", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(false);
+    req = {
+      method: "POST",
+      path: "/upload/batch",
+      url: "/upload/batch",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("authenticated admin session"),
+      })
+    );
+  });
+
+  it("blocks unauthenticated upload requests with 401 when login is required", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    req = {
+      method: "POST",
+      path: "/upload",
+      url: "/upload",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+  });
+
   it("allows api-key-authenticated POST /download requests", () => {
     req = {
       method: "POST",

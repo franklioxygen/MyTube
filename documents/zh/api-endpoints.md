@@ -30,8 +30,18 @@
 
 ## 视频管理
 
-- `POST /api/upload` - 上传本地视频文件
+- `POST /api/upload` - 上传单个本地视频文件
   - 多部分表单数据: `video` (必需), `title` (可选), `author` (可选)
+  - 说明:
+    - 服务端会在接收后校验内容是否为受支持的视频。
+    - 重复内容会按内容哈希跳过，不会重复入库。
+- `POST /api/upload/batch` - 在一个请求中批量上传多个本地视频文件
+  - 多部分表单数据: `videos` (一个或多个，必需), `title` (可选，仅在只上传 1 个文件时使用), `author` (可选)
+  - 响应数据结构: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
+  - 说明:
+    - 适用于多文件选择和文件夹上传。
+    - 文件夹上传只导入受支持的视频文件，不保留子目录结构。
+    - 重复内容会按内容哈希跳过。
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
 - `GET /api/videos/:id` -通过 ID 获取单个视频
 - `GET /api/mount-video/:id` - 通过视频 ID 流式传输挂载目录视频 (支持 Range)

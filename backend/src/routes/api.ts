@@ -21,6 +21,11 @@ router.post(
   videoController.upload.single("video"),
   asyncHandler(videoController.uploadVideo)
 );
+router.post(
+  "/upload/batch",
+  videoController.uploadBatch.array("videos"),
+  asyncHandler(videoController.uploadVideosBatch)
+);
 router.get("/videos", asyncHandler(videoController.getVideos));
 router.get(
   "/videos/author-channel-url",

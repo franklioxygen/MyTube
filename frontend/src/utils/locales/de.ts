@@ -605,11 +605,19 @@ export const de = {
 
   // Upload Modal
   selectVideoFile: "Videodatei Auswählen",
+  selectVideoFolder: "Ordner Auswählen",
   pleaseSelectVideo: "Bitte wählen Sie eine Videodatei aus",
+  noSupportedVideosFound:
+    "In Ihrer Auswahl wurden keine unterstützten Videodateien gefunden",
   uploadFailed: "Upload fehlgeschlagen",
   failedToUpload: "Fehler beim Hochladen des Videos",
   uploading: "Hochladen...",
   upload: "Hochladen",
+  uploadSummary:
+    "{uploaded} hochgeladen, {duplicates} Duplikate, {failed} fehlgeschlagen",
+  unsupportedFilesSkipped: "{count} nicht unterstützte Dateien übersprungen",
+  multipleUploadUsesFilename:
+    "Bei Mehrfach-Uploads wird jeder Dateiname als Titel verwendet",
   uploadThumbnail: "Miniaturansicht hochladen",
   clickToSelectImage: "Klicken Sie, um ein Bild auszuwählen",
   changeImage: "Bild ändern",

@@ -436,6 +436,40 @@ export function saveVideo(
   }
 }
 
+export function saveVideoIfAbsent(
+  videoData: import("./types").Video
+): boolean {
+  try {
+    const videoToSave = {
+      ...videoData,
+      tags: videoData.tags ? JSON.stringify(videoData.tags) : undefined,
+      subtitles: videoData.subtitles
+        ? JSON.stringify(videoData.subtitles)
+        : undefined,
+    };
+
+    const result = db
+      .insert(videos)
+      .values(videoToSave as any)
+      .onConflictDoNothing({
+        target: videos.id,
+      })
+      .run();
+
+    return result.changes > 0;
+  } catch (error) {
+    logger.error(
+      "Error saving video if absent",
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw new DatabaseError(
+      `Failed to save video if absent: ${videoData.id}`,
+      error instanceof Error ? error : new Error(String(error)),
+      "saveVideoIfAbsent"
+    );
+  }
+}
+
 export function updateVideo(
   id: string,
   updates: Partial<import("./types").Video>

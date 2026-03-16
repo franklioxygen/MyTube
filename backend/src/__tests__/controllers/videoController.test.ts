@@ -96,6 +96,7 @@ describe("VideoController", () => {
     (storageService.getSettings as any) = vi.fn().mockReturnValue({
       dontSkipDeletedVideo: false,
     });
+    (storageService.saveVideoIfAbsent as any) = vi.fn().mockReturnValue(true);
   });
 
   describe("searchVideos", () => {
@@ -538,7 +539,11 @@ describe("VideoController", () => {
 
   describe("uploadVideo", () => {
     it("should upload video", async () => {
-      req.file = { filename: "vid.mp4", originalname: "vid.mp4" } as any;
+      req.file = {
+        filename: "vid.mp4",
+        originalname: "vid.mp4",
+        path: "/tmp/vid.mp4",
+      } as any;
       req.body = { title: "Title" };
       (fs.existsSync as any).mockReturnValue(true);
       (fs.statSync as any).mockReturnValue({ size: 1024 });
@@ -546,10 +551,18 @@ describe("VideoController", () => {
 
       // Mock child_process.execFile to invoke callback (needed for local getVideoDuration and execFileSafe)
       const cp = await import("child_process");
-      vi.mocked(cp.execFile).mockImplementation((...args: any[]) => {
-        const callback = args[args.length - 1];
+      vi.mocked(cp.execFile).mockImplementation((cmd: string, fileArgs: any, maybeOptionsOrCb: any, maybeCb: any) => {
+        const callback =
+          typeof maybeOptionsOrCb === "function" ? maybeOptionsOrCb : maybeCb;
         if (typeof callback === "function") {
-          callback(null, "120", ""); // success, stdout="120"
+          const args = Array.isArray(fileArgs) ? fileArgs : [];
+          if (cmd === "ffprobe" && args.includes("stream=codec_type")) {
+            callback(null, "video\n", "");
+          } else if (cmd === "ffprobe" && args.includes("format=duration")) {
+            callback(null, "120", "");
+          } else {
+            callback(null, "", "");
+          }
         }
         return {} as any;
       });
@@ -574,7 +587,7 @@ describe("VideoController", () => {
         m.uploadVideo(req as Request, res as Response)
       );
 
-      expect(storageService.saveVideo).toHaveBeenCalled();
+      expect(storageService.saveVideoIfAbsent).toHaveBeenCalled();
       expect(status).toHaveBeenCalledWith(201);
     });
   });

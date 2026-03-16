@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 788
+Total keys: 793
 
 ## Summary
 
@@ -27,7 +27,7 @@ Total keys: 788
 | Delete Collection Modal | 5 | `deleteCollectionTitle` | `deleteCollectionAndVideos` |
 | Common | 14 | `loading` | `collapse` |
 | Video Card | 9 | `unknownDate` | `weeksAgo` |
-| Upload Modal | 11 | `selectVideoFile` | `thumbnailUploaded` |
+| Upload Modal | 16 | `selectVideoFile` | `thumbnailUploaded` |
 | Bilibili Modal | 22 | `bilibiliCollectionDetected` | `waitingInQueue` |
 | Downloads | 20 | `downloads` | `failed` |
 | Snackbar Messages | 19 | `videoDownloading` | `subtitleDeleted` |
@@ -603,11 +603,16 @@ Total keys: 788
 | Key |
 | --- |
 | `selectVideoFile` |
+| `selectVideoFolder` |
 | `pleaseSelectVideo` |
+| `noSupportedVideosFound` |
 | `uploadFailed` |
 | `failedToUpload` |
 | `uploading` |
 | `upload` |
+| `uploadSummary` |
+| `unsupportedFilesSkipped` |
+| `multipleUploadUsesFilename` |
 | `uploadThumbnail` |
 | `clickToSelectImage` |
 | `changeImage` |
@@ -998,4 +1003,3 @@ Total keys: 788
 | `videoDecodeError` |
 | `safariVideoFormatNotSupported` |
 | `browserVideoFormatNotSupported` |
-

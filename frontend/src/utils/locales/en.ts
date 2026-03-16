@@ -562,11 +562,16 @@ export const en = {
 
   // Upload Modal
   selectVideoFile: "Select Video File",
+  selectVideoFolder: "Select Folder",
   pleaseSelectVideo: "Please select a video file",
+  noSupportedVideosFound: "No supported video files were found in your selection",
   uploadFailed: "Upload failed",
   failedToUpload: "Failed to upload video",
   uploading: "Uploading...",
   upload: "Upload",
+  uploadSummary: "Uploaded {uploaded}, duplicates {duplicates}, failed {failed}",
+  unsupportedFilesSkipped: "Skipped {count} unsupported files",
+  multipleUploadUsesFilename: "Multiple uploads use each filename as the title",
   uploadThumbnail: "Upload Thumbnail",
   clickToSelectImage: "Click to select an image",
   changeImage: "Change Image",

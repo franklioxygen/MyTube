@@ -50,6 +50,17 @@ const isApiKeyDownloadEndpoint = (req: Request): boolean => {
   );
 };
 
+const isAdminUploadEndpoint = (req: Request): boolean => {
+  const path = req.path || req.url || "";
+  return (
+    req.method === "POST" &&
+    (path === "/upload" ||
+      path.startsWith("/upload?") ||
+      path === "/upload/batch" ||
+      path.startsWith("/upload/batch?"))
+  );
+};
+
 /**
  * Middleware to enforce role-based access control
  * Visitors (userRole === 'visitor') are restricted to read-only operations
@@ -132,6 +143,15 @@ export const roleBasedAuthMiddleware = (
   // For unauthenticated users, check if login is required
   if (!req.user) {
     const loginRequired = isLoginRequired();
+
+    if (isAdminUploadEndpoint(req)) {
+      res.status(loginRequired ? 401 : 403).json({
+        success: false,
+        error:
+          "Video upload endpoints require an authenticated admin session.",
+      });
+      return;
+    }
 
     // If login is required and this is not a public endpoint, reject the request
     if (loginRequired && !isPublicEndpoint(req)) {

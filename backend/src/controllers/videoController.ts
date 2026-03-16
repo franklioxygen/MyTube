@@ -10,32 +10,51 @@ import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
+import {
+  createUploadValidationError,
+  createVideoUploadStorage,
+  getUploadVideoId,
+  UploadedVideoFile,
+} from "../utils/videoUpload";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
   resolveSafePath,
   sanitizePathSegment,
 } from "../utils/security";
 
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    fs.ensureDirSync(VIDEOS_DIR);
-    cb(null, VIDEOS_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix =
-      Date.now() + "-" + crypto.randomBytes(8).toString("hex");
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
+const MAX_BATCH_UPLOAD_FILES = 100;
+const MAX_BATCH_UPLOAD_TOTAL_SIZE = MAX_VIDEO_UPLOAD_FILE_SIZE;
+const MAX_SINGLE_UPLOAD_FIELDS = 4;
+const MAX_BATCH_UPLOAD_FIELDS = MAX_BATCH_UPLOAD_FILES + 4;
+
+export const videoUploadStorage = createVideoUploadStorage(VIDEOS_DIR);
+export const videoBatchUploadStorage = createVideoUploadStorage(VIDEOS_DIR, {
+  maxTotalBytes: MAX_BATCH_UPLOAD_TOTAL_SIZE,
 });
 
-// Configure multer with large file size limit (100GB)
-export const upload = multer({
-  storage: storage,
+const videoUploadOptions: multer.Options = {
+  storage: videoUploadStorage,
   limits: {
-    fileSize: 100 * 1024 * 1024 * 1024, // 10GB in bytes
+    fileSize: MAX_VIDEO_UPLOAD_FILE_SIZE,
+    files: 1,
+    fields: MAX_SINGLE_UPLOAD_FIELDS,
+    parts: 1 + MAX_SINGLE_UPLOAD_FIELDS,
   },
-});
+};
+
+const videoBatchUploadOptions: multer.Options = {
+  storage: videoBatchUploadStorage,
+  limits: {
+    fileSize: MAX_VIDEO_UPLOAD_FILE_SIZE,
+    files: MAX_BATCH_UPLOAD_FILES,
+    fields: MAX_BATCH_UPLOAD_FIELDS,
+    parts: MAX_BATCH_UPLOAD_FILES + MAX_BATCH_UPLOAD_FIELDS,
+  },
+};
+
+export const upload = multer(videoUploadOptions);
+export const uploadBatch = multer(videoBatchUploadOptions);
 
 export const uploadSubtitleMiddleware = multer({
   storage: multer.memoryStorage(),
@@ -77,19 +96,19 @@ const execFileSafe = async (
 
 // Helper validate paths functions
 const validateVideoPath = (inputPath: string): string => {
-  const normalized = path.normalize(inputPath);
-  if (!normalized.startsWith(VIDEOS_DIR)) {
+  try {
+    return resolveSafePath(inputPath, VIDEOS_DIR);
+  } catch {
     throw new ValidationError("Invalid video path", "path");
   }
-  return normalized;
 };
 
 const validateImagePath = (inputPath: string): string => {
-  const normalized = path.normalize(inputPath);
-  if (!normalized.startsWith(IMAGES_DIR)) {
+  try {
+    return resolveSafePath(inputPath, IMAGES_DIR);
+  } catch {
     throw new ValidationError("Invalid image path", "path");
   }
-  return normalized;
 };
 
 // Helper for video duration
@@ -124,6 +143,301 @@ const getVideoDuration = async (
   } catch (err) {
     logger.error("Failed to get video duration:", err);
     return undefined;
+  }
+};
+
+const uploadedFileHasVideoStream = async (videoPath: string): Promise<boolean> => {
+  try {
+    const { execFile } = await import("child_process");
+    return new Promise((resolve) => {
+      execFile(
+        "ffprobe",
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "stream=codec_type",
+          "-of",
+          "default=noprint_wrappers=1:nokey=1",
+          videoPath,
+        ],
+        (error, stdout) => {
+          if (error) {
+            logger.error("ffprobe stream validation error:", error);
+            resolve(false);
+            return;
+          }
+
+          const streamTypes = stdout
+            .split(/\r?\n/)
+            .map((line) => line.trim().toLowerCase())
+            .filter(Boolean);
+          resolve(streamTypes.includes("video"));
+        }
+      );
+    });
+  } catch (err) {
+    logger.error("Failed to validate uploaded video stream:", err);
+    return false;
+  }
+};
+
+const cleanupUploadedVideo = (videoPath: string | undefined): void => {
+  if (!videoPath) {
+    return;
+  }
+
+  try {
+    if (fs.existsSync(videoPath)) {
+      fs.unlinkSync(videoPath);
+    }
+  } catch (error) {
+    logger.error("Failed to clean up uploaded video:", error);
+  }
+};
+
+const cleanupGeneratedThumbnail = (thumbnailPath: string | undefined): void => {
+  if (!thumbnailPath) {
+    return;
+  }
+
+  try {
+    if (fs.existsSync(thumbnailPath)) {
+      fs.unlinkSync(thumbnailPath);
+    }
+  } catch (error) {
+    logger.error("Failed to clean up generated thumbnail:", error);
+  }
+};
+
+type UploadStatus = "uploaded" | "duplicate" | "failed";
+
+interface UploadResultItem {
+  originalName: string;
+  status: UploadStatus;
+  message: string;
+  video?: import("../services/storageService").Video;
+}
+
+interface UploadSummary {
+  total: number;
+  uploaded: number;
+  duplicates: number;
+  failed: number;
+}
+
+const getUploadSummary = (results: UploadResultItem[]): UploadSummary =>
+  results.reduce(
+    (summary, result) => {
+      summary.total += 1;
+      if (result.status === "uploaded") {
+        summary.uploaded += 1;
+      } else if (result.status === "duplicate") {
+        summary.duplicates += 1;
+      } else {
+        summary.failed += 1;
+      }
+      return summary;
+    },
+    { total: 0, uploaded: 0, duplicates: 0, failed: 0 }
+  );
+
+const getDefaultUploadTitle = (originalName: string): string =>
+  path.basename(originalName).replace(/\.[^/.]+$/, "");
+
+const readStringField = (
+  value: unknown,
+  fallback: string = ""
+): string => {
+  if (typeof value === "string") {
+    return value.trim() || fallback;
+  }
+  if (Array.isArray(value)) {
+    const firstString = value.find(
+      (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
+    );
+    return firstString?.trim() || fallback;
+  }
+  return fallback;
+};
+
+const buildUploadResponseMessage = (summary: UploadSummary): string => {
+  if (summary.failed === 0 && summary.duplicates === 0) {
+    return `Uploaded ${summary.uploaded} video${summary.uploaded === 1 ? "" : "s"} successfully.`;
+  }
+
+  return `Upload finished. Uploaded: ${summary.uploaded}, duplicates skipped: ${summary.duplicates}, failed: ${summary.failed}.`;
+};
+
+const buildUploadFailureResult = (
+  file: Pick<UploadedVideoFile, "originalname">,
+  message: string
+): UploadResultItem => ({
+  originalName: path.basename(file.originalname),
+  status: "failed",
+  message,
+});
+
+const buildUploadDuplicateResult = (
+  file: Pick<UploadedVideoFile, "originalname">,
+  video: import("../services/storageService").Video
+): UploadResultItem => ({
+  originalName: path.basename(file.originalname),
+  status: "duplicate",
+  message: "Video already exists. Skipped duplicate upload",
+  video,
+});
+
+const buildUploadSuccessResult = (
+  file: Pick<UploadedVideoFile, "originalname">,
+  video: import("../services/storageService").Video,
+  status: Exclude<UploadStatus, "failed"> = "uploaded"
+): UploadResultItem => ({
+  originalName: path.basename(file.originalname),
+  status,
+  message:
+    status === "uploaded"
+      ? "Video uploaded successfully"
+      : "Video already exists. Skipped duplicate upload",
+  video,
+});
+
+const getUploadedFilesFromRequest = (req: Request): UploadedVideoFile[] => {
+  if (Array.isArray(req.files)) {
+    return req.files as UploadedVideoFile[];
+  }
+
+  if (req.file) {
+    return [req.file as UploadedVideoFile];
+  }
+
+  const filesByField = req.files as Record<string, Express.Multer.File[]> | undefined;
+  if (!filesByField) {
+    return [];
+  }
+
+  return Object.values(filesByField).flat() as UploadedVideoFile[];
+};
+
+const getUploadVideoPayload = async (
+  file: UploadedVideoFile,
+  title: string,
+  author: string
+): Promise<UploadResultItem> => {
+  if (file.validationError) {
+    cleanupUploadedVideo(file.path);
+    return buildUploadFailureResult(file, file.validationError);
+  }
+
+  const rawVideoPath =
+    file.path ||
+    (file.filename
+      ? path.normalize(path.join(VIDEOS_DIR, file.filename))
+      : undefined);
+
+  if (!rawVideoPath) {
+    return buildUploadFailureResult(file, "No video file uploaded");
+  }
+
+  const validatedVideoPath = validateVideoPath(rawVideoPath);
+  const contentHash = file.contentHash;
+  const videoId =
+    typeof contentHash === "string" && contentHash.length > 0
+      ? getUploadVideoId(contentHash)
+      : crypto.randomUUID();
+  const existingVideo = storageService.getVideoById(videoId);
+
+  if (existingVideo) {
+    cleanupUploadedVideo(validatedVideoPath);
+    return buildUploadDuplicateResult(file, existingVideo);
+  }
+
+  const videoFilename = path.basename(validatedVideoPath);
+  const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
+  const validatedThumbnailPath = validateImagePath(
+    path.normalize(path.join(IMAGES_DIR, thumbnailFilename))
+  );
+
+  const hasVideoStream = await uploadedFileHasVideoStream(validatedVideoPath);
+  if (!hasVideoStream) {
+    cleanupUploadedVideo(validatedVideoPath);
+    cleanupGeneratedThumbnail(validatedThumbnailPath);
+    return buildUploadFailureResult(
+      file,
+      "Uploaded file is not a valid supported video"
+    );
+  }
+
+  try {
+    await execFileSafe("ffmpeg", [
+      "-i",
+      validatedVideoPath,
+      "-ss",
+      "00:00:00",
+      "-vframes",
+      "1",
+      validatedThumbnailPath,
+    ]);
+  } catch (error) {
+    logger.error("Error generating thumbnail:", error);
+  }
+
+  const duration = await getVideoDuration(validatedVideoPath);
+
+  let fileSize: string | undefined;
+  try {
+    if (fs.existsSync(validatedVideoPath)) {
+      const stats = fs.statSync(validatedVideoPath);
+      fileSize = stats.size.toString();
+    }
+  } catch (error) {
+    logger.error("Failed to get file size:", error);
+  }
+
+  const newVideo = {
+    id: videoId,
+    title: title || getDefaultUploadTitle(file.originalname),
+    author: author || "Admin",
+    source: "local",
+    sourceUrl: "",
+    videoFilename,
+    thumbnailFilename: fs.existsSync(validatedThumbnailPath)
+      ? thumbnailFilename
+      : undefined,
+    videoPath: `/videos/${videoFilename}`,
+    thumbnailPath: fs.existsSync(validatedThumbnailPath)
+      ? `/images/${thumbnailFilename}`
+      : undefined,
+    thumbnailUrl: fs.existsSync(validatedThumbnailPath)
+      ? `/images/${thumbnailFilename}`
+      : undefined,
+    duration: duration ? duration.toString() : undefined,
+    fileSize,
+    createdAt: new Date().toISOString(),
+    date: new Date().toISOString().split("T")[0].replace(/-/g, ""),
+    addedAt: new Date().toISOString(),
+  };
+
+  try {
+    const inserted = storageService.saveVideoIfAbsent(newVideo);
+    if (!inserted) {
+      cleanupUploadedVideo(validatedVideoPath);
+      cleanupGeneratedThumbnail(validatedThumbnailPath);
+      const concurrentVideo = storageService.getVideoById(videoId);
+      if (concurrentVideo) {
+        return buildUploadDuplicateResult(file, concurrentVideo);
+      }
+
+      throw new Error(
+        `Concurrent upload conflict for ${videoId}: existing record could not be loaded`
+      );
+    }
+
+    return buildUploadSuccessResult(file, newVideo);
+  } catch (error) {
+    cleanupUploadedVideo(validatedVideoPath);
+    cleanupGeneratedThumbnail(validatedThumbnailPath);
+    throw error;
   }
 };
 
@@ -320,99 +634,67 @@ export const uploadVideo = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  if (!req.file) {
-    throw new ValidationError("No video file uploaded", "file");
+  const [file] = getUploadedFilesFromRequest(req);
+  if (!file) {
+    throw createUploadValidationError("No video file uploaded");
   }
 
-  const { title, author } = req.body;
-  const videoId = Date.now().toString();
-  const videoFilename = req.file.filename;
-  const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
+  const title = readStringField(req.body?.title);
+  const author = readStringField(req.body?.author, "Admin");
+  const result = await getUploadVideoPayload(file, title, author);
 
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const videoPath = path.normalize(path.join(VIDEOS_DIR, videoFilename));
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const thumbnailPath = path.normalize(
-    path.join(IMAGES_DIR, thumbnailFilename)
-  );
-
-  // Validate paths to ensure they are within the intended directories
-  if (!videoPath.startsWith(VIDEOS_DIR)) {
-    throw new ValidationError("Invalid video filename", "file");
-  }
-  if (!thumbnailPath.startsWith(IMAGES_DIR)) {
-    // Should technically not happen if generated from safe filename, but good to check
-    throw new ValidationError("Invalid thumbnail path", "file");
+  if (result.status === "failed") {
+    throw createUploadValidationError(result.message);
   }
 
-  // Validate paths to prevent path traversal (using existing helper for file existence/permission checks if any)
-  const validatedVideoPath = validateVideoPath(videoPath);
-  const validatedThumbnailPath = validateImagePath(thumbnailPath);
-
-  // Generate thumbnail using execFileSafe to prevent command injection
-  try {
-    await execFileSafe("ffmpeg", [
-      "-i",
-      validatedVideoPath,
-      "-ss",
-      "00:00:00",
-      "-vframes",
-      "1",
-      validatedThumbnailPath,
-    ]);
-  } catch (error) {
-    logger.error("Error generating thumbnail:", error);
-    // Continue without thumbnail - don't block the upload
-  }
-
-  // Get video duration
-  const duration = await getVideoDuration(videoPath);
-
-  // Get file size
-  let fileSize: string | undefined;
-  try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(videoPath);
-      fileSize = stats.size.toString();
-    }
-  } catch (e) {
-    logger.error("Failed to get file size:", e);
-  }
-
-  const newVideo = {
-    id: videoId,
-    title: title || req.file.originalname,
-    author: author || "Admin",
-    source: "local",
-    sourceUrl: "", // No source URL for uploaded videos
-    videoFilename: videoFilename,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailFilename: fs.existsSync(thumbnailPath)
-      ? thumbnailFilename
-      : undefined,
-    videoPath: `/videos/${videoFilename}`,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailPath: fs.existsSync(thumbnailPath)
-      ? `/images/${thumbnailFilename}`
-      : undefined,
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    thumbnailUrl: fs.existsSync(thumbnailPath)
-      ? `/images/${thumbnailFilename}`
-      : undefined,
-    duration: duration ? duration.toString() : undefined,
-    fileSize: fileSize,
-    createdAt: new Date().toISOString(),
-    date: new Date().toISOString().split("T")[0].replace(/-/g, ""),
-    addedAt: new Date().toISOString(),
-  };
-
-  storageService.saveVideo(newVideo);
-
+  const statusCode = result.status === "duplicate" ? 200 : 201;
   res
-    .status(201)
-    .json(successResponse({ video: newVideo }, "Video uploaded successfully"));
+    .status(statusCode)
+    .json(successResponse({ video: result.video }, result.message));
+};
+
+export const uploadVideosBatch = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const files = getUploadedFilesFromRequest(req);
+  if (files.length === 0) {
+    throw createUploadValidationError("No video files uploaded");
+  }
+
+  const title = readStringField(req.body?.title);
+  const author = readStringField(req.body?.author, "Admin");
+  const results: UploadResultItem[] = [];
+
+  for (const [index, file] of files.entries()) {
+    const fileTitle = files.length === 1 && title
+      ? title
+      : getDefaultUploadTitle(file.originalname || `video-${index + 1}`);
+
+    try {
+      const result = await getUploadVideoPayload(file, fileTitle, author);
+      results.push(result);
+    } catch (error) {
+      logger.error("Unhandled batch upload error:", error);
+      results.push(
+        buildUploadFailureResult(
+          file,
+          error instanceof Error ? error.message : "Failed to upload video"
+        )
+      );
+    }
+  }
+
+  const summary = getUploadSummary(results);
+  res.status(200).json(
+    successResponse(
+      {
+        results,
+        summary,
+      },
+      buildUploadResponseMessage(summary)
+    )
+  );
 };
 
 /**

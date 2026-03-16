@@ -596,11 +596,19 @@ export const pt = {
 
   // Upload Modal
   selectVideoFile: "Selecionar Arquivo de Vídeo",
+  selectVideoFolder: "Selecionar Pasta",
   pleaseSelectVideo: "Por favor, selecione um arquivo de vídeo",
+  noSupportedVideosFound:
+    "Nenhum arquivo de vídeo compatível foi encontrado na sua seleção",
   uploadFailed: "Falha no envio",
   failedToUpload: "Falha ao enviar vídeo",
   uploading: "Enviando...",
   upload: "Enviar",
+  uploadSummary:
+    "{uploaded} enviados, {duplicates} duplicados, {failed} falhas",
+  unsupportedFilesSkipped: "{count} arquivos não compatíveis ignorados",
+  multipleUploadUsesFilename:
+    "Envios múltiplos usam o nome de cada arquivo como título",
   uploadThumbnail: "Fazer upload da miniatura",
   clickToSelectImage: "Clique para selecionar uma imagem",
   changeImage: "Alterar imagem",

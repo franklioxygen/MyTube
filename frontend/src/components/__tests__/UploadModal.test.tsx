@@ -43,6 +43,7 @@ describe('UploadModal', () => {
 
         expect(screen.getByText('uploadVideo')).toBeInTheDocument();
         expect(screen.getByText('selectVideoFile')).toBeInTheDocument();
+        expect(screen.getByText('Select Folder')).toBeInTheDocument();
         expect(screen.getByLabelText('title')).toBeInTheDocument();
         expect(screen.getByLabelText('author')).toBeInTheDocument();
         expect(screen.getByText('upload')).toBeInTheDocument();
@@ -63,7 +64,7 @@ describe('UploadModal', () => {
 
         // Find the hidden input
         // Using container to find input[type="file"] as it is hidden
-        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
 
         // Use fireEvent for hidden input change
         if (input) {
@@ -106,7 +107,7 @@ describe('UploadModal', () => {
         render(<UploadModal {...defaultProps} />);
 
         const file = new File(['dummy content'], 'video.mp4', { type: 'video/mp4' });
-        const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
         if (input) {
             fireEvent.change(input, { target: { files: [file] } });
         }
@@ -122,12 +123,41 @@ describe('UploadModal', () => {
         await user.click(uploadButton);
 
         expect(mockMutate).toHaveBeenCalled();
-        // Verify FormData was passed
-        const formData = mockMutate.mock.calls[0][0];
-        expect(formData).toBeInstanceOf(FormData);
-        expect(formData.get('title')).toBe('video');
-        expect(formData.get('author')).toBe('Admin');
-        expect(formData.get('video')).toBe(file);
+        const payload = mockMutate.mock.calls[0][0];
+        expect(payload).toEqual({
+            files: [file],
+            title: 'video',
+            author: 'Admin',
+        });
+    });
+
+    it('should allow selecting multiple files and disable custom title', () => {
+        render(<UploadModal {...defaultProps} />);
+
+        const firstFile = new File(['dummy content'], 'video-1.mp4', { type: 'video/mp4' });
+        const secondFile = new File(['dummy content'], 'video-2.mkv', { type: 'video/x-matroska' });
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+
+        fireEvent.change(input, { target: { files: [firstFile, secondFile] } });
+
+        expect(screen.getByText('video-1.mp4')).toBeInTheDocument();
+        expect(screen.getByText('video-2.mkv')).toBeInTheDocument();
+        expect(screen.getByLabelText('title')).toBeDisabled();
+        expect(screen.getByText('Multiple uploads use each filename as the title')).toBeInTheDocument();
+    });
+
+    it('should skip unsupported files automatically', () => {
+        render(<UploadModal {...defaultProps} />);
+
+        const validFile = new File(['dummy content'], 'video.mp4', { type: 'video/mp4' });
+        const invalidFile = new File(['dummy content'], 'notes.txt', { type: 'text/plain' });
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+
+        fireEvent.change(input, { target: { files: [validFile, invalidFile] } });
+
+        expect(screen.getByText('video.mp4')).toBeInTheDocument();
+        expect(screen.getByText('Skipped 1 unsupported files')).toBeInTheDocument();
+        expect(screen.queryByText('notes.txt')).not.toBeInTheDocument();
     });
 
     it('should show loading state during upload', () => {

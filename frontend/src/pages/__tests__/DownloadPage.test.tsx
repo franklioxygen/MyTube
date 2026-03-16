@@ -14,6 +14,7 @@ const {
     mockCancelQueries,
     mockSetQueryData,
     mockGetQueryData,
+    mockAuthState,
     mockHistoryDataRef,
     capturedActiveDownloadsPropsRef,
     capturedQueuePropsRef,
@@ -37,6 +38,7 @@ const {
     const mockCancelQueries = vi.fn();
     const mockSetQueryData = vi.fn();
     const mockGetQueryData = vi.fn();
+    const mockAuthState = { userRole: 'admin' as 'admin' | 'visitor' | null };
     const mockHistoryDataRef = { current: [] as unknown[] };
     const capturedActiveDownloadsPropsRef = { current: {} as Record<string, unknown> };
     const capturedQueuePropsRef = { current: {} as Record<string, unknown> };
@@ -53,6 +55,7 @@ const {
         mockCancelQueries,
         mockSetQueryData,
         mockGetQueryData,
+        mockAuthState,
         mockHistoryDataRef,
         capturedActiveDownloadsPropsRef,
         capturedQueuePropsRef,
@@ -72,6 +75,10 @@ vi.mock('../../contexts/SnackbarContext', () => ({
 
 vi.mock('../../contexts/DownloadContext', () => ({
     useDownload: () => mockDownloadContext,
+}));
+
+vi.mock('../../contexts/AuthContext', () => ({
+    useAuth: () => mockAuthState,
 }));
 
 vi.mock('../../utils/apiClient', () => ({
@@ -190,6 +197,7 @@ describe('DownloadPage', () => {
         mockApi.get.mockResolvedValue({ data: [] });
         mockApi.post.mockResolvedValue({ data: {} });
         mockApi.delete.mockResolvedValue({ data: {} });
+        mockAuthState.userRole = 'admin';
         capturedActiveDownloadsPropsRef.current = {};
         capturedQueuePropsRef.current = {};
         capturedHistoryPropsRef.current = {};
@@ -215,6 +223,13 @@ describe('DownloadPage', () => {
             renderPage();
             expect(screen.getByText('addBatchTasks')).toBeInTheDocument();
             expect(screen.getByText('uploadVideo')).toBeInTheDocument();
+        });
+
+        it('hides the upload button for non-admin users', () => {
+            mockAuthState.userRole = null;
+            renderPage();
+            expect(screen.getByText('addBatchTasks')).toBeInTheDocument();
+            expect(screen.queryByText('uploadVideo')).not.toBeInTheDocument();
         });
 
         it('renders tab panels with correct roles', () => {

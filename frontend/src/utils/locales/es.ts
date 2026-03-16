@@ -603,11 +603,19 @@ export const es = {
 
   // Upload Modal
   selectVideoFile: "Seleccionar Archivo de Video",
+  selectVideoFolder: "Seleccionar Carpeta",
   pleaseSelectVideo: "Por favor seleccione un archivo de video",
+  noSupportedVideosFound:
+    "No se encontraron archivos de video compatibles en tu selección",
   uploadFailed: "Carga fallida",
   failedToUpload: "Error al cargar el video",
   uploading: "Cargando...",
   upload: "Subir",
+  uploadSummary:
+    "Subidos {uploaded}, duplicados {duplicates}, fallidos {failed}",
+  unsupportedFilesSkipped: "Se omitieron {count} archivos no compatibles",
+  multipleUploadUsesFilename:
+    "Las cargas múltiples usan cada nombre de archivo como título",
   uploadThumbnail: "Subir miniatura",
   clickToSelectImage: "Haz clic para seleccionar una imagen",
   changeImage: "Cambiar imagen",

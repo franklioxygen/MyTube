@@ -30,8 +30,18 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 ## Video Management
 
-- `POST /api/upload` - Upload local video file
+- `POST /api/upload` - Upload one local video file
   - Multipart form-data: `video` (required), `title` (optional), `author` (optional)
+  - Notes:
+    - Content is validated as a supported video before it is accepted.
+    - Duplicate uploads are skipped by content hash.
+- `POST /api/upload/batch` - Upload multiple local video files in one request
+  - Multipart form-data: `videos` (one or more required), `title` (optional, only used when exactly one file is uploaded), `author` (optional)
+  - Response data shape: `{ results: Array<{ originalName, status, message, video? }>, summary: { total, uploaded, duplicates, failed } }`
+  - Notes:
+    - Intended for multi-file selection and folder uploads.
+    - Folder uploads import supported video files only; subdirectory structure is not preserved.
+    - Duplicate uploads are skipped by content hash.
 - `GET /api/videos` - Get all videos (no server-side pagination/filtering in current implementation)
 - `GET /api/videos/:id` - Get one video by ID
 - `GET /api/mount-video/:id` - Stream a mount-directory video by video ID (supports Range)

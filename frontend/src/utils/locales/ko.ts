@@ -580,11 +580,19 @@ export const ko = {
 
   // Upload Modal
   selectVideoFile: "동영상 파일 선택",
+  selectVideoFolder: "폴더 선택",
   pleaseSelectVideo: "동영상 파일을 선택하세요",
+  noSupportedVideosFound:
+    "선택한 항목에서 지원되는 동영상 파일을 찾을 수 없습니다",
   uploadFailed: "업로드 실패",
   failedToUpload: "동영상 업로드 실패",
   uploading: "업로드 중...",
   upload: "업로드",
+  uploadSummary:
+    "{uploaded}개 업로드, 중복 {duplicates}개, 실패 {failed}개",
+  unsupportedFilesSkipped: "지원되지 않는 파일 {count}개를 건너뛰었습니다",
+  multipleUploadUsesFilename:
+    "여러 파일 업로드 시 각 파일명이 제목으로 사용됩니다",
   uploadThumbnail: "썸네일 업로드",
   clickToSelectImage: "클릭하여 이미지 선택",
   changeImage: "이미지 변경",

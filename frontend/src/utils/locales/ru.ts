@@ -588,11 +588,20 @@ export const ru = {
 
   // Upload Modal
   selectVideoFile: "Выберите видеофайл",
+  selectVideoFolder: "Выберите папку",
   pleaseSelectVideo: "Пожалуйста, выберите видеофайл",
+  noSupportedVideosFound:
+    "В выбранном наборе не найдено поддерживаемых видеофайлов",
   uploadFailed: "Ошибка загрузки",
   failedToUpload: "Не удалось загрузить видео",
   uploading: "Загрузка...",
   upload: "Загрузить",
+  uploadSummary:
+    "Загружено {uploaded}, дубликатов {duplicates}, ошибок {failed}",
+  unsupportedFilesSkipped:
+    "Пропущено неподдерживаемых файлов: {count}",
+  multipleUploadUsesFilename:
+    "При множественной загрузке имя каждого файла используется как заголовок",
   uploadThumbnail: "Загрузить миниатюру",
   clickToSelectImage: "Нажмите, чтобы выбрать изображение",
   changeImage: "Изменить изображение",

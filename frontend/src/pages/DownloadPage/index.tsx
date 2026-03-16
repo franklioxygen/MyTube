@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import BatchDownloadModal from '../../components/BatchDownloadModal';
 import UploadModal from '../../components/UploadModal';
+import { useAuth } from '../../contexts/AuthContext';
 import { useDownload } from '../../contexts/DownloadContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
@@ -21,18 +22,38 @@ import { DownloadHistoryItem } from './HistoryItem';
 import { HistoryTab } from './HistoryTab';
 import { QueueTab } from './QueueTab';
 
+interface UploadBatchSummary {
+    total: number;
+    uploaded: number;
+    duplicates: number;
+    failed: number;
+}
+
 const DownloadPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
+    const { userRole } = useAuth();
     const { activeDownloads, queuedDownloads, handleVideoSubmit } = useDownload();
     const queryClient = useQueryClient();
     const [tabValue, setTabValue] = useState(0);
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [uploadModalOpen, setUploadModalOpen] = useState(false);
     const [downloadingItems, setDownloadingItems] = useState<Set<string>>(new Set());
+    const canUpload = userRole === 'admin';
 
-    const handleUploadSuccess = () => {
-        window.location.reload();
+    const handleUploadSuccess = (summary: UploadBatchSummary) => {
+        void queryClient.invalidateQueries({ queryKey: ['videos'] });
+
+        const uploadSummaryMessage = t(
+            'uploadSummary',
+            summary as unknown as Record<string, string | number>
+        );
+        if (uploadSummaryMessage !== 'uploadSummary') {
+            showSnackbar(uploadSummaryMessage);
+            return;
+        }
+
+        showSnackbar(`Uploaded ${summary.uploaded}, duplicates ${summary.duplicates}, failed ${summary.failed}`);
     };
 
     const handleBatchSubmit = async (urls: string[]) => {
@@ -257,14 +278,16 @@ const DownloadPage: React.FC = () => {
                     >
                         {t('addBatchTasks') || 'Add batch tasks'}
                     </Button>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<CloudUpload />}
-                        onClick={() => setUploadModalOpen(true)}
-                    >
-                        {t('uploadVideo') || 'Upload Video'}
-                    </Button>
+                    {canUpload && (
+                        <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<CloudUpload />}
+                            onClick={() => setUploadModalOpen(true)}
+                        >
+                            {t('uploadVideo') || 'Upload Video'}
+                        </Button>
+                    )}
                 </Box>
             </Box>
 
@@ -315,11 +338,13 @@ const DownloadPage: React.FC = () => {
                 onClose={() => setShowBatchModal(false)}
                 onConfirm={handleBatchSubmit}
             />
-            <UploadModal
-                open={uploadModalOpen}
-                onClose={() => setUploadModalOpen(false)}
-                onUploadSuccess={handleUploadSuccess}
-            />
+            {canUpload && (
+                <UploadModal
+                    open={uploadModalOpen}
+                    onClose={() => setUploadModalOpen(false)}
+                    onUploadSuccess={handleUploadSuccess}
+                />
+            )}
         </Container>
     );
 };

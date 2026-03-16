@@ -48,6 +48,7 @@ export {
     getVideoBySourceUrl,
     getVideos,
     saveVideo,
+    saveVideoIfAbsent,
     updateVideo
 } from "./videos";
 

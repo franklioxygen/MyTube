@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -9,9 +10,11 @@ import {
   getVideoById,
   serveMountVideo,
   uploadSubtitle,
+  uploadBatch,
   uploadSubtitleMiddleware,
   upload,
   uploadVideo,
+  uploadVideosBatch,
 } from "../../controllers/videoController";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { CloudStorageService } from "../../services/CloudStorageService";
@@ -28,6 +31,7 @@ vi.mock("../../services/storageService", () => ({
   getVideoBySourceUrl: vi.fn(),
   updateVideo: vi.fn(),
   saveVideo: vi.fn(),
+  saveVideoIfAbsent: vi.fn(),
   getSettings: vi.fn(),
 }));
 
@@ -79,10 +83,19 @@ vi.mock("fs-extra", () => ({
 }));
 
 vi.mock("child_process", () => ({
-  execFile: vi.fn((cmd: string, _args: any, maybeOptionsOrCb: any, maybeCb: any) => {
+  execFile: vi.fn((cmd: string, fileArgs: any, maybeOptionsOrCb: any, maybeCb: any) => {
     const cb = typeof maybeOptionsOrCb === "function" ? maybeOptionsOrCb : maybeCb;
     if (cmd === "ffprobe") {
-      cb(null, "125.6", "");
+      const args = Array.isArray(fileArgs) ? fileArgs : [];
+      if (args.includes("stream=codec_type")) {
+        cb(null, "video\naudio\n", "");
+        return;
+      }
+      if (args.includes("format=duration")) {
+        cb(null, "125.6", "");
+        return;
+      }
+      cb(null, "", "");
       return;
     }
     cb(null, "", "");
@@ -95,7 +108,6 @@ vi.mock("child_process", () => ({
 
 vi.mock("multer", () => {
   const state = (globalThis as any).__videoControllerMulterState || {
-    diskStorageConfig: null as any,
     calls: [] as any[],
   };
   (globalThis as any).__videoControllerMulterState = state;
@@ -104,10 +116,7 @@ vi.mock("multer", () => {
     single: vi.fn(),
     array: vi.fn(),
   }));
-  (multer as any).diskStorage = vi.fn((config: any) => {
-    state.diskStorageConfig = config;
-    return { _config: config };
-  });
+  (multer as any).diskStorage = vi.fn((config: any) => ({ _config: config }));
   (multer as any).memoryStorage = vi.fn(() => ({}));
   (multer as any).mockImplementation((options: any) => {
     state.calls.push(options);
@@ -167,35 +176,29 @@ describe("videoController extra coverage", () => {
     vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+    vi.mocked(storageService.getVideoById).mockReturnValue(undefined);
+    vi.mocked(storageService.saveVideoIfAbsent).mockReturnValue(true);
   });
 
-  it("multer upload storage callbacks generate destination and filename", () => {
+  it("upload middlewares use separate storages and tighter batch limits", () => {
     const state = (globalThis as any).__videoControllerMulterState;
-    const cb = vi.fn();
+    const uploadConfig = state.calls[0];
+    const batchConfig = state.calls[1];
 
-    expect(state.diskStorageConfig).toBeTruthy();
-    state.diskStorageConfig.destination({}, {}, cb);
-    expect(fs.ensureDirSync).toHaveBeenCalled();
-    expect(cb).toHaveBeenCalledWith(
-      null,
-      expect.stringMatching(/[\\/]uploads[\\/]videos$/)
-    );
-
-    const filenameCb = vi.fn();
-    state.diskStorageConfig.filename(
-      {},
-      { originalname: "movie.mp4" },
-      filenameCb
-    );
-    expect(filenameCb).toHaveBeenCalledWith(
-      null,
-      expect.stringMatching(/\.mp4$/)
-    );
+    expect(upload).toBeTruthy();
+    expect(uploadBatch).toBeTruthy();
+    expect(uploadConfig.storage).toBeTruthy();
+    expect(uploadConfig.storage).not.toBe(batchConfig.storage);
+    expect(typeof uploadConfig.storage._handleFile).toBe("function");
+    expect(typeof uploadConfig.storage._removeFile).toBe("function");
+    expect(uploadConfig.limits.fileSize).toBe(100 * 1024 * 1024 * 1024);
+    expect(uploadConfig.limits.files).toBe(1);
+    expect(batchConfig.limits.files).toBe(100);
   });
 
   it("uploadSubtitleMiddleware fileFilter accepts subtitle extensions and rejects invalid types", () => {
     const state = (globalThis as any).__videoControllerMulterState;
-    const subtitleConfig = state.calls[1];
+    const subtitleConfig = state.calls[2];
     const okCb = vi.fn();
     subtitleConfig.fileFilter({}, { originalname: "sub.zh.vtt" }, okCb);
     expect(okCb).toHaveBeenCalledWith(null, true);
@@ -524,9 +527,13 @@ describe("videoController extra coverage", () => {
   });
 
   it("uploadVideo saves video metadata", async () => {
+    const randomUuidSpy = vi
+      .spyOn(crypto, "randomUUID")
+      .mockReturnValue("11111111-1111-4111-8111-111111111111");
     req.file = {
       filename: "uploaded.mp4",
       originalname: "Original Name.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "uploaded.mp4"),
     } as any;
     req.body = { title: "Uploaded Title", author: "Uploader" };
 
@@ -538,8 +545,9 @@ describe("videoController extra coverage", () => {
 
     await uploadVideo(req as Request, res as Response);
 
-    expect(storageService.saveVideo).toHaveBeenCalledWith(
+    expect(storageService.saveVideoIfAbsent).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: "11111111-1111-4111-8111-111111111111",
         title: "Uploaded Title",
         author: "Uploader",
         videoFilename: "uploaded.mp4",
@@ -555,12 +563,15 @@ describe("videoController extra coverage", () => {
         message: "Video uploaded successfully",
       })
     );
+
+    randomUuidSpy.mockRestore();
   });
 
   it("uploadVideo rejects unsafe video filename path traversal", async () => {
     req.file = {
       filename: "../evil.mp4",
       originalname: "evil.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "../evil.mp4"),
     } as any;
 
     await expect(uploadVideo(req as Request, res as Response)).rejects.toBeInstanceOf(
@@ -568,47 +579,96 @@ describe("videoController extra coverage", () => {
     );
   });
 
+  it("uploadVideo rejects files without a video stream and removes the uploaded file", async () => {
+    const cp = await import("child_process");
+    vi.mocked(cp.execFile).mockImplementation(
+      (cmd: string, fileArgs: any, maybeOptionsOrCb: any, maybeCb: any) => {
+        const cb =
+          typeof maybeOptionsOrCb === "function" ? maybeOptionsOrCb : maybeCb;
+        const args = Array.isArray(fileArgs) ? fileArgs : [];
+        if (cmd === "ffprobe" && args.includes("stream=codec_type")) {
+          cb(null, "audio\n", "");
+          return {} as any;
+        }
+        cb(null, "", "");
+        return {} as any;
+      }
+    );
+
+    req.file = {
+      filename: "audio-only.mp4",
+      originalname: "audio-only.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "audio-only.mp4"),
+    } as any;
+    vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+      String(target).endsWith("audio-only.mp4")
+    );
+
+    await expect(uploadVideo(req as Request, res as Response)).rejects.toThrow(
+      "Uploaded file is not a valid supported video"
+    );
+
+    expect(fs.unlinkSync).toHaveBeenCalled();
+    expect(storageService.saveVideoIfAbsent).not.toHaveBeenCalled();
+  });
+
   it("uploadVideo keeps going when ffmpeg thumbnail generation fails", async () => {
     const cp = await import("child_process");
-    vi.mocked(cp.execFile).mockImplementation((cmd: string, ...args: any[]) => {
-      const cb = args[args.length - 1];
-      if (typeof cb !== "function") return {} as any;
-      if (cmd === "ffmpeg") {
-        cb(new Error("ffmpeg failed"), "", "stderr");
-      } else {
-        cb(null, "120", "");
+    vi.mocked(cp.execFile).mockImplementation(
+      (cmd: string, fileArgs: any, maybeOptionsOrCb: any, maybeCb: any) => {
+        const cb =
+          typeof maybeOptionsOrCb === "function" ? maybeOptionsOrCb : maybeCb;
+        if (typeof cb !== "function") return {} as any;
+        const args = Array.isArray(fileArgs) ? fileArgs : [];
+        if (cmd === "ffprobe" && args.includes("stream=codec_type")) {
+          cb(null, "video\n", "");
+        } else if (cmd === "ffprobe" && args.includes("format=duration")) {
+          cb(null, "120", "");
+        } else if (cmd === "ffmpeg") {
+          cb(new Error("ffmpeg failed"), "", "stderr");
+        } else {
+          cb(null, "", "");
+        }
+        return {} as any;
       }
-      return {} as any;
-    });
+    );
 
     req.file = {
       filename: "thumb-fail.mp4",
       originalname: "thumb-fail.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "thumb-fail.mp4"),
     } as any;
     vi.mocked(fs.existsSync).mockReturnValue(false);
 
     await uploadVideo(req as Request, res as Response);
 
-    expect(storageService.saveVideo).toHaveBeenCalled();
+    expect(storageService.saveVideoIfAbsent).toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(201);
   });
 
   it("uploadVideo handles ffprobe failure and file size stat errors", async () => {
     const cp = await import("child_process");
-    vi.mocked(cp.execFile).mockImplementation((cmd: string, ...args: any[]) => {
-      const cb = args[args.length - 1];
-      if (typeof cb !== "function") return {} as any;
-      if (cmd === "ffprobe") {
-        cb(new Error("ffprobe failed"), "", "stderr");
-      } else {
-        cb(null, "", "");
+    vi.mocked(cp.execFile).mockImplementation(
+      (cmd: string, fileArgs: any, maybeOptionsOrCb: any, maybeCb: any) => {
+        const cb =
+          typeof maybeOptionsOrCb === "function" ? maybeOptionsOrCb : maybeCb;
+        if (typeof cb !== "function") return {} as any;
+        const args = Array.isArray(fileArgs) ? fileArgs : [];
+        if (cmd === "ffprobe" && args.includes("stream=codec_type")) {
+          cb(null, "video\n", "");
+        } else if (cmd === "ffprobe" && args.includes("format=duration")) {
+          cb(new Error("ffprobe failed"), "", "stderr");
+        } else {
+          cb(null, "", "");
+        }
+        return {} as any;
       }
-      return {} as any;
-    });
+    );
 
     req.file = {
       filename: "stat-fail.mp4",
       originalname: "stat-fail.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "stat-fail.mp4"),
     } as any;
     vi.mocked(fs.existsSync).mockImplementation((target: any) =>
       String(target).endsWith("stat-fail.mp4")
@@ -619,10 +679,136 @@ describe("videoController extra coverage", () => {
 
     await uploadVideo(req as Request, res as Response);
 
-    expect(storageService.saveVideo).toHaveBeenCalledWith(
+    expect(storageService.saveVideoIfAbsent).toHaveBeenCalledWith(
       expect.objectContaining({
         duration: undefined,
         fileSize: undefined,
+      })
+    );
+  });
+
+  it("uploadVideo skips duplicate uploads by content hash", async () => {
+    req.file = {
+      filename: "duplicate.mp4",
+      originalname: "duplicate.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "duplicate.mp4"),
+      contentHash: "same-content",
+    } as any;
+    vi.mocked(storageService.getVideoById).mockReturnValue({
+      id: "upload-same-content",
+      title: "Existing video",
+    } as any);
+    vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+      String(target).endsWith("duplicate.mp4")
+    );
+
+    await uploadVideo(req as Request, res as Response);
+
+    expect(fs.unlinkSync).toHaveBeenCalled();
+    expect(storageService.saveVideoIfAbsent).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        message: "Video already exists. Skipped duplicate upload",
+      })
+    );
+  });
+
+  it("uploadVideo cleans up and returns duplicate when atomic insert loses a race", async () => {
+    req.file = {
+      filename: "race.mp4",
+      originalname: "race.mp4",
+      path: path.join(process.cwd(), "uploads", "videos", "race.mp4"),
+      contentHash: "race-hash",
+    } as any;
+    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+      const value = String(target);
+      return value.endsWith("race.mp4") || value.endsWith("race.jpg");
+    });
+    vi.mocked(fs.statSync).mockReturnValue({ size: 4096 } as any);
+    vi.mocked(storageService.saveVideoIfAbsent).mockReturnValue(false);
+    vi.mocked(storageService.getVideoById)
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce({
+        id: "upload-race-hash",
+        title: "Winner",
+      } as any);
+
+    await uploadVideo(req as Request, res as Response);
+
+    expect(fs.unlinkSync).toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        message: "Video already exists. Skipped duplicate upload",
+      })
+    );
+  });
+
+  it("uploadVideosBatch returns per-file results and summary", async () => {
+    req.files = [
+      {
+        filename: "fresh.mp4",
+        originalname: "fresh.mp4",
+        path: path.join(process.cwd(), "uploads", "videos", "fresh.mp4"),
+        contentHash: "fresh-hash",
+      },
+      {
+        filename: "duplicate.mp4",
+        originalname: "duplicate.mp4",
+        path: path.join(process.cwd(), "uploads", "videos", "duplicate.mp4"),
+        contentHash: "dup-hash",
+      },
+      {
+        filename: "bad.mp4",
+        originalname: "bad.mp4",
+        validationError: "Uploaded file is empty or has an unsupported video signature.",
+      },
+    ] as any;
+    req.body = { author: "Uploader" };
+
+    vi.mocked(storageService.getVideoById).mockImplementation((id: string) => {
+      if (id === "upload-dup-hash") {
+        return { id, title: "Already there" } as any;
+      }
+      return undefined;
+    });
+    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+      const value = String(target);
+      return value.endsWith("fresh.mp4") || value.endsWith("fresh.jpg");
+    });
+    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as any);
+
+    await uploadVideosBatch(req as Request, res as Response);
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          summary: {
+            total: 3,
+            uploaded: 1,
+            duplicates: 1,
+            failed: 1,
+          },
+          results: [
+            expect.objectContaining({
+              originalName: "fresh.mp4",
+              status: "uploaded",
+            }),
+            expect.objectContaining({
+              originalName: "duplicate.mp4",
+              status: "duplicate",
+            }),
+            expect.objectContaining({
+              originalName: "bad.mp4",
+              status: "failed",
+            }),
+          ],
+        }),
       })
     );
   });

@@ -600,11 +600,19 @@ export const fr = {
 
   // Upload Modal
   selectVideoFile: "Sélectionner un fichier vidéo",
+  selectVideoFolder: "Sélectionner un dossier",
   pleaseSelectVideo: "Veuillez sélectionner un fichier vidéo",
+  noSupportedVideosFound:
+    "Aucun fichier vidéo pris en charge n'a été trouvé dans votre sélection",
   uploadFailed: "Échec de la mise en ligne",
   failedToUpload: "Échec de la mise en ligne de la vidéo",
   uploading: "Mise en ligne...",
   upload: "Mettre en ligne",
+  uploadSummary:
+    "{uploaded} envoyés, {duplicates} doublons, {failed} échecs",
+  unsupportedFilesSkipped: "{count} fichiers non pris en charge ignorés",
+  multipleUploadUsesFilename:
+    "Les envois multiples utilisent chaque nom de fichier comme titre",
   uploadThumbnail: "Télécharger la miniature",
   clickToSelectImage: "Cliquez pour sélectionner une image",
   changeImage: "Changer l'image",

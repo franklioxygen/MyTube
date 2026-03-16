@@ -575,11 +575,17 @@ export const ar = {
 
   // Upload Modal
   selectVideoFile: "اختر ملف فيديو",
+  selectVideoFolder: "اختر مجلدًا",
   pleaseSelectVideo: "الرجاء اختيار ملف فيديو",
+  noSupportedVideosFound: "لم يتم العثور على ملفات فيديو مدعومة في اختيارك",
   uploadFailed: "فشل الرفع",
   failedToUpload: "فشل رفع الفيديو",
   uploading: "جاري الرفع...",
   upload: "رفع",
+  uploadSummary:
+    "تم رفع {uploaded}، وتخطي {duplicates} مكرر، وفشل {failed}",
+  unsupportedFilesSkipped: "تم تخطي {count} ملفات غير مدعومة",
+  multipleUploadUsesFilename: "تستخدم عمليات الرفع المتعددة اسم كل ملف كعنوان",
   uploadThumbnail: "تحميل الصورة المصغرة",
   clickToSelectImage: "انقر لتحديد صورة",
   changeImage: "تغيير الصورة",

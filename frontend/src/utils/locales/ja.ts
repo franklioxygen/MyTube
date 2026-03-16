@@ -592,11 +592,19 @@ export const ja = {
 
   // Upload Modal
   selectVideoFile: "動画ファイルを選択",
+  selectVideoFolder: "フォルダを選択",
   pleaseSelectVideo: "動画ファイルを選択してください",
+  noSupportedVideosFound:
+    "選択内容の中に対応している動画ファイルが見つかりませんでした",
   uploadFailed: "アップロードに失敗しました",
   failedToUpload: "動画のアップロードに失敗しました",
   uploading: "アップロード中...",
   upload: "アップロード",
+  uploadSummary:
+    "{uploaded} 件アップロード、重複 {duplicates} 件、失敗 {failed} 件",
+  unsupportedFilesSkipped: "未対応のファイルを {count} 件スキップしました",
+  multipleUploadUsesFilename:
+    "複数アップロードでは各ファイル名がタイトルとして使われます",
   uploadThumbnail: "サムネイルをアップロード",
   clickToSelectImage: "クリックして画像を選択",
   changeImage: "画像を変更",
