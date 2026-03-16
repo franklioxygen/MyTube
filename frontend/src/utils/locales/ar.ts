@@ -576,8 +576,14 @@ export const ar = {
   // Upload Modal
   selectVideoFile: "اختر ملف فيديو",
   selectVideoFolder: "اختر مجلدًا",
+  uploadFileLimitHint:
+    "يمكنك رفع ما يصل إلى {count} ملفًا وبحجم إجمالي {size} جيجابايت في المرة الواحدة. يتم احتساب كل فيديو وحجمه داخل المجلد ضمن هذا الحد.",
   pleaseSelectVideo: "الرجاء اختيار ملف فيديو",
   noSupportedVideosFound: "لم يتم العثور على ملفات فيديو مدعومة في اختيارك",
+  tooManyFilesSelected:
+    "يمكنك رفع ما يصل إلى {count} ملفًا في المرة الواحدة. قلل عدد الملفات ثم حاول مرة أخرى.",
+  totalUploadSizeExceeded:
+    "تتجاوز الملفات المحددة حد الرفع الإجمالي البالغ {size} جيجابايت. قلل اختيارك ثم حاول مرة أخرى.",
   uploadFailed: "فشل الرفع",
   failedToUpload: "فشل رفع الفيديو",
   uploading: "جاري الرفع...",

@@ -606,9 +606,15 @@ export const de = {
   // Upload Modal
   selectVideoFile: "Videodatei Auswählen",
   selectVideoFolder: "Ordner Auswählen",
+  uploadFileLimitHint:
+    "Sie können bis zu {count} Dateien und insgesamt {size} GB auf einmal hochladen. Bei Ordner-Uploads zählen jedes Video und dessen Dateigröße für diese Limits.",
   pleaseSelectVideo: "Bitte wählen Sie eine Videodatei aus",
   noSupportedVideosFound:
     "In Ihrer Auswahl wurden keine unterstützten Videodateien gefunden",
+  tooManyFilesSelected:
+    "Sie können bis zu {count} Dateien auf einmal hochladen. Bitte reduzieren Sie Ihre Auswahl und versuchen Sie es erneut.",
+  totalUploadSizeExceeded:
+    "Die ausgewählten Dateien überschreiten das gesamte Upload-Limit von {size} GB. Bitte reduzieren Sie Ihre Auswahl und versuchen Sie es erneut.",
   uploadFailed: "Upload fehlgeschlagen",
   failedToUpload: "Fehler beim Hochladen des Videos",
   uploading: "Hochladen...",

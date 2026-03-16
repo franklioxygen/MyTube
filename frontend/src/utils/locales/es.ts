@@ -604,9 +604,15 @@ export const es = {
   // Upload Modal
   selectVideoFile: "Seleccionar Archivo de Video",
   selectVideoFolder: "Seleccionar Carpeta",
+  uploadFileLimitHint:
+    "Puedes subir hasta {count} archivos y {size} GB en total por vez. En las subidas de carpetas, cada video y su tamaño cuentan para estos límites.",
   pleaseSelectVideo: "Por favor seleccione un archivo de video",
   noSupportedVideosFound:
     "No se encontraron archivos de video compatibles en tu selección",
+  tooManyFilesSelected:
+    "Puedes subir hasta {count} archivos por vez. Reduce tu selección e inténtalo de nuevo.",
+  totalUploadSizeExceeded:
+    "Los archivos seleccionados superan el límite total de carga de {size} GB. Reduce tu selección e inténtalo de nuevo.",
   uploadFailed: "Carga fallida",
   failedToUpload: "Error al cargar el video",
   uploading: "Cargando...",

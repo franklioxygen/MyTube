@@ -66,6 +66,9 @@ const SUPPORTED_VIDEO_EXTENSIONS = new Set([
 ]);
 
 const VIDEO_INPUT_ACCEPT = 'video/*,.mp4,.webm,.mkv,.avi,.mov,.m4v,.flv,.3gp';
+const MAX_BATCH_UPLOAD_FILES = 100;
+const MAX_BATCH_UPLOAD_TOTAL_SIZE_BYTES = 100 * 1024 * 1024 * 1024;
+const MAX_BATCH_UPLOAD_TOTAL_SIZE_GB = 100;
 
 const getFileExtension = (filename: string) => {
     const dotIndex = filename.lastIndexOf('.');
@@ -109,6 +112,35 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
         const selectedFiles = Array.from(event.target.files || []) as UploadableFile[];
         const validFiles = selectedFiles.filter(isSupportedVideoFile);
         const skippedCount = selectedFiles.length - validFiles.length;
+        const totalValidBytes = validFiles.reduce((sum, file) => sum + file.size, 0);
+
+        if (validFiles.length > MAX_BATCH_UPLOAD_FILES) {
+            setFiles([]);
+            setTitle('');
+            setSkippedFilesCount(skippedCount);
+            setProgress(0);
+            setError(getOptionalText(
+                'tooManyFilesSelected',
+                'You can upload up to {count} files at a time. Please reduce your selection and try again.',
+                { count: MAX_BATCH_UPLOAD_FILES }
+            ));
+            event.target.value = '';
+            return;
+        }
+
+        if (totalValidBytes > MAX_BATCH_UPLOAD_TOTAL_SIZE_BYTES) {
+            setFiles([]);
+            setTitle('');
+            setSkippedFilesCount(skippedCount);
+            setProgress(0);
+            setError(getOptionalText(
+                'totalUploadSizeExceeded',
+                'Selected files exceed the {size} GB total upload limit. Please reduce your selection and try again.',
+                { size: MAX_BATCH_UPLOAD_TOTAL_SIZE_GB }
+            ));
+            event.target.value = '';
+            return;
+        }
 
         setFiles(validFiles);
         setSkippedFilesCount(skippedCount);
@@ -206,6 +238,11 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
         : t('selectVideoFile');
 
     const uploadProgressLabel = `${t('uploading')} ${progress}%`;
+    const uploadLimitHint = getOptionalText(
+        'uploadFileLimitHint',
+        'Upload up to {count} files and {size} GB total at a time. Folder uploads count each video and file size toward these limits.',
+        { count: MAX_BATCH_UPLOAD_FILES, size: MAX_BATCH_UPLOAD_TOTAL_SIZE_GB }
+    );
 
     const directoryInputProps: DirectoryInputProps = {
         type: 'file',
@@ -255,6 +292,10 @@ const UploadModal: React.FC<UploadModalProps> = ({ open, onClose, onUploadSucces
                             />
                         </Button>
                     </Stack>
+
+                    <Typography color="text.secondary" variant="body2">
+                        {uploadLimitHint}
+                    </Typography>
 
                     {files.length > 1 && (
                         <Box

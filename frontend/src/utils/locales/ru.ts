@@ -589,9 +589,15 @@ export const ru = {
   // Upload Modal
   selectVideoFile: "Выберите видеофайл",
   selectVideoFolder: "Выберите папку",
+  uploadFileLimitHint:
+    "За один раз можно загрузить не более {count} файлов и {size} ГБ суммарно. При загрузке папки каждое видео и его размер учитываются в этих лимитах.",
   pleaseSelectVideo: "Пожалуйста, выберите видеофайл",
   noSupportedVideosFound:
     "В выбранном наборе не найдено поддерживаемых видеофайлов",
+  tooManyFilesSelected:
+    "За один раз можно загрузить не более {count} файлов. Уменьшите выбор и попробуйте снова.",
+  totalUploadSizeExceeded:
+    "Выбранные файлы превышают общий лимит загрузки в {size} ГБ. Уменьшите выбор и попробуйте снова.",
   uploadFailed: "Ошибка загрузки",
   failedToUpload: "Не удалось загрузить видео",
   uploading: "Загрузка...",

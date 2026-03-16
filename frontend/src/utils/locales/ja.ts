@@ -593,9 +593,15 @@ export const ja = {
   // Upload Modal
   selectVideoFile: "動画ファイルを選択",
   selectVideoFolder: "フォルダを選択",
+  uploadFileLimitHint:
+    "一度にアップロードできるのは最大 {count} ファイル、合計 {size} GB までです。フォルダアップロードでは各動画とそのサイズがこの上限に含まれます。",
   pleaseSelectVideo: "動画ファイルを選択してください",
   noSupportedVideosFound:
     "選択内容の中に対応している動画ファイルが見つかりませんでした",
+  tooManyFilesSelected:
+    "一度にアップロードできるのは最大 {count} ファイルです。選択数を減らしてからもう一度お試しください。",
+  totalUploadSizeExceeded:
+    "選択したファイルの合計サイズが {size} GB のアップロード上限を超えています。選択数を減らしてからもう一度お試しください。",
   uploadFailed: "アップロードに失敗しました",
   failedToUpload: "動画のアップロードに失敗しました",
   uploading: "アップロード中...",

@@ -597,9 +597,15 @@ export const pt = {
   // Upload Modal
   selectVideoFile: "Selecionar Arquivo de Vídeo",
   selectVideoFolder: "Selecionar Pasta",
+  uploadFileLimitHint:
+    "Você pode enviar até {count} arquivos e {size} GB no total por vez. Em envios de pasta, cada vídeo e seu tamanho contam para esses limites.",
   pleaseSelectVideo: "Por favor, selecione um arquivo de vídeo",
   noSupportedVideosFound:
     "Nenhum arquivo de vídeo compatível foi encontrado na sua seleção",
+  tooManyFilesSelected:
+    "Você pode enviar até {count} arquivos por vez. Reduza sua seleção e tente novamente.",
+  totalUploadSizeExceeded:
+    "Os arquivos selecionados excedem o limite total de upload de {size} GB. Reduza sua seleção e tente novamente.",
   uploadFailed: "Falha no envio",
   failedToUpload: "Falha ao enviar vídeo",
   uploading: "Enviando...",

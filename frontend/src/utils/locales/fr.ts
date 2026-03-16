@@ -601,9 +601,15 @@ export const fr = {
   // Upload Modal
   selectVideoFile: "Sélectionner un fichier vidéo",
   selectVideoFolder: "Sélectionner un dossier",
+  uploadFileLimitHint:
+    "Vous pouvez envoyer jusqu'à {count} fichiers et {size} Go au total à la fois. Lors d'un envoi de dossier, chaque vidéo et sa taille comptent dans ces limites.",
   pleaseSelectVideo: "Veuillez sélectionner un fichier vidéo",
   noSupportedVideosFound:
     "Aucun fichier vidéo pris en charge n'a été trouvé dans votre sélection",
+  tooManyFilesSelected:
+    "Vous pouvez envoyer jusqu'à {count} fichiers à la fois. Réduisez votre sélection puis réessayez.",
+  totalUploadSizeExceeded:
+    "Les fichiers sélectionnés dépassent la limite totale d'envoi de {size} Go. Réduisez votre sélection puis réessayez.",
   uploadFailed: "Échec de la mise en ligne",
   failedToUpload: "Échec de la mise en ligne de la vidéo",
   uploading: "Mise en ligne...",

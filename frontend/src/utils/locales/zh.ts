@@ -559,8 +559,13 @@ export const zh = {
   // Upload Modal
   selectVideoFile: "选择视频文件",
   selectVideoFolder: "选择文件夹",
+  uploadFileLimitHint:
+    "单次最多上传 {count} 个文件，总体积不超过 {size} GB。文件夹上传时，其中每个视频及其文件体积都会计入此限制。",
   pleaseSelectVideo: "请选择一个视频文件",
   noSupportedVideosFound: "所选内容中没有受支持的视频文件",
+  tooManyFilesSelected: "单次最多上传 {count} 个文件。请减少选择数量后重试。",
+  totalUploadSizeExceeded:
+    "所选文件总大小超过 {size} GB 上传上限。请减少选择数量后重试。",
   uploadFailed: "上传失败",
   failedToUpload: "视频上传失败",
   uploading: "上传中...",

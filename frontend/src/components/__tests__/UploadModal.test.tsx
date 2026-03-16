@@ -44,6 +44,9 @@ describe('UploadModal', () => {
         expect(screen.getByText('uploadVideo')).toBeInTheDocument();
         expect(screen.getByText('selectVideoFile')).toBeInTheDocument();
         expect(screen.getByText('Select Folder')).toBeInTheDocument();
+        expect(
+            screen.getByText('Upload up to 100 files and 100 GB total at a time. Folder uploads count each video and file size toward these limits.')
+        ).toBeInTheDocument();
         expect(screen.getByLabelText('title')).toBeInTheDocument();
         expect(screen.getByLabelText('author')).toBeInTheDocument();
         expect(screen.getByText('upload')).toBeInTheDocument();
@@ -158,6 +161,41 @@ describe('UploadModal', () => {
         expect(screen.getByText('video.mp4')).toBeInTheDocument();
         expect(screen.getByText('Skipped 1 unsupported files')).toBeInTheDocument();
         expect(screen.queryByText('notes.txt')).not.toBeInTheDocument();
+    });
+
+    it('should block selections that exceed the maximum upload file count', () => {
+        render(<UploadModal {...defaultProps} />);
+
+        const files = Array.from({ length: 101 }, (_, index) =>
+            new File(['dummy content'], `video-${index + 1}.mp4`, { type: 'video/mp4' })
+        );
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+
+        fireEvent.change(input, { target: { files } });
+
+        expect(
+            screen.getByText('You can upload up to 100 files at a time. Please reduce your selection and try again.')
+        ).toBeInTheDocument();
+        expect(screen.queryByText('video-1.mp4')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /upload/i })).toBeDisabled();
+    });
+
+    it('should block selections that exceed the maximum total upload size', () => {
+        render(<UploadModal {...defaultProps} />);
+
+        const firstFile = new File(['a'], 'large-1.mp4', { type: 'video/mp4' });
+        const secondFile = new File(['b'], 'large-2.mp4', { type: 'video/mp4' });
+        Object.defineProperty(firstFile, 'size', { value: 60 * 1024 * 1024 * 1024 });
+        Object.defineProperty(secondFile, 'size', { value: 50 * 1024 * 1024 * 1024 });
+        const input = document.querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
+
+        fireEvent.change(input, { target: { files: [firstFile, secondFile] } });
+
+        expect(
+            screen.getByText('Selected files exceed the 100 GB total upload limit. Please reduce your selection and try again.')
+        ).toBeInTheDocument();
+        expect(screen.queryByText('large-1.mp4')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /upload/i })).toBeDisabled();
     });
 
     it('should show loading state during upload', () => {

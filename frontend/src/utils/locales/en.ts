@@ -563,8 +563,14 @@ export const en = {
   // Upload Modal
   selectVideoFile: "Select Video File",
   selectVideoFolder: "Select Folder",
+  uploadFileLimitHint:
+    "Upload up to {count} files and {size} GB total at a time. Folder uploads count each video and file size toward these limits.",
   pleaseSelectVideo: "Please select a video file",
   noSupportedVideosFound: "No supported video files were found in your selection",
+  tooManyFilesSelected:
+    "You can upload up to {count} files at a time. Please reduce your selection and try again.",
+  totalUploadSizeExceeded:
+    "Selected files exceed the {size} GB total upload limit. Please reduce your selection and try again.",
   uploadFailed: "Upload failed",
   failedToUpload: "Failed to upload video",
   uploading: "Uploading...",

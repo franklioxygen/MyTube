@@ -581,9 +581,15 @@ export const ko = {
   // Upload Modal
   selectVideoFile: "동영상 파일 선택",
   selectVideoFolder: "폴더 선택",
+  uploadFileLimitHint:
+    "한 번에 최대 {count}개 파일, 총 {size}GB까지 업로드할 수 있습니다. 폴더 업로드에서는 각 동영상과 파일 크기가 이 제한에 포함됩니다.",
   pleaseSelectVideo: "동영상 파일을 선택하세요",
   noSupportedVideosFound:
     "선택한 항목에서 지원되는 동영상 파일을 찾을 수 없습니다",
+  tooManyFilesSelected:
+    "한 번에 최대 {count}개 파일까지 업로드할 수 있습니다. 선택 수를 줄인 뒤 다시 시도하세요.",
+  totalUploadSizeExceeded:
+    "선택한 파일의 총 크기가 {size}GB 업로드 제한을 초과했습니다. 선택 수를 줄인 뒤 다시 시도하세요.",
   uploadFailed: "업로드 실패",
   failedToUpload: "동영상 업로드 실패",
   uploading: "업로드 중...",
