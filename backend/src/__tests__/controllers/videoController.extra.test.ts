@@ -547,6 +547,7 @@ describe("videoController extra coverage", () => {
       filename: "uploaded.mp4",
       originalname: "Original Name.mp4",
       path: path.join(process.cwd(), "uploads", "videos", "uploaded.mp4"),
+      size: 2048,
     } as any;
     req.body = { title: "Uploaded Title", author: "Uploader" };
 
@@ -554,8 +555,6 @@ describe("videoController extra coverage", () => {
       const value = String(target);
       return value.endsWith("uploaded.mp4") || value.endsWith("uploaded.jpg");
     });
-    vi.mocked(fs.statSync).mockReturnValue({ size: 2048 } as any);
-
     await uploadVideo(req as Request, res as Response);
 
     expect(storageService.saveVideoIfAbsent).toHaveBeenCalledWith(
