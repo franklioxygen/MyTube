@@ -4,13 +4,10 @@ import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
 import { fromBuffer, fromFile } from "file-type";
 
-const { PNG } = require("pngjs");
-
-const png1x1 = PNG.sync.write({
-  width: 1,
-  height: 1,
-  data: Buffer.from([255, 255, 255, 255]),
-});
+const png1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X7j0AAAAASUVORK5CYII=",
+  "base64",
+);
 
 const jpegHeader = Buffer.from([0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00]);
 const gifHeader = Buffer.from("47494638396101000100", "hex");
