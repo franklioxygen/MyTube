@@ -24,6 +24,7 @@ vi.mock('../../config/paths', () => ({
   SUBTITLES_DIR: '/test/subtitles',
   VIDEOS_DIR: '/test/videos',
   IMAGES_DIR: '/test/images',
+  IMAGES_SMALL_DIR: '/test/images-small',
   DATA_DIR: '/test/data',
 }));
 
@@ -332,4 +333,3 @@ describe('SubtitleService', () => {
     });
   });
 });
-

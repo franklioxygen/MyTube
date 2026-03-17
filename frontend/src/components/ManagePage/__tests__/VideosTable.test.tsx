@@ -212,7 +212,7 @@ describe('VideosTable', () => {
 
         expect(screen.getByText('Video 1')).toBeInTheDocument();
         expect(screen.getByText('Author 1')).toBeInTheDocument();
-        expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images/thumb-1.jpg?t=123');
+        expect(screen.getByAltText('Video 1')).toHaveAttribute('src', '/images-small/thumb-1.jpg?t=123');
     });
 
     it('calls onSearchChange and onSort from the header controls', () => {

@@ -26,6 +26,10 @@ vi.mock("../../services/tmdbService", () => ({
   scrapeMetadataFromTMDB: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("../../services/thumbnailMirrorService", () => ({
+  regenerateSmallThumbnailForThumbnailPath: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock("../../utils/helpers", () => ({
   formatVideoFilename: vi.fn((title: string, author: string, date: string) =>
     `${title}_${author}_${date}`
@@ -41,12 +45,14 @@ vi.mock("../../utils/security", () => ({
 
 vi.mock("fs-extra", () => ({
   default: {
+    existsSync: vi.fn(),
     pathExists: vi.fn(),
     readdir: vi.fn(),
     stat: vi.fn(),
     remove: vi.fn(),
     move: vi.fn(),
   },
+  existsSync: vi.fn(),
   pathExists: vi.fn(),
   readdir: vi.fn(),
   stat: vi.fn(),
