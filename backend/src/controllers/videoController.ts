@@ -8,23 +8,23 @@ import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import {
-    deleteSmallThumbnailMirrorSync,
-    regenerateSmallThumbnailForThumbnailPath,
-    resolveManagedThumbnailTarget,
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+  resolveManagedThumbnailTarget,
 } from "../services/thumbnailMirrorService";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
-    resolveSafePath,
-    sanitizePathSegment,
+  resolveSafePath,
+  sanitizePathSegment,
 } from "../utils/security";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
-    createUploadValidationError,
-    createVideoUploadStorage,
-    getUploadVideoId,
-    UploadedVideoFile,
+  createUploadValidationError,
+  createVideoUploadStorage,
+  getUploadVideoId,
+  UploadedVideoFile,
 } from "../utils/videoUpload";
 
 const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
@@ -32,6 +32,7 @@ const MAX_BATCH_UPLOAD_FILES = 100;
 const MAX_BATCH_UPLOAD_TOTAL_SIZE = MAX_VIDEO_UPLOAD_FILE_SIZE;
 const MAX_SINGLE_UPLOAD_FIELDS = 4;
 const MAX_BATCH_UPLOAD_FIELDS = MAX_BATCH_UPLOAD_FILES + 4;
+const STORED_UPLOAD_FILENAME_PATTERN = /^(?!.*\.\.)[a-z0-9][a-z0-9._-]*$/i;
 
 export const videoUploadStorage = createVideoUploadStorage(VIDEOS_DIR);
 export const videoBatchUploadStorage = createVideoUploadStorage(VIDEOS_DIR, {
@@ -108,6 +109,33 @@ const validateVideoPath = (inputPath: string): string => {
   }
 };
 
+const getStoredUploadFilename = (
+  file: Pick<UploadedVideoFile, "filename" | "path">,
+): string | undefined => {
+  const candidate =
+    typeof file.filename === "string" && file.filename.length > 0
+      ? file.filename
+      : typeof file.path === "string" && file.path.length > 0
+        ? path.basename(file.path)
+        : undefined;
+
+  if (!candidate || !STORED_UPLOAD_FILENAME_PATTERN.test(candidate)) {
+    return undefined;
+  }
+
+  return candidate;
+};
+
+const resolveStoredUploadVideoPath = (
+  videoFilename: string,
+): string | undefined => {
+  try {
+    return resolveSafePath(path.join(VIDEOS_DIR, videoFilename), VIDEOS_DIR);
+  } catch {
+    return undefined;
+  }
+};
+
 // Helper for video duration
 const getVideoDuration = async (
   videoPath: string
@@ -179,16 +207,15 @@ const uploadedFileHasVideoStream = async (videoPath: string): Promise<boolean> =
   }
 };
 
-const cleanupUploadedVideo = (videoPath: string | undefined): void => {
-  if (!videoPath) {
+const cleanupUploadedVideo = (videoFilename: string | undefined): void => {
+  if (!videoFilename) {
     return;
   }
 
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(videoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(videoPath);
+    const storedVideoPath = resolveStoredUploadVideoPath(videoFilename);
+    if (storedVideoPath && fs.existsSync(storedVideoPath)) {
+      fs.unlinkSync(storedVideoPath);
     }
   } catch (error) {
     logger.error("Failed to clean up uploaded video:", error);
@@ -324,21 +351,18 @@ const getUploadVideoPayload = async (
   title: string,
   author: string
 ): Promise<UploadResultItem> => {
+  const storedVideoFilename = getStoredUploadFilename(file);
+
   if (file.validationError) {
-    cleanupUploadedVideo(file.path);
+    cleanupUploadedVideo(storedVideoFilename);
     return buildUploadFailureResult(file, file.validationError);
   }
 
-  const rawVideoPath =
-    file.path ||
-    (file.filename
-      ? path.normalize(path.join(VIDEOS_DIR, file.filename))
-      : undefined);
-
-  if (!rawVideoPath) {
+  if (!storedVideoFilename) {
     return buildUploadFailureResult(file, "No video file uploaded");
   }
 
+  const rawVideoPath = path.join(VIDEOS_DIR, storedVideoFilename);
   const validatedVideoPath = validateVideoPath(rawVideoPath);
   const contentHash = file.contentHash;
   const videoId =
@@ -348,11 +372,11 @@ const getUploadVideoPayload = async (
   const existingVideo = storageService.getVideoById(videoId);
 
   if (existingVideo) {
-    cleanupUploadedVideo(validatedVideoPath);
+    cleanupUploadedVideo(storedVideoFilename);
     return buildUploadDuplicateResult(file, existingVideo);
   }
 
-  const videoFilename = path.basename(validatedVideoPath);
+  const videoFilename = storedVideoFilename;
   const requestedThumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
   const settings = storageService.getSettings();
   const thumbnailTarget = resolveManagedThumbnailTarget(
@@ -368,7 +392,7 @@ const getUploadVideoPayload = async (
 
   const hasVideoStream = await uploadedFileHasVideoStream(validatedVideoPath);
   if (!hasVideoStream) {
-    cleanupUploadedVideo(validatedVideoPath);
+    cleanupUploadedVideo(videoFilename);
     cleanupGeneratedThumbnail(validatedThumbnailPath);
     return buildUploadFailureResult(
       file,
@@ -398,10 +422,9 @@ const getUploadVideoPayload = async (
 
   let fileSize: string | undefined;
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(validatedVideoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(validatedVideoPath);
+    const storedVideoPath = resolveStoredUploadVideoPath(videoFilename);
+    if (storedVideoPath && fs.existsSync(storedVideoPath)) {
+      const stats = fs.statSync(storedVideoPath);
       fileSize = stats.size.toString();
     }
   } catch (error) {
@@ -435,7 +458,7 @@ const getUploadVideoPayload = async (
   try {
     const inserted = storageService.saveVideoIfAbsent(newVideo);
     if (!inserted) {
-      cleanupUploadedVideo(validatedVideoPath);
+      cleanupUploadedVideo(videoFilename);
       cleanupGeneratedThumbnail(validatedThumbnailPath);
       const concurrentVideo = storageService.getVideoById(videoId);
       if (concurrentVideo) {
@@ -449,7 +472,7 @@ const getUploadVideoPayload = async (
 
     return buildUploadSuccessResult(file, newVideo);
   } catch (error) {
-    cleanupUploadedVideo(validatedVideoPath);
+    cleanupUploadedVideo(videoFilename);
     cleanupGeneratedThumbnail(validatedThumbnailPath);
     throw error;
   }
