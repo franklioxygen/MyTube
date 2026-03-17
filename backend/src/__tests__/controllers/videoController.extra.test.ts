@@ -35,6 +35,19 @@ vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
 }));
 
+vi.mock("../../services/thumbnailMirrorService", () => ({
+  deleteSmallThumbnailMirrorSync: vi.fn(),
+  regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+  resolveManagedThumbnailTarget: vi.fn((video: any, filename: string, moveWithVideo: boolean) => {
+    const safeFilename = path.basename(filename);
+    return {
+      absolutePath: moveWithVideo ? `/uploads/videos/${safeFilename}` : `/uploads/images/${safeFilename}`,
+      webPath: moveWithVideo ? `/videos/${safeFilename}` : `/images/${safeFilename}`,
+      relativePath: safeFilename,
+    };
+  }),
+}));
+
 vi.mock("../../services/CloudStorageService", () => ({
   CloudStorageService: {
     getSignedUrl: vi.fn(),

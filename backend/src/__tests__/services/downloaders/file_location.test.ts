@@ -31,8 +31,10 @@ mocks.readdirSync.mockReturnValue([]);
 mocks.readFileSync.mockReturnValue('WEBVTT');
 
 vi.mock('../../../config/paths', () => ({
+    AVATARS_DIR: '/mock/avatars',
     VIDEOS_DIR: '/mock/videos',
     IMAGES_DIR: '/mock/images',
+    IMAGES_SMALL_DIR: '/mock/images-small',
     SUBTITLES_DIR: '/mock/subtitles',
 }));
 

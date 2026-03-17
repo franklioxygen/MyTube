@@ -1,6 +1,6 @@
 import fs from "fs-extra";
 import path from "path";
-import { SUBTITLES_DIR } from "../../../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import { formatBytes } from "../../../utils/downloadUtils";
@@ -17,7 +17,12 @@ import {
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  resolveManagedThumbnailWebPathFromAbsolutePath,
+} from "../../thumbnailMirrorService";
 import { BaseDownloader } from "../BaseDownloader";
+import { buildManagedThumbnailWebPath } from "../thumbnailPathUtils";
 import { prepareBilibiliDownloadFlags } from "./bilibiliConfig";
 import {
   cleanupFilesOnCancellation,
@@ -535,6 +540,14 @@ export async function downloadSinglePart(
     // Get video duration and file size using metadata module
     const duration = await getVideoDuration(newVideoPath);
     const fileSize = getFileSize(newVideoPath);
+    const thumbnailWebPath = thumbnailSaved
+      ? resolveManagedThumbnailWebPathFromAbsolutePath(newThumbnailPath) ||
+        buildManagedThumbnailWebPath(
+          finalThumbnailFilename,
+          moveThumbnailsToVideoFolder,
+          collectionName,
+        )
+      : null;
 
     // Check if download was cancelled before downloading subtitles
     try {
@@ -628,15 +641,7 @@ export async function downloadSinglePart(
       videoPath: collectionName
         ? `/videos/${collectionName}/${finalVideoFilename}`
         : `/videos/${finalVideoFilename}`,
-      thumbnailPath: thumbnailSaved
-        ? moveThumbnailsToVideoFolder
-          ? collectionName
-            ? `/videos/${collectionName}/${finalThumbnailFilename}`
-            : `/videos/${finalThumbnailFilename}`
-          : collectionName
-          ? `/images/${collectionName}/${finalThumbnailFilename}`
-          : `/images/${finalThumbnailFilename}`
-        : null,
+      thumbnailPath: thumbnailWebPath,
       duration: duration,
       fileSize: fileSize,
       channelUrl: channelUrl || undefined,
@@ -662,6 +667,39 @@ export async function downloadSinglePart(
           "Video with same sourceUrl exists, updating subtitle information"
         );
 
+        if (
+          thumbnailSaved &&
+          existingVideo.thumbnailFilename &&
+          existingVideo.thumbnailFilename !== finalThumbnailFilename
+        ) {
+          const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
+            ? path.join(
+                VIDEOS_DIR,
+                existingVideo.thumbnailPath.replace(/^\/videos\//, ""),
+              )
+            : existingVideo.thumbnailPath?.startsWith("/images/")
+              ? path.join(
+                  IMAGES_DIR,
+                  existingVideo.thumbnailPath.replace(/^\/images\//, ""),
+                )
+              : path.join(IMAGES_DIR, existingVideo.thumbnailFilename);
+
+          try {
+            if (
+              fs.existsSync(oldThumbnailPath) &&
+              !storageService.isThumbnailReferencedByOtherVideo(
+                existingVideo,
+                existingVideo.id,
+              )
+            ) {
+              fs.unlinkSync(oldThumbnailPath);
+              deleteSmallThumbnailMirrorSync(oldThumbnailPath);
+            }
+          } catch (error) {
+            logger.error("Failed to delete old Bilibili thumbnail file:", error);
+          }
+        }
+
         // Use existing video's ID and preserve other fields
         videoData.id = existingVideo.id;
         videoData.addedAt = existingVideo.addedAt;
@@ -677,9 +715,7 @@ export async function downloadSinglePart(
             ? finalThumbnailFilename
             : existingVideo.thumbnailFilename,
           thumbnailPath: thumbnailSaved
-            ? collectionName
-              ? `/images/${collectionName}/${finalThumbnailFilename}`
-              : `/images/${finalThumbnailFilename}`
+            ? thumbnailWebPath
             : existingVideo.thumbnailPath,
           duration: duration,
           fileSize: fileSize,

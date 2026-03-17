@@ -15,6 +15,7 @@ describe('paths config', () => {
     expect(paths.UPLOADS_DIR).toBe(path.join(cwd, 'uploads'));
     expect(paths.VIDEOS_DIR).toBe(path.join(cwd, 'uploads', 'videos'));
     expect(paths.IMAGES_DIR).toBe(path.join(cwd, 'uploads', 'images'));
+    expect(paths.IMAGES_SMALL_DIR).toBe(path.join(cwd, 'uploads', 'images-small'));
     expect(paths.SUBTITLES_DIR).toBe(path.join(cwd, 'uploads', 'subtitles'));
     expect(paths.CLOUD_THUMBNAIL_CACHE_DIR).toBe(path.join(cwd, 'uploads', 'cloud-thumbnail-cache'));
     expect(paths.DATA_DIR).toBe(path.join(cwd, 'data'));

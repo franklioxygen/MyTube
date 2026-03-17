@@ -1,9 +1,9 @@
 import fs from "fs-extra";
 import path from "path";
-import { Jimp } from "jimp";
 import { AVATARS_DIR } from "../config/paths";
 import { logger } from "./logger";
 import { formatAvatarFilename } from "./helpers";
+import { execFileSafe } from "./security";
 
 /**
  * Check if avatar exists for a given platform and author
@@ -37,12 +37,16 @@ export async function resizeAvatar(
     // Ensure output directory exists
     fs.ensureDirSync(path.dirname(outputPath));
 
-    // Pure-JS resize/encode to avoid native binary crashes on some Windows setups.
-    const image = await Jimp.read(inputPath);
-    image.cover({ w: 100, h: 100 });
-    const imageBuffer = await image.getBuffer("image/jpeg", { quality: 90 });
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    await fs.writeFile(outputPath, imageBuffer);
+    await execFileSafe("ffmpeg", [
+      "-y",
+      "-i",
+      inputPath,
+      "-vf",
+      "scale=100:100:force_original_aspect_ratio=increase,crop=100:100",
+      "-frames:v",
+      "1",
+      outputPath,
+    ]);
 
     logger.info(`Resized avatar to 100x100px: ${outputPath}`);
     return true;

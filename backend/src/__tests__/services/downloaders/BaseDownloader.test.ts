@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
   resolveSafePathInDirectories: vi.fn(
     (filePath: string, _allowedDirs: string[]) => filePath,
   ),
+  isPathWithinDirectories: vi.fn(
+    (_filePath: string, _allowedDirs: string[]) => false,
+  ),
   axios: vi.fn(),
   ensureDirSync: vi.fn(),
   createWriteStream: vi.fn(),
@@ -14,6 +17,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../../utils/security", () => ({
   resolveSafePathInDirectories: (filePath: string, allowedDirs: string[]) =>
     mocks.resolveSafePathInDirectories(filePath, allowedDirs),
+  isPathWithinDirectories: (filePath: string, allowedDirs: string[]) =>
+    mocks.isPathWithinDirectories(filePath, allowedDirs),
 }));
 
 vi.mock("../../../config/paths", async (importOriginal) => {
@@ -38,6 +43,9 @@ vi.mock("fs-extra", () => ({
 }));
 
 vi.mock("../../../services/storageService", () => ({}));
+vi.mock("../../../services/thumbnailMirrorService", () => ({
+  regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+}));
 
 import { BaseDownloader } from "../../../services/downloaders/BaseDownloader";
 

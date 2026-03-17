@@ -9,19 +9,11 @@ import {
   resizeAvatar,
 } from "../../utils/avatarUtils";
 import { formatAvatarFilename } from "../../utils/helpers";
-
-const jimpMocks = vi.hoisted(() => {
-  const getBuffer = vi.fn();
-  const cover = vi.fn(() => ({ getBuffer }));
-  const read = vi.fn(async () => ({ cover, getBuffer }));
-  return { read, cover, getBuffer };
-});
+import { execFileSafe } from "../../utils/security";
 
 vi.mock("fs-extra");
-vi.mock("jimp", () => ({
-  Jimp: {
-    read: jimpMocks.read,
-  },
+vi.mock("../../utils/security", () => ({
+  execFileSafe: vi.fn(),
 }));
 vi.mock("../../utils/helpers", () => ({
   formatAvatarFilename: vi.fn((platform: string, author: string) =>
@@ -39,7 +31,7 @@ vi.mock("../../utils/logger", () => ({
 describe("avatarUtils", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    jimpMocks.getBuffer.mockResolvedValue(Buffer.from("mock-image"));
+    vi.mocked(execFileSafe as any).mockResolvedValue({ stdout: "", stderr: "" });
   });
 
   describe("getExistingAvatarPath", () => {
@@ -61,7 +53,7 @@ describe("avatarUtils", () => {
   });
 
   describe("resizeAvatar", () => {
-    it("should resize avatar to 100x100 jpeg", async () => {
+    it("should resize avatar to 100x100 jpeg via ffmpeg", async () => {
       const input = "/tmp/original.png";
       const output = "/tmp/out/avatar.jpg";
 
@@ -69,14 +61,20 @@ describe("avatarUtils", () => {
 
       expect(ok).toBe(true);
       expect(fs.ensureDirSync).toHaveBeenCalledWith("/tmp/out");
-      expect(jimpMocks.read).toHaveBeenCalledWith(input);
-      expect(jimpMocks.cover).toHaveBeenCalledWith({ w: 100, h: 100 });
-      expect(jimpMocks.getBuffer).toHaveBeenCalledWith("image/jpeg", { quality: 90 });
-      expect(fs.writeFile).toHaveBeenCalledWith(output, Buffer.from("mock-image"));
+      expect(execFileSafe).toHaveBeenCalledWith("ffmpeg", [
+        "-y",
+        "-i",
+        input,
+        "-vf",
+        "scale=100:100:force_original_aspect_ratio=increase,crop=100:100",
+        "-frames:v",
+        "1",
+        output,
+      ]);
     });
 
-    it("should return false on jimp failures", async () => {
-      jimpMocks.read.mockRejectedValueOnce(new Error("jimp failed"));
+    it("should return false on ffmpeg failures", async () => {
+      vi.mocked(execFileSafe as any).mockRejectedValueOnce(new Error("ffmpeg failed"));
       const ok = await resizeAvatar("/tmp/input.png", "/tmp/output.jpg");
       expect(ok).toBe(false);
     });
@@ -120,9 +118,7 @@ describe("avatarUtils", () => {
 
       expect(result).toBe(finalPath);
       expect(downloadFn).not.toHaveBeenCalled();
-      expect(jimpMocks.getBuffer).toHaveBeenCalledWith("image/jpeg", {
-        quality: 90,
-      });
+      expect(execFileSafe).toHaveBeenCalled();
     });
 
     it("should return null when remote download fails", async () => {
@@ -149,7 +145,7 @@ describe("avatarUtils", () => {
         const p = String(target);
         return p === temp;
       });
-      jimpMocks.getBuffer.mockRejectedValueOnce(new Error("resize failed"));
+      vi.mocked(execFileSafe as any).mockRejectedValueOnce(new Error("resize failed"));
       const downloadFn = vi.fn().mockResolvedValue(true);
 
       const result = await downloadAndProcessAvatar(

@@ -81,4 +81,3 @@ export interface DownloadStatus {
   activeDownloads: DownloadInfo[];
   queuedDownloads: DownloadInfo[];
 }
-

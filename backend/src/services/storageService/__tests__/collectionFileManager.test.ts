@@ -5,6 +5,7 @@ vi.mock("../../../config/paths", () => ({
   UPLOADS_DIR: "/safe/uploads",
   VIDEOS_DIR: "/safe/videos",
   IMAGES_DIR: "/safe/images",
+  IMAGES_SMALL_DIR: "/safe/images-small",
   SUBTITLES_DIR: "/safe/subtitles",
 }));
 
@@ -39,6 +40,15 @@ vi.mock("../fileHelpers", () => ({
 
 vi.mock("../settings", () => ({
   getSettings: vi.fn(),
+}));
+
+vi.mock("../../thumbnailMirrorService", () => ({
+  moveSmallThumbnailMirrorSync: vi.fn(),
+  resolveManagedThumbnailWebPathFromAbsolutePath: vi.fn((value: string) =>
+    value.includes("/safe/videos/")
+      ? value.replace("/safe/videos", "/videos")
+      : value.replace("/safe/images", "/images")
+  ),
 }));
 
 import fs from "fs-extra";
@@ -296,6 +306,7 @@ describe("collectionFileManager", () => {
 
     expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/videos/MyCol");
     expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/images/MyCol");
+    expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/images-small/MyCol");
     expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/subtitles/MyCol");
   });
 
@@ -323,6 +334,10 @@ describe("collectionFileManager", () => {
     expect(ok).toBe(true);
     expect(fs.renameSync).toHaveBeenCalledWith("/safe/videos/Old", "/safe/videos/New");
     expect(fs.renameSync).toHaveBeenCalledWith("/safe/images/Old", "/safe/images/New");
+    expect(fs.renameSync).toHaveBeenCalledWith(
+      "/safe/images-small/Old",
+      "/safe/images-small/New"
+    );
     expect(fs.renameSync).toHaveBeenCalledWith(
       "/safe/subtitles/Old",
       "/safe/subtitles/New"

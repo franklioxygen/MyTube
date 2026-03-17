@@ -2,6 +2,11 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "./storageService";
+import {
+    ensureSmallThumbnailForThumbnailPath,
+    moveSmallThumbnailMirrorSync,
+    resolveManagedThumbnailWebPathFromAbsolutePath,
+} from "./thumbnailMirrorService";
 
 export const moveAllThumbnails = async (toVideoFolder: boolean) => {
     console.log(`Starting to move all thumbnails. Target: ${toVideoFolder ? 'Video Folders' : 'Central Images Folder'}`);
@@ -46,6 +51,7 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
         try {
             // Determine current absolute path of the thumbnail
             let currentAbsPath = "";
+            let currentWebPath = video.thumbnailPath || null;
             
             // Check based on current path property if available
             if (video.thumbnailPath) {
@@ -63,11 +69,13 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
                 if (fs.existsSync(centralPath)) {
                     currentAbsPath = centralPath;
+                    currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(centralPath);
                 } else {
                     const localPath = path.join(videoDir, video.thumbnailFilename);
                     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
                     if (fs.existsSync(localPath)) {
                         currentAbsPath = localPath;
+                        currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(localPath);
                     }
                 }
             }
@@ -104,6 +112,10 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
 
             if (currentAbsPath !== targetAbsPath) {
                 fs.moveSync(currentAbsPath, targetAbsPath, { overwrite: true });
+                moveSmallThumbnailMirrorSync(
+                    currentWebPath,
+                    newWebPath,
+                );
                 
                 // Update video record
                 storageService.updateVideo(video.id, {
@@ -119,6 +131,8 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                     });
                 }
             }
+
+            await ensureSmallThumbnailForThumbnailPath(newWebPath);
 
         } catch (err) {
             console.error(`Failed to move thumbnail ${video.thumbnailFilename}:`, err);

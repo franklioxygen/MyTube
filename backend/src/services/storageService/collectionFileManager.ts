@@ -2,10 +2,15 @@ import fs from "fs-extra";
 import path from "path";
 import {
   IMAGES_DIR,
+  IMAGES_SMALL_DIR,
   SUBTITLES_DIR,
   UPLOADS_DIR,
   VIDEOS_DIR,
 } from "../../config/paths";
+import {
+  moveSmallThumbnailMirrorSync,
+  resolveManagedThumbnailWebPathFromAbsolutePath,
+} from "../thumbnailMirrorService";
 import { logger } from "../../utils/logger";
 import { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
 import { getSettings } from "./settings";
@@ -116,6 +121,7 @@ export function moveThumbnailToCollection(
   if (video.thumbnailFilename) {
     // Find existing file using path from DB if possible, or fallback to search
     let currentImagePath = "";
+    let currentWebPath = video.thumbnailPath || null;
     if (video.thumbnailPath) {
       if (video.thumbnailPath.startsWith("/videos/")) {
         currentImagePath = path.join(
@@ -134,6 +140,11 @@ export function moveThumbnailToCollection(
     if (!currentImagePath || !fs.existsSync(currentImagePath)) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
+      if (currentImagePath) {
+        currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(
+          currentImagePath,
+        );
+      }
     }
 
     // Determine target
@@ -161,6 +172,7 @@ export function moveThumbnailToCollection(
 
     if (currentImagePath && currentImagePath !== targetImagePath) {
       moveFile(currentImagePath, targetImagePath);
+      moveSmallThumbnailMirrorSync(currentWebPath, newWebPath);
       updates.thumbnailPath = newWebPath;
       updated = true;
     }
@@ -186,6 +198,7 @@ export function moveThumbnailFromCollection(
   if (video.thumbnailFilename) {
     // Find existing file using path from DB if possible
     let currentImagePath = "";
+    let currentWebPath = video.thumbnailPath || null;
     if (video.thumbnailPath) {
       if (video.thumbnailPath.startsWith("/videos/")) {
         currentImagePath = path.join(
@@ -203,6 +216,11 @@ export function moveThumbnailFromCollection(
     if (!currentImagePath || !fs.existsSync(currentImagePath)) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
+      if (currentImagePath) {
+        currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(
+          currentImagePath,
+        );
+      }
     }
 
     // Determine target
@@ -224,6 +242,7 @@ export function moveThumbnailFromCollection(
 
     if (currentImagePath && currentImagePath !== targetImagePath) {
       moveFile(currentImagePath, targetImagePath);
+      moveSmallThumbnailMirrorSync(currentWebPath, newWebPath);
       updates.thumbnailPath = newWebPath;
       updated = true;
     }
@@ -423,6 +442,10 @@ export function cleanupCollectionDirectories(collectionName: string): void {
   
   const collectionVideoDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
   const collectionImageDir = path.join(IMAGES_DIR, sanitizedCollectionName);
+  const collectionSmallImageDir = path.join(
+    IMAGES_SMALL_DIR,
+    sanitizedCollectionName,
+  );
   const collectionSubtitleDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
 
   try {
@@ -443,6 +466,15 @@ export function cleanupCollectionDirectories(collectionName: string): void {
     ) {
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
       fs.rmdirSync(collectionImageDir);
+    }
+    if (
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.existsSync(collectionSmallImageDir) &&
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.readdirSync(collectionSmallImageDir).length === 0
+    ) {
+      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+      fs.rmdirSync(collectionSmallImageDir);
     }
     if (
       // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
@@ -478,9 +510,14 @@ export function renameCollectionDirectories(
 
   const resultVideo = processDirectoryRename(VIDEOS_DIR, sanitizedOldName, sanitizedNewName);
   const resultImage = processDirectoryRename(IMAGES_DIR, sanitizedOldName, sanitizedNewName);
+  const resultSmallImage = processDirectoryRename(
+    IMAGES_SMALL_DIR,
+    sanitizedOldName,
+    sanitizedNewName,
+  );
   const resultSubtitle = processDirectoryRename(SUBTITLES_DIR, sanitizedOldName, sanitizedNewName);
 
-  return resultVideo && resultImage && resultSubtitle;
+  return resultVideo && resultImage && resultSmallImage && resultSubtitle;
 }
 
 /**

@@ -32,7 +32,6 @@
     "express-rate-limit": "^8.2.2",
     "file-type": "file:vendor/file-type",
     "fs-extra": "^11.3.3",
-    "jimp": "^1.6.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
@@ -63,9 +62,6 @@
   "overrides": {
     "esbuild": "^0.25.0",
     "undici": "^7.24.0",
-    "yauzl": "^3.2.1",
-    "@jimp/core": {
-      "file-type": "file:vendor/file-type"
-    }
+    "yauzl": "^3.2.1"
   }
 }

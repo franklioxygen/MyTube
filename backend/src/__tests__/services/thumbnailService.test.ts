@@ -19,8 +19,18 @@ vi.mock('../../db', () => ({
 
 vi.mock('fs-extra');
 vi.mock('../../services/storageService');
+vi.mock('../../services/thumbnailMirrorService', () => ({
+  ensureSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+  moveSmallThumbnailMirrorSync: vi.fn(),
+  resolveManagedThumbnailWebPathFromAbsolutePath: vi.fn((value: string) =>
+    value.includes('/videos/')
+      ? value.replace('/test/videos', '/videos')
+      : value.replace('/test/images', '/images')
+  ),
+}));
 vi.mock('../../config/paths', () => ({
   IMAGES_DIR: '/test/images',
+  IMAGES_SMALL_DIR: '/test/images-small',
   VIDEOS_DIR: '/test/videos',
   SUBTITLES_DIR: '/test/subtitles',
   DATA_DIR: '/test/data',
@@ -270,4 +280,3 @@ describe('ThumbnailService', () => {
     });
   });
 });
-

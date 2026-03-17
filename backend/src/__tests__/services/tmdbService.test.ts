@@ -12,6 +12,9 @@ vi.mock("fs-extra");
 vi.mock("../../services/storageService/settings", () => ({
   getSettings: vi.fn(),
 }));
+vi.mock("../../services/thumbnailMirrorService", () => ({
+  regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+}));
 vi.mock("../../utils/logger", () => ({
   logger: {
     info: vi.fn(),

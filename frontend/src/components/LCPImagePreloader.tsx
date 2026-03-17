@@ -1,7 +1,7 @@
 import { useLayoutEffect } from 'react';
 import { Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
-import { buildOptimizedImageUrl } from '../utils/imageOptimization';
+import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
 
 /**
  * Component that preloads the first video thumbnail for better LCP
@@ -29,7 +29,11 @@ export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) 
 
         // For local videos, construct the URL immediately
         if (firstVideo.thumbnailPath) {
-            thumbnailUrl = buildOptimizedImageUrl(`${getBackendUrl()}${firstVideo.thumbnailPath}`);
+            thumbnailUrl = buildSmallThumbnailAbsoluteUrl(
+                getBackendUrl(),
+                firstVideo.thumbnailPath,
+                firstVideo.thumbnailUrl,
+            );
         } else if (firstVideo.thumbnailUrl) {
             thumbnailUrl = firstVideo.thumbnailUrl;
         }

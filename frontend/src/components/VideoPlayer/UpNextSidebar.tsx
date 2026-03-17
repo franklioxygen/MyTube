@@ -25,6 +25,7 @@ import { useCloudStorageUrl } from '../../hooks/useCloudStorageUrl';
 import { Video } from '../../types';
 import { getBackendUrl } from '../../utils/apiUrl';
 import { formatDate, formatDuration } from '../../utils/formatUtils';
+import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
 
 interface UpNextSidebarProps {
     relatedVideos: Video[];
@@ -40,8 +41,12 @@ const SidebarThumbnail: React.FC<{ video: Video }> = ({ video }) => {
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
-        ? `${getBackendUrl()}${video.thumbnailPath}`
+    const localThumbnailUrl = !isVideoInCloud
+        ? buildSmallThumbnailAbsoluteUrl(
+            getBackendUrl(),
+            video.thumbnailPath,
+            video.thumbnailUrl,
+        )
         : undefined;
 
     return (

@@ -2,6 +2,7 @@ import axios from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../config/paths";
+import { regenerateSmallThumbnailForThumbnailPath } from "./thumbnailMirrorService";
 import { logger } from "../utils/logger";
 import { getSettings } from "./storageService/settings";
 
@@ -1083,6 +1084,10 @@ async function downloadPoster(
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     await fs.writeFile(normalizedSavePath, response.data);
+    const relativePath = path.relative(imagesDirNormalized, normalizedSavePath);
+    await regenerateSmallThumbnailForThumbnailPath(
+      `/images/${relativePath.replace(/\\/g, "/")}`,
+    );
 
     logger.info(`Downloaded poster to ${normalizedSavePath}`);
     return true;

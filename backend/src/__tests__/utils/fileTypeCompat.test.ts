@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
-import { Jimp } from "jimp";
 import { fromBuffer, fromFile } from "file-type";
 
 const { PNG } = require("pngjs");
@@ -95,20 +94,14 @@ describe("file-type compatibility package", () => {
     await expect(fromFile(pngPath)).rejects.toThrow(/not supported/);
   });
 
-  it("stays compatible with Jimp's file-type/core.js import", async () => {
-    const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "mytube-jimp-"));
+  it("keeps the vendored file-type/core.js entrypoint working", async () => {
+    const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "mytube-file-type-core-"));
     tempDirectories.push(tempDirectory);
-    const pngPath = path.join(tempDirectory, "avatar.png");
-    await fs.writeFile(pngPath, png1x1);
 
     const coreFileType = require("file-type/core.js");
     await expect(coreFileType.fromBuffer(png1x1)).resolves.toEqual({
       ext: "png",
       mime: "image/png",
     });
-
-    const image = await Jimp.read(pngPath);
-    expect(image.bitmap.width).toBe(1);
-    expect(image.bitmap.height).toBe(1);
   });
 });

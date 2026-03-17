@@ -47,6 +47,7 @@ export {
     getVideoById,
     getVideoBySourceUrl,
     getVideos,
+    isThumbnailReferencedByOtherVideo,
     saveVideo,
     saveVideoIfAbsent,
     updateVideo

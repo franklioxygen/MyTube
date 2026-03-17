@@ -9,6 +9,12 @@ import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { getVideoDuration } from "../services/metadataService";
 import * as storageService from "../services/storageService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  getThumbnailRelativePath,
+  regenerateSmallThumbnailForThumbnailPath,
+  resolveManagedThumbnailTarget,
+} from "../services/thumbnailMirrorService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import { execFileSafe, validateImagePath, validateUrl, validateVideoPath } from "../utils/security";
@@ -23,59 +29,49 @@ const ALLOWED_IMAGE_MIMES: Record<string, string> = {
 };
 const ALLOWED_IMAGE_MIME_SET = new Set(Object.keys(ALLOWED_IMAGE_MIMES));
 
-const IMAGE_ROOT_PATH = path.resolve(IMAGES_DIR);
-const IMAGE_ROOT_PREFIX = `${IMAGE_ROOT_PATH}${path.sep}`;
-
-const normalizeImageRelativePath = (imagePath: string): string | null => {
-  const rawPath = imagePath.split("?")[0].trim();
-  if (!rawPath) {
-    return null;
-  }
-
-  let relativePath = rawPath;
-  if (rawPath.startsWith("/images/")) {
-    relativePath = rawPath.replace(/^\/images\//, "");
-  } else if (path.isAbsolute(rawPath)) {
-    const resolvedPath = path.resolve(rawPath);
-    if (resolvedPath !== IMAGE_ROOT_PATH && !resolvedPath.startsWith(IMAGE_ROOT_PREFIX)) {
-      return null;
-    }
-    relativePath = path.relative(IMAGE_ROOT_PATH, resolvedPath);
-  }
-
-  const safeSegments = relativePath
-    .replace(/\\/g, "/")
-    .split("/")
-    .map((segment: string) => path.basename(segment).trim())
-    .filter((segment: string) => segment.length > 0 && segment !== "." && segment !== "..");
-
-  if (safeSegments.length === 0) {
-    return null;
-  }
-
-  return path.join(...safeSegments);
-};
-
-const resolveImageAbsolutePath = (imagePath: string): string | null => {
-  const safeRelativePath = normalizeImageRelativePath(imagePath);
-  if (!safeRelativePath) {
-    return null;
-  }
-
-  const resolvedPath = path.resolve(IMAGE_ROOT_PATH, safeRelativePath);
-  if (resolvedPath === IMAGE_ROOT_PATH || !resolvedPath.startsWith(IMAGE_ROOT_PREFIX)) {
-    return null;
-  }
-
-  return resolvedPath;
-};
-
 const resolveStoredThumbnailPath = (thumbnailPath: string): string | null => {
-  return normalizeImageRelativePath(thumbnailPath);
+  return getThumbnailRelativePath(thumbnailPath);
+};
+
+const resolveLocalThumbnailAbsolutePath = (
+  thumbnailPath: string,
+): string | null => {
+  const relativePath = getThumbnailRelativePath(thumbnailPath);
+  if (!relativePath) {
+    return null;
+  }
+
+  const rawPath = thumbnailPath.split("?")[0].trim();
+
+  if (rawPath.startsWith("/videos/")) {
+    return validateVideoPath(path.join(VIDEOS_DIR, relativePath));
+  }
+
+  if (rawPath.startsWith("/images/")) {
+    return validateImagePath(path.join(IMAGES_DIR, relativePath));
+  }
+
+  if (path.isAbsolute(rawPath)) {
+    const resolvedPath = path.resolve(rawPath);
+    if (resolvedPath.startsWith(path.resolve(VIDEOS_DIR))) {
+      return validateVideoPath(resolvedPath);
+    }
+    if (resolvedPath.startsWith(path.resolve(IMAGES_DIR))) {
+      return validateImagePath(resolvedPath);
+    }
+    return null;
+  }
+
+  const imageCandidate = validateImagePath(path.join(IMAGES_DIR, relativePath));
+  if (fs.existsSync(imageCandidate)) {
+    return imageCandidate;
+  }
+
+  return validateVideoPath(path.join(VIDEOS_DIR, relativePath));
 };
 
 const removeImageFileSafely = async (imagePath: string): Promise<void> => {
-  const safeResolvedPath = resolveImageAbsolutePath(imagePath);
+  const safeResolvedPath = resolveLocalThumbnailAbsolutePath(imagePath);
   if (!safeResolvedPath) {
     return;
   }
@@ -94,6 +90,7 @@ const removeImageFileSafely = async (imagePath: string): Promise<void> => {
   }
 
   await fs.remove(safeResolvedPath);
+  deleteSmallThumbnailMirrorSync(imagePath);
 };
 
 const validateUploadedImageContent = async (
@@ -145,32 +142,25 @@ const refreshThumbnailFromSource = async (
   let newThumbnailPath: string;
   let newThumbnailFilename: string;
   let thumbnailAbsolutePath: string;
+  const fallbackBaseName = video.videoFilename
+    ? path.parse(path.basename(video.videoFilename)).name
+    : video.id;
+  const requestedThumbnailFilename = video.thumbnailFilename
+    ? path.basename(video.thumbnailFilename)
+    : `${fallbackBaseName}.jpg`;
+  const settings = storageService.getSettings();
+  const thumbnailTarget = resolveManagedThumbnailTarget(
+    video,
+    requestedThumbnailFilename,
+    settings.moveThumbnailsToVideoFolder || false,
+  );
 
-  if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
-    const relativePath = video.thumbnailPath.replace(/^\/images\//, "");
-    const safeRelativePath = relativePath
-      .split("/")
-      .filter(Boolean)
-      .map((segment: string) => path.basename(segment))
-      .join("/");
-
-    thumbnailAbsolutePath = validateImagePath(
-      path.join(IMAGES_DIR, ...safeRelativePath.split("/").filter(Boolean))
-    );
-    newThumbnailPath = `/images/${safeRelativePath}`;
-    newThumbnailFilename = path.basename(safeRelativePath);
-  } else {
-    const fallbackBaseName = video.videoFilename
-      ? path.parse(path.basename(video.videoFilename)).name
-      : video.id;
-    newThumbnailFilename = `${fallbackBaseName}.jpg`;
-    const safeThumbnailFilename = path.basename(newThumbnailFilename);
-    newThumbnailFilename = safeThumbnailFilename;
-    thumbnailAbsolutePath = validateImagePath(
-      path.join(IMAGES_DIR, safeThumbnailFilename)
-    );
-    newThumbnailPath = `/images/${safeThumbnailFilename}`;
-  }
+  thumbnailAbsolutePath = thumbnailTarget.absolutePath;
+  newThumbnailPath = thumbnailTarget.webPath;
+  newThumbnailFilename =
+    video.thumbnailFilename && /[\\/]/.test(video.thumbnailFilename)
+      ? thumbnailTarget.relativePath
+      : path.basename(thumbnailTarget.relativePath);
 
   fs.ensureDirSync(path.dirname(thumbnailAbsolutePath));
 
@@ -181,6 +171,7 @@ const refreshThumbnailFromSource = async (
   });
 
   await fs.writeFile(thumbnailAbsolutePath, Buffer.from(response.data));
+  await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
 
   storageService.updateVideo(id, {
     thumbnailFilename: newThumbnailFilename,
@@ -300,29 +291,30 @@ export const refreshThumbnail = async (
   }
 
   // Determine thumbnail path on disk
-  let thumbnailAbsolutePath: string;
   let needsDbUpdate = false;
   let newThumbnailFilename = video.thumbnailFilename;
-  let newThumbnailPath = video.thumbnailPath;
 
-  if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
-    // Local file exists (or should exist) - preserve the existing path (e.g. inside a collection folder)
-    const relativePath = video.thumbnailPath.replace(/^\/images\//, "");
-    thumbnailAbsolutePath = validateImagePath(`${IMAGES_DIR}/${relativePath}`);
-  } else {
-    // Remote URL or missing - create a new local file in the root images directory
-    if (!newThumbnailFilename) {
-      const videoName = path.parse(path.basename(validatedVideoPath)).name;
-      newThumbnailFilename = `${videoName}.jpg`;
-    }
-    const safeThumbnailFilename = path.basename(newThumbnailFilename);
-    newThumbnailFilename = safeThumbnailFilename;
-    thumbnailAbsolutePath = validateImagePath(
-      `${IMAGES_DIR}/${safeThumbnailFilename}`
-    );
-    newThumbnailPath = `/images/${safeThumbnailFilename}`;
-    needsDbUpdate = true;
+  if (!newThumbnailFilename) {
+    const videoName = path.parse(path.basename(validatedVideoPath)).name;
+    newThumbnailFilename = `${videoName}.jpg`;
   }
+
+  const settings = storageService.getSettings();
+  const thumbnailTarget = resolveManagedThumbnailTarget(
+    video,
+    newThumbnailFilename,
+    settings.moveThumbnailsToVideoFolder || false,
+  );
+  const thumbnailAbsolutePath = thumbnailTarget.absolutePath;
+  const newThumbnailPath = thumbnailTarget.webPath;
+  newThumbnailFilename =
+    video.thumbnailFilename && /[\\/]/.test(video.thumbnailFilename)
+      ? thumbnailTarget.relativePath
+      : path.basename(thumbnailTarget.relativePath);
+  needsDbUpdate =
+    video.thumbnailPath !== newThumbnailPath ||
+    video.thumbnailFilename !== newThumbnailFilename ||
+    video.thumbnailUrl !== newThumbnailPath;
 
   // Ensure directory exists
   const validatedThumbnailPath = thumbnailAbsolutePath;
@@ -361,6 +353,8 @@ export const refreshThumbnail = async (
     logger.error("Error generating thumbnail:", error);
     throw error;
   }
+
+  await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
 
   // Update video record if needed (switching from remote to local, or creating new)
   if (needsDbUpdate) {
@@ -585,26 +579,33 @@ export const uploadThumbnail = async (
 
   const detectedMimeType = await validateUploadedImageContent(uploadedThumbnailBuffer);
   const newThumbnailFilename = createThumbnailFilename(detectedMimeType);
-  const newThumbnailRelativePath =
-    normalizeImageRelativePath(newThumbnailFilename) ?? newThumbnailFilename;
-  const uploadedThumbnailAbsPath = validateImagePath(
-    path.join(IMAGES_DIR, newThumbnailFilename)
+  const settings = storageService.getSettings();
+  const thumbnailTarget = resolveManagedThumbnailTarget(
+    video,
+    newThumbnailFilename,
+    settings.moveThumbnailsToVideoFolder || false,
   );
-  fs.ensureDirSync(IMAGES_DIR);
+  const uploadedThumbnailAbsPath = thumbnailTarget.absolutePath;
+  const newThumbnailPath = thumbnailTarget.webPath;
+  fs.ensureDirSync(path.dirname(uploadedThumbnailAbsPath));
   try {
     await fs.writeFile(uploadedThumbnailAbsPath, uploadedThumbnailBuffer);
+    await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
   } catch (error) {
     try {
-      await removeImageFileSafely(newThumbnailRelativePath);
+      await removeImageFileSafely(newThumbnailPath);
     } catch {
       // best effort
     }
     throw error;
   }
 
-  const newThumbnailPath = `/images/${newThumbnailFilename}`;
   let oldThumbnailRelativePath: string | null = null;
-  if (video.thumbnailPath && video.thumbnailPath.startsWith("/images/")) {
+  if (
+    video.thumbnailPath &&
+    (video.thumbnailPath.startsWith("/images/") ||
+      video.thumbnailPath.startsWith("/videos/"))
+  ) {
     try {
       oldThumbnailRelativePath = resolveStoredThumbnailPath(video.thumbnailPath);
     } catch (err) {
@@ -615,13 +616,13 @@ export const uploadThumbnail = async (
   let updatedVideo: storageService.Video | null;
   try {
     updatedVideo = storageService.updateVideo(id, {
-      thumbnailFilename: newThumbnailFilename,
+      thumbnailFilename: path.basename(thumbnailTarget.relativePath),
       thumbnailPath: newThumbnailPath,
       thumbnailUrl: newThumbnailPath,
     });
   } catch (error) {
     try {
-      await removeImageFileSafely(newThumbnailRelativePath);
+      await removeImageFileSafely(newThumbnailPath);
     } catch {
       // best effort
     }
@@ -630,7 +631,7 @@ export const uploadThumbnail = async (
 
   if (!updatedVideo) {
     try {
-      await removeImageFileSafely(newThumbnailRelativePath);
+      await removeImageFileSafely(newThumbnailPath);
     } catch {
       // best effort
     }
@@ -639,10 +640,17 @@ export const uploadThumbnail = async (
 
   if (
     oldThumbnailRelativePath &&
-    oldThumbnailRelativePath !== newThumbnailRelativePath
+    oldThumbnailRelativePath !== resolveStoredThumbnailPath(newThumbnailPath)
   ) {
     try {
-      await removeImageFileSafely(oldThumbnailRelativePath);
+      if (!storageService.isThumbnailReferencedByOtherVideo(video, id)) {
+        const oldThumbnailWebPath =
+          video.thumbnailPath?.startsWith("/images/") ||
+          video.thumbnailPath?.startsWith("/videos/")
+            ? video.thumbnailPath
+            : oldThumbnailRelativePath;
+        await removeImageFileSafely(oldThumbnailWebPath);
+      }
     } catch (err) {
       logger.warn("Failed to delete old thumbnail file", err);
     }

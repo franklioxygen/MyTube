@@ -373,8 +373,8 @@ export function handleVideoDownloadCheck(
         sourceUrl,
         finishedAt: Date.now(),
         status: "skipped",
-        videoPath: verification.video.videoPath,
-        thumbnailPath: verification.video.thumbnailPath,
+        videoPath: verification.video.videoPath ?? undefined,
+        thumbnailPath: verification.video.thumbnailPath ?? undefined,
         videoId: verification.video.id,
       });
 
@@ -387,8 +387,8 @@ export function handleVideoDownloadCheck(
           videoId: downloadCheck.videoId,
           title: downloadCheck.title || verification.video.title,
           author: downloadCheck.author || verification.video.author,
-          videoPath: verification.video.videoPath,
-          thumbnailPath: verification.video.thumbnailPath,
+          videoPath: verification.video.videoPath ?? undefined,
+          thumbnailPath: verification.video.thumbnailPath ?? undefined,
           message: "Video already exists, skipped download",
         },
       };

@@ -3,13 +3,17 @@ import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
+import { regenerateSmallThumbnailForThumbnailPath } from "../thumbnailMirrorService";
 import {
   isCancellationError,
   isDownloadActive,
 } from "../../utils/downloadUtils";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
-import { resolveSafePathInDirectories } from "../../utils/security";
+import {
+  isPathWithinDirectories,
+  resolveSafePathInDirectories,
+} from "../../utils/security";
 import { Video } from "../storageService";
 
 export interface VideoInfo {
@@ -81,8 +85,22 @@ export abstract class BaseDownloader implements IDownloader {
       response.data.pipe(writer);
 
       return new Promise<boolean>((resolve, reject) => {
-        writer.on("finish", () => {
+        writer.on("finish", async () => {
           logger.info("Thumbnail saved to:", safeSavePath);
+
+          if (
+            isPathWithinDirectories(safeSavePath, [IMAGES_DIR, VIDEOS_DIR])
+          ) {
+            try {
+              await regenerateSmallThumbnailForThumbnailPath(safeSavePath);
+            } catch (error) {
+              logger.warn(
+                "Failed to regenerate small thumbnail mirror after download:",
+                error,
+              );
+            }
+          }
+
           resolve(true);
         });
         writer.on("error", (err) => {

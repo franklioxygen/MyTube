@@ -36,6 +36,18 @@ vi.mock("../../services/downloadService");
 vi.mock("../../services/storageService");
 vi.mock("../../services/downloadManager");
 vi.mock("../../services/metadataService");
+vi.mock("../../services/thumbnailMirrorService", () => ({
+  deleteSmallThumbnailMirrorSync: vi.fn(),
+  regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+  resolveManagedThumbnailTarget: vi.fn((video: any, filename: string, moveWithVideo: boolean) => {
+    const safeFilename = filename.split("/").pop();
+    return {
+      absolutePath: moveWithVideo ? `/uploads/videos/${safeFilename}` : `/uploads/images/${safeFilename}`,
+      webPath: moveWithVideo ? `/videos/${safeFilename}` : `/images/${safeFilename}`,
+      relativePath: safeFilename,
+    };
+  }),
+}));
 vi.mock("../../utils/security", () => ({
   validateUrl: vi.fn((url: string) => url), // Return URL as-is for tests
   validatePathWithinDirectory: vi.fn(() => true),

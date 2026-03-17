@@ -1,6 +1,10 @@
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import {
+  deleteSmallThumbnailMirrorSync,
+  moveSmallThumbnailMirrorSync,
+} from "../../thumbnailMirrorService";
 import { safeRemove } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
@@ -197,6 +201,7 @@ export function renameFilesWithMetadata(
   if (thumbnailSaved && fs.existsSync(safeThumbnailPath)) {
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     fs.renameSync(safeThumbnailPath, newThumbnailPath);
+    moveSmallThumbnailMirrorSync(safeThumbnailPath, newThumbnailPath);
     logger.info("Renamed thumbnail file to:", newThumbnailFilename);
   } else {
     // If thumbnail wasn't saved or doesn't exist, use original filename
@@ -233,6 +238,7 @@ export async function cleanupFilesOnCancellation(
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     if (fs.existsSync(thumbnailPath)) {
       await safeRemove(thumbnailPath);
+      deleteSmallThumbnailMirrorSync(thumbnailPath);
       logger.info("Deleted partial thumbnail file:", thumbnailPath);
     }
   } catch (cleanupError) {

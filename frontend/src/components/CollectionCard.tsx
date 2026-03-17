@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
+import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
 
 interface CollectionCardProps {
     collection: Collection;
@@ -105,8 +106,12 @@ const CollectionThumbnail: React.FC<{ video: Video; index: number }> = ({ video,
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
-        ? `${getBackendUrl()}${video.thumbnailPath}`
+    const localThumbnailUrl = !isVideoInCloud
+        ? buildSmallThumbnailAbsoluteUrl(
+            getBackendUrl(),
+            video.thumbnailPath,
+            video.thumbnailUrl,
+        )
         : undefined;
     const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/240x180?text=No+Thumbnail';
 

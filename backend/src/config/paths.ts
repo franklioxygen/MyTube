@@ -6,6 +6,7 @@ export const ROOT_DIR: string = process.cwd();
 export const UPLOADS_DIR: string = path.join(ROOT_DIR, "uploads");
 export const VIDEOS_DIR: string = path.join(UPLOADS_DIR, "videos");
 export const IMAGES_DIR: string = path.join(UPLOADS_DIR, "images");
+export const IMAGES_SMALL_DIR: string = path.join(UPLOADS_DIR, "images-small");
 export const AVATARS_DIR: string = path.join(UPLOADS_DIR, "avatars");
 export const SUBTITLES_DIR: string = path.join(UPLOADS_DIR, "subtitles");
 export const CLOUD_THUMBNAIL_CACHE_DIR: string = path.join(

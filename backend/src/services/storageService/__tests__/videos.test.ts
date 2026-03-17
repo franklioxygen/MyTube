@@ -34,6 +34,15 @@ vi.mock("../collections");
 vi.mock("../videoDownloadTracking", () => ({
   markVideoDownloadDeleted: vi.fn(),
 }));
+vi.mock("../../thumbnailMirrorService", () => ({
+  deleteSmallThumbnailMirrorSync: vi.fn(),
+  moveSmallThumbnailMirrorSync: vi.fn(),
+  resolveManagedThumbnailWebPathFromAbsolutePath: vi.fn((value: string) =>
+    value.includes("/uploads/videos/")
+      ? value.replace(path.join(process.cwd(), "uploads", "videos"), "/videos")
+      : value.replace(path.join(process.cwd(), "uploads", "images"), "/images")
+  ),
+}));
 vi.mock("../../../utils/helpers", () => ({
   formatVideoFilename: vi.fn(),
 }));

@@ -4,9 +4,14 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import multer from "multer";
 import path from "path";
-import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
+import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
+import {
+  deleteSmallThumbnailMirrorSync,
+  regenerateSmallThumbnailForThumbnailPath,
+  resolveManagedThumbnailTarget,
+} from "../services/thumbnailMirrorService";
 import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
@@ -100,14 +105,6 @@ const validateVideoPath = (inputPath: string): string => {
     return resolveSafePath(inputPath, VIDEOS_DIR);
   } catch {
     throw new ValidationError("Invalid video path", "path");
-  }
-};
-
-const validateImagePath = (inputPath: string): string => {
-  try {
-    return resolveSafePath(inputPath, IMAGES_DIR);
-  } catch {
-    throw new ValidationError("Invalid image path", "path");
   }
 };
 
@@ -205,6 +202,7 @@ const cleanupGeneratedThumbnail = (thumbnailPath: string | undefined): void => {
     if (fs.existsSync(thumbnailPath)) {
       fs.unlinkSync(thumbnailPath);
     }
+    deleteSmallThumbnailMirrorSync(thumbnailPath);
   } catch (error) {
     logger.error("Failed to clean up generated thumbnail:", error);
   }
@@ -353,10 +351,18 @@ const getUploadVideoPayload = async (
   }
 
   const videoFilename = path.basename(validatedVideoPath);
-  const thumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
-  const validatedThumbnailPath = validateImagePath(
-    path.normalize(path.join(IMAGES_DIR, thumbnailFilename))
+  const requestedThumbnailFilename = `${path.parse(videoFilename).name}.jpg`;
+  const settings = storageService.getSettings();
+  const thumbnailTarget = resolveManagedThumbnailTarget(
+    {
+      videoPath: `/videos/${videoFilename}`,
+    },
+    requestedThumbnailFilename,
+    settings.moveThumbnailsToVideoFolder || false,
   );
+  const thumbnailFilename = path.basename(thumbnailTarget.relativePath);
+  const validatedThumbnailPath = thumbnailTarget.absolutePath;
+  const thumbnailWebPath = thumbnailTarget.webPath;
 
   const hasVideoStream = await uploadedFileHasVideoStream(validatedVideoPath);
   if (!hasVideoStream) {
@@ -380,6 +386,10 @@ const getUploadVideoPayload = async (
     ]);
   } catch (error) {
     logger.error("Error generating thumbnail:", error);
+  }
+
+  if (fs.existsSync(validatedThumbnailPath)) {
+    await regenerateSmallThumbnailForThumbnailPath(thumbnailWebPath);
   }
 
   const duration = await getVideoDuration(validatedVideoPath);
@@ -406,10 +416,10 @@ const getUploadVideoPayload = async (
       : undefined,
     videoPath: `/videos/${videoFilename}`,
     thumbnailPath: fs.existsSync(validatedThumbnailPath)
-      ? `/images/${thumbnailFilename}`
+      ? thumbnailWebPath
       : undefined,
     thumbnailUrl: fs.existsSync(validatedThumbnailPath)
-      ? `/images/${thumbnailFilename}`
+      ? thumbnailWebPath
       : undefined,
     duration: duration ? duration.toString() : undefined,
     fileSize,
@@ -1141,11 +1151,13 @@ export const serveMountVideo = async (
     throw new NotFoundError("Video", id);
   }
 
-  if (!isMountVideoPath(video.videoPath)) {
+  const mountVideoPath = video.videoPath ?? undefined;
+
+  if (!isMountVideoPath(mountVideoPath)) {
     throw new NotFoundError("Video", id);
   }
 
-  const rawFilePath = video.videoPath.substring(6);
+  const rawFilePath = mountVideoPath.substring(6);
   const filePath = resolveMountFilePath(rawFilePath);
   assertMountFileExists(filePath);
   setMountVideoHeaders(res, filePath);

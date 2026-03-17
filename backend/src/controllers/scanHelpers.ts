@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../config/paths";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
+import { regenerateSmallThumbnailForThumbnailPath } from "../services/thumbnailMirrorService";
 import { logger } from "../utils/logger";
 import { validateImagePath } from "../utils/security";
 
@@ -89,6 +90,10 @@ const resolveLocalThumbnail = async (
         logger.info(`Renamed thumbnail file to "${finalThumbnailFilename}"`);
       }
 
+      await regenerateSmallThumbnailForThumbnailPath(
+        `/images/${finalThumbnailFilename}`,
+      );
+
       return {
         filename: finalThumbnailFilename,
         path: `/images/${finalThumbnailFilename}`,
@@ -101,6 +106,9 @@ const resolveLocalThumbnail = async (
 
   if (await fs.pathExists(tempThumbnailPath)) {
     finalThumbnailFilename = path.basename(tempThumbnailPath);
+    await regenerateSmallThumbnailForThumbnailPath(
+      `/images/${finalThumbnailFilename}`,
+    );
     return {
       filename: finalThumbnailFilename,
       path: `/images/${finalThumbnailFilename}`,

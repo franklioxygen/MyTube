@@ -16,6 +16,11 @@ import { logger } from "../../utils/logger";
 import { getCollections } from "./collections";
 import { findImageFile, findVideoFile } from "./fileHelpers";
 import { markVideoDownloadDeleted } from "./videoDownloadTracking";
+import {
+  deleteSmallThumbnailMirrorSync,
+  moveSmallThumbnailMirrorSync,
+  resolveManagedThumbnailWebPathFromAbsolutePath,
+} from "../thumbnailMirrorService";
 
 export function getVideos(): import("./types").Video[] {
   try {
@@ -181,19 +186,28 @@ export function formatLegacyFilenames(): {
 
         // Handle thumbnail subdirectory
         let thumbSubdir = "";
+        let thumbnailBaseDir = IMAGES_DIR;
+        let thumbnailPathPrefix = "/images";
         if (video.thumbnailPath) {
-          const relPath = video.thumbnailPath.replace(/^\/images\//, "");
+          const relPath = video.thumbnailPath
+            .replace(/^\/images\//, "")
+            .replace(/^\/videos\//, "");
           const dir = path.dirname(relPath);
           if (dir && dir !== ".") {
             thumbSubdir = dir;
           }
+
+          if (video.thumbnailPath.startsWith("/videos/")) {
+            thumbnailBaseDir = VIDEOS_DIR;
+            thumbnailPathPrefix = "/videos";
+          }
         }
 
         const oldThumbnailPath = video.thumbnailFilename
-          ? path.join(IMAGES_DIR, thumbSubdir, video.thumbnailFilename)
+          ? path.join(thumbnailBaseDir, thumbSubdir, video.thumbnailFilename)
           : null;
         const newThumbnailPath = path.join(
-          IMAGES_DIR,
+          thumbnailBaseDir,
           thumbSubdir,
           newThumbnailFilename
         );
@@ -217,7 +231,7 @@ export function formatLegacyFilenames(): {
               uniqueVideoBase
             );
             const uniqueThumbPath = path.join(
-              IMAGES_DIR,
+              thumbnailBaseDir,
               thumbSubdir,
               uniqueThumbBase
             ); // Use thumbSubdir
@@ -233,6 +247,12 @@ export function formatLegacyFilenames(): {
             if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
               // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               fs.renameSync(oldThumbnailPath, uniqueThumbPath);
+              moveSmallThumbnailMirrorSync(
+                video.thumbnailPath,
+                `${thumbnailPathPrefix}/${
+                  thumbSubdir ? thumbSubdir + "/" : ""
+                }${uniqueThumbBase}`,
+              );
             }
 
             // Handle subtitles (Keep in their original folder, assuming root or derived from path if available)
@@ -273,7 +293,7 @@ export function formatLegacyFilenames(): {
                     subdirectory ? subdirectory + "/" : ""
                   }${uniqueVideoBase}`,
                   thumbnailPath: video.thumbnailFilename
-                    ? `/images/${
+                    ? `${thumbnailPathPrefix}/${
                         thumbSubdir ? thumbSubdir + "/" : ""
                       }${uniqueThumbBase}`
                     : null,
@@ -293,7 +313,7 @@ export function formatLegacyFilenames(): {
                     subdirectory ? subdirectory + "/" : ""
                   }${uniqueVideoBase}`,
                   thumbnailPath: video.thumbnailFilename
-                    ? `/images/${
+                    ? `${thumbnailPathPrefix}/${
                         thumbSubdir ? thumbSubdir + "/" : ""
                       }${uniqueThumbBase}`
                     : null,
@@ -321,6 +341,12 @@ export function formatLegacyFilenames(): {
               }
               // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
               fs.renameSync(oldThumbnailPath, newThumbnailPath);
+              moveSmallThumbnailMirrorSync(
+                video.thumbnailPath,
+                `${thumbnailPathPrefix}/${
+                  thumbSubdir ? thumbSubdir + "/" : ""
+                }${newThumbnailFilename}`,
+              );
             }
 
             // Handle subtitles
@@ -360,7 +386,7 @@ export function formatLegacyFilenames(): {
                   subdirectory ? subdirectory + "/" : ""
                 }${newVideoFilename}`,
                 thumbnailPath: video.thumbnailFilename
-                  ? `/images/${
+                  ? `${thumbnailPathPrefix}/${
                       thumbSubdir ? thumbSubdir + "/" : ""
                     }${newThumbnailFilename}`
                   : null,
@@ -573,7 +599,7 @@ function isLocalManagedVideo(
   return !video.videoPath || video.videoPath.startsWith("/videos/");
 }
 
-function isThumbnailReferencedByOtherVideo(
+export function isThumbnailReferencedByOtherVideo(
   video: import("./types").Video,
   exceptionId: string
 ): boolean {
@@ -684,8 +710,13 @@ function deleteThumbnailFile(
       }
 
       try {
+        const thumbnailWebPath =
+          resolveManagedThumbnailWebPathFromAbsolutePath(thumbnailPath) ||
+          video.thumbnailPath ||
+          null;
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
         fs.unlinkSync(thumbnailPath);
+        deleteSmallThumbnailMirrorSync(thumbnailWebPath);
         logger.info(`Deleted thumbnail file: ${thumbnailPath}`);
       } catch (error) {
         logger.error(

@@ -20,9 +20,35 @@ const fromBufferMock = vi.hoisted(() => vi.fn());
 vi.mock("../../services/storageService", () => ({
   getVideoById: vi.fn(),
   getVideos: vi.fn(),
+  isThumbnailReferencedByOtherVideo: vi.fn(),
   updateVideo: vi.fn(),
   findVideoFile: vi.fn(),
   getCollections: vi.fn(),
+  getSettings: vi.fn(),
+}));
+vi.mock("../../services/thumbnailMirrorService", () => ({
+  deleteSmallThumbnailMirrorSync: vi.fn(),
+  getThumbnailRelativePath: vi.fn((value: string) =>
+    value
+      .replace(/^\/images\//, "")
+      .replace(/^\/videos\//, "")
+      .split("?")[0]
+  ),
+  regenerateSmallThumbnailForThumbnailPath: vi.fn(() => Promise.resolve(null)),
+  resolveManagedThumbnailTarget: vi.fn((video: any, filename: string, moveWithVideo: boolean) => {
+    const safeFilename = filename.split("/").pop();
+    const directory = video.videoPath?.startsWith("/videos/")
+      ? video.videoPath.replace(/^\/videos\//, "").split("/").slice(0, -1).join("/")
+      : video.thumbnailPath?.startsWith("/images/")
+        ? video.thumbnailPath.replace(/^\/images\//, "").split("/").slice(0, -1).join("/")
+        : "";
+    const relativePath = directory ? `${directory}/${safeFilename}` : safeFilename;
+    return {
+      absolutePath: moveWithVideo ? `/safe/videos/${relativePath}` : `/safe/${safeFilename}`,
+      webPath: moveWithVideo ? `/videos/${relativePath}` : `/images/${relativePath}`,
+      relativePath,
+    };
+  }),
 }));
 vi.mock("../../services/metadataService", () => ({
   getVideoDuration: vi.fn(),
@@ -76,6 +102,7 @@ describe("videoMetadataController", () => {
 
     vi.mocked(fs.existsSync as any).mockReturnValue(true);
     vi.mocked(fs.pathExists as any).mockResolvedValue(true);
+    vi.mocked(fs.remove as any).mockResolvedValue(undefined);
     vi.mocked(fs.stat as any).mockResolvedValue({
       isFile: () => true,
       size: 100,
@@ -92,6 +119,10 @@ describe("videoMetadataController", () => {
     vi.mocked(execFileSafe as any).mockResolvedValue(undefined);
     vi.mocked(storageService.findVideoFile as any).mockReturnValue(null);
     vi.mocked(storageService.getCollections as any).mockReturnValue([]);
+    vi.mocked(storageService.isThumbnailReferencedByOtherVideo as any).mockReturnValue(false);
+    vi.mocked(storageService.getSettings as any).mockReturnValue({
+      moveThumbnailsToVideoFolder: false,
+    });
     vi.mocked(getVideoInfo as any).mockResolvedValue({
       thumbnailUrl: "https://example.com/thumb.jpg",
     });
@@ -243,7 +274,7 @@ describe("videoMetadataController", () => {
       nowSpy.mockRestore();
     });
 
-    it("refreshes existing local thumbnail without db update", async () => {
+    it("refreshes existing local thumbnail and aligns thumbnailUrl when needed", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(123456);
       const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
@@ -273,7 +304,11 @@ describe("videoMetadataController", () => {
         "/safe/video.jpg",
         "-y",
       ]);
-      expect(storageService.updateVideo).not.toHaveBeenCalled();
+      expect(storageService.updateVideo).toHaveBeenCalledWith("v1", {
+        thumbnailFilename: "folder/video.jpg",
+        thumbnailPath: "/images/folder/video.jpg",
+        thumbnailUrl: "/images/folder/video.jpg",
+      });
       expect(json).toHaveBeenCalledWith({
         success: true,
         thumbnailUrl: "/images/folder/video.jpg?t=123456",
@@ -632,6 +667,50 @@ describe("videoMetadataController", () => {
           res
         )
       ).rejects.toThrow(ValidationError);
+    });
+
+    it("skips deleting the old thumbnail when another video still references it", async () => {
+      const { res, status } = createResponse();
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v1",
+        thumbnailPath: "/images/shared.jpg",
+        thumbnailFilename: "shared.jpg",
+      });
+      vi.mocked(storageService.isThumbnailReferencedByOtherVideo as any).mockReturnValue(true);
+
+      await videoMetadataController.uploadThumbnail(
+        { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+        res
+      );
+
+      expect(storageService.isThumbnailReferencedByOtherVideo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "v1",
+          thumbnailPath: "/images/shared.jpg",
+          thumbnailFilename: "shared.jpg",
+        }),
+        "v1",
+      );
+      expect(fs.remove).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(200);
+    });
+
+    it("deletes the old thumbnail when it is no longer shared", async () => {
+      const { res } = createResponse();
+      vi.mocked(storageService.getVideoById as any).mockReturnValue({
+        id: "v1",
+        thumbnailPath: "/images/old-thumb.jpg",
+        thumbnailFilename: "old-thumb.jpg",
+      });
+
+      await videoMetadataController.uploadThumbnail(
+        { params: { id: "v1" }, file: fakeFile } as unknown as Request,
+        res
+      );
+
+      expect(fs.remove).toHaveBeenCalledWith(
+        expect.stringMatching(/old-thumb\.jpg$/),
+      );
     });
   });
 });

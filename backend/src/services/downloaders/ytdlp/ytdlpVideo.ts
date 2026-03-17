@@ -22,6 +22,7 @@ import {
 } from "../../../utils/ytDlpUtils";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
+import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
 import { BaseDownloader } from "../BaseDownloader";
 import { prepareDownloadFlags } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
@@ -618,12 +619,21 @@ export async function downloadVideo(
 
     // Delete old thumbnail file if being replaced with a new one
     if (thumbnailSaved && existingVideo.thumbnailFilename && existingVideo.thumbnailFilename !== finalThumbnailFilename) {
-      const oldThumbnailDir = existingVideo.thumbnailPath?.startsWith('/videos/') ? VIDEOS_DIR : IMAGES_DIR;
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const oldThumbnailPath = path.join(oldThumbnailDir, existingVideo.thumbnailFilename);
+      const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
+        ? path.join(VIDEOS_DIR, existingVideo.thumbnailPath.replace(/^\/videos\//, ""))
+        : existingVideo.thumbnailPath?.startsWith("/images/")
+          ? path.join(IMAGES_DIR, existingVideo.thumbnailPath.replace(/^\/images\//, ""))
+          : path.join(IMAGES_DIR, existingVideo.thumbnailFilename);
       try {
-        if (fs.existsSync(oldThumbnailPath)) {
+        if (
+          fs.existsSync(oldThumbnailPath) &&
+          !storageService.isThumbnailReferencedByOtherVideo(
+            existingVideo,
+            existingVideo.id,
+          )
+        ) {
           fs.unlinkSync(oldThumbnailPath);
+          deleteSmallThumbnailMirrorSync(oldThumbnailPath);
           logger.info(`Deleted old thumbnail file: ${existingVideo.thumbnailFilename}`);
         }
       } catch (e) {

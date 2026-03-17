@@ -48,6 +48,7 @@ import ConfirmationModal from '../ConfirmationModal';
 import UploadThumbnailModal from '../UploadThumbnailModal';
 
 import { getBackendUrl } from '../../utils/apiUrl';
+import { buildSmallThumbnailAbsoluteUrl } from '../../utils/imageOptimization';
 import { useVideoReDownload } from './hooks/useVideoReDownload';
 
 const BACKEND_URL = getBackendUrl();
@@ -58,18 +59,14 @@ const ThumbnailImage: React.FC<{ video: Video }> = ({ video }) => {
     const isVideoInCloud = video.videoPath?.startsWith('cloud:') ?? false;
     const thumbnailPathForCloud = isVideoInCloud ? video.thumbnailPath : null;
     const thumbnailUrl = useCloudStorageUrl(thumbnailPathForCloud, 'thumbnail');
-    const localThumbnailUrl = !isVideoInCloud && video.thumbnailPath
-        ? `${BACKEND_URL}${video.thumbnailPath}`
+    const localThumbnailUrl = !isVideoInCloud
+        ? buildSmallThumbnailAbsoluteUrl(
+            BACKEND_URL,
+            video.thumbnailPath,
+            video.thumbnailUrl,
+        )
         : undefined;
-    const thumbnailUrlPath = typeof video.thumbnailUrl === 'string'
-        ? video.thumbnailUrl.split('?')[0]
-        : undefined;
-    const isThumbnailUrlSynced = !isVideoInCloud
-        && !!video.thumbnailPath
-        && thumbnailUrlPath === video.thumbnailPath;
-    // Use cache-busted thumbnailUrl only when it matches thumbnailPath; otherwise fallback to thumbnailPath.
-    const localPreferredSrc = isThumbnailUrlSynced ? video.thumbnailUrl : localThumbnailUrl;
-    const src = thumbnailUrl || localPreferredSrc || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
+    const src = thumbnailUrl || localThumbnailUrl || video.thumbnailUrl || 'https://via.placeholder.com/120x90?text=No+Thumbnail';
 
     return (
         <Box
