@@ -229,6 +229,33 @@ describe("useVideoPlayer startTime behavior", () => {
     expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
   });
 
+  it("should apply a fresher positive startTime while playback is still near the previous resume point", () => {
+    const { result, rerender } = renderHook(
+      (props) => useVideoPlayer(props),
+      {
+        initialProps: { src: "test.mp4", startTime: 10 }
+      }
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({
+        currentTarget: videoElement,
+      } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    expect(videoElement.currentTime).toBe(10);
+
+    videoElement.fastSeek = vi.fn();
+    videoElement.currentTime = 10.4;
+
+    rerender({ src: "test.mp4", startTime: 45 });
+
+    expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
+    expect(videoElement.currentTime).toBe(45);
+  });
+
   it("should not seek again when startTime changes during active playback", () => {
     const { result, rerender } = renderHook(
       (props) => useVideoPlayer(props),

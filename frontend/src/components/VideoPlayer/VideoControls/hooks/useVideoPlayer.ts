@@ -30,21 +30,28 @@ export const useVideoPlayer = ({
   const startTimeAppliedRef = useRef<boolean>(false);
   // Track last applied startTime so we apply again when it updates (e.g. progress loaded after initial render)
   const lastAppliedStartTimeRef = useRef<number>(-1);
+  const START_TIME_APPLY_TOLERANCE_SECONDS = 1;
 
   const shouldApplyStartTime = useCallback(
     (videoElement: HTMLVideoElement) => {
       if (startTime <= 0) return false;
 
-      const isNearBeginning = videoElement.currentTime < 1;
-      if (!isNearBeginning) {
+      if (lastAppliedStartTimeRef.current === startTime) {
         return false;
       }
 
+      const isNearBeginning =
+        videoElement.currentTime < START_TIME_APPLY_TOLERANCE_SECONDS;
+      const isNearPreviousStartTime =
+        lastAppliedStartTimeRef.current > 0 &&
+        Math.abs(videoElement.currentTime - lastAppliedStartTimeRef.current) <
+          START_TIME_APPLY_TOLERANCE_SECONDS;
+
       if (!startTimeAppliedRef.current) {
-        return true;
+        return isNearBeginning;
       }
 
-      return lastAppliedStartTimeRef.current <= 0;
+      return isNearPreviousStartTime;
     },
     [startTime]
   );
@@ -227,7 +234,7 @@ export const useVideoPlayer = ({
     if (videoDuration && isFinite(videoDuration) && videoDuration > 0) {
       setDuration(videoDuration);
     }
-    if (startTime > 0 && !startTimeAppliedRef.current) {
+    if (shouldApplyStartTime(e.currentTarget)) {
       e.currentTarget.currentTime = startTime;
       setCurrentTime(startTime);
       startTimeAppliedRef.current = true;

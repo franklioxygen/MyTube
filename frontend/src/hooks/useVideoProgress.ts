@@ -77,6 +77,10 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
       ) {
         const progress = Math.floor(currentTimeRef.current);
 
+        syncVideoPlaybackCache(queryClient, videoId, {
+          progress,
+        });
+
         // Use fetch with keepalive to ensure request completes even if tab is closed
         fetch(getApiRequestUrl(`/videos/${videoId}/progress`), {
           method: "PUT",
@@ -121,6 +125,11 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
     if (now - lastProgressSave.current > 5000 && videoId && !isVisitor) {
       lastProgressSave.current = now;
       const progress = Math.floor(currentTime);
+
+      syncVideoPlaybackCache(queryClient, videoId, {
+        progress,
+      });
+
       api
         .put(`/videos/${videoId}/progress`, {
           progress,
