@@ -31,6 +31,24 @@ export const useVideoPlayer = ({
   // Track last applied startTime so we apply again when it updates (e.g. progress loaded after initial render)
   const lastAppliedStartTimeRef = useRef<number>(-1);
 
+  const shouldApplyStartTime = useCallback(
+    (videoElement: HTMLVideoElement) => {
+      if (startTime <= 0) return false;
+
+      const isNearBeginning = videoElement.currentTime < 1;
+      if (!isNearBeginning) {
+        return false;
+      }
+
+      if (!startTimeAppliedRef.current) {
+        return true;
+      }
+
+      return lastAppliedStartTimeRef.current <= 0;
+    },
+    [startTime]
+  );
+
   // Memory management: Clean up video source when component unmounts or src changes
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -105,14 +123,7 @@ export const useVideoPlayer = ({
     const videoElement = videoRef.current;
     if (!videoElement || startTime <= 0) return;
 
-    const startTimeJustArrived = lastAppliedStartTimeRef.current < 0 || lastAppliedStartTimeRef.current === 0;
-    const shouldApply =
-      !startTimeAppliedRef.current ||
-      videoElement.currentTime < 1 ||
-      (startTimeJustArrived && startTime > 0) ||
-      lastAppliedStartTimeRef.current !== startTime;
-
-    if (shouldApply) {
+    if (shouldApplyStartTime(videoElement)) {
       if (typeof videoElement.fastSeek === "function") {
         videoElement.fastSeek(startTime);
       }
@@ -121,7 +132,7 @@ export const useVideoPlayer = ({
       startTimeAppliedRef.current = true;
       lastAppliedStartTimeRef.current = startTime;
     }
-  }, [startTime]);
+  }, [shouldApplyStartTime, startTime]);
 
   const handlePlayPause = () => {
     if (videoRef.current) {
@@ -246,10 +257,7 @@ export const useVideoPlayer = ({
     }
 
     // Apply startTime when not yet applied or when it updated (e.g. progress loaded after first paint)
-    if (
-      startTime > 0 &&
-      (!startTimeAppliedRef.current || lastAppliedStartTimeRef.current !== startTime)
-    ) {
+    if (shouldApplyStartTime(videoElement)) {
       if (typeof videoElement.fastSeek === "function") {
         videoElement.fastSeek(startTime);
       }
@@ -258,7 +266,7 @@ export const useVideoPlayer = ({
       startTimeAppliedRef.current = true;
       lastAppliedStartTimeRef.current = startTime;
     }
-  }, [duration, startTime]);
+  }, [duration, shouldApplyStartTime, startTime]);
 
   const handlePlay = () => {
     setIsPlaying(true);

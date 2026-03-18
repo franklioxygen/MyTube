@@ -165,7 +165,7 @@ const VideoPlayer: React.FC = () => {
         onDeleteSuccess: () => navigate('/', { replace: true })
     });
 
-    const { handleTimeUpdate, setIsDeleting, currentTimeRef } = useVideoProgress({ videoId: id, video });
+    const { handleTimeUpdate, setIsDeleting } = useVideoProgress({ videoId: id, video });
 
     const { relatedVideos } = useVideoRecommendations({ video });
 
@@ -302,10 +302,9 @@ const VideoPlayer: React.FC = () => {
         }
     };
 
-    // Determine start time based on settings. 
-    // If playFromBeginning is true, start at 0.
-    // Otherwise, use currentTimeRef (if user navigated back) or saved progress.
-    const startTimeResult = playFromBeginning ? 0 : (currentTimeRef.current > 0 ? currentTimeRef.current : (video.progress ?? 0));
+    // Determine start time based on saved progress only.
+    // Playback-local time should not be fed back into startTime on unrelated rerenders.
+    const startTimeResult = playFromBeginning ? 0 : (video.progress ?? 0);
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>

@@ -18,18 +18,29 @@ function getViewThreshold(duration: string | undefined): number {
 function syncVideoPlaybackCache(
   queryClient: QueryClient,
   videoId: string,
-  updates: Partial<Video>
+  updates: Partial<Video>,
+  options: {
+    syncList?: boolean;
+    syncDetail?: boolean;
+  } = {}
 ) {
-  queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
-    Array.isArray(old)
-      ? old.map((item) =>
-          item.id === videoId ? { ...item, ...updates } : item
-        )
-      : old
-  );
-  queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
-    old ? { ...old, ...updates } : old
-  );
+  const { syncList = true, syncDetail = true } = options;
+
+  if (syncList) {
+    queryClient.setQueryData(["videos"], (old: Video[] | undefined) =>
+      Array.isArray(old)
+        ? old.map((item) =>
+            item.id === videoId ? { ...item, ...updates } : item
+          )
+        : old
+    );
+  }
+
+  if (syncDetail) {
+    queryClient.setQueryData(["video", videoId], (old: Video | undefined) =>
+      old ? { ...old, ...updates } : old
+    );
+  }
 }
 
 function getApiRequestUrl(path: string) {
@@ -65,10 +76,6 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         !isVisitor
       ) {
         const progress = Math.floor(currentTimeRef.current);
-
-        syncVideoPlaybackCache(queryClient, videoId, {
-          progress,
-        });
 
         // Use fetch with keepalive to ensure request completes even if tab is closed
         fetch(getApiRequestUrl(`/videos/${videoId}/progress`), {
@@ -117,11 +124,6 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
       api
         .put(`/videos/${videoId}/progress`, {
           progress,
-        })
-        .then(() => {
-          syncVideoPlaybackCache(queryClient, videoId, {
-            progress,
-          });
         })
         .catch((err) => console.error("Error saving progress:", err));
     }

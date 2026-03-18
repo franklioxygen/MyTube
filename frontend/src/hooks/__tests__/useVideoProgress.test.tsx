@@ -48,7 +48,7 @@ describe("useVideoProgress", () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true }) as any;
   });
 
-  it("counts view at 4 seconds for short MM:SS duration and syncs history cache", async () => {
+  it("counts view at 4 seconds for short MM:SS duration without syncing progress cache", async () => {
     let now = 1000;
     const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
     const video = {
@@ -89,7 +89,6 @@ describe("useVideoProgress", () => {
       expect(queryClient.getQueryData(["videos"])).toEqual([
         expect.objectContaining({
           id: "video-1",
-          progress: 4,
           viewCount: 1,
           lastPlayedAt: 7000,
         }),
@@ -97,7 +96,6 @@ describe("useVideoProgress", () => {
       expect(queryClient.getQueryData(["video", "video-1"])).toEqual(
         expect.objectContaining({
           id: "video-1",
-          progress: 4,
           viewCount: 1,
           lastPlayedAt: 7000,
         })
@@ -111,7 +109,7 @@ describe("useVideoProgress", () => {
     dateNowSpy.mockRestore();
   });
 
-  it("keeps the history update at the 10-second threshold for non-short videos", async () => {
+  it("keeps progress writes out of the cache until the view threshold is reached", async () => {
     const video = {
       id: "video-2",
       duration: "120",
@@ -137,18 +135,8 @@ describe("useVideoProgress", () => {
       });
     });
     await waitFor(() => {
-      expect(queryClient.getQueryData(["videos"])).toEqual([
-        expect.objectContaining({
-          id: "video-2",
-          progress: 5,
-        }),
-      ]);
-      expect(queryClient.getQueryData(["video", "video-2"])).toEqual(
-        expect.objectContaining({
-          id: "video-2",
-          progress: 5,
-        })
-      );
+      expect(queryClient.getQueryData(["videos"])).toEqual([video]);
+      expect(queryClient.getQueryData(["video", "video-2"])).toEqual(video);
     });
     expect(queryClient.getQueryData(["videos"])).toEqual([
       expect.not.objectContaining({
@@ -167,7 +155,6 @@ describe("useVideoProgress", () => {
       expect(queryClient.getQueryData(["videos"])).toEqual([
         expect.objectContaining({
           id: "video-2",
-          progress: 5,
           viewCount: 1,
           lastPlayedAt: expect.any(Number),
         }),
@@ -175,7 +162,6 @@ describe("useVideoProgress", () => {
       expect(queryClient.getQueryData(["video", "video-2"])).toEqual(
         expect.objectContaining({
           id: "video-2",
-          progress: 5,
           viewCount: 1,
           lastPlayedAt: expect.any(Number),
         })
@@ -187,7 +173,7 @@ describe("useVideoProgress", () => {
     });
   });
 
-  it("syncs progress on unmount without creating watch history", () => {
+  it("sends progress on unmount without mutating the cache", () => {
     const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(1000);
     const video = {
       id: "video-3",
@@ -224,18 +210,8 @@ describe("useVideoProgress", () => {
         body: JSON.stringify({ progress: 3 }),
       })
     );
-    expect(queryClient.getQueryData(["videos"])).toEqual([
-      expect.objectContaining({
-        id: "video-3",
-        progress: 3,
-      }),
-    ]);
-    expect(queryClient.getQueryData(["video", "video-3"])).toEqual(
-      expect.objectContaining({
-        id: "video-3",
-        progress: 3,
-      })
-    );
+    expect(queryClient.getQueryData(["videos"])).toEqual([video]);
+    expect(queryClient.getQueryData(["video", "video-3"])).toEqual(video);
     expect(queryClient.getQueryData(["videos"])).toEqual([
       expect.not.objectContaining({
         lastPlayedAt: expect.anything(),

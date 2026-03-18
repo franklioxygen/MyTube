@@ -228,6 +228,29 @@ describe("useVideoPlayer startTime behavior", () => {
     // Should update to new startTime using fastSeek
     expect(videoElement.fastSeek).toHaveBeenCalledWith(45);
   });
+
+  it("should not seek again when startTime changes during active playback", () => {
+    const { result, rerender } = renderHook(
+      (props) => useVideoPlayer(props),
+      {
+        initialProps: { src: "test.mp4", startTime: 0 }
+      }
+    );
+
+    result.current.videoRef.current = videoElement;
+
+    act(() => {
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
+    });
+
+    videoElement.fastSeek = vi.fn();
+    videoElement.currentTime = 35;
+
+    rerender({ src: "test.mp4", startTime: 35 });
+
+    expect(videoElement.fastSeek).not.toHaveBeenCalled();
+    expect(videoElement.currentTime).toBe(35);
+  });
 });
 
 describe("useVideoPlayer playbackRate behavior", () => {
