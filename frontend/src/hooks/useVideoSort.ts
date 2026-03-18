@@ -13,12 +13,14 @@ interface UseVideoSortProps {
   videos: Video[] | undefined;
   defaultSort?: string;
   onSortChange?: (option: string) => void;
+  preserveOrder?: boolean;
 }
 
 export const useVideoSort = ({
   videos,
   defaultSort = "dateDesc",
   onSortChange,
+  preserveOrder = false,
 }: UseVideoSortProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -77,8 +79,12 @@ export const useVideoSort = ({
   };
 
   const sortedVideos = useMemo(() => {
+    if (preserveOrder) {
+      return videos ? [...videos] : [];
+    }
+
     return sortVideos(videos, sortOption, shuffleSeed);
-  }, [videos, sortOption, shuffleSeed]);
+  }, [videos, sortOption, shuffleSeed, preserveOrder]);
 
   return {
     sortedVideos,

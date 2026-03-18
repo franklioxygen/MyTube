@@ -199,4 +199,14 @@ describe('useVideoSort', () => {
         // Should fallback to 'dateDesc' when defaultSort is invalid
         expect(result.current.sortOption).toBe('dateDesc');
     });
+
+    it('should preserve input order when preserveOrder is enabled', () => {
+        const { result } = renderHook(() => useVideoSort({ videos: mockVideos, preserveOrder: true }), {
+            wrapper: ({ children }) => (
+                <MemoryRouter initialEntries={['/?sort=viewsDesc']}>{children}</MemoryRouter>
+            ),
+        });
+
+        expect(result.current.sortedVideos.map(v => v.id)).toEqual(['1', '2', '3']);
+    });
 });

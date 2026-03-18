@@ -78,6 +78,7 @@ const Home: React.FC = () => {
     } = useVideoSort({
         videos: filteredVideos,
         defaultSort,
+        preserveOrder: viewMode === 'history',
         onSortChange: () => {
             setSearchParams((prev: URLSearchParams) => {
                 const newParams = new URLSearchParams(prev);

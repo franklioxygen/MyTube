@@ -539,7 +539,6 @@ export const updateProgress = async (
 
   const updatedVideo = storageService.updateVideo(id, {
     progress,
-    lastPlayedAt: Date.now(),
   });
 
   if (!updatedVideo) {

@@ -471,14 +471,17 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             const res = await api.post(`/videos/${id}/view`);
             if (res.data.success) {
+                const lastPlayedAt = Date.now();
                 queryClient.setQueryData(['videos'], (old: Video[] | undefined) =>
                     old ? old.map(video =>
-                        video.id === id ? { ...video, viewCount: res.data.viewCount } : video
+                        video.id === id
+                            ? { ...video, viewCount: res.data.viewCount, lastPlayedAt }
+                            : video
                     ) : []
                 );
                 // Also update individual video query if it exists
                 queryClient.setQueryData(['video', id], (old: Video | undefined) =>
-                    old ? { ...old, viewCount: res.data.viewCount } : old
+                    old ? { ...old, viewCount: res.data.viewCount, lastPlayedAt } : old
                 );
                 return { success: true };
             }

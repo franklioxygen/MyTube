@@ -369,6 +369,15 @@ describe('VideoContext', () => {
 
     const viewOk = await result.current.incrementView('v1');
     expect(viewOk).toEqual({ success: true });
+    await waitFor(() => {
+      expect(result.current.videos.find((video) => video.id === 'v1')).toEqual(
+        expect.objectContaining({
+          id: 'v1',
+          viewCount: 9,
+          lastPlayedAt: expect.any(Number),
+        })
+      );
+    });
 
     mockApiPost.mockRejectedValueOnce(new Error('view fail'));
     const viewFail = await result.current.incrementView('v1');

@@ -589,7 +589,7 @@ describe("videoMetadataController", () => {
 
       expect(storageService.updateVideo).toHaveBeenCalledWith(
         "v1",
-        expect.objectContaining({ progress: 75, lastPlayedAt: expect.any(Number) })
+        expect.objectContaining({ progress: 75 })
       );
       expect(json).toHaveBeenCalledWith({
         success: true,
