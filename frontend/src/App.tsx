@@ -1,5 +1,5 @@
 import { Box, CircularProgress } from '@mui/material';
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
@@ -15,18 +15,32 @@ import { ThemeContextProvider } from './contexts/ThemeContext';
 import { VideoProvider, useVideo } from './contexts/VideoContext';
 import { useSettings } from './hooks/useSettings';
 import { defaultQueryConfig } from './utils/queryConfig';
-const BilibiliPartsModal = lazy(() => import('./components/BilibiliPartsModal'));
-const AuthorVideos = lazy(() => import('./pages/AuthorVideos'));
-const CollectionPage = lazy(() => import('./pages/CollectionPage'));
-const DownloadPage = lazy(() => import('./pages/DownloadPage'));
-const Home = lazy(() => import('./pages/Home'));
-const InstructionPage = lazy(() => import('./pages/InstructionPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const ManagePage = lazy(() => import('./pages/ManagePage'));
-const SearchPage = lazy(() => import('./pages/SearchPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'));
-const VideoPlayer = lazy(() => import('./pages/VideoPlayer'));
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+const BilibiliPartsModal = lazyWithRetry(
+    () => import('./components/BilibiliPartsModal'),
+    'bilibili-parts-modal',
+);
+const AuthorVideos = lazyWithRetry(() => import('./pages/AuthorVideos'), 'author-videos');
+const CollectionPage = lazyWithRetry(
+    () => import('./pages/CollectionPage'),
+    'collection-page',
+);
+const DownloadPage = lazyWithRetry(() => import('./pages/DownloadPage'), 'download-page');
+const Home = lazyWithRetry(() => import('./pages/Home'), 'home-page');
+const InstructionPage = lazyWithRetry(
+    () => import('./pages/InstructionPage'),
+    'instruction-page',
+);
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'), 'login-page');
+const ManagePage = lazyWithRetry(() => import('./pages/ManagePage'), 'manage-page');
+const SearchPage = lazyWithRetry(() => import('./pages/SearchPage'), 'search-page');
+const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'), 'settings-page');
+const SubscriptionsPage = lazyWithRetry(
+    () => import('./pages/SubscriptionsPage'),
+    'subscriptions-page',
+);
+const VideoPlayer = lazyWithRetry(() => import('./pages/VideoPlayer'), 'video-player');
 
 function AppContent() {
     const {

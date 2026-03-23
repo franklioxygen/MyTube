@@ -5,9 +5,11 @@ import './index.css';
 import VERSION from './version';
 
 import ConsoleManager from './utils/consoleManager';
+import { registerVitePreloadErrorRecovery } from './utils/lazyWithRetry';
 
 // Initialize console manager
 ConsoleManager.init();
+registerVitePreloadErrorRecovery();
 
 // Display version information
 VERSION.displayVersion();
