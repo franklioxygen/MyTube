@@ -1,63 +1,57 @@
 import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
+import {
+  getNormalizedRequestPath,
+  matchesExactPath,
+  matchesPathOrSubpath,
+} from "../utils/requestPath";
+
+const PUBLIC_EXACT_PATHS = [
+  "/settings/verify-password",
+  "/settings/verify-admin-password",
+  "/settings/verify-visitor-password",
+  "/settings/password-enabled",
+  "/settings/reset-password-cooldown",
+  "/settings/reset-password",
+  "/settings/passkeys/exists",
+  "/settings/logout",
+] as const;
+
+const PUBLIC_PREFIX_PATHS = [
+  "/settings/passkeys/authenticate",
+  "/settings/passkeys/register",
+] as const;
+
+const VISITOR_ALLOWED_POST_EXACT_PATHS = [
+  "/settings/verify-password",
+  "/settings/verify-admin-password",
+  "/settings/verify-visitor-password",
+  "/settings/logout",
+] as const;
+
+const VISITOR_ALLOWED_POST_PREFIX_PATHS = [
+  "/settings/passkeys/authenticate",
+] as const;
 
 /**
  * Check if the current request is to a public endpoint that doesn't require authentication
  */
 const isPublicEndpoint = (req: Request): boolean => {
-  const path = req.path || req.url || "";
-
-  // Allow password verification endpoints (for login)
-  if (
-    path.includes("/verify-password") ||
-    path.includes("/verify-admin-password") ||
-    path.includes("/verify-visitor-password")
-  ) {
-    return true;
-  }
-
-  // Allow passkey authentication endpoints (for login)
-  if (
-    path.includes("/passkeys/authenticate") ||
-    path.includes("/passkeys/register")
-  ) {
-    return true;
-  }
-
-  // Allow password-related endpoints that are needed for authentication
-  if (
-    path.includes("/password-enabled") ||
-    path.includes("/reset-password-cooldown") ||
-    path.includes("/reset-password") ||
-    path.includes("/passkeys/exists")
-  ) {
-    return true;
-  }
-
-  // Allow logout endpoint (can be called without auth)
-  if (path.includes("/logout")) {
-    return true;
-  }
-
-  return false;
-};
-
-const isApiKeyDownloadEndpoint = (req: Request): boolean => {
-  const path = req.path || req.url || "";
   return (
-    req.method === "POST" &&
-    (path === "/download" || path.startsWith("/download?"))
+    matchesExactPath(req, PUBLIC_EXACT_PATHS) ||
+    matchesPathOrSubpath(req, PUBLIC_PREFIX_PATHS)
   );
 };
 
+const isApiKeyDownloadEndpoint = (req: Request): boolean => {
+  return req.method === "POST" && getNormalizedRequestPath(req) === "/download";
+};
+
 const isAdminUploadEndpoint = (req: Request): boolean => {
-  const path = req.path || req.url || "";
+  const requestPath = getNormalizedRequestPath(req);
   return (
     req.method === "POST" &&
-    (path === "/upload" ||
-      path.startsWith("/upload?") ||
-      path === "/upload/batch" ||
-      path.startsWith("/upload/batch?"))
+    (requestPath === "/upload" || requestPath === "/upload/batch")
   );
 };
 
@@ -103,30 +97,12 @@ export const roleBasedAuthMiddleware = (
 
     // Allow authentication-related POST requests
     if (req.method === "POST") {
-      // Allow verify-password requests (including verify-admin-password and verify-visitor-password)
-      if (
-        req.path.includes("/verify-password") ||
-        req.url.includes("/verify-password") ||
-        req.path.includes("/verify-admin-password") ||
-        req.url.includes("/verify-admin-password") ||
-        req.path.includes("/verify-visitor-password") ||
-        req.url.includes("/verify-visitor-password")
-      ) {
+      if (matchesExactPath(req, VISITOR_ALLOWED_POST_EXACT_PATHS)) {
         next();
         return;
       }
 
-      // Allow passkey authentication
-      if (
-        req.path.includes("/settings/passkeys/authenticate") ||
-        req.url.includes("/settings/passkeys/authenticate")
-      ) {
-        next();
-        return;
-      }
-
-      // Allow logout endpoint
-      if (req.path.includes("/logout") || req.url.includes("/logout")) {
+      if (matchesPathOrSubpath(req, VISITOR_ALLOWED_POST_PREFIX_PATHS)) {
         next();
         return;
       }

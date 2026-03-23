@@ -79,6 +79,19 @@ describe('roleBasedSettingsMiddleware Security', () => {
       expect(next).toHaveBeenCalled();
   });
 
+  it('should ALLOW visitor access to passkeys exists', () => {
+      req = {
+        method: "GET",
+        path: "/passkeys/exists",
+        url: "/passkeys/exists",
+        user: { role: "visitor" } as any,
+      };
+
+      roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalled();
+  });
+
   it('should ALLOW visitor access to root path', () => {
       req = {
         method: "GET",
@@ -144,6 +157,29 @@ describe('roleBasedSettingsMiddleware Security', () => {
 
     roleBasedSettingsMiddleware(req as Request, res as Response, next);
     expect(next).toHaveBeenCalled();
+  });
+
+  it('should BLOCK visitor import-database when query params mimic a public endpoint', () => {
+    req = {
+      method: 'POST',
+      path: '/import-database',
+      url: '/import-database?t=/verify-password',
+      body: {},
+      user: { role: 'visitor' } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining(
+          'Only reading settings and updating CloudFlare settings is allowed'
+        ),
+      })
+    );
   });
 
   it('should ALLOW visitor POST passkey authentication and logout', () => {

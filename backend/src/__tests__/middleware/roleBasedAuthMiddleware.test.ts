@@ -64,6 +64,26 @@ describe("roleBasedAuthMiddleware", () => {
     );
   });
 
+  it("blocks visitor write requests when query params mimic a public endpoint", () => {
+    req = {
+      method: "POST",
+      path: "/settings/import-database",
+      url: "/settings/import-database?t=/verify-password",
+      user: { role: "visitor" } as any,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("Write operations are not allowed"),
+      })
+    );
+  });
+
   it("allows unauthenticated logout when login is required", () => {
     vi.mocked(isLoginRequired).mockReturnValue(true);
     req = {

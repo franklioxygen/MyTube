@@ -1,45 +1,55 @@
 import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
+import {
+  matchesExactPath,
+  matchesPathOrSubpath,
+} from "../utils/requestPath";
+
+const PUBLIC_EXACT_PATHS = [
+  "/verify-password",
+  "/verify-admin-password",
+  "/verify-visitor-password",
+  "/logout",
+  "/password-enabled",
+  "/reset-password-cooldown",
+  "/reset-password",
+  "/passkeys/exists",
+] as const;
+
+const PUBLIC_PREFIX_PATHS = [
+  "/passkeys/authenticate",
+  "/passkeys/register",
+] as const;
+
+const VISITOR_ALLOWED_GET_PATHS = [
+  "/",
+  "/cloudflared/status",
+  "/password-enabled",
+  "/reset-password-cooldown",
+  "/passkeys",
+  "/passkeys/exists",
+  "/check-cookies",
+  "/hooks/status",
+  "/last-backup-info",
+] as const;
+
+const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
+  "/verify-password",
+  "/verify-admin-password",
+  "/verify-visitor-password",
+  "/logout",
+] as const;
+
+const VISITOR_ALLOWED_WRITE_PREFIX_PATHS = ["/passkeys/authenticate"] as const;
 
 /**
  * Check if the current request is to a public endpoint that doesn't require authentication
  */
 const isPublicEndpoint = (req: Request): boolean => {
-  const path = req.path || req.url || "";
-
-  // Allow password verification endpoints (for login)
-  if (
-    path.includes("/verify-password") ||
-    path.includes("/verify-admin-password") ||
-    path.includes("/verify-visitor-password")
-  ) {
-    return true;
-  }
-
-  // Allow passkey authentication endpoints (for login)
-  if (
-    path.includes("/passkeys/authenticate") ||
-    path.includes("/passkeys/register")
-  ) {
-    return true;
-  }
-
-  // Allow logout endpoint (can be called without auth)
-  if (path.includes("/logout")) {
-    return true;
-  }
-
-  // Allow password-related endpoints that are needed for authentication
-  if (
-    path.includes("/password-enabled") ||
-    path.includes("/reset-password-cooldown") ||
-    path.includes("/reset-password") ||
-    path.includes("/passkeys/exists")
-  ) {
-    return true;
-  }
-
-  return false;
+  return (
+    matchesExactPath(req, PUBLIC_EXACT_PATHS) ||
+    matchesPathOrSubpath(req, PUBLIC_PREFIX_PATHS)
+  );
 };
 
 /**
@@ -71,30 +81,7 @@ export const roleBasedSettingsMiddleware = (
   if (req.user?.role === "visitor") {
     // Allow GET requests (read-only)
     if (req.method === "GET") {
-      // Define allowlist for visitor GET requests
-      // This strict allowlist prevents access to sensitive endpoints like /export-database
-      const visitorAllowedGetPaths = [
-        "/", // General settings
-        "/cloudflared/status",
-        "/password-enabled",
-        "/reset-password-cooldown",
-        "/passkeys",
-        "/passkeys/exists",
-        "/check-cookies",
-        "/hooks/status",
-        "/last-backup-info",
-      ];
-
-      // Check if the requested path is in the allowlist
-      // We check both exact match and if the path starts with allowed prefixes
-      // This handles potential sub-paths (though most here do not have them)
-      const isAllowed = visitorAllowedGetPaths.some(
-        (allowedPath) =>
-          req.path === allowedPath ||
-          req.url === allowedPath ||
-          req.path.startsWith(`${allowedPath}/`) ||
-          req.url.startsWith(`${allowedPath}/`)
-      );
+      const isAllowed = matchesPathOrSubpath(req, VISITOR_ALLOWED_GET_PATHS);
 
       if (isAllowed) {
         next();
@@ -112,33 +99,12 @@ export const roleBasedSettingsMiddleware = (
 
     // For write requests, allow only auth endpoints and CloudFlare settings updates.
     if (req.method === "POST" || req.method === "PATCH") {
-      // Allow verify-password requests (including verify-admin-password and verify-visitor-password)
-      if (
-        req.path.includes("/verify-password") ||
-        req.url.includes("/verify-password") ||
-        req.path.includes("/verify-admin-password") ||
-        req.url.includes("/verify-admin-password") ||
-        req.path.includes("/verify-visitor-password") ||
-        req.url.includes("/verify-visitor-password")
-      ) {
+      if (matchesExactPath(req, VISITOR_ALLOWED_WRITE_EXACT_PATHS)) {
         next();
         return;
       }
 
-      // Allow passkey authentication
-      if (
-        req.path.includes("/passkeys/authenticate") ||
-        req.url.includes("/passkeys/authenticate")
-      ) {
-        next();
-        return;
-      }
-
-      // Allow logout endpoint
-      if (
-        req.path.includes("/logout") ||
-        req.url.includes("/logout")
-      ) {
+      if (matchesPathOrSubpath(req, VISITOR_ALLOWED_WRITE_PREFIX_PATHS)) {
         next();
         return;
       }
