@@ -15,11 +15,29 @@ import * as settingsValidationService from "../../services/settingsValidationSer
 import * as storageService from "../../services/storageService";
 import { logger } from "../../utils/logger";
 
-vi.mock("../../services/storageService", () => ({
-  getSettings: vi.fn(),
-  saveSettings: vi.fn(),
-  formatLegacyFilenames: vi.fn(),
-}));
+vi.mock("../../services/storageService", () => {
+  return {
+    WHITELISTED_SETTINGS: [
+      "loginEnabled",
+      "password",
+      "apiKeyEnabled",
+      "apiKey",
+      "maxConcurrentDownloads",
+      "language",
+      "tags",
+      "allowedHosts",
+      "visitorPassword",
+      "cloudflaredTunnelEnabled",
+      "cloudflaredToken",
+      "moveSubtitlesToVideoFolder",
+      "moveThumbnailsToVideoFolder",
+      "theme",
+    ],
+    getSettings: vi.fn(),
+    saveSettings: vi.fn(),
+    formatLegacyFilenames: vi.fn(),
+  };
+});
 
 vi.mock("../../services/settingsValidationService", () => ({
   mergeSettings: vi.fn(),
@@ -246,6 +264,29 @@ describe("settingsController extra coverage", () => {
         }),
       })
     );
+  });
+
+  it("patchSettings response does not expose stored passkeys", async () => {
+    vi.mocked(storageService.getSettings).mockReturnValue({
+      ...existingSettings,
+      internalOnlySetting: "secret",
+      passkeys: [
+        {
+          credentialID: "cred-1",
+          credentialPublicKey: "pub",
+          counter: 2,
+          rpID: "example.com",
+          origin: "https://example.com",
+        },
+      ],
+    } as any);
+    req.body = { theme: "dark" };
+
+    await patchSettings(req as Request, res as Response);
+
+    const responsePayload = json.mock.calls[0][0];
+    expect(responsePayload.settings.passkeys).toBeUndefined();
+    expect(responsePayload.settings.internalOnlySetting).toBeUndefined();
   });
 
   it("updateSettings stops cloudflared when disabled", async () => {

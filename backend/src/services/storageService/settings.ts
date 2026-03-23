@@ -96,7 +96,7 @@ export function getSettings(): Record<string, any> {
 }
 
 // Whitelist of allowed settings keys to prevent mass assignment
-const WHITELISTED_SETTINGS = [
+export const WHITELISTED_SETTINGS = [
   "loginEnabled",
   "password",
   "apiKeyEnabled",
@@ -150,10 +150,22 @@ const WHITELISTED_SETTINGS = [
   "telegramChatId",
   "telegramNotifyOnSuccess",
   "telegramNotifyOnFail",
-];
+] as const;
 
-export function saveSettings(newSettings: Record<string, any>): void {
+export interface SaveSettingsOptions {
+  extraWhitelistedKeys?: string[];
+}
+
+export function saveSettings(
+  newSettings: Record<string, any>,
+  options: SaveSettingsOptions = {}
+): void {
   try {
+    const allowedKeys = new Set([
+      ...WHITELISTED_SETTINGS,
+      ...(options.extraWhitelistedKeys ?? []),
+    ]);
+
     db.transaction(() => {
       for (const [key, value] of Object.entries(newSettings)) {
         // Skip undefined values - they should not be saved
@@ -162,7 +174,7 @@ export function saveSettings(newSettings: Record<string, any>): void {
         }
 
         // Whitelist validation: only allow known settings keys
-        if (!WHITELISTED_SETTINGS.includes(key)) {
+        if (!allowedKeys.has(key)) {
           // Silently ignore unknown keys
           continue;
         }

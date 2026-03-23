@@ -136,7 +136,8 @@ describe("passkeyService", () => {
               name: "My Passkey",
             }),
           ]),
-        })
+        }),
+        { extraWhitelistedKeys: ["passkeys"] }
       );
     });
 
@@ -253,7 +254,8 @@ describe("passkeyService", () => {
                     counter: 1
                 })
             ])
-        })
+        }),
+        { extraWhitelistedKeys: ["passkeys"] }
       );
       expect(storageService.saveSettings).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -263,7 +265,8 @@ describe("passkeyService", () => {
                     counter: 1
                 })
             ])
-        })
+        }),
+        { extraWhitelistedKeys: ["passkeys"] }
       );
       expect(result.token).toBe("mock-token");
       expect(result.role).toBe("admin");
@@ -289,6 +292,8 @@ describe("passkeyService", () => {
           removeAllPasskeys();
           expect(storageService.saveSettings).toHaveBeenCalledWith({
               passkeys: []
+          }, {
+              extraWhitelistedKeys: ["passkeys"]
           });
       });
   });

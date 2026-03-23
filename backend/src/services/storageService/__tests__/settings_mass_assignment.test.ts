@@ -60,4 +60,21 @@ describe('settings mass assignment protection', () => {
 
         expect(db.insert).toHaveBeenCalledTimes(3);
     });
+
+    it('should allow explicitly approved internal-only keys', () => {
+        saveSettings(
+            { passkeys: [{ id: 'cred-1' }] },
+            { extraWhitelistedKeys: ['passkeys'] }
+        );
+
+        expect(db.insert).toHaveBeenCalledTimes(1);
+        const mockedValuesFn = vi.mocked(db.insert).mock.results[0].value.values;
+
+        expect(mockedValuesFn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                key: 'passkeys',
+                value: JSON.stringify([{ id: 'cred-1' }]),
+            })
+        );
+    });
 });

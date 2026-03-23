@@ -7,7 +7,15 @@ import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
 import * as storageService from '../../services/storageService';
 
-vi.mock('../../services/storageService');
+vi.mock('../../services/storageService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/storageService')>();
+  return {
+    ...actual,
+    getSettings: vi.fn(),
+    saveSettings: vi.fn(),
+    formatLegacyFilenames: vi.fn(),
+  };
+});
 vi.mock('../../services/downloadManager');
 vi.mock('../../services/passwordService');
 vi.mock('../../services/loginAttemptService');
@@ -57,6 +65,28 @@ describe('SettingsController', () => {
       const responsePayload = json.mock.calls[0][0];
       expect(responsePayload.apiKey).toBeUndefined();
       expect(responsePayload.apiKeyEnabled).toBeUndefined();
+    });
+
+    it('should not expose stored passkeys in settings response', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: true,
+        internalOnlySetting: 'secret',
+        passkeys: [
+          {
+            credentialID: 'cred-1',
+            credentialPublicKey: 'pub',
+            counter: 1,
+            rpID: 'example.com',
+            origin: 'https://example.com',
+          },
+        ],
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.passkeys).toBeUndefined();
+      expect(responsePayload.internalOnlySetting).toBeUndefined();
     });
 
     it('should save defaults if empty', async () => {

@@ -15,6 +15,42 @@ import * as storageService from "../services/storageService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 
+type PersistedSettingsResponse = Settings & { passkeys?: unknown };
+
+const RESPONSE_HIDDEN_SETTINGS_KEYS = new Set([
+  "password",
+  "visitorPassword",
+  "apiKey",
+  "apiKeyEnabled",
+]);
+
+const RESPONSE_VISIBLE_SETTINGS_KEYS =
+  storageService.WHITELISTED_SETTINGS.filter(
+    (key) => !RESPONSE_HIDDEN_SETTINGS_KEYS.has(key)
+  );
+
+const buildSafeSettingsPayload = (
+  req: Request,
+  settings: PersistedSettingsResponse
+): Record<string, unknown> => {
+  const safeSettings = Object.fromEntries(
+    RESPONSE_VISIBLE_SETTINGS_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(settings, key))
+      .map((key) => [key, settings[key as keyof PersistedSettingsResponse]])
+  );
+  const canExposeApiKey =
+    req.user?.role === "admin" || settings.loginEnabled !== true;
+
+  return {
+    ...safeSettings,
+    apiKeyEnabled: canExposeApiKey ? settings.apiKeyEnabled : undefined,
+    apiKey: canExposeApiKey ? settings.apiKey : undefined,
+    password: undefined,
+    visitorPassword: undefined,
+    passkeys: undefined,
+  };
+};
+
 /**
  * Get application settings
  * Errors are automatically handled by asyncHandler middleware
@@ -37,18 +73,11 @@ export const getSettings = async (
   // Merge with defaults to ensure all fields exist
   const mergedSettings = { ...defaultSettings, ...settings };
 
-  // Do not send the hashed password to the frontend
-  const { password, visitorPassword, apiKey, apiKeyEnabled, ...safeSettings } = mergedSettings;
-  const canExposeApiKey =
-    req.user?.role === "admin" || mergedSettings.loginEnabled !== true;
-
   // Return data directly for backward compatibility
   res.json({
-    ...safeSettings,
-    apiKeyEnabled: canExposeApiKey ? apiKeyEnabled : undefined,
-    apiKey: canExposeApiKey ? apiKey : undefined,
-    isPasswordSet: !!password,
-    isVisitorPasswordSet: !!visitorPassword,
+    ...buildSafeSettingsPayload(req, mergedSettings as PersistedSettingsResponse),
+    isPasswordSet: !!mergedSettings.password,
+    isVisitorPasswordSet: !!mergedSettings.visitorPassword,
     authenticatedRole: req.user?.role ?? null,
   });
 };
@@ -457,11 +486,10 @@ const persistSettingsUpdate = async (
 
   res.json({
     success: true,
-    settings: {
-      ...finalSettings,
-      password: undefined,
-      visitorPassword: undefined,
-    },
+    settings: buildSafeSettingsPayload(
+      req,
+      finalSettings as PersistedSettingsResponse
+    ),
   });
 };
 

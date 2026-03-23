@@ -62,6 +62,8 @@ function savePasskeys(passkeys: StoredPasskey[]): void {
   try {
     storageService.saveSettings({
       [PASSKEYS_STORAGE_KEY]: passkeys,
+    }, {
+      extraWhitelistedKeys: [PASSKEYS_STORAGE_KEY],
     });
   } catch (error) {
     logger.error(

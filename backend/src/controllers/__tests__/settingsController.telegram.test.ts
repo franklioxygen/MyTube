@@ -9,9 +9,19 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
-vi.mock("../../services/storageService", () => ({
-  getSettings: vi.fn().mockReturnValue({ language: "en" }),
-}));
+vi.mock("../../services/storageService", () => {
+  return {
+    WHITELISTED_SETTINGS: [
+      "loginEnabled",
+      "password",
+      "apiKeyEnabled",
+      "apiKey",
+      "language",
+      "visitorPassword",
+    ],
+    getSettings: vi.fn().mockReturnValue({ language: "en" }),
+  };
+});
 
 // Mock the telegramService module used by the controller via dynamic import
 const mockSendTestMessage = vi.fn();

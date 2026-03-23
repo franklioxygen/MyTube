@@ -80,7 +80,7 @@ describe("PasskeyService", () => {
           
           expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({
               passkeys: expect.arrayContaining([expect.objectContaining({ credentialID: "cred-id" })])
-          }));
+          }), { extraWhitelistedKeys: ["passkeys"] });
       });
 
       it("should return false if verification fails", async () => {
@@ -140,7 +140,10 @@ describe("PasskeyService", () => {
   describe("removeAllPasskeys", () => {
       it("should empty passkeys", () => {
           removeAllPasskeys();
-          expect(storageService.saveSettings).toHaveBeenCalledWith({ passkeys: [] });
+          expect(storageService.saveSettings).toHaveBeenCalledWith(
+            { passkeys: [] },
+            { extraWhitelistedKeys: ["passkeys"] }
+          );
       });
   });
 });
