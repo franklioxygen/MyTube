@@ -125,6 +125,7 @@ describe("server/cors", () => {
     expect(result.err).toBeNull();
     expect(result.options?.origin).toBe(true);
     expect(result.options?.credentials).toBe(true);
+    expect(result.options?.exposedHeaders).toEqual(["X-CSRF-Token"]);
   });
 
   it("blocked origin preflight should not surface as 500", async () => {
@@ -141,5 +142,28 @@ describe("server/cors", () => {
       .set("Access-Control-Request-Method", "POST");
 
     expect(response.status).not.toBe(500);
+  });
+
+  it("allowed origin responses should expose the CSRF token header", async () => {
+    const app = express();
+    app.use(cors(buildCorsOptionsDelegate(["http://localhost:5556"])));
+    app.get("/api/ping", (_req, res) => {
+      res.setHeader("X-CSRF-Token", "token-value");
+      res.json({ ok: true });
+    });
+
+    const response = await request(app)
+      .get("/api/ping")
+      .set("Origin", "http://localhost:5556")
+      .set("Host", "192.168.1.20:5556");
+
+    expect(response.status).toBe(200);
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5556"
+    );
+    expect(response.headers["access-control-expose-headers"]).toContain(
+      "X-CSRF-Token"
+    );
+    expect(response.headers["x-csrf-token"]).toBe("token-value");
   });
 });

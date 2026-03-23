@@ -16,6 +16,9 @@ import { getApiUrl } from "./apiUrl";
 // In production or when VITE_API_URL is explicitly set, uses that value
 const API_URL = getApiUrl();
 
+// Stores the latest CSRF token received from the server
+let csrfToken: string | null = null;
+
 // Create axios instance with safe fallback for mocked test environments.
 const createdClient =
   typeof axios.create === "function"
@@ -40,8 +43,10 @@ const apiClient: AxiosInstance =
 if (apiClient?.interceptors?.request?.use) {
   apiClient.interceptors.request.use(
     (config) => {
-      // Cookies are automatically sent with requests when withCredentials: true
-      // No need to manually add Authorization header
+      // Attach CSRF token to state-changing requests
+      if (csrfToken) {
+        config.headers["X-CSRF-Token"] = csrfToken;
+      }
       return config;
     },
     (error) => {
@@ -56,6 +61,11 @@ if (apiClient?.interceptors?.request?.use) {
 if (apiClient?.interceptors?.response?.use) {
   apiClient.interceptors.response.use(
     (response: AxiosResponse) => {
+      // Capture CSRF token from response header for subsequent requests
+      const newCsrfToken = response.headers["x-csrf-token"];
+      if (newCsrfToken) {
+        csrfToken = newCsrfToken;
+      }
       return response;
     },
     (error: AxiosError) => {
