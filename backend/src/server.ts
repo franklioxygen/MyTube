@@ -36,7 +36,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
 app.use(csrfTokenProvider);
-app.use("/api", csrfProtection);
+app.use(csrfProtection);
 
 const configureProcessCrashReports = (): void => {
   if (!process.report) {
