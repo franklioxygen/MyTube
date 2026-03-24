@@ -62,6 +62,10 @@ describe("registerApiRoutes", () => {
       "/api/settings/passkeys/authenticate/verify",
       authLimiter
     );
+    expect(app.use).toHaveBeenCalledWith(
+      "/api/settings/passkeys/register",
+      authLimiter
+    );
 
     expect(app.use).toHaveBeenCalledWith("/api", authMiddleware);
     expect(app.use).toHaveBeenCalledWith(
@@ -75,6 +79,6 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.use).toHaveBeenCalledTimes(9);
+    expect(app.use).toHaveBeenCalledTimes(10);
   });
 });

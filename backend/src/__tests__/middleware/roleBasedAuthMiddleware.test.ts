@@ -112,6 +112,46 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it("blocks unauthenticated passkey registration when login is required", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    req = {
+      method: "POST",
+      path: "/settings/passkeys/register",
+      url: "/settings/passkeys/register",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("Authentication required"),
+      })
+    );
+  });
+
+  it("blocks unauthenticated passkey registration verification when login is required", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    req = {
+      method: "POST",
+      path: "/settings/passkeys/register/verify",
+      url: "/settings/passkeys/register/verify",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("Authentication required"),
+      })
+    );
+  });
+
   it("allows unauthenticated upload requests when login is disabled", () => {
     vi.mocked(isLoginRequired).mockReturnValue(false);
     req = {

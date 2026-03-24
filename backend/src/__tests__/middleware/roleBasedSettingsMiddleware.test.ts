@@ -204,6 +204,71 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(next).toHaveBeenCalledTimes(2);
   });
 
+  it('should BLOCK visitor passkey registration', () => {
+    req = {
+      method: 'POST',
+      path: '/passkeys/register',
+      url: '/passkeys/register',
+      body: {},
+      user: { role: 'visitor' } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining(
+          'Only reading settings and updating CloudFlare settings is allowed'
+        ),
+      })
+    );
+  });
+
+  it('should BLOCK unauthenticated passkey registration when login is required', () => {
+    req = {
+      method: 'POST',
+      path: '/passkeys/register',
+      url: '/passkeys/register',
+      user: undefined,
+    };
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('Authentication required'),
+      })
+    );
+  });
+
+  it('should BLOCK unauthenticated passkey registration verification when login is required', () => {
+    req = {
+      method: 'POST',
+      path: '/passkeys/register/verify',
+      url: '/passkeys/register/verify',
+      user: undefined,
+    };
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining('Authentication required'),
+      })
+    );
+  });
+
   it('should BLOCK visitor cloudflare update when body contains extra keys', () => {
     req = {
       method: 'PATCH',

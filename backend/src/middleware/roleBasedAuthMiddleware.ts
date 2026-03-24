@@ -19,7 +19,6 @@ const PUBLIC_EXACT_PATHS = [
 
 const PUBLIC_PREFIX_PATHS = [
   "/settings/passkeys/authenticate",
-  "/settings/passkeys/register",
 ] as const;
 
 const VISITOR_ALLOWED_POST_EXACT_PATHS = [

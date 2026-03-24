@@ -70,6 +70,7 @@ describe("PasskeyController", () => {
     describe("generateRegistrationOptions", () => {
         it("should generate options using correct RPID and Origin", async () => {
             req.body = { userName: "testuser" };
+            req.user = { role: "admin" } as any;
             const mockResult = { challenge: "c", options: {} };
             vi.mocked(passkeyService.generatePasskeyRegistrationOptions).mockResolvedValue(mockResult as any);
 
@@ -85,6 +86,7 @@ describe("PasskeyController", () => {
         
         it("should fallback to host if origin missing", async () => {
             req.headers = { host: "example.com" }; // secure false implies http
+            req.user = { role: "admin" } as any;
             vi.mocked(passkeyService.generatePasskeyRegistrationOptions).mockResolvedValue({} as any);
             
             await passkeyController.generateRegistrationOptions(req as Request, res as Response);
@@ -95,11 +97,39 @@ describe("PasskeyController", () => {
                 "example.com"
             );
         });
+
+        it("should reject unauthenticated registration attempts", async () => {
+            req.body = { userName: "testuser" };
+
+            await passkeyController.generateRegistrationOptions(req as Request, res as Response);
+
+            expect(status).toHaveBeenCalledWith(403);
+            expect(json).toHaveBeenCalledWith({
+                success: false,
+                error: "Admin authentication required to register a passkey.",
+            });
+            expect(passkeyService.generatePasskeyRegistrationOptions).not.toHaveBeenCalled();
+        });
+
+        it("should reject visitor registration attempts", async () => {
+            req.body = { userName: "testuser" };
+            req.user = { role: "visitor" } as any;
+
+            await passkeyController.generateRegistrationOptions(req as Request, res as Response);
+
+            expect(status).toHaveBeenCalledWith(403);
+            expect(json).toHaveBeenCalledWith({
+                success: false,
+                error: "Admin authentication required to register a passkey.",
+            });
+            expect(passkeyService.generatePasskeyRegistrationOptions).not.toHaveBeenCalled();
+        });
     });
 
     describe("verifyRegistration", () => {
         it("should verify successfully", async () => {
             req.body = { body: {}, challenge: "c" };
+            req.user = { role: "admin" } as any;
             vi.mocked(passkeyService.verifyPasskeyRegistration).mockResolvedValue({ verified: true, passkey: {} } as any);
 
             await passkeyController.verifyRegistration(req as Request, res as Response);
@@ -109,16 +139,45 @@ describe("PasskeyController", () => {
 
         it("should fail validation if missing fields", async () => {
              req.body = {};
+             req.user = { role: "admin" } as any;
              await passkeyController.verifyRegistration(req as Request, res as Response);
              expect(status).toHaveBeenCalledWith(400);
         });
 
         it("should fail if service verification fails", async () => {
              req.body = { body: {}, challenge: "c" };
+             req.user = { role: "admin" } as any;
              vi.mocked(passkeyService.verifyPasskeyRegistration).mockResolvedValue({ verified: false });
 
              await passkeyController.verifyRegistration(req as Request, res as Response);
              expect(status).toHaveBeenCalledWith(400);
+        });
+
+        it("should reject unauthenticated registration verification attempts", async () => {
+             req.body = { body: {}, challenge: "c" };
+
+             await passkeyController.verifyRegistration(req as Request, res as Response);
+
+             expect(status).toHaveBeenCalledWith(403);
+             expect(json).toHaveBeenCalledWith({
+                 success: false,
+                 error: "Admin authentication required to register a passkey.",
+             });
+             expect(passkeyService.verifyPasskeyRegistration).not.toHaveBeenCalled();
+        });
+
+        it("should reject visitor registration verification attempts", async () => {
+             req.body = { body: {}, challenge: "c" };
+             req.user = { role: "visitor" } as any;
+
+             await passkeyController.verifyRegistration(req as Request, res as Response);
+
+             expect(status).toHaveBeenCalledWith(403);
+             expect(json).toHaveBeenCalledWith({
+                 success: false,
+                 error: "Admin authentication required to register a passkey.",
+             });
+             expect(passkeyService.verifyPasskeyRegistration).not.toHaveBeenCalled();
         });
     });
 

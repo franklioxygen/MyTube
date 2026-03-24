@@ -15,6 +15,7 @@ export const registerApiRoutes = (
   app.use("/api/settings/reset-password", authLimiter);
   app.use("/api/settings/passkeys/authenticate", authLimiter);
   app.use("/api/settings/passkeys/authenticate/verify", authLimiter);
+  app.use("/api/settings/passkeys/register", authLimiter);
 
   app.use("/api", authMiddleware);
   app.use("/api", roleBasedAuthMiddleware, apiRoutes);

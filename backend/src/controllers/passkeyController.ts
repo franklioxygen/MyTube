@@ -2,6 +2,21 @@ import { Request, Response } from "express";
 import { setAuthCookie } from "../services/authService";
 import * as passkeyService from "../services/passkeyService";
 
+const requireAdminPasskeyRegistration = (
+  req: Request,
+  res: Response
+): boolean => {
+  if (req.user?.role === "admin") {
+    return true;
+  }
+
+  res.status(403).json({
+    success: false,
+    error: "Admin authentication required to register a passkey.",
+  });
+  return false;
+};
+
 /**
  * Get all passkeys
  * Errors are automatically handled by asyncHandler middleware
@@ -82,6 +97,10 @@ export const generateRegistrationOptions = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (!requireAdminPasskeyRegistration(req, res)) {
+    return;
+  }
+
   const userName = req.body.userName || "MyTube User";
   const { origin, rpID } = getOriginAndRPID(req);
   const result = await passkeyService.generatePasskeyRegistrationOptions(
@@ -100,6 +119,10 @@ export const verifyRegistration = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (!requireAdminPasskeyRegistration(req, res)) {
+    return;
+  }
+
   const { body, challenge } = req.body;
   if (!body || !challenge) {
     res.status(400).json({ error: "Missing body or challenge" });
