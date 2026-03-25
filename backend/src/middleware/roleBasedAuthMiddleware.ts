@@ -11,7 +11,6 @@ const PUBLIC_EXACT_PATHS = [
   "/settings/verify-visitor-password",
   "/settings/password-enabled",
   "/settings/reset-password-cooldown",
-  "/settings/reset-password",
   "/settings/passkeys/exists",
   "/settings/logout",
 ] as const;

@@ -217,22 +217,6 @@ describe('passwordController', () => {
       expect(jsonMock).toHaveBeenCalledWith({ cooldown: 45 });
     });
   });
-
-  describe('resetPassword', () => {
-    it('should call service and return success', async () => {
-      (passwordService.resetPassword as any).mockResolvedValue('newPass');
-
-      await passwordController.resetPassword(mockReq as Request, mockRes as Response);
-
-      expect(passwordService.resetPassword).toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
-          success: true
-      }));
-      // Should not return password
-      expect(jsonMock.mock.calls[0][0]).not.toHaveProperty('password');
-    });
-  });
-
   describe('logout', () => {
     it('should clear auth cookie and return success message', async () => {
       await passwordController.logout(mockReq as Request, mockRes as Response);

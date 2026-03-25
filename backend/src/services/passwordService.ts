@@ -150,12 +150,6 @@ export async function verifyPassword(
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
     }
-  } else {
-    // If no admin password set, and login enabled, allow as admin
-    if (mergedSettings.loginEnabled) {
-       const token = generateToken({ role: "admin" });
-       return { success: true, role: "admin", token };
-    }
   }
 
   // 2. Check Visitor Password (if visitorPassword is set and visitor user is enabled)
@@ -225,11 +219,10 @@ export async function verifyAdminPassword(
       return { success: true, role: "admin", token };
     }
   } else {
-    // If no admin password set, and login enabled, allow as admin
-    if (mergedSettings.loginEnabled) {
-       const token = generateToken({ role: "admin" });
-       return { success: true, role: "admin", token };
-    }
+    return {
+      success: false,
+      message: "Admin password is not configured.",
+    };
   }
 
   return {

@@ -134,8 +134,8 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Body: `{ password: string }`
 - `POST /api/settings/verify-visitor-password` - Verify visitor password
   - Body: `{ password: string }`
-- `POST /api/settings/reset-password` - Reset password to a random value (printed in backend logs)
-  - Body: none
+- `POST /api/settings/reset-password` - Removed
+  - Password recovery must be performed from the backend environment via `node dist/scripts/reset-password.js <new-password>` or the equivalent Docker command.
 - `POST /api/settings/logout` - Clear auth cookie
 
 ## Passkeys

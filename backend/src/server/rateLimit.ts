@@ -7,7 +7,6 @@ export interface AuthLimiters {
   adminPasswordLimiter: RequestHandler;
   visitorPasswordLimiter: RequestHandler;
   adminReauthLimiter: RequestHandler;
-  resetPasswordLimiter: RequestHandler;
   passkeyAuthLimiter: RequestHandler;
   passkeyRegistrationLimiter: RequestHandler;
 }
@@ -101,7 +100,6 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     adminPasswordLimiter: createScopedAuthLimiter("admin-password"),
     visitorPasswordLimiter: createScopedAuthLimiter("visitor-password"),
     adminReauthLimiter: createScopedAuthLimiter("admin-reauth"),
-    resetPasswordLimiter: createScopedAuthLimiter("reset-password"),
     passkeyAuthLimiter: createScopedAuthLimiter("passkey-auth"),
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
   };

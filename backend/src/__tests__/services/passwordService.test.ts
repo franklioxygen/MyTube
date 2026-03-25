@@ -137,7 +137,7 @@ describe("passwordService", () => {
       expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
     });
 
-    it("falls back to login when admin password is missing but login is enabled", async () => {
+    it("does not auto-login admin when admin password is missing", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -145,9 +145,8 @@ describe("passwordService", () => {
       const result = await passwordService.verifyPassword("anything");
 
       expect(result).toEqual({
-        success: true,
-        role: "admin",
-        token: "token-admin",
+        success: false,
+        message: "Incorrect password",
       });
     });
 
@@ -271,15 +270,17 @@ describe("passwordService", () => {
       });
     });
 
-    it("falls back to admin login when no admin password is set", async () => {
+    it("rejects admin login when no admin password is set", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
 
       const result = await passwordService.verifyAdminPassword("admin");
 
-      expect(result.success).toBe(true);
-      expect(result.role).toBe("admin");
+      expect(result).toEqual({
+        success: false,
+        message: "Admin password is not configured.",
+      });
     });
 
     it("returns incorrect admin password on mismatch", async () => {

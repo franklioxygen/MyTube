@@ -149,24 +149,6 @@ export const getResetPasswordCooldown = async (
 };
 
 /**
- * Reset password to a random 8-character string
- * Errors are automatically handled by asyncHandler middleware
- */
-export const resetPassword = async (
-  _req: Request,
-  res: Response
-): Promise<void> => {
-  await passwordService.resetPassword();
-
-  // Return success (but don't send password to frontend for security)
-  res.json({
-    success: true,
-    message:
-      "Password has been reset. Check backend logs for the new password.",
-  });
-};
-
-/**
  * Logout endpoint - clears authentication cookies
  * Errors are automatically handled by asyncHandler middleware
  */

@@ -22,7 +22,6 @@ export const registerApiRoutes = (
     "/api/settings/confirm-admin-password",
     authLimiters.adminReauthLimiter
   );
-  app.post("/api/settings/reset-password", authLimiters.resetPasswordLimiter);
   app.post(
     "/api/settings/passkeys/authenticate",
     authLimiters.passkeyAuthLimiter

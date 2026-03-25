@@ -38,7 +38,6 @@ describe("registerApiRoutes", () => {
       adminPasswordLimiter: vi.fn(),
       visitorPasswordLimiter: vi.fn(),
       adminReauthLimiter: vi.fn(),
-      resetPasswordLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
     };
@@ -56,10 +55,6 @@ describe("registerApiRoutes", () => {
     expect(app.post).toHaveBeenCalledWith(
       "/api/settings/confirm-admin-password",
       authLimiters.adminReauthLimiter
-    );
-    expect(app.post).toHaveBeenCalledWith(
-      "/api/settings/reset-password",
-      authLimiters.resetPasswordLimiter
     );
     expect(app.post).toHaveBeenCalledWith(
       "/api/settings/passkeys/authenticate",
@@ -90,7 +85,7 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.post).toHaveBeenCalledTimes(7);
     expect(app.use).toHaveBeenCalledTimes(3);
   });
 });

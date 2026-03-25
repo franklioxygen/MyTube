@@ -33,7 +33,6 @@ import {
     getPasswordEnabled,
     getResetPasswordCooldown,
     logout,
-    resetPassword,
     verifyAdminPassword,
     verifyVisitorPassword,
 } from "../controllers/passwordController";
@@ -69,7 +68,6 @@ router.get("/reset-password-cooldown", asyncHandler(getResetPasswordCooldown));
 router.post("/verify-admin-password", asyncHandler(verifyAdminPassword));
 router.post("/verify-visitor-password", asyncHandler(verifyVisitorPassword));
 router.post("/confirm-admin-password", asyncHandler(confirmAdminPassword));
-router.post("/reset-password", asyncHandler(resetPassword));
 router.post("/logout", asyncHandler(logout));
 
 // Passkey routes

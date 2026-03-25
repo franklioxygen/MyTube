@@ -134,8 +134,8 @@
   - 请求体: `{ password: string }`
 - `POST /api/settings/verify-visitor-password` - 验证访客密码
   - 请求体: `{ password: string }`
-- `POST /api/settings/reset-password` - 重置密码为随机值 (打印在后端日志中)
-  - 请求体: 无
+- `POST /api/settings/reset-password` - 已移除
+  - 密码恢复必须在后端环境中执行，使用 `node dist/scripts/reset-password.js <new-password>` 或等效的 Docker 命令。
 - `POST /api/settings/logout` - 清除认证 Cookie
 
 ## 通行密钥 (Passkeys)
