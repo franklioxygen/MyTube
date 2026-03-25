@@ -127,7 +127,8 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Password & Session
 
 - `GET /api/settings/password-enabled` - Check whether login/password is enabled
-- `GET /api/settings/reset-password-cooldown` - Get reset cooldown
+- `GET /api/settings/reset-password-cooldown` - Removed
+  - This endpoint was tied to the deprecated public web reset flow and is no longer available.
 - `POST /api/settings/verify-password` - Verify password (deprecated, kept for compatibility)
   - Body: `{ password: string }`
 - `POST /api/settings/verify-admin-password` - Verify admin password

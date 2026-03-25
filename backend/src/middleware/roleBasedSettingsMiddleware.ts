@@ -6,11 +6,11 @@ import {
 } from "../utils/requestPath";
 
 const PUBLIC_EXACT_PATHS = [
+  "/verify-password",
   "/verify-admin-password",
   "/verify-visitor-password",
   "/logout",
   "/password-enabled",
-  "/reset-password-cooldown",
   "/passkeys/exists",
 ] as const;
 
@@ -22,7 +22,6 @@ const VISITOR_ALLOWED_GET_PATHS = [
   "/",
   "/cloudflared/status",
   "/password-enabled",
-  "/reset-password-cooldown",
   "/passkeys",
   "/passkeys/exists",
   "/check-cookies",
@@ -31,6 +30,7 @@ const VISITOR_ALLOWED_GET_PATHS = [
 ] as const;
 
 const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
+  "/verify-password",
   "/verify-admin-password",
   "/verify-visitor-password",
   "/logout",

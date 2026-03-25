@@ -46,7 +46,6 @@ describe('SecuritySettings', () => {
         loginEnabled: false,
         password: '',
         passwordLoginAllowed: true,
-        allowResetPassword: true,
         apiKeyEnabled: false,
         apiKey: '',
         isPasswordSet: false,
@@ -151,7 +150,7 @@ describe('SecuritySettings', () => {
         });
     });
 
-    it('handles login, password, visitor, and reset-password switches', async () => {
+    it('handles login, password, and visitor switches', async () => {
         const user = userEvent.setup();
         render(
             <SecuritySettings
@@ -161,13 +160,11 @@ describe('SecuritySettings', () => {
         );
 
         await user.click(screen.getByRole('switch', { name: 'enableLogin' }));
-        await user.click(screen.getByRole('switch', { name: 'allowResetPassword' }));
         await user.click(screen.getByRole('switch', { name: 'enableVisitorUser' }));
         await user.type(screen.getByLabelText('password'), 'secret');
         await user.type(screen.getByLabelText('visitorPassword'), 'guest');
 
         expect(mockOnChange).toHaveBeenCalledWith('loginEnabled', false);
-        expect(mockOnChange).toHaveBeenCalledWith('allowResetPassword', false);
         expect(mockOnChange).toHaveBeenCalledWith('visitorUserEnabled', false);
         expect(mockOnChange).toHaveBeenCalledWith('password', 's');
         expect(mockOnChange).toHaveBeenCalledWith('visitorPassword', 'g');

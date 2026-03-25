@@ -4,7 +4,6 @@ export interface Settings {
   apiKeyEnabled?: boolean;
   apiKey?: string;
   passwordLoginAllowed?: boolean;
-  allowResetPassword?: boolean;
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;
   maxConcurrentDownloads: number;
@@ -52,6 +51,8 @@ export interface Settings {
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
 }
+
+export const DEFAULT_ADMIN_PASSWORD = "123";
 
 export const defaultSettings: Settings = {
   loginEnabled: false,

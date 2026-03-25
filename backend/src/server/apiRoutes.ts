@@ -11,6 +11,10 @@ export const registerApiRoutes = (
   authLimiters: AuthLimiters
 ): void => {
   app.post(
+    "/api/settings/verify-password",
+    authLimiters.adminPasswordLimiter
+  );
+  app.post(
     "/api/settings/verify-admin-password",
     authLimiters.adminPasswordLimiter
   );

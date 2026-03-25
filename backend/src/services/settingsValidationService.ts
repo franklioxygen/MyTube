@@ -1,5 +1,9 @@
 import { ValidationError } from "../errors/DownloadErrors";
-import { Settings, defaultSettings } from "../types/settings";
+import {
+  DEFAULT_ADMIN_PASSWORD,
+  Settings,
+  defaultSettings,
+} from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
 
@@ -187,6 +191,15 @@ export async function prepareSettingsForSave(
     hasField("passwordLoginAllowed")
       ? newSettings.passwordLoginAllowed !== false
       : existingSettings.passwordLoginAllowed !== false;
+  const loginEnabled =
+    hasField("loginEnabled")
+      ? newSettings.loginEnabled === true
+      : existingSettings.loginEnabled === true;
+  const shouldSeedDefaultAdminPassword =
+    loginEnabled &&
+    passwordLoginAllowed &&
+    !existingSettings.password &&
+    (!hasField("password") || !newSettings.password);
 
   if (hasField("password")) {
     if (newSettings.password) {
@@ -196,12 +209,16 @@ export async function prepareSettingsForSave(
       } else {
         prepared.password = await hashPassword(newSettings.password);
       }
+    } else if (shouldSeedDefaultAdminPassword) {
+      prepared.password = await hashPassword(DEFAULT_ADMIN_PASSWORD);
     } else {
       // Empty password means "unchanged" for current UI flows.
       if (preserveUnsetFields) {
         prepared.password = existingSettings.password;
       }
     }
+  } else if (shouldSeedDefaultAdminPassword) {
+    prepared.password = await hashPassword(DEFAULT_ADMIN_PASSWORD);
   } else if (preserveUnsetFields) {
     prepared.password = existingSettings.password;
   }

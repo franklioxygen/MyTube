@@ -205,18 +205,6 @@ describe('passwordController', () => {
     });
   });
 
-  describe('getResetPasswordCooldown', () => {
-    it('should return cooldown value from service', async () => {
-      (passwordService.getResetPasswordCooldown as any).mockReturnValue(45);
-
-      await passwordController.getResetPasswordCooldown(
-        mockReq as Request,
-        mockRes as Response
-      );
-
-      expect(jsonMock).toHaveBeenCalledWith({ cooldown: 45 });
-    });
-  });
   describe('logout', () => {
     it('should clear auth cookie and return success message', async () => {
       await passwordController.logout(mockReq as Request, mockRes as Response);

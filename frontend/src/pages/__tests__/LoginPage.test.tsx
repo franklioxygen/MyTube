@@ -128,7 +128,6 @@ const setNormalState = (overrides: Record<string, unknown> = {}) => {
                 loginRequired: true,
                 passwordEnabled: true,
                 passwordLoginAllowed: true,
-                allowResetPassword: true,
                 visitorUserEnabled: false,
                 isVisitorPasswordSet: false,
                 websiteName: 'MyTube',
@@ -417,18 +416,10 @@ describe('LoginPage', () => {
 
     // 11. Reset password button shown
     describe('reset password button', () => {
-        it('shows reset password button when allowResetPassword is true', () => {
-            setNormalState({ allowResetPassword: true });
+        it('shows reset password button', () => {
             render(<LoginPage />);
 
             expect(screen.getByText('resetPassword')).toBeInTheDocument();
-        });
-
-        it('hides reset password button when allowResetPassword is false', () => {
-            setNormalState({ allowResetPassword: false });
-            render(<LoginPage />);
-
-            expect(screen.queryByRole('button', { name: 'resetPassword' })).not.toBeInTheDocument();
         });
     });
 
@@ -491,7 +482,7 @@ describe('LoginPage', () => {
     // 16. Reset password guidance
     describe('reset password flow', () => {
         it('opens guidance modal when reset button clicked', () => {
-            setNormalState({ allowResetPassword: true });
+            setNormalState();
             render(<LoginPage />);
 
             fireEvent.click(screen.getByText('resetPassword'));
@@ -505,7 +496,7 @@ describe('LoginPage', () => {
         });
 
         it('closes reset guidance modal when confirm is clicked', async () => {
-            setNormalState({ allowResetPassword: true });
+            setNormalState();
             render(<LoginPage />);
 
             fireEvent.click(screen.getByText('resetPassword'));
@@ -654,25 +645,6 @@ describe('LoginPage', () => {
             render(<LoginPage />);
 
             expect(mockLogin).toHaveBeenCalled();
-        });
-    });
-
-    // 21. Info icon when reset password is disabled
-    describe('reset password disabled info', () => {
-        it('shows info icon when allowResetPassword is false and passwordLoginAllowed is true', () => {
-            setNormalState({ allowResetPassword: false, passwordLoginAllowed: true });
-            render(<LoginPage />);
-
-            // Info icon button should be present
-            const infoButton = screen.getByTestId('InfoOutlinedIcon').closest('button')!;
-            expect(infoButton).toBeInTheDocument();
-
-            // Clicking it opens the real AlertModal
-            fireEvent.click(infoButton);
-
-            const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText('resetPassword')).toBeInTheDocument();
-            expect(within(dialog).getByText(/backend environment/)).toBeInTheDocument();
         });
     });
 

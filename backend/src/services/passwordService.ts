@@ -1,13 +1,29 @@
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
-import { defaultSettings } from "../types/settings";
+import { DEFAULT_ADMIN_PASSWORD, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
 import { generateToken } from "./authService";
 
 const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 
-type PasswordMatchResult = "match" | "legacy_plaintext_match" | "mismatch";
+type PasswordMatchResult =
+  | "match"
+  | "legacy_plaintext_match"
+  | "default_admin_password_match"
+  | "mismatch";
+
+function compareDefaultAdminPassword(
+  inputPassword: string,
+  loginEnabled: boolean
+): PasswordMatchResult {
+  if (!loginEnabled || typeof inputPassword !== "string") {
+    return "mismatch";
+  }
+
+  return inputPassword === DEFAULT_ADMIN_PASSWORD
+    ? "default_admin_password_match"
+    : "mismatch";
+}
 
 async function compareStoredPassword(
   inputPassword: string,
@@ -40,24 +56,50 @@ async function compareStoredPassword(
   }
 }
 
-async function migrateLegacyPasswordHash(
+function isHashPersistenceMatch(
+  matchResult: PasswordMatchResult
+): matchResult is "legacy_plaintext_match" | "default_admin_password_match" {
+  return (
+    matchResult === "legacy_plaintext_match" ||
+    matchResult === "default_admin_password_match"
+  );
+}
+
+function getHashPersistenceMessages(
+  key: "password" | "visitorPassword",
+  matchResult: "legacy_plaintext_match" | "default_admin_password_match"
+): { success: string; failure: string } {
+  if (matchResult === "default_admin_password_match") {
+    return {
+      success: `Accepted default admin password fallback. Persisted bcrypt hash for ${key}.`,
+      failure: `Failed to persist bcrypt hash for default admin password fallback ${key}.`,
+    };
+  }
+
+  return {
+    success: `Detected legacy plaintext ${key}. Automatically migrated to bcrypt hash.`,
+    failure: `Failed to migrate legacy plaintext ${key}.`,
+  };
+}
+
+async function persistHashForCompatibleMatch(
   key: "password" | "visitorPassword",
   rawPassword: string,
   matchResult: PasswordMatchResult,
 ): Promise<void> {
-  if (matchResult !== "legacy_plaintext_match") {
+  if (!isHashPersistenceMatch(matchResult)) {
     return;
   }
+
+  const messages = getHashPersistenceMessages(key, matchResult);
 
   try {
     const hashedPassword = await hashPassword(rawPassword);
     storageService.saveSettings({ [key]: hashedPassword });
-    logger.warn(
-      `Detected legacy plaintext ${key}. Automatically migrated to bcrypt hash.`,
-    );
+    logger.warn(messages.success);
   } catch (error) {
     logger.error(
-      `Failed to migrate legacy plaintext ${key}.`,
+      messages.failure,
       error instanceof Error ? error : new Error(String(error)),
     );
   }
@@ -81,7 +123,6 @@ export function isPasswordEnabled(): {
   visitorUserEnabled?: boolean;
   isVisitorPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
-  allowResetPassword?: boolean;
   websiteName?: string;
 } {
   const settings = storageService.getSettings();
@@ -99,7 +140,6 @@ export function isPasswordEnabled(): {
     visitorUserEnabled: mergedSettings.visitorUserEnabled !== false,
     isVisitorPasswordSet: !!mergedSettings.visitorPassword,
     passwordLoginAllowed,
-    allowResetPassword: mergedSettings.allowResetPassword !== false,
     websiteName: mergedSettings.websiteName,
   };
 }
@@ -142,10 +182,24 @@ export async function verifyPassword(
       mergedSettings.password,
     );
     if (adminMatchResult !== "mismatch") {
-      await migrateLegacyPasswordHash(
+      await persistHashForCompatibleMatch(
         "password",
         password,
         adminMatchResult,
+      );
+      const token = generateToken({ role: "admin" });
+      return { success: true, role: "admin", token };
+    }
+  } else {
+    const defaultAdminMatchResult = compareDefaultAdminPassword(
+      password,
+      mergedSettings.loginEnabled === true
+    );
+    if (defaultAdminMatchResult !== "mismatch") {
+      await persistHashForCompatibleMatch(
+        "password",
+        DEFAULT_ADMIN_PASSWORD,
+        defaultAdminMatchResult,
       );
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
@@ -162,7 +216,7 @@ export async function verifyPassword(
       mergedSettings.visitorPassword,
     );
     if (visitorMatchResult !== "mismatch") {
-      await migrateLegacyPasswordHash(
+      await persistHashForCompatibleMatch(
         "visitorPassword",
         password,
         visitorMatchResult,
@@ -210,7 +264,7 @@ export async function verifyAdminPassword(
       mergedSettings.password,
     );
     if (adminMatchResult !== "mismatch") {
-      await migrateLegacyPasswordHash(
+      await persistHashForCompatibleMatch(
         "password",
         password,
         adminMatchResult,
@@ -219,9 +273,26 @@ export async function verifyAdminPassword(
       return { success: true, role: "admin", token };
     }
   } else {
+    const defaultAdminMatchResult = compareDefaultAdminPassword(
+      password,
+      mergedSettings.loginEnabled === true
+    );
+    if (defaultAdminMatchResult !== "mismatch") {
+      await persistHashForCompatibleMatch(
+        "password",
+        DEFAULT_ADMIN_PASSWORD,
+        defaultAdminMatchResult,
+      );
+      const token = generateToken({ role: "admin" });
+      return { success: true, role: "admin", token };
+    }
+
     return {
       success: false,
-      message: "Admin password is not configured.",
+      message:
+        mergedSettings.loginEnabled === true
+          ? "Incorrect admin password"
+          : "Admin password is not configured.",
     };
   }
 
@@ -273,7 +344,7 @@ export async function verifyVisitorPassword(
       mergedSettings.visitorPassword,
     );
     if (visitorMatchResult !== "mismatch") {
-      await migrateLegacyPasswordHash(
+      await persistHashForCompatibleMatch(
         "visitorPassword",
         password,
         visitorMatchResult,
@@ -309,9 +380,25 @@ export async function confirmAdminPassword(
   const mergedSettings = { ...defaultSettings, ...settings };
 
   if (!mergedSettings.password) {
+    const defaultAdminMatchResult = compareDefaultAdminPassword(
+      password,
+      mergedSettings.loginEnabled === true
+    );
+    if (defaultAdminMatchResult !== "mismatch") {
+      await persistHashForCompatibleMatch(
+        "password",
+        DEFAULT_ADMIN_PASSWORD,
+        defaultAdminMatchResult
+      );
+      return { success: true };
+    }
+
     return {
       success: false,
-      message: "Admin password is not configured.",
+      message:
+        mergedSettings.loginEnabled === true
+          ? "Incorrect admin password"
+          : "Admin password is not configured.",
     };
   }
 
@@ -327,7 +414,7 @@ export async function confirmAdminPassword(
     };
   }
 
-  await migrateLegacyPasswordHash("password", password, adminMatchResult);
+  await persistHashForCompatibleMatch("password", password, adminMatchResult);
   return { success: true };
 }
 
@@ -337,79 +424,4 @@ export async function confirmAdminPassword(
 export async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
   return await bcrypt.hash(password, salt);
-}
-
-const RESET_PASSWORD_COOLDOWN = 60 * 60 * 1000; // 1 hour in milliseconds
-
-/**
- * Get the remaining cooldown time for password reset
- * Returns the remaining time in milliseconds, or 0 if no cooldown
- */
-export function getResetPasswordCooldown(): number {
-  const settings = storageService.getSettings();
-  const mergedSettings = { ...defaultSettings, ...settings };
-
-  const lastResetTime = (mergedSettings as any).lastPasswordResetTime as number | undefined;
-  
-  if (!lastResetTime) {
-    return 0;
-  }
-
-  const timeSinceLastReset = Date.now() - lastResetTime;
-  const remainingCooldown = RESET_PASSWORD_COOLDOWN - timeSinceLastReset;
-
-  return remainingCooldown > 0 ? remainingCooldown : 0;
-}
-
-/**
- * Reset password to a random 8-character string
- * Returns the new password (should be logged, not sent to frontend)
- */
-export async function resetPassword(): Promise<string> {
-  const settings = storageService.getSettings();
-  const mergedSettings = { ...defaultSettings, ...settings };
-
-  // Check if password reset is allowed (defaults to true for backward compatibility)
-  const allowResetPassword = mergedSettings.allowResetPassword !== false;
-
-  if (!allowResetPassword) {
-    throw new Error("Password reset is not allowed. The allowResetPassword setting is disabled.");
-  }
-
-  // Check if password login is allowed (defaults to true for backward compatibility)
-  const passwordLoginAllowed = mergedSettings.passwordLoginAllowed !== false;
-
-  if (!passwordLoginAllowed) {
-    throw new Error("Password reset is not allowed when password login is disabled");
-  }
-
-  // Check cooldown period (1 hour)
-  const remainingCooldown = getResetPasswordCooldown();
-  if (remainingCooldown > 0) {
-    const minutes = Math.ceil(remainingCooldown / (60 * 1000));
-    throw new Error(`Password reset is on cooldown. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before trying again.`);
-  }
-
-  // Generate random 8-character password using cryptographically secure random
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const randomBytes = crypto.randomBytes(8);
-  const newPassword = Array.from(randomBytes, (byte) =>
-    chars.charAt(byte % chars.length)
-  ).join("");
-
-  // Hash the new password
-  const hashedPassword = await hashPassword(newPassword);
-
-  // Update settings with new password and reset timestamp
-  mergedSettings.password = hashedPassword;
-  mergedSettings.loginEnabled = true; // Ensure login is enabled
-  (mergedSettings as any).lastPasswordResetTime = Date.now();
-
-  storageService.saveSettings(mergedSettings);
-
-  // Log that password was reset (redact actual password)
-  logger.info(`Password has been reset. New password: ${newPassword}`);
-
-  return newPassword;
 }

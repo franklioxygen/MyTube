@@ -127,7 +127,8 @@
 ## 密码与会话
 
 - `GET /api/settings/password-enabled` - 检查是否启用了登录/密码
-- `GET /api/settings/reset-password-cooldown` - 获取重置冷却时间
+- `GET /api/settings/reset-password-cooldown` - 已移除
+  - 该端点与已废弃的公开网页重置流程绑定，现已不可用。
 - `POST /api/settings/verify-password` - 验证密码 (已废弃，保留兼容性)
   - 请求体: `{ password: string }`
 - `POST /api/settings/verify-admin-password` - 验证管理员密码

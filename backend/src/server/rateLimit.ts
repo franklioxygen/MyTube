@@ -129,7 +129,6 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     if (
       req.path === "/api/settings/password-enabled" ||
       req.path === "/api/settings/passkeys/exists" ||
-      req.path === "/api/settings/reset-password-cooldown" ||
       req.path === "/api/settings"
     ) {
       return next();

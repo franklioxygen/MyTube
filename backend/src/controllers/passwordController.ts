@@ -135,20 +135,6 @@ export const confirmAdminPassword = async (
 };
 
 /**
- * Get the remaining cooldown time for password reset
- * Errors are automatically handled by asyncHandler middleware
- */
-export const getResetPasswordCooldown = async (
-  _req: Request,
-  res: Response
-): Promise<void> => {
-  const remainingCooldown = passwordService.getResetPasswordCooldown();
-  res.json({
-    cooldown: remainingCooldown,
-  });
-};
-
-/**
  * Logout endpoint - clears authentication cookies
  * Errors are automatically handled by asyncHandler middleware
  */

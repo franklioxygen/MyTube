@@ -98,6 +98,20 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it("allows unauthenticated legacy verify-password when login is required", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    req = {
+      method: "POST",
+      path: "/settings/verify-password",
+      url: "/settings/verify-password",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
   it("allows unauthenticated GET to passkeys exists when login is required", () => {
     vi.mocked(isLoginRequired).mockReturnValue(true);
     req = {

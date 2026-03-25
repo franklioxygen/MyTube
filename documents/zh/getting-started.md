@@ -153,7 +153,7 @@ npm run build        # 将 TypeScript 编译为 JavaScript
 npm run test         # 使用 Vitest 运行测试
 npm run test:coverage # 运行测试并生成覆盖率报告
 npm run generate     # 使用 Drizzle Kit 生成数据库迁移
-npm run reset-password # 使用脚本重置管理员密码
+npm run reset-password -- <new-password> # 使用脚本重置管理员密码
 ```
 
 前端特定脚本 (从 `frontend/` 目录)：
@@ -174,7 +174,9 @@ npm run test:coverage # 运行测试并生成覆盖率报告
 2. **设置登录保护** (可选):
 
    - 转到设置 → 安全
-   - 启用登录并设置管理员密码
+   - 启用登录保护
+   - 如果未显式设置管理员密码，初始默认管理员密码为 `123`
+   - 请在首次登录后尽快修改默认密码，或在保存前直接设置自定义管理员密码
    - 可选：注册通行密钥 (WebAuthn)
 
 3. **配置下载设置**:

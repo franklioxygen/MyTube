@@ -68,7 +68,6 @@ export interface Settings {
   apiKey?: string;
   isPasswordSet?: boolean;
   passwordLoginAllowed?: boolean;
-  allowResetPassword?: boolean;
   isVisitorPasswordSet?: boolean;
   defaultAutoPlay: boolean;
   defaultAutoLoop: boolean;

@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateToken } from "../../services/authService";
 import * as passwordService from "../../services/passwordService";
@@ -9,7 +8,6 @@ import { logger } from "../../utils/logger";
 vi.mock("../../services/storageService");
 vi.mock("../../utils/logger", () => ({
   logger: {
-    info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
   },
@@ -26,18 +24,11 @@ vi.mock("bcryptjs", () => ({
     genSalt: vi.fn(),
   },
 }));
-vi.mock("crypto", () => ({
-  default: {
-    randomBytes: vi.fn(),
-  },
-}));
-
 const BCRYPT_HASH = `$2b$10$${"a".repeat(53)}`;
 
 const buildSettings = (overrides: Record<string, unknown> = {}) => ({
   loginEnabled: true,
   passwordLoginAllowed: true,
-  allowResetPassword: true,
   visitorUserEnabled: true,
   password: BCRYPT_HASH,
   visitorPassword: "",
@@ -54,10 +45,6 @@ describe("passwordService", () => {
     vi.mocked(bcrypt.compare as any).mockResolvedValue(false);
     vi.mocked(bcrypt.genSalt as any).mockResolvedValue("salt-10");
     vi.mocked(bcrypt.hash as any).mockResolvedValue("hashed-password");
-
-    vi.mocked(crypto.randomBytes as any).mockReturnValue(
-      Buffer.from([0, 1, 2, 3, 4, 5, 6, 7])
-    );
   });
 
   describe("isLoginRequired", () => {
@@ -92,7 +79,6 @@ describe("passwordService", () => {
         visitorUserEnabled: true,
         isVisitorPasswordSet: true,
         passwordLoginAllowed: true,
-        allowResetPassword: true,
         websiteName: "MyTube",
       });
     });
@@ -137,7 +123,27 @@ describe("passwordService", () => {
       expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
     });
 
-    it("does not auto-login admin when admin password is missing", async () => {
+    it("logs in as admin with the default password when admin password is missing", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ password: "" }) as any
+      );
+
+      const result = await passwordService.verifyPassword("123");
+
+      expect(result).toEqual({
+        success: true,
+        role: "admin",
+        token: "token-admin",
+      });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Accepted default admin password fallback. Persisted bcrypt hash for password."
+      );
+    });
+
+    it("rejects non-default admin passwords when admin password is missing", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -270,7 +276,24 @@ describe("passwordService", () => {
       });
     });
 
-    it("rejects admin login when no admin password is set", async () => {
+    it("accepts the default password when no admin password is set", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ password: "" }) as any
+      );
+
+      const result = await passwordService.verifyAdminPassword("123");
+
+      expect(result).toEqual({
+        success: true,
+        role: "admin",
+        token: "token-admin",
+      });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
+      });
+    });
+
+    it("rejects non-default passwords when no admin password is set", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -279,7 +302,7 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         success: false,
-        message: "Admin password is not configured.",
+        message: "Incorrect admin password",
       });
     });
 
@@ -296,7 +319,20 @@ describe("passwordService", () => {
   });
 
   describe("confirmAdminPassword", () => {
-    it("returns config error when no admin password is configured", async () => {
+    it("accepts the default password when no admin password is configured", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ password: "" }) as any
+      );
+
+      const result = await passwordService.confirmAdminPassword("123");
+
+      expect(result).toEqual({ success: true });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
+      });
+    });
+
+    it("rejects non-default passwords when no admin password is configured", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -305,7 +341,7 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         success: false,
-        message: "Admin password is not configured.",
+        message: "Incorrect admin password",
       });
     });
 
@@ -423,94 +459,4 @@ describe("passwordService", () => {
     });
   });
 
-  describe("getResetPasswordCooldown", () => {
-    it("returns 0 when never reset", () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ lastPasswordResetTime: undefined }) as any
-      );
-
-      expect(passwordService.getResetPasswordCooldown()).toBe(0);
-    });
-
-    it("returns remaining cooldown when reset is recent", () => {
-      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(2_000_000);
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ lastPasswordResetTime: 2_000_000 - 15 * 60 * 1000 }) as any
-      );
-
-      expect(passwordService.getResetPasswordCooldown()).toBe(45 * 60 * 1000);
-
-      nowSpy.mockRestore();
-    });
-
-    it("returns 0 when cooldown has elapsed", () => {
-      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(5_000_000);
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ lastPasswordResetTime: 5_000_000 - 3_700_000 }) as any
-      );
-
-      expect(passwordService.getResetPasswordCooldown()).toBe(0);
-
-      nowSpy.mockRestore();
-    });
-  });
-
-  describe("resetPassword", () => {
-    it("throws when reset is disallowed", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ allowResetPassword: false }) as any
-      );
-
-      await expect(passwordService.resetPassword()).rejects.toThrow(
-        "Password reset is not allowed. The allowResetPassword setting is disabled."
-      );
-    });
-
-    it("throws when password login is disabled", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ passwordLoginAllowed: false }) as any
-      );
-
-      await expect(passwordService.resetPassword()).rejects.toThrow(
-        "Password reset is not allowed when password login is disabled"
-      );
-    });
-
-    it("throws when reset is on cooldown", async () => {
-      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ lastPasswordResetTime: 3_000_000 - 59 * 60 * 1000 }) as any
-      );
-
-      await expect(passwordService.resetPassword()).rejects.toThrow(
-        "Password reset is on cooldown. Please wait 1 minute before trying again."
-      );
-
-      nowSpy.mockRestore();
-    });
-
-    it("generates a password, hashes it, and saves settings", async () => {
-      const nowSpy = vi.spyOn(Date, "now").mockReturnValue(10_000_000);
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ lastPasswordResetTime: undefined }) as any
-      );
-
-      const newPassword = await passwordService.resetPassword();
-
-      expect(newPassword).toHaveLength(8);
-      expect(bcrypt.hash).toHaveBeenCalled();
-      expect(storageService.saveSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          password: "hashed-password",
-          loginEnabled: true,
-          lastPasswordResetTime: 10_000_000,
-        })
-      );
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining("Password has been reset. New password:")
-      );
-
-      nowSpy.mockRestore();
-    });
-  });
 });

@@ -153,7 +153,7 @@ npm run build        # Compile TypeScript to JavaScript
 npm run test         # Run tests with Vitest
 npm run test:coverage # Run tests with coverage report
 npm run generate     # Generate database migrations with Drizzle Kit
-npm run reset-password # Reset admin password via script
+npm run reset-password -- <new-password> # Reset admin password via script
 ```
 
 Frontend-specific scripts (from `frontend/` directory):
@@ -174,7 +174,9 @@ npm run test:coverage # Run tests with coverage report
 2. **Set Up Login Protection** (Optional):
 
    - Go to Settings → Security
-   - Enable login and set an admin password
+   - Enable login protection
+   - If you do not set an admin password, the initial default admin password will be `123`
+   - Change the default password after first sign-in, or set a custom admin password before saving
    - Optionally register a passkey (WebAuthn)
 
 3. **Configure Download Settings**:

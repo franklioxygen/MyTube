@@ -159,6 +159,19 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('should ALLOW visitor POST legacy verify-password endpoint', () => {
+    req = {
+      method: 'POST',
+      path: '/verify-password',
+      url: '/verify-password',
+      body: {},
+      user: { role: 'visitor' } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+    expect(next).toHaveBeenCalled();
+  });
+
   it('should BLOCK visitor import-database when query params mimic a public endpoint', () => {
     req = {
       method: 'POST',

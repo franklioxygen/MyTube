@@ -1,4 +1,4 @@
-import { ErrorOutline, Fingerprint, InfoOutlined, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
+import { ErrorOutline, Fingerprint, LockOutlined, Refresh, Visibility, VisibilityOff } from '@mui/icons-material';
 import {
     Alert,
     Avatar,
@@ -14,7 +14,6 @@ import {
     Tabs,
     TextField,
     ThemeProvider,
-    Tooltip,
     Typography
 } from '@mui/material';
 import { startAuthentication } from '@simplewebauthn/browser';
@@ -81,7 +80,6 @@ const LoginPage: React.FC = () => {
     const passwordEnabledData = statusData;
 
     const passwordLoginAllowed = passwordEnabledData?.passwordLoginAllowed !== false;
-    const allowResetPassword = passwordEnabledData?.allowResetPassword !== false;
     // Show visitor tab if visitor user is enabled AND visitorPassword is set
     const visitorUserEnabled = passwordEnabledData?.visitorUserEnabled !== false;
     const showVisitorTab = visitorUserEnabled && !!passwordEnabledData?.isVisitorPasswordSet;
@@ -526,35 +524,15 @@ const LoginPage: React.FC = () => {
                                                     </Button>
                                                 )}
 
-                                                {allowResetPassword && (
-                                                    <Button
-                                                        fullWidth
-                                                        variant="outlined"
-                                                        startIcon={<Refresh />}
-                                                        onClick={showResetInstructions}
-                                                        sx={{ mb: 2 }}
-                                                    >
-                                                        {t('resetPassword')}
-                                                    </Button>
-                                                )}
-
-                                                {!allowResetPassword && passwordLoginAllowed && (
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
-                                                        <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
-                                                            <IconButton
-                                                                onClick={showResetInstructions}
-                                                                color="primary"
-                                                                sx={{
-                                                                    '&:hover': {
-                                                                        backgroundColor: 'action.hover'
-                                                                    }
-                                                                }}
-                                                            >
-                                                                <InfoOutlined />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    </Box>
-                                                )}
+                                                <Button
+                                                    fullWidth
+                                                    variant="outlined"
+                                                    startIcon={<Refresh />}
+                                                    onClick={showResetInstructions}
+                                                    sx={{ mb: 2 }}
+                                                >
+                                                    {t('resetPassword')}
+                                                </Button>
                                             </>
                                         )}
                                     </div>

@@ -102,7 +102,6 @@ export const WHITELISTED_SETTINGS = [
   "apiKeyEnabled",
   "apiKey",
   "passwordLoginAllowed",
-  "allowResetPassword",
   "defaultAutoPlay",
   "defaultAutoLoop",
   "maxConcurrentDownloads",

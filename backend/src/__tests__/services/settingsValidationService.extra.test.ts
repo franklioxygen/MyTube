@@ -111,6 +111,30 @@ describe("settingsValidationService extra coverage", () => {
     expect(hashPassword).not.toHaveBeenCalled();
   });
 
+  it("prepareSettingsForSave seeds the default admin password when login is enabled without one", async () => {
+    const existing = {
+      loginEnabled: false,
+      password: "",
+      visitorPassword: "old-visitor-hash",
+      passwordLoginAllowed: true,
+      tags: ["a"],
+      cloudflaredTunnelEnabled: false,
+      cloudflaredToken: "",
+      allowedHosts: ["localhost"],
+    } as any;
+    const hashPassword = vi.fn(async (p: string) => `hash:${p}`);
+
+    const prepared = await settingsValidationService.prepareSettingsForSave(
+      existing,
+      { loginEnabled: true } as any,
+      hashPassword,
+      { preserveUnsetFields: false }
+    );
+
+    expect(hashPassword).toHaveBeenCalledWith("123");
+    expect(prepared.password).toBe("hash:123");
+  });
+
   it("prepareSettingsForSave hashes visitor password and preserves it when empty", async () => {
     const existing = {
       password: "old-hash",
