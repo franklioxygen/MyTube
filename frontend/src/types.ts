@@ -63,7 +63,6 @@ export interface Comment {
 
 export interface Settings {
   loginEnabled: boolean;
-  fastRetryMode?: boolean;
   password?: string;
   apiKeyEnabled?: boolean;
   apiKey?: string;

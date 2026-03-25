@@ -2,12 +2,10 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateToken } from "../../services/authService";
-import * as loginAttemptService from "../../services/loginAttemptService";
 import * as passwordService from "../../services/passwordService";
 import * as storageService from "../../services/storageService";
 import { logger } from "../../utils/logger";
 
-vi.mock("../../services/loginAttemptService");
 vi.mock("../../services/storageService");
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -52,9 +50,6 @@ describe("passwordService", () => {
     vi.clearAllMocks();
 
     vi.mocked(storageService.getSettings).mockReturnValue(buildSettings() as any);
-    vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(0);
-    vi.mocked(loginAttemptService.recordFailedAttempt).mockReturnValue(60);
-    vi.mocked(loginAttemptService.getFailedAttempts).mockReturnValue(1);
 
     vi.mocked(bcrypt.compare as any).mockResolvedValue(false);
     vi.mocked(bcrypt.genSalt as any).mockResolvedValue("salt-10");
@@ -85,7 +80,6 @@ describe("passwordService", () => {
 
   describe("isPasswordEnabled", () => {
     it("returns rich state fields when enabled", () => {
-      vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(0);
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ visitorPassword: "visitor-secret" }) as any
       );
@@ -94,7 +88,6 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         enabled: true,
-        waitTime: undefined,
         loginRequired: true,
         visitorUserEnabled: true,
         isVisitorPasswordSet: true,
@@ -102,15 +95,6 @@ describe("passwordService", () => {
         allowResetPassword: true,
         websiteName: "MyTube",
       });
-    });
-
-    it("returns waitTime when login attempts are temporarily blocked", () => {
-      vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(120);
-
-      const result = passwordService.isPasswordEnabled();
-
-      expect(result.enabled).toBe(true);
-      expect(result.waitTime).toBe(120);
     });
 
     it("returns disabled when password login is not allowed", () => {
@@ -140,18 +124,6 @@ describe("passwordService", () => {
       });
     });
 
-    it("returns wait time when throttled", async () => {
-      vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(30);
-
-      const result = await passwordService.verifyPassword("secret");
-
-      expect(result).toEqual({
-        success: false,
-        waitTime: 30,
-        message: "Too many failed attempts. Please wait before trying again.",
-      });
-    });
-
     it("logs in as admin for bcrypt match", async () => {
       vi.mocked(bcrypt.compare as any).mockResolvedValue(true);
 
@@ -162,7 +134,6 @@ describe("passwordService", () => {
         role: "admin",
         token: "token-admin",
       });
-      expect(loginAttemptService.resetFailedAttempts).toHaveBeenCalledTimes(1);
       expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
     });
 
@@ -251,7 +222,7 @@ describe("passwordService", () => {
       );
     });
 
-    it("records failure when no password matches", async () => {
+    it("returns failure when no password matches", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ visitorPassword: "visitor-plain" }) as any
       );
@@ -260,11 +231,8 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         success: false,
-        waitTime: 60,
-        failedAttempts: 1,
         message: "Incorrect password",
       });
-      expect(loginAttemptService.recordFailedAttempt).toHaveBeenCalledTimes(1);
     });
 
     it("treats invalid stored password type as mismatch", async () => {
@@ -289,18 +257,6 @@ describe("passwordService", () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("Password login is not allowed");
-    });
-
-    it("returns wait time when throttled", async () => {
-      vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(15);
-
-      const result = await passwordService.verifyAdminPassword("admin");
-
-      expect(result).toEqual({
-        success: false,
-        waitTime: 15,
-        message: "Too many failed attempts. Please wait before trying again.",
-      });
     });
 
     it("logs in admin on successful password check", async () => {
@@ -333,8 +289,41 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         success: false,
-        waitTime: 60,
-        failedAttempts: 1,
+        message: "Incorrect admin password",
+      });
+    });
+  });
+
+  describe("confirmAdminPassword", () => {
+    it("returns config error when no admin password is configured", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ password: "" }) as any
+      );
+
+      const result = await passwordService.confirmAdminPassword("anything");
+
+      expect(result).toEqual({
+        success: false,
+        message: "Admin password is not configured.",
+      });
+    });
+
+    it("confirms admin password even when password login is disabled", async () => {
+      vi.mocked(storageService.getSettings).mockReturnValue(
+        buildSettings({ passwordLoginAllowed: false }) as any
+      );
+      vi.mocked(bcrypt.compare as any).mockResolvedValue(true);
+
+      const result = await passwordService.confirmAdminPassword("admin");
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it("returns incorrect admin password on mismatch", async () => {
+      const result = await passwordService.confirmAdminPassword("wrong");
+
+      expect(result).toEqual({
+        success: false,
         message: "Incorrect admin password",
       });
     });
@@ -363,21 +352,6 @@ describe("passwordService", () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toContain("Password login is not allowed");
-    });
-
-    it("returns wait time when throttled", async () => {
-      vi.mocked(storageService.getSettings).mockReturnValue(
-        buildSettings({ visitorPassword: BCRYPT_HASH }) as any
-      );
-      vi.mocked(loginAttemptService.canAttemptLogin).mockReturnValue(45);
-
-      const result = await passwordService.verifyVisitorPassword("visitor");
-
-      expect(result).toEqual({
-        success: false,
-        waitTime: 45,
-        message: "Too many failed attempts. Please wait before trying again.",
-      });
     });
 
     it("returns config error when visitor password is missing", async () => {
@@ -421,7 +395,7 @@ describe("passwordService", () => {
       });
     });
 
-    it("records failed attempts on visitor mismatch", async () => {
+    it("returns failure on visitor mismatch", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ visitorPassword: "legacy-visitor" }) as any
       );
@@ -430,8 +404,6 @@ describe("passwordService", () => {
 
       expect(result).toEqual({
         success: false,
-        waitTime: 60,
-        failedAttempts: 1,
         message: "Incorrect visitor password",
       });
     });
@@ -516,7 +488,7 @@ describe("passwordService", () => {
       nowSpy.mockRestore();
     });
 
-    it("generates a password, hashes it, saves settings and resets attempts", async () => {
+    it("generates a password, hashes it, and saves settings", async () => {
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(10_000_000);
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ lastPasswordResetTime: undefined }) as any
@@ -533,7 +505,6 @@ describe("passwordService", () => {
           lastPasswordResetTime: 10_000_000,
         })
       );
-      expect(loginAttemptService.resetFailedAttempts).toHaveBeenCalledTimes(1);
       expect(logger.info).toHaveBeenCalledWith(
         expect.stringContaining("Password has been reset. New password:")
       );

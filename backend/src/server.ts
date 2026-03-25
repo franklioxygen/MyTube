@@ -30,7 +30,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5551;
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
-const authLimiter = configureRateLimiting(app);
+const authLimiters = configureRateLimiting(app);
 app.use(cors(buildCorsOptionsDelegate()));
 app.use(cookieParser());
 app.use(express.json({ limit: "100gb" }));
@@ -71,7 +71,7 @@ const startServer = async (): Promise<void> => {
 
     registerStaticRoutes(app, frontendDist);
     registerCloudRoutes(app);
-    registerApiRoutes(app, authLimiter);
+    registerApiRoutes(app, authLimiters);
     registerSpaFallback(app, frontendDist);
 
     // Global error middleware (must be registered after routes)

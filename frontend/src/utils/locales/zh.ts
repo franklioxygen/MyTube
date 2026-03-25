@@ -77,9 +77,6 @@ export const zh = {
   allowPasswordLoginHelper:
     "禁用后，密码登录将不可用。要禁用密码登录，您必须至少有一个通行密钥。",
   allowResetPassword: '允许重置密码',
-  fastRetryMode: '快速重试模式',
-  fastRetryModeDesc: '等待时间：5秒，5秒，10秒，30秒，1分钟，3分钟（最长3分钟）',
-  normalRetryModeDesc: '等待时间：5秒，5秒，10秒，30秒，1分钟，3分钟，10分钟，2小时，6小时（最长24小时）',
   allowResetPasswordHelper:
     "禁用后，登录页面将不显示重置密码按钮，并且重置密码 API 将被阻止。",
   enableApiKeyAuth: "启用 API Key 鉴权",
@@ -451,13 +448,17 @@ export const zh = {
   resetPassword: "重置密码",
   resetPasswordTitle: "重置密码",
   resetPasswordMessage:
-    "您确定要重置密码吗？当前密码将被重置为一个随机的8位字符串，并显示在后端日志中。",
+    "密码恢复必须在后端环境中执行。请使用后端命令显式设置新密码。",
   resetPasswordConfirm: "重置",
-  resetPasswordSuccess: "密码已重置。请查看后端日志以获取新密码。",
+  resetPasswordSuccess: "下方显示了密码恢复说明。请使用后端命令设置新密码。",
+  resetPasswordRecoveryMessage:
+    "密码恢复必须在后端环境中执行。请显式设置新密码，而不要依赖日志中生成的凭据。",
+  resetPasswordRecoveryGuide:
+    "请选择适合您环境的命令：\n\n后端 Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 宿主机\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n请使用能够访问应用持久化数据的后端目录或容器。",
   resetPasswordDisabledInfo:
-    "密码重置已禁用。要重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n这将生成一个新的随机密码并启用密码登录。",
+    "Web 界面中已禁用密码重置。要重置密码，请在后端环境中运行以下任一命令：\n\n后端 Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 宿主机\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n请使用能够访问应用持久化数据的后端目录或容器。",
   resetPasswordScriptGuide:
-    "要手动重置密码，请在后端目录运行以下命令：\n\nnpm run reset-password\n\n或：\n\nts-node scripts/reset-password.ts\n\n如果未提供密码，将生成一个随机的8位密码。",
+    "要手动重置密码，请运行以下任一命令，并显式提供新密码：\n\n后端 Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 宿主机\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n该脚本不会生成或显示随机密码。",
   waitTimeMessage: "请等待 {time} 后再试。",
   tooManyAttempts: "失败尝试次数过多。",
 

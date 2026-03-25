@@ -81,9 +81,6 @@ export const ja = {
   allowPasswordLoginHelper:
     "無効にすると、パスワードログインは利用できません。パスワードログインを無効にするには、少なくとも1つのパスキーが必要です。",
   allowResetPassword: "パスワードリセットを許可",
-  fastRetryMode: "クイックリトライモード",
-  fastRetryModeDesc: '待機時間: 5秒, 5秒, 10秒, 30秒, 1分, 3分 (最大3分)',
-  normalRetryModeDesc: '待機時間: 5秒, 5秒, 10秒, 30秒, 1分, 3分, 10分, 2時間, 6時間 (最大24時間)',
   allowResetPasswordHelper:
     "無効にすると、ログインページにパスワードリセットボタンが表示されず、パスワードリセットAPIがブロックされます。",
   enableApiKeyAuth: "APIキー認証を有効にする",
@@ -478,14 +475,18 @@ export const ja = {
   resetPassword: "パスワードをリセット",
   resetPasswordTitle: "パスワードをリセット",
   resetPasswordMessage:
-    "パスワードをリセットしてもよろしいですか？現在のパスワードはランダムな8文字の文字列にリセットされ、バックエンドログに表示されます。",
+    "パスワードの復旧はバックエンド環境から実行する必要があります。バックエンドのコマンドを使用して新しいパスワードを明示的に設定してください。",
   resetPasswordConfirm: "リセット",
   resetPasswordSuccess:
-    "パスワードがリセットされました。新しいパスワードについては、バックエンドログを確認してください。",
+    "以下にパスワード復旧の手順を表示します。バックエンドのコマンドを使用して新しいパスワードを設定してください。",
+  resetPasswordRecoveryMessage:
+    "パスワードの復旧はバックエンド環境から実行する必要があります。ログに出力される生成済み認証情報に頼らず、新しいパスワードを明示的に設定してください。",
+  resetPasswordRecoveryGuide:
+    "ご利用の環境に合ったコマンドを選択してください：\n\nバックエンドシェル\n  node dist/scripts/reset-password.js <new-password>\n\nDocker ホスト\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n永続化されたアプリデータにアクセスできるバックエンドのディレクトリまたはコンテナを使用してください。",
   resetPasswordDisabledInfo:
-    "パスワードリセットは無効になっています。パスワードをリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nこれにより、新しいランダムパスワードが生成され、パスワードログインが有効になります。",
+    "Web UI ではパスワードリセットが無効になっています。パスワードをリセットするには、バックエンド環境で次のいずれかのコマンドを実行してください：\n\nバックエンドシェル\n  node dist/scripts/reset-password.js <new-password>\n\nDocker ホスト\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n永続化されたアプリデータにアクセスできるバックエンドのディレクトリまたはコンテナを使用してください。",
   resetPasswordScriptGuide:
-    "パスワードを手動でリセットするには、バックエンドディレクトリで次のコマンドを実行してください：\n\nnpm run reset-password\n\nまたは：\n\nts-node scripts/reset-password.ts\n\nパスワードが提供されない場合、ランダムな8文字のパスワードが生成されます。",
+    "手動でパスワードをリセットするには、次のいずれかのコマンドを実行し、新しいパスワードを明示的に指定してください：\n\nバックエンドシェル\n  node dist/scripts/reset-password.js <new-password>\n\nDocker ホスト\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nこのスクリプトはランダムなパスワードを生成または表示しません。",
   waitTimeMessage: "再試行する前に {time} お待ちください。",
   tooManyAttempts: "失敗した試行が多すぎます。",
 

@@ -83,9 +83,6 @@ export const de = {
   allowPasswordLoginHelper:
     "Wenn deaktiviert, ist die Passwort-Anmeldung nicht verfügbar. Sie müssen mindestens einen Passkey haben, um die Passwort-Anmeldung zu deaktivieren.",
   allowResetPassword: "Passwort zurücksetzen zulassen",
-  fastRetryMode: "Schneller Wiederholungsmodus",
-  fastRetryModeDesc: 'Wartezeiten: 5s, 5s, 10s, 30s, 1m, 3m (max. 3m)',
-  normalRetryModeDesc: 'Wartezeiten: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max. 24h)',
   allowResetPasswordHelper:
     "Wenn deaktiviert, wird die Schaltfläche zum Zurücksetzen des Passworts auf der Anmeldeseite nicht angezeigt und die API zum Zurücksetzen des Passworts wird blockiert.",
   enableApiKeyAuth: "API-Key-Authentifizierung aktivieren",
@@ -488,14 +485,18 @@ export const de = {
   resetPassword: "Passwort zurücksetzen",
   resetPasswordTitle: "Passwort zurücksetzen",
   resetPasswordMessage:
-    "Sind Sie sicher, dass Sie das Passwort zurücksetzen möchten? Das aktuelle Passwort wird auf eine zufällige 8-stellige Zeichenfolge zurückgesetzt und im Backend-Protokoll angezeigt.",
+    "Die Passwortwiederherstellung muss aus der Backend-Umgebung erfolgen. Verwenden Sie einen Backend-Befehl, um ausdrücklich ein neues Passwort zu setzen.",
   resetPasswordConfirm: "Zurücksetzen",
   resetPasswordSuccess:
-    "Das Passwort wurde zurückgesetzt. Überprüfen Sie die Backend-Protokolle für das neue Passwort.",
+    "Die Anweisungen zur Passwortwiederherstellung werden unten angezeigt. Verwenden Sie einen Backend-Befehl, um das neue Passwort zu setzen.",
+  resetPasswordRecoveryMessage:
+    "Die Passwortwiederherstellung muss aus der Backend-Umgebung erfolgen. Setzen Sie das neue Passwort ausdrücklich, anstatt sich auf in Protokollen erzeugte Zugangsdaten zu verlassen.",
+  resetPasswordRecoveryGuide:
+    "Wählen Sie den Befehl, der zu Ihrer Umgebung passt:\n\nBackend-Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker-Host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nVerwenden Sie das Backend-Verzeichnis oder den Container mit Zugriff auf die persistenten Anwendungsdaten.",
   resetPasswordDisabledInfo:
-    "Die Passwort-Zurücksetzung ist deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nDies generiert ein neues zufälliges Passwort und aktiviert die Passwort-Anmeldung.",
+    "Das Zurücksetzen des Passworts ist in der Weboberfläche deaktiviert. Um Ihr Passwort zurückzusetzen, führen Sie einen der folgenden Befehle in der Backend-Umgebung aus:\n\nBackend-Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker-Host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nVerwenden Sie das Backend-Verzeichnis oder den Container mit Zugriff auf die persistenten Anwendungsdaten.",
   resetPasswordScriptGuide:
-    "Um das Passwort manuell zurückzusetzen, führen Sie den folgenden Befehl im Backend-Verzeichnis aus:\n\nnpm run reset-password\n\nOder:\n\nts-node scripts/reset-password.ts\n\nWenn kein Passwort angegeben wird, wird ein zufälliges 8-stelliges Passwort generiert.",
+    "Um das Passwort manuell zurückzusetzen, führen Sie einen der folgenden Befehle aus und geben Sie das neue Passwort explizit an:\n\nBackend-Shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker-Host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nDas Skript generiert oder zeigt keine zufälligen Passwörter an.",
   waitTimeMessage: "Bitte warten Sie {time}, bevor Sie es erneut versuchen.",
   tooManyAttempts: "Zu viele fehlgeschlagene Versuche.",
 

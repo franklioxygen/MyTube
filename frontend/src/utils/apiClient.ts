@@ -142,7 +142,7 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Extract wait time from rate limit error (429 or 401 with waitTime)
+ * Extract wait time from server error payloads, typically rate-limit responses.
  */
 export function getWaitTime(error: unknown): number {
   if (axios.isAxiosError(error)) {

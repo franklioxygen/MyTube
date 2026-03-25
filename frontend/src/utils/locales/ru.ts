@@ -81,9 +81,6 @@ export const ru = {
   allowPasswordLoginHelper:
     "При отключении вход по паролю недоступен. Для отключения входа по паролю необходимо иметь хотя бы один ключ доступа.",
   allowResetPassword: "Разрешить сброс пароля",
-  fastRetryMode: "Режим быстрой повторной попытки",
-  fastRetryModeDesc: 'Время ожидания: 5с, 5с, 10с, 30с, 1м, 3м (макс. 3м)',
-  normalRetryModeDesc: 'Время ожидания: 5с, 5с, 10с, 30с, 1м, 3м, 10м, 2ч, 6ч (макс. 24ч)',
   allowResetPasswordHelper:
     "При отключении кнопка сброса пароля не будет отображаться на странице входа, а API сброса пароля будет заблокирована.",
   enableApiKeyAuth: "Включить аутентификацию по API-ключу",
@@ -474,14 +471,18 @@ export const ru = {
   resetPassword: "Сбросить пароль",
   resetPasswordTitle: "Сбросить пароль",
   resetPasswordMessage:
-    "Вы уверены, что хотите сбросить пароль? Текущий пароль будет сброшен на случайную 8-символьную строку и отображен в логе бэкенда.",
+    "Восстановление пароля должно выполняться из среды бэкенда. Используйте команду бэкенда, чтобы явно задать новый пароль.",
   resetPasswordConfirm: "Сбросить",
   resetPasswordSuccess:
-    "Пароль был сброшен. Проверьте логи бэкенда для нового пароля.",
+    "Ниже показаны инструкции по восстановлению пароля. Используйте команду бэкенда, чтобы задать новый пароль.",
+  resetPasswordRecoveryMessage:
+    "Восстановление пароля должно выполняться из среды бэкенда. Задайте новый пароль явно, а не полагайтесь на сгенерированные учетные данные в логах.",
+  resetPasswordRecoveryGuide:
+    "Выберите команду, соответствующую вашей среде:\n\nОболочка бэкенда\n  node dist/scripts/reset-password.js <new-password>\n\nХост Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nИспользуйте каталог или контейнер бэкенда, у которого есть доступ к постоянным данным приложения.",
   resetPasswordDisabledInfo:
-    "Сброс пароля отключен. Чтобы сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЭто сгенерирует новый случайный пароль и включит вход по паролю.",
+    "Сброс пароля отключён в веб-интерфейсе. Чтобы сбросить пароль, выполните одну из следующих команд из среды бэкенда:\n\nОболочка бэкенда\n  node dist/scripts/reset-password.js <new-password>\n\nХост Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nИспользуйте каталог или контейнер бэкенда, у которого есть доступ к постоянным данным приложения.",
   resetPasswordScriptGuide:
-    "Чтобы вручную сбросить пароль, выполните следующую команду в директории бэкенда:\n\nnpm run reset-password\n\nИли:\n\nts-node scripts/reset-password.ts\n\nЕсли пароль не указан, будет сгенерирован случайный 8-символьный пароль.",
+    "Чтобы вручную сбросить пароль, выполните одну из следующих команд и явно укажите новый пароль:\n\nОболочка бэкенда\n  node dist/scripts/reset-password.js <new-password>\n\nХост Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nСкрипт не генерирует и не показывает случайные пароли.",
   waitTimeMessage: "Пожалуйста, подождите {time} перед повторной попыткой.",
   tooManyAttempts: "Слишком много неудачных попыток.",
 

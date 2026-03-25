@@ -80,10 +80,6 @@ export const ko = {
   allowPasswordLoginHelper:
     "비활성화되면 비밀번호 로그인을 사용할 수 없습니다. 비밀번호 로그인을 비활성화하려면 최소한 하나의 패스키가 있어야 합니다.",
   allowResetPassword: "비밀번호 재설정 허용",
-  fastRetryMode: "빠른 재시도 모드",
-  fastRetryModeDesc: "대기 시간: 5초, 5초, 10초, 30초, 1분, 3분 (최대 3분)",
-  normalRetryModeDesc:
-    "대기 시간: 5초, 5초, 10초, 30초, 1분, 3분, 10분, 2시간, 6시간 (최대 24시간)",
   allowResetPasswordHelper:
     "비활성화되면 로그인 페이지에 비밀번호 재설정 버튼이 표시되지 않고 비밀번호 재설정 API가 차단됩니다.",
   enableApiKeyAuth: "API 키 인증 활성화",
@@ -469,14 +465,18 @@ export const ko = {
   resetPassword: "비밀번호 재설정",
   resetPasswordTitle: "비밀번호 재설정",
   resetPasswordMessage:
-    "비밀번호를 재설정하시겠습니까? 현재 비밀번호는 무작위 8자 문자열로 재설정되며 백엔드 로그에 표시됩니다.",
+    "비밀번호 복구는 백엔드 환경에서 수행해야 합니다. 백엔드 명령으로 새 비밀번호를 명시적으로 설정하세요.",
   resetPasswordConfirm: "재설정",
   resetPasswordSuccess:
-    "비밀번호가 재설정되었습니다. 새 비밀번호는 백엔드 로그를 확인하세요.",
+    "아래에 비밀번호 복구 안내가 표시됩니다. 백엔드 명령으로 새 비밀번호를 설정하세요.",
+  resetPasswordRecoveryMessage:
+    "비밀번호 복구는 백엔드 환경에서 수행해야 합니다. 로그에 생성된 자격 증명에 의존하지 말고 새 비밀번호를 명시적으로 설정하세요.",
+  resetPasswordRecoveryGuide:
+    "환경에 맞는 명령을 선택하세요:\n\n백엔드 셸\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 호스트\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n영구 앱 데이터에 접근할 수 있는 백엔드 디렉터리 또는 컨테이너를 사용하세요.",
   resetPasswordDisabledInfo:
-    "비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n이렇게 하면 새로운 임의의 비밀번호가 생성되고 비밀번호 로그인이 활성화됩니다.",
+    "웹 UI에서는 비밀번호 재설정이 비활성화되어 있습니다. 비밀번호를 재설정하려면 백엔드 환경에서 다음 명령 중 하나를 실행하세요:\n\n백엔드 셸\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 호스트\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n영구 앱 데이터에 접근할 수 있는 백엔드 디렉터리 또는 컨테이너를 사용하세요.",
   resetPasswordScriptGuide:
-    "비밀번호를 수동으로 재설정하려면 백엔드 디렉토리에서 다음 명령을 실행하세요:\n\nnpm run reset-password\n\n또는:\n\nts-node scripts/reset-password.ts\n\n비밀번호가 제공되지 않으면 임의의 8자 비밀번호가 생성됩니다.",
+    "비밀번호를 수동으로 재설정하려면 다음 명령 중 하나를 실행하고 새 비밀번호를 명시적으로 지정하세요:\n\n백엔드 셸\n  node dist/scripts/reset-password.js <new-password>\n\nDocker 호스트\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\n이 스크립트는 임의 비밀번호를 생성하거나 표시하지 않습니다.",
   waitTimeMessage: "다시 시도하기 전에 {time} 기다려 주세요.",
   tooManyAttempts: "실패한 시도가 너무 많습니다.",
 

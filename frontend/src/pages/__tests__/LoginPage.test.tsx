@@ -22,6 +22,15 @@ vi.mock('../../utils/apiClient', () => ({
         get: vi.fn(),
         post: vi.fn(),
     },
+    getErrorMessage: vi.fn((error: any) =>
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'An unknown error occurred'
+    ),
+    getWaitTime: vi.fn((error: any) => error?.response?.data?.waitTime || 0),
+    isRateLimitError: vi.fn((error: any) => error?.response?.status === 429),
+    isAuthError: vi.fn((error: any) => error?.response?.status === 401),
 }));
 
 // Mock translations util
@@ -86,8 +95,7 @@ let mutationCallIndex = 0;
 const mutationKeyOrder = [
     'adminLogin',      // 1st useMutation call in component
     'visitorLogin',    // 2nd
-    'resetPassword',   // 3rd
-    'passkeyLogin',    // 4th
+    'passkeyLogin',    // 3rd
 ];
 
 vi.mock('@tanstack/react-query', () => ({
@@ -138,12 +146,6 @@ const setNormalState = (overrides: Record<string, unknown> = {}) => {
             isError: false,
             refetch: vi.fn(),
         },
-        resetPasswordCooldown: {
-            data: { cooldown: overrides.cooldown ?? 0 },
-            isLoading: false,
-            isError: false,
-            refetch: vi.fn(),
-        },
     };
 };
 
@@ -171,6 +173,17 @@ const setErrorState = () => {
         },
     };
     return { refetchFn };
+};
+
+const triggerAdminRateLimit = (waitTime: number) => {
+    act(() => {
+        mutationCallbacks['adminLogin']?.onError?.({
+            response: {
+                status: 429,
+                data: { waitTime },
+            },
+        });
+    });
 };
 
 // --- Tests ---
@@ -266,13 +279,13 @@ describe('LoginPage', () => {
 
         it('does not submit when waitTime > 0', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 5000;
             const { container } = render(<LoginPage />);
+            triggerAdminRateLimit(5000);
 
             const passwordInput = container.querySelector('#password') as HTMLInputElement;
             fireEvent.change(passwordInput, { target: { value: 'mySecret' } });
 
-            const submitButton = screen.getByRole('button', { name: 'signIn' });
+            const submitButton = container.querySelector('button[type="submit"]') as HTMLButtonElement;
             fireEvent.click(submitButton);
 
             expect(mutationMocks['adminLogin'].mutate).not.toHaveBeenCalled();
@@ -334,8 +347,8 @@ describe('LoginPage', () => {
                 visitorUserEnabled: true,
                 isVisitorPasswordSet: true,
             });
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 5000;
             const { container } = render(<LoginPage />);
+            triggerAdminRateLimit(5000);
 
             // Switch to visitor tab
             const visitorTab = screen.getByText('visitorUser');
@@ -419,38 +432,22 @@ describe('LoginPage', () => {
         });
     });
 
-    // 12. Reset password with cooldown
-    describe('reset password with cooldown', () => {
-        it('shows disabled button with formatted time when cooldown is active', () => {
-            setNormalState({ allowResetPassword: true, cooldown: 30000 });
-            render(<LoginPage />);
-
-            // Button text should include the cooldown time
-            const resetButton = screen.getByText(/resetPassword.*30 seconds/);
-            expect(resetButton).toBeInTheDocument();
-            expect(resetButton.closest('button')).toBeDisabled();
-        });
-    });
-
     // 13. Wait time warning
     describe('wait time warning', () => {
-        it('shows Alert when waitTime > 0 from server response', () => {
+        it('shows Alert when waitTime > 0 from a rate-limit response', () => {
             setNormalState();
-            // Inject waitTime into the healthCheck data
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 5000;
             render(<LoginPage />);
+            triggerAdminRateLimit(5000);
 
-            // The wait time alert shows t('waitTimeMessage') with {time} replaced by formatted time
-            const alert = screen.getByText(/waitTimeMessage 5 seconds/);
-            expect(alert).toBeInTheDocument();
+            expect(screen.getAllByText(/waitTimeMessage 5 seconds/).length).toBeGreaterThan(0);
         });
 
         it('disables sign in button when waitTime > 0', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 5000;
-            render(<LoginPage />);
+            const { container } = render(<LoginPage />);
+            triggerAdminRateLimit(5000);
 
-            const submitButton = screen.getByRole('button', { name: 'signIn' });
+            const submitButton = container.querySelector('button[type="submit"]') as HTMLButtonElement;
             expect(submitButton).toBeDisabled();
         });
     });
@@ -491,68 +488,49 @@ describe('LoginPage', () => {
         });
     });
 
-    // 16. Reset password flow with real ConfirmationModal
+    // 16. Reset password guidance
     describe('reset password flow', () => {
-        it('opens real ConfirmationModal when reset button clicked', () => {
+        it('opens guidance modal when reset button clicked', () => {
             setNormalState({ allowResetPassword: true });
             render(<LoginPage />);
 
-            // Click reset password button
             fireEvent.click(screen.getByText('resetPassword'));
 
-            // Real ConfirmationModal renders a MUI Dialog with the title
             const dialog = screen.getByRole('dialog');
             expect(dialog).toBeInTheDocument();
-            expect(within(dialog).getByText('resetPasswordTitle')).toBeInTheDocument();
-            expect(within(dialog).getByText(/resetPasswordMessage/)).toBeInTheDocument();
+            expect(within(dialog).getByText('resetPassword')).toBeInTheDocument();
+            expect(within(dialog).getByText(/backend environment/)).toBeInTheDocument();
+            expect(within(dialog).getByText(/node dist\/scripts\/reset-password\.js <new-password>/)).toBeInTheDocument();
+            expect(within(dialog).getByText(/docker exec -it mytube-backend node \/app\/dist\/scripts\/reset-password\.js <new-password>/)).toBeInTheDocument();
         });
 
-        it('calls resetPassword mutation when modal confirm is clicked', () => {
+        it('closes reset guidance modal when confirm is clicked', async () => {
             setNormalState({ allowResetPassword: true });
             render(<LoginPage />);
 
-            // Click reset password button to open modal
             fireEvent.click(screen.getByText('resetPassword'));
-
-            // Click confirm in the real ConfirmationModal
             const dialog = screen.getByRole('dialog');
-            const confirmButton = within(dialog).getByText('resetPasswordConfirm');
+            const confirmButton = within(dialog).getByText('confirm');
             fireEvent.click(confirmButton);
 
-            expect(mutationMocks['resetPassword'].mutate).toHaveBeenCalled();
-        });
-
-        it('closes modal when cancel is clicked', async () => {
-            setNormalState({ allowResetPassword: true });
-            render(<LoginPage />);
-
-            // Click reset password button to open modal
-            fireEvent.click(screen.getByText('resetPassword'));
-            expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-            // Click cancel in the real ConfirmationModal
-            const dialog = screen.getByRole('dialog');
-            const cancelButton = within(dialog).getByText('cancel');
-            fireEvent.click(cancelButton);
-
-            // Modal should close (MUI Dialog uses transitions)
             await waitFor(() => {
                 expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
             });
         });
     });
 
-    // 17. AlertModal shown on login error via mutation onSuccess with failure
+    // 17. AlertModal shown on login error via mutation onError
     describe('alert modal via mutation callbacks', () => {
-        it('shows alert modal when adminLogin onSuccess receives incorrect password', () => {
+        it('shows alert modal when admin login receives incorrect password', () => {
             setNormalState();
             render(<LoginPage />);
 
-            // Simulate the mutation onSuccess callback with a failed login
             act(() => {
-                mutationCallbacks['adminLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 401,
+                mutationCallbacks['adminLogin']?.onError?.({
+                    response: {
+                        status: 401,
+                        data: { message: 'Incorrect admin password' },
+                    },
                 });
             });
 
@@ -567,12 +545,12 @@ describe('LoginPage', () => {
             setNormalState();
             render(<LoginPage />);
 
-            // Simulate 429 too many attempts
             act(() => {
-                mutationCallbacks['adminLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 429,
-                    waitTime: 60000,
+                mutationCallbacks['adminLogin']?.onError?.({
+                    response: {
+                        status: 429,
+                        data: { waitTime: 60000 },
+                    },
                 });
             });
 
@@ -617,30 +595,16 @@ describe('LoginPage', () => {
             });
         });
 
-        it('shows alert with wait time on 401 with waitTime', () => {
-            setNormalState();
-            render(<LoginPage />);
-
-            act(() => {
-                mutationCallbacks['adminLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 401,
-                    waitTime: 10000,
-                });
-            });
-
-            const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText(/incorrectPassword.*waitTimeMessage/)).toBeInTheDocument();
-        });
-
         it('shows generic loginFailed for unknown status codes', () => {
             setNormalState();
             render(<LoginPage />);
 
             act(() => {
-                mutationCallbacks['adminLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 500,
+                mutationCallbacks['adminLogin']?.onError?.({
+                    response: {
+                        status: 500,
+                        data: { message: 'Server error' },
+                    },
                 });
             });
 
@@ -683,56 +647,6 @@ describe('LoginPage', () => {
         });
     });
 
-    // 19. Reset password mutation callbacks
-    describe('reset password mutation callbacks', () => {
-        it('shows success alert after reset password succeeds', () => {
-            setNormalState({ allowResetPassword: true });
-            render(<LoginPage />);
-
-            // Open modal and confirm
-            fireEvent.click(screen.getByText('resetPassword'));
-            const dialog = screen.getByRole('dialog');
-            fireEvent.click(within(dialog).getByText('resetPasswordConfirm'));
-
-            // Simulate onSuccess
-            act(() => {
-                mutationCallbacks['resetPassword']?.onSuccess?.();
-            });
-
-            // Alert modal should show success
-            const alertDialog = screen.getByRole('dialog');
-            expect(within(alertDialog).getByText('success')).toBeInTheDocument();
-            expect(within(alertDialog).getByText('resetPasswordSuccess')).toBeInTheDocument();
-        });
-
-        it('shows error alert after reset password fails', () => {
-            setNormalState({ allowResetPassword: true });
-            render(<LoginPage />);
-
-            // Simulate onError with server message
-            act(() => {
-                mutationCallbacks['resetPassword']?.onError?.({
-                    response: { data: { message: 'Cooldown active' } },
-                });
-            });
-
-            const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText('Cooldown active')).toBeInTheDocument();
-        });
-
-        it('shows generic error on reset password failure without server message', () => {
-            setNormalState({ allowResetPassword: true });
-            render(<LoginPage />);
-
-            act(() => {
-                mutationCallbacks['resetPassword']?.onError?.(new Error('Network error'));
-            });
-
-            const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText('loginFailed')).toBeInTheDocument();
-        });
-    });
-
     // 20. Auto-login when loginRequired is false
     describe('auto-login', () => {
         it('calls login() automatically when loginRequired is false', () => {
@@ -758,7 +672,7 @@ describe('LoginPage', () => {
 
             const dialog = screen.getByRole('dialog');
             expect(within(dialog).getByText('resetPassword')).toBeInTheDocument();
-            expect(within(dialog).getByText('resetPasswordDisabledInfo')).toBeInTheDocument();
+            expect(within(dialog).getByText(/backend environment/)).toBeInTheDocument();
         });
     });
 
@@ -772,10 +686,11 @@ describe('LoginPage', () => {
             render(<LoginPage />);
 
             act(() => {
-                mutationCallbacks['visitorLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 429,
-                    waitTime: 30000,
+                mutationCallbacks['visitorLogin']?.onError?.({
+                    response: {
+                        status: 429,
+                        data: { waitTime: 30000 },
+                    },
                 });
             });
 
@@ -791,9 +706,11 @@ describe('LoginPage', () => {
             render(<LoginPage />);
 
             act(() => {
-                mutationCallbacks['visitorLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 401,
+                mutationCallbacks['visitorLogin']?.onError?.({
+                    response: {
+                        status: 401,
+                        data: { message: 'Incorrect visitor password' },
+                    },
                 });
             });
 
@@ -824,9 +741,11 @@ describe('LoginPage', () => {
             render(<LoginPage />);
 
             act(() => {
-                mutationCallbacks['visitorLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 500,
+                mutationCallbacks['visitorLogin']?.onError?.({
+                    response: {
+                        status: 500,
+                        data: { message: 'Server error' },
+                    },
                 });
             });
 
@@ -834,74 +753,56 @@ describe('LoginPage', () => {
             expect(within(dialog).getByText('loginFailed')).toBeInTheDocument();
         });
 
-        it('shows alert with wait time on visitor 401 with waitTime', () => {
-            setNormalState({
-                visitorUserEnabled: true,
-                isVisitorPasswordSet: true,
-            });
-            render(<LoginPage />);
-
-            act(() => {
-                mutationCallbacks['visitorLogin']?.onSuccess?.({
-                    success: false,
-                    statusCode: 401,
-                    waitTime: 10000,
-                });
-            });
-
-            const dialog = screen.getByRole('dialog');
-            expect(within(dialog).getByText(/incorrectPassword.*waitTimeMessage/)).toBeInTheDocument();
-        });
     });
 
     // 23. formatWaitTime edge cases
     describe('formatWaitTime', () => {
         it('formats minutes correctly', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 120000; // 2 minutes
             render(<LoginPage />);
+            triggerAdminRateLimit(120000);
 
-            expect(screen.getByText(/2 minutes/)).toBeInTheDocument();
+            expect(screen.getAllByText(/2 minutes/).length).toBeGreaterThan(0);
         });
 
         it('formats hours correctly', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 7200000; // 2 hours
             render(<LoginPage />);
+            triggerAdminRateLimit(7200000);
 
-            expect(screen.getByText(/2 hours/)).toBeInTheDocument();
+            expect(screen.getAllByText(/2 hours/).length).toBeGreaterThan(0);
         });
 
         it('formats days correctly', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 172800000; // 2 days
             render(<LoginPage />);
+            triggerAdminRateLimit(172800000);
 
-            expect(screen.getByText(/2 days/)).toBeInTheDocument();
+            expect(screen.getAllByText(/2 days/).length).toBeGreaterThan(0);
         });
 
         it('formats singular second correctly', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 1000; // 1 second
             render(<LoginPage />);
+            triggerAdminRateLimit(1000);
 
-            expect(screen.getByText(/1 second(?!s)/)).toBeInTheDocument();
+            expect(screen.getAllByText(/1 second(?!s)/).length).toBeGreaterThan(0);
         });
 
         it('formats singular minute correctly', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 60000; // 1 minute
             render(<LoginPage />);
+            triggerAdminRateLimit(60000);
 
-            expect(screen.getByText(/1 minute(?!s)/)).toBeInTheDocument();
+            expect(screen.getAllByText(/1 minute(?!s)/).length).toBeGreaterThan(0);
         });
 
         it('formats sub-second as "a moment"', () => {
             setNormalState();
-            (queryResults['healthCheck'].data as Record<string, unknown>).waitTime = 500; // 500ms
             render(<LoginPage />);
+            triggerAdminRateLimit(500);
 
-            expect(screen.getByText(/a moment/)).toBeInTheDocument();
+            expect(screen.getAllByText(/a moment/).length).toBeGreaterThan(0);
         });
     });
 

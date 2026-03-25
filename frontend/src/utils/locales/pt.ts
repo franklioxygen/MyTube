@@ -82,9 +82,6 @@ export const pt = {
   allowPasswordLoginHelper:
     "Quando desabilitado, o login com senha não está disponível. Você deve ter pelo menos uma chave de acesso para desabilitar o login com senha.",
   allowResetPassword: "Permitir Redefinir Senha",
-  fastRetryMode: "Modo de Tentativa Rápida",
-  fastRetryModeDesc: 'Tempos de espera: 5s, 5s, 10s, 30s, 1m, 3m (máx 3m)',
-  normalRetryModeDesc: 'Tempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx 24h)',
   allowResetPasswordHelper:
     "Quando desabilitado, o botão de redefinir senha não será exibido na página de login e a API de redefinir senha será bloqueada.",
   enableApiKeyAuth: "Ativar Autenticação por Chave API",
@@ -480,14 +477,18 @@ export const pt = {
   resetPassword: "Redefinir Senha",
   resetPasswordTitle: "Redefinir Senha",
   resetPasswordMessage:
-    "Tem certeza de que deseja redefinir a senha? A senha atual será redefinida para uma string aleatória de 8 caracteres e exibida no log do backend.",
+    "A recuperação de senha deve ser feita a partir do ambiente do backend. Use um comando do backend para definir explicitamente uma nova senha.",
   resetPasswordConfirm: "Redefinir",
   resetPasswordSuccess:
-    "A senha foi redefinida. Verifique os logs do backend para a nova senha.",
+    "As instruções de recuperação de senha são mostradas abaixo. Use um comando do backend para definir a nova senha.",
+  resetPasswordRecoveryMessage:
+    "A recuperação de senha deve ser feita a partir do ambiente do backend. Defina uma nova senha explicitamente em vez de depender de credenciais geradas nos logs.",
+  resetPasswordRecoveryGuide:
+    "Escolha o comando correspondente ao seu ambiente:\n\nShell do backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUse o diretório ou contêiner do backend que tenha acesso aos dados persistentes da aplicação.",
   resetPasswordDisabledInfo:
-    "A redefinição de senha está desabilitada. Para redefinir sua senha, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nIsso gerará uma nova senha aleatória e habilitará o login com senha.",
+    "A redefinição de senha está desabilitada na interface web. Para redefinir sua senha, execute um dos seguintes comandos a partir do ambiente do backend:\n\nShell do backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUse o diretório ou contêiner do backend que tenha acesso aos dados persistentes da aplicação.",
   resetPasswordScriptGuide:
-    "Para redefinir a senha manualmente, execute o seguinte comando no diretório do backend:\n\nnpm run reset-password\n\nOu:\n\nts-node scripts/reset-password.ts\n\nSe nenhuma senha for fornecida, uma senha aleatória de 8 caracteres será gerada.",
+    "Para redefinir a senha manualmente, execute um dos seguintes comandos e informe explicitamente a nova senha:\n\nShell do backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nO script não gera nem exibe senhas aleatórias.",
   waitTimeMessage: "Por favor, aguarde {time} antes de tentar novamente.",
   tooManyAttempts: "Muitas tentativas falharam.",
 

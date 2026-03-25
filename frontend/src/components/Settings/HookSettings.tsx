@@ -89,7 +89,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         setIsVerifying(true);
         setPasswordError(undefined);
         try {
-            await api.post('/settings/verify-password', { password });
+            await api.post('/settings/confirm-admin-password', { password });
             setShowPasswordModal(false);
             if (pendingUpload) {
                 uploadMutation.mutate(pendingUpload);
@@ -100,7 +100,12 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 const waitTime = error.response.data.waitTime;
                 setPasswordError(t('tooManyAttempts') + ` Try again in ${Math.ceil(waitTime / 1000)}s`);
             } else {
-                setPasswordError(t('incorrectPassword'));
+                const message = error.response?.data?.message;
+                if (message === 'Incorrect admin password' || !message) {
+                    setPasswordError(t('incorrectPassword'));
+                } else {
+                    setPasswordError(message);
+                }
             }
         } finally {
             setIsVerifying(false);

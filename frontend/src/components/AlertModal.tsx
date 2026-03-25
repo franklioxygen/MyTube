@@ -38,7 +38,13 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message }
                 </Typography>
             </DialogTitle>
             <DialogContent dividers>
-                <DialogContentText sx={{ color: 'text.primary' }}>
+                <DialogContentText
+                    sx={{
+                        color: 'text.primary',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                    }}
+                >
                     {message}
                 </DialogContentText>
             </DialogContent>

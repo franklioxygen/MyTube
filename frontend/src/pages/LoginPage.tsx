@@ -18,16 +18,15 @@ import {
     Typography
 } from '@mui/material';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
 import logo from '../assets/logo.svg';
 import AlertModal from '../components/AlertModal';
-import ConfirmationModal from '../components/ConfirmationModal';
 import VersionInfo from '../components/VersionInfo';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import getTheme from '../theme';
-import { api } from '../utils/apiClient';
+import { api, getErrorMessage, getWaitTime, isAuthError, isRateLimitError } from '../utils/apiClient';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
 const LoginPage: React.FC = () => {
@@ -35,18 +34,14 @@ const LoginPage: React.FC = () => {
     const [showVisitorPassword, setShowVisitorPassword] = useState(false);
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
     const [waitTime, setWaitTime] = useState(0); // in milliseconds
     const [activeTab, setActiveTab] = useState(0); // 0 = Admin, 1 = Visitor
-    const [showResetModal, setShowResetModal] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [websiteName, setWebsiteName] = useState('MyTube');
-    const [resetPasswordCooldown, setResetPasswordCooldown] = useState(0); // in milliseconds
     const { t } = useLanguage();
     const { login } = useAuth();
-    const queryClient = useQueryClient();
 
     // Check backend connection and password status
     // This endpoint now includes visitor password info and other login-related settings
@@ -129,54 +124,6 @@ const LoginPage: React.FC = () => {
 
     const passkeysExist = passkeysData?.exists || false;
 
-    // Fetch reset password cooldown from backend
-    const { data: cooldownData } = useQuery({
-        queryKey: ['resetPasswordCooldown'],
-        queryFn: async () => {
-            try {
-                const response = await api.get('/settings/reset-password-cooldown', { timeout: 5000 });
-                return response.data;
-            } catch (error: any) {
-                // Handle 401 or 429 errors gracefully
-                if (error?.response?.status === 401 || error?.response?.status === 429) {
-                    return { cooldown: 0 };
-                }
-                // Log other errors but still return default
-                console.error('Error fetching reset password cooldown:', error);
-                return { cooldown: 0 };
-            }
-        },
-        retry: (failureCount, error: any) => {
-            // Don't retry on 401 or 429 errors
-            if (error?.response?.status === 401 || error?.response?.status === 429) {
-                return false;
-            }
-            // Retry other errors once
-            return failureCount < 1;
-        },
-        retryDelay: 1000,
-        enabled: !isCheckingConnection && !isConnectionError,
-        refetchInterval: (query) => {
-            // Refetch every second if there's an active cooldown
-            const cooldown = query.state.data?.cooldown || 0;
-            return cooldown > 0 ? 1000 : false;
-        },
-    });
-
-    // Initialize wait time from server response
-    useEffect(() => {
-        if (statusData && statusData.waitTime) {
-            setWaitTime(statusData.waitTime);
-        }
-    }, [statusData]);
-
-    // Update reset password cooldown from server response
-    useEffect(() => {
-        if (cooldownData && cooldownData.cooldown !== undefined) {
-            setResetPasswordCooldown(cooldownData.cooldown);
-        }
-    }, [cooldownData]);
-
     // Auto-login only if login is not required
     useEffect(() => {
         if (statusData && statusData.loginRequired === false) {
@@ -196,19 +143,6 @@ const LoginPage: React.FC = () => {
             return () => clearInterval(interval);
         }
     }, [waitTime]);
-
-    // Countdown timer for reset password cooldown (updates local state while server refetches)
-    useEffect(() => {
-        if (resetPasswordCooldown > 0) {
-            const interval = setInterval(() => {
-                setResetPasswordCooldown((prev) => {
-                    const newTime = prev - 1000;
-                    return newTime > 0 ? newTime : 0;
-                });
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [resetPasswordCooldown]);
 
     // Use dark theme for login page to match app style
     const theme = getTheme('dark');
@@ -231,46 +165,86 @@ const LoginPage: React.FC = () => {
         setAlertOpen(true);
     };
 
+    const getTranslatedOrFallback = (key: string, fallback: string) => {
+        const translated = t(key);
+        return translated === key ? fallback : translated;
+    };
+
+    const showResetInstructions = () => {
+        const title = t('resetPassword') || 'Reset Password';
+        const message = getTranslatedOrFallback(
+            'resetPasswordRecoveryMessage',
+            'Password recovery must be performed from the backend environment. Set a new password explicitly instead of relying on generated credentials in logs.'
+        );
+        const guide = getTranslatedOrFallback(
+            'resetPasswordRecoveryGuide',
+            [
+                'Choose the command that matches your environment:',
+                '',
+                'Backend shell',
+                '  node dist/scripts/reset-password.js <new-password>',
+                '',
+                'Docker host',
+                '  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>',
+                '',
+                'Use the backend directory/container that has access to the persistent app data.',
+            ].join('\n')
+        );
+
+        showAlert(title, `${message}\n\n${guide}`);
+    };
+
+    const getPasswordErrorMessage = (error: unknown, fallbackMessage: string) => {
+        const message = getErrorMessage(error);
+        if (
+            message === 'Incorrect password' ||
+            message === 'Incorrect admin password' ||
+            message === 'Incorrect visitor password'
+        ) {
+            return fallbackMessage;
+        }
+        return message || fallbackMessage;
+    };
+
+    const handlePasswordLoginError = (error: unknown, fallbackMessage: string) => {
+        console.error('Login error:', error);
+
+        const waitTimeMs = getWaitTime(error);
+        const message = getPasswordErrorMessage(error, fallbackMessage);
+
+        if (isRateLimitError(error)) {
+            setWaitTime(waitTimeMs);
+            const formattedTime = formatWaitTime(waitTimeMs);
+            showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
+            return;
+        }
+
+        if (isAuthError(error)) {
+            if (waitTimeMs > 0) {
+                setWaitTime(waitTimeMs);
+                const formattedTime = formatWaitTime(waitTimeMs);
+                showAlert(t('error'), `${message} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
+                return;
+            }
+
+            showAlert(t('error'), message);
+            return;
+        }
+
+        showAlert(t('error'), t('loginFailed'));
+    };
+
     const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
             const response = await api.post('/settings/verify-admin-password', { password: passwordToVerify });
             return response.data;
         },
         onSuccess: (data) => {
-            if (data.success) {
-                setWaitTime(0); // Reset wait time on success
-                login(data.role);
-            } else {
-                // Handle failures (incorrect password or too many attempts)
-                // These are returned as 200 OK with success: false to avoid console errors
-                const statusCode = data.statusCode || 401;
-                const responseData = data;
-
-                if (statusCode === 429) {
-                    // Too many attempts - wait time required
-                    const waitTimeMs = responseData.waitTime || 0;
-                    setWaitTime(waitTimeMs);
-                    const formattedTime = formatWaitTime(waitTimeMs);
-                    showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
-                } else if (statusCode === 401) {
-                    // Incorrect password - check if wait time is returned
-                    const waitTimeMs = responseData.waitTime || 0;
-                    if (waitTimeMs > 0) {
-                        setWaitTime(waitTimeMs);
-                        const formattedTime = formatWaitTime(waitTimeMs);
-                        showAlert(t('error'), `${t('incorrectPassword')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
-                    } else {
-                        showAlert(t('error'), t('incorrectPassword'));
-                    }
-                } else {
-                    showAlert(t('error'), t('loginFailed'));
-                }
-            }
+            setWaitTime(0);
+            login(data.role);
         },
-        onError: (err: any) => {
-            console.error('Login error:', err);
-            // Handle actual network errors or unexpected 500s
-            showAlert(t('error'), t('loginFailed'));
+        onError: (error: unknown) => {
+            handlePasswordLoginError(error, t('incorrectPassword'));
         }
     });
 
@@ -284,40 +258,11 @@ const LoginPage: React.FC = () => {
             return response.data;
         },
         onSuccess: (data) => {
-            if (data.success) {
-                setWaitTime(0); // Reset wait time on success
-                // Token is now in HTTP-only cookie, role is in response
-                login(data.role);
-            } else {
-                // Handle failures (incorrect password or too many attempts)
-                const statusCode = data.statusCode || 401;
-                const responseData = data;
-
-                if (statusCode === 429) {
-                    // Too many attempts - wait time required
-                    const waitTimeMs = responseData.waitTime || 0;
-                    setWaitTime(waitTimeMs);
-                    const formattedTime = formatWaitTime(waitTimeMs);
-                    showAlert(t('error'), `${t('tooManyAttempts')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
-                } else if (statusCode === 401) {
-                    // Incorrect password - check if wait time is returned
-                    const waitTimeMs = responseData.waitTime || 0;
-                    if (waitTimeMs > 0) {
-                        setWaitTime(waitTimeMs);
-                        const formattedTime = formatWaitTime(waitTimeMs);
-                        showAlert(t('error'), `${t('incorrectPassword')} ${t('waitTimeMessage').replace('{time}', formattedTime)}`);
-                    } else {
-                        showAlert(t('error'), t('incorrectPassword'));
-                    }
-                } else {
-                    showAlert(t('error'), t('loginFailed'));
-                }
-            }
+            setWaitTime(0);
+            login(data.role);
         },
-        onError: (err: any) => {
-            console.error('Login error:', err);
-            // Handle actual network errors or unexpected 500s
-            showAlert(t('error'), t('loginFailed'));
+        onError: (error: unknown) => {
+            handlePasswordLoginError(error, t('incorrectPassword'));
         }
     });
 
@@ -326,37 +271,8 @@ const LoginPage: React.FC = () => {
         if (waitTime > 0) {
             return;
         }
-        setError('');
         visitorLoginMutation.mutate(visitorPassword);
     }
-
-    const resetPasswordMutation = useMutation({
-        mutationFn: async () => {
-            const response = await api.post('/settings/reset-password');
-            return response.data;
-        },
-        onSuccess: () => {
-            setShowResetModal(false);
-            setError('');
-            setWaitTime(0);
-            // Invalidate queries to refresh cooldown status
-            queryClient.invalidateQueries({ queryKey: ['healthCheck'] });
-            queryClient.invalidateQueries({ queryKey: ['resetPasswordCooldown'] });
-            // Show success message
-            showAlert(t('success'), t('resetPasswordSuccess'));
-        },
-        onError: (err: any) => {
-            console.error('Reset password error:', err);
-            if (err.response && err.response.data && err.response.data.message) {
-                // Server returned a specific error message (likely cooldown)
-                showAlert(t('error'), err.response.data.message);
-                // Refresh cooldown status
-                queryClient.invalidateQueries({ queryKey: ['resetPasswordCooldown'] });
-            } else {
-                showAlert(t('error'), t('loginFailed'));
-            }
-        }
-    });
 
     // Passkey authentication mutation
     const passkeyLoginMutation = useMutation({
@@ -385,7 +301,6 @@ const LoginPage: React.FC = () => {
             return verifyResponse.data;
         },
         onSuccess: (data) => {
-            setError('');
             setWaitTime(0);
             // Token is now in HTTP-only cookie, role is in response
             if (data.role) {
@@ -423,12 +338,7 @@ const LoginPage: React.FC = () => {
         if (waitTime > 0) {
             return; // Don't allow submission if wait time is active
         }
-        setError('');
         adminLoginMutation.mutate(password);
-    };
-
-    const handleResetPassword = () => {
-        resetPasswordMutation.mutate();
     };
 
     const handlePasskeyLogin = () => {
@@ -621,13 +531,10 @@ const LoginPage: React.FC = () => {
                                                         fullWidth
                                                         variant="outlined"
                                                         startIcon={<Refresh />}
-                                                        onClick={() => setShowResetModal(true)}
+                                                        onClick={showResetInstructions}
                                                         sx={{ mb: 2 }}
-                                                        disabled={resetPasswordMutation.isPending || resetPasswordCooldown > 0}
                                                     >
-                                                        {resetPasswordCooldown > 0
-                                                            ? `${t('resetPassword')} (${formatWaitTime(resetPasswordCooldown)})`
-                                                            : t('resetPassword')}
+                                                        {t('resetPassword')}
                                                     </Button>
                                                 )}
 
@@ -635,10 +542,7 @@ const LoginPage: React.FC = () => {
                                                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 2 }}>
                                                         <Tooltip title={t('resetPasswordDisabledInfo') || 'Click for information about resetting password'}>
                                                             <IconButton
-                                                                onClick={() => showAlert(
-                                                                    t('resetPassword') || 'Reset Password',
-                                                                    t('resetPasswordDisabledInfo') || 'Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.'
-                                                                )}
+                                                                onClick={showResetInstructions}
                                                                 color="primary"
                                                                 sx={{
                                                                     '&:hover': {
@@ -706,15 +610,10 @@ const LoginPage: React.FC = () => {
                                             )}
                                         </div>
                                     )}
-                                    <Box sx={{ minHeight: waitTime > 0 || (error && waitTime === 0) ? 'auto' : 0, mt: 2 }}>
+                                    <Box sx={{ minHeight: waitTime > 0 ? 'auto' : 0, mt: 2 }}>
                                         {waitTime > 0 && (
                                             <Alert severity="warning" sx={{ width: '100%' }}>
                                                 {t('waitTimeMessage').replace('{time}', formatWaitTime(waitTime))}
-                                            </Alert>
-                                        )}
-                                        {error && waitTime === 0 && (
-                                            <Alert severity="error" sx={{ width: '100%' }}>
-                                                {error}
                                             </Alert>
                                         )}
                                     </Box>
@@ -727,16 +626,6 @@ const LoginPage: React.FC = () => {
                     <VersionInfo showUpdateBadge={false} />
                 </Box>
             </Box>
-            <ConfirmationModal
-                isOpen={showResetModal}
-                onClose={() => setShowResetModal(false)}
-                onConfirm={handleResetPassword}
-                title={t('resetPasswordTitle')}
-                message={`${t('resetPasswordMessage')}\n\n${t('resetPasswordScriptGuide')}`}
-                confirmText={t('resetPasswordConfirm')}
-                cancelText={t('cancel')}
-                isDanger={true}
-            />
             <AlertModal
                 open={alertOpen}
                 onClose={() => setAlertOpen(false)}

@@ -144,7 +144,6 @@ export const WHITELISTED_SETTINGS = [
   "playFromBeginning",
   "theme",
   "showThemeButton",
-  "fastRetryMode",
   "telegramEnabled",
   "telegramBotToken",
   "telegramChatId",

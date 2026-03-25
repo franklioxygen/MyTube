@@ -49,7 +49,6 @@ describe('SecuritySettings', () => {
         allowResetPassword: true,
         apiKeyEnabled: false,
         apiKey: '',
-        fastRetryMode: false,
         isPasswordSet: false,
         visitorUserEnabled: true,
         visitorPassword: '',
@@ -91,13 +90,10 @@ describe('SecuritySettings', () => {
         });
     });
 
-    it('renders login controls and fast retry fallback text', () => {
+    it('renders login controls', () => {
         render(<SecuritySettings settings={defaultSettings} onChange={mockOnChange} />);
 
         expect(screen.getByRole('switch', { name: 'enableLogin' })).toBeInTheDocument();
-        expect(screen.getByText('Quick Retry Mode')).toBeInTheDocument();
-        expect(screen.getByText('Wait times: 5s, 5s, 10s, 30s, 1m, 3m (max 3m)')).toBeInTheDocument();
-        expect(screen.getByText('Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)')).toBeInTheDocument();
     });
 
     it('shows password and visitor password fields when login is enabled', () => {

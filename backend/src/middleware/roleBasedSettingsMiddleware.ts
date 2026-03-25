@@ -6,7 +6,6 @@ import {
 } from "../utils/requestPath";
 
 const PUBLIC_EXACT_PATHS = [
-  "/verify-password",
   "/verify-admin-password",
   "/verify-visitor-password",
   "/logout",
@@ -33,7 +32,6 @@ const VISITOR_ALLOWED_GET_PATHS = [
 ] as const;
 
 const VISITOR_ALLOWED_WRITE_EXACT_PATHS = [
-  "/verify-password",
   "/verify-admin-password",
   "/verify-visitor-password",
   "/logout",

@@ -83,9 +83,6 @@ export const es = {
   allowPasswordLoginHelper:
     "Cuando está deshabilitado, el inicio de sesión con contraseña no está disponible. Debe tener al menos una clave de acceso para deshabilitar el inicio de sesión con contraseña.",
   allowResetPassword: "Permitir Restablecer Contraseña",
-  fastRetryMode: "Modo de reintento rápido",
-  fastRetryModeDesc: 'Tiempos de espera: 5s, 5s, 10s, 30s, 1m, 3m (máx. 3m)',
-  normalRetryModeDesc: 'Tiempos de espera: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (máx. 24h)',
   allowResetPasswordHelper:
     "Cuando está deshabilitado, el botón de restablecer contraseña no se mostrará en la página de inicio de sesión y la API de restablecer contraseña será bloqueada.",
   enableApiKeyAuth: "Habilitar autenticación con clave API",
@@ -485,14 +482,18 @@ export const es = {
   resetPassword: "Restablecer Contraseña",
   resetPasswordTitle: "Restablecer Contraseña",
   resetPasswordMessage:
-    "¿Está seguro de que desea restablecer la contraseña? La contraseña actual se restablecerá a una cadena aleatoria de 8 caracteres y se mostrará en el registro del backend.",
+    "La recuperación de la contraseña debe realizarse desde el entorno del backend. Utilice un comando del backend para establecer explícitamente una nueva contraseña.",
   resetPasswordConfirm: "Restablecer",
   resetPasswordSuccess:
-    "La contraseña ha sido restablecida. Consulte los registros del backend para obtener la nueva contraseña.",
+    "A continuación se muestran las instrucciones de recuperación de contraseña. Utilice un comando del backend para establecer la nueva contraseña.",
+  resetPasswordRecoveryMessage:
+    "La recuperación de la contraseña debe realizarse desde el entorno del backend. Establezca una nueva contraseña explícitamente en lugar de depender de credenciales generadas en los registros.",
+  resetPasswordRecoveryGuide:
+    "Elija el comando que corresponda a su entorno:\n\nShell del backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost de Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUtilice el directorio o contenedor del backend que tenga acceso a los datos persistentes de la aplicación.",
   resetPasswordDisabledInfo:
-    "El restablecimiento de contraseña está deshabilitado. Para restablecer su contraseña, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nEsto generará una nueva contraseña aleatoria y habilitará el inicio de sesión con contraseña.",
+    "El restablecimiento de contraseña está deshabilitado en la interfaz web. Para restablecer su contraseña, ejecute uno de los siguientes comandos desde el entorno del backend:\n\nShell del backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost de Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUtilice el directorio o contenedor del backend que tenga acceso a los datos persistentes de la aplicación.",
   resetPasswordScriptGuide:
-    "Para restablecer la contraseña manualmente, ejecute el siguiente comando en el directorio del backend:\n\nnpm run reset-password\n\nO:\n\nts-node scripts/reset-password.ts\n\nSi no se proporciona una contraseña, se generará una contraseña aleatoria de 8 caracteres.",
+    "Para restablecer la contraseña manualmente, ejecute uno de los siguientes comandos y proporcione explícitamente la nueva contraseña:\n\nShell del backend\n  node dist/scripts/reset-password.js <new-password>\n\nHost de Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nEl script no genera ni muestra contraseñas aleatorias.",
   waitTimeMessage: "Por favor espere {time} antes de intentar nuevamente.",
   tooManyAttempts: "Demasiados intentos fallidos.",
 

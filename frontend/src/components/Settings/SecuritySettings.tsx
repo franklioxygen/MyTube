@@ -181,22 +181,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
         }
     };
 
-    const fastRetryModeTranslation = t('fastRetryMode');
-    const fastRetryModeLabel =
-        fastRetryModeTranslation === 'fastRetryMode' ? 'Quick Retry Mode' : fastRetryModeTranslation;
-
-    const fastRetryModeDescTranslation = t('fastRetryModeDesc');
-    const fastRetryModeDesc =
-        fastRetryModeDescTranslation === 'fastRetryModeDesc'
-            ? 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m (max 3m)'
-            : fastRetryModeDescTranslation;
-
-    const normalRetryModeDescTranslation = t('normalRetryModeDesc');
-    const normalRetryModeDesc =
-        normalRetryModeDescTranslation === 'normalRetryModeDesc'
-            ? 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)'
-            : normalRetryModeDescTranslation;
-
     return (
         <Box>
             <FormControlLabel
@@ -208,32 +192,6 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
                 }
                 label={t('enableLogin')}
             />
-
-            <Box sx={{ mt: 2, mb: 1 }}>
-                <FormControlLabel
-                    control={
-                        <Switch
-                            checked={settings.fastRetryMode || false}
-                            onChange={(e) => onChange('fastRetryMode', e.target.checked)}
-                        />
-                    }
-                    label={fastRetryModeLabel}
-                />
-                <Typography
-                    variant="body2"
-                    color={settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
-                    sx={{ mt: 1, fontWeight: settings.fastRetryMode ? 600 : 400 }}
-                >
-                    {`${fastRetryModeDesc}`}
-                </Typography>
-                <Typography
-                    variant="body2"
-                    color={!settings.fastRetryMode ? 'text.primary' : 'text.secondary'}
-                    sx={{ mt: 0.5, fontWeight: !settings.fastRetryMode ? 600 : 400 }}
-                >
-                    {`${normalRetryModeDesc}`}
-                </Typography>
-            </Box>
 
             {settings.loginEnabled && (
                 <Box sx={{ mt: 2 }}>

@@ -7,7 +7,6 @@ import {
 } from "../utils/requestPath";
 
 const PUBLIC_EXACT_PATHS = [
-  "/settings/verify-password",
   "/settings/verify-admin-password",
   "/settings/verify-visitor-password",
   "/settings/password-enabled",
@@ -22,7 +21,6 @@ const PUBLIC_PREFIX_PATHS = [
 ] as const;
 
 const VISITOR_ALLOWED_POST_EXACT_PATHS = [
-  "/settings/verify-password",
   "/settings/verify-admin-password",
   "/settings/verify-visitor-password",
   "/settings/logout",

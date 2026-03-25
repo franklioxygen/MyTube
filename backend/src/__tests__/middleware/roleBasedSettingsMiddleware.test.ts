@@ -182,6 +182,21 @@ describe('roleBasedSettingsMiddleware Security', () => {
     );
   });
 
+  it('should BLOCK visitor access to confirm-admin-password', () => {
+    req = {
+      method: 'POST',
+      path: '/confirm-admin-password',
+      url: '/confirm-admin-password',
+      body: {},
+      user: { role: 'visitor' } as any,
+    };
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+  });
+
   it('should ALLOW visitor POST passkey authentication and logout', () => {
     req = {
       method: 'POST',
@@ -339,6 +354,21 @@ describe('roleBasedSettingsMiddleware Security', () => {
     roleBasedSettingsMiddleware(req as Request, res as Response, next);
 
     expect(next).toHaveBeenCalled();
+  });
+
+  it('should BLOCK unauthenticated confirm-admin-password when login is required', () => {
+    req = {
+      method: 'POST',
+      path: '/confirm-admin-password',
+      url: '/confirm-admin-password',
+      user: undefined,
+    };
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
   });
 
   it('should ALLOW unauthenticated routes when login is not required', () => {

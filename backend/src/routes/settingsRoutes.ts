@@ -29,12 +29,12 @@ import {
     verifyRegistration,
 } from "../controllers/passkeyController";
 import {
+    confirmAdminPassword,
     getPasswordEnabled,
     getResetPasswordCooldown,
     logout,
     resetPassword,
     verifyAdminPassword,
-    verifyPassword,
     verifyVisitorPassword,
 } from "../controllers/passwordController";
 import {
@@ -66,9 +66,9 @@ router.post("/tags/rename", asyncHandler(renameTag));
 // Password routes
 router.get("/password-enabled", asyncHandler(getPasswordEnabled));
 router.get("/reset-password-cooldown", asyncHandler(getResetPasswordCooldown));
-router.post("/verify-password", asyncHandler(verifyPassword)); // Deprecated, use verify-admin-password or verify-visitor-password
 router.post("/verify-admin-password", asyncHandler(verifyAdminPassword));
 router.post("/verify-visitor-password", asyncHandler(verifyVisitorPassword));
+router.post("/confirm-admin-password", asyncHandler(confirmAdminPassword));
 router.post("/reset-password", asyncHandler(resetPassword));
 router.post("/logout", asyncHandler(logout));
 

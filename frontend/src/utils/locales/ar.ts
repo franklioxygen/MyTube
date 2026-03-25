@@ -78,9 +78,6 @@ export const ar = {
   allowPasswordLoginHelper:
     "عند التعطيل، لن يكون تسجيل الدخول بكلمة المرور متاحًا. يجب أن يكون لديك مفتاح وصول واحد على الأقل لتعطيل تسجيل الدخول بكلمة المرور.",
   allowResetPassword: "السماح بإعادة تعيين كلمة المرور",
-  fastRetryMode: "وضع إعادة المحاولة السريع",
-  fastRetryModeDesc: 'أوقات الانتظار: 5 ثوانٍ، 5 ثوانٍ، 10 ثوانٍ، 30 ثانية، 1 دقيقة، 3 دقائق (الحد الأقصى 3 دقائق)',
-  normalRetryModeDesc: 'أوقات الانتظار: 5 ثوانٍ، 5 ثوانٍ، 10 ثوانٍ، 30 ثانية، 1 دقيقة، 3 دقائق، 10 دقائق، 2 ساعة، 6 ساعات (الحد الأقصى 24 ساعة)',
   allowResetPasswordHelper:
     "عند التعطيل، لن يتم عرض زر إعادة تعيين كلمة المرور في صفحة تسجيل الدخول وستتم حظر واجهة برمجة تطبيقات إعادة تعيين كلمة المرور.",
   enableApiKeyAuth: "تفعيل المصادقة بمفتاح API",
@@ -464,14 +461,18 @@ export const ar = {
   resetPassword: "إعادة تعيين كلمة المرور",
   resetPasswordTitle: "إعادة تعيين كلمة المرور",
   resetPasswordMessage:
-    "هل أنت متأكد من أنك تريد إعادة تعيين كلمة المرور؟ سيتم إعادة تعيين كلمة المرور الحالية إلى سلسلة عشوائية مكونة من 8 أحرف وعرضها في سجل الخادم.",
+    "يجب تنفيذ استعادة كلمة المرور من بيئة الخادم الخلفي. استخدم أمرًا من الخادم الخلفي لتعيين كلمة مرور جديدة بشكل صريح.",
   resetPasswordConfirm: "إعادة التعيين",
   resetPasswordSuccess:
-    "تم إعادة تعيين كلمة المرور. تحقق من سجلات الخادم للحصول على كلمة المرور الجديدة.",
+    "تظهر أدناه تعليمات استعادة كلمة المرور. استخدم أمرًا من الخادم الخلفي لتعيين كلمة المرور الجديدة.",
+  resetPasswordRecoveryMessage:
+    "يجب تنفيذ استعادة كلمة المرور من بيئة الخادم الخلفي. عيّن كلمة مرور جديدة بشكل صريح بدلاً من الاعتماد على بيانات اعتماد مولدة داخل السجلات.",
+  resetPasswordRecoveryGuide:
+    "اختر الأمر المناسب لبيئتك:\n\nواجهة الخادم الخلفي\n  node dist/scripts/reset-password.js <new-password>\n\nمضيف Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nاستخدم دليل أو حاوية الخادم الخلفي التي لديها وصول إلى بيانات التطبيق الدائمة.",
   resetPasswordDisabledInfo:
-    "تم تعطيل إعادة تعيين كلمة المرور. لإعادة تعيين كلمة المرور، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nسيؤدي هذا إلى إنشاء كلمة مرور عشوائية جديدة وتمكين تسجيل الدخول بكلمة المرور.",
+    "إعادة تعيين كلمة المرور معطلة في واجهة الويب. لإعادة تعيين كلمة المرور، شغّل أحد الأوامر التالية من بيئة الخادم الخلفي:\n\nواجهة الخادم الخلفي\n  node dist/scripts/reset-password.js <new-password>\n\nمضيف Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nاستخدم دليل أو حاوية الخادم الخلفي التي لديها وصول إلى بيانات التطبيق الدائمة.",
   resetPasswordScriptGuide:
-    "لإعادة تعيين كلمة المرور يدوياً، قم بتشغيل الأمر التالي في دليل الخادم:\n\nnpm run reset-password\n\nأو:\n\nts-node scripts/reset-password.ts\n\nإذا لم يتم توفير كلمة مرور، سيتم إنشاء كلمة مرور عشوائية مكونة من 8 أحرف.",
+    "لإعادة تعيين كلمة المرور يدويًا، شغّل أحد الأوامر التالية وقدّم كلمة المرور الجديدة بشكل صريح:\n\nواجهة الخادم الخلفي\n  node dist/scripts/reset-password.js <new-password>\n\nمضيف Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nلا يقوم السكربت بإنشاء أو عرض كلمات مرور عشوائية.",
   waitTimeMessage: "يرجى الانتظار {time} قبل المحاولة مرة أخرى.",
   tooManyAttempts: "محاولات فاشلة كثيرة جداً.",
 

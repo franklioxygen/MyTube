@@ -82,9 +82,6 @@ export const fr = {
   allowPasswordLoginHelper:
     "Lorsqu'elle est désactivée, la connexion par mot de passe n'est pas disponible. Vous devez avoir au moins une clé d'accès pour désactiver la connexion par mot de passe.",
   allowResetPassword: "Autoriser la réinitialisation du mot de passe",
-  fastRetryMode: "Mode de tentative rapide",
-  fastRetryModeDesc: "Temps d'attente : 5s, 5s, 10s, 30s, 1m, 3m (max 3m)",
-  normalRetryModeDesc: "Temps d'attente : 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)",
   allowResetPasswordHelper:
     "Lorsqu'elle est désactivée, le bouton de réinitialisation du mot de passe ne sera pas affiché sur la page de connexion et l'API de réinitialisation du mot de passe sera bloquée.",
   enableApiKeyAuth: "Activer l'authentification par clé API",
@@ -482,14 +479,18 @@ export const fr = {
   resetPassword: "Réinitialiser le mot de passe",
   resetPasswordTitle: "Réinitialiser le mot de passe",
   resetPasswordMessage:
-    "Êtes-vous sûr de vouloir réinitialiser le mot de passe ? Le mot de passe actuel sera réinitialisé en une chaîne aléatoire de 8 caractères et affiché dans le journal du backend.",
+    "La récupération du mot de passe doit être effectuée depuis l'environnement backend. Utilisez une commande backend pour définir explicitement un nouveau mot de passe.",
   resetPasswordConfirm: "Réinitialiser",
   resetPasswordSuccess:
-    "Le mot de passe a été réinitialisé. Consultez les journaux du backend pour le nouveau mot de passe.",
+    "Les instructions de récupération du mot de passe sont affichées ci-dessous. Utilisez une commande backend pour définir le nouveau mot de passe.",
+  resetPasswordRecoveryMessage:
+    "La récupération du mot de passe doit être effectuée depuis l'environnement backend. Définissez explicitement un nouveau mot de passe au lieu de vous fier à des identifiants générés dans les journaux.",
+  resetPasswordRecoveryGuide:
+    "Choisissez la commande correspondant à votre environnement :\n\nShell backend\n  node dist/scripts/reset-password.js <new-password>\n\nHôte Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUtilisez le répertoire ou le conteneur backend qui a accès aux données persistantes de l'application.",
   resetPasswordDisabledInfo:
-    "La réinitialisation du mot de passe est désactivée. Pour réinitialiser votre mot de passe, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nCela générera un nouveau mot de passe aléatoire et activera la connexion par mot de passe.",
+    "La réinitialisation du mot de passe est désactivée dans l'interface web. Pour réinitialiser votre mot de passe, exécutez l'une des commandes suivantes depuis l'environnement backend :\n\nShell backend\n  node dist/scripts/reset-password.js <new-password>\n\nHôte Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUtilisez le répertoire ou le conteneur backend qui a accès aux données persistantes de l'application.",
   resetPasswordScriptGuide:
-    "Pour réinitialiser le mot de passe manuellement, exécutez la commande suivante dans le répertoire backend :\n\nnpm run reset-password\n\nOu :\n\nts-node scripts/reset-password.ts\n\nSi aucun mot de passe n'est fourni, un mot de passe aléatoire de 8 caractères sera généré.",
+    "Pour réinitialiser le mot de passe manuellement, exécutez l'une des commandes suivantes et indiquez explicitement le nouveau mot de passe :\n\nShell backend\n  node dist/scripts/reset-password.js <new-password>\n\nHôte Docker\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nLe script ne génère ni n'affiche de mots de passe aléatoires.",
   waitTimeMessage: "Veuillez attendre {time} avant de réessayer.",
   tooManyAttempts: "Trop de tentatives échouées.",
 

@@ -33,38 +33,49 @@ describe("registerApiRoutes", () => {
   });
 
   it("registers limiter-protected auth endpoints and API middlewares", () => {
-    const app = { use: vi.fn() } as any;
-    const authLimiter = vi.fn();
+    const app = { use: vi.fn(), post: vi.fn() } as any;
+    const authLimiters = {
+      adminPasswordLimiter: vi.fn(),
+      visitorPasswordLimiter: vi.fn(),
+      adminReauthLimiter: vi.fn(),
+      resetPasswordLimiter: vi.fn(),
+      passkeyAuthLimiter: vi.fn(),
+      passkeyRegistrationLimiter: vi.fn(),
+    };
 
-    registerApiRoutes(app, authLimiter as any);
+    registerApiRoutes(app, authLimiters as any);
 
-    expect(app.use).toHaveBeenCalledWith(
-      "/api/settings/verify-password",
-      authLimiter
-    );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/verify-admin-password",
-      authLimiter
+      authLimiters.adminPasswordLimiter
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/verify-visitor-password",
-      authLimiter
+      authLimiters.visitorPasswordLimiter
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/settings/confirm-admin-password",
+      authLimiters.adminReauthLimiter
+    );
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/reset-password",
-      authLimiter
+      authLimiters.resetPasswordLimiter
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/passkeys/authenticate",
-      authLimiter
+      authLimiters.passkeyAuthLimiter
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/passkeys/authenticate/verify",
-      authLimiter
+      authLimiters.passkeyAuthLimiter
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.post).toHaveBeenCalledWith(
       "/api/settings/passkeys/register",
-      authLimiter
+      authLimiters.passkeyRegistrationLimiter
+    );
+    expect(app.post).toHaveBeenCalledWith(
+      "/api/settings/passkeys/register/verify",
+      authLimiters.passkeyRegistrationLimiter
     );
 
     expect(app.use).toHaveBeenCalledWith("/api", authMiddleware);
@@ -79,6 +90,7 @@ describe("registerApiRoutes", () => {
       settingsRoutes
     );
 
-    expect(app.use).toHaveBeenCalledTimes(10);
+    expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.use).toHaveBeenCalledTimes(3);
   });
 });

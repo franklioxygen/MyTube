@@ -32,7 +32,7 @@ describe('passwordController', () => {
 
   describe('getPasswordEnabled', () => {
     it('should return result from service with authenticatedRole', async () => {
-      const mockResult = { enabled: true, waitTime: undefined };
+      const mockResult = { enabled: true };
       (passwordService.isPasswordEnabled as any).mockReturnValue(mockResult);
       mockReq.user = { role: 'visitor' } as any;
 
@@ -78,31 +78,17 @@ describe('passwordController', () => {
       (passwordService.verifyPassword as any).mockResolvedValue({ 
           success: false, 
           message: 'Incorrect', 
-          waitTime: undefined 
       });
 
       await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
 
-      expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
-          success: false
-      }));
-    });
-
-    it('should return 429 if rate limited', async () => {
-      mockReq.body = { password: 'any' };
-      (passwordService.verifyPassword as any).mockResolvedValue({ 
-          success: false, 
-          message: 'Wait', 
-          waitTime: 60 
-      });
-
-      await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
-
+      expect(statusMock).toHaveBeenCalledWith(401);
       expect(jsonMock).toHaveBeenCalledWith(expect.objectContaining({
           success: false,
-          waitTime: 60
+          message: 'Incorrect',
       }));
     });
+
   });
 
   describe('verifyAdminPassword', () => {
@@ -125,22 +111,20 @@ describe('passwordController', () => {
       expect(jsonMock).toHaveBeenCalledWith({ success: true, role: 'admin' });
     });
 
-    it('should return statusCode 401 for invalid admin password', async () => {
+    it('should return 401 for invalid admin password', async () => {
       mockReq.body = { password: 'wrong-admin' };
       (passwordService.verifyAdminPassword as any).mockResolvedValue({
         success: false,
         message: 'invalid',
-        waitTime: undefined,
-        failedAttempts: 2,
       });
 
       await passwordController.verifyAdminPassword(mockReq as Request, mockRes as Response);
 
+      expect(statusMock).toHaveBeenCalledWith(401);
       expect(jsonMock).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
-          statusCode: 401,
-          failedAttempts: 2,
+          message: 'invalid',
         })
       );
     });
@@ -166,24 +150,58 @@ describe('passwordController', () => {
       expect(jsonMock).toHaveBeenCalledWith({ success: true, role: 'visitor' });
     });
 
-    it('should return statusCode 429 when visitor verification is throttled', async () => {
+    it('should return 401 when visitor verification fails', async () => {
       mockReq.body = { password: 'visitor-pass' };
       (passwordService.verifyVisitorPassword as any).mockResolvedValue({
         success: false,
         message: 'wait',
-        waitTime: 30,
-        failedAttempts: 3,
       });
 
       await passwordController.verifyVisitorPassword(mockReq as Request, mockRes as Response);
 
+      expect(statusMock).toHaveBeenCalledWith(401);
       expect(jsonMock).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
-          waitTime: 30,
-          statusCode: 429,
+          message: 'wait',
         })
       );
+    });
+  });
+
+  describe('confirmAdminPassword', () => {
+    it('should return success on valid admin re-authentication', async () => {
+      mockReq.body = { password: 'admin-pass' };
+      (passwordService.confirmAdminPassword as any).mockResolvedValue({
+        success: true,
+      });
+
+      await passwordController.confirmAdminPassword(
+        mockReq as Request,
+        mockRes as Response
+      );
+
+      expect(passwordService.confirmAdminPassword).toHaveBeenCalledWith('admin-pass');
+      expect(jsonMock).toHaveBeenCalledWith({ success: true });
+    });
+
+    it('should return 401 on invalid admin re-authentication', async () => {
+      mockReq.body = { password: 'wrong-admin' };
+      (passwordService.confirmAdminPassword as any).mockResolvedValue({
+        success: false,
+        message: 'Incorrect admin password',
+      });
+
+      await passwordController.confirmAdminPassword(
+        mockReq as Request,
+        mockRes as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: 'Incorrect admin password',
+      });
     });
   });
 

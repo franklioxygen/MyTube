@@ -18,7 +18,6 @@ vi.mock('../../services/storageService', async (importOriginal) => {
 });
 vi.mock('../../services/downloadManager');
 vi.mock('../../services/passwordService');
-vi.mock('../../services/loginAttemptService');
 vi.mock('bcryptjs');
 vi.mock('fs-extra');
 vi.mock('../../services/migrationService', () => ({
@@ -210,9 +209,11 @@ describe('SettingsController', () => {
       await verifyPassword(req as Request, res as Response);
 
       expect(passwordService.verifyPassword).toHaveBeenCalledWith('wrong');
-      expect(json).toHaveBeenCalledWith(expect.objectContaining({ 
-        success: false
-      }));
+      expect(status).toHaveBeenCalledWith(401);
+      expect(json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Incorrect password',
+      });
     });
   });
 

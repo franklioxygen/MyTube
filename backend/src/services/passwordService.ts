@@ -2,8 +2,8 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
-import * as loginAttemptService from "./loginAttemptService";
 import * as storageService from "./storageService";
+import { generateToken } from "./authService";
 
 const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 
@@ -77,7 +77,6 @@ export function isLoginRequired(): boolean {
  */
 export function isPasswordEnabled(): {
   enabled: boolean;
-  waitTime?: number;
   loginRequired?: boolean;
   visitorUserEnabled?: boolean;
   isVisitorPasswordSet?: boolean;
@@ -94,12 +93,8 @@ export function isPasswordEnabled(): {
   // Return true only if login is enabled AND a password is set AND password login is allowed
   const isEnabled = mergedSettings.loginEnabled && !!mergedSettings.password && passwordLoginAllowed;
 
-  // Check for remaining wait time
-  const remainingWaitTime = loginAttemptService.canAttemptLogin();
-
   return {
     enabled: isEnabled,
-    waitTime: remainingWaitTime > 0 ? remainingWaitTime : undefined,
     loginRequired: mergedSettings.loginEnabled === true,
     visitorUserEnabled: mergedSettings.visitorUserEnabled !== false,
     isVisitorPasswordSet: !!mergedSettings.visitorPassword,
@@ -113,7 +108,6 @@ export function isPasswordEnabled(): {
  * Verify password for authentication
  * @deprecated Use verifyAdminPassword or verifyVisitorPassword instead for better security
  */
-import { generateToken } from "./authService";
 
 export async function verifyPassword(
   password: string
@@ -121,8 +115,6 @@ export async function verifyPassword(
   success: boolean;
   role?: "admin" | "visitor";
   token?: string;
-  waitTime?: number;
-  failedAttempts?: number;
   message?: string;
 }> {
   const settings = storageService.getSettings();
@@ -143,17 +135,6 @@ export async function verifyPassword(
     };
   }
 
-  // Check if user can attempt login (wait time check)
-  const remainingWaitTime = loginAttemptService.canAttemptLogin();
-  if (remainingWaitTime > 0) {
-    // User must wait before trying again
-    return {
-      success: false,
-      waitTime: remainingWaitTime,
-      message: "Too many failed attempts. Please wait before trying again.",
-    };
-  }
-
   // 1. Check Admin Password
   if (mergedSettings.password) {
     const adminMatchResult = await compareStoredPassword(
@@ -166,14 +147,12 @@ export async function verifyPassword(
         password,
         adminMatchResult,
       );
-      loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
     }
   } else {
     // If no admin password set, and login enabled, allow as admin
     if (mergedSettings.loginEnabled) {
-       loginAttemptService.resetFailedAttempts();
        const token = generateToken({ role: "admin" });
        return { success: true, role: "admin", token };
     }
@@ -194,20 +173,13 @@ export async function verifyPassword(
         password,
         visitorMatchResult,
       );
-      loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "visitor" });
       return { success: true, role: "visitor", token };
     }
   }
 
-  // No match
-  const waitTime = loginAttemptService.recordFailedAttempt();
-  const failedAttempts = loginAttemptService.getFailedAttempts();
-
   return {
     success: false,
-    waitTime,
-    failedAttempts,
     message: "Incorrect password",
   };
 }
@@ -222,8 +194,6 @@ export async function verifyAdminPassword(
   success: boolean;
   role?: "admin";
   token?: string;
-  waitTime?: number;
-  failedAttempts?: number;
   message?: string;
 }> {
   const settings = storageService.getSettings();
@@ -239,16 +209,6 @@ export async function verifyAdminPassword(
     };
   }
 
-  // Check if user can attempt login (wait time check)
-  const remainingWaitTime = loginAttemptService.canAttemptLogin();
-  if (remainingWaitTime > 0) {
-    return {
-      success: false,
-      waitTime: remainingWaitTime,
-      message: "Too many failed attempts. Please wait before trying again.",
-    };
-  }
-
   // Check Admin Password only
   if (mergedSettings.password) {
     const adminMatchResult = await compareStoredPassword(
@@ -261,27 +221,19 @@ export async function verifyAdminPassword(
         password,
         adminMatchResult,
       );
-      loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
     }
   } else {
     // If no admin password set, and login enabled, allow as admin
     if (mergedSettings.loginEnabled) {
-       loginAttemptService.resetFailedAttempts();
        const token = generateToken({ role: "admin" });
        return { success: true, role: "admin", token };
     }
   }
 
-  // No match - record failed attempt
-  const waitTime = loginAttemptService.recordFailedAttempt();
-  const failedAttempts = loginAttemptService.getFailedAttempts();
-
   return {
     success: false,
-    waitTime,
-    failedAttempts,
     message: "Incorrect admin password",
   };
 }
@@ -296,8 +248,6 @@ export async function verifyVisitorPassword(
   success: boolean;
   role?: "visitor";
   token?: string;
-  waitTime?: number;
-  failedAttempts?: number;
   message?: string;
 }> {
   const settings = storageService.getSettings();
@@ -323,16 +273,6 @@ export async function verifyVisitorPassword(
     };
   }
 
-  // Check if user can attempt login (wait time check)
-  const remainingWaitTime = loginAttemptService.canAttemptLogin();
-  if (remainingWaitTime > 0) {
-    return {
-      success: false,
-      waitTime: remainingWaitTime,
-      message: "Too many failed attempts. Please wait before trying again.",
-    };
-  }
-
   // Check Visitor Password only
   if (mergedSettings.visitorPassword) {
     const visitorMatchResult = await compareStoredPassword(
@@ -345,7 +285,6 @@ export async function verifyVisitorPassword(
         password,
         visitorMatchResult,
       );
-      loginAttemptService.resetFailedAttempts();
       const token = generateToken({ role: "visitor" });
       return { success: true, role: "visitor", token };
     }
@@ -357,16 +296,46 @@ export async function verifyVisitorPassword(
     };
   }
 
-  // No match - record failed attempt
-  const waitTime = loginAttemptService.recordFailedAttempt();
-  const failedAttempts = loginAttemptService.getFailedAttempts();
-
   return {
     success: false,
-    waitTime,
-    failedAttempts,
     message: "Incorrect visitor password",
   };
+}
+
+/**
+ * Confirm the admin password for an already-authenticated admin session.
+ * This is intentionally independent from public password-login settings.
+ */
+export async function confirmAdminPassword(
+  password: string
+): Promise<{
+  success: boolean;
+  message?: string;
+}> {
+  const settings = storageService.getSettings();
+  const mergedSettings = { ...defaultSettings, ...settings };
+
+  if (!mergedSettings.password) {
+    return {
+      success: false,
+      message: "Admin password is not configured.",
+    };
+  }
+
+  const adminMatchResult = await compareStoredPassword(
+    password,
+    mergedSettings.password
+  );
+
+  if (adminMatchResult === "mismatch") {
+    return {
+      success: false,
+      message: "Incorrect admin password",
+    };
+  }
+
+  await migrateLegacyPasswordHash("password", password, adminMatchResult);
+  return { success: true };
 }
 
 /**
@@ -449,9 +418,5 @@ export async function resetPassword(): Promise<string> {
   // Log that password was reset (redact actual password)
   logger.info(`Password has been reset. New password: ${newPassword}`);
 
-  // Reset failed login attempts
-  loginAttemptService.resetFailedAttempts();
-
   return newPassword;
 }
-

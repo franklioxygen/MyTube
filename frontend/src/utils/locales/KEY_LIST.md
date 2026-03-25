@@ -130,9 +130,6 @@ Total keys: 796
 | `allowPasswordLogin` |
 | `allowPasswordLoginHelper` |
 | `allowResetPassword` |
-| `fastRetryMode` |
-| `fastRetryModeDesc` |
-| `normalRetryModeDesc` |
 | `allowResetPasswordHelper` |
 | `enableApiKeyAuth` |
 | `apiKeyAuthHelper` |
@@ -494,6 +491,8 @@ Total keys: 796
 | `resetPasswordMessage` |
 | `resetPasswordConfirm` |
 | `resetPasswordSuccess` |
+| `resetPasswordRecoveryMessage` |
+| `resetPasswordRecoveryGuide` |
 | `resetPasswordDisabledInfo` |
 | `resetPasswordScriptGuide` |
 | `waitTimeMessage` |

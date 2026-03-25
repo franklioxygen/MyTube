@@ -76,9 +76,6 @@ export const en = {
   allowPasswordLoginHelper:
     "When disabled, password login is not available. You must have at least one passkey to disable password login.",
   allowResetPassword: "Allow Reset Password",
-  fastRetryMode: "Quick Retry Mode",
-  fastRetryModeDesc: 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m (max 3m)',
-  normalRetryModeDesc: 'Wait times: 5s, 5s, 10s, 30s, 1m, 3m, 10m, 2h, 6h (max 24h)',
   allowResetPasswordHelper:
     "When disabled, the reset password button will not be shown on the login page and the reset password API will be blocked.",
   enableApiKeyAuth: "Enable API Key Authentication",
@@ -457,14 +454,18 @@ export const en = {
   resetPassword: "Reset Password",
   resetPasswordTitle: "Reset Password",
   resetPasswordMessage:
-    "Are you sure you want to reset the password? The current password will be reset to a random 8-character string and displayed in the backend log.",
+    "Password recovery must be performed from the backend environment. Use a backend command to set a new password explicitly.",
   resetPasswordConfirm: "Reset",
   resetPasswordSuccess:
-    "Password has been reset. Check backend logs for the new password.",
+    "Password recovery instructions are shown below. Use a backend command to set the new password.",
+  resetPasswordRecoveryMessage:
+    "Password recovery must be performed from the backend environment. Set a new password explicitly instead of relying on generated credentials in logs.",
+  resetPasswordRecoveryGuide:
+    "Choose the command that matches your environment:\n\nBackend shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUse the backend directory/container that has access to the persistent app data.",
   resetPasswordDisabledInfo:
-    "Password reset is disabled. To reset your password, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nThis will generate a new random password and enable password login.",
+    "Password reset is disabled in the web UI. To reset your password, run one of the following commands from the backend environment:\n\nBackend shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nUse the backend directory/container that has access to the persistent app data.",
   resetPasswordScriptGuide:
-    "To reset password manually, run the following command in the backend directory:\n\nnpm run reset-password\n\nOr:\n\nts-node scripts/reset-password.ts\n\nIf no password is provided, a random 8-character password will be generated.",
+    "To reset the password manually, run one of the following commands and provide the new password explicitly:\n\nBackend shell\n  node dist/scripts/reset-password.js <new-password>\n\nDocker host\n  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>\n\nThe script does not generate or display random passwords.",
   waitTimeMessage: "Please wait {time} before trying again.",
   tooManyAttempts: "Too many failed attempts.",
   // Passkeys

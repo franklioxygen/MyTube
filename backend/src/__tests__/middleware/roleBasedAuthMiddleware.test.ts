@@ -112,6 +112,20 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
+  it("blocks unauthenticated confirm-admin-password when login is required", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(true);
+    req = {
+      method: "POST",
+      path: "/settings/confirm-admin-password",
+      url: "/settings/confirm-admin-password",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(401);
+  });
+
   it("blocks unauthenticated passkey registration when login is required", () => {
     vi.mocked(isLoginRequired).mockReturnValue(true);
     req = {

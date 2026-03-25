@@ -2,6 +2,21 @@ import { Request, Response } from "express";
 import { clearAuthCookie, setAuthCookie } from "../services/authService";
 import * as passwordService from "../services/passwordService";
 
+type FailedAuthResult = {
+  message?: string;
+};
+
+const sendAuthFailure = (
+  res: Response,
+  result: FailedAuthResult,
+  statusCode = 401
+): void => {
+  res.status(statusCode).json({
+    success: false,
+    message: result.message,
+  });
+};
+
 /**
  * Check if password authentication is enabled
  * Errors are automatically handled by asyncHandler middleware
@@ -11,7 +26,7 @@ export const getPasswordEnabled = async (
   res: Response
 ): Promise<void> => {
   const result = passwordService.isPasswordEnabled();
-  // Return format expected by frontend: { enabled: boolean, waitTime?: number }
+  // Return format expected by frontend: password-login capability and context.
   res.json({
     ...result,
     authenticatedRole: req.user?.role ?? null,
@@ -41,16 +56,7 @@ export const verifyPassword = async (
       role: result.role
     });
   } else {
-    // Return wait time information
-    // Return 200 OK to suppress browser console errors, but include status code and success: false
-    const statusCode = result.waitTime ? 429 : 401;
-    res.json({
-      success: false,
-      waitTime: result.waitTime,
-      failedAttempts: result.failedAttempts,
-      message: result.message,
-      statusCode
-    });
+    sendAuthFailure(res, result);
   }
 };
 
@@ -77,14 +83,7 @@ export const verifyAdminPassword = async (
       role: result.role
     });
   } else {
-    const statusCode = result.waitTime ? 429 : 401;
-    res.json({
-      success: false,
-      waitTime: result.waitTime,
-      failedAttempts: result.failedAttempts,
-      message: result.message,
-      statusCode
-    });
+    sendAuthFailure(res, result);
   }
 };
 
@@ -111,15 +110,28 @@ export const verifyVisitorPassword = async (
       role: result.role
     });
   } else {
-    const statusCode = result.waitTime ? 429 : 401;
-    res.json({
-      success: false,
-      waitTime: result.waitTime,
-      failedAttempts: result.failedAttempts,
-      message: result.message,
-      statusCode
-    });
+    sendAuthFailure(res, result);
   }
+};
+
+/**
+ * Re-authenticate an already-authenticated admin for sensitive settings actions.
+ * Errors are automatically handled by asyncHandler middleware.
+ */
+export const confirmAdminPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { password } = req.body;
+
+  const result = await passwordService.confirmAdminPassword(password);
+
+  if (result.success) {
+    res.json({ success: true });
+    return;
+  }
+
+  sendAuthFailure(res, result);
 };
 
 /**
