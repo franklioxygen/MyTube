@@ -6,28 +6,44 @@ import { RefObject, useEffect, useState } from 'react';
  * @returns isSticky - Whether the sticky button should be visible
  */
 export function useStickyButton(observerTarget: RefObject<HTMLDivElement | null>): boolean {
-    const [isSticky, setIsSticky] = useState(true);
+    const [isSticky, setIsSticky] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            if (!observerTarget.current) return;
-            const rect = observerTarget.current.getBoundingClientRect();
-            // If reference element is below the viewport, show sticky button
-            // rect.top is the distance from top of viewport to top of element
-            // window.innerHeight is viewport height
-            // If rect.top > window.innerHeight, it's below the fold.
-            // We adding a small buffer (e.g. 10px) to ensure smooth transition
-            setIsSticky(rect.top > window.innerHeight);
+        const target = observerTarget.current;
+        if (!target) {
+            return;
+        }
+
+        const updateStickyState = () => {
+            const rect = target.getBoundingClientRect();
+            setIsSticky(rect.top >= window.innerHeight);
         };
 
-        window.addEventListener('scroll', handleScroll);
-        window.addEventListener('resize', handleScroll);
-        // Initial check
-        handleScroll();
+        updateStickyState();
+
+        let observer: IntersectionObserver | null = null;
+
+        if (typeof window.IntersectionObserver === 'function') {
+            observer = new window.IntersectionObserver((entries) => {
+                const entry = entries[0];
+                if (!entry) {
+                    return;
+                }
+
+                const viewportBottom = entry.rootBounds?.bottom ?? window.innerHeight;
+                setIsSticky(!entry.isIntersecting && entry.boundingClientRect.top >= viewportBottom);
+            });
+
+            observer.observe(target);
+        } else {
+            window.addEventListener('scroll', updateStickyState, { passive: true });
+            window.addEventListener('resize', updateStickyState);
+        }
 
         return () => {
-            window.removeEventListener('scroll', handleScroll);
-            window.removeEventListener('resize', handleScroll);
+            observer?.disconnect();
+            window.removeEventListener('scroll', updateStickyState);
+            window.removeEventListener('resize', updateStickyState);
         };
     }, [observerTarget]);
 

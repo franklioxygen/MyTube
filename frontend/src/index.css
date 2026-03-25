@@ -2,7 +2,22 @@
 /* Fonts: system stack only (no Google Fonts), so the app works in China and offline */
 
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
+  --scrollbar-track: #1e1e1e;
+  --scrollbar-thumb: #333;
+  --scrollbar-thumb-hover: #444;
+}
+
+:root[data-theme='light'] {
+  --scrollbar-track: #ececec;
+  --scrollbar-thumb: #b3b3b3;
+  --scrollbar-thumb-hover: #8f8f8f;
+}
+
+:root[data-theme='dark'] {
+  --scrollbar-track: #1e1e1e;
+  --scrollbar-thumb: #333;
+  --scrollbar-thumb-hover: #444;
 }
 
 body {
@@ -27,16 +42,16 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--scrollbar-thumb);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Smooth theme transition */

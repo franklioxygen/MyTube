@@ -74,14 +74,14 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Fetch settings on mount
     useEffect(() => {
         syncThemePreference();
-    }, [queryClient]);
+    }, [queryClient, syncThemePreference]);
 
     // Listen for login events to refetch
     useEffect(() => {
         const onLogin = () => syncThemePreference();
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient]);
+    }, [queryClient, syncThemePreference]);
 
     const setPreference = async (newPreference: ThemePreference) => {
         const normalizedPreference = normalizeThemePreference(newPreference);
@@ -106,6 +106,11 @@ export const ThemeContextProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
         return preference;
     }, [preference, systemPrefersDark]);
+
+    useEffect(() => {
+        document.documentElement.style.colorScheme = mode;
+        document.documentElement.dataset.theme = mode;
+    }, [mode]);
 
     const toggleTheme = () => {
         setPreference(mode === 'light' ? 'dark' : 'light');

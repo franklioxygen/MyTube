@@ -73,6 +73,8 @@ describe('ThemeContext', () => {
     beforeEach(() => {
         localStorageMock.clear();
         vi.clearAllMocks();
+        document.documentElement.style.colorScheme = '';
+        delete document.documentElement.dataset.theme;
         mockedApi.get.mockImplementation((url: string) => {
             if (url === '/settings/password-enabled') {
                 return Promise.resolve({ data: { loginRequired: true, authenticatedRole: null } });
@@ -84,6 +86,8 @@ describe('ThemeContext', () => {
 
     afterEach(() => {
         localStorageMock.clear();
+        document.documentElement.style.colorScheme = '';
+        delete document.documentElement.dataset.theme;
     });
 
     it('should throw error when used outside provider', () => {
@@ -114,6 +118,8 @@ describe('ThemeContext', () => {
         });
 
         expect(result.current.mode).toBe('light');
+        expect(document.documentElement.style.colorScheme).toBe('light');
+        expect(document.documentElement.dataset.theme).toBe('light');
     });
 
     it('should initialize with dark theme from system preference', () => {
@@ -133,6 +139,8 @@ describe('ThemeContext', () => {
         });
 
         expect(result.current.mode).toBe('dark');
+        expect(document.documentElement.style.colorScheme).toBe('dark');
+        expect(document.documentElement.dataset.theme).toBe('dark');
     });
 
     it('should initialize with saved theme from localStorage', () => {
@@ -143,6 +151,8 @@ describe('ThemeContext', () => {
         });
 
         expect(result.current.mode).toBe('dark');
+        expect(document.documentElement.style.colorScheme).toBe('dark');
+        expect(document.documentElement.dataset.theme).toBe('dark');
     });
 
     it('falls back to system when backend returns an invalid theme value', async () => {
@@ -190,6 +200,8 @@ describe('ThemeContext', () => {
 
         expect(result.current.mode).toBe('dark');
         expect(localStorageMock.getItem('themeMode')).toBe('dark');
+        expect(document.documentElement.style.colorScheme).toBe('dark');
+        expect(document.documentElement.dataset.theme).toBe('dark');
     });
 
     it('should toggle theme from dark to light', () => {
@@ -207,6 +219,8 @@ describe('ThemeContext', () => {
 
         expect(result.current.mode).toBe('light');
         expect(localStorageMock.getItem('themeMode')).toBe('light');
+        expect(document.documentElement.style.colorScheme).toBe('light');
+        expect(document.documentElement.dataset.theme).toBe('light');
     });
 
     it('should save theme to localStorage on change', async () => {
