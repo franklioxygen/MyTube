@@ -15,6 +15,7 @@ import {
     resumeContinuousDownloadTask,
     resumeSubscription,
     subscribeChannelPlaylists,
+    updateSubscription,
 } from "../../controllers/subscriptionController";
 import { ValidationError } from "../../errors/DownloadErrors";
 import { continuousDownloadService } from "../../services/continuousDownloadService";
@@ -35,6 +36,7 @@ vi.mock("../../services/subscriptionService", () => ({
     unsubscribe: vi.fn(),
     pauseSubscription: vi.fn(),
     resumeSubscription: vi.fn(),
+    updateSubscriptionInterval: vi.fn(),
     subscribePlaylist: vi.fn(),
     subscribeChannelPlaylistsWatcher: vi.fn(),
   },
@@ -315,6 +317,47 @@ describe("SubscriptionController", () => {
       expect(subscriptionService.resumeSubscription).toHaveBeenCalledWith(
         "sub-123"
       );
+    });
+
+    it("should update subscription interval", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { interval: 90 };
+
+      await updateSubscription(req as Request, res as Response);
+
+      expect(subscriptionService.updateSubscriptionInterval).toHaveBeenCalledWith(
+        "sub-123",
+        90
+      );
+      expect(status).toHaveBeenCalledWith(200);
+      expect(json).toHaveBeenCalledWith({
+        success: true,
+        message: "Subscription updated",
+      });
+    });
+
+    it("should reject invalid subscription interval updates", async () => {
+      req.params = { id: "sub-123" };
+      req.body = { interval: 0 };
+
+      await expect(
+        updateSubscription(req as Request, res as Response)
+      ).rejects.toThrow(ValidationError);
+      expect(subscriptionService.updateSubscriptionInterval).not.toHaveBeenCalled();
+    });
+
+    it("should reject non-integer subscription interval updates", async () => {
+      req.params = { id: "sub-123" };
+
+      for (const interval of ["1.5", "1e2", "90abc"]) {
+        req.body = { interval };
+
+        await expect(
+          updateSubscription(req as Request, res as Response)
+        ).rejects.toThrow(ValidationError);
+      }
+
+      expect(subscriptionService.updateSubscriptionInterval).not.toHaveBeenCalled();
     });
 
     it("should handle task management endpoints", async () => {

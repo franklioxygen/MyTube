@@ -231,6 +231,75 @@ describe('SubscriptionsPage', () => {
         expect(mockRefetchSubscriptions).toHaveBeenCalled();
     });
 
+    it('switches a subscription interval cell into edit mode', () => {
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+
+        expect(screen.getByLabelText('checkIntervalMinutes')).toBeInTheDocument();
+        expect(screen.getByTitle('save')).toBeInTheDocument();
+        expect(screen.getByTitle('cancel')).toBeInTheDocument();
+    });
+
+    it('updates a subscription interval from the row editor', async () => {
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+        fireEvent.change(screen.getByLabelText('checkIntervalMinutes'), { target: { value: '90' } });
+
+        await act(async () => {
+            fireEvent.click(screen.getByTitle('save'));
+        });
+
+        expect(api.put).toHaveBeenCalledWith('/subscriptions/sub-edit', { interval: 90 });
+        expect(mockShowSnackbar).toHaveBeenCalledWith('subscriptionUpdated');
+        expect(mockRefetchSubscriptions).toHaveBeenCalled();
+    });
+
+    it('cancels subscription interval editing with Escape', () => {
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+        fireEvent.keyDown(screen.getByLabelText('checkIntervalMinutes'), { key: 'Escape' });
+
+        expect(screen.queryByLabelText('checkIntervalMinutes')).not.toBeInTheDocument();
+        expect(screen.getByText('45 minutes')).toBeInTheDocument();
+    });
+
+    it('handles api error during subscription interval update gracefully', async () => {
+        (api.put as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('fail'));
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+        fireEvent.change(screen.getByLabelText('checkIntervalMinutes'), { target: { value: '90' } });
+
+        await act(async () => {
+            fireEvent.click(screen.getByTitle('save'));
+        });
+
+        expect(mockShowSnackbar).toHaveBeenCalledWith('subscriptionUpdateFailed');
+        expect(screen.getByLabelText('checkIntervalMinutes')).toBeInTheDocument();
+    });
+
+    it('does not submit invalid subscription interval strings', async () => {
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+        fireEvent.change(screen.getByLabelText('checkIntervalMinutes'), { target: { value: '1.5' } });
+
+        await act(async () => {
+            fireEvent.click(screen.getByTitle('save'));
+        });
+
+        expect(api.put).not.toHaveBeenCalled();
+        expect(screen.getByTitle('save')).toBeDisabled();
+    });
+
     // ── 7. Tasks section hidden when no tasks ────────────────────────────
 
     it('does not render tasks section when tasks array is empty', () => {
@@ -389,6 +458,7 @@ describe('SubscriptionsPage', () => {
         // No unsubscribe / pause buttons for subscriptions
         expect(screen.queryByTitle('unsubscribe')).not.toBeInTheDocument();
         expect(screen.queryByTitle('pauseSubscription')).not.toBeInTheDocument();
+        expect(screen.queryByTitle('editInterval')).not.toBeInTheDocument();
 
         // No task action buttons
         expect(screen.queryByTitle('cancelTask')).not.toBeInTheDocument();

@@ -95,6 +95,8 @@
     - 新的 Twitch 订阅只会轮询已发布的 VOD（`archive` 和 `upload`），不包含直播流
     - `twitchClientId` 和 `twitchClientSecret` 是可选的；缺失时后端会回退到 yt-dlp 轮询的尽力模式
     - 配置 Twitch 应用凭据后，频道识别与轮询稳定性会更好
+- `PUT /api/subscriptions/:id` - 更新订阅
+  - 请求体: `{ interval: number }`
 - `PUT /api/subscriptions/:id/pause` - 暂停订阅
 - `PUT /api/subscriptions/:id/resume` - 恢复订阅
 - `DELETE /api/subscriptions/:id` - 删除订阅

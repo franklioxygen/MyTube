@@ -3,7 +3,11 @@ import cron, { ScheduledTask } from "node-cron";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { subscriptions } from "../db/schema";
-import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
+import {
+  DuplicateError,
+  NotFoundError,
+  ValidationError,
+} from "../errors/DownloadErrors";
 import {
     extractBilibiliMid,
     extractTwitchChannelLogin,
@@ -657,6 +661,25 @@ export class SubscriptionService {
       .where(eq(subscriptions.id, id));
 
     logger.info(`Paused subscription ${id} (${existing[0].author})`);
+  }
+
+  async updateSubscriptionInterval(id: string, interval: number): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ interval })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info(
+      `Updated subscription ${updated[0].id} (${updated[0].author}) interval to ${interval} minutes`
+    );
   }
 
   async resumeSubscription(id: string): Promise<void> {

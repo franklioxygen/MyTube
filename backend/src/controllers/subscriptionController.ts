@@ -20,6 +20,26 @@ import {
     getUserYtDlpConfig,
 } from "../utils/ytDlpUtils";
 
+const parsePositiveInteger = (value: unknown): number | null => {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  if (!/^\d+$/.test(trimmedValue)) {
+    return null;
+  }
+
+  const parsedValue = Number(trimmedValue);
+  return Number.isSafeInteger(parsedValue) && parsedValue > 0
+    ? parsedValue
+    : null;
+};
+
 /**
  * Create a new subscription
  * Errors are automatically handled by asyncHandler middleware
@@ -157,6 +177,24 @@ export const pauseSubscription = async (
   const { id } = req.params;
   await subscriptionService.pauseSubscription(id);
   res.status(200).json(successMessage("Subscription paused"));
+};
+
+export const updateSubscription = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params;
+  const parsedInterval = parsePositiveInteger(req.body.interval);
+
+  if (parsedInterval === null) {
+    throw new ValidationError(
+      "Interval must be a positive integer",
+      "interval"
+    );
+  }
+
+  await subscriptionService.updateSubscriptionInterval(id, parsedInterval);
+  res.status(200).json(successMessage("Subscription updated"));
 };
 
 /**

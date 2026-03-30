@@ -95,6 +95,8 @@ All API routes are mounted under `/api` unless noted otherwise.
     - new Twitch subscriptions poll for published VODs (`archive` and `upload`), not live streams
     - `twitchClientId` and `twitchClientSecret` are optional; when they are missing, the backend falls back to yt-dlp polling in best-effort mode
     - adding Twitch app credentials improves channel resolution and polling reliability
+- `PUT /api/subscriptions/:id` - Update subscription
+  - Body: `{ interval: number }`
 - `PUT /api/subscriptions/:id/pause` - Pause subscription
 - `PUT /api/subscriptions/:id/resume` - Resume subscription
 - `DELETE /api/subscriptions/:id` - Delete subscription

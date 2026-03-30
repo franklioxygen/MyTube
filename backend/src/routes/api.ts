@@ -150,6 +150,10 @@ router.get(
   "/subscriptions",
   asyncHandler(subscriptionController.getSubscriptions)
 );
+router.put(
+  "/subscriptions/:id",
+  asyncHandler(subscriptionController.updateSubscription)
+);
 router.delete(
   "/subscriptions/:id",
   asyncHandler(subscriptionController.deleteSubscription)

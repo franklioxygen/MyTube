@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 796
+Total keys: 799
 
 ## Summary
 
@@ -32,7 +32,7 @@ Total keys: 796
 | Downloads | 20 | `downloads` | `failed` |
 | Snackbar Messages | 19 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 50 | `subscribeToAuthor` | `clear` |
+| Subscriptions | 53 | `subscribeToAuthor` | `clear` |
 | Subscription Pause/Resume | 12 | `pause` | `viaContinuousDownload` |
 | Playlist Subscription | 5 | `subscribeToPlaylist` | `playlistSubscription` |
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
@@ -727,11 +727,14 @@ Total keys: 796
 | `interval` |
 | `lastCheck` |
 | `nextCheck` |
+| `editInterval` |
 | `platform` |
 | `unsubscribe` |
 | `confirmUnsubscribe` |
 | `subscribedSuccessfully` |
 | `unsubscribedSuccessfully` |
+| `subscriptionUpdated` |
+| `subscriptionUpdateFailed` |
 | `subscriptionAlreadyExists` |
 | `minutes` |
 | `never` |

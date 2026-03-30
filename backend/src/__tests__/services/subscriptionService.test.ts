@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import cron from 'node-cron';
 import { db } from '../../db';
-import { DuplicateError, ValidationError } from '../../errors/DownloadErrors';
+import { DuplicateError, NotFoundError, ValidationError } from '../../errors/DownloadErrors';
 import { BilibiliDownloader } from '../../services/downloaders/BilibiliDownloader';
 import { getProviderScript } from '../../services/downloaders/ytdlp/ytdlpHelpers';
 import { YtDlpDownloader } from '../../services/downloaders/YtDlpDownloader';
@@ -24,6 +24,7 @@ vi.mock('../../db', () => ({
 vi.mock('../../db/schema', () => ({
   subscriptions: {
     id: 'id',
+    author: 'author',
     authorUrl: 'authorUrl',
     // add other fields if needed for referencing columns
   }
@@ -450,7 +451,20 @@ describe('SubscriptionService', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
-    it('should throw if pause/resume target does not exist', async () => {
+    it('should update subscription interval', async () => {
+      mockBuilder.then = (cb: any) => Promise.resolve([{ id: 'sub1', author: 'A' }]).then(cb);
+
+      await subscriptionService.updateSubscriptionInterval('sub1', 90);
+
+      expect(db.update).toHaveBeenCalled();
+      expect(mockBuilder.set).toHaveBeenCalledWith({ interval: 90 });
+      expect(mockBuilder.returning).toHaveBeenCalledWith({
+        id: 'id',
+        author: 'author',
+      });
+    });
+
+    it('should throw if pause/resume/update target does not exist', async () => {
       mockBuilder.then = (cb: any) => Promise.resolve([]).then(cb);
 
       await expect(subscriptionService.pauseSubscription('missing')).rejects.toThrow(
@@ -458,6 +472,12 @@ describe('SubscriptionService', () => {
       );
       await expect(subscriptionService.resumeSubscription('missing')).rejects.toThrow(
         'Subscription missing not found'
+      );
+      await expect(subscriptionService.updateSubscriptionInterval('missing', 60)).rejects.toThrow(
+        'Subscription not found: missing'
+      );
+      await expect(subscriptionService.updateSubscriptionInterval('missing', 60)).rejects.toBeInstanceOf(
+        NotFoundError
       );
     });
 

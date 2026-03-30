@@ -1,7 +1,8 @@
-import { Cancel, Delete, DeleteOutline, Pause, PlayArrow } from '@mui/icons-material';
+import { Cancel, Check, Close, Delete, DeleteOutline, Edit, Pause, PlayArrow } from '@mui/icons-material';
 import {
     Box,
     Button,
+    CircularProgress,
     Container,
     IconButton,
     LinearProgress,
@@ -12,6 +13,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Typography
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +24,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
 import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
+import type { TranslationKey } from '../utils/translations';
 
 interface Subscription {
     id: string;
@@ -68,6 +71,18 @@ const getNextCheckTimestamp = (subscription: Subscription) => {
     return subscription.lastCheck + (subscription.interval * 60 * 1000);
 };
 
+const parsePositiveInteger = (value: string): number | null => {
+    const trimmedValue = value.trim();
+    if (!/^\d+$/.test(trimmedValue)) {
+        return null;
+    }
+
+    const parsedValue = Number(trimmedValue);
+    return Number.isSafeInteger(parsedValue) && parsedValue > 0
+        ? parsedValue
+        : null;
+};
+
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
@@ -79,6 +94,9 @@ const SubscriptionsPage: React.FC = () => {
     const [isDeleteTaskModalOpen, setIsDeleteTaskModalOpen] = useState(false);
     const [isClearFinishedModalOpen, setIsClearFinishedModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<ContinuousDownloadTask | null>(null);
+    const [editingSubscriptionId, setEditingSubscriptionId] = useState<string | null>(null);
+    const [editedInterval, setEditedInterval] = useState<string>('');
+    const [isSavingInterval, setIsSavingInterval] = useState(false);
 
     // Use React Query for better caching and memory management
     const { data: subscriptions = [], refetch: refetchSubscriptions } = useQuery({
@@ -215,6 +233,37 @@ const SubscriptionsPage: React.FC = () => {
         }
     };
 
+    const handleStartEditingInterval = (subscription: Subscription) => {
+        setEditingSubscriptionId(subscription.id);
+        setEditedInterval(String(subscription.interval));
+    };
+
+    const handleCancelEditingInterval = () => {
+        setEditingSubscriptionId(null);
+        setEditedInterval('');
+        setIsSavingInterval(false);
+    };
+
+    const parsedEditedInterval = parsePositiveInteger(editedInterval);
+    const isEditedIntervalValid = parsedEditedInterval !== null;
+
+    const handleSaveSubscriptionInterval = async (id: string) => {
+        if (parsedEditedInterval === null) return;
+
+        setIsSavingInterval(true);
+
+        try {
+            await api.put(`/subscriptions/${id}`, { interval: parsedEditedInterval });
+            showSnackbar(t('subscriptionUpdated'));
+            await refetchSubscriptions();
+            handleCancelEditingInterval();
+        } catch (error) {
+            console.error('Error updating subscription interval:', error);
+            showSnackbar(t('subscriptionUpdateFailed'));
+            setIsSavingInterval(false);
+        }
+    };
+
     const handlePauseTask = async (task: ContinuousDownloadTask) => {
         try {
             await api.put(`/subscriptions/tasks/${task.id}/pause`);
@@ -275,7 +324,10 @@ const SubscriptionsPage: React.FC = () => {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            subscriptions.map((sub) => (
+                            subscriptions.map((sub) => {
+                                const isEditingInterval = editingSubscriptionId === sub.id;
+
+                                return (
                                 <TableRow key={sub.id}>
                                     <TableCell>
                                         <Button
@@ -290,7 +342,58 @@ const SubscriptionsPage: React.FC = () => {
                                         </Button>
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
-                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.interval} {t('minutes')}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                        {isEditingInterval ? (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 180 }}>
+                                                <TextField
+                                                    value={editedInterval}
+                                                    onChange={(e) => setEditedInterval(e.target.value)}
+                                                    size="small"
+                                                    type="number"
+                                                    autoFocus
+                                                    slotProps={{
+                                                        htmlInput: {
+                                                            min: 1,
+                                                            step: 1,
+                                                            'aria-label': t('checkIntervalMinutes'),
+                                                        },
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            void handleSaveSubscriptionInterval(sub.id);
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                            handleCancelEditingInterval();
+                                                        }
+                                                    }}
+                                                    sx={{ width: 96 }}
+                                                />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {t('minutes')}
+                                                </Typography>
+                                                <IconButton
+                                                    size="small"
+                                                    color="primary"
+                                                    title={t('save')}
+                                                    onClick={() => void handleSaveSubscriptionInterval(sub.id)}
+                                                    disabled={!isEditedIntervalValid || isSavingInterval}
+                                                >
+                                                    {isSavingInterval ? <CircularProgress size={18} /> : <Check fontSize="small" />}
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    color="inherit"
+                                                    title={t('cancel')}
+                                                    onClick={handleCancelEditingInterval}
+                                                    disabled={isSavingInterval}
+                                                >
+                                                    <Close fontSize="small" />
+                                                </IconButton>
+                                            </Box>
+                                        ) : (
+                                            <>{sub.interval} {t('minutes')}</>
+                                        )}
+                                    </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
                                         <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.4 }}>
                                             <Box component="span">
@@ -305,9 +408,19 @@ const SubscriptionsPage: React.FC = () => {
                                     {!isVisitor && (
                                         <TableCell align="right">
                                             <IconButton
+                                                color="primary"
+                                                onClick={() => handleStartEditingInterval(sub)}
+                                                title={t('editInterval')}
+                                                disabled={isEditingInterval || isSavingInterval}
+                                                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                                            >
+                                                <Edit />
+                                            </IconButton>
+                                            <IconButton
                                                 color="error"
                                                 onClick={() => handleUnsubscribeClick(sub.id, sub.author, sub.subscriptionType)}
                                                 title={t('unsubscribe')}
+                                                disabled={isEditingInterval && isSavingInterval}
                                             >
                                                 <Delete />
                                             </IconButton>
@@ -316,6 +429,7 @@ const SubscriptionsPage: React.FC = () => {
                                                     color="success"
                                                     onClick={() => handleResumeSubscription(sub.id)}
                                                     title={t('resumeSubscription')}
+                                                    disabled={isEditingInterval && isSavingInterval}
                                                 >
                                                     <PlayArrow />
                                                 </IconButton>
@@ -324,6 +438,7 @@ const SubscriptionsPage: React.FC = () => {
                                                     color="warning"
                                                     onClick={() => handlePauseSubscription(sub.id)}
                                                     title={t('pauseSubscription')}
+                                                    disabled={isEditingInterval && isSavingInterval}
                                                 >
                                                     <Pause />
                                                 </IconButton>
@@ -331,7 +446,7 @@ const SubscriptionsPage: React.FC = () => {
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))
+                            )})
                         )}
                     </TableBody>
                 </Table>
