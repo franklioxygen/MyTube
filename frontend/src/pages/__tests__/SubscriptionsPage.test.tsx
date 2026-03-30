@@ -70,6 +70,19 @@ const renderPage = () =>
         </ThemeProvider>,
     );
 
+const mockViewport = (isMobile: boolean) => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+        matches: isMobile && query.includes('max-width'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    }));
+};
+
 const makeSub = (overrides: Record<string, unknown> = {}) => ({
     id: 'sub-1',
     author: 'TestAuthor',
@@ -108,6 +121,7 @@ import { api } from '../../utils/apiClient';
 describe('SubscriptionsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockViewport(false);
         mockSubscriptions = [];
         mockTasks = [];
         mockUserRole = 'admin';
@@ -298,6 +312,19 @@ describe('SubscriptionsPage', () => {
 
         expect(api.put).not.toHaveBeenCalled();
         expect(screen.getByTitle('save')).toBeDisabled();
+    });
+
+    it('shows interval details and allows interval editing on mobile layout', () => {
+        mockViewport(true);
+        mockSubscriptions = [makeSub({ id: 'sub-edit', interval: 45 })];
+        renderPage();
+
+        expect(screen.getByText('interval: 45 minutes')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTitle('editInterval'));
+
+        expect(screen.getByLabelText('checkIntervalMinutes')).toBeInTheDocument();
+        expect(screen.queryByText('interval: 45 minutes')).not.toBeInTheDocument();
     });
 
     // ── 7. Tasks section hidden when no tasks ────────────────────────────

@@ -14,8 +14,10 @@ import {
     TableHead,
     TableRow,
     TextField,
-    Typography
+    Typography,
+    useMediaQuery
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -84,6 +86,8 @@ const parsePositiveInteger = (value: string): number | null => {
 };
 
 const SubscriptionsPage: React.FC = () => {
+    const theme = useTheme();
+    const isMobileLayout = useMediaQuery(theme.breakpoints.down('md'));
     const { t } = useLanguage();
     const { showSnackbar } = useSnackbar();
     const { userRole } = useAuth();
@@ -291,6 +295,63 @@ const SubscriptionsPage: React.FC = () => {
         return Math.round((task.currentVideoIndex / task.totalVideos) * 100);
     };
 
+    const renderIntervalEditor = (subscriptionId: string, compact: boolean = false) => (
+        <Box
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                minWidth: compact ? 0 : 180,
+                flexWrap: compact ? 'wrap' : 'nowrap',
+            }}
+        >
+            <TextField
+                value={editedInterval}
+                onChange={(e) => setEditedInterval(e.target.value)}
+                size="small"
+                type="number"
+                autoFocus
+                slotProps={{
+                    htmlInput: {
+                        min: 1,
+                        step: 1,
+                        'aria-label': t('checkIntervalMinutes'),
+                    },
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        void handleSaveSubscriptionInterval(subscriptionId);
+                    }
+                    if (e.key === 'Escape') {
+                        handleCancelEditingInterval();
+                    }
+                }}
+                sx={{ width: compact ? 88 : 96 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+                {t('minutes')}
+            </Typography>
+            <IconButton
+                size="small"
+                color="primary"
+                title={t('save')}
+                onClick={() => void handleSaveSubscriptionInterval(subscriptionId)}
+                disabled={!isEditedIntervalValid || isSavingInterval}
+            >
+                {isSavingInterval ? <CircularProgress size={18} /> : <Check fontSize="small" />}
+            </IconButton>
+            <IconButton
+                size="small"
+                color="inherit"
+                title={t('cancel')}
+                onClick={handleCancelEditingInterval}
+                disabled={isSavingInterval}
+            >
+                <Close fontSize="small" />
+            </IconButton>
+        </Box>
+    );
+
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
@@ -330,66 +391,32 @@ const SubscriptionsPage: React.FC = () => {
                                 return (
                                 <TableRow key={sub.id}>
                                     <TableCell>
-                                        <Button
-                                            href={sub.authorUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            sx={{ textTransform: 'none', justifyContent: 'flex-start', p: 0 }}
-                                        >
-                                            {sub.subscriptionType === 'channel_playlists' 
-                                                ? `${sub.author} (${t('playlistsWatcher')})`
-                                                : sub.author}
-                                        </Button>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                            <Button
+                                                href={sub.authorUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                sx={{ textTransform: 'none', justifyContent: 'flex-start', p: 0 }}
+                                            >
+                                                {sub.subscriptionType === 'channel_playlists'
+                                                    ? `${sub.author} (${t('playlistsWatcher')})`
+                                                    : sub.author}
+                                            </Button>
+                                            {isMobileLayout && (
+                                                isEditingInterval ? (
+                                                    renderIntervalEditor(sub.id, true)
+                                                ) : (
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {t('interval')}: {sub.interval} {t('minutes')}
+                                                    </Typography>
+                                                )
+                                            )}
+                                        </Box>
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                        {isEditingInterval ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 180 }}>
-                                                <TextField
-                                                    value={editedInterval}
-                                                    onChange={(e) => setEditedInterval(e.target.value)}
-                                                    size="small"
-                                                    type="number"
-                                                    autoFocus
-                                                    slotProps={{
-                                                        htmlInput: {
-                                                            min: 1,
-                                                            step: 1,
-                                                            'aria-label': t('checkIntervalMinutes'),
-                                                        },
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            void handleSaveSubscriptionInterval(sub.id);
-                                                        }
-                                                        if (e.key === 'Escape') {
-                                                            handleCancelEditingInterval();
-                                                        }
-                                                    }}
-                                                    sx={{ width: 96 }}
-                                                />
-                                                <Typography variant="body2" color="text.secondary">
-                                                    {t('minutes')}
-                                                </Typography>
-                                                <IconButton
-                                                    size="small"
-                                                    color="primary"
-                                                    title={t('save')}
-                                                    onClick={() => void handleSaveSubscriptionInterval(sub.id)}
-                                                    disabled={!isEditedIntervalValid || isSavingInterval}
-                                                >
-                                                    {isSavingInterval ? <CircularProgress size={18} /> : <Check fontSize="small" />}
-                                                </IconButton>
-                                                <IconButton
-                                                    size="small"
-                                                    color="inherit"
-                                                    title={t('cancel')}
-                                                    onClick={handleCancelEditingInterval}
-                                                    disabled={isSavingInterval}
-                                                >
-                                                    <Close fontSize="small" />
-                                                </IconButton>
-                                            </Box>
+                                        {isEditingInterval && !isMobileLayout ? (
+                                            renderIntervalEditor(sub.id)
                                         ) : (
                                             <>{sub.interval} {t('minutes')}</>
                                         )}
@@ -412,7 +439,6 @@ const SubscriptionsPage: React.FC = () => {
                                                 onClick={() => handleStartEditingInterval(sub)}
                                                 title={t('editInterval')}
                                                 disabled={isEditingInterval || isSavingInterval}
-                                                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
                                             >
                                                 <Edit />
                                             </IconButton>
