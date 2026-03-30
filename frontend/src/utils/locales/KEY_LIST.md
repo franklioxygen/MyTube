@@ -726,6 +726,7 @@ Total keys: 796
 | `subscriptions` |
 | `interval` |
 | `lastCheck` |
+| `nextCheck` |
 | `platform` |
 | `unsubscribe` |
 | `confirmUnsubscribe` |

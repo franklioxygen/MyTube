@@ -745,6 +745,7 @@ export const ru = {
   subscriptions: "Подписки",
   interval: "Интервал",
   lastCheck: "Последняя проверка",
+  nextCheck: "Следующая проверка",
   platform: "Платформа",
   unsubscribe: "Отписаться",
   confirmUnsubscribe: "Вы уверены, что хотите отписаться от {author}?",

@@ -761,6 +761,7 @@ export const fr = {
   subscriptions: "Abonnements",
   interval: "Intervalle",
   lastCheck: "Dernière vérification",
+  nextCheck: "Prochaine vérification",
   platform: "Plateforme",
   unsubscribe: "Se désabonner",
   confirmUnsubscribe: "Êtes-vous sûr de vouloir vous désabonner de {author} ?",

@@ -726,6 +726,7 @@ export const ar = {
   subscriptions: "الاشتراكات",
   interval: "الفاصل الزمني",
   lastCheck: "آخر تحقق",
+  nextCheck: "التحقق التالي",
   platform: "المنصة",
   unsubscribe: "إلغاء الاشتراك",
   confirmUnsubscribe: "هل أنت متأكد أنك تريد إلغاء الاشتراك من {author}؟",

@@ -21,8 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
-import { formatDisplayDate } from '../utils/formatUtils';
-import { TranslationKey } from '../utils/translations';
+import { formatDisplayDateTimeMinutes } from '../utils/formatUtils';
 
 interface Subscription {
     id: string;
@@ -60,6 +59,14 @@ interface ContinuousDownloadTask {
     error?: string;
     playlistName?: string;
 }
+
+const getNextCheckTimestamp = (subscription: Subscription) => {
+    if (subscription.lastCheck === undefined || subscription.lastCheck === null) {
+        return undefined;
+    }
+
+    return subscription.lastCheck + (subscription.interval * 60 * 1000);
+};
 
 const SubscriptionsPage: React.FC = () => {
     const { t } = useLanguage();
@@ -248,7 +255,12 @@ const SubscriptionsPage: React.FC = () => {
                             <TableCell>{t('author')}</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('platform')}</TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('interval')}</TableCell>
-                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('lastCheck')}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.4 }}>
+                                    <Box component="span">{t('lastCheck')} /</Box>
+                                    <Box component="span">{t('nextCheck')}</Box>
+                                </Box>
+                            </TableCell>
                             <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{t('downloads')}</TableCell>
                             {!isVisitor && <TableCell align="right">{t('actions')}</TableCell>}
                         </TableRow>
@@ -279,7 +291,16 @@ const SubscriptionsPage: React.FC = () => {
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.interval} {t('minutes')}</TableCell>
-                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{formatDisplayDate(sub.lastCheck, t('never'))}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, whiteSpace: 'nowrap' }}>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', lineHeight: 1.4 }}>
+                                            <Box component="span">
+                                                {formatDisplayDateTimeMinutes(sub.lastCheck, t('never'))}
+                                            </Box>
+                                            <Box component="span">
+                                                {formatDisplayDateTimeMinutes(getNextCheckTimestamp(sub), t('never'))}
+                                            </Box>
+                                        </Box>
+                                    </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.downloadCount}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">

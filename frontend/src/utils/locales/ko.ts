@@ -733,6 +733,7 @@ export const ko = {
   subscriptions: "구독",
   interval: "간격",
   lastCheck: "마지막 확인",
+  nextCheck: "다음 확인",
   platform: "플랫폼",
   unsubscribe: "구독 취소",
   confirmUnsubscribe: "{author}님의 구독을 취소하시겠습니까?",

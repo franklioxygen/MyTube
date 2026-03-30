@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDisplayDate,
   formatDisplayDateTime,
+  formatDisplayDateTimeMinutes,
   formatDate,
   formatDuration,
   formatRelativeDownloadTime,
@@ -23,6 +24,13 @@ const getLocalDateTime = (value: string | number | Date) => {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${getLocalDate(value)} ${hours}:${minutes}:${seconds}`;
+};
+
+const getLocalDateTimeMinutes = (value: string | number | Date) => {
+  const date = new Date(value);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${getLocalDate(value)} ${hours}:${minutes}`;
 };
 
 describe("formatUtils", () => {
@@ -191,6 +199,23 @@ describe("formatUtils", () => {
 
     it("should support custom fallback text", () => {
       expect(formatDisplayDateTime("invalid-date", "n/a")).toBe("n/a");
+    });
+  });
+
+  describe("formatDisplayDateTimeMinutes", () => {
+    it('should return "Unknown date" for undefined', () => {
+      expect(formatDisplayDateTimeMinutes(undefined)).toBe("Unknown date");
+    });
+
+    it("should format a date-like string as YYYY-MM-DD HH:mm", () => {
+      const value = "2025-03-05T12:34:56Z";
+      expect(formatDisplayDateTimeMinutes(value)).toBe(
+        getLocalDateTimeMinutes(value)
+      );
+    });
+
+    it("should support custom fallback text", () => {
+      expect(formatDisplayDateTimeMinutes("invalid-date", "n/a")).toBe("n/a");
     });
   });
 

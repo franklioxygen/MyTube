@@ -751,6 +751,7 @@ export const pt = {
   subscriptions: "Inscrições",
   interval: "Intervalo",
   lastCheck: "Última verificação",
+  nextCheck: "Próxima verificação",
   platform: "Plataforma",
   unsubscribe: "Cancelar inscrição",
   confirmUnsubscribe:

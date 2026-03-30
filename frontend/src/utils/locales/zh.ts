@@ -701,6 +701,7 @@ export const zh = {
   subscriptions: "订阅",
   interval: "间隔",
   lastCheck: "上次检查",
+  nextCheck: "下次检查",
   platform: "平台",
   unsubscribe: "取消订阅",
   confirmUnsubscribe: "您确定要取消订阅 {author} 吗？",

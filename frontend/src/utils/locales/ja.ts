@@ -747,6 +747,7 @@ export const ja = {
   subscriptions: "購読",
   interval: "間隔",
   lastCheck: "前回のチェック",
+  nextCheck: "次回のチェック",
   platform: "プラットフォーム",
   unsubscribe: "購読解除",
   confirmUnsubscribe: "{author} の購読を解除してもよろしいですか？",

@@ -708,6 +708,7 @@ export const en = {
   subscriptions: "Subscriptions",
   interval: "Interval",
   lastCheck: "Last Check",
+  nextCheck: "Next Check",
   platform: "Platform",
   unsubscribe: "Unsubscribe",
   confirmUnsubscribe: "Are you sure you want to unsubscribe from {author}?",

@@ -760,6 +760,7 @@ export const de = {
   subscriptions: "Abonnements",
   interval: "Intervall",
   lastCheck: "Letzte Prüfung",
+  nextCheck: "Nächste Prüfung",
   platform: "Plattform",
   unsubscribe: "Deabonnieren",
   confirmUnsubscribe:

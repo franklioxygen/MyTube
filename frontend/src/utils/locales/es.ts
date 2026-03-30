@@ -759,6 +759,7 @@ export const es = {
   subscriptions: "Suscripciones",
   interval: "Intervalo",
   lastCheck: "Última comprobación",
+  nextCheck: "Próxima comprobación",
   platform: "Plataforma",
   unsubscribe: "Darse de baja",
   confirmUnsubscribe: "¿Estás seguro de que quieres darte de baja de {author}?",

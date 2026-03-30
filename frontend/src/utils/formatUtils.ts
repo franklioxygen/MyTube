@@ -137,6 +137,25 @@ export const formatDisplayDateTime = (
 };
 
 /**
+ * Format a Date-compatible value using local time in YYYY-MM-DD HH:mm format.
+ */
+export const formatDisplayDateTimeMinutes = (
+  value?: DisplayDateInput,
+  fallback = "Unknown date",
+): string => {
+  const date = getValidDisplayDate(value);
+  if (!date) {
+    return fallback;
+  }
+
+  const { year, month, day } = formatLocalDateParts(date);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+/**
  * Format date string YYYYMMDD to YYYY-MM-DD
  */
 export const formatDate = (dateString?: string) => {

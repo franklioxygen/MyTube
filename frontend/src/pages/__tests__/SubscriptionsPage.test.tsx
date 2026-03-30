@@ -153,15 +153,26 @@ describe('SubscriptionsPage', () => {
         expect(screen.getByText('99')).toBeInTheDocument();
     });
 
-    it('formats lastCheck as YYYY-MM-DD', () => {
-        const lastCheck = new Date('2025-03-05T12:34:56Z').getTime();
-        const date = new Date(lastCheck);
-        const expected = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-        mockSubscriptions = [makeSub({ lastCheck })];
+    it('renders a two-line check header', () => {
         renderPage();
 
-        expect(screen.getByText(expected)).toBeInTheDocument();
+        expect(screen.getByText('lastCheck /')).toBeInTheDocument();
+        expect(screen.getByText('nextCheck')).toBeInTheDocument();
+    });
+
+    it('formats lastCheck and nextCheck as YYYY-MM-DD HH:mm', () => {
+        const lastCheck = new Date('2025-03-05T12:34:56Z').getTime();
+        const nextCheck = lastCheck + (60 * 60 * 1000);
+        const formatDateTimeMinutes = (value: number) => {
+            const date = new Date(value);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        };
+
+        mockSubscriptions = [makeSub({ lastCheck, interval: 60 })];
+        renderPage();
+
+        expect(screen.getByText(formatDateTimeMinutes(lastCheck))).toBeInTheDocument();
+        expect(screen.getByText(formatDateTimeMinutes(nextCheck))).toBeInTheDocument();
     });
 
     // ── 4. Unsubscribe flow (real ConfirmationModal) ──────────────────────
@@ -411,7 +422,7 @@ describe('SubscriptionsPage', () => {
         mockSubscriptions = [makeSub({ lastCheck: undefined })];
         renderPage();
 
-        expect(screen.getByText('never')).toBeInTheDocument();
+        expect(screen.getAllByText('never')).toHaveLength(2);
     });
 
     it('closes unsubscribe modal when cancel button is clicked', async () => {
