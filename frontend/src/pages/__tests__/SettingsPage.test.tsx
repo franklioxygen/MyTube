@@ -452,22 +452,27 @@ describe('SettingsPage', () => {
   });
 
   it('renders Twitch credential fields and includes them in the save payload', async () => {
-    const user = userEvent.setup();
-
     renderPage('/settings');
 
     expect(screen.getByText('twitchSubscriptionDescription')).toBeInTheDocument();
     expect(screen.getByText('twitchClientHelpLink')).toBeInTheDocument();
 
-    await user.click(screen.getByText('twitchClientHelpLink'));
+    fireEvent.click(screen.getByText('twitchClientHelpLink'));
 
     expect(screen.getByText('twitchClientHelpTitle')).toBeInTheDocument();
     expect(screen.getByText('twitchClientHelpStep1')).toBeInTheDocument();
     expect(screen.getByText('twitchDeveloperConsole')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
 
-    await user.type(screen.getByLabelText('twitchClientId'), 'client-id');
-    await user.type(screen.getByLabelText('twitchClientSecret'), 'client-secret');
+    fireEvent.change(screen.getByLabelText('twitchClientId'), {
+      target: { value: 'client-id' },
+    });
+    fireEvent.change(screen.getByLabelText('twitchClientSecret'), {
+      target: { value: 'client-secret' },
+    });
     fireEvent.click(screen.getAllByRole('button', { name: 'save' })[0]);
 
     expect(mockSaveMutate).toHaveBeenCalledWith(
@@ -479,19 +484,23 @@ describe('SettingsPage', () => {
     );
   });
 
-  it('disables save when Twitch credentials are incomplete or invalid', async () => {
-    const user = userEvent.setup();
-
+  it('disables save when Twitch credentials are incomplete or invalid', () => {
     renderPage('/settings');
 
     const saveButton = screen.getAllByRole('button', { name: 'save' })[0];
     expect(saveButton).not.toBeDisabled();
 
-    await user.type(screen.getByLabelText('twitchClientId'), 'bad');
+    fireEvent.change(screen.getByLabelText('twitchClientId'), {
+      target: { value: 'bad' },
+    });
     expect(saveButton).toBeDisabled();
 
-    await user.clear(screen.getByLabelText('twitchClientId'));
-    await user.type(screen.getByLabelText('twitchClientSecret'), 'client-secret');
+    fireEvent.change(screen.getByLabelText('twitchClientId'), {
+      target: { value: '' },
+    });
+    fireEvent.change(screen.getByLabelText('twitchClientSecret'), {
+      target: { value: 'client-secret' },
+    });
     expect(saveButton).toBeDisabled();
   });
 
