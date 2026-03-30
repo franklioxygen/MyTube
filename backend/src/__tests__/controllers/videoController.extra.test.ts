@@ -19,9 +19,19 @@ import {
 import { ValidationError } from "../../errors/DownloadErrors";
 import { CloudStorageService } from "../../services/CloudStorageService";
 import * as storageService from "../../services/storageService";
-import { extractBilibiliVideoId, isBilibiliUrl, isYouTubeUrl } from "../../utils/helpers";
+import { twitchApiService } from "../../services/twitchService";
+import {
+  extractBilibiliVideoId,
+  extractTwitchVideoId,
+  isBilibiliUrl,
+  isTwitchChannelUrl,
+  isTwitchVideoUrl,
+  isYouTubeUrl,
+  normalizeTwitchChannelUrl,
+} from "../../utils/helpers";
 import {
   executeYtDlpJson,
+  getChannelUrlFromVideo,
   getNetworkConfigFromUserConfig,
   getUserYtDlpConfig,
 } from "../../utils/ytDlpUtils";
@@ -56,14 +66,25 @@ vi.mock("../../services/CloudStorageService", () => ({
 
 vi.mock("../../utils/ytDlpUtils", () => ({
   executeYtDlpJson: vi.fn(),
+  getChannelUrlFromVideo: vi.fn(),
   getNetworkConfigFromUserConfig: vi.fn(),
   getUserYtDlpConfig: vi.fn(),
 }));
 
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn(),
+  extractTwitchVideoId: vi.fn(),
   isBilibiliUrl: vi.fn(),
+  isTwitchChannelUrl: vi.fn(),
+  isTwitchVideoUrl: vi.fn(),
   isYouTubeUrl: vi.fn(),
+  normalizeTwitchChannelUrl: vi.fn((url: string) => url),
+}));
+
+vi.mock("../../services/twitchService", () => ({
+  twitchApiService: {
+    getVideoById: vi.fn(),
+  },
 }));
 
 vi.mock("axios", () => ({
@@ -179,7 +200,11 @@ describe("videoController extra coverage", () => {
     vi.mocked(getNetworkConfigFromUserConfig).mockReturnValue({} as any);
     vi.mocked(isYouTubeUrl).mockReturnValue(false);
     vi.mocked(isBilibiliUrl).mockReturnValue(false);
+    vi.mocked(isTwitchChannelUrl).mockReturnValue(false);
+    vi.mocked(isTwitchVideoUrl).mockReturnValue(false);
+    vi.mocked(normalizeTwitchChannelUrl).mockImplementation((url: string) => url);
     vi.mocked(extractBilibiliVideoId).mockReturnValue(null);
+    vi.mocked(extractTwitchVideoId).mockReturnValue(null);
     vi.mocked(storageService.getSettings).mockReturnValue({
       moveSubtitlesToVideoFolder: false,
     } as any);
@@ -394,6 +419,34 @@ describe("videoController extra coverage", () => {
     expect(json).toHaveBeenCalledWith({
       success: true,
       channelUrl: "https://space.bilibili.com/12345",
+    });
+  });
+
+  it("getAuthorChannelUrl falls back to yt-dlp for Twitch videos when Helix lookup fails", async () => {
+    req.query = { sourceUrl: "https://www.twitch.tv/videos/123456" } as any;
+    vi.mocked(storageService.getVideoBySourceUrl).mockReturnValue({ id: "v-twitch" } as any);
+    vi.mocked(isYouTubeUrl).mockReturnValue(false);
+    vi.mocked(isBilibiliUrl).mockReturnValue(false);
+    vi.mocked(isTwitchChannelUrl).mockReturnValue(false);
+    vi.mocked(isTwitchVideoUrl).mockReturnValue(true);
+    vi.mocked(extractTwitchVideoId).mockReturnValue("123456");
+    vi.mocked(getUserYtDlpConfig).mockReturnValue({} as any);
+    vi.mocked(getNetworkConfigFromUserConfig).mockReturnValue({ proxy: "http://proxy" } as any);
+    vi.mocked(twitchApiService.getVideoById).mockRejectedValue(new Error("missing creds"));
+    vi.mocked(getChannelUrlFromVideo).mockResolvedValue("https://www.twitch.tv/fallbackchannel");
+
+    await getAuthorChannelUrl(req as Request, res as Response);
+
+    expect(getChannelUrlFromVideo).toHaveBeenCalledWith(
+      "https://www.twitch.tv/videos/123456",
+      { proxy: "http://proxy" }
+    );
+    expect(storageService.updateVideo).toHaveBeenCalledWith("v-twitch", {
+      channelUrl: "https://www.twitch.tv/fallbackchannel",
+    });
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      channelUrl: "https://www.twitch.tv/fallbackchannel",
     });
   });
 

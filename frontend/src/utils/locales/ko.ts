@@ -150,6 +150,34 @@ export const ko = {
   telegramChatIdHelper: "Telegram에서 @RawDataBot에 메시지를 보내 채팅 ID를 확인하세요.",
   telegramNotifyOnSuccess: "성공 시 알림",
   telegramNotifyOnFail: "실패 시 알림",
+  twitchSubscriptions: "Twitch 구독",
+  twitchClientId: "Twitch 클라이언트 ID",
+  twitchClientSecret: "Twitch 클라이언트 시크릿",
+  twitchSubscriptionCredentialsHelper:
+    "Twitch 클라이언트 자격 증명은 선택 사항입니다. 없어도 MyTube가 yt-dlp 폴링의 best-effort 모드로 대체하지만, 입력하면 채널 감지가 더 안정적입니다.",
+  twitchSubscriptionDescription:
+    "MyTube는 이 Twitch 채널에 새 VOD가 올라왔는지 확인하고 Twitch에 게시된 뒤 다운로드합니다.",
+  twitchSubscriptionCredentialsMissing:
+    "Twitch 구독에 실패했습니다. 클라이언트 자격 증명은 필수는 아니지만, 더 안정적인 채널 구독을 위해 입력을 권장합니다.",
+  twitchSubscriptionVodsOnly:
+    "MyTube는 Twitch VOD가 게시된 뒤에 다운로드합니다. 라이브 스트림 녹화는 이 버전에 포함되어 있지 않습니다.",
+  twitchClientHelpLink: "Twitch Client ID와 Secret을 얻는 방법",
+  twitchClientHelpTitle: "Twitch Client ID와 Secret 얻기",
+  twitchClientHelpIntro:
+    "먼저 Twitch 개발자 콘솔에서 Twitch 애플리케이션을 만들어야 합니다.",
+  twitchClientHelpStep1:
+    "Twitch 개발자 콘솔을 열고 Twitch 계정으로 로그인하세요.",
+  twitchClientHelpStep2: "MyTube용 새 애플리케이션을 만드세요.",
+  twitchClientHelpStep3:
+    "OAuth Redirect URL을 설정하세요. 서버 측 구독에만 사용할 경우 http://localhost 같은 값이면 충분합니다.",
+  twitchClientHelpStep4:
+    "앱이 생성되면 앱 상세 페이지에서 Client ID를 복사하세요.",
+  twitchClientHelpStep5:
+    "Client Secret을 생성하거나 표시한 뒤 두 값을 MyTube 설정에 붙여 넣으세요.",
+  twitchClientHelpSecurity:
+    "Client Secret은 비공개로 유지하고 스크린샷이나 공개 페이지에 공유하지 마세요.",
+  twitchDeveloperConsole: "Twitch 개발자 콘솔",
+  twitchDeveloperDocs: "Twitch 개발자 문서",
   telegramTestButton: "테스트 메시지 보내기",
   telegramTestSuccess: "테스트 메시지가 성공적으로 전송되었습니다!",
   telegramTestFailed: "테스트 실패: {error}",

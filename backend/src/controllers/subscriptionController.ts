@@ -7,7 +7,9 @@ import * as storageService from "../services/storageService";
 import { subscriptionService } from "../services/subscriptionService";
 import {
     isBilibiliUrl,
+    isTwitchChannelUrl,
     isYouTubeUrl,
+    normalizeTwitchChannelUrl,
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -54,7 +56,9 @@ export const createSubscription = async (
     throw new ValidationError("URL and interval are required", "body");
   }
 
-  const normalizedUrl = normalizeYouTubeAuthorUrl(url);
+  const normalizedUrl = isTwitchChannelUrl(url)
+    ? normalizeTwitchChannelUrl(url)
+    : normalizeYouTubeAuthorUrl(url);
 
   const subscription = await subscriptionService.subscribe(
     normalizedUrl,

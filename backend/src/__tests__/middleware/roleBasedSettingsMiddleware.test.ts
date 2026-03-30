@@ -398,6 +398,22 @@ describe('roleBasedSettingsMiddleware Security', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('should ALLOW visitor writes when login is not required', () => {
+    req = {
+      method: 'PATCH',
+      path: '/',
+      url: '/',
+      body: { theme: 'dark' },
+      user: { role: 'visitor' } as any,
+    };
+    vi.mocked(isLoginRequired).mockReturnValue(false);
+
+    roleBasedSettingsMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
   it('should ALLOW fallback roles that are neither admin nor visitor', () => {
     req = {
       method: 'GET',

@@ -30,6 +30,7 @@ export function sortVideoEntries(entries: VideoEntry[], order: DownloadOrder): V
 }
 
 const UNKNOWN_UPLOAD_DATE = "00000000";
+const MAX_TWITCH_VIDEO_ENTRY_PAGES = 100;
 
 const toUploadDate = (value: unknown): string => {
   if (typeof value === "string") {
@@ -120,7 +121,7 @@ export class VideoUrlFetcher {
     platform: string
   ): Promise<number> {
     try {
-      if (platform === "Bilibili") {
+      if (platform === "Bilibili" || platform === "Twitch") {
         // For Bilibili, we'd need to make a lightweight API call
         // For now, return 0 and let getAllVideoUrls handle it
         return 0;
@@ -183,6 +184,8 @@ export class VideoUrlFetcher {
     try {
       if (platform === "Bilibili") {
         return await this.getBilibiliVideoUrls(authorUrl, startIndex, batchSize);
+      } else if (platform === "Twitch") {
+        return await this.getTwitchVideoUrls(authorUrl);
       } else {
         return await this.getYouTubeVideoUrlsIncremental(
           authorUrl,
@@ -207,6 +210,8 @@ export class VideoUrlFetcher {
     try {
       if (platform === "Bilibili") {
         return await this.getBilibiliVideoUrls(authorUrl);
+      } else if (platform === "Twitch") {
+        return await this.getTwitchVideoUrls(authorUrl);
       } else {
         return await this.getYouTubeVideoUrls(authorUrl);
       }
@@ -227,6 +232,8 @@ export class VideoUrlFetcher {
     try {
       if (platform === "Bilibili") {
         return await this.getBilibiliVideoEntries(authorUrl);
+      } else if (platform === "Twitch") {
+        return await this.getTwitchVideoEntries(authorUrl);
       } else {
         return await this.getYouTubeVideoEntries(authorUrl);
       }
@@ -484,6 +491,112 @@ export class VideoUrlFetcher {
 
     logger.info(`Found ${entries.length} Bilibili video entries for ${authorUrl}`);
     return entries;
+  }
+
+  private async getTwitchVideoEntries(authorUrl: string): Promise<VideoEntry[]> {
+    const { extractTwitchChannelLogin, normalizeTwitchChannelUrl } =
+      await import("../../utils/helpers");
+    const { getTwitchChannelVideos } = await import(
+      "../downloaders/ytdlp/ytdlpTwitch"
+    );
+    const { twitchApiService } = await import("../twitchService");
+
+    const normalizedUrl = normalizeTwitchChannelUrl(authorUrl);
+    const login = extractTwitchChannelLogin(normalizedUrl);
+    if (!login) {
+      throw new Error("Invalid Twitch channel URL");
+    }
+
+    if (!twitchApiService.isConfigured()) {
+      const entries: VideoEntry[] = [];
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore && page < MAX_TWITCH_VIDEO_ENTRY_PAGES) {
+        const result = await getTwitchChannelVideos(normalizedUrl, {
+          startIndex: page * 100,
+          limit: 100,
+        });
+
+        if (result.videos.length === 0) {
+          hasMore = false;
+          continue;
+        }
+
+        for (const video of result.videos) {
+          entries.push({
+            url: video.url,
+            uploadDate: toUploadDate(video.uploadDate),
+            viewCount: toViewCount(video.viewCount),
+            sourceIndex: entries.length,
+          });
+        }
+
+        hasMore = result.videos.length === 100;
+        page += 1;
+      }
+
+      if (hasMore) {
+        logger.warn(
+          `Stopped Twitch yt-dlp pagination early after ${MAX_TWITCH_VIDEO_ENTRY_PAGES} pages for ${authorUrl}`
+        );
+      }
+
+      logger.info(`Found ${entries.length} Twitch video entries for ${authorUrl}`);
+      return entries;
+    }
+
+    const channel = await twitchApiService.getChannelByLogin(login);
+    if (!channel) {
+      throw new Error(`Twitch channel not found: ${login}`);
+    }
+
+    const entries: VideoEntry[] = [];
+    const fetchTypeEntries = async (type: "archive" | "upload") => {
+      let after: string | undefined;
+      let pageCount = 0;
+
+      do {
+        if (pageCount >= MAX_TWITCH_VIDEO_ENTRY_PAGES) {
+          logger.warn(
+            `Stopped Twitch API pagination early after ${MAX_TWITCH_VIDEO_ENTRY_PAGES} ${type} pages for ${authorUrl}`
+          );
+          break;
+        }
+
+        const response = await twitchApiService.listVideosByBroadcaster(
+          channel.id,
+          {
+            after,
+            first: 100,
+            type,
+          }
+        );
+        pageCount += 1;
+
+        for (const video of response.videos) {
+          entries.push({
+            url: video.url,
+            uploadDate: toUploadDate(video.publishedAt),
+            viewCount: toViewCount(video.viewCount),
+            sourceIndex: entries.length,
+          });
+        }
+
+        after = response.cursor;
+      } while (after);
+    };
+
+    await fetchTypeEntries("archive");
+    await fetchTypeEntries("upload");
+
+    logger.info(`Found ${entries.length} Twitch video entries for ${authorUrl}`);
+    return entries;
+  }
+
+  private async getTwitchVideoUrls(authorUrl: string): Promise<string[]> {
+    const entries = await this.getTwitchVideoEntries(authorUrl);
+    return entries.map((entry) => entry.url);
   }
 
   /**

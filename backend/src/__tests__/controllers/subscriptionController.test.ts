@@ -67,7 +67,9 @@ vi.mock("../../services/storageService", () => ({
 
 vi.mock("../../utils/helpers", () => ({
   isBilibiliUrl: vi.fn((url: string) => url.includes("bilibili")),
+  isTwitchChannelUrl: vi.fn((url: string) => url.includes("twitch.tv")),
   isYouTubeUrl: vi.fn((url: string) => url.includes("youtube")),
+  normalizeTwitchChannelUrl: vi.fn((url: string) => url.replace(/\/+$/, "").toLowerCase()),
   normalizeYouTubeAuthorUrl: vi.fn((url: string) => url.replace(/\/+$/, "")),
 }));
 

@@ -349,6 +349,12 @@ describe('VideoPlayer', () => {
             render(<VideoPlayer />);
             expect(screen.getByTestId('comments-section')).toBeTruthy();
         });
+
+        it('does not render CommentsSection for twitch source', () => {
+            mockVideoQueryReturn.video = { ...mockVideo, source: 'twitch' };
+            render(<VideoPlayer />);
+            expect(screen.queryByTestId('comments-section')).toBeNull();
+        });
     });
 
     // ------ handleToggleComments ------

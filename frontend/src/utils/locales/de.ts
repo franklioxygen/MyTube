@@ -157,6 +157,34 @@ export const de = {
   telegramChatIdHelper: "Senden Sie eine Nachricht an @RawDataBot auf Telegram, um Ihre Chat-ID zu erhalten.",
   telegramNotifyOnSuccess: "Bei Erfolg benachrichtigen",
   telegramNotifyOnFail: "Bei Fehler benachrichtigen",
+  twitchSubscriptions: "Twitch-Abonnements",
+  twitchClientId: "Twitch-Client-ID",
+  twitchClientSecret: "Twitch-Client-Geheimnis",
+  twitchSubscriptionCredentialsHelper:
+    "Twitch-Client-Anmeldedaten sind optional. Ohne sie verwendet MyTube ein yt-dlp-Polling im Best-Effort-Modus, aber mit ihnen ist die Kanalerkennung zuverlässiger.",
+  twitchSubscriptionDescription:
+    "MyTube prüft diesen Twitch-Kanal auf neue VODs und lädt sie herunter, nachdem Twitch sie veröffentlicht hat.",
+  twitchSubscriptionCredentialsMissing:
+    "Das Twitch-Abo ist fehlgeschlagen. Client-Anmeldedaten sind optional, werden für zuverlässigere Kanal-Abos aber empfohlen.",
+  twitchSubscriptionVodsOnly:
+    "MyTube lädt Twitch-VODs herunter, nachdem sie veröffentlicht wurden. Das Mitschneiden von Livestreams ist in dieser Version nicht enthalten.",
+  twitchClientHelpLink: "So erhalten Sie Twitch Client ID und Secret",
+  twitchClientHelpTitle: "Twitch Client ID und Secret erhalten",
+  twitchClientHelpIntro:
+    "Dafür müssen Sie zuerst eine Twitch-Anwendung in der Twitch-Entwicklerkonsole erstellen.",
+  twitchClientHelpStep1:
+    "Öffnen Sie die Twitch-Entwicklerkonsole und melden Sie sich mit Ihrem Twitch-Konto an.",
+  twitchClientHelpStep2: "Erstellen Sie eine neue Anwendung für MyTube.",
+  twitchClientHelpStep3:
+    "Legen Sie eine OAuth-Redirect-URL fest. Wenn Sie nur serverseitige Abonnements verwenden, reicht ein Platzhalter wie http://localhost aus.",
+  twitchClientHelpStep4:
+    "Kopieren Sie nach dem Erstellen der Anwendung die Client-ID von der Detailseite der Anwendung.",
+  twitchClientHelpStep5:
+    "Erstellen oder blenden Sie ein Client-Secret ein und fügen Sie anschließend beide Werte in die MyTube-Einstellungen ein.",
+  twitchClientHelpSecurity:
+    "Bewahren Sie das Client-Secret vertraulich auf und teilen Sie es nicht in Screenshots oder öffentlichen Seiten.",
+  twitchDeveloperConsole: "Twitch-Entwicklerkonsole",
+  twitchDeveloperDocs: "Twitch-Entwicklerdokumentation",
   telegramTestButton: "Testnachricht senden",
   telegramTestSuccess: "Testnachricht erfolgreich gesendet!",
   telegramTestFailed: "Test fehlgeschlagen: {error}",

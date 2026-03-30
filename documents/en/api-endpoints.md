@@ -17,7 +17,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `POST /api/download` - Queue a video download
   - Body: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
   - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
-  - Supports: YouTube, Bilibili, MissAV and other yt-dlp supported sites
+  - Supports: YouTube, Bilibili, Twitch VODs, MissAV and other yt-dlp supported sites
 - `GET /api/check-video-download` - Check whether a source URL was downloaded before
   - Query params: `url` (required)
 - `GET /api/check-bilibili-parts` - Check whether a Bilibili video has multiple parts
@@ -60,6 +60,7 @@ All API routes are mounted under `/api` unless noted otherwise.
   - Body: `{ progress: number }`
 - `GET /api/videos/author-channel-url` - Resolve channel/author URL from source URL
   - Query params: `sourceUrl` (required)
+  - Supports: YouTube, Bilibili and Twitch source URLs
 
 ## Download Queue & History
 
@@ -88,6 +89,12 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `POST /api/subscriptions` - Create subscription
   - Body: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean, downloadOrder?: 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc' }`
   - `downloadOrder` is only applied when `downloadAllPrevious` is `true`; defaults to `dateDesc`
+  - Accepts: YouTube channel URLs, Bilibili space URLs, and Twitch channel URLs
+  - Twitch notes:
+    - `downloadShorts` is ignored and persisted as disabled
+    - new Twitch subscriptions poll for published VODs (`archive` and `upload`), not live streams
+    - `twitchClientId` and `twitchClientSecret` are optional; when they are missing, the backend falls back to yt-dlp polling in best-effort mode
+    - adding Twitch app credentials improves channel resolution and polling reliability
 - `PUT /api/subscriptions/:id/pause` - Pause subscription
 - `PUT /api/subscriptions/:id/resume` - Resume subscription
 - `DELETE /api/subscriptions/:id` - Delete subscription
@@ -110,10 +117,12 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)
-  - Response may include `apiKeyEnabled` and `apiKey`; these are hidden from visitor users when login is enabled
+  - Response may include service configuration for admin users, or for any client when login protection is disabled
+  - When login protection is enabled, visitor and unauthenticated responses hide service secrets such as `apiKey`, `openListToken`, `cloudflaredToken`, `telegramBotToken`, `twitchClientId`, and `twitchClientSecret`
 - `PATCH /api/settings` - Partially update settings
   - Body: partial settings object
   - Supports `apiKeyEnabled?: boolean` and `apiKey?: string`
+  - Supports `twitchClientId?: string` and `twitchClientSecret?: string`
   - If `apiKeyEnabled` is set to `true` and `apiKey` is empty/missing, server auto-generates a 64-character hex key
 - `POST /api/settings/migrate` - Migrate legacy JSON data to SQLite
 - `POST /api/settings/delete-legacy` - Delete legacy JSON data files

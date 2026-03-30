@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     extractMissAVVideoId,
     extractSourceVideoId,
+    extractTwitchChannelLogin,
+    extractTwitchVideoId,
     extractYouTubeVideoId,
     extractBilibiliMid,
     extractBilibiliSeasonId,
@@ -15,9 +17,13 @@ import {
     isBilibiliShortUrl,
     isBilibiliUrl,
     isMissAVUrl,
+    isTwitchChannelUrl,
+    isTwitchUrl,
+    isTwitchVideoUrl,
     isTwitterUrl,
     isYouTubeUrl,
     isValidUrl,
+    normalizeTwitchChannelUrl,
     normalizeYouTubeAuthorUrl,
     processVideoUrl,
     resolveShortUrl,
@@ -83,6 +89,40 @@ describe('Helpers', () => {
       expect(isTwitterUrl('https://x.com/user')).toBe(true);
       expect(isTwitterUrl('https://twitter.com/user')).toBe(true);
       expect(isTwitterUrl('https://youtube.com/user')).toBe(false);
+    });
+
+    it('should validate twitch channel domains', () => {
+      expect(isTwitchUrl('https://www.twitch.tv/example')).toBe(true);
+      expect(isTwitchUrl('https://m.twitch.tv/example/videos')).toBe(true);
+      expect(isTwitchUrl('https://example.com/example')).toBe(false);
+    });
+  });
+
+  describe('twitch channel helpers', () => {
+    it('should normalize twitch channel URLs and strip tab paths', () => {
+      expect(
+        normalizeTwitchChannelUrl('https://www.twitch.tv/TestUser/videos')
+      ).toBe('https://www.twitch.tv/testuser');
+      expect(
+        normalizeTwitchChannelUrl('https://m.twitch.tv/TestUser/about/')
+      ).toBe('https://www.twitch.tv/testuser');
+    });
+
+    it('should extract twitch channel login and reject non-channel routes', () => {
+      expect(
+        extractTwitchChannelLogin('https://www.twitch.tv/TestUser/schedule')
+      ).toBe('testuser');
+      expect(isTwitchChannelUrl('https://www.twitch.tv/TestUser')).toBe(true);
+      expect(isTwitchChannelUrl('https://www.twitch.tv/_TestUser')).toBe(false);
+      expect(isTwitchChannelUrl('https://clips.twitch.tv/FunnyClipSlug')).toBe(false);
+      expect(isTwitchChannelUrl('https://www.twitch.tv/videos/12345')).toBe(false);
+      expect(isTwitchChannelUrl('https://www.twitch.tv/directory')).toBe(false);
+    });
+
+    it('should extract twitch video ids', () => {
+      expect(extractTwitchVideoId('https://www.twitch.tv/videos/12345')).toBe('12345');
+      expect(isTwitchVideoUrl('https://www.twitch.tv/videos/12345')).toBe(true);
+      expect(extractTwitchVideoId('https://www.twitch.tv/example')).toBe(null);
     });
   });
 
@@ -254,6 +294,10 @@ describe('Helpers', () => {
       expect(extractSourceVideoId('https://missav.ai/v/ABC-123')).toEqual({
         id: 'ABC-123',
         platform: 'missav',
+      });
+      expect(extractSourceVideoId('https://www.twitch.tv/videos/12345')).toEqual({
+        id: '12345',
+        platform: 'twitch',
       });
       expect(extractSourceVideoId('https://example.com/video/1')).toEqual({
         id: 'https://example.com/video/1',

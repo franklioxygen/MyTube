@@ -107,6 +107,13 @@ describe('SubscribeModal', () => {
         expect(screen.queryByText('downloadShorts')).not.toBeInTheDocument();
     });
 
+    it('should hide download shorts option and show twitch help for twitch', () => {
+        render(<SubscribeModal {...defaultProps} source="twitch" />);
+        expect(screen.queryByText('downloadShorts')).not.toBeInTheDocument();
+        expect(screen.getByText('twitchSubscriptionDescription')).toBeInTheDocument();
+        expect(screen.getByText('twitchSubscriptionVodsOnly')).toBeInTheDocument();
+    });
+
     it('should show download shorts option when source is undefined', () => {
         render(<SubscribeModal {...defaultProps} />);
         expect(screen.getByText('downloadShorts')).toBeInTheDocument();

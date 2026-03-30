@@ -155,6 +155,34 @@ export const es = {
   telegramChatIdHelper: "Envíe un mensaje a @RawDataBot en Telegram para obtener su ID de chat.",
   telegramNotifyOnSuccess: "Notificar en caso de éxito",
   telegramNotifyOnFail: "Notificar en caso de fallo",
+  twitchSubscriptions: "Suscripciones de Twitch",
+  twitchClientId: "ID de cliente de Twitch",
+  twitchClientSecret: "Secreto del cliente de Twitch",
+  twitchSubscriptionCredentialsHelper:
+    "Las credenciales de cliente de Twitch son opcionales. Sin ellas, MyTube usa un sondeo con yt-dlp en modo best-effort, pero añadirlas hace más fiable la detección del canal.",
+  twitchSubscriptionDescription:
+    "MyTube comprobará este canal de Twitch en busca de nuevos VOD y los descargará después de que Twitch los publique.",
+  twitchSubscriptionCredentialsMissing:
+    "La suscripción de Twitch falló. Las credenciales de cliente son opcionales, pero se recomiendan para una suscripción de canal más fiable.",
+  twitchSubscriptionVodsOnly:
+    "MyTube descarga los VOD de Twitch después de que se publican. La captura de transmisiones en vivo no está incluida en esta versión.",
+  twitchClientHelpLink: "Cómo obtener el ID y el secreto de cliente de Twitch",
+  twitchClientHelpTitle: "Obtener el ID y el secreto de cliente de Twitch",
+  twitchClientHelpIntro:
+    "Primero debes crear una aplicación de Twitch en la consola para desarrolladores de Twitch.",
+  twitchClientHelpStep1:
+    "Abre la consola para desarrolladores de Twitch e inicia sesión con tu cuenta de Twitch.",
+  twitchClientHelpStep2: "Crea una nueva aplicación para MyTube.",
+  twitchClientHelpStep3:
+    "Configura una URL de redirección OAuth. Si solo usas suscripciones del lado del servidor, un valor como http://localhost es suficiente.",
+  twitchClientHelpStep4:
+    "Cuando la aplicación esté creada, copia el Client ID desde la página de detalles de la aplicación.",
+  twitchClientHelpStep5:
+    "Genera o muestra un Client Secret y luego pega ambos valores en la configuración de MyTube.",
+  twitchClientHelpSecurity:
+    "Mantén el Client Secret en privado y no lo compartas en capturas de pantalla ni en páginas públicas.",
+  twitchDeveloperConsole: "Consola para desarrolladores de Twitch",
+  twitchDeveloperDocs: "Documentación para desarrolladores de Twitch",
   telegramTestButton: "Enviar mensaje de prueba",
   telegramTestSuccess: "¡Mensaje de prueba enviado con éxito!",
   telegramTestFailed: "Prueba fallida: {error}",

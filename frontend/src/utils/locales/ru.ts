@@ -153,6 +153,34 @@ export const ru = {
   telegramChatIdHelper: "Отправьте сообщение @RawDataBot в Telegram, чтобы узнать ваш ID чата.",
   telegramNotifyOnSuccess: "Уведомлять при успехе",
   telegramNotifyOnFail: "Уведомлять при ошибке",
+  twitchSubscriptions: "Подписки Twitch",
+  twitchClientId: "Идентификатор клиента Twitch",
+  twitchClientSecret: "Секрет клиента Twitch",
+  twitchSubscriptionCredentialsHelper:
+    "Клиентские данные Twitch необязательны. Без них MyTube переключается на опрос через yt-dlp в best-effort режиме, но с ними определение канала работает надежнее.",
+  twitchSubscriptionDescription:
+    "MyTube будет проверять этот канал Twitch на наличие новых VOD и загружать их после публикации на Twitch.",
+  twitchSubscriptionCredentialsMissing:
+    "Не удалось оформить подписку Twitch. Клиентские данные необязательны, но рекомендуются для более надежных подписок на каналы.",
+  twitchSubscriptionVodsOnly:
+    "MyTube загружает VOD Twitch после их публикации. Захват прямых эфиров в этой версии не поддерживается.",
+  twitchClientHelpLink: "Как получить Twitch Client ID и Secret",
+  twitchClientHelpTitle: "Получить Twitch Client ID и Secret",
+  twitchClientHelpIntro:
+    "Сначала нужно создать приложение Twitch в консоли разработчика Twitch.",
+  twitchClientHelpStep1:
+    "Откройте консоль разработчика Twitch и войдите под своей учетной записью Twitch.",
+  twitchClientHelpStep2: "Создайте новое приложение для MyTube.",
+  twitchClientHelpStep3:
+    "Укажите OAuth Redirect URL. Если вы используете только серверные подписки, достаточно значения вроде http://localhost.",
+  twitchClientHelpStep4:
+    "После создания приложения скопируйте Client ID со страницы сведений о приложении.",
+  twitchClientHelpStep5:
+    "Создайте или отобразите Client Secret, затем вставьте оба значения в настройки MyTube.",
+  twitchClientHelpSecurity:
+    "Храните Client Secret в секрете и не публикуйте его в скриншотах или на публичных страницах.",
+  twitchDeveloperConsole: "Консоль разработчика Twitch",
+  twitchDeveloperDocs: "Документация для разработчиков Twitch",
   telegramTestButton: "Отправить тестовое сообщение",
   telegramTestSuccess: "Тестовое сообщение успешно отправлено!",
   telegramTestFailed: "Тест не пройден: {error}",

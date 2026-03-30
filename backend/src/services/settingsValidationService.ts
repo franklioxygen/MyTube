@@ -6,6 +6,10 @@ import {
 } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
+import {
+  getTwitchCredentialValidationCode,
+  normalizeTwitchCredential,
+} from "../utils/twitch";
 
 /**
  * Check if a tags array has any case-insensitive duplicates.
@@ -32,6 +36,18 @@ function findCaseInsensitiveTagCollision(
  * Validate and normalize settings values
  */
 export function validateSettings(newSettings: Partial<Settings>): void {
+  if (typeof newSettings.twitchClientId === "string") {
+    newSettings.twitchClientId = normalizeTwitchCredential(
+      newSettings.twitchClientId
+    );
+  }
+
+  if (typeof newSettings.twitchClientSecret === "string") {
+    newSettings.twitchClientSecret = normalizeTwitchCredential(
+      newSettings.twitchClientSecret
+    );
+  }
+
   if (
     newSettings.password !== undefined &&
     typeof newSettings.password !== "string"
@@ -51,6 +67,55 @@ export function validateSettings(newSettings: Partial<Settings>): void {
     typeof newSettings.apiKey !== "string"
   ) {
     throw new ValidationError("API key must be a string.", "apiKey");
+  }
+
+  if (
+    newSettings.twitchClientId !== undefined &&
+    typeof newSettings.twitchClientId !== "string"
+  ) {
+    throw new ValidationError(
+      "Twitch client ID must be a string.",
+      "twitchClientId"
+    );
+  }
+
+  if (
+    newSettings.twitchClientSecret !== undefined &&
+    typeof newSettings.twitchClientSecret !== "string"
+  ) {
+    throw new ValidationError(
+      "Twitch client secret must be a string.",
+      "twitchClientSecret"
+    );
+  }
+
+  const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
+    newSettings.twitchClientId,
+    newSettings.twitchClientSecret
+  );
+  if (twitchCredentialValidationCode === "missing_client_id") {
+    throw new ValidationError(
+      "Twitch client ID is required when a Twitch client secret is provided.",
+      "twitchClientId"
+    );
+  }
+  if (twitchCredentialValidationCode === "missing_client_secret") {
+    throw new ValidationError(
+      "Twitch client secret is required when a Twitch client ID is provided.",
+      "twitchClientSecret"
+    );
+  }
+  if (twitchCredentialValidationCode === "invalid_client_id") {
+    throw new ValidationError(
+      "Twitch client ID format is invalid.",
+      "twitchClientId"
+    );
+  }
+  if (twitchCredentialValidationCode === "invalid_client_secret") {
+    throw new ValidationError(
+      "Twitch client secret format is invalid.",
+      "twitchClientSecret"
+    );
   }
 
   if (

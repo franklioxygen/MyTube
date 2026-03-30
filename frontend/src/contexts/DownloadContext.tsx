@@ -4,11 +4,16 @@ import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
 import { api } from '../utils/apiClient';
 import { INFO_SOUNDS } from '../utils/sounds';
+import { resolveSubscriptionErrorMessage } from '../utils/subscriptionErrors';
 import { useAuth } from './AuthContext';
 import { useCollection } from './CollectionContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideo } from './VideoContext';
+import {
+    isTwitchChannelUrl,
+    normalizeTwitchChannelUrlOrNull,
+} from '../utils/twitch';
 const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const ACTIVE_POLL_INTERVAL_MS = 2000;
@@ -247,6 +252,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const channelRegex = /youtube\.com\/(?:@|channel\/|user\/|c\/)/;
             if (channelRegex.test(videoUrl)) {
                 setSubscribeUrl(videoUrl);
+                setSubscribeSource('youtube');
                 setShowChannelSubscribeChoiceModal(true);
                 return { success: true };
             }
@@ -255,8 +261,20 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             const bilibiliSpaceRegex = /space\.bilibili\.com\/\d+/;
             if (bilibiliSpaceRegex.test(videoUrl)) {
                 setSubscribeUrl(videoUrl);
+                setSubscribeSource('bilibili');
                 setShowSubscribeModal(true);
                 return { success: true };
+            }
+
+            if (isTwitchChannelUrl(videoUrl)) {
+                const normalizedTwitchUrl = normalizeTwitchChannelUrlOrNull(videoUrl);
+                if (normalizedTwitchUrl) {
+                    setSubscribeUrl(normalizedTwitchUrl);
+                    setSubscribeSource('twitch');
+                    setSubscribeMode('video');
+                    setShowSubscribeModal(true);
+                    return { success: true };
+                }
             }
 
             // Check if it's a Bilibili URL
@@ -452,6 +470,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [showSubscribeModal, setShowSubscribeModal] = useState(false);
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [subscribeUrl, setSubscribeUrl] = useState('');
+    const [subscribeSource, setSubscribeSource] = useState<'youtube' | 'bilibili' | 'twitch' | undefined>(undefined);
     const [subscribeMode, setSubscribeMode] = useState<'video' | 'playlist'>('video');
 
     // Channel subscribe choice modal
@@ -473,13 +492,18 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             showSnackbar(t('subscribedSuccessfully'));
             setShowSubscribeModal(false);
             setSubscribeUrl('');
+            setSubscribeSource(undefined);
         } catch (error: any) {
             console.error('Error subscribing:', error);
             if (error.response && error.response.status === 409) {
                 setShowSubscribeModal(false);
+                setSubscribeSource(undefined);
                 setShowDuplicateModal(true);
             } else {
-                showSnackbar(t('error'));
+                showSnackbar(
+                    resolveSubscriptionErrorMessage(error, subscribeSource, t),
+                    'error'
+                );
             }
         }
     };
@@ -573,6 +597,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             setSubscribeUrl('');
             setShowSubscribeModal(false);
+            setSubscribeSource(undefined);
 
         } catch (err: any) {
             console.error('Error subscribing to channel playlists:', err);
@@ -583,6 +608,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
             setSubscribeUrl('');
             setShowSubscribeModal(false);
+            setSubscribeSource(undefined);
         }
     };
 
@@ -614,6 +640,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                         onClose={() => {
                             setShowChannelSubscribeChoiceModal(false);
                             setSubscribeUrl('');
+                            setSubscribeSource(undefined);
                         }}
                         onChooseVideos={handleChooseSubscribeVideos}
                         onChoosePlaylists={handleChooseSubscribePlaylists}
@@ -622,9 +649,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 {showSubscribeModal && (
                     <SubscribeModal
                         open={showSubscribeModal}
-                        onClose={() => setShowSubscribeModal(false)}
+                        onClose={() => {
+                            setShowSubscribeModal(false);
+                            setSubscribeSource(undefined);
+                        }}
                         onConfirm={handleSubscribeConfirm}
                         url={subscribeUrl}
+                        source={subscribeSource}
                         title={subscribeMode === 'playlist' ? (t('subscribeAllPlaylists') || 'Subscribe All Playlists') : undefined}
                         description={subscribeMode === 'playlist' ? (t('subscribeAllPlaylistsDescription') || 'This will subscribe to all playlists in this channel.') : undefined}
                         enableDownloadOrder={subscribeMode !== 'playlist'}

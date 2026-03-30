@@ -148,6 +148,8 @@ export const WHITELISTED_SETTINGS = [
   "telegramChatId",
   "telegramNotifyOnSuccess",
   "telegramNotifyOnFail",
+  "twitchClientId",
+  "twitchClientSecret",
 ] as const;
 
 export interface SaveSettingsOptions {

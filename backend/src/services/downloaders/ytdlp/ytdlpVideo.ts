@@ -1,12 +1,17 @@
 import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
+import { ValidationError } from "../../../errors/DownloadErrors";
 import { downloadAndProcessAvatar } from "../../../utils/avatarUtils";
 import {
   cleanupSubtitleFiles,
   cleanupVideoArtifacts,
 } from "../../../utils/downloadUtils";
-import { formatVideoFilename, isYouTubeUrl } from "../../../utils/helpers";
+import {
+  extractTwitchVideoId,
+  formatVideoFilename,
+  isYouTubeUrl,
+} from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
 import { resolvePlayableVideoFilePath } from "../../../utils/videoFileResolver";
@@ -23,6 +28,7 @@ import {
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
+import { twitchApiService } from "../../twitchService";
 import { BaseDownloader } from "../BaseDownloader";
 import { prepareDownloadFlags } from "./ytdlpConfig";
 import { getProviderScript } from "./ytdlpHelpers";
@@ -57,6 +63,27 @@ class YtDlpDownloaderHelper extends BaseDownloader {
   ): Promise<boolean> {
     return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
   }
+}
+
+function isExpectedTwitchMetadataError(error: unknown): boolean {
+  if (error instanceof ValidationError) {
+    return true;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as { response?: { status?: number } }).response?.status ===
+      "number"
+  ) {
+    return (error as { response?: { status?: number } }).response?.status === 429;
+  }
+
+  return (
+    error instanceof Error &&
+    error.message.includes("Twitch API is temporarily rate limited")
+  );
 }
 
 /**
@@ -133,11 +160,42 @@ export async function downloadVideo(
     // Extract channel URL from info if available
     channelUrl = info.channel_url || info.uploader_url || null;
 
-    // Try to get channel URL using yt-dlp if not available in info
-    if (!channelUrl && isYouTubeUrl(videoUrl)) {
+    // When extractor metadata omits the channel URL, ask yt-dlp directly.
+    if (!channelUrl && (isYouTubeUrl(videoUrl) || source === "twitch")) {
       logger.info("Channel URL not in info, fetching using yt-dlp...");
       channelUrl = await getChannelUrlFromVideo(videoUrl, networkConfig);
       logger.info("Channel URL fetched:", channelUrl);
+    }
+
+    if (source === "twitch" && twitchApiService.isConfigured()) {
+      const twitchVideoId = extractTwitchVideoId(videoUrl);
+      if (twitchVideoId) {
+        try {
+          const twitchVideo = await twitchApiService.getVideoById(twitchVideoId);
+          if (twitchVideo) {
+            channelUrl =
+              channelUrl || `https://www.twitch.tv/${twitchVideo.userLogin}`;
+
+            if (!videoAuthor || videoAuthor === "Unknown") {
+              videoAuthor = twitchVideo.userName || twitchVideo.userLogin;
+            }
+
+            const twitchChannel = await twitchApiService.getChannelById(
+              twitchVideo.userId
+            );
+            if (twitchChannel) {
+              channelUrl = channelUrl || twitchChannel.url;
+              authorAvatarUrl = twitchChannel.profileImageUrl;
+            }
+          }
+        } catch (error) {
+          if (isExpectedTwitchMetadataError(error)) {
+            logger.debug("Skipping Twitch Helix metadata enrichment:", error);
+          } else {
+            logger.warn("Failed to enrich Twitch metadata via Helix:", error);
+          }
+        }
+      }
     }
 
     // Update the safe base filename with the actual title
@@ -395,7 +453,8 @@ export async function downloadVideo(
 
     // Download and process author avatar
     let authorAvatarPath: string | null = null;
-    const platform = source === "youtube" ? "youtube" : "generic";
+    const platform =
+      source === "youtube" || source === "twitch" ? source : "generic";
 
     if (channelUrl && isYouTubeUrl(videoUrl)) {
       logger.info("Downloading author avatar from channel:", {
@@ -464,7 +523,8 @@ export async function downloadVideo(
       }
     } else {
       // Fallback: try to get avatar URL from info if available
-      authorAvatarUrl = info.channel_avatar || info.uploader_avatar || null;
+      authorAvatarUrl =
+        authorAvatarUrl || info.channel_avatar || info.uploader_avatar || null;
       if (authorAvatarUrl) {
         logger.info("Downloading author avatar from URL:", {
           url: authorAvatarUrl,

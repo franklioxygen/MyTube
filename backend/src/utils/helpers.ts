@@ -1,4 +1,9 @@
 import { isHostnameAllowed } from "./security";
+import {
+  extractTwitchChannelLogin as extractLocalTwitchChannelLogin,
+  isTwitchChannelUrl as isLocalTwitchChannelUrl,
+  normalizeTwitchChannelUrl as normalizeLocalTwitchChannelUrl,
+} from "./twitch";
 
 const YOUTUBE_HOSTNAMES = ["youtube.com", "youtu.be"] as const;
 const BILIBILI_HOSTNAMES = ["bilibili.com", "b23.tv", "bili2233.cn"] as const;
@@ -14,12 +19,12 @@ const MISSAV_HOSTNAMES = [
   "njavtv.com",
 ] as const;
 const TWITTER_HOSTNAMES = ["x.com", "twitter.com"] as const;
+const TWITCH_HOSTNAMES = ["twitch.tv"] as const;
 
 const ALLOWED_BILIBILI_SHORTENER_HOSTNAMES = ["b23.tv", "bili2233.cn"] as const;
 const REQUEST_HOST_OUTPUT_MAP: Record<string, string> = {
   "bilibili.com": "www.bilibili.com",
 };
-
 function parseUrlSafe(url: string): URL | null {
   try {
     return new URL(url);
@@ -120,6 +125,10 @@ export function isMissAVUrl(url: string): boolean {
 
 export function isTwitterUrl(url: string): boolean {
   return hasAllowedHostname(url, TWITTER_HOSTNAMES);
+}
+
+export function isTwitchUrl(url: string): boolean {
+  return hasAllowedHostname(url, TWITCH_HOSTNAMES);
 }
 
 // Helper function to extract URL from text that might contain a title and URL
@@ -295,6 +304,48 @@ export function extractMissAVVideoId(url: string): string | null {
   }
 }
 
+export function extractTwitchVideoId(url: string): string | null {
+  if (!isTwitchUrl(url)) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(url);
+    const segments = parsedUrl.pathname
+      .replace(/\/+$/, "")
+      .split("/")
+      .filter(Boolean);
+
+    if (
+      segments.length >= 2 &&
+      segments[0]?.toLowerCase() === "videos" &&
+      /^\d+$/.test(segments[1] || "")
+    ) {
+      return segments[1];
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function isTwitchVideoUrl(url: string): boolean {
+  return extractTwitchVideoId(url) !== null;
+}
+
+export function extractTwitchChannelLogin(url: string): string | null {
+  return extractLocalTwitchChannelLogin(url);
+}
+
+export function isTwitchChannelUrl(url: string): boolean {
+  return isLocalTwitchChannelUrl(url);
+}
+
+export function normalizeTwitchChannelUrl(url: string): string {
+  return normalizeLocalTwitchChannelUrl(url);
+}
+
 // Helper function to extract source video ID from any supported URL
 export function extractSourceVideoId(url: string): {
   id: string | null;
@@ -306,6 +357,11 @@ export function extractSourceVideoId(url: string): {
 
   if (isYouTubeUrl(url)) {
     return { id: extractYouTubeVideoId(url), platform: "youtube" };
+  }
+
+  const twitchVideoId = extractTwitchVideoId(url);
+  if (twitchVideoId) {
+    return { id: twitchVideoId, platform: "twitch" };
   }
 
   if (isMissAVUrl(url)) {

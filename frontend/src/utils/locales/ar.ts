@@ -148,6 +148,34 @@ export const ar = {
   telegramChatIdHelper: "أرسل رسالة إلى @RawDataBot في تيليجرام للحصول على معرف المحادثة.",
   telegramNotifyOnSuccess: "إشعار عند النجاح",
   telegramNotifyOnFail: "إشعار عند الفشل",
+  twitchSubscriptions: "اشتراكات Twitch",
+  twitchClientId: "معرّف عميل Twitch",
+  twitchClientSecret: "سرّ عميل Twitch",
+  twitchSubscriptionCredentialsHelper:
+    "بيانات اعتماد عميل Twitch اختيارية. بدونها سيعود MyTube إلى الاستطلاع عبر yt-dlp بوضع best-effort، لكن إضافتها تجعل اكتشاف القناة أكثر موثوقية.",
+  twitchSubscriptionDescription:
+    "سيتحقق MyTube من هذه القناة على Twitch بحثًا عن ملفات VOD جديدة ويقوم بتنزيلها بعد أن ينشرها Twitch.",
+  twitchSubscriptionCredentialsMissing:
+    "فشل الاشتراك في Twitch. بيانات اعتماد العميل ليست مطلوبة، لكنها مُستحسنة لاشتراكات القنوات الأكثر موثوقية.",
+  twitchSubscriptionVodsOnly:
+    "يقوم MyTube بتنزيل ملفات VOD الخاصة بـ Twitch بعد نشرها. التقاط البث المباشر غير متاح في هذا الإصدار.",
+  twitchClientHelpLink: "كيفية الحصول على Twitch Client ID و Secret",
+  twitchClientHelpTitle: "الحصول على Twitch Client ID و Secret",
+  twitchClientHelpIntro:
+    "تحتاج أولاً إلى إنشاء تطبيق Twitch داخل لوحة مطوري Twitch.",
+  twitchClientHelpStep1:
+    "افتح لوحة مطوري Twitch وسجّل الدخول باستخدام حساب Twitch الخاص بك.",
+  twitchClientHelpStep2: "أنشئ تطبيقًا جديدًا لـ MyTube.",
+  twitchClientHelpStep3:
+    "حدّد عنوان OAuth Redirect URL. إذا كنت تستخدم الاشتراكات من جهة الخادم فقط، فإن قيمة مثل http://localhost تكفي.",
+  twitchClientHelpStep4:
+    "بعد إنشاء التطبيق، انسخ Client ID من صفحة تفاصيل التطبيق.",
+  twitchClientHelpStep5:
+    "أنشئ أو اعرض Client Secret ثم الصق القيمتين في إعدادات MyTube.",
+  twitchClientHelpSecurity:
+    "حافظ على سرية Client Secret ولا تشاركه في لقطات الشاشة أو الصفحات العامة.",
+  twitchDeveloperConsole: "لوحة مطوري Twitch",
+  twitchDeveloperDocs: "توثيق مطوري Twitch",
   telegramTestButton: "إرسال رسالة تجريبية",
   telegramTestSuccess: "تم إرسال الرسالة التجريبية بنجاح!",
   telegramTestFailed: "فشل الاختبار: {error}",

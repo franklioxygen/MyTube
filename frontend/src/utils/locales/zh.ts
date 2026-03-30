@@ -146,6 +146,31 @@ export const zh = {
   telegramChatIdHelper: "在 Telegram 上给 @RawDataBot 发消息以获取您的 Chat ID。",
   telegramNotifyOnSuccess: "成功时通知",
   telegramNotifyOnFail: "失败时通知",
+  twitchSubscriptions: "Twitch 订阅",
+  twitchClientId: "Twitch 客户端 ID",
+  twitchClientSecret: "Twitch 客户端密钥",
+  twitchSubscriptionCredentialsHelper:
+    "Twitch 客户端凭据是可选的。不填写时，MyTube 会回退到 yt-dlp 轮询的尽力模式；填写后频道识别会更稳定。",
+  twitchSubscriptionDescription:
+    "MyTube 会检查这个 Twitch 频道是否有新的 VOD，并在 Twitch 发布后自动下载。",
+  twitchSubscriptionCredentialsMissing:
+    "Twitch 订阅失败。客户端凭据不是必需的，但建议填写以获得更稳定的频道订阅。",
+  twitchSubscriptionVodsOnly:
+    "MyTube 只会在 Twitch VOD 发布后下载，本版本不包含直播录制功能。",
+  twitchClientHelpLink: "如何获取 Twitch Client ID 和 Secret",
+  twitchClientHelpTitle: "获取 Twitch Client ID 和 Secret",
+  twitchClientHelpIntro: "你需要先在 Twitch 开发者控制台创建一个应用。",
+  twitchClientHelpStep1: "打开 Twitch 开发者控制台，并使用你的 Twitch 账号登录。",
+  twitchClientHelpStep2: "为 MyTube 创建一个新的应用。",
+  twitchClientHelpStep3:
+    "填写 OAuth Redirect URL。如果你只使用服务端订阅，像 http://localhost 这样的占位地址也可以。",
+  twitchClientHelpStep4: "应用创建完成后，在应用详情页复制 Client ID。",
+  twitchClientHelpStep5:
+    "生成或显示 Client Secret，然后把这两个值粘贴到 MyTube 设置中。",
+  twitchClientHelpSecurity:
+    "请妥善保管 Client Secret，不要在截图或公开页面中泄露。",
+  twitchDeveloperConsole: "Twitch 开发者控制台",
+  twitchDeveloperDocs: "Twitch 开发者文档",
   telegramTestButton: "发送测试消息",
   telegramTestSuccess: "测试消息发送成功！",
   telegramTestFailed: "测试失败：{error}",

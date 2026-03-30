@@ -78,6 +78,14 @@ export const roleBasedAuthMiddleware = (
     return;
   }
 
+  const loginRequired = isLoginRequired();
+
+  // When login is disabled, requests should not remain scoped by a stale visitor role.
+  if (!loginRequired) {
+    next();
+    return;
+  }
+
   // If user is Admin, allow all requests
   if (req.user?.role === "admin") {
     next();
@@ -115,8 +123,6 @@ export const roleBasedAuthMiddleware = (
 
   // For unauthenticated users, check if login is required
   if (!req.user) {
-    const loginRequired = isLoginRequired();
-
     if (loginRequired && isAdminUploadEndpoint(req)) {
       res.status(401).json({
         success: false,

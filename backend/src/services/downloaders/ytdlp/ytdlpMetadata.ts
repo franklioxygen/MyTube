@@ -1,4 +1,10 @@
-import { getDomainFromUrl } from "../../../utils/helpers";
+import {
+  getDomainFromUrl,
+  isBilibiliUrl,
+  isMissAVUrl,
+  isTwitchUrl,
+  isYouTubeUrl,
+} from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
   executeYtDlpJson,
@@ -7,6 +13,36 @@ import {
 } from "../../../utils/ytDlpUtils";
 import { VideoInfo } from "../BaseDownloader";
 import { extractXiaoHongShuAuthor, getProviderScript } from "./ytdlpHelpers";
+
+export function normalizeRemoteSource(
+  extractor: unknown,
+  videoUrl: string
+): string {
+  const normalizedExtractor =
+    typeof extractor === "string" ? extractor.trim().toLowerCase() : "";
+
+  if (isTwitchUrl(videoUrl) || normalizedExtractor.includes("twitch")) {
+    return "twitch";
+  }
+
+  if (isYouTubeUrl(videoUrl) || normalizedExtractor.includes("youtube")) {
+    return "youtube";
+  }
+
+  if (isBilibiliUrl(videoUrl) || normalizedExtractor.includes("bilibili")) {
+    return "bilibili";
+  }
+
+  if (
+    isMissAVUrl(videoUrl) ||
+    normalizedExtractor.includes("missav") ||
+    normalizedExtractor.includes("123av")
+  ) {
+    return "missav";
+  }
+
+  return normalizedExtractor || "generic";
+}
 
 /**
  * Get video info without downloading
@@ -104,7 +140,7 @@ export async function extractVideoMetadata(videoUrl: string, info: any) {
     info.upload_date ||
     new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const thumbnailUrl = info.thumbnail;
-  const source = info.extractor || "generic";
+  const source = normalizeRemoteSource(info.extractor, videoUrl);
 
   return {
     videoTitle,

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sortVideoEntries, VideoUrlFetcher } from '../../../services/continuousDownload/videoUrlFetcher';
 import * as downloadService from '../../../services/downloadService';
 import * as bilibiliCollection from '../../../services/downloaders/bilibili/bilibiliCollection';
+import * as ytdlpTwitch from '../../../services/downloaders/ytdlp/ytdlpTwitch';
+import * as twitchService from '../../../services/twitchService';
 import * as ytdlpHelpers from '../../../services/downloaders/ytdlp/ytdlpHelpers';
 import * as helpers from '../../../utils/helpers';
 import * as ytDlpUtils from '../../../utils/ytDlpUtils';
@@ -17,6 +19,16 @@ vi.mock('../../../services/downloadService', () => ({
 vi.mock('../../../services/downloaders/bilibili/bilibiliCollection', () => ({
   getCollectionVideos: vi.fn(),
   getSeriesVideos: vi.fn(),
+}));
+vi.mock('../../../services/downloaders/ytdlp/ytdlpTwitch', () => ({
+  getTwitchChannelVideos: vi.fn(),
+}));
+vi.mock('../../../services/twitchService', () => ({
+  twitchApiService: {
+    isConfigured: vi.fn(),
+    getChannelByLogin: vi.fn(),
+    listVideosByBroadcaster: vi.fn(),
+  },
 }));
 vi.mock('axios');
 vi.mock('../../../utils/logger');
@@ -35,6 +47,9 @@ describe('VideoUrlFetcher', () => {
     (ytdlpHelpers.getProviderScript as any).mockReturnValue(undefined);
     (helpers.extractBilibiliMid as any).mockReturnValue('123');
     (helpers.extractBilibiliVideoId as any).mockReturnValue(null);
+    (helpers.extractTwitchChannelLogin as any).mockReturnValue('streamer');
+    (helpers.normalizeTwitchChannelUrl as any).mockImplementation((url: string) => url);
+    (twitchService.twitchApiService.isConfigured as any).mockReturnValue(true);
     (downloadService.checkBilibiliCollectionOrSeries as any).mockResolvedValue({
       success: false,
       type: 'none',
@@ -501,6 +516,193 @@ describe('VideoUrlFetcher', () => {
           sourceIndex: 1,
         },
       ]);
+    });
+
+    it('should collect Twitch archives and uploads with pagination metadata', async () => {
+      (twitchService.twitchApiService.isConfigured as any).mockReturnValue(true);
+      (helpers.normalizeTwitchChannelUrl as any).mockReturnValue(
+        'https://www.twitch.tv/streamer'
+      );
+      (helpers.extractTwitchChannelLogin as any).mockReturnValue('streamer');
+      (twitchService.twitchApiService.getChannelByLogin as any).mockResolvedValue({
+        id: 'user-1',
+        login: 'streamer',
+        displayName: 'Streamer',
+        url: 'https://www.twitch.tv/streamer',
+      });
+      (twitchService.twitchApiService.listVideosByBroadcaster as any)
+        .mockResolvedValueOnce({
+          videos: [
+            {
+              id: 'archive-1',
+              url: 'https://www.twitch.tv/videos/101',
+              publishedAt: '2026-03-04T10:00:00Z',
+              viewCount: 550,
+            },
+          ],
+          cursor: 'archives-next',
+        })
+        .mockResolvedValueOnce({
+          videos: [
+            {
+              id: 'archive-2',
+              url: 'https://www.twitch.tv/videos/102',
+              publishedAt: '2026-03-03T11:00:00Z',
+              viewCount: 120,
+            },
+          ],
+          cursor: undefined,
+        })
+        .mockResolvedValueOnce({
+          videos: [
+            {
+              id: 'upload-1',
+              url: 'https://www.twitch.tv/videos/201',
+              publishedAt: '2026-03-02T12:00:00Z',
+              viewCount: 9000,
+            },
+          ],
+          cursor: undefined,
+        });
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://www.twitch.tv/streamer/videos',
+        'Twitch'
+      );
+
+      expect(entries).toEqual([
+        {
+          url: 'https://www.twitch.tv/videos/101',
+          uploadDate: '20260304',
+          viewCount: 550,
+          sourceIndex: 0,
+        },
+        {
+          url: 'https://www.twitch.tv/videos/102',
+          uploadDate: '20260303',
+          viewCount: 120,
+          sourceIndex: 1,
+        },
+        {
+          url: 'https://www.twitch.tv/videos/201',
+          uploadDate: '20260302',
+          viewCount: 9000,
+          sourceIndex: 2,
+        },
+      ]);
+      expect(twitchService.twitchApiService.listVideosByBroadcaster).toHaveBeenNthCalledWith(
+        1,
+        'user-1',
+        { after: undefined, first: 100, type: 'archive' }
+      );
+      expect(twitchService.twitchApiService.listVideosByBroadcaster).toHaveBeenNthCalledWith(
+        2,
+        'user-1',
+        { after: 'archives-next', first: 100, type: 'archive' }
+      );
+      expect(twitchService.twitchApiService.listVideosByBroadcaster).toHaveBeenNthCalledWith(
+        3,
+        'user-1',
+        { after: undefined, first: 100, type: 'upload' }
+      );
+    });
+
+    it('should collect Twitch entries via yt-dlp when credentials are not configured', async () => {
+      (twitchService.twitchApiService.isConfigured as any).mockReturnValue(false);
+      (helpers.normalizeTwitchChannelUrl as any).mockReturnValue(
+        'https://www.twitch.tv/streamer'
+      );
+      (helpers.extractTwitchChannelLogin as any).mockReturnValue('streamer');
+      (ytdlpTwitch.getTwitchChannelVideos as any)
+        .mockResolvedValueOnce({
+          channelName: 'Streamer',
+          channelLogin: 'streamer',
+          videos: [
+            {
+              id: '3001',
+              url: 'https://www.twitch.tv/videos/3001',
+              title: 'Fallback newest',
+              author: 'Streamer',
+              authorLogin: 'streamer',
+              uploadDate: '20260304',
+              viewCount: 123,
+              sourceIndex: 0,
+            },
+            {
+              id: '3000',
+              url: 'https://www.twitch.tv/videos/3000',
+              title: 'Fallback older',
+              author: 'Streamer',
+              authorLogin: 'streamer',
+              uploadDate: '20260303',
+              viewCount: 45,
+              sourceIndex: 1,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          channelName: 'Streamer',
+          channelLogin: 'streamer',
+          videos: [],
+        });
+
+      const entries = await fetcher.getAllVideoEntries(
+        'https://www.twitch.tv/streamer/videos',
+        'Twitch'
+      );
+
+      expect(entries).toEqual([
+        {
+          url: 'https://www.twitch.tv/videos/3001',
+          uploadDate: '20260304',
+          viewCount: 123,
+          sourceIndex: 0,
+        },
+        {
+          url: 'https://www.twitch.tv/videos/3000',
+          uploadDate: '20260303',
+          viewCount: 45,
+          sourceIndex: 1,
+        },
+      ]);
+      expect(ytdlpTwitch.getTwitchChannelVideos).toHaveBeenNthCalledWith(1, 'https://www.twitch.tv/streamer', {
+        startIndex: 0,
+        limit: 100,
+      });
+      expect(ytdlpTwitch.getTwitchChannelVideos).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return Twitch URLs through the full-fetch path', async () => {
+      (twitchService.twitchApiService.isConfigured as any).mockReturnValue(true);
+      (twitchService.twitchApiService.getChannelByLogin as any).mockResolvedValue({
+        id: 'user-1',
+        login: 'streamer',
+        displayName: 'Streamer',
+        url: 'https://www.twitch.tv/streamer',
+      });
+      (twitchService.twitchApiService.listVideosByBroadcaster as any)
+        .mockResolvedValueOnce({
+          videos: [
+            {
+              id: 'archive-1',
+              url: 'https://www.twitch.tv/videos/101',
+              publishedAt: '2026-03-04T10:00:00Z',
+              viewCount: 550,
+            },
+          ],
+          cursor: undefined,
+        })
+        .mockResolvedValueOnce({
+          videos: [],
+          cursor: undefined,
+        });
+
+      const urls = await fetcher.getAllVideoUrls(
+        'https://www.twitch.tv/streamer',
+        'Twitch'
+      );
+
+      expect(urls).toEqual(['https://www.twitch.tv/videos/101']);
     });
   });
 });

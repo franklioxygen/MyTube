@@ -4,6 +4,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { useSnackbar } from "../contexts/SnackbarContext";
 import { Video } from "../types";
 import { api } from "../utils/apiClient";
+import { resolveSubscriptionErrorMessage } from "../utils/subscriptionErrors";
 import { validateUrlForOpen } from "../utils/urlValidation";
 
 interface UseVideoSubscriptionsProps {
@@ -34,7 +35,9 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
     const fetchChannelUrl = async () => {
       if (
         !video ||
-        (video.source !== "youtube" && video.source !== "bilibili")
+        (video.source !== "youtube" &&
+          video.source !== "bilibili" &&
+          video.source !== "twitch")
       ) {
         setAuthorChannelUrl(null);
         return;
@@ -119,7 +122,11 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
     if (!video) return null;
 
     // If it's a YouTube or Bilibili video, try to get the channel URL
-    if (video.source === "youtube" || video.source === "bilibili") {
+    if (
+      video.source === "youtube" ||
+      video.source === "bilibili" ||
+      video.source === "twitch"
+    ) {
       if (authorChannelUrl) {
         // Validate URL to prevent open redirect attacks
         const validatedUrl = validateUrlForOpen(authorChannelUrl);
@@ -171,7 +178,10 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
       if (error.response && error.response.status === 409) {
         showSnackbar(t("subscriptionAlreadyExists"), "warning");
       } else {
-        showSnackbar(t("error"), "error");
+        showSnackbar(
+          resolveSubscriptionErrorMessage(error, video.source, t),
+          "error"
+        );
       }
       setShowSubscribeModal(false);
     }

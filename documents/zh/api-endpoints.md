@@ -17,7 +17,7 @@
 - `POST /api/download` - 添加视频下载任务
   - 请求体: `{ youtubeUrl: string, downloadAllParts?: boolean, collectionName?: string, downloadCollection?: boolean, collectionInfo?: object, forceDownload?: boolean }`
   - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
-  - 支持: YouTube、Bilibili、MissAV 以及其他 yt-dlp 支持的网站
+  - 支持: YouTube、Bilibili、Twitch VOD、MissAV 以及其他 yt-dlp 支持的网站
 - `GET /api/check-video-download` - 检查源 URL 是否已被下载过
   - 查询参数: `url` (必需)
 - `GET /api/check-bilibili-parts` - 检查 Bilibili 视频是否有多个分P
@@ -60,6 +60,7 @@
   - 请求体: `{ progress: number }`
 - `GET /api/videos/author-channel-url` - 解析源 URL 中的频道/作者 URL
   - 查询参数: `sourceUrl` (必需)
+  - 支持: YouTube、Bilibili 和 Twitch 源 URL
 
 ## 下载队列与历史
 
@@ -88,6 +89,12 @@
 - `POST /api/subscriptions` - 创建订阅
   - 请求体: `{ url: string, interval: number, authorName?: string, downloadAllPrevious?: boolean, downloadShorts?: boolean, downloadOrder?: 'dateDesc' | 'dateAsc' | 'viewsDesc' | 'viewsAsc' }`
   - `downloadOrder` 仅在 `downloadAllPrevious` 为 `true` 时生效，默认值为 `dateDesc`
+  - 接受: YouTube 频道 URL、Bilibili 空间 URL 和 Twitch 频道 URL
+  - Twitch 说明:
+    - `downloadShorts` 会被忽略，并以禁用状态保存
+    - 新的 Twitch 订阅只会轮询已发布的 VOD（`archive` 和 `upload`），不包含直播流
+    - `twitchClientId` 和 `twitchClientSecret` 是可选的；缺失时后端会回退到 yt-dlp 轮询的尽力模式
+    - 配置 Twitch 应用凭据后，频道识别与轮询稳定性会更好
 - `PUT /api/subscriptions/:id/pause` - 暂停订阅
 - `PUT /api/subscriptions/:id/resume` - 恢复订阅
 - `DELETE /api/subscriptions/:id` - 删除订阅
@@ -110,10 +117,12 @@
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)
-  - 响应可能包含 `apiKeyEnabled` 与 `apiKey`；当启用登录且为访客用户时，这两个字段会被隐藏
+  - 响应可能包含服务配置；当关闭登录保护时，未登录客户端也会看到这些字段
+  - 启用登录保护后，访客和未认证请求不会返回 `apiKey`、`openListToken`、`cloudflaredToken`、`telegramBotToken`、`twitchClientId`、`twitchClientSecret` 等敏感字段
 - `PATCH /api/settings` - 部分更新设置
   - 请求体: 部分设置对象
   - 支持 `apiKeyEnabled?: boolean` 和 `apiKey?: string`
+  - 支持 `twitchClientId?: string` 和 `twitchClientSecret?: string`
   - 当 `apiKeyEnabled` 设为 `true` 且 `apiKey` 为空/缺失时，服务端会自动生成 64 位十六进制密钥
 - `POST /api/settings/migrate` - 将旧版 JSON 数据迁移至 SQLite
 - `POST /api/settings/delete-legacy` - 删除旧版 JSON 数据文件

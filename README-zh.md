@@ -1,6 +1,6 @@
 # MyTube
 
-支持 YouTube、Bilibili、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##) 的自托管视频下载器与播放器。具备频道订阅、自动下载及本地化存储功能。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
+支持 YouTube、Bilibili、Twitch、MissAV 及 [yt-dlp 站点](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 的自托管视频下载器与播放器。具备频道订阅、自动下载及本地化存储功能。UI 设计精美，支持收藏集分类管理。内置 Cloudflare Tunnel 支持，无需端口映射即可实现安全远程访问。支持 Docker 一键部署。
 
 🚀 100% 提示工程构建，零人工介入代码。
 
@@ -24,7 +24,7 @@
 
 ## 功能特点
 
-- **视频下载**：通过简单的 URL 输入下载 YouTube、Bilibili 和 MissAV 视频。
+- **视频下载**：通过简单的 URL 输入下载 YouTube、Bilibili、Twitch、MissAV 以及其他 yt-dlp 支持的视频。
 - **视频上传**：直接上传本地视频文件到您的库，并自动生成缩略图。
 - **TMDB 元数据抓取**：基于文件名自动从 TMDB 抓取电影和电视剧元数据（标题、描述、封面、导演、年份、评分）。支持根据站点语言获取本地化内容。
 - **并行下载**：支持队列下载，可同时追踪多个下载任务的进度。
@@ -33,7 +33,7 @@
 - **云存储集成**：下载后自动将视频和缩略图上传到云存储（OpenList/Alist）。
 - **字幕**：自动下载 YouTube / Bilibili 默认语言字幕。
 - **收藏夹**：创建自定义收藏夹以整理您的视频。
-- **订阅功能**：订阅您喜爱的频道，并在新视频发布时自动下载。
+- **订阅功能**：管理 YouTube、Bilibili 和 Twitch 频道订阅，并在新内容发布后自动下载。
 - **登录保护**：支持密码登录并可选使用通行密钥 (WebAuthn)。
 - **访客用户**：启用只读角色，便于分享但不允许修改。
 - **国际化**：支持多种语言，包括英语、中文、西班牙语、法语、德语、日语、韩语、阿拉伯语、葡萄牙语和俄语。
@@ -49,7 +49,6 @@
 ## 浏览器扩展
 
 有关安装和使用说明，请参阅 [浏览器扩展](documents/zh/chrome-extension.md)。
-
 
 ## 目录结构
 

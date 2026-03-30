@@ -66,6 +66,30 @@ describe('SettingsController', () => {
       expect(responsePayload.apiKeyEnabled).toBeUndefined();
     });
 
+    it('should expose admin-only settings when login is disabled', async () => {
+      (storageService.getSettings as any).mockReturnValue({
+        loginEnabled: false,
+        apiKeyEnabled: true,
+        apiKey: 'super-secret-api-key',
+        openListToken: 'openlist-token',
+        cloudflaredToken: 'cloudflared-token',
+        telegramBotToken: 'telegram-token',
+        twitchClientId: 'twitch-client-id',
+        twitchClientSecret: 'twitch-client-secret',
+      });
+
+      await getSettings(req as Request, res as Response);
+
+      const responsePayload = json.mock.calls[0][0];
+      expect(responsePayload.apiKey).toBe('super-secret-api-key');
+      expect(responsePayload.apiKeyEnabled).toBe(true);
+      expect(responsePayload.openListToken).toBe('openlist-token');
+      expect(responsePayload.cloudflaredToken).toBe('cloudflared-token');
+      expect(responsePayload.telegramBotToken).toBe('telegram-token');
+      expect(responsePayload.twitchClientId).toBe('twitch-client-id');
+      expect(responsePayload.twitchClientSecret).toBe('twitch-client-secret');
+    });
+
     it('should not expose stored passkeys in settings response', async () => {
       (storageService.getSettings as any).mockReturnValue({
         loginEnabled: true,

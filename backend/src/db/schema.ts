@@ -148,6 +148,9 @@ export const subscriptions = sqliteTable("subscriptions", {
   collectionId: text("collection_id"), // Reference to collection for auto-adding videos
   downloadShorts: integer("download_shorts").default(0), // 0 = disabled, 1 = enabled
   lastShortVideoLink: text("last_short_video_link"),
+  twitchBroadcasterId: text("twitch_broadcaster_id"),
+  twitchBroadcasterLogin: text("twitch_broadcaster_login"),
+  lastTwitchVideoId: text("last_twitch_video_id"),
 });
 
 // Track downloaded video IDs to prevent re-downloading

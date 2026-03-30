@@ -17,6 +17,7 @@ describe("roleBasedAuthMiddleware", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isLoginRequired).mockReturnValue(true);
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
     req = {
@@ -186,6 +187,21 @@ describe("roleBasedAuthMiddleware", () => {
       method: "POST",
       path: "/upload/batch",
       url: "/upload/batch",
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("allows visitor write requests when login is disabled", () => {
+    vi.mocked(isLoginRequired).mockReturnValue(false);
+    req = {
+      method: "POST",
+      path: "/settings/tags/rename",
+      url: "/settings/tags/rename",
+      user: { role: "visitor" } as any,
     };
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);

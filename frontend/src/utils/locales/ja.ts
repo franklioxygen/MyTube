@@ -154,6 +154,34 @@ export const ja = {
   telegramChatIdHelper: "Telegramで @RawDataBot にメッセージを送ってチャットIDを取得してください。",
   telegramNotifyOnSuccess: "成功時に通知",
   telegramNotifyOnFail: "失敗時に通知",
+  twitchSubscriptions: "Twitch サブスクリプション",
+  twitchClientId: "Twitch クライアント ID",
+  twitchClientSecret: "Twitch クライアントシークレット",
+  twitchSubscriptionCredentialsHelper:
+    "Twitch クライアント認証情報は任意です。未設定でも MyTube は yt-dlp のベストエフォート監視にフォールバックしますが、設定した方がチャンネル判定はより安定します。",
+  twitchSubscriptionDescription:
+    "MyTube はこの Twitch チャンネルに新しい VOD が公開されたかを確認し、Twitch で公開された後にダウンロードします。",
+  twitchSubscriptionCredentialsMissing:
+    "Twitch の購読に失敗しました。クライアント認証情報は必須ではありませんが、より安定したチャンネル購読のため設定を推奨します。",
+  twitchSubscriptionVodsOnly:
+    "MyTube は Twitch の VOD が公開された後にダウンロードします。このバージョンにはライブ配信の録画機能は含まれていません。",
+  twitchClientHelpLink: "Twitch Client ID と Secret の取得方法",
+  twitchClientHelpTitle: "Twitch Client ID と Secret を取得する",
+  twitchClientHelpIntro:
+    "まず Twitch Developer Console で Twitch アプリケーションを作成する必要があります。",
+  twitchClientHelpStep1:
+    "Twitch Developer Console を開き、Twitch アカウントでサインインします。",
+  twitchClientHelpStep2: "MyTube 用の新しいアプリケーションを作成します。",
+  twitchClientHelpStep3:
+    "OAuth Redirect URL を設定します。サーバー側の購読だけに使う場合は、http://localhost のような値でも問題ありません。",
+  twitchClientHelpStep4:
+    "アプリ作成後、アプリ詳細ページから Client ID をコピーします。",
+  twitchClientHelpStep5:
+    "Client Secret を生成または表示し、その 2 つの値を MyTube の設定に貼り付けます。",
+  twitchClientHelpSecurity:
+    "Client Secret は公開せず、スクリーンショットや公開ページで共有しないでください。",
+  twitchDeveloperConsole: "Twitch Developer Console",
+  twitchDeveloperDocs: "Twitch 開発者ドキュメント",
   telegramTestButton: "テストメッセージを送信",
   telegramTestSuccess: "テストメッセージの送信に成功しました！",
   telegramTestFailed: "テスト失敗：{error}",

@@ -12,6 +12,7 @@ import downloadManager from "../services/downloadManager";
 import * as passwordService from "../services/passwordService";
 import * as settingsValidationService from "../services/settingsValidationService";
 import * as storageService from "../services/storageService";
+import { twitchApiService } from "../services/twitchService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 
@@ -20,31 +21,51 @@ type PersistedSettingsResponse = Settings & { passkeys?: unknown };
 const RESPONSE_HIDDEN_SETTINGS_KEYS = new Set([
   "password",
   "visitorPassword",
+]);
+
+const ADMIN_ONLY_SETTINGS_KEYS = new Set([
+  // Secrets and tokens should only round-trip to admin clients.
   "apiKey",
   "apiKeyEnabled",
+  "openListToken",
+  "cloudflaredToken",
+  "telegramBotToken",
+  "twitchClientId",
+  "twitchClientSecret",
 ]);
 
 const RESPONSE_VISIBLE_SETTINGS_KEYS =
   storageService.WHITELISTED_SETTINGS.filter(
-    (key) => !RESPONSE_HIDDEN_SETTINGS_KEYS.has(key)
+    (key) =>
+      !RESPONSE_HIDDEN_SETTINGS_KEYS.has(key) &&
+      !ADMIN_ONLY_SETTINGS_KEYS.has(key)
   );
 
 const buildSafeSettingsPayload = (
   req: Request,
   settings: PersistedSettingsResponse
 ): Record<string, unknown> => {
+  const canExposeAdminOnlySettings =
+    req.user?.role === "admin" || settings.loginEnabled !== true;
   const safeSettings = Object.fromEntries(
     RESPONSE_VISIBLE_SETTINGS_KEYS
       .filter((key) => Object.prototype.hasOwnProperty.call(settings, key))
       .map((key) => [key, settings[key as keyof PersistedSettingsResponse]])
   );
-  const canExposeApiKey =
-    req.user?.role === "admin" || settings.loginEnabled !== true;
+  const adminOnlySettings =
+    canExposeAdminOnlySettings
+      ? Object.fromEntries(
+          Array.from(ADMIN_ONLY_SETTINGS_KEYS)
+            .filter((key) =>
+              Object.prototype.hasOwnProperty.call(settings, key)
+            )
+            .map((key) => [key, settings[key as keyof PersistedSettingsResponse]])
+        )
+      : {};
 
   return {
     ...safeSettings,
-    apiKeyEnabled: canExposeApiKey ? settings.apiKeyEnabled : undefined,
-    apiKey: canExposeApiKey ? settings.apiKey : undefined,
+    ...adminOnlySettings,
     password: undefined,
     visitorPassword: undefined,
     passkeys: undefined,
@@ -472,6 +493,12 @@ const persistSettingsUpdate = async (
 
   ensureApiKeyWhenEnabled(settingsToPersist, finalSettings);
   storageService.saveSettings(settingsToPersist as Record<string, unknown>);
+  if (
+    settingsToPersist.twitchClientId !== undefined ||
+    settingsToPersist.twitchClientSecret !== undefined
+  ) {
+    twitchApiService.invalidateCache();
+  }
 
   processTagChanges(existingSettings, settingsToPersist);
   await moveSubtitlesIfSettingChanged(existingSettings, settingsToPersist);

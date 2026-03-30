@@ -190,7 +190,14 @@ npm run test:coverage # Run tests with coverage report
    - Go to Settings → Cookie Settings
    - Upload your `cookies.txt` file
 
-5. **Configure Cloud Storage** (Optional):
+5. **Configure Twitch Subscriptions** (Optional):
+
+   - Go to Settings → Twitch Subscriptions
+   - Add `twitchClientId` and `twitchClientSecret` if you want Helix-backed channel detection and polling
+   - Credentials are optional; without them, MyTube falls back to yt-dlp polling in best-effort mode
+   - Twitch subscriptions download published VODs only; live stream capture is not included
+
+6. **Configure Cloud Storage** (Optional):
 
    - Go to Settings → Cloud Drive Settings
    - Enable "Enable Auto Save to Cloud"
@@ -201,15 +208,15 @@ npm run test:coverage # Run tests with coverage report
    - Test the connection to verify settings
    - Note: When enabled, videos will be automatically uploaded to cloud storage after download, and local files will be deleted
 
-6. **Configure Visitor User** (Optional):
+7. **Configure Visitor User** (Optional):
 
    - Go to Settings → Security
    - Enable "Visitor User" to allow read-only access
    - Set a visitor password for the read-only role
 
-7. **Start Downloading**:
+8. **Start Downloading**:
    - Enter a video URL in the download input
-   - Supported platforms: YouTube, Bilibili, MissAV, and all yt-dlp supported sites
+   - Supported platforms: YouTube, Bilibili, Twitch VODs, MissAV, and all yt-dlp supported sites
 
 ## Architecture Overview
 

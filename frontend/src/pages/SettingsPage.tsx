@@ -32,6 +32,7 @@ import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import TagsSettings from '../components/Settings/TagsSettings';
+import TwitchSettings from '../components/Settings/TwitchSettings';
 import VideoDefaultSettings from '../components/Settings/VideoDefaultSettings';
 import YtDlpSettings from '../components/Settings/YtDlpSettings';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +47,7 @@ import { Settings } from '../types';
 import { api } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
+import { getTwitchCredentialValidationCode } from '../utils/twitch';
 import { Language } from '../utils/translations';
 
 const SettingsPage: React.FC = () => {
@@ -85,12 +87,19 @@ const SettingsPage: React.FC = () => {
         playSoundOnTaskComplete: '',
         mountDirectories: '',
         defaultSort: 'dateDesc',
-        preferredAudioLanguage: ''
+        preferredAudioLanguage: '',
+        twitchClientId: '',
+        twitchClientSecret: '',
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
     const [currentTab, setCurrentTab] = useState(0);
+    const twitchCredentialValidationCode = getTwitchCredentialValidationCode(
+        settings.twitchClientId,
+        settings.twitchClientSecret,
+    );
+    const hasTwitchCredentialValidationError = twitchCredentialValidationCode !== null;
 
     const triggerGlow = () => {
         setIsGlowing(false);
@@ -244,7 +253,7 @@ const SettingsPage: React.FC = () => {
     };
 
     const handleSave = () => {
-        if (!saveMutation.isPending) {
+        if (!saveMutation.isPending && !hasTwitchCredentialValidationError) {
             saveMutation.mutate(settings);
         }
     };
@@ -372,6 +381,16 @@ const SettingsPage: React.FC = () => {
                     proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
                     onChange={(config) => handleChange('ytDlpConfig', config)}
                     onProxyOnlyYoutubeChange={(checked) => handleChange('proxyOnlyYoutube', checked)}
+                />
+            </Box>
+            <Box>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                    {t('twitchSubscriptions') || 'Twitch Subscriptions'}
+                </Typography>
+                <TwitchSettings
+                    twitchClientId={settings.twitchClientId}
+                    twitchClientSecret={settings.twitchClientSecret}
+                    onChange={(field, value) => handleChange(field as keyof Settings, value)}
                 />
             </Box>
         </Box>
@@ -637,7 +656,7 @@ const SettingsPage: React.FC = () => {
                     color="primary"
                     size="large"
                     onClick={handleSave}
-                    disabled={saveMutation.isPending}
+                    disabled={saveMutation.isPending || hasTwitchCredentialValidationError}
                     sx={{ visibility: isSticky ? 'hidden' : 'visible' }}
                     className={isGlowing ? 'button-glow-animation' : ''}
                     onAnimationEnd={() => setIsGlowing(false)}
@@ -670,7 +689,7 @@ const SettingsPage: React.FC = () => {
                                 color="primary"
                                 size="large"
                                 onClick={handleSave}
-                                disabled={saveMutation.isPending}
+                                disabled={saveMutation.isPending || hasTwitchCredentialValidationError}
                                 className={isGlowing ? 'button-glow-animation' : ''}
                                 onAnimationEnd={() => setIsGlowing(false)}
                             >

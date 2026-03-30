@@ -49,6 +49,46 @@ describe("settingsValidationService", () => {
         });
       }).toThrow(ValidationError);
     });
+
+    it("should trim and validate Twitch client credentials as a pair", () => {
+      const settings: any = {
+        twitchClientId: "  client-id  ",
+        twitchClientSecret: "  client-secret  ",
+      };
+
+      settingsValidationService.validateSettings(settings);
+
+      expect(settings.twitchClientId).toBe("client-id");
+      expect(settings.twitchClientSecret).toBe("client-secret");
+    });
+
+    it("should reject partial or invalid Twitch client credentials", () => {
+      expect(() => {
+        settingsValidationService.validateSettings({
+          twitchClientSecret: "client-secret",
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          twitchClientId: "client-id",
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          twitchClientId: "bad",
+          twitchClientSecret: "client-secret",
+        });
+      }).toThrow(ValidationError);
+
+      expect(() => {
+        settingsValidationService.validateSettings({
+          twitchClientId: "client-id",
+          twitchClientSecret: "short",
+        });
+      }).toThrow(ValidationError);
+    });
   });
 
   describe("mergeSettings", () => {

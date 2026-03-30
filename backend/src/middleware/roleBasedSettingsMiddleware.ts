@@ -67,6 +67,14 @@ export const roleBasedSettingsMiddleware = (
     return;
   }
 
+  const loginRequired = isLoginRequired();
+
+  // When login is disabled, all settings requests should behave as admin access.
+  if (!loginRequired) {
+    next();
+    return;
+  }
+
   // If user is Admin, allow all requests
   if (req.user?.role === "admin") {
     next();
@@ -142,8 +150,6 @@ export const roleBasedSettingsMiddleware = (
 
   // For unauthenticated users, check if login is required
   if (!req.user) {
-    const loginRequired = isLoginRequired();
-
     // If login is required and this is not a public endpoint, reject the request
     if (loginRequired && !isPublicEndpoint(req)) {
       res.status(401).json({

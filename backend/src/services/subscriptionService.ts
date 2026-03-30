@@ -6,8 +6,11 @@ import { subscriptions } from "../db/schema";
 import { DuplicateError, ValidationError } from "../errors/DownloadErrors";
 import {
     extractBilibiliMid,
+    extractTwitchChannelLogin,
     isBilibiliSpaceUrl,
+    isTwitchChannelUrl,
     isYouTubeUrl,
+    normalizeTwitchChannelUrl,
     normalizeYouTubeAuthorUrl,
 } from "../utils/helpers";
 import { logger } from "../utils/logger";
@@ -16,8 +19,69 @@ import {
     downloadYouTubeVideo,
 } from "./downloadService";
 import { BilibiliDownloader } from "./downloaders/BilibiliDownloader";
+import {
+  getTwitchChannelVideos,
+  TwitchYtDlpVideoEntry,
+} from "./downloaders/ytdlp/ytdlpTwitch";
 import { YtDlpDownloader } from "./downloaders/YtDlpDownloader";
 import * as storageService from "./storageService";
+import { TwitchVideoInfo, twitchApiService } from "./twitchService";
+
+const MAX_TWITCH_SUBSCRIPTION_PAGES_PER_CHECK = 5;
+const MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS = 500;
+const MAX_TWITCH_SUBSCRIPTION_DOWNLOADS_PER_CHECK = Math.max(
+  Number.parseInt(
+    process.env.TWITCH_SUBSCRIPTION_MAX_DOWNLOADS_PER_CHECK || "3",
+    10
+  ) || 3,
+  1
+);
+const RETRYABLE_TWITCH_API_ERROR_CODES = new Set([
+  "ECONNABORTED",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+  "ERR_NETWORK",
+]);
+
+function shouldFallbackToTwitchYtDlp(error: unknown): boolean {
+  if (error instanceof ValidationError) {
+    return (
+      error.field === "twitchClientId" || error.field === "twitchClientSecret"
+    );
+  }
+
+  if (error && typeof error === "object") {
+    const errorWithResponse = error as {
+      code?: unknown;
+      message?: unknown;
+      request?: unknown;
+      response?: { status?: unknown };
+    };
+
+    if (typeof errorWithResponse.response?.status === "number") {
+      return true;
+    }
+
+    if (
+      typeof errorWithResponse.code === "string" &&
+      RETRYABLE_TWITCH_API_ERROR_CODES.has(errorWithResponse.code)
+    ) {
+      return true;
+    }
+
+    if (errorWithResponse.request !== undefined) {
+      return true;
+    }
+  }
+
+  return (
+    error instanceof Error &&
+    error.message.includes("Twitch API is temporarily rate limited")
+  );
+}
 
 export interface Subscription {
   id: string;
@@ -41,6 +105,11 @@ export interface Subscription {
   // Shorts support
   downloadShorts?: number; // 0 or 1
   lastShortVideoLink?: string;
+
+  // Twitch support
+  twitchBroadcasterId?: string;
+  twitchBroadcasterLogin?: string;
+  lastTwitchVideoId?: string;
 }
 
 export class SubscriptionService {
@@ -66,6 +135,10 @@ export class SubscriptionService {
     // Detect platform and validate URL
     let platform: string;
     let authorName = providedAuthorName || "Unknown Author";
+    let lastVideoLink = "";
+    let twitchBroadcasterId: string | undefined;
+    let twitchBroadcasterLogin: string | undefined;
+    let lastTwitchVideoId: string | undefined;
 
     if (isBilibiliSpaceUrl(authorUrl)) {
       platform = "Bilibili";
@@ -203,6 +276,56 @@ export class SubscriptionService {
           }
         }
       }
+    } else if (isTwitchChannelUrl(authorUrl)) {
+      authorUrl = normalizeTwitchChannelUrl(authorUrl);
+      platform = "Twitch";
+
+      const channelLogin = extractTwitchChannelLogin(authorUrl);
+      if (!channelLogin) {
+        throw new ValidationError(`Invalid Twitch channel URL: ${authorUrl}`, "url");
+      }
+
+      if (twitchApiService.isConfigured()) {
+        const channel = await twitchApiService.getChannelByLogin(channelLogin);
+        if (!channel) {
+          throw new ValidationError(
+            `Twitch channel not found: ${channelLogin}`,
+            "url"
+          );
+        }
+
+        const { videos } = await twitchApiService.listVideosByBroadcaster(
+          channel.id,
+          {
+            first: 20,
+            type: "all",
+          }
+        );
+        const newestEligibleVideo = videos.find((video) =>
+          this.isEligibleTwitchVideo(video)
+        );
+
+        authorName = channel.displayName || providedAuthorName || channel.login;
+        twitchBroadcasterId = channel.id;
+        twitchBroadcasterLogin = channel.login;
+        lastTwitchVideoId = newestEligibleVideo?.id;
+        lastVideoLink = newestEligibleVideo?.url || "";
+      } else {
+        const fallbackResult = await getTwitchChannelVideos(authorUrl, {
+          startIndex: 0,
+          limit: 20,
+        });
+        const newestVideo = fallbackResult.videos[0];
+
+        authorName =
+          providedAuthorName ||
+          fallbackResult.channelName ||
+          fallbackResult.channelLogin ||
+          channelLogin;
+        twitchBroadcasterLogin = fallbackResult.channelLogin || channelLogin;
+        lastTwitchVideoId = newestVideo?.id;
+        lastVideoLink = newestVideo?.url || "";
+      }
     } else {
       throw ValidationError.unsupportedPlatform(authorUrl);
     }
@@ -218,8 +341,11 @@ export class SubscriptionService {
 
     // We skip heavy getVideoInfo here to ensure fast response.
     // The scheduler will eventually fetch new videos and we can update author name then if needed.
-
-    let lastVideoLink = "";
+    if (platform === "Twitch" && downloadShorts) {
+      logger.info(
+        "Ignoring downloadShorts for Twitch subscriptions because Twitch Shorts are not supported."
+      );
+    }
 
     const newSubscription: Subscription = {
       id: uuidv4(),
@@ -232,7 +358,10 @@ export class SubscriptionService {
       createdAt: Date.now(),
       platform,
       paused: 0,
-      downloadShorts: downloadShorts ? 1 : 0,
+      downloadShorts: platform === "Twitch" ? 0 : downloadShorts ? 1 : 0,
+      twitchBroadcasterId,
+      twitchBroadcasterLogin,
+      lastTwitchVideoId,
     };
 
     await db.insert(subscriptions).values(newSubscription);
@@ -591,6 +720,11 @@ export class SubscriptionService {
               continue; // Watcher handled, move to next subscription
             }
 
+            if (sub.platform === "Twitch") {
+              await this.checkTwitchSubscription(sub);
+              continue;
+            }
+
             const isPlaylistSubscription = sub.subscriptionType === "playlist";
             const latestVideoUrl = isPlaylistSubscription
               ? await this.getLatestPlaylistVideoUrl(
@@ -819,6 +953,333 @@ export class SubscriptionService {
       }
     } finally {
       this.isCheckingSubscriptions = false;
+    }
+  }
+
+  private isEligibleTwitchVideo(video: TwitchVideoInfo): boolean {
+    return video.type === "archive" || video.type === "upload";
+  }
+
+  private async checkTwitchSubscription(sub: Subscription): Promise<void> {
+    const now = Date.now();
+    const lockResult = await db
+      .update(subscriptions)
+      .set({ lastCheck: now })
+      .where(eq(subscriptions.id, sub.id))
+      .returning({ id: subscriptions.id });
+
+    if (lockResult.length === 0) {
+      logger.warn(
+        `Twitch subscription ${sub.id} (${sub.author}) was deleted before polling`
+      );
+      return;
+    }
+
+    if (!twitchApiService.isConfigured()) {
+      await this.checkTwitchSubscriptionWithYtDlp(sub);
+      return;
+    }
+
+    try {
+      await this.checkTwitchSubscriptionWithApi(sub);
+    } catch (error) {
+      if (!shouldFallbackToTwitchYtDlp(error)) {
+        throw error;
+      }
+
+      logger.warn(
+        `Falling back to yt-dlp for Twitch subscription ${sub.id} (${sub.author}) after Helix polling failed`,
+        error instanceof Error ? error : new Error(String(error))
+      );
+      await this.checkTwitchSubscriptionWithYtDlp(sub);
+    }
+  }
+
+  private async checkTwitchSubscriptionWithApi(
+    sub: Subscription
+  ): Promise<void> {
+    twitchApiService.ensureConfigured();
+
+    let channel = sub.twitchBroadcasterId
+      ? await twitchApiService.getChannelById(sub.twitchBroadcasterId)
+      : null;
+
+    if (!channel) {
+      const channelLogin =
+        sub.twitchBroadcasterLogin || extractTwitchChannelLogin(sub.authorUrl);
+      if (!channelLogin) {
+        throw new ValidationError(
+          `Invalid Twitch channel URL: ${sub.authorUrl}`,
+          "authorUrl"
+        );
+      }
+      channel = await twitchApiService.getChannelByLogin(channelLogin);
+    }
+
+    if (!channel) {
+      logger.warn(
+        `Twitch channel for subscription ${sub.id} could not be resolved`
+      );
+      return;
+    }
+
+    await db
+      .update(subscriptions)
+      .set({
+        author: channel.displayName,
+        authorUrl: channel.url,
+        twitchBroadcasterId: channel.id,
+        twitchBroadcasterLogin: channel.login,
+      })
+      .where(eq(subscriptions.id, sub.id));
+
+    const unseenVideos: TwitchVideoInfo[] = [];
+    let cursor: string | undefined;
+    let pagesFetched = 0;
+    let scannedVideos = 0;
+    let foundMarker = false;
+
+    while (
+      pagesFetched < MAX_TWITCH_SUBSCRIPTION_PAGES_PER_CHECK &&
+      scannedVideos < MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS
+    ) {
+      const response = await twitchApiService.listVideosByBroadcaster(
+        channel.id,
+        {
+          after: cursor,
+          first: 100,
+          type: "all",
+        }
+      );
+      pagesFetched += 1;
+
+      if (response.videos.length === 0) {
+        break;
+      }
+
+      for (const video of response.videos) {
+        scannedVideos += 1;
+
+        if (!this.isEligibleTwitchVideo(video)) {
+          if (scannedVideos >= MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS) {
+            break;
+          }
+          continue;
+        }
+
+        if (sub.lastTwitchVideoId && video.id === sub.lastTwitchVideoId) {
+          foundMarker = true;
+          break;
+        }
+
+        unseenVideos.push(video);
+        if (scannedVideos >= MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS) {
+          break;
+        }
+      }
+
+      if (
+        foundMarker ||
+        !response.cursor ||
+        scannedVideos >= MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS
+      ) {
+        break;
+      }
+
+      cursor = response.cursor;
+    }
+
+    if (unseenVideos.length === 0) {
+      return;
+    }
+
+    await this.processTwitchSubscriptionVideos(
+      sub,
+      unseenVideos
+        .reverse()
+        .slice(0, MAX_TWITCH_SUBSCRIPTION_DOWNLOADS_PER_CHECK)
+        .map((video) => ({
+        id: video.id,
+        url: video.url,
+        title: video.title,
+        authorName: video.userName || channel.displayName,
+      }))
+    );
+  }
+
+  private async checkTwitchSubscriptionWithYtDlp(
+    sub: Subscription
+  ): Promise<void> {
+    const fallbackLogin =
+      sub.twitchBroadcasterLogin || extractTwitchChannelLogin(sub.authorUrl);
+    if (!fallbackLogin) {
+      throw new ValidationError(
+        `Invalid Twitch channel URL: ${sub.authorUrl}`,
+        "authorUrl"
+      );
+    }
+
+    const normalizedUrl = normalizeTwitchChannelUrl(sub.authorUrl);
+    const unseenVideos: TwitchYtDlpVideoEntry[] = [];
+    let pagesFetched = 0;
+    let scannedVideos = 0;
+    let foundMarker = false;
+    let resolvedAuthor = sub.author;
+    let resolvedLogin = sub.twitchBroadcasterLogin || fallbackLogin;
+
+    while (
+      pagesFetched < MAX_TWITCH_SUBSCRIPTION_PAGES_PER_CHECK &&
+      scannedVideos < MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS
+    ) {
+      const response = await getTwitchChannelVideos(normalizedUrl, {
+        startIndex: pagesFetched * 100,
+        limit: 100,
+      });
+      pagesFetched += 1;
+
+      if (response.channelName) {
+        resolvedAuthor = response.channelName;
+      }
+      if (response.channelLogin) {
+        resolvedLogin = response.channelLogin;
+      }
+
+      if (pagesFetched === 1) {
+        await db
+          .update(subscriptions)
+          .set({
+            author: resolvedAuthor,
+            authorUrl: normalizedUrl,
+            twitchBroadcasterLogin: resolvedLogin,
+          })
+          .where(eq(subscriptions.id, sub.id));
+      }
+
+      if (response.videos.length === 0) {
+        break;
+      }
+
+      for (const video of response.videos) {
+        scannedVideos += 1;
+
+        if (sub.lastTwitchVideoId && video.id === sub.lastTwitchVideoId) {
+          foundMarker = true;
+          break;
+        }
+
+        unseenVideos.push(video);
+        if (scannedVideos >= MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS) {
+          break;
+        }
+      }
+
+      if (
+        foundMarker ||
+        response.videos.length < 100 ||
+        scannedVideos >= MAX_TWITCH_SUBSCRIPTION_SCANNED_VIDEOS
+      ) {
+        break;
+      }
+    }
+
+    if (unseenVideos.length === 0) {
+      return;
+    }
+
+    await this.processTwitchSubscriptionVideos(
+      sub,
+      unseenVideos
+        .reverse()
+        .slice(0, MAX_TWITCH_SUBSCRIPTION_DOWNLOADS_PER_CHECK)
+        .map((video) => ({
+        id: video.id,
+        url: video.url,
+        title: video.title,
+        authorName: video.author || resolvedAuthor,
+      }))
+    );
+  }
+
+  private async processTwitchSubscriptionVideos(
+    sub: Subscription,
+    videosToProcess: Array<{
+      id: string;
+      url: string;
+      title: string;
+      authorName?: string | null;
+    }>
+  ): Promise<void> {
+    let currentLastVideoLink = sub.lastVideoLink || "";
+    let currentLastTwitchVideoId = sub.lastTwitchVideoId;
+    let currentDownloadCount = sub.downloadCount || 0;
+
+    for (const video of videosToProcess) {
+      const existingDownload = storageService.checkVideoDownloadBySourceId(
+        video.id,
+        "twitch"
+      );
+
+      if (existingDownload.found) {
+        currentLastTwitchVideoId = video.id;
+        currentLastVideoLink = video.url;
+
+        await db
+          .update(subscriptions)
+          .set({
+            lastTwitchVideoId: currentLastTwitchVideoId,
+            lastVideoLink: currentLastVideoLink,
+          })
+          .where(eq(subscriptions.id, sub.id));
+        continue;
+      }
+
+      try {
+        const downloadResult = await downloadYouTubeVideo(video.url);
+        const videoData = downloadResult?.videoData || downloadResult || {};
+
+        storageService.addDownloadHistoryItem({
+          id: uuidv4(),
+          title: videoData.title || video.title,
+          author: videoData.author || video.authorName || sub.author,
+          sourceUrl: video.url,
+          finishedAt: Date.now(),
+          status: "success",
+          videoPath: videoData.videoPath,
+          thumbnailPath: videoData.thumbnailPath,
+          videoId: videoData.id,
+          subscriptionId: sub.id,
+        });
+
+        currentLastTwitchVideoId = video.id;
+        currentLastVideoLink = video.url;
+        currentDownloadCount += 1;
+
+        await db
+          .update(subscriptions)
+          .set({
+            lastTwitchVideoId: currentLastTwitchVideoId,
+            lastVideoLink: currentLastVideoLink,
+            downloadCount: currentDownloadCount,
+          })
+          .where(eq(subscriptions.id, sub.id));
+      } catch (downloadError: any) {
+        logger.error(
+          `Error downloading Twitch subscription video for ${sub.author}:`,
+          downloadError
+        );
+
+        storageService.addDownloadHistoryItem({
+          id: uuidv4(),
+          title: video.title || `Video from ${sub.author}`,
+          author: video.authorName || sub.author,
+          sourceUrl: video.url,
+          finishedAt: Date.now(),
+          status: "failed",
+          error: downloadError?.message || "Download failed",
+          subscriptionId: sub.id,
+        });
+        break;
+      }
     }
   }
 

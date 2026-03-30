@@ -50,6 +50,19 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
     const [downloadAllPrevious, setDownloadAllPrevious] = useState<boolean>(false);
     const [downloadShorts, setDownloadShorts] = useState<boolean>(false);
     const [downloadOrder, setDownloadOrder] = useState<DownloadOrder>('dateDesc');
+    const isTwitch = source === 'twitch';
+    const showDownloadShorts = source !== 'bilibili' && source !== 'twitch';
+    const resolvedTitle =
+        title || (isTwitch ? (t('subscribeToChannel') || 'Subscribe to Channel') : t('subscribeToAuthor'));
+    const resolvedDescription =
+        description || (
+            isTwitch
+                ? t('twitchSubscriptionDescription')
+                : t('subscribeConfirmationMessage', { author: authorName || url })
+        );
+    const resolvedHelpText = isTwitch
+        ? t('twitchSubscriptionVodsOnly')
+        : t('subscribeDescription');
 
     const handleConfirm = () => {
         onConfirm(interval, downloadAllPrevious, downloadShorts, downloadOrder);
@@ -72,7 +85,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
         >
             <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                    {title || t('subscribeToAuthor')}
+                    {resolvedTitle}
                 </Typography>
                 <IconButton
                     aria-label="close"
@@ -86,10 +99,10 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
             </DialogTitle>
             <DialogContent dividers>
                 <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
-                    {description || t('subscribeConfirmationMessage', { author: authorName || url })}
+                    {resolvedDescription}
                 </DialogContentText>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    {t('subscribeDescription')}
+                    {resolvedHelpText}
                 </Typography>
                 <TextField
                     autoFocus
@@ -104,7 +117,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                     slotProps={{ htmlInput: { min: 1 } }}
                     sx={{ mb: 2 }}
                 />
-                {source !== 'bilibili' && (
+                {showDownloadShorts && (
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -154,7 +167,7 @@ const SubscribeModal: React.FC<SubscribeModalProps> = ({
                                 {t('downloadOrderLargeChannelHint') || 'Large channels may take longer to fetch metadata before downloading begins.'}
                             </Typography>
                         )}
-                        {downloadShorts && (
+                        {downloadShorts && showDownloadShorts && (
                             <Typography variant="body2" component="div" sx={{ mt: 0.5 }}>
                                 {t('downloadOrderShortsHint') || 'Two download tasks will be created: one for main videos and one for Shorts.'}
                             </Typography>

@@ -146,6 +146,34 @@ export const en = {
   telegramChatIdHelper: "Message @RawDataBot on Telegram to get your chat ID.",
   telegramNotifyOnSuccess: "Notify on Success",
   telegramNotifyOnFail: "Notify on Failure",
+  twitchSubscriptions: "Twitch Subscriptions",
+  twitchClientId: "Twitch Client ID",
+  twitchClientSecret: "Twitch Client Secret",
+  twitchSubscriptionCredentialsHelper:
+    "Twitch client credentials are optional. Without them, MyTube falls back to yt-dlp polling in best-effort mode. Adding credentials makes channel detection more reliable.",
+  twitchSubscriptionDescription:
+    "MyTube will check this Twitch channel for new VODs and download them after Twitch publishes them.",
+  twitchSubscriptionCredentialsMissing:
+    "Twitch subscription failed. Client credentials are optional, but recommended for more reliable channel subscriptions.",
+  twitchSubscriptionVodsOnly:
+    "MyTube downloads Twitch VODs after they are published. Live stream capture is not included in this version.",
+  twitchClientHelpLink: "How to get Twitch Client ID and Secret",
+  twitchClientHelpTitle: "Get Twitch Client ID and Secret",
+  twitchClientHelpIntro:
+    "You need to create a Twitch application in the Twitch Developer Console first.",
+  twitchClientHelpStep1:
+    "Open the Twitch Developer Console and sign in with your Twitch account.",
+  twitchClientHelpStep2: "Create a new application for MyTube.",
+  twitchClientHelpStep3:
+    "Set an OAuth Redirect URL. If you only use server-side subscriptions, a placeholder such as http://localhost is sufficient.",
+  twitchClientHelpStep4:
+    "After the app is created, copy the Client ID from the application details page.",
+  twitchClientHelpStep5:
+    "Generate or reveal a Client Secret, then paste both values into MyTube settings.",
+  twitchClientHelpSecurity:
+    "Keep the Client Secret private and do not share it in screenshots or public pages.",
+  twitchDeveloperConsole: "Twitch Developer Console",
+  twitchDeveloperDocs: "Twitch Developer Docs",
   telegramTestButton: "Send Test Message",
   telegramTestSuccess: "Test message sent successfully!",
   telegramTestFailed: "Test failed: {error}",

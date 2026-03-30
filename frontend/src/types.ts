@@ -3,7 +3,7 @@ export interface Video {
   title: string;
   author: string;
   date: string;
-  source: "youtube" | "bilibili" | "local" | "missav";
+  source: "youtube" | "bilibili" | "twitch" | "local" | "missav";
   sourceUrl: string;
   videoFilename?: string;
   thumbnailFilename?: string;
@@ -122,4 +122,6 @@ export interface Settings {
   telegramChatId?: string;
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
+  twitchClientId?: string;
+  twitchClientSecret?: string;
 }

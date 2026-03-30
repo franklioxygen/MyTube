@@ -32,6 +32,15 @@ vi.mock("../../utils/apiClient", () => ({
     post: (...args: any[]) => mockApiPost(...args),
     delete: (...args: any[]) => mockApiDelete(...args),
   },
+  getErrorMessage: (error: any) => {
+    if (typeof error?.response?.data?.error === "string") {
+      return error.response.data.error;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return "unknown";
+  },
 }));
 
 const createWrapper = () => {
@@ -165,6 +174,33 @@ describe("useVideoSubscriptions", () => {
       (call) => call[0] === "/videos/author-channel-url"
     );
     expect(requestedChannelUrl).toBe(false);
+  });
+
+  it("requests author channel URL for twitch videos", async () => {
+    const twitchVideo = {
+      ...baseVideo,
+      source: "twitch",
+      sourceUrl: "https://www.twitch.tv/videos/12345",
+    };
+    channelUrlData = {
+      success: true,
+      channelUrl: "https://www.twitch.tv/author_1",
+    };
+
+    const { result } = renderHook(
+      () => useVideoSubscriptions({ video: twitchVideo as any }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.authorChannelUrl).toBe(
+        "https://www.twitch.tv/author_1"
+      );
+    });
+
+    expect(mockApiGet).toHaveBeenCalledWith("/videos/author-channel-url", {
+      params: { sourceUrl: "https://www.twitch.tv/videos/12345" },
+    });
   });
 
   it("marks video subscribed by strict author URL match", async () => {
@@ -342,6 +378,44 @@ describe("useVideoSubscriptions", () => {
 
     expect(mockShowSnackbar).toHaveBeenCalledWith("error", "error");
     expect(result.current.showSubscribeModal).toBe(false);
+  });
+
+  it("shows backend validation message for twitch subscription failures", async () => {
+    const twitchVideo = {
+      ...baseVideo,
+      source: "twitch",
+      sourceUrl: "https://www.twitch.tv/videos/12345",
+    };
+    channelUrlData = {
+      success: true,
+      channelUrl: "https://www.twitch.tv/author_1",
+    };
+    mockApiPost.mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: {
+          error: "Twitch credentials are missing",
+        },
+      },
+    });
+
+    const { result } = renderHook(
+      () => useVideoSubscriptions({ video: twitchVideo as any }),
+      { wrapper: createWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.authorChannelUrl).toBeTruthy();
+    });
+
+    await act(async () => {
+      await result.current.handleSubscribeConfirm(30, false, false, "dateDesc");
+    });
+
+    expect(mockShowSnackbar).toHaveBeenCalledWith(
+      "Twitch credentials are missing",
+      "error"
+    );
   });
 
   it("does not submit subscription when required values are missing", async () => {

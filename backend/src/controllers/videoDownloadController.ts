@@ -8,6 +8,7 @@ import {
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
+  isTwitchVideoUrl,
   isYouTubeUrl,
   isValidUrl,
   processVideoUrl,
@@ -216,6 +217,8 @@ export const downloadVideo = async (
       initialTitle = "YouTube Video";
     } else if (isBilibiliUrl(resolvedUrl)) {
       initialTitle = "Bilibili Video";
+    } else if (isTwitchVideoUrl(resolvedUrl)) {
+      initialTitle = "Twitch Video";
     } else if (isMissAVUrl(resolvedUrl)) {
       initialTitle = "MissAV Video";
     }

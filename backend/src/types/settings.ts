@@ -50,6 +50,8 @@ export interface Settings {
   telegramChatId?: string;
   telegramNotifyOnSuccess?: boolean;
   telegramNotifyOnFail?: boolean;
+  twitchClientId?: string;
+  twitchClientSecret?: string;
 }
 
 export const DEFAULT_ADMIN_PASSWORD = "123";
@@ -88,4 +90,6 @@ export const defaultSettings: Settings = {
   telegramChatId: "",
   telegramNotifyOnSuccess: true,
   telegramNotifyOnFail: true,
+  twitchClientId: "",
+  twitchClientSecret: "",
 };

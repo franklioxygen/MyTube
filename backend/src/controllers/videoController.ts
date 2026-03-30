@@ -13,7 +13,15 @@ import {
   regenerateSmallThumbnailForThumbnailPath,
   resolveManagedThumbnailTarget,
 } from "../services/thumbnailMirrorService";
-import { isBilibiliUrl, isYouTubeUrl } from "../utils/helpers";
+import { twitchApiService } from "../services/twitchService";
+import {
+  extractTwitchVideoId,
+  isBilibiliUrl,
+  isTwitchChannelUrl,
+  isTwitchVideoUrl,
+  isYouTubeUrl,
+  normalizeTwitchChannelUrl,
+} from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
@@ -846,12 +854,51 @@ const fetchBilibiliChannelUrl = async (
   }
 };
 
+const fetchTwitchChannelUrl = async (
+  sourceUrl: string
+): Promise<string | null> => {
+  if (isTwitchChannelUrl(sourceUrl)) {
+    return normalizeTwitchChannelUrl(sourceUrl);
+  }
+
+  if (!isTwitchVideoUrl(sourceUrl)) {
+    return null;
+  }
+
+  const twitchVideoId = extractTwitchVideoId(sourceUrl);
+  if (!twitchVideoId) {
+    return null;
+  }
+
+  try {
+    const twitchVideo = await twitchApiService.getVideoById(twitchVideoId);
+    if (twitchVideo) {
+      return `https://www.twitch.tv/${twitchVideo.userLogin}`;
+    }
+  } catch (error) {
+    logger.error("Error fetching Twitch video info:", error);
+  }
+
+  const {
+    getChannelUrlFromVideo,
+    getNetworkConfigFromUserConfig,
+    getUserYtDlpConfig,
+  } = await import("../utils/ytDlpUtils");
+  const userConfig = getUserYtDlpConfig(sourceUrl);
+  const networkConfig = getNetworkConfigFromUserConfig(userConfig);
+  return getChannelUrlFromVideo(sourceUrl, networkConfig);
+};
+
 const resolveChannelUrl = async (sourceUrl: string): Promise<string | null> => {
   const youtubeChannelUrl = await fetchYouTubeChannelUrl(sourceUrl);
   if (youtubeChannelUrl) {
     return youtubeChannelUrl;
   }
-  return fetchBilibiliChannelUrl(sourceUrl);
+  const bilibiliChannelUrl = await fetchBilibiliChannelUrl(sourceUrl);
+  if (bilibiliChannelUrl) {
+    return bilibiliChannelUrl;
+  }
+  return fetchTwitchChannelUrl(sourceUrl);
 };
 
 const isMountVideoPath = (videoPath: string | undefined): boolean =>

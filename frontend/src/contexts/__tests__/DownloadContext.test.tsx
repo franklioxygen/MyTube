@@ -21,6 +21,7 @@ vi.mock('../../utils/apiClient', () => ({
     get: (...args: any[]) => mockApiGet(...args),
     post: (...args: any[]) => mockApiPost(...args),
   },
+  getErrorMessage: vi.fn(() => 'network'),
 }));
 
 vi.mock('../AuthContext', () => ({
@@ -78,10 +79,11 @@ vi.mock('../../components/ChannelSubscribeChoiceModal', () => ({
 }));
 
 vi.mock('../../components/SubscribeModal', () => ({
-  default: ({ open, onClose, onConfirm, enableDownloadOrder }: any) =>
+  default: ({ open, onClose, onConfirm, enableDownloadOrder, source }: any) =>
     open ? (
       <div data-testid="subscribe-modal">
         <div>{enableDownloadOrder ? 'mode-video' : 'mode-playlist'}</div>
+        <div>{`source-${source || 'none'}`}</div>
         <button onClick={() => onConfirm(30, true, false, 'viewsDesc')}>confirm-subscribe</button>
         <button onClick={onClose}>close-subscribe</button>
       </div>
@@ -398,6 +400,78 @@ describe('DownloadContext', () => {
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['subscriptions'] });
+  });
+
+  it('opens the subscribe modal directly for pasted Twitch channel URLs', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://www.twitch.tv/SomeStreamer/videos');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('subscribe-modal')).toBeInTheDocument();
+    });
+    expect(screen.getByText('mode-video')).toBeInTheDocument();
+    expect(screen.getByText('source-twitch')).toBeInTheDocument();
+    expect(screen.queryByTestId('channel-choice-modal')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('confirm-subscribe'));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/subscriptions', {
+        url: 'https://www.twitch.tv/somestreamer',
+        interval: 30,
+        downloadAllPrevious: true,
+        downloadShorts: false,
+        downloadOrder: 'viewsDesc',
+      });
+    });
+  });
+
+  it('does not treat Twitch clip URLs as channel subscriptions', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://clips.twitch.tv/FunnyClipSlug');
+    });
+
+    expect(screen.queryByTestId('subscribe-modal')).not.toBeInTheDocument();
+    expect(mockApiPost).toHaveBeenCalledWith('/download', {
+      youtubeUrl: 'https://clips.twitch.tv/FunnyClipSlug',
+      forceDownload: false,
+    });
+  });
+
+  it('shows the backend Twitch subscription validation message on failure', async () => {
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useDownload(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleVideoSubmit('https://www.twitch.tv/AnotherStreamer');
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('subscribe-modal')).toBeInTheDocument();
+    });
+
+    mockApiPost.mockRejectedValueOnce({
+      response: {
+        status: 400,
+        data: { error: 'Twitch client credentials are required for Twitch API requests.' },
+      },
+    });
+
+    fireEvent.click(screen.getByText('confirm-subscribe'));
+
+    await waitFor(() => {
+      expect(mockShowSnackbar).toHaveBeenCalledWith(
+        'Twitch client credentials are required for Twitch API requests.',
+        'error'
+      );
+    });
   });
 
   it('handles Bilibili collection/parts checks and download-all paths', async () => {

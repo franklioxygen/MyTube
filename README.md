@@ -1,6 +1,6 @@
 # MyTube
 
-Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md##). Features channel subscriptions, auto-downloads, and local storage for media. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
+Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). Features channel subscriptions, auto-downloads, and local storage for media. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
 
 🚀 100% Prompt-Engineered. 0 Lines of Manual Code.
 
@@ -24,7 +24,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 
 ## Features
 
-- **Video Downloading**: Download YouTube, Bilibili and MissAV videos with a simple URL input.
+- **Video Downloading**: Download YouTube, Bilibili, Twitch, MissAV and other yt-dlp-supported videos with a simple URL input.
 - **Video Upload**: Upload local video files directly to your library with automatic thumbnail generation.
 - **TMDB Metadata Scraping**: Automatically scrape movie and TV show metadata (title, description, poster, director, year, rating) from TMDB based on filename. Supports localized content matching your site language.
 - **Parallel Downloads**: Queue multiple downloads and track their progress simultaneously.
@@ -33,7 +33,7 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 - **Cloud Storage Integration**: Automatically upload videos and thumbnails to cloud storage (OpenList/Alist) after download.
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Collections**: Organize videos into custom collections for easy access.
-- **Subscriptions**: Manage subscriptions to channels or creators to automatically download new content.
+- **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
 - **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
 - **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
@@ -49,7 +49,6 @@ Self-hosted downloader and player for YouTube, Bilibili, MissAV, and [yt-dlp sit
 ## Browser Extension
 
 For installation and usage instructions, please refer to [Browser Extension](documents/en/chrome-extension.md).
-
 
 ## Directory Structure
 

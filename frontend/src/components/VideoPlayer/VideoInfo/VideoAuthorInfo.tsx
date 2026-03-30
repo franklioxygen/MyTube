@@ -10,7 +10,7 @@ interface VideoAuthorInfoProps {
     date: string | undefined;
     onAuthorClick: () => void;
     onAvatarClick?: () => void;
-    source?: 'youtube' | 'bilibili' | 'local' | 'missav';
+    source?: 'youtube' | 'bilibili' | 'twitch' | 'local' | 'missav';
     isSubscribed?: boolean;
     onSubscribe?: () => void;
     onUnsubscribe?: () => void;
@@ -45,7 +45,9 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
     const { userRole } = useAuth();
     const isVisitor = userRole === 'visitor';
     const isTouch = useMediaQuery('(hover: none), (pointer: coarse)');
-    const showSubscribeButton = (source === 'youtube' || source === 'bilibili') && !isVisitor;
+    const showSubscribeButton =
+        (source === 'youtube' || source === 'bilibili' || source === 'twitch') &&
+        !isVisitor;
     const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail');
 
     const handleSubscribeClick = (e: React.MouseEvent) => {
@@ -108,4 +110,3 @@ const VideoAuthorInfo: React.FC<VideoAuthorInfoProps> = ({
 };
 
 export default VideoAuthorInfo;
-

@@ -251,7 +251,7 @@ export class ValidationError extends ServiceError {
 
   static unsupportedPlatform(url: string): ValidationError {
     return new ValidationError(
-      `Invalid URL. Only YouTube channel URLs and Bilibili space URLs are supported: ${url}`,
+      `Invalid URL. Only YouTube channel URLs, Bilibili space URLs, and Twitch channel URLs are supported: ${url}`,
       "url"
     );
   }
