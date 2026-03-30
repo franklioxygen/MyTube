@@ -4,6 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Collection, Video } from '../../types';
 import CollectionCard from '../CollectionCard';
 
+const formatExpectedDate = (value: string) => {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
 // Mock react-router-dom
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
@@ -98,7 +107,7 @@ describe('CollectionCard', () => {
         );
 
         // Date should be formatted and displayed
-        const dateElement = screen.getByText(new Date(mockCollection.createdAt).toLocaleDateString());
+        const dateElement = screen.getByText(formatExpectedDate(mockCollection.createdAt));
         expect(dateElement).toBeInTheDocument();
     });
 

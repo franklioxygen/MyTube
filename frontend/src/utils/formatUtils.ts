@@ -79,6 +79,63 @@ export const formatSize = (bytes: string | number | undefined): string => {
   return parseFloat((size / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
+type DisplayDateInput = string | number | Date;
+
+const getValidDisplayDate = (
+  value?: DisplayDateInput,
+): Date | undefined => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+const formatLocalDateParts = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return { year, month, day };
+};
+
+/**
+ * Format a Date-compatible value using local time in YYYY-MM-DD format.
+ */
+export const formatDisplayDate = (
+  value?: DisplayDateInput,
+  fallback = "Unknown date",
+): string => {
+  const date = getValidDisplayDate(value);
+  if (!date) {
+    return fallback;
+  }
+
+  const { year, month, day } = formatLocalDateParts(date);
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Format a Date-compatible value using local time in YYYY-MM-DD HH:mm:ss format.
+ */
+export const formatDisplayDateTime = (
+  value?: DisplayDateInput,
+  fallback = "Unknown date",
+): string => {
+  const date = getValidDisplayDate(value);
+  if (!date) {
+    return fallback;
+  }
+
+  const { year, month, day } = formatLocalDateParts(date);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 /**
  * Format date string YYYYMMDD to YYYY-MM-DD
  */

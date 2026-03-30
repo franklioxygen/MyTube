@@ -153,6 +153,17 @@ describe('SubscriptionsPage', () => {
         expect(screen.getByText('99')).toBeInTheDocument();
     });
 
+    it('formats lastCheck as YYYY-MM-DD', () => {
+        const lastCheck = new Date('2025-03-05T12:34:56Z').getTime();
+        const date = new Date(lastCheck);
+        const expected = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+        mockSubscriptions = [makeSub({ lastCheck })];
+        renderPage();
+
+        expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
     // ── 4. Unsubscribe flow (real ConfirmationModal) ──────────────────────
 
     it('opens real modal and calls api.delete on confirm unsubscribe', async () => {

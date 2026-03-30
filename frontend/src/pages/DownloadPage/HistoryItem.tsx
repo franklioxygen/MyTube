@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { formatDisplayDateTime } from '../../utils/formatUtils';
 
 export interface DownloadHistoryItem {
     id: string;
@@ -48,10 +49,6 @@ interface HistoryItemProps {
     isDownloadInProgress: (sourceUrl: string) => boolean;
     dontSkipDeletedVideo?: boolean;
 }
-
-const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
-};
 
 export function HistoryItem({
     item,
@@ -112,18 +109,18 @@ export function HistoryItem({
                                 <>
                                     {item.downloadedAt && (
                                         <Typography variant="caption" component="span">
-                                            {t('downloadedOn') || 'Downloaded on'}: {formatDate(item.downloadedAt)}
+                                            {t('downloadedOn') || 'Downloaded on'}: {formatDisplayDateTime(item.downloadedAt)}
                                         </Typography>
                                     )}
                                     {item.deletedAt && (
                                         <Typography variant="caption" component="span">
-                                            {t('deletedOn') || 'Deleted on'}: {formatDate(item.deletedAt)}
+                                            {t('deletedOn') || 'Deleted on'}: {formatDisplayDateTime(item.deletedAt)}
                                         </Typography>
                                     )}
                                 </>
                             ) : (
                                 <Typography variant="caption" component="span">
-                                    {formatDate(item.finishedAt)}
+                                    {formatDisplayDateTime(item.finishedAt)}
                                 </Typography>
                             )}
                             {(item.subscriptionId || item.taskId) && (
@@ -218,4 +215,3 @@ export function HistoryItem({
         </Paper>
     );
 }
-

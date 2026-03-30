@@ -4,6 +4,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DownloadHistoryItem, HistoryItem } from '../DownloadPage/HistoryItem';
 
+const formatExpectedDateTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 // Mock useLanguage
 vi.mock('../../contexts/LanguageContext', () => ({
     useLanguage: () => ({
@@ -96,14 +108,14 @@ describe('HistoryItem', () => {
     // --- Date display ---
     describe('date display', () => {
         it('shows finishedAt for non-deleted items', () => {
-            const date = new Date(1700000000000).toLocaleString();
+            const date = formatExpectedDateTime(1700000000000);
             renderHistoryItem({ status: 'success', finishedAt: 1700000000000 });
             expect(screen.getByText(date)).toBeInTheDocument();
         });
 
         it('shows downloadedAt and deletedAt for deleted items', () => {
-            const downloadDate = new Date(1699000000000).toLocaleString();
-            const deleteDate = new Date(1700000000000).toLocaleString();
+            const downloadDate = formatExpectedDateTime(1699000000000);
+            const deleteDate = formatExpectedDateTime(1700000000000);
             renderHistoryItem({
                 status: 'deleted',
                 downloadedAt: 1699000000000,

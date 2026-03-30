@@ -23,6 +23,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { Collection } from '../../types';
+import { formatDisplayDate } from '../../utils/formatUtils';
 
 type CollectionSortBy = 'name' | 'videoCount' | 'size' | 'createdAt';
 
@@ -248,7 +249,7 @@ const CollectionsTable: React.FC<CollectionsTableProps> = ({
                                     </TableCell>
                                     <TableCell>{collection.videos.length} videos</TableCell>
                                     <TableCell>{getCollectionSize(collection.videos)}</TableCell>
-                                    <TableCell>{new Date(collection.createdAt).toLocaleDateString()}</TableCell>
+                                    <TableCell>{formatDisplayDate(collection.createdAt)}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">
                                             <Tooltip title={t('deleteCollection')} disableHoverListener={isTouch}>

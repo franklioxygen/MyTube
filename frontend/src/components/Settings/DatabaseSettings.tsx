@@ -16,6 +16,7 @@ import {
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import type { MergePreviewSummary } from '../../hooks/useSettingsMutations';
+import { formatDisplayDateTime } from '../../utils/formatUtils';
 
 interface DatabaseSettingsProps {
     onMigrate: () => void;
@@ -214,7 +215,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 parseInt(minute),
                 parseInt(second)
             );
-            return date.toLocaleString();
+            return formatDisplayDateTime(date, timestamp);
         }
         return timestamp;
     };

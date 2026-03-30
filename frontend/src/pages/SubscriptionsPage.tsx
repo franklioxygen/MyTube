@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { api } from '../utils/apiClient';
+import { formatDisplayDate } from '../utils/formatUtils';
 import { TranslationKey } from '../utils/translations';
 
 interface Subscription {
@@ -124,11 +125,6 @@ const SubscriptionsPage: React.FC = () => {
             setIsUnsubscribeModalOpen(false);
             setSelectedSubscription(null);
         }
-    };
-
-    const formatDate = (timestamp?: number) => {
-        if (!timestamp) return t('never');
-        return new Date(timestamp).toLocaleString();
     };
 
     const handleCancelTaskClick = (task: ContinuousDownloadTask) => {
@@ -283,7 +279,7 @@ const SubscriptionsPage: React.FC = () => {
                                     </TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.platform}</TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.interval} {t('minutes')}</TableCell>
-                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{formatDate(sub.lastCheck)}</TableCell>
+                                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{formatDisplayDate(sub.lastCheck, t('never'))}</TableCell>
                                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{sub.downloadCount}</TableCell>
                                     {!isVisitor && (
                                         <TableCell align="right">

@@ -14,6 +14,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useCloudStorageUrl } from '../hooks/useCloudStorageUrl';
 import { Collection, Video } from '../types';
 import { getBackendUrl } from '../utils/apiUrl';
+import { formatDisplayDate } from '../utils/formatUtils';
 import { buildSmallThumbnailAbsoluteUrl } from '../utils/imageOptimization';
 
 interface CollectionCardProps {
@@ -91,7 +92,7 @@ const CollectionCard: React.FC<CollectionCardProps> = ({ collection, videos }) =
 
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
                         <Typography variant="caption" color="text.secondary">
-                            {new Date(collection.createdAt).toLocaleDateString()}
+                            {formatDisplayDate(collection.createdAt)}
                         </Typography>
                     </Box>
                 </CardContent>

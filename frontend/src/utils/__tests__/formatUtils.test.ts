@@ -1,11 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  formatDisplayDate,
+  formatDisplayDateTime,
   formatDate,
   formatDuration,
   formatRelativeDownloadTime,
   formatSize,
   parseDuration,
 } from "../formatUtils";
+
+const getLocalDate = (value: string | number | Date) => {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalDateTime = (value: string | number | Date) => {
+  const date = new Date(value);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${getLocalDate(value)} ${hours}:${minutes}:${seconds}`;
+};
 
 describe("formatUtils", () => {
   describe("parseDuration", () => {
@@ -143,6 +161,36 @@ describe("formatUtils", () => {
     it("should handle edge cases", () => {
       expect(formatDate("19991231")).toBe("1999-12-31");
       expect(formatDate("20991231")).toBe("2099-12-31");
+    });
+  });
+
+  describe("formatDisplayDate", () => {
+    it('should return "Unknown date" for undefined', () => {
+      expect(formatDisplayDate(undefined)).toBe("Unknown date");
+    });
+
+    it("should format a timestamp as YYYY-MM-DD", () => {
+      const value = 1700000000000;
+      expect(formatDisplayDate(value)).toBe(getLocalDate(value));
+    });
+
+    it("should support custom fallback text", () => {
+      expect(formatDisplayDate("invalid-date", "never")).toBe("never");
+    });
+  });
+
+  describe("formatDisplayDateTime", () => {
+    it('should return "Unknown date" for undefined', () => {
+      expect(formatDisplayDateTime(undefined)).toBe("Unknown date");
+    });
+
+    it("should format a date-like string as YYYY-MM-DD HH:mm:ss", () => {
+      const value = "2025-03-05T12:34:56Z";
+      expect(formatDisplayDateTime(value)).toBe(getLocalDateTime(value));
+    });
+
+    it("should support custom fallback text", () => {
+      expect(formatDisplayDateTime("invalid-date", "n/a")).toBe("n/a");
     });
   });
 

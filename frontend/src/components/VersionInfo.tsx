@@ -2,6 +2,7 @@ import { Chip, Link, Tooltip, Typography } from '@mui/material';
 import type { TypographyProps } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { api } from '../utils/apiClient';
+import { formatDisplayDateTime } from '../utils/formatUtils';
 import { scheduleNonCriticalTask } from '../utils/scheduleNonCriticalTask';
 
 // Helper to compare semantic versions (v1 > v2)
@@ -81,7 +82,7 @@ const VersionInfo = ({ showUpdateBadge = true, textColor = 'text.secondary' }: V
     return (
         <>
             <Tooltip
-                title={`Built on ${new Date(import.meta.env.VITE_BUILD_DATE).toLocaleString()}`}
+                title={`Built on ${formatDisplayDateTime(import.meta.env.VITE_BUILD_DATE, String(import.meta.env.VITE_BUILD_DATE))}`}
                 arrow
             >
                 <Typography variant="caption" color={textColor} sx={{ cursor: 'help' }}>
