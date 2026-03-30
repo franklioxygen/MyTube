@@ -25,6 +25,7 @@ vi.mock("../../../db", () => ({
   },
   sqlite: {
     prepare: vi.fn(),
+    transaction: vi.fn((callback: () => unknown) => callback),
   },
 }));
 

@@ -19,6 +19,7 @@ import {
   isBilibiliShortUrl,
   isBilibiliUrl,
   isMissAVUrl,
+  isTwitchVideoUrl,
   isYouTubeUrl,
   isValidUrl,
   processVideoUrl,
@@ -71,6 +72,7 @@ vi.mock("../../utils/helpers", () => ({
   isBilibiliShortUrl: vi.fn(),
   isBilibiliUrl: vi.fn(),
   isMissAVUrl: vi.fn(),
+  isTwitchVideoUrl: vi.fn(),
   isYouTubeUrl: vi.fn(),
   isValidUrl: vi.fn(),
   processVideoUrl: vi.fn(),
@@ -163,6 +165,7 @@ describe("videoDownloadController extra coverage", () => {
     vi.mocked(isYouTubeUrl).mockReturnValue(false);
     vi.mocked(isBilibiliUrl).mockReturnValue(false);
     vi.mocked(isMissAVUrl).mockReturnValue(false);
+    vi.mocked(isTwitchVideoUrl).mockReturnValue(false);
     vi.mocked(isBilibiliShortUrl).mockReturnValue(false);
     vi.mocked(trimBilibiliUrl).mockImplementation((url: string) => url);
     vi.mocked(resolveShortUrl).mockImplementation(async (url: string) => url);
