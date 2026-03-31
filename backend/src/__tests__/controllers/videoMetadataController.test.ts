@@ -278,7 +278,9 @@ describe("videoMetadataController", () => {
     it("refreshes existing local thumbnail and aligns thumbnailUrl when needed", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(123456);
-      const randomSpy = vi.spyOn(crypto, "randomInt").mockReturnValue(1830);
+      const randomSpy = vi
+        .spyOn(crypto, "randomInt")
+        .mockImplementation((() => 1830) as any);
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
