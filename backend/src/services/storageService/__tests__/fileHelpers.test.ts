@@ -42,6 +42,13 @@ import {
 } from "../../../utils/security";
 import { findImageFile, findVideoFile, moveFile } from "../fileHelpers";
 
+const existsSyncMock = vi.mocked(fs.existsSync);
+const ensureDirSyncMock = vi.mocked(fs.ensureDirSync);
+const moveSyncMock = vi.mocked(fs.moveSync);
+const loggerInfoMock = vi.mocked(logger.info);
+const loggerWarnMock = vi.mocked(logger.warn);
+const loggerErrorMock = vi.mocked(logger.error);
+
 describe("fileHelpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,12 +64,12 @@ describe("fileHelpers", () => {
     const result = findVideoFile("../unsafe.mp4");
 
     expect(result).toBeNull();
-    expect(logger.warn).toHaveBeenCalled();
+    expect(loggerWarnMock).toHaveBeenCalled();
   });
 
   it("finds video file in root videos directory", () => {
     const rootPath = path.join("/safe/videos", "movie.mp4");
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === rootPath);
+    existsSyncMock.mockImplementation((p: any) => p === rootPath);
 
     const result = findVideoFile("movie.mp4");
 
@@ -72,7 +79,7 @@ describe("fileHelpers", () => {
   it("falls back to collection directories for video files", () => {
     const collectionPath = path.join("/safe/videos", "SciFi", "movie.mp4");
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === collectionPath);
+    existsSyncMock.mockImplementation((p: any) => p === collectionPath);
 
     const result = findVideoFile("movie.mp4", [
       { id: "c1", title: "SciFi", videos: [] } as any,
@@ -86,21 +93,21 @@ describe("fileHelpers", () => {
     vi.mocked(isPathWithinDirectories)
       .mockReturnValueOnce(false)
       .mockReturnValue(true);
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === collectionPath);
+    existsSyncMock.mockImplementation((p: any) => p === collectionPath);
 
     const result = findVideoFile("movie.mp4", [
       { id: "c1", name: "Drama", videos: [] } as any,
     ]);
 
     expect(result).toBe(collectionPath);
-    expect(logger.warn).toHaveBeenCalledWith(
+    expect(loggerWarnMock).toHaveBeenCalledWith(
       expect.stringContaining("Unsafe root path detected for video file")
     );
   });
 
   it("finds image file from collection path", () => {
     const imagePath = path.join("/safe/images", "Anime", "cover.jpg");
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === imagePath);
+    existsSyncMock.mockImplementation((p: any) => p === imagePath);
 
     const result = findImageFile("cover.jpg", [
       { id: "c2", title: "Anime", videos: [] } as any,
@@ -117,7 +124,7 @@ describe("fileHelpers", () => {
     const result = findImageFile("cover.jpg");
 
     expect(result).toBeNull();
-    expect(logger.error).toHaveBeenCalledWith(
+    expect(loggerErrorMock).toHaveBeenCalledWith(
       "Error finding image file",
       expect.any(Error)
     );
@@ -127,26 +134,26 @@ describe("fileHelpers", () => {
     const sourcePath = "/safe/videos/a.mp4";
     const destPath = "/safe/videos/sub/b.mp4";
 
-    vi.mocked(fs.existsSync).mockImplementation((p: any) => p === sourcePath);
+    existsSyncMock.mockImplementation((p: any) => p === sourcePath);
 
     moveFile(sourcePath, destPath);
 
-    expect(fs.ensureDirSync).toHaveBeenCalledWith(path.dirname(destPath));
-    expect(fs.moveSync).toHaveBeenCalledWith(sourcePath, destPath, {
+    expect(ensureDirSyncMock).toHaveBeenCalledWith(path.dirname(destPath));
+    expect(moveSyncMock).toHaveBeenCalledWith(sourcePath, destPath, {
       overwrite: true,
     });
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(loggerInfoMock).toHaveBeenCalledWith(
       `Moved file from ${sourcePath} to ${destPath}`
     );
   });
 
   it("does nothing when source file does not exist", () => {
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    existsSyncMock.mockReturnValue(false);
 
     moveFile("/safe/videos/missing.mp4", "/safe/videos/out.mp4");
 
-    expect(fs.ensureDirSync).not.toHaveBeenCalled();
-    expect(fs.moveSync).not.toHaveBeenCalled();
+    expect(ensureDirSyncMock).not.toHaveBeenCalled();
+    expect(moveSyncMock).not.toHaveBeenCalled();
   });
 
   it("throws and logs when path validation fails", () => {
@@ -156,7 +163,7 @@ describe("fileHelpers", () => {
       "Security Error: Path traversal attempted"
     );
 
-    expect(logger.error).toHaveBeenCalledWith(
+    expect(loggerErrorMock).toHaveBeenCalledWith(
       expect.stringContaining("Error moving file"),
       expect.any(Error)
     );

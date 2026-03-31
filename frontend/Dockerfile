@@ -23,9 +23,14 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 5556
 
 # Add a script to replace environment variables at runtime
-RUN apk add --no-cache bash
-COPY ./entrypoint.sh /entrypoint.sh
+RUN apk add --no-cache bash \
+    && touch /var/run/nginx.pid \
+    && chown -R nginx:nginx /usr/share/nginx/html /etc/nginx/conf.d /var/cache/nginx /var/log/nginx \
+    && chown nginx:nginx /var/run/nginx.pid
+COPY --chown=nginx:nginx ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+USER nginx
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"] 

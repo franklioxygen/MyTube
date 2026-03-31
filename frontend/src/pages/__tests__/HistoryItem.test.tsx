@@ -121,8 +121,8 @@ describe('HistoryItem', () => {
                 downloadedAt: 1699000000000,
                 deletedAt: 1700000000000,
             });
-            expect(screen.getByText(new RegExp(downloadDate))).toBeInTheDocument();
-            expect(screen.getByText(new RegExp(deleteDate))).toBeInTheDocument();
+            expect(screen.getByText((content) => content.includes(downloadDate))).toBeInTheDocument();
+            expect(screen.getByText((content) => content.includes(deleteDate))).toBeInTheDocument();
         });
 
         it('shows downloadedOn label for deleted items with downloadedAt', () => {

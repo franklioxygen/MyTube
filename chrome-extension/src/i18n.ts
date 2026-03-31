@@ -59,7 +59,8 @@ export function t(
 
   let text = window.currentTranslations[key] || key;
   Object.keys(params).forEach((param) => {
-    text = text.replace(new RegExp(`\\{${param}\\}`, "g"), params[param]);
+    const placeholder = `{${param}}`;
+    text = text.split(placeholder).join(params[param]);
   });
   return text;
 }

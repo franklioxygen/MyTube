@@ -42,29 +42,18 @@ function normalizeNickname(raw: string): string | null {
   return decoded;
 }
 
-function extractNicknameFromProfileHtml(
-  html: string,
-  uploaderId: string,
-): string | null {
-  const escapedUploaderId = escapeRegex(uploaderId);
+function extractNicknameFromText(text: string): string | null {
   const patterns = [
-    new RegExp(
-      `"userId":"${escapedUploaderId}"[\\s\\S]{0,500}?"nickname":"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`,
-      "i",
-    ),
-    new RegExp(
-      `"userId":"${escapedUploaderId}"[\\s\\S]{0,500}?"nickName":"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`,
-      "i",
-    ),
     /"nickname":"([^"\\]*(?:\\.[^"\\]*)*)"/i,
     /"nickName":"([^"\\]*(?:\\.[^"\\]*)*)"/i,
   ];
 
   for (const pattern of patterns) {
-    const match = html.match(pattern);
+    const match = text.match(pattern);
     if (!match || !match[1]) {
       continue;
     }
+
     const nickname = normalizeNickname(match[1]);
     if (nickname) {
       return nickname;
@@ -72,6 +61,26 @@ function extractNicknameFromProfileHtml(
   }
 
   return null;
+}
+
+function extractNicknameFromProfileHtml(
+  html: string,
+  uploaderId: string,
+): string | null {
+  const userIdMarker = `"userId":"${escapeRegex(uploaderId)}"`;
+  const userSectionStart = html.indexOf(userIdMarker);
+  if (userSectionStart >= 0) {
+    const userSection = html.slice(
+      userSectionStart,
+      userSectionStart + userIdMarker.length + 500,
+    );
+    const scopedNickname = extractNicknameFromText(userSection);
+    if (scopedNickname) {
+      return scopedNickname;
+    }
+  }
+
+  return extractNicknameFromText(html);
 }
 
 /**

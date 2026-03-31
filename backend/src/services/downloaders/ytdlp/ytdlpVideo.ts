@@ -65,6 +65,10 @@ class YtDlpDownloaderHelper extends BaseDownloader {
   }
 }
 
+function stripTrailingExtension(value: string, extension: string): string {
+  return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
+}
+
 function isExpectedTwitchMetadataError(error: unknown): boolean {
   if (error instanceof ValidationError) {
     return true;
@@ -283,8 +287,8 @@ export async function downloadVideo(
     if (fs.existsSync(newVideoPathWithFormat)) {
       let counter = 1;
       const ext = `.${videoExtension}`;
-      const basePath = newVideoPathWithFormat.replace(new RegExp(`\\${ext}$`), "");
-      const baseName = finalVideoFilename.replace(new RegExp(`\\${ext}$`), "");
+      const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
+      const baseName = stripTrailingExtension(finalVideoFilename, ext);
       while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
         counter++;
       }
