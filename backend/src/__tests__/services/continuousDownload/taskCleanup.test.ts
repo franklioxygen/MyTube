@@ -31,6 +31,7 @@ vi.mock("../../../utils/helpers", () => ({
   formatVideoFilename: vi.fn().mockReturnValue("formatted-name"),
 }));
 vi.mock("../../../config/paths", () => ({
+  AVATARS_DIR: "/tmp/avatars",
   VIDEOS_DIR: "/tmp/videos",
   IMAGES_DIR: "/tmp/images",
   IMAGES_SMALL_DIR: "/tmp/images-small",

@@ -37,7 +37,7 @@ export const getRandomSeed = (): number => {
     window.crypto.getRandomValues(array);
     return array[0] % 1000000;
   }
-  return Math.floor(Math.random() * 1000000);
+  return Date.now() % 1000000;
 };
 
 const getSeededScore = (id: string, shuffleSeed: number): number => {

@@ -1,4 +1,3 @@
-import fs from "fs-extra";
 import path from "path";
 import {
   IMAGES_DIR,
@@ -12,7 +11,17 @@ import {
   resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "../thumbnailMirrorService";
 import { logger } from "../../utils/logger";
-import { findImageFile, findVideoFile, moveFile } from "./fileHelpers";
+import {
+  buildStoragePath,
+  findImageFile,
+  findVideoFile,
+  listDirectory,
+  moveFile,
+  pathExists,
+  removeDirectoryIfEmpty,
+  removeDirectoryRecursive,
+  renamePath,
+} from "./fileHelpers";
 import { getSettings } from "./settings";
 import { Collection, Video } from "./types";
 
@@ -58,7 +67,7 @@ export function moveVideoToCollection(
 
   if (video.videoFilename) {
     const currentVideoPath = findVideoFile(video.videoFilename, allCollections);
-    const targetVideoPath = path.join(
+    const targetVideoPath = buildStoragePath(
       VIDEOS_DIR,
       sanitizedCollectionName,
       video.videoFilename
@@ -88,7 +97,7 @@ export function moveVideoFromCollection(
 
   if (video.videoFilename) {
     const currentVideoPath = findVideoFile(video.videoFilename, allCollections);
-    const targetVideoPath = path.join(targetVideoDir, video.videoFilename);
+    const targetVideoPath = buildStoragePath(targetVideoDir, video.videoFilename);
 
     if (currentVideoPath && currentVideoPath !== targetVideoPath) {
       moveFile(currentVideoPath, targetVideoPath);
@@ -124,12 +133,12 @@ export function moveThumbnailToCollection(
     let currentWebPath = video.thumbnailPath || null;
     if (video.thumbnailPath) {
       if (video.thumbnailPath.startsWith("/videos/")) {
-        currentImagePath = path.join(
+        currentImagePath = buildStoragePath(
           VIDEOS_DIR,
           video.thumbnailPath.replace(/^\/videos\//, "")
         );
       } else if (video.thumbnailPath.startsWith("/images/")) {
-        currentImagePath = path.join(
+        currentImagePath = buildStoragePath(
           IMAGES_DIR,
           video.thumbnailPath.replace(/^\/images\//, "")
         );
@@ -137,7 +146,7 @@ export function moveThumbnailToCollection(
     }
 
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+    if (!currentImagePath || !pathExists(currentImagePath)) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
       if (currentImagePath) {
@@ -155,14 +164,14 @@ export function moveThumbnailToCollection(
     let newWebPath = "";
 
     if (moveWithVideo) {
-      targetImagePath = path.join(
+      targetImagePath = buildStoragePath(
         VIDEOS_DIR,
         sanitizedCollectionName,
         video.thumbnailFilename
       );
       newWebPath = `/videos/${sanitizedCollectionName}/${video.thumbnailFilename}`;
     } else {
-      targetImagePath = path.join(
+      targetImagePath = buildStoragePath(
         IMAGES_DIR,
         sanitizedCollectionName,
         video.thumbnailFilename
@@ -201,19 +210,19 @@ export function moveThumbnailFromCollection(
     let currentWebPath = video.thumbnailPath || null;
     if (video.thumbnailPath) {
       if (video.thumbnailPath.startsWith("/videos/")) {
-        currentImagePath = path.join(
+        currentImagePath = buildStoragePath(
           VIDEOS_DIR,
           video.thumbnailPath.replace(/^\/videos\//, "")
         );
       } else if (video.thumbnailPath.startsWith("/images/")) {
-        currentImagePath = path.join(
+        currentImagePath = buildStoragePath(
           IMAGES_DIR,
           video.thumbnailPath.replace(/^\/images\//, "")
         );
       }
     }
 
-    if (!currentImagePath || !fs.existsSync(currentImagePath)) {
+    if (!currentImagePath || !pathExists(currentImagePath)) {
       currentImagePath =
         findImageFile(video.thumbnailFilename, allCollections) || "";
       if (currentImagePath) {
@@ -232,11 +241,11 @@ export function moveThumbnailFromCollection(
 
     if (moveWithVideo) {
       // Target is same as video target
-      targetImagePath = path.join(targetVideoDir, video.thumbnailFilename);
+      targetImagePath = buildStoragePath(targetVideoDir, video.thumbnailFilename);
       newWebPath = `${videoPathPrefix}/${video.thumbnailFilename}`;
     } else {
       // Target is image dir (root or other collection)
-      targetImagePath = path.join(targetImageDir, video.thumbnailFilename);
+      targetImagePath = buildStoragePath(targetImageDir, video.thumbnailFilename);
       newWebPath = `${imagePathPrefix}/${video.thumbnailFilename}`;
     }
 
@@ -440,51 +449,22 @@ export function cleanupCollectionDirectories(collectionName: string): void {
     return;
   }
   
-  const collectionVideoDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
-  const collectionImageDir = path.join(IMAGES_DIR, sanitizedCollectionName);
-  const collectionSmallImageDir = path.join(
+  const collectionVideoDir = buildStoragePath(VIDEOS_DIR, sanitizedCollectionName);
+  const collectionImageDir = buildStoragePath(IMAGES_DIR, sanitizedCollectionName);
+  const collectionSmallImageDir = buildStoragePath(
     IMAGES_SMALL_DIR,
     sanitizedCollectionName,
   );
-  const collectionSubtitleDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
+  const collectionSubtitleDir = buildStoragePath(
+    SUBTITLES_DIR,
+    sanitizedCollectionName,
+  );
 
   try {
-    if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionVideoDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionVideoDir).length === 0
-    ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionVideoDir);
-    }
-    if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionImageDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionImageDir).length === 0
-    ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionImageDir);
-    }
-    if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionSmallImageDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionSmallImageDir).length === 0
-    ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionSmallImageDir);
-    }
-    if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(collectionSubtitleDir) &&
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.readdirSync(collectionSubtitleDir).length === 0
-    ) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.rmdirSync(collectionSubtitleDir);
-    }
+    removeDirectoryIfEmpty(collectionVideoDir);
+    removeDirectoryIfEmpty(collectionImageDir);
+    removeDirectoryIfEmpty(collectionSmallImageDir);
+    removeDirectoryIfEmpty(collectionSubtitleDir);
   } catch (e) {
     logger.error(
       "Error removing collection directories",
@@ -596,8 +576,7 @@ function processSubtitleFileMove(
     const { absoluteSourcePath, targetSubPath, newWebPath } = paths;
     
     if (
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.existsSync(absoluteSourcePath) &&
+      pathExists(absoluteSourcePath) &&
       absoluteSourcePath !== targetSubPath
     ) {
       try {
@@ -629,12 +608,15 @@ function calculateSubtitlePaths(
   // Determine existing absolute path
   let absoluteSourcePath = "";
   if (sub.path.startsWith("/videos/")) {
-    absoluteSourcePath = path.join(
+    absoluteSourcePath = buildStoragePath(
       VIDEOS_DIR,
       sub.path.replace("/videos/", "")
     );
   } else if (sub.path.startsWith("/subtitles/")) {
-    absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+    absoluteSourcePath = buildStoragePath(
+      UPLOADS_DIR,
+      sub.path.replace(/^\//, ""),
+    );
   }
 
   let targetSubDir = "";
@@ -643,18 +625,18 @@ function calculateSubtitlePaths(
   // Determine target based on moveSubtitlesToVideoFolder setting
   if (moveWithVideo) {
     // Always move to video folder
-    targetSubDir = path.join(VIDEOS_DIR, sanitizedCollectionName);
+    targetSubDir = buildStoragePath(VIDEOS_DIR, sanitizedCollectionName);
     newWebPath = `/videos/${sanitizedCollectionName}/${path.basename(sub.path)}`;
   } else {
     // Move to central subtitles folder (mirror collection structure)
-    targetSubDir = path.join(SUBTITLES_DIR, sanitizedCollectionName);
+    targetSubDir = buildStoragePath(SUBTITLES_DIR, sanitizedCollectionName);
     newWebPath = `/subtitles/${sanitizedCollectionName}/${path.basename(sub.path)}`;
   }
 
   if (absoluteSourcePath && targetSubDir && newWebPath) {
     return {
       absoluteSourcePath,
-      targetSubPath: path.join(targetSubDir, path.basename(sub.path)),
+      targetSubPath: buildStoragePath(targetSubDir, path.basename(sub.path)),
       newWebPath
     };
   }
@@ -671,30 +653,12 @@ function processDirectoryRename(
   sanitizedNewName: string
 ): boolean {
   let success = true;
-  const oldDir = path.join(baseDir, sanitizedOldName);
-  const newDir = path.join(baseDir, sanitizedNewName);
-
-  // Validate paths to prevent path traversal
-  const normalizedOldDir = path.normalize(oldDir);
-  const normalizedNewDir = path.normalize(newDir);
-  const normalizedBaseDir = path.normalize(baseDir);
-
-  // Ensure paths are within base directory
-  if (
-    !normalizedOldDir.startsWith(normalizedBaseDir) ||
-    !normalizedNewDir.startsWith(normalizedBaseDir)
-  ) {
-    logger.error(
-      `Path traversal detected: oldDir=${oldDir}, newDir=${newDir}, baseDir=${baseDir}`
-    );
-    return false;
-  }
+  const oldDir = buildStoragePath(baseDir, sanitizedOldName);
+  const newDir = buildStoragePath(baseDir, sanitizedNewName);
 
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(oldDir)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(newDir)) {
+    if (pathExists(oldDir)) {
+      if (pathExists(newDir)) {
         // If target directory already exists, we fail for now or merge.
         // Let's assume name collision check is done before.
         // But if it exists, merging is safer than overwriting.
@@ -704,10 +668,10 @@ function processDirectoryRename(
 
         // Move all files from old to new
         // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const files = fs.readdirSync(oldDir);
+        const files = listDirectory(oldDir);
         files.forEach((file) => {
-          const oldFile = path.join(oldDir, file);
-          const newFile = path.join(newDir, file);
+          const oldFile = buildStoragePath(oldDir, file);
+          const newFile = buildStoragePath(newDir, file);
           try {
             moveFile(oldFile, newFile);
           } catch (e) {
@@ -717,17 +681,14 @@ function processDirectoryRename(
         });
         // Remove old directory (use recursive to handle non-empty dirs)
         try {
-          if (fs.existsSync(oldDir)) {
-            fs.rmSync(oldDir, { recursive: true, force: true });
-          }
+          removeDirectoryRecursive(oldDir);
         } catch (e) {
           logger.error(`Error removing old directory ${oldDir}: ${e}`);
           success = false;
         }
       } else {
         // Simple rename
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.renameSync(oldDir, newDir);
+        renamePath(oldDir, newDir);
       }
     }
   } catch (e) {
@@ -751,11 +712,17 @@ function processSubtitleMoveFromCollection(
   let absoluteSourcePath = "";
   // Construct absolute source path based on DB path
   if (sub.path.startsWith("/videos/")) {
-    absoluteSourcePath = path.join(VIDEOS_DIR, sub.path.replace("/videos/", ""));
+    absoluteSourcePath = buildStoragePath(
+      VIDEOS_DIR,
+      sub.path.replace("/videos/", ""),
+    );
   } else if (sub.path.startsWith("/subtitles/")) {
     // sub.path is like /subtitles/Collection/file.vtt
     // SUBTITLES_DIR is uploads/subtitles
-    absoluteSourcePath = path.join(UPLOADS_DIR, sub.path.replace(/^\//, ""));
+    absoluteSourcePath = buildStoragePath(
+      UPLOADS_DIR,
+      sub.path.replace(/^\//, ""),
+    );
   }
 
   let targetSubDirPath = "";
@@ -773,11 +740,14 @@ function processSubtitleMoveFromCollection(
   }
 
   if (absoluteSourcePath && targetSubDirPath && newWebPath) {
-    const targetSubPath = path.join(targetSubDirPath, path.basename(sub.path));
+    const targetSubPath = buildStoragePath(
+      targetSubDirPath,
+      path.basename(sub.path),
+    );
 
     // Ensure correct paths for move
     if (
-      fs.existsSync(absoluteSourcePath) &&
+      pathExists(absoluteSourcePath) &&
       absoluteSourcePath !== targetSubPath
     ) {
       try {

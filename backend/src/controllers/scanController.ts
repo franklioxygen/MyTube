@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -355,9 +356,7 @@ const processSingleVideoFile = async (
     }
   }
 
-  const videoId =
-    replacingVideoId ||
-    (Date.now() + Math.floor(Math.random() * 10000)).toString();
+  const videoId = replacingVideoId || crypto.randomUUID();
 
   const newVideo = {
     id: videoId,
@@ -455,9 +454,7 @@ const processDirectoryFiles = async (
         return existingCollection.id;
       }
 
-      const collectionId = (
-        Date.now() + Math.floor(Math.random() * 10000)
-      ).toString();
+      const collectionId = crypto.randomUUID();
 
       storageService.saveCollection({
         id: collectionId,

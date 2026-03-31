@@ -40,6 +40,25 @@ function buildTwitchVideosUrl(channelUrl: string): string {
     : `${normalizedUrl}/videos`;
 }
 
+function stripChannelLoginPrefix(
+  title: string,
+  channelLogin: string | null,
+): string {
+  if (!channelLogin) {
+    return title;
+  }
+
+  const separatorIndex = title.indexOf("-");
+  if (separatorIndex < 0) {
+    return title;
+  }
+
+  const leadingSegment = title.slice(0, separatorIndex).trim().toLowerCase();
+  return leadingSegment === channelLogin
+    ? title.slice(separatorIndex + 1).trim()
+    : title;
+}
+
 function resolveTwitchVideoUrl(entry: any): string | null {
   if (typeof entry?.webpage_url === "string" && entry.webpage_url.includes("/videos/")) {
     return entry.webpage_url;
@@ -151,7 +170,7 @@ export async function getTwitchChannelVideos(
   const channelName =
     videos.find((video) => video.author)?.author ||
     (typeof result?.title === "string" && channelLogin
-      ? result.title.replace(new RegExp(`^${channelLogin}\\s*-\\s*`, "i"), "").trim()
+      ? stripChannelLoginPrefix(result.title, channelLogin)
       : null);
 
   return {

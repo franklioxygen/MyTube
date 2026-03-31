@@ -325,10 +325,8 @@ export const refreshThumbnail = async (
   try {
     const duration = await getVideoDuration(validatedVideoPath);
     if (duration && duration > 0) {
-      // Pick a random second, avoiding the very beginning and very end if possible
-      // But for simplicity and to match request "random frame", valid random second is fine.
-      // Let's ensure we don't go past the end.
-      const randomSecond = Math.floor(Math.random() * duration);
+      const durationInSeconds = Math.max(1, Math.ceil(duration));
+      const randomSecond = crypto.randomInt(durationInSeconds);
       const hours = Math.floor(randomSecond / 3600);
       const minutes = Math.floor((randomSecond % 3600) / 60);
       const seconds = randomSecond % 60;

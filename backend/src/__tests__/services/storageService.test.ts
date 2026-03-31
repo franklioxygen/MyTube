@@ -510,6 +510,7 @@ describe('StorageService', () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
+      (fs.pathExistsSync as any).mockReturnValue(true);
       const mockRun = vi.fn();
       (db.delete as any).mockReturnValue({
         where: vi.fn().mockReturnValue({
@@ -522,7 +523,7 @@ describe('StorageService', () => {
 
       const result = storageService.deleteVideo('1');
       expect(result).toBe(true);
-      expect(fs.unlinkSync).toHaveBeenCalled();
+      expect(fs.removeSync).toHaveBeenCalled();
       expect(mockRun).toHaveBeenCalled();
     });
   });
@@ -719,12 +720,15 @@ describe('StorageService', () => {
         }),
       });
 
-      (fs.existsSync as any).mockReturnValue(true);
-      (fs.readdirSync as any).mockReturnValue([]);
+      (fs.pathExistsSync as any).mockReturnValue(true);
+      (fs.opendirSync as any).mockReturnValue({
+        readSync: vi.fn().mockReturnValue(null),
+        closeSync: vi.fn(),
+      });
       
       storageService.deleteCollectionWithFiles('1');
       
-      expect(fs.rmdirSync).toHaveBeenCalled();
+      expect(fs.removeSync).toHaveBeenCalled();
     });
   });
 
@@ -774,12 +778,15 @@ describe('StorageService', () => {
       });
 
       (fs.existsSync as any).mockReturnValue(true);
-      (fs.readdirSync as any).mockReturnValue([]);
+      (fs.pathExistsSync as any).mockReturnValue(true);
+      (fs.opendirSync as any).mockReturnValue({
+        readSync: vi.fn().mockReturnValue(null),
+        closeSync: vi.fn(),
+      });
 
       storageService.deleteCollectionAndVideos('1');
       
-      expect(fs.unlinkSync).toHaveBeenCalled(); // Video file deleted
-      expect(fs.rmdirSync).toHaveBeenCalled(); // Collection dir deleted
+      expect(fs.removeSync).toHaveBeenCalled(); // Video file and collection directories deleted
     });
   });
 

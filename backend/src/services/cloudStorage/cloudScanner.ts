@@ -2,6 +2,7 @@
  * Cloud storage scanning operations
  */
 
+import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
@@ -470,9 +471,7 @@ export async function scanCloudFiles(
         // Duration is already obtained above when generating thumbnail
 
         // Create video record
-        const videoId = (
-          Date.now() + Math.floor(Math.random() * 10000)
-        ).toString();
+        const videoId = crypto.randomUUID();
 
         // relativeVideoPath was already calculated above
         // For scan paths: full path without leading slash (e.g., "a/movies/video/1.mp4")

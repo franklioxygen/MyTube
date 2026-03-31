@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
@@ -34,7 +35,7 @@ export interface RenamedPaths {
 export function createTempDir(): string {
   const tempDir = path.join(
     VIDEOS_DIR,
-    `temp_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+    `temp_${Date.now()}_${crypto.randomUUID()}`
   );
   fs.ensureDirSync(tempDir);
   logger.info("Created temp directory:", tempDir);

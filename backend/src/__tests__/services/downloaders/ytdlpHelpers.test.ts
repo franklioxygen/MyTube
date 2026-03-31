@@ -12,13 +12,15 @@ vi.mock("../../../utils/logger", () => ({
 }));
 
 describe("ytdlpHelpers", () => {
+  const axiosGetMock = vi.mocked(axios.get);
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("extractXiaoHongShuAuthor", () => {
     it("should extract author nickname from profile html using uploader_id", async () => {
-      (axios.get as any).mockResolvedValue({
+      axiosGetMock.mockResolvedValue({
         data: `
           <script>
             window.__INITIAL_STATE__={"user":{"userId":"676255a3000000001801484c","nickname":"虾仁不眨眼","nickName":"虾仁不眨眼"}}
@@ -32,8 +34,8 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBe("虾仁不眨眼");
-      expect(axios.get).toHaveBeenCalledTimes(1);
-      expect(axios.get).toHaveBeenCalledWith(
+      expect(axiosGetMock).toHaveBeenCalledTimes(1);
+      expect(axiosGetMock).toHaveBeenCalledWith(
         "https://www.xiaohongshu.com/user/profile/676255a3000000001801484c",
         expect.any(Object),
       );
@@ -46,7 +48,7 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBeNull();
-      expect(axios.get).not.toHaveBeenCalled();
+      expect(axiosGetMock).not.toHaveBeenCalled();
     });
 
     it("should return null when uploader_id is missing", async () => {
@@ -55,11 +57,11 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(author).toBeNull();
-      expect(axios.get).not.toHaveBeenCalled();
+      expect(axiosGetMock).not.toHaveBeenCalled();
     });
 
     it("should decode escaped unicode nickname", async () => {
-      (axios.get as any).mockResolvedValue({
+      axiosGetMock.mockResolvedValue({
         data: '{"user":{"userId":"676255a3000000001801484c","nickname":"\\u867e\\u4ec1\\u4e0d\\u7728\\u773c"}}',
       });
 

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import axios from "axios";
+import crypto from "crypto";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as videoMetadataController from "../../controllers/videoMetadataController";
@@ -277,7 +278,9 @@ describe("videoMetadataController", () => {
     it("refreshes existing local thumbnail and aligns thumbnailUrl when needed", async () => {
       const { res, json } = createResponse();
       const nowSpy = vi.spyOn(Date, "now").mockReturnValue(123456);
-      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const randomSpy = vi
+        .spyOn(crypto, "randomInt")
+        .mockImplementation((() => 1830) as any);
 
       vi.mocked(storageService.getVideoById as any).mockReturnValue({
         id: "v1",
