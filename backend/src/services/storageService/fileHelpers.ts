@@ -9,7 +9,7 @@ import {
 } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
-  resolveSafePathInDirectories,
+  isPathWithinDirectories,
   sanitizePathSegment,
 } from "../../utils/security";
 import { Collection } from "./types";
@@ -28,13 +28,16 @@ const ALLOWED_STORAGE_DIRS = [
  * @throws Error if path is outside allowed directories
  */
 function validateSafePath(targetPath: string): string {
-  try {
-    return resolveSafePathInDirectories(targetPath, ALLOWED_STORAGE_DIRS);
-  } catch {
+  const resolvedPath = path.resolve(targetPath);
+  const isSafe = isPathWithinDirectories(resolvedPath, ALLOWED_STORAGE_DIRS);
+
+  if (!isSafe) {
     throw new Error(
       `Security Error: Path traversal attempted. Access denied to ${targetPath}`
     );
   }
+
+  return resolvedPath;
 }
 
 function splitSafeSegments(segment: string): string[] {
