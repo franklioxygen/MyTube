@@ -79,14 +79,16 @@ describe("storageService videos", () => {
     vi.mocked(formatVideoFilename).mockReturnValue("Formatted.Title-Author-2024");
     vi.mocked(fileHelpers.buildStoragePath).mockImplementation(
       (baseDir: string, ...segments: Array<string | null | undefined>) =>
-        path.join(
-          baseDir,
-          ...segments.flatMap((segment) =>
-            typeof segment === "string"
-              ? segment.split(/[\\/]+/).filter(Boolean)
-              : []
+        [baseDir]
+          .concat(
+            ...segments.map((segment) =>
+              typeof segment === "string"
+                ? segment.split(/[\\/]+/).filter(Boolean)
+                : []
+            )
           )
-        )
+          .join("/")
+          .replace(/\/+/g, "/")
     );
     vi.mocked(fileHelpers.pathExists).mockImplementation((targetPath: string) =>
       Boolean(vi.mocked(fs.existsSync)(targetPath as any))

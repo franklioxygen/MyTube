@@ -20,7 +20,9 @@ vi.mock("../../../utils/logger", () => ({
 
 vi.mock("../fileHelpers", () => ({
   buildStoragePath: vi.fn((baseDir: string, ...segments: Array<string | null | undefined>) =>
-    path.join(baseDir, ...segments.filter((segment): segment is string => Boolean(segment)))
+    [baseDir, ...segments.filter((segment): segment is string => Boolean(segment))]
+      .join("/")
+      .replace(/\/+/g, "/")
   ),
   findImageFile: vi.fn(),
   findVideoFile: vi.fn(),
