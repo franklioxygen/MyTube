@@ -29,6 +29,7 @@ vi.mock('../../services/thumbnailMirrorService', () => ({
   ),
 }));
 vi.mock('../../config/paths', () => ({
+  AVATARS_DIR: '/test/avatars',
   IMAGES_DIR: '/test/images',
   IMAGES_SMALL_DIR: '/test/images-small',
   VIDEOS_DIR: '/test/videos',

@@ -21,6 +21,7 @@ vi.mock('../../db', () => ({
 vi.mock('fs-extra');
 vi.mock('../../services/storageService');
 vi.mock('../../config/paths', () => ({
+  AVATARS_DIR: '/test/avatars',
   SUBTITLES_DIR: '/test/subtitles',
   VIDEOS_DIR: '/test/videos',
   IMAGES_DIR: '/test/images',

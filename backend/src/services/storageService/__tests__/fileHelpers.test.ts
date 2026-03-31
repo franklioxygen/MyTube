@@ -3,8 +3,10 @@ import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../config/paths", () => ({
+  AVATARS_DIR: "/safe/avatars",
   VIDEOS_DIR: "/safe/videos",
   IMAGES_DIR: "/safe/images",
+  IMAGES_SMALL_DIR: "/safe/images-small",
   SUBTITLES_DIR: "/safe/subtitles",
 }));
 
@@ -40,7 +42,12 @@ import {
   isPathWithinDirectories,
   sanitizePathSegment,
 } from "../../../utils/security";
-import { findImageFile, findVideoFile, moveFile } from "../fileHelpers";
+import {
+  buildStoragePath,
+  findImageFile,
+  findVideoFile,
+  moveFile,
+} from "../fileHelpers";
 
 const existsSyncMock = vi.mocked(fs.existsSync);
 const ensureDirSyncMock = vi.mocked(fs.ensureDirSync);
@@ -65,6 +72,32 @@ describe("fileHelpers", () => {
 
     expect(result).toBeNull();
     expect(loggerWarnMock).toHaveBeenCalled();
+  });
+
+  it("allows images-small paths through the storage allowlist", () => {
+    const targetPath = buildStoragePath("/safe/images-small", "Collection", "thumb.jpg");
+
+    expect(targetPath).toBe(path.resolve("/safe/images-small/Collection/thumb.jpg"));
+    expect(isPathWithinDirectories).toHaveBeenCalledWith(
+      path.resolve("/safe/images-small/Collection/thumb.jpg"),
+      expect.arrayContaining([
+        path.resolve("/safe/images-small"),
+        path.resolve("/safe/avatars"),
+      ])
+    );
+  });
+
+  it("allows avatar paths through the storage allowlist", () => {
+    const targetPath = buildStoragePath("/safe/avatars", "author.jpg");
+
+    expect(targetPath).toBe(path.resolve("/safe/avatars/author.jpg"));
+    expect(isPathWithinDirectories).toHaveBeenCalledWith(
+      path.resolve("/safe/avatars/author.jpg"),
+      expect.arrayContaining([
+        path.resolve("/safe/images-small"),
+        path.resolve("/safe/avatars"),
+      ])
+    );
   });
 
   it("finds video file in root videos directory", () => {

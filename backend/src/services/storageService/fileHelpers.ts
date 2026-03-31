@@ -1,6 +1,12 @@
 import fs from "fs-extra";
 import path from "path";
-import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../config/paths";
+import {
+  AVATARS_DIR,
+  IMAGES_DIR,
+  IMAGES_SMALL_DIR,
+  SUBTITLES_DIR,
+  VIDEOS_DIR,
+} from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
   isPathWithinDirectories,
@@ -8,9 +14,15 @@ import {
 } from "../../utils/security";
 import { Collection } from "./types";
 
-const ALLOWED_STORAGE_DIRS = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR].map((dir) =>
-  path.resolve(dir)
-);
+const ALLOWED_STORAGE_DIRS = [
+  VIDEOS_DIR,
+  IMAGES_DIR,
+  IMAGES_SMALL_DIR,
+  SUBTITLES_DIR,
+  AVATARS_DIR,
+]
+  .filter((dir): dir is string => typeof dir === "string" && dir.length > 0)
+  .map((dir) => path.resolve(dir));
 
 /**
  * Validates that a path is within the allowed directories (Videos, Images, Subtitles)
@@ -27,6 +39,77 @@ function validateSafePath(targetPath: string): string {
   }
 
   return resolvedPath;
+}
+
+function splitSafeSegments(segment: string): string[] {
+  return segment
+    .split(/[\\/]+/)
+    .map((part) => sanitizePathSegment(part))
+    .filter((part) => part.length > 0);
+}
+
+export function buildStoragePath(
+  baseDir: string,
+  ...segments: Array<string | null | undefined>
+): string {
+  const safeSegments = segments.flatMap((segment) =>
+    typeof segment === "string" ? splitSafeSegments(segment) : []
+  );
+  const targetPath =
+    safeSegments.length > 0 ? path.join(baseDir, ...safeSegments) : baseDir;
+  return validateSafePath(targetPath);
+}
+
+export function pathExists(targetPath: string): boolean {
+  const safePath = validateSafePath(targetPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.existsSync(safePath);
+}
+
+export function listDirectory(targetPath: string): string[] {
+  const safePath = validateSafePath(targetPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.readdirSync(safePath);
+}
+
+export function renamePath(sourcePath: string, destPath: string): void {
+  const safeSourcePath = validateSafePath(sourcePath);
+  const safeDestPath = validateSafePath(destPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.renameSync(safeSourcePath, safeDestPath);
+}
+
+export function removeFileIfExists(targetPath: string): void {
+  const safePath = validateSafePath(targetPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(safePath)) {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    fs.unlinkSync(safePath);
+  }
+}
+
+export function removeDirectoryIfEmpty(targetPath: string): boolean {
+  const safePath = validateSafePath(targetPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (!fs.existsSync(safePath)) {
+    return false;
+  }
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.readdirSync(safePath).length > 0) {
+    return false;
+  }
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.rmdirSync(safePath);
+  return true;
+}
+
+export function removeDirectoryRecursive(targetPath: string): void {
+  const safePath = validateSafePath(targetPath);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  if (fs.existsSync(safePath)) {
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    fs.rmSync(safePath, { recursive: true, force: true });
+  }
 }
 
 export function findVideoFile(

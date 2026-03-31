@@ -32,6 +32,10 @@ const MISSAV_NAVIGATION_ORIGINS: Record<string, string> = {
   "njavtv.com": "https://njavtv.com",
 };
 
+function stripTrailingExtension(value: string, extension: string): string {
+  return value.endsWith(extension) ? value.slice(0, -extension.length) : value;
+}
+
 function getCanonicalMissAvHost(hostname: string): string | null {
   const normalized = hostname.toLowerCase();
 
@@ -435,7 +439,7 @@ export class MissAVDownloader extends BaseDownloader {
       if (fs.existsSync(newVideoPath)) {
         let counter = 1;
         const ext = `.${mergeOutputFormat}`;
-        const basePath = newVideoPath.replace(new RegExp(`\\${ext}$`), "");
+        const basePath = stripTrailingExtension(newVideoPath, ext);
         const baseName = newSafeBaseFilename;
         while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
           counter++;

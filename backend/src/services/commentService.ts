@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NotFoundError } from "../errors/DownloadErrors";
 import { executeYtDlpJson } from "../utils/ytDlpUtils";
 import * as storageService from "./storageService";
@@ -8,6 +9,16 @@ export interface Comment {
   content: string;
   date: string;
   avatar?: string;
+}
+
+function resolveCommentId(comment: Record<string, unknown>): string {
+  if (typeof comment.id === "string" && comment.id.trim()) {
+    return comment.id;
+  }
+  if (typeof comment.comment_id === "string" && comment.comment_id.trim()) {
+    return comment.comment_id;
+  }
+  return crypto.randomUUID();
 }
 
 // Fetch comments for a video
@@ -41,7 +52,7 @@ const getCommentsWithYtDlp = async (url: string): Promise<Comment[]> => {
       // Sort by date (newest first) and take top 10
       // Note: yt-dlp comments structure might vary
       return info.comments.slice(0, 10).map((comment: any) => ({
-        id: comment.id || comment.comment_id || String(Math.random()),
+        id: resolveCommentId(comment),
         author: comment.author?.startsWith("@")
           ? comment.author.substring(1)
           : comment.author || "Unknown",

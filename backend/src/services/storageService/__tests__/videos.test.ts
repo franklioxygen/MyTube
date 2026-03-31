@@ -77,6 +77,32 @@ describe("storageService videos", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(formatVideoFilename).mockReturnValue("Formatted.Title-Author-2024");
+    vi.mocked(fileHelpers.buildStoragePath).mockImplementation(
+      (baseDir: string, ...segments: Array<string | null | undefined>) =>
+        path.join(
+          baseDir,
+          ...segments.flatMap((segment) =>
+            typeof segment === "string"
+              ? segment.split(/[\\/]+/).filter(Boolean)
+              : []
+          )
+        )
+    );
+    vi.mocked(fileHelpers.pathExists).mockImplementation((targetPath: string) =>
+      Boolean(vi.mocked(fs.existsSync)(targetPath as any))
+    );
+    vi.mocked(fileHelpers.removeFileIfExists).mockImplementation(
+      (targetPath: string) => {
+        if (Boolean(vi.mocked(fs.existsSync)(targetPath as any))) {
+          vi.mocked(fs.unlinkSync)(targetPath as any);
+        }
+      }
+    );
+    vi.mocked(fileHelpers.renamePath).mockImplementation(
+      (sourcePath: string, destPath: string) => {
+        vi.mocked(fs.renameSync)(sourcePath as any, destPath as any);
+      }
+    );
   });
 
   describe("getVideos/getVideoBy* helpers", () => {

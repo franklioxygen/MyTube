@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../config/paths", () => ({
@@ -17,25 +18,18 @@ vi.mock("../../../utils/logger", () => ({
   },
 }));
 
-vi.mock("fs-extra", () => ({
-  default: {
-    existsSync: vi.fn(),
-    readdirSync: vi.fn(),
-    rmdirSync: vi.fn(),
-    renameSync: vi.fn(),
-    rmSync: vi.fn(),
-  },
-  existsSync: vi.fn(),
-  readdirSync: vi.fn(),
-  rmdirSync: vi.fn(),
-  renameSync: vi.fn(),
-  rmSync: vi.fn(),
-}));
-
 vi.mock("../fileHelpers", () => ({
+  buildStoragePath: vi.fn((baseDir: string, ...segments: Array<string | null | undefined>) =>
+    path.join(baseDir, ...segments.filter((segment): segment is string => Boolean(segment)))
+  ),
   findImageFile: vi.fn(),
   findVideoFile: vi.fn(),
+  listDirectory: vi.fn(),
   moveFile: vi.fn(),
+  pathExists: vi.fn(),
+  removeDirectoryIfEmpty: vi.fn(),
+  removeDirectoryRecursive: vi.fn(),
+  renamePath: vi.fn(),
 }));
 
 vi.mock("../settings", () => ({
@@ -51,9 +45,17 @@ vi.mock("../../thumbnailMirrorService", () => ({
   ),
 }));
 
-import fs from "fs-extra";
 import { logger } from "../../../utils/logger";
-import { findImageFile, findVideoFile, moveFile } from "../fileHelpers";
+import {
+  findImageFile,
+  findVideoFile,
+  listDirectory,
+  moveFile,
+  pathExists,
+  removeDirectoryIfEmpty,
+  removeDirectoryRecursive,
+  renamePath,
+} from "../fileHelpers";
 import { getSettings } from "../settings";
 import {
   cleanupCollectionDirectories,
@@ -76,8 +78,8 @@ describe("collectionFileManager", () => {
       moveThumbnailsToVideoFolder: false,
       moveSubtitlesToVideoFolder: false,
     } as any);
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.readdirSync).mockReturnValue([] as any);
+    vi.mocked(pathExists).mockReturnValue(true);
+    vi.mocked(listDirectory).mockReturnValue([] as any);
   });
 
   it("moves video into collection and updates path", () => {
@@ -155,7 +157,7 @@ describe("collectionFileManager", () => {
   });
 
   it("falls back to findImageFile when thumbnailPath missing on disk", () => {
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    vi.mocked(pathExists).mockReturnValue(false);
     vi.mocked(findImageFile).mockReturnValue("/safe/images/thumb.jpg");
 
     const result = moveThumbnailToCollection(
@@ -304,14 +306,14 @@ describe("collectionFileManager", () => {
   it("cleans empty collection directories", () => {
     cleanupCollectionDirectories("MyCol");
 
-    expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/videos/MyCol");
-    expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/images/MyCol");
-    expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/images-small/MyCol");
-    expect(fs.rmdirSync).toHaveBeenCalledWith("/safe/subtitles/MyCol");
+    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/videos/MyCol");
+    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/images/MyCol");
+    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/images-small/MyCol");
+    expect(removeDirectoryIfEmpty).toHaveBeenCalledWith("/safe/subtitles/MyCol");
   });
 
   it("handles cleanup errors", () => {
-    vi.mocked(fs.rmdirSync).mockImplementation(() => {
+    vi.mocked(removeDirectoryIfEmpty).mockImplementation(() => {
       throw new Error("remove failed");
     });
 
@@ -324,7 +326,7 @@ describe("collectionFileManager", () => {
   });
 
   it("renames collection directories when target does not exist", () => {
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(pathExists).mockImplementation((target: any) => {
       const value = String(target);
       return value.endsWith("/Old") && !value.endsWith("/New");
     });
@@ -332,27 +334,27 @@ describe("collectionFileManager", () => {
     const ok = renameCollectionDirectories("Old", "New");
 
     expect(ok).toBe(true);
-    expect(fs.renameSync).toHaveBeenCalledWith("/safe/videos/Old", "/safe/videos/New");
-    expect(fs.renameSync).toHaveBeenCalledWith("/safe/images/Old", "/safe/images/New");
-    expect(fs.renameSync).toHaveBeenCalledWith(
+    expect(renamePath).toHaveBeenCalledWith("/safe/videos/Old", "/safe/videos/New");
+    expect(renamePath).toHaveBeenCalledWith("/safe/images/Old", "/safe/images/New");
+    expect(renamePath).toHaveBeenCalledWith(
       "/safe/images-small/Old",
       "/safe/images-small/New"
     );
-    expect(fs.renameSync).toHaveBeenCalledWith(
+    expect(renamePath).toHaveBeenCalledWith(
       "/safe/subtitles/Old",
       "/safe/subtitles/New"
     );
   });
 
   it("merges existing directories and removes old one", () => {
-    vi.mocked(fs.existsSync).mockImplementation((target: any) => {
+    vi.mocked(pathExists).mockImplementation((target: any) => {
       const value = String(target);
       if (value.includes("/videos/Old") || value.includes("/videos/New")) {
         return true;
       }
       return false;
     });
-    vi.mocked(fs.readdirSync).mockReturnValue(["a.mp4"] as any);
+    vi.mocked(listDirectory).mockReturnValue(["a.mp4"] as any);
 
     const ok = renameCollectionDirectories("Old", "New");
 
@@ -361,17 +363,14 @@ describe("collectionFileManager", () => {
       "/safe/videos/Old/a.mp4",
       "/safe/videos/New/a.mp4"
     );
-    expect(fs.rmSync).toHaveBeenCalledWith("/safe/videos/Old", {
-      recursive: true,
-      force: true,
-    });
+    expect(removeDirectoryRecursive).toHaveBeenCalledWith("/safe/videos/Old");
   });
 
   it("returns false when rename fails", () => {
-    vi.mocked(fs.existsSync).mockImplementation((target: any) =>
+    vi.mocked(pathExists).mockImplementation((target: any) =>
       String(target).endsWith("/Old")
     );
-    vi.mocked(fs.renameSync).mockImplementation(() => {
+    vi.mocked(renamePath).mockImplementation(() => {
       throw new Error("rename failed");
     });
 
