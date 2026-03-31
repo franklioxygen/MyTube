@@ -20,6 +20,7 @@ vi.mock("../../../utils/logger", () => ({
 
 vi.mock("../../../utils/security", () => ({
   isPathWithinDirectories: vi.fn(() => true),
+  resolveSafePathInDirectories: vi.fn((targetPath: string) => path.resolve(targetPath)),
   sanitizePathSegment: vi.fn((segment: string) =>
     segment.replace(/\.\./g, "").replace(/[\\/]/g, "")
   ),
@@ -40,6 +41,7 @@ import fs from "fs-extra";
 import { logger } from "../../../utils/logger";
 import {
   isPathWithinDirectories,
+  resolveSafePathInDirectories,
   sanitizePathSegment,
 } from "../../../utils/security";
 import {
@@ -60,6 +62,9 @@ describe("fileHelpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isPathWithinDirectories).mockReturnValue(true);
+    vi.mocked(resolveSafePathInDirectories).mockImplementation((targetPath: string) =>
+      path.resolve(targetPath)
+    );
     vi.mocked(sanitizePathSegment).mockImplementation((segment: string) =>
       segment.replace(/\.\./g, "").replace(/[\\/]/g, "")
     );
@@ -78,11 +83,11 @@ describe("fileHelpers", () => {
     const targetPath = buildStoragePath("/safe/images-small", "Collection", "thumb.jpg");
 
     expect(targetPath).toBe(path.resolve("/safe/images-small/Collection/thumb.jpg"));
-    expect(isPathWithinDirectories).toHaveBeenCalledWith(
-      path.resolve("/safe/images-small/Collection/thumb.jpg"),
+    expect(resolveSafePathInDirectories).toHaveBeenCalledWith(
+      "/safe/images-small/Collection/thumb.jpg",
       expect.arrayContaining([
-        path.resolve("/safe/images-small"),
-        path.resolve("/safe/avatars"),
+        "/safe/images-small",
+        "/safe/avatars",
       ])
     );
   });
@@ -91,11 +96,11 @@ describe("fileHelpers", () => {
     const targetPath = buildStoragePath("/safe/avatars", "author.jpg");
 
     expect(targetPath).toBe(path.resolve("/safe/avatars/author.jpg"));
-    expect(isPathWithinDirectories).toHaveBeenCalledWith(
-      path.resolve("/safe/avatars/author.jpg"),
+    expect(resolveSafePathInDirectories).toHaveBeenCalledWith(
+      "/safe/avatars/author.jpg",
       expect.arrayContaining([
-        path.resolve("/safe/images-small"),
-        path.resolve("/safe/avatars"),
+        "/safe/images-small",
+        "/safe/avatars",
       ])
     );
   });
@@ -123,9 +128,11 @@ describe("fileHelpers", () => {
 
   it("skips unsafe root path and still checks collections", () => {
     const collectionPath = path.join("/safe/videos", "Drama", "movie.mp4");
-    vi.mocked(isPathWithinDirectories)
-      .mockReturnValueOnce(false)
-      .mockReturnValue(true);
+    vi.mocked(resolveSafePathInDirectories)
+      .mockImplementationOnce(() => {
+        throw new Error("unsafe root path");
+      })
+      .mockImplementation((targetPath: string) => path.resolve(targetPath));
     existsSyncMock.mockImplementation((p: any) => p === collectionPath);
 
     const result = findVideoFile("movie.mp4", [
@@ -190,7 +197,9 @@ describe("fileHelpers", () => {
   });
 
   it("throws and logs when path validation fails", () => {
-    vi.mocked(isPathWithinDirectories).mockReturnValue(false);
+    vi.mocked(resolveSafePathInDirectories).mockImplementation(() => {
+      throw new Error("outside allowlist");
+    });
 
     expect(() => moveFile("/safe/videos/a.mp4", "/safe/videos/b.mp4")).toThrow(
       "Security Error: Path traversal attempted"
