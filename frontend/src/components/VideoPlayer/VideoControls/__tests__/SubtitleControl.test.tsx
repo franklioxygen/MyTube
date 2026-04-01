@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SubtitleControl from '../SubtitleControl';
@@ -12,10 +13,10 @@ const subtitles = [
     { language: 'fr', filename: 'sub.fr.vtt', path: '/subs/sub.fr.vtt' }
 ];
 
-const defaultProps = {
+const defaultProps: ComponentProps<typeof SubtitleControl> = {
     subtitles,
     subtitlesEnabled: false,
-    selectedSubtitleIndices: [] as number[],
+    selectedSubtitleIndices: [],
     subtitleMenuAnchor: null,
     onSubtitleClick: vi.fn(),
     onCloseMenu: vi.fn(),
@@ -23,7 +24,7 @@ const defaultProps = {
     showOnMobile: false
 };
 
-const renderWithMenu = (overrides: Partial<typeof defaultProps> = {}) => {
+const renderWithMenu = (overrides: Partial<ComponentProps<typeof SubtitleControl>> = {}) => {
     const anchor = document.createElement('div');
     document.body.appendChild(anchor);
     const props = { ...defaultProps, subtitleMenuAnchor: anchor, ...overrides };

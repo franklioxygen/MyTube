@@ -344,7 +344,9 @@ describe('VideoContext', () => {
     const file = new File(['x'], 'thumb.png', { type: 'image/png' });
     await result.current.uploadThumbnail('v1', file);
 
-    const [url, formData, config] = mockApiPost.mock.calls.find((c: any[]) => c[0].includes('/upload-thumbnail'));
+    const uploadCall = mockApiPost.mock.calls.find((c: any[]) => c[0].includes('/upload-thumbnail'));
+    expect(uploadCall).toBeDefined();
+    const [url, formData, config] = uploadCall!;
     expect(url).toContain('/videos/v1/upload-thumbnail');
     expect(formData).toBeInstanceOf(FormData);
     expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' } });
@@ -393,7 +395,19 @@ describe('VideoContext', () => {
     });
 
     act(() => {
-      result.current.setVideos((prev) => [{ id: 'v3', title: 'new', author: 'Zed', visibility: 1 }, ...prev]);
+      result.current.setVideos((prev) => [
+        {
+          id: 'v3',
+          title: 'new',
+          author: 'Zed',
+          date: '20240103',
+          source: 'youtube',
+          sourceUrl: 'https://youtube.com/3',
+          addedAt: '2024-01-03T00:00:00Z',
+          visibility: 1,
+        },
+        ...prev,
+      ]);
     });
 
     await waitFor(() => {

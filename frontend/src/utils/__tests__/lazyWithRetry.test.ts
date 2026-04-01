@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import {
     isDynamicImportFailure,
     registerVitePreloadErrorRecovery,
@@ -6,9 +6,9 @@ import {
 } from '../lazyWithRetry';
 
 type StorageMock = {
-    getItem: ReturnType<typeof vi.fn>;
-    setItem: ReturnType<typeof vi.fn>;
-    removeItem: ReturnType<typeof vi.fn>;
+    getItem: Mock<(key: string) => string | null>;
+    setItem: Mock<(key: string, value: string) => void>;
+    removeItem: Mock<(key: string) => void>;
 };
 
 const createStorageMock = (): StorageMock => {

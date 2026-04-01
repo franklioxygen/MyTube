@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import HeaderContainer from '../HeaderContainer';
@@ -88,6 +87,7 @@ describe('HeaderContainer', () => {
         render(
             <HeaderContainer
                 onSubmit={vi.fn()}
+                onSearch={vi.fn()}
                 activeDownloads={[]}
                 queuedDownloads={[]}
                 isSearchMode={false}

@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ControlsOverlay from '../ControlsOverlay';
@@ -41,7 +42,7 @@ vi.mock('../SpeedControl', () => ({
 }));
 
 describe('ControlsOverlay', () => {
-    const defaultProps = {
+    const defaultProps: ComponentProps<typeof ControlsOverlay> = {
         isFullscreen: false,
         controlsVisible: true,
         isPlaying: false,
@@ -53,6 +54,7 @@ describe('ControlsOverlay', () => {
         volumeSliderRef: { current: null },
         subtitles: [],
         subtitlesEnabled: false,
+        selectedSubtitleIndices: [],
         isLooping: false,
         subtitleMenuAnchor: null,
         playbackRate: 1,

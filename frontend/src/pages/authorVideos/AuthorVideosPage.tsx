@@ -55,10 +55,10 @@ const AuthorVideosPage: React.FC = () => {
     });
 
     const authorAvatarPath = useMemo(
-        () => authorVideos.find((video) => video.authorAvatarPath)?.authorAvatarPath,
+        () => authorVideos.find((video) => video.authorAvatarPath)?.authorAvatarPath ?? null,
         [authorVideos]
     );
-    const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail');
+    const avatarUrl = useCloudStorageUrl(authorAvatarPath, 'thumbnail') ?? null;
 
     const actions = useAuthorVideoActions({
         authorDisplayName,

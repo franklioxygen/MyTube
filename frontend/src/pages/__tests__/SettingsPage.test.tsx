@@ -626,7 +626,7 @@ describe('SettingsPage', () => {
 
     renderPage('/settings');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Deployment Security Details' }));
 
     expect(screen.getByText('Deployment Security Details')).toBeInTheDocument();
     expect(screen.getByText('Capability / Feature')).toBeInTheDocument();

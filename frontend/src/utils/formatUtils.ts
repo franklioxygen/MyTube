@@ -1,3 +1,5 @@
+import type { TranslationKey } from './translations';
+
 /**
  * Helper to parse duration to seconds
  */
@@ -182,17 +184,25 @@ export const formatDate = (dateString?: string) => {
 export const formatRelativeDownloadTime = (
   downloadTimestamp?: string,
   originalDate?: string,
-  t?: (key: string, replacements?: Record<string, string | number>) => string,
+  t?: (key: TranslationKey, replacements?: Record<string, string | number>) => string,
 ): string => {
+  type RelativeDownloadTimeKey =
+    | 'justNow'
+    | 'hoursAgo'
+    | 'today'
+    | 'thisWeek'
+    | 'weeksAgo'
+    | 'unknownDate';
+
   const getTranslation = (
-    key: string,
+    key: RelativeDownloadTimeKey,
     replacements?: Record<string, string | number>,
   ): string => {
     if (t) {
-      return t(key as any, replacements);
+      return t(key, replacements);
     }
     // Fallback to English if no translation function provided
-    const fallbacks: Record<string, string> = {
+    const fallbacks: Record<RelativeDownloadTimeKey, string> = {
       justNow: "Just now",
       hoursAgo: "{hours} hours ago",
       today: "Today",

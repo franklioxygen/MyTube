@@ -174,7 +174,7 @@ describe('useVideoSort', () => {
     it('should handle videos with missing date field', () => {
         const videosWithMissingDate: Video[] = [
             { id: '1', title: 'Video A', addedAt: '2023-01-01T12:00:00Z', date: '20230101', author: 'Author1', source: 'youtube', sourceUrl: 'url1' },
-            { id: '2', title: 'Video B', addedAt: '2023-01-02T12:00:00Z', author: 'Author2', source: 'youtube', sourceUrl: 'url2' }, // missing date
+            { id: '2', title: 'Video B', addedAt: '2023-01-02T12:00:00Z', date: '', author: 'Author2', source: 'youtube', sourceUrl: 'url2' }, // missing date
             { id: '3', title: 'Video C', addedAt: '2023-01-03T12:00:00Z', date: '20230103', author: 'Author3', source: 'youtube', sourceUrl: 'url3' },
         ];
 

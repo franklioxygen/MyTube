@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { useStickyButton } from '../useStickyButton';
 
 type MockObserver = {
     callback: IntersectionObserverCallback;
-    disconnect: ReturnType<typeof vi.fn>;
-    observe: ReturnType<typeof vi.fn>;
+    disconnect: Mock<() => void>;
+    observe: Mock<(target: Element) => void>;
 };
 
 const createRef = (top: number) => ({
