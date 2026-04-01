@@ -72,48 +72,73 @@ const scanForRiskCommands = (content: string): string | null => {
   // Keep patterns simple to avoid ReDoS from complex regular expressions.
   // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
   // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
-  const recursiveDeletePatterns = [
-    {
-      flags: "-[rf]+",
-      display: "rm -rf",
-    },
-    {
-      flags: "-[fr]+",
-      display: "rm -fr",
-    },
-    {
-      flags: "-r\\s+-f",
-      display: "rm -r -f",
-    },
-    {
-      flags: "-f\\s+-r",
-      display: "rm -f -r",
-    },
-    {
-      flags: "--recursive\\s+--force",
-      display: "rm --recursive --force",
-    },
-    {
-      flags: "--force\\s+--recursive",
-      display: "rm --force --recursive",
-    },
-  ];
-  const destructiveTargets = [
-    { pattern: "\\/", display: "/" },
-    { pattern: "\\*", display: "*" },
-    { pattern: "~(?:\\/|\\b)", display: "~" },
-    {
-      pattern: "(?:\\$HOME|\\$\\{HOME\\})(?:\\/|\\b)",
-      display: "$HOME",
-    },
-  ];
   const riskyPatterns = [
-    ...recursiveDeletePatterns.flatMap(({ flags, display }) =>
-      destructiveTargets.map(({ pattern, display: targetDisplay }) => ({
-        pattern: new RegExp(`rm\\s+${flags}\\s+${pattern}`),
-        name: `${display} ${targetDisplay} (destructive delete)`,
-      }))
-    ),
+    { pattern: /rm\s+-[rf]+\s+\//, name: "rm -rf / (destructive delete)" },
+    { pattern: /rm\s+-[rf]+\s+\*/, name: "rm -rf * (destructive delete)" },
+    { pattern: /rm\s+-[rf]+\s+~(?:\/|\b)/, name: "rm -rf ~ (destructive delete)" },
+    {
+      pattern: /rm\s+-[rf]+\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm -rf $HOME (destructive delete)",
+    },
+    { pattern: /rm\s+-[fr]+\s+\//, name: "rm -fr / (destructive delete)" },
+    { pattern: /rm\s+-[fr]+\s+\*/, name: "rm -fr * (destructive delete)" },
+    { pattern: /rm\s+-[fr]+\s+~(?:\/|\b)/, name: "rm -fr ~ (destructive delete)" },
+    {
+      pattern: /rm\s+-[fr]+\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm -fr $HOME (destructive delete)",
+    },
+    { pattern: /rm\s+-r\s+-f\s+\//, name: "rm -r -f / (destructive delete)" },
+    { pattern: /rm\s+-r\s+-f\s+\*/, name: "rm -r -f * (destructive delete)" },
+    {
+      pattern: /rm\s+-r\s+-f\s+~(?:\/|\b)/,
+      name: "rm -r -f ~ (destructive delete)",
+    },
+    {
+      pattern: /rm\s+-r\s+-f\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm -r -f $HOME (destructive delete)",
+    },
+    { pattern: /rm\s+-f\s+-r\s+\//, name: "rm -f -r / (destructive delete)" },
+    { pattern: /rm\s+-f\s+-r\s+\*/, name: "rm -f -r * (destructive delete)" },
+    {
+      pattern: /rm\s+-f\s+-r\s+~(?:\/|\b)/,
+      name: "rm -f -r ~ (destructive delete)",
+    },
+    {
+      pattern: /rm\s+-f\s+-r\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm -f -r $HOME (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--recursive\s+--force\s+\//,
+      name: "rm --recursive --force / (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--recursive\s+--force\s+\*/,
+      name: "rm --recursive --force * (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--recursive\s+--force\s+~(?:\/|\b)/,
+      name: "rm --recursive --force ~ (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--recursive\s+--force\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm --recursive --force $HOME (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--force\s+--recursive\s+\//,
+      name: "rm --force --recursive / (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--force\s+--recursive\s+\*/,
+      name: "rm --force --recursive * (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--force\s+--recursive\s+~(?:\/|\b)/,
+      name: "rm --force --recursive ~ (destructive delete)",
+    },
+    {
+      pattern: /rm\s+--force\s+--recursive\s+(?:\$HOME|\$\{HOME\})(?:\/|\b)/,
+      name: "rm --force --recursive $HOME (destructive delete)",
+    },
     { pattern: /mkfs/, name: "mkfs (format disk)" },
     { pattern: /dd\s+if=/, name: "dd (disk write)" },
     {
