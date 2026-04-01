@@ -266,6 +266,50 @@ export const pt = {
     "Execute comandos shell personalizados em pontos específicos do ciclo de vida da tarefa. Variáveis de ambiente disponíveis: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "Aviso: Os comandos são executados com as permissões do servidor. Use com cautela.",
+  deploymentSecurityTitle: "Modelo de segurança da implantação",
+  deploymentSecurityLoading:
+    "A política de segurança da implantação está sendo carregada. Os recursos restritos permanecerão ocultos até que a política esteja disponível.",
+  deploymentSecurityDetails: "Detalhes",
+  deploymentSecurityDetailsTitle: "Detalhes de segurança da implantação",
+  deploymentSecurityCapabilityFeature: "Capacidade / Recurso",
+  deploymentSecurityClose: "Fechar",
+  adminTrustLevelLabel: "Nível de confiança do administrador",
+  adminTrustLevelApplication: "Aplicação",
+  adminTrustLevelContainer: "Contêiner",
+  adminTrustLevelHost: "Host",
+  adminTrustLevelApplicationDescription:
+    "O administrador é considerado confiável apenas na camada da aplicação.",
+  adminTrustLevelContainerDescription:
+    "O administrador é considerado confiável para ações do backend ou do processo do contêiner.",
+  adminTrustLevelHostDescription:
+    "O administrador é considerado confiável para ações administrativas com escopo de host.",
+  deploymentSecurityStandardAppManagement:
+    "Gerenciamento padrão do app (vídeos, coleções, tags, login, backups)",
+  deploymentSecurityTaskHooksCapability:
+    "Upload / exclusão / execução de ganchos de tarefa",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "Área de texto da configuração bruta do yt-dlp",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "Passagem completa de flags brutas do yt-dlp",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "Persistência das configurações de diretórios montados",
+  deploymentSecurityScanMountDirectories:
+    "Verificar arquivos dos diretórios montados configurados",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "Futuros recursos de manutenção de caminhos do host",
+  deploymentSecurityConfigurationTitle: "Como configurar",
+  deploymentSecurityConfigurationValuesNote:
+    "Use MYTUBE_ADMIN_TRUST_LEVEL com application, container ou host. Se o valor estiver ausente ou inválido, o fallback será container.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "Defina MYTUBE_ADMIN_TRUST_LEVEL no environment do serviço. Substitua application por container ou host conforme necessário.",
+  deploymentSecurityLocalConfigTitle: "Execução local do código-fonte",
+  deploymentSecurityLocalConfigDescription:
+    "Exporte MYTUBE_ADMIN_TRUST_LEVEL antes de iniciar o MyTube ou passe a variável inline ao executar npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "Você também pode colocar a mesma linha em backend/.env.",
+  taskHooksPolicyNotice:
+    "Os ganchos de tarefa são desativados pela política de segurança da implantação no modo de confiança application.",
   hookTaskBeforeStart: "Antes do Início da Tarefa",
   hookTaskBeforeStartHelper: "Executa antes do download começar.",
   hookTaskSuccess: "Tarefa com Sucesso",
@@ -932,6 +976,10 @@ export const pt = {
     "Configure as opções de download do yt-dlp. Veja",
   ytDlpConfigurationDocs: "documentação",
   ytDlpConfigurationDescriptionEnd: "para mais informações.",
+  ytDlpConfigurationPolicyNotice:
+    "A configuração bruta do yt-dlp é desativada pela política de segurança da implantação no modo de confiança application.",
+  mountDirectoriesPolicyNotice:
+    "Diretórios montados exigem confiança de administrador no nível do host.",
   customize: "Personalizar",
   hide: "Ocultar",
   reset: "Redefinir",

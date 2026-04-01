@@ -52,12 +52,18 @@ Create a `.env` file in the `backend/` directory:
 
 ```env
 PORT=5551
+# Optional: declare the admin trust boundary for this deployment.
+# Valid values: application | container | host
+# Default: container
+# MYTUBE_ADMIN_TRUST_LEVEL=container
 # Optional: yt-dlp JS runtime for YouTube challenge solving.
 # Default is "deno". On Alpine Linux (musl), set to "node" if Deno is unstable.
 # YT_DLP_JS_RUNTIME=node
 ```
 
 Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).
+
+For a detailed explanation of `application`, `container`, and `host`, see [Deployment Security Model](deployment-security-model.md).
 
 #### Frontend Configuration
 

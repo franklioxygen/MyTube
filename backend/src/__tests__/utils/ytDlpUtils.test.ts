@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
 import {
   InvalidProxyError,
@@ -199,6 +199,16 @@ describe("ytDlpUtils", () => {
   });
 
   describe("getUserYtDlpConfig", () => {
+    const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+
+    afterEach(() => {
+      if (originalTrustLevel === undefined) {
+        delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+      } else {
+        process.env.MYTUBE_ADMIN_TRUST_LEVEL = originalTrustLevel;
+      }
+    });
+
     it("should parse user config from settings", () => {
       vi.mocked(storageService.getSettings).mockReturnValue({
         ytDlpConfig: "--format best\n--proxy http://127.0.0.1:7890",
@@ -236,6 +246,15 @@ describe("ytDlpUtils", () => {
       vi.mocked(storageService.getSettings).mockImplementation(() => {
         throw new Error("settings read error");
       });
+
+      expect(getUserYtDlpConfig()).toEqual({});
+    });
+
+    it("should ignore raw config when deployment trust is application", () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = "application";
+      vi.mocked(storageService.getSettings).mockReturnValue({
+        ytDlpConfig: "--exec echo hi",
+      } as any);
 
       expect(getUserYtDlpConfig()).toEqual({});
     });

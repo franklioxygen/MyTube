@@ -65,6 +65,9 @@ export const settingsQueryOptions = {
     queryKey: ['settings'],
     queryFn: fetchSettings,
     ...stableQueryConfig,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     retry: (failureCount: number, error: any) => {
         if (error?.response?.status === 401) {
             return false;

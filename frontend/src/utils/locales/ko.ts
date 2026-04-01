@@ -262,6 +262,50 @@ export const ko = {
     "태스크 수명 주기의 특정 지점에서 사용자 지정 셸 명령을 실행합니다. 사용 가능한 환경 변수: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "경고: 명령은 서버 권한으로 실행됩니다. 주의해서 사용하십시오.",
+  deploymentSecurityTitle: "배포 보안 모델",
+  deploymentSecurityLoading:
+    "배포 보안 정책을 불러오는 중입니다. 정책을 확인할 수 있을 때까지 제한된 기능은 숨겨집니다.",
+  deploymentSecurityDetails: "세부 정보",
+  deploymentSecurityDetailsTitle: "배포 보안 세부 정보",
+  deploymentSecurityCapabilityFeature: "권한 / 기능",
+  deploymentSecurityClose: "닫기",
+  adminTrustLevelLabel: "관리자 신뢰 수준",
+  adminTrustLevelApplication: "애플리케이션",
+  adminTrustLevelContainer: "컨테이너",
+  adminTrustLevelHost: "호스트",
+  adminTrustLevelApplicationDescription:
+    "관리자는 애플리케이션 계층에서만 신뢰됩니다.",
+  adminTrustLevelContainerDescription:
+    "관리자는 백엔드 또는 컨테이너 프로세스 수준 작업에 대해 신뢰됩니다.",
+  adminTrustLevelHostDescription:
+    "관리자는 호스트 범위의 관리 작업에 대해 신뢰됩니다.",
+  deploymentSecurityStandardAppManagement:
+    "기본 앱 관리(동영상, 컬렉션, 태그, 로그인, 백업)",
+  deploymentSecurityTaskHooksCapability:
+    "태스크 훅 업로드 / 삭제 / 실행",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "원시 yt-dlp 설정 텍스트 영역",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "원시 yt-dlp 플래그 전체 전달",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "마운트 디렉토리 설정 저장",
+  deploymentSecurityScanMountDirectories:
+    "구성된 마운트 디렉토리의 파일 스캔",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "향후 호스트 경로 유지보수 기능",
+  deploymentSecurityConfigurationTitle: "설정 방법",
+  deploymentSecurityConfigurationValuesNote:
+    "MYTUBE_ADMIN_TRUST_LEVEL 에 application, container, host 중 하나를 사용하세요. 값이 없거나 잘못되면 container 로 되돌아갑니다.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "서비스 environment 에서 MYTUBE_ADMIN_TRUST_LEVEL 을 설정하세요. 필요에 따라 application 을 container 또는 host 로 바꾸면 됩니다.",
+  deploymentSecurityLocalConfigTitle: "로컬 소스 실행",
+  deploymentSecurityLocalConfigDescription:
+    "MyTube 를 시작하기 전에 MYTUBE_ADMIN_TRUST_LEVEL 을 export 하거나 npm run dev 실행 시 인라인으로 전달하세요.",
+  deploymentSecurityLocalEnvFileNote:
+    "같은 줄을 backend/.env 에 넣어도 됩니다.",
+  taskHooksPolicyNotice:
+    "application 신뢰 모드에서는 배포 보안 정책에 따라 태스크 훅이 비활성화됩니다.",
   hookTaskBeforeStart: "태스크 시작 전",
   hookTaskBeforeStartHelper: "다운로드가 시작되기 전에 실행됩니다.",
   hookTaskSuccess: "태스크 성공",
@@ -910,6 +954,10 @@ export const ko = {
   ytDlpConfigurationDescription: "yt-dlp 다운로드 옵션을 구성합니다.",
   ytDlpConfigurationDocs: "문서",
   ytDlpConfigurationDescriptionEnd: "에서 자세한 정보를 확인하세요.",
+  ytDlpConfigurationPolicyNotice:
+    "application 신뢰 모드에서는 배포 보안 정책에 따라 원시 yt-dlp 설정이 비활성화됩니다.",
+  mountDirectoriesPolicyNotice:
+    "마운트 디렉토리는 호스트 수준의 관리자 신뢰가 필요합니다.",
   customize: "사용자 지정",
   hide: "숨기기",
   reset: "초기화",

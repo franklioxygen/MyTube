@@ -248,6 +248,50 @@ export const zh = {
   taskHooksDescription:
     "在任务生命周期的特定时间点执行自定义 Shell 命令。可用环境变量: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
   taskHooksWarning: "警告：命令将以服务器权限运行。请谨慎使用。",
+  deploymentSecurityTitle: "部署安全模型",
+  deploymentSecurityLoading:
+    "部署安全策略正在加载中。在策略可用之前，受限功能会保持隐藏。",
+  deploymentSecurityDetails: "详情",
+  deploymentSecurityDetailsTitle: "部署安全详情",
+  deploymentSecurityCapabilityFeature: "能力 / 功能",
+  deploymentSecurityClose: "关闭",
+  adminTrustLevelLabel: "管理员信任级别",
+  adminTrustLevelApplication: "应用层",
+  adminTrustLevelContainer: "容器层",
+  adminTrustLevelHost: "宿主机层",
+  adminTrustLevelApplicationDescription:
+    "管理员仅在应用层被视为受信任主体。",
+  adminTrustLevelContainerDescription:
+    "管理员被视为受信任的后端/容器进程级操作者。",
+  adminTrustLevelHostDescription:
+    "管理员被视为受信任的宿主机范围操作者。",
+  deploymentSecurityStandardAppManagement:
+    "标准应用管理（视频、合集、标签、登录、备份）",
+  deploymentSecurityTaskHooksCapability:
+    "任务钩子上传 / 删除 / 执行",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "原始 yt-dlp 配置文本区域",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "完整的原始 yt-dlp 参数透传",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "挂载目录设置持久化",
+  deploymentSecurityScanMountDirectories:
+    "扫描已配置挂载目录中的文件",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "未来宿主机路径维护类功能",
+  deploymentSecurityConfigurationTitle: "如何配置",
+  deploymentSecurityConfigurationValuesNote:
+    "使用 MYTUBE_ADMIN_TRUST_LEVEL 设置安全模型，可选值为 application、container、host。缺失或非法值会回退到 container。",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "在服务的 environment 中设置 MYTUBE_ADMIN_TRUST_LEVEL。按需将 application 替换为 container 或 host。",
+  deploymentSecurityLocalConfigTitle: "本地运行源码",
+  deploymentSecurityLocalConfigDescription:
+    "启动 MyTube 前先导出 MYTUBE_ADMIN_TRUST_LEVEL，或在运行 npm run dev 时内联指定。",
+  deploymentSecurityLocalEnvFileNote:
+    "也可以把同样一行写入 backend/.env。",
+  taskHooksPolicyNotice:
+    "在 application 信任模式下，任务钩子会被部署安全策略禁用。",
   hookTaskBeforeStart: "任务开始前",
   hookTaskBeforeStartHelper: "在下载开始前执行。",
   hookTaskSuccess: "任务成功",
@@ -873,6 +917,10 @@ export const zh = {
   ytDlpConfigurationDescription: "配置 yt-dlp 下载选项。详见",
   ytDlpConfigurationDocs: "文档",
   ytDlpConfigurationDescriptionEnd: "了解更多信息。",
+  ytDlpConfigurationPolicyNotice:
+    "在 application 信任模式下，原始 yt-dlp 配置会被部署安全策略禁用。",
+  mountDirectoriesPolicyNotice:
+    "挂载目录功能需要 host 级管理员信任。",
   customize: "自定义",
   hide: "隐藏",
   reset: "重置",

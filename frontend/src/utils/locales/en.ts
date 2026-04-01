@@ -256,6 +256,50 @@ export const en = {
     "Execute custom shell commands at specific points in the task lifecycle. Available environment variables: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "Warning: Commands run with the server's permissions. Use with caution.",
+  deploymentSecurityTitle: "Deployment Security Model",
+  deploymentSecurityLoading:
+    "Deployment security policy is loading. Restricted features remain hidden until the policy is available.",
+  deploymentSecurityDetails: "Details",
+  deploymentSecurityDetailsTitle: "Deployment Security Details",
+  deploymentSecurityCapabilityFeature: "Capability / Feature",
+  deploymentSecurityClose: "Close",
+  adminTrustLevelLabel: "Admin Trust Level",
+  adminTrustLevelApplication: "Application",
+  adminTrustLevelContainer: "Container",
+  adminTrustLevelHost: "Host",
+  adminTrustLevelApplicationDescription:
+    "Admin is trusted at the application layer only.",
+  adminTrustLevelContainerDescription:
+    "Admin is trusted with backend/container-process-level actions.",
+  adminTrustLevelHostDescription:
+    "Admin is trusted with host-scoped administrative actions.",
+  deploymentSecurityStandardAppManagement:
+    "Standard app management (videos, collections, tags, login, backups)",
+  deploymentSecurityTaskHooksCapability:
+    "Task hooks upload/delete/execute",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "Raw yt-dlp config text area",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "Full raw yt-dlp flag passthrough",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "Mount directory settings persistence",
+  deploymentSecurityScanMountDirectories:
+    "Scan files from configured mount directories",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "Future host-path maintenance features",
+  deploymentSecurityConfigurationTitle: "How to configure",
+  deploymentSecurityConfigurationValuesNote:
+    "Use MYTUBE_ADMIN_TRUST_LEVEL with application, container, or host. Missing or invalid values fall back to container.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "Set MYTUBE_ADMIN_TRUST_LEVEL in the service environment. Replace application with container or host as needed.",
+  deploymentSecurityLocalConfigTitle: "Local source run",
+  deploymentSecurityLocalConfigDescription:
+    "Export MYTUBE_ADMIN_TRUST_LEVEL before starting MyTube, or pass it inline when running npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "You can also put the same line in backend/.env.",
+  taskHooksPolicyNotice:
+    "Task hooks are disabled by deployment security policy in application trust mode.",
   hookTaskBeforeStart: "Before Task Start",
   hookTaskBeforeStartHelper: "Executes before the download begins.",
   hookTaskSuccess: "Task Success",
@@ -879,6 +923,10 @@ export const en = {
   ytDlpConfigurationDescription: "Configure yt-dlp download options. See",
   ytDlpConfigurationDocs: "documentation",
   ytDlpConfigurationDescriptionEnd: "for more information.",
+  ytDlpConfigurationPolicyNotice:
+    "Raw yt-dlp configuration is disabled by deployment security policy in application trust mode.",
+  mountDirectoriesPolicyNotice:
+    "Mount directories require host-level admin trust.",
   customize: "Customize",
   hide: "Hide",
   reset: "Reset",

@@ -43,6 +43,9 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      # 可选：声明当前部署中管理员的信任边界。
+      # 可选值：application | container | host
+      - MYTUBE_ADMIN_TRUST_LEVEL=container
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -148,9 +151,24 @@ services:
 
 您可以通过添加  `.env`  文件或修改  `docker-compose.yml`  中的  `environment`  部分来自定义部署。
 
+管理员信任模型可通过以下环境变量设置：
+
+```env
+MYTUBE_ADMIN_TRUST_LEVEL=container
+```
+
+可选值：
+
+- `application`：管理员仅在应用层被视为受信任主体
+- `container`：管理员被视为受信任的后端/容器进程级操作者
+- `host`：管理员被视为受信任的宿主机范围操作者
+
+完整能力差异说明请参考 [部署安全模型](deployment-security-model.md)。
+
 | 变量                | 服务     | 描述                                | 默认值                |
 | ------------------- | -------- | ----------------------------------- | --------------------- |
 | `PORT`              | Backend  | 后端内部监听端口                    | `5551`                |
+| `MYTUBE_ADMIN_TRUST_LEVEL` | Backend  | 部署声明的管理员信任边界（`application`、`container`、`host`） | `container` |
 | `VITE_API_URL`      | Frontend | API 端点路径                        | `/api`                |
 | `API_HOST`          | Frontend | **高级：**  强制指定后端 IP         | _(自动检测)_          |
 | `API_PORT`          | Frontend | **高级：**  强制指定后端端口        | `5551`                |

@@ -266,6 +266,50 @@ export const fr = {
     "Exécutez des commandes shell personnalisées à des points spécifiques du cycle de vie de la tâche. Variables d'environnement disponibles : MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "Avertissement : Les commandes s'exécutent avec les permissions du serveur. À utiliser avec prudence.",
+  deploymentSecurityTitle: "Modèle de sécurité du déploiement",
+  deploymentSecurityLoading:
+    "La politique de sécurité du déploiement est en cours de chargement. Les fonctionnalités restreintes resteront masquées jusqu'à ce que la politique soit disponible.",
+  deploymentSecurityDetails: "Détails",
+  deploymentSecurityDetailsTitle: "Détails de la sécurité du déploiement",
+  deploymentSecurityCapabilityFeature: "Capacité / Fonctionnalité",
+  deploymentSecurityClose: "Fermer",
+  adminTrustLevelLabel: "Niveau de confiance de l'administrateur",
+  adminTrustLevelApplication: "Application",
+  adminTrustLevelContainer: "Conteneur",
+  adminTrustLevelHost: "Hôte",
+  adminTrustLevelApplicationDescription:
+    "L'administrateur est considéré comme fiable uniquement au niveau de l'application.",
+  adminTrustLevelContainerDescription:
+    "L'administrateur est considéré comme fiable pour les actions du backend ou du processus du conteneur.",
+  adminTrustLevelHostDescription:
+    "L'administrateur est considéré comme fiable pour les actions administratives au niveau de l'hôte.",
+  deploymentSecurityStandardAppManagement:
+    "Gestion standard de l'application (vidéos, collections, tags, connexion, sauvegardes)",
+  deploymentSecurityTaskHooksCapability:
+    "Téléverser / supprimer / exécuter les hooks de tâche",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "Zone de texte de configuration brute de yt-dlp",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "Transmission complète des options brutes de yt-dlp",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "Persistance des paramètres des répertoires montés",
+  deploymentSecurityScanMountDirectories:
+    "Analyser les fichiers des répertoires montés configurés",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "Fonctionnalités futures de maintenance des chemins hôte",
+  deploymentSecurityConfigurationTitle: "Comment configurer",
+  deploymentSecurityConfigurationValuesNote:
+    "Utilisez MYTUBE_ADMIN_TRUST_LEVEL avec application, container ou host. Si la valeur est absente ou invalide, MyTube revient à container.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "Définissez MYTUBE_ADMIN_TRUST_LEVEL dans l'environnement du service. Remplacez application par container ou host selon vos besoins.",
+  deploymentSecurityLocalConfigTitle: "Exécution locale depuis le code source",
+  deploymentSecurityLocalConfigDescription:
+    "Exportez MYTUBE_ADMIN_TRUST_LEVEL avant de démarrer MyTube, ou passez la variable en ligne avec npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "Vous pouvez aussi ajouter la même ligne dans backend/.env.",
+  taskHooksPolicyNotice:
+    "Les hooks de tâche sont désactivés par la politique de sécurité du déploiement en mode de confiance application.",
   hookTaskBeforeStart: "Avant le Début de la Tâche",
   hookTaskBeforeStartHelper: "S'exécute avant le début du téléchargement.",
   hookTaskSuccess: "Tâche Réussie",
@@ -945,6 +989,10 @@ export const fr = {
     "Configurez les options de téléchargement yt-dlp. Voir",
   ytDlpConfigurationDocs: "documentation",
   ytDlpConfigurationDescriptionEnd: "pour plus d'informations.",
+  ytDlpConfigurationPolicyNotice:
+    "La configuration brute de yt-dlp est désactivée par la politique de sécurité du déploiement en mode de confiance application.",
+  mountDirectoriesPolicyNotice:
+    "Les répertoires montés nécessitent une confiance administrateur au niveau de l'hôte.",
   customize: "Personnaliser",
   hide: "Masquer",
   reset: "Réinitialiser",

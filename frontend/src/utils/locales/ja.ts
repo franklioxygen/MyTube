@@ -266,6 +266,50 @@ export const ja = {
     "タスクライフサイクルの特定のポイントでカスタムシェルコマンドを実行します。利用可能な環境変数: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH。",
   taskHooksWarning:
     "警告: コマンドはサーバーの権限で実行されます。注意して使用してください。",
+  deploymentSecurityTitle: "デプロイのセキュリティモデル",
+  deploymentSecurityLoading:
+    "デプロイのセキュリティポリシーを読み込み中です。ポリシーが利用可能になるまで、制限付き機能は非表示のままになります。",
+  deploymentSecurityDetails: "詳細",
+  deploymentSecurityDetailsTitle: "デプロイのセキュリティ詳細",
+  deploymentSecurityCapabilityFeature: "機能 / 能力",
+  deploymentSecurityClose: "閉じる",
+  adminTrustLevelLabel: "管理者の信頼レベル",
+  adminTrustLevelApplication: "アプリケーション",
+  adminTrustLevelContainer: "コンテナ",
+  adminTrustLevelHost: "ホスト",
+  adminTrustLevelApplicationDescription:
+    "管理者はアプリケーション層でのみ信頼されます。",
+  adminTrustLevelContainerDescription:
+    "管理者はバックエンドまたはコンテナプロセスレベルの操作に対して信頼されます。",
+  adminTrustLevelHostDescription:
+    "管理者はホストスコープの管理操作に対して信頼されます。",
+  deploymentSecurityStandardAppManagement:
+    "標準的なアプリ管理（動画、コレクション、タグ、ログイン、バックアップ）",
+  deploymentSecurityTaskHooksCapability:
+    "タスクフックのアップロード / 削除 / 実行",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "生の yt-dlp 設定テキストエリア",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "生の yt-dlp フラグの完全な透過",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "マウントディレクトリ設定の永続化",
+  deploymentSecurityScanMountDirectories:
+    "設定済みのマウントディレクトリ内のファイルをスキャン",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "将来のホストパスメンテナンス機能",
+  deploymentSecurityConfigurationTitle: "設定方法",
+  deploymentSecurityConfigurationValuesNote:
+    "MYTUBE_ADMIN_TRUST_LEVEL に application、container、host のいずれかを設定します。未設定または無効な値の場合は container にフォールバックします。",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "サービスの environment で MYTUBE_ADMIN_TRUST_LEVEL を設定します。必要に応じて application を container または host に置き換えてください。",
+  deploymentSecurityLocalConfigTitle: "ローカルでソースコードを実行",
+  deploymentSecurityLocalConfigDescription:
+    "MyTube を起動する前に MYTUBE_ADMIN_TRUST_LEVEL を export するか、npm run dev 実行時にインライン指定してください。",
+  deploymentSecurityLocalEnvFileNote:
+    "同じ行を backend/.env に書くこともできます。",
+  taskHooksPolicyNotice:
+    "application 信頼モードでは、タスクフックはデプロイのセキュリティポリシーにより無効化されます。",
   hookTaskBeforeStart: "タスク開始前",
   hookTaskBeforeStartHelper: "ダウンロードが始まる前に実行されます。",
   hookTaskSuccess: "タスク成功",
@@ -928,6 +972,10 @@ export const ja = {
     "yt-dlpのダウンロードオプションを設定します。詳細は",
   ytDlpConfigurationDocs: "ドキュメント",
   ytDlpConfigurationDescriptionEnd: "をご覧ください。",
+  ytDlpConfigurationPolicyNotice:
+    "application 信頼モードでは、生の yt-dlp 設定はデプロイのセキュリティポリシーにより無効化されます。",
+  mountDirectoriesPolicyNotice:
+    "マウントディレクトリにはホストレベルの管理者信頼が必要です。",
   customize: "カスタマイズ",
   hide: "隠す",
   reset: "リセット",

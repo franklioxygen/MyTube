@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 799
+Total keys: 829
 
 ## Summary
 
@@ -15,7 +15,7 @@ Total keys: 799
 | Settings | 4 | `general` | `downloadSettings` |
 | Settings Categories | 119 | `basicSettings` | `enterNewTagName` |
 | Database | 39 | `database` | `cleanupTempFilesConfirmMessage` |
-| Task Hooks | 40 | `taskHooks` | `cleanupTempFilesFailed` |
+| Task Hooks | 68 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
 | Manage | 33 | `manageContent` | `confirmBulkDelete` |
@@ -39,7 +39,7 @@ Total keys: 799
 | Disclaimer | 3 | `disclaimerTitle` | `history` |
 | Existing Video Detection | 16 | `existingVideoDetected` | `changeSettings` |
 | Sorting | 10 | `sort` | `random` |
-| yt-dlp Configuration | 21 | `ytDlpConfiguration` | `saveAuthorFilesToCollectionDescription` |
+| yt-dlp Configuration | 23 | `ytDlpConfiguration` | `saveAuthorFilesToCollectionDescription` |
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 38 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
@@ -267,6 +267,34 @@ Total keys: 799
 | `taskHooks` |
 | `taskHooksDescription` |
 | `taskHooksWarning` |
+| `deploymentSecurityTitle` |
+| `deploymentSecurityLoading` |
+| `deploymentSecurityDetails` |
+| `deploymentSecurityDetailsTitle` |
+| `deploymentSecurityCapabilityFeature` |
+| `deploymentSecurityClose` |
+| `adminTrustLevelLabel` |
+| `adminTrustLevelApplication` |
+| `adminTrustLevelContainer` |
+| `adminTrustLevelHost` |
+| `adminTrustLevelApplicationDescription` |
+| `adminTrustLevelContainerDescription` |
+| `adminTrustLevelHostDescription` |
+| `deploymentSecurityStandardAppManagement` |
+| `deploymentSecurityTaskHooksCapability` |
+| `deploymentSecurityRawYtDlpConfigTextArea` |
+| `deploymentSecurityFullRawYtDlpFlagPassthrough` |
+| `deploymentSecurityMountDirectorySettingsPersistence` |
+| `deploymentSecurityScanMountDirectories` |
+| `deploymentSecurityFutureHostPathMaintenanceFeatures` |
+| `deploymentSecurityConfigurationTitle` |
+| `deploymentSecurityConfigurationValuesNote` |
+| `deploymentSecurityDockerConfigTitle` |
+| `deploymentSecurityDockerConfigDescription` |
+| `deploymentSecurityLocalConfigTitle` |
+| `deploymentSecurityLocalConfigDescription` |
+| `deploymentSecurityLocalEnvFileNote` |
+| `taskHooksPolicyNotice` |
 | `hookTaskBeforeStart` |
 | `hookTaskBeforeStartHelper` |
 | `hookTaskSuccess` |
@@ -890,6 +918,7 @@ Total keys: 799
 | `ytDlpConfigurationDescription` |
 | `ytDlpConfigurationDocs` |
 | `ytDlpConfigurationDescriptionEnd` |
+| `ytDlpConfigurationPolicyNotice` |
 | `customize` |
 | `hide` |
 | `reset` |
@@ -903,6 +932,7 @@ Total keys: 799
 | `moveThumbnailsToVideoFolderOn` |
 | `moveThumbnailsToVideoFolderOff` |
 | `moveThumbnailsToVideoFolderDescription` |
+| `mountDirectoriesPolicyNotice` |
 | `saveAuthorFilesToCollection` |
 | `saveAuthorFilesToCollectionOn` |
 | `saveAuthorFilesToCollectionOff` |

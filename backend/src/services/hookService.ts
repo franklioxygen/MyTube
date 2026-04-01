@@ -2,6 +2,7 @@ import child_process from "child_process";
 import fs from "fs";
 import path from "path";
 import util from "util";
+import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { HOOKS_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
 import { isPathWithinDirectory } from "../utils/security";
@@ -17,6 +18,9 @@ export interface HookContext {
 }
 
 const execPromise = util.promisify(child_process.exec);
+
+const sanitizeHookEnvValue = (value: string): string =>
+  value.replace(/\0/g, "").replace(/[\r\n]+/g, " ").trim();
 
 export class HookService {
   /**
@@ -55,6 +59,13 @@ export class HookService {
     eventName: string,
     context: Record<string, string | undefined>
   ): Promise<void> {
+    if (!isAdminTrustLevelAtLeast("container")) {
+      logger.info(
+        `[HookService] Skipping hook ${eventName}: disabled by deployment security policy.`
+      );
+      return;
+    }
+
     try {
       const safeEventName = this.sanitizeHookName(eventName);
       const hookPath = this.getSafeHookPath(safeEventName);
@@ -74,13 +85,25 @@ export class HookService {
 
       const env: Record<string, string> = { ...process.env } as Record<string, string>;
       
-      if (context.taskId) env.MYTUBE_TASK_ID = context.taskId;
-      if (context.taskTitle) env.MYTUBE_TASK_TITLE = context.taskTitle;
-      if (context.sourceUrl) env.MYTUBE_SOURCE_URL = context.sourceUrl;
-      if (context.status) env.MYTUBE_TASK_STATUS = context.status;
-      if (context.videoPath) env.MYTUBE_VIDEO_PATH = context.videoPath;
-      if (context.thumbnailPath) env.MYTUBE_THUMBNAIL_PATH = context.thumbnailPath;
-      if (context.error) env.MYTUBE_ERROR = context.error;
+      if (context.taskId) env.MYTUBE_TASK_ID = sanitizeHookEnvValue(context.taskId);
+      if (context.taskTitle) {
+        env.MYTUBE_TASK_TITLE = sanitizeHookEnvValue(context.taskTitle);
+      }
+      if (context.sourceUrl) {
+        env.MYTUBE_SOURCE_URL = sanitizeHookEnvValue(context.sourceUrl);
+      }
+      if (context.status) {
+        env.MYTUBE_TASK_STATUS = sanitizeHookEnvValue(context.status);
+      }
+      if (context.videoPath) {
+        env.MYTUBE_VIDEO_PATH = sanitizeHookEnvValue(context.videoPath);
+      }
+      if (context.thumbnailPath) {
+        env.MYTUBE_THUMBNAIL_PATH = sanitizeHookEnvValue(context.thumbnailPath);
+      }
+      if (context.error) {
+        env.MYTUBE_ERROR = sanitizeHookEnvValue(context.error);
+      }
 
       const { stdout, stderr } = await execPromise(`bash "${hookPath}"`, { env });
       

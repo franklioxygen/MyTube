@@ -3,6 +3,12 @@ import crypto from "crypto";
 import fs from "fs-extra";
 import path from "path";
 import {
+  AdminTrustLevel,
+  createAdminTrustLevelError,
+  getDeploymentSecurityModel,
+  isAdminTrustLevelAtLeast,
+} from "../config/adminTrust";
+import {
     COLLECTIONS_DATA_PATH,
     STATUS_DATA_PATH,
     VIDEOS_DATA_PATH,
@@ -15,8 +21,17 @@ import * as storageService from "../services/storageService";
 import { twitchApiService } from "../services/twitchService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
+import { errorResponse, sendBadRequest } from "../utils/response";
 
 type PersistedSettingsResponse = Settings & { passkeys?: unknown };
+
+const TRUST_GATED_SETTINGS_REQUIREMENTS: Partial<
+  Record<keyof Settings, AdminTrustLevel>
+> = {
+  ytDlpConfig: "container",
+  proxyOnlyYoutube: "container",
+  mountDirectories: "host",
+};
 
 const RESPONSE_HIDDEN_SETTINGS_KEYS = new Set([
   "password",
@@ -66,10 +81,91 @@ const buildSafeSettingsPayload = (
   return {
     ...safeSettings,
     ...adminOnlySettings,
+    deploymentSecurity: getDeploymentSecurityModel(),
     password: undefined,
     visitorPassword: undefined,
     passkeys: undefined,
   };
+};
+
+const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
+  if (a === b) {
+    return true;
+  }
+
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  if (
+    typeof a === "object" &&
+    a !== null &&
+    typeof b === "object" &&
+    b !== null
+  ) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  return false;
+};
+
+const normalizeTrustGatedSettingValue = (
+  key: keyof Settings,
+  value: unknown
+): unknown => {
+  if ((key === "ytDlpConfig" || key === "mountDirectories") && value == null) {
+    return "";
+  }
+
+  if (key === "proxyOnlyYoutube" && value == null) {
+    return false;
+  }
+
+  return value;
+};
+
+const enforceTrustLevelForSettingsChanges = (
+  res: Response,
+  existingSettings: Settings,
+  incomingSettings: Partial<Settings>
+): Partial<Settings> | null => {
+  const sanitizedSettings = { ...incomingSettings };
+
+  for (const [rawKey, requiredTrustLevel] of Object.entries(
+    TRUST_GATED_SETTINGS_REQUIREMENTS
+  )) {
+    const key = rawKey as keyof Settings;
+
+    if (
+      requiredTrustLevel === undefined ||
+      !Object.prototype.hasOwnProperty.call(sanitizedSettings, key)
+    ) {
+      continue;
+    }
+
+    if (isAdminTrustLevelAtLeast(requiredTrustLevel)) {
+      continue;
+    }
+
+    const nextValue = normalizeTrustGatedSettingValue(
+      key,
+      sanitizedSettings[key]
+    );
+    const currentValue = normalizeTrustGatedSettingValue(
+      key,
+      existingSettings[key]
+    );
+
+    if (areSettingValuesEqual(currentValue, nextValue)) {
+      delete sanitizedSettings[key];
+      continue;
+    }
+
+    res.status(403).json(createAdminTrustLevelError(requiredTrustLevel));
+    return null;
+  }
+
+  return sanitizedSettings;
 };
 
 /**
@@ -81,14 +177,11 @@ export const getSettings = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const settings = storageService.getSettings();
+  let settings = storageService.getSettings();
 
-  // If empty (first run), save defaults
   if (Object.keys(settings).length === 0) {
     storageService.saveSettings(defaultSettings);
-    // Return data directly for backward compatibility
-    res.json(defaultSettings);
-    return;
+    settings = defaultSettings;
   }
 
   // Merge with defaults to ensure all fields exist
@@ -461,16 +554,26 @@ const persistSettingsUpdate = async (
   );
 
   // Permission control is handled by roleBasedSettingsMiddleware
-  settingsValidationService.validateSettings(incomingSettings);
+  const trustedIncomingSettings = enforceTrustLevelForSettingsChanges(
+    res,
+    existingSettings,
+    incomingSettings
+  );
+
+  if (trustedIncomingSettings === null) {
+    return;
+  }
+
+  settingsValidationService.validateSettings(trustedIncomingSettings);
 
   const preparedSettings = await settingsValidationService.prepareSettingsForSave(
     existingSettings,
-    incomingSettings,
+    trustedIncomingSettings,
     passwordService.hashPassword,
     { preserveUnsetFields: mode === "replace" }
   );
 
-  const sanitizedIncoming = sanitizeIncomingSettings(incomingSettings);
+  const sanitizedIncoming = sanitizeIncomingSettings(trustedIncomingSettings);
 
   const settingsToPersist: Partial<Settings> =
     mode === "replace"
@@ -561,12 +664,12 @@ export const renameTag = async (req: Request, res: Response): Promise<void> => {
   const newTag = typeof req.body?.newTag === "string" ? req.body.newTag.trim() : "";
 
   if (!oldTag || !newTag) {
-    res.status(400).json({ error: "oldTag and newTag are required" });
+    sendBadRequest(res, "oldTag and newTag are required");
     return;
   }
 
   if (oldTag === newTag) {
-    res.status(400).json({ error: "oldTag and newTag cannot be the same" });
+    sendBadRequest(res, "oldTag and newTag cannot be the same");
     return;
   }
 
@@ -578,9 +681,11 @@ export const renameTag = async (req: Request, res: Response): Promise<void> => {
     (t) => t.toLowerCase() === newTagLower && t !== oldTag
   );
   if (collision !== undefined) {
-    res.status(400).json({
-      error: `Tag "${newTag}" conflicts with existing tag "${collision}" (tags are case-insensitive).`,
-    });
+    res.status(400).json(
+      errorResponse(
+        `Tag "${newTag}" conflicts with existing tag "${collision}" (tags are case-insensitive).`
+      )
+    );
     return;
   }
 
@@ -596,7 +701,7 @@ export const testTelegramNotification = async (
 ): Promise<void> => {
   const { botToken, chatId } = req.body;
   if (!botToken || !chatId) {
-    res.status(400).json({ error: "botToken and chatId are required" });
+    sendBadRequest(res, "botToken and chatId are required");
     return;
   }
 
@@ -605,6 +710,6 @@ export const testTelegramNotification = async (
   if (result.ok) {
     res.json({ success: true });
   } else {
-    res.status(400).json({ error: result.error });
+    sendBadRequest(res, result.error || "Failed to send Telegram test notification");
   }
 };

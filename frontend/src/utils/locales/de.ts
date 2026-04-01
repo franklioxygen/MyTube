@@ -269,6 +269,50 @@ export const de = {
     "Führen Sie benutzerdefinierte Shell-Befehle an bestimmten Punkten im Aufgabenlebenszyklus aus. Verfügbare Umgebungsvariablen: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "Warnung: Befehle werden mit den Berechtigungen des Servers ausgeführt. Mit Vorsicht verwenden.",
+  deploymentSecurityTitle: "Sicherheitsmodell der Bereitstellung",
+  deploymentSecurityLoading:
+    "Die Sicherheitsrichtlinie der Bereitstellung wird geladen. Eingeschränkte Funktionen bleiben verborgen, bis die Richtlinie verfügbar ist.",
+  deploymentSecurityDetails: "Einzelheiten",
+  deploymentSecurityDetailsTitle: "Details zum Bereitstellungsschutz",
+  deploymentSecurityCapabilityFeature: "Fähigkeit / Funktion",
+  deploymentSecurityClose: "Schließen",
+  adminTrustLevelLabel: "Vertrauensstufe des Administrators",
+  adminTrustLevelApplication: "Anwendung",
+  adminTrustLevelContainer: "Container",
+  adminTrustLevelHost: "Host",
+  adminTrustLevelApplicationDescription:
+    "Der Administrator gilt nur auf Anwendungsebene als vertrauenswürdig.",
+  adminTrustLevelContainerDescription:
+    "Der Administrator gilt für Backend- bzw. Container-Prozess-Aktionen als vertrauenswürdig.",
+  adminTrustLevelHostDescription:
+    "Der Administrator gilt für hostbezogene Verwaltungsaktionen als vertrauenswürdig.",
+  deploymentSecurityStandardAppManagement:
+    "Standard-App-Verwaltung (Videos, Sammlungen, Tags, Anmeldung, Backups)",
+  deploymentSecurityTaskHooksCapability:
+    "Task-Hooks hochladen/löschen/ausführen",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "Textfeld für rohe yt-dlp-Konfiguration",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "Vollständige rohe yt-dlp-Flag-Weitergabe",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "Persistenz der Mount-Verzeichnis-Einstellungen",
+  deploymentSecurityScanMountDirectories:
+    "Dateien aus konfigurierten Mount-Verzeichnissen scannen",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "Zukünftige Wartungsfunktionen für Host-Pfade",
+  deploymentSecurityConfigurationTitle: "So konfigurieren Sie es",
+  deploymentSecurityConfigurationValuesNote:
+    "Verwenden Sie MYTUBE_ADMIN_TRUST_LEVEL mit application, container oder host. Fehlende oder ungültige Werte fallen auf container zurück.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "Setzen Sie MYTUBE_ADMIN_TRUST_LEVEL in der Service-Umgebung. Ersetzen Sie application bei Bedarf durch container oder host.",
+  deploymentSecurityLocalConfigTitle: "Lokaler Quellcode-Start",
+  deploymentSecurityLocalConfigDescription:
+    "Exportieren Sie MYTUBE_ADMIN_TRUST_LEVEL vor dem Start von MyTube oder setzen Sie die Variable inline bei npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "Sie können dieselbe Zeile auch in backend/.env eintragen.",
+  taskHooksPolicyNotice:
+    "Task-Hooks sind im Vertrauensmodus application durch die Sicherheitsrichtlinie der Bereitstellung deaktiviert.",
   hookTaskBeforeStart: "Vor Aufgabenstart",
   hookTaskBeforeStartHelper: "Wird ausgeführt, bevor der Download beginnt.",
   hookTaskSuccess: "Aufgabe Erfolgreich",
@@ -942,6 +986,10 @@ export const de = {
     "Konfigurieren Sie yt-dlp Download-Optionen. Siehe",
   ytDlpConfigurationDocs: "Dokumentation",
   ytDlpConfigurationDescriptionEnd: "für weitere Informationen.",
+  ytDlpConfigurationPolicyNotice:
+    "Die rohe yt-dlp-Konfiguration ist im Vertrauensmodus application durch die Sicherheitsrichtlinie der Bereitstellung deaktiviert.",
+  mountDirectoriesPolicyNotice:
+    "Mount-Verzeichnisse erfordern Admin-Vertrauen auf Host-Ebene.",
   customize: "Anpassen",
   hide: "Ausblenden",
   reset: "Zurücksetzen",

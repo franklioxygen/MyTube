@@ -82,3 +82,7 @@ python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
 > - Be careful when using commands that modify or delete files.
 > - Do not copy/paste scripts from untrusted sources.
 > - Ensure your scripts handle errors gracefully.
+> - Hooks are only available when the deployment security model trusts admin users at least at the `container` level. In `application` mode, hook upload/delete/execute is blocked.
+> - Upload-time risk scanning is best-effort only. It is not a sandbox and is not expected to catch every obfuscated or dangerous script pattern.
+
+For trust-level details, see [Deployment Security Model](deployment-security-model.md).

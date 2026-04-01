@@ -58,6 +58,10 @@ For a detailed breakdown of the project structure, please refer to [Directory St
 
 For installation and setup instructions, please refer to [Getting Started](documents/en/getting-started.md).
 
+## Deployment Security Model
+
+For the three-tier admin trust and deployment security model, please refer to [Deployment Security Model](documents/en/deployment-security-model.md).
+
 ## API Endpoints
 
 For a list of available API endpoints, please refer to [API Endpoints](documents/en/api-endpoints.md).
@@ -104,6 +108,10 @@ VITE_BACKEND_URL=
 
 ```env
 PORT=5551
+# Optional: declare the admin trust boundary for this deployment.
+# Valid values: application | container | host
+# Default: container
+# MYTUBE_ADMIN_TRUST_LEVEL=container
 ```
 
 Data and uploads are stored under `backend/data` and `backend/uploads` by default (relative to the backend working directory).
@@ -136,6 +144,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 ## Deployment
 
 For detailed Docker deployment instructions, including the official GitHub Container image (`ghcr.io/franklioxygen/mytube:latest`) and the single-container compose file (`docker-compose.single-container.yml`), please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
+For the `application` / `container` / `host` admin trust boundary, please refer to [Deployment Security Model](documents/en/deployment-security-model.md).
 
 ## Star History
 
