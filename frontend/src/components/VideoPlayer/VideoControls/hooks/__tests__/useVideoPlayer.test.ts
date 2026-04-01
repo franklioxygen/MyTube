@@ -51,8 +51,7 @@ describe("useVideoPlayer seek behavior", () => {
 
     // Initialize duration state and set initial position
     act(() => {
-      // @ts-expect-error Mock event missing properties
-      result.current.handleLoadedMetadata({ currentTarget: videoElement });
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
     // Set currentTime to 50 for the seek test
@@ -74,8 +73,7 @@ describe("useVideoPlayer seek behavior", () => {
 
     // Initialize duration state
     act(() => {
-      // @ts-expect-error Mock event missing properties
-      result.current.handleLoadedMetadata({ currentTarget: videoElement });
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
     // Set currentTime to 50 for the seek test
@@ -97,8 +95,7 @@ describe("useVideoPlayer seek behavior", () => {
 
     // Initialize duration state
     act(() => {
-      // @ts-expect-error Mock event missing properties
-      result.current.handleLoadedMetadata({ currentTarget: videoElement });
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
     // Set currentTime to 50 for the seek test
@@ -139,8 +136,7 @@ describe("useVideoPlayer startTime behavior", () => {
     result.current.videoRef.current = videoElement;
 
     act(() => {
-      // @ts-expect-error Mock event missing properties
-      result.current.handleLoadedMetadata({ currentTarget: videoElement });
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
     // startTime should be applied
@@ -182,8 +178,7 @@ describe("useVideoPlayer startTime behavior", () => {
 
     // Initial load - startTime applied
     act(() => {
-      // @ts-expect-error Mock event missing properties
-      result.current.handleLoadedMetadata({ currentTarget: videoElement });
+      result.current.handleLoadedMetadata({ currentTarget: videoElement } as React.SyntheticEvent<HTMLVideoElement>);
     });
 
     expect(videoElement.currentTime).toBe(30);
@@ -216,7 +211,6 @@ describe("useVideoPlayer startTime behavior", () => {
 
     // Initial load with startTime 0
     act(() => {
-      // @ts-expect-error Mock event missing properties
       result.current.handleCanPlay();
     });
 
@@ -451,14 +445,22 @@ describe("useVideoPlayer lifecycle and interaction behavior", () => {
     );
 
     const player = setupVideoElement();
-    player.duration = 100;
+    Object.defineProperty(player, "duration", {
+      configurable: true,
+      writable: true,
+      value: 100,
+    });
     fireEvent(player, new Event("durationchange"));
 
     await waitFor(() => {
       expect(latestHook.duration).toBe(100);
     });
 
-    player.duration = 105;
+    Object.defineProperty(player, "duration", {
+      configurable: true,
+      writable: true,
+      value: 105,
+    });
     act(() => {
       latestHook.handleCanPlay();
     });
@@ -510,8 +512,11 @@ describe("useVideoPlayer lifecycle and interaction behavior", () => {
       writable: true,
       value: 50,
     });
-    // @ts-expect-error test fallback path
-    player.fastSeek = undefined;
+    Object.defineProperty(player, "fastSeek", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
     result.current.videoRef.current = player;
 
     act(() => {

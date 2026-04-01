@@ -53,7 +53,9 @@ const buildSettingsPatchPayload = (
   newSettings: Settings,
   currentSettings?: Settings
 ): Partial<Settings> => {
-  const normalized = { ...newSettings } as Record<string, unknown>;
+  const normalized: Partial<Record<keyof Settings, unknown>> = {
+    ...newSettings,
+  };
 
   // Empty password means unchanged in current UI behavior.
   if (!normalized.password) {
@@ -67,16 +69,17 @@ const buildSettingsPatchPayload = (
   delete normalized.isPasswordSet;
   delete normalized.isVisitorPasswordSet;
   delete normalized.deploymentSecurity;
-  delete normalized.authenticatedRole;
+  delete (normalized as Record<string, unknown>).authenticatedRole;
 
   if (!currentSettings) {
     // Without a baseline we should not submit a full settings object.
     return {};
   }
 
-  const patchPayload: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(normalized)) {
-    const previousValue = (currentSettings as Record<string, unknown>)[key];
+  const patchPayload: Partial<Record<keyof Settings, unknown>> = {};
+  for (const key of Object.keys(normalized) as Array<keyof Settings>) {
+    const value = normalized[key];
+    const previousValue = currentSettings[key];
     if (!areSettingValuesEqual(value, previousValue)) {
       patchPayload[key] = value;
     }

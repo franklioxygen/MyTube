@@ -23,6 +23,7 @@ import VersionInfo from '../components/VersionInfo';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { api, getErrorMessage, getWaitTime, isAuthError, isRateLimitError } from '../utils/apiClient';
+import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
 const LoginPage: React.FC = () => {
@@ -157,10 +158,7 @@ const LoginPage: React.FC = () => {
         setAlertOpen(true);
     };
 
-    const getTranslatedOrFallback = (key: string, fallback: string) => {
-        const translated = t(key);
-        return translated === key ? fallback : translated;
-    };
+    const getTranslatedOrFallback = createTranslateOrFallback(t);
 
     const showResetInstructions = () => {
         const title = t('resetPassword') || 'Reset Password';

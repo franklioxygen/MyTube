@@ -1,6 +1,5 @@
 
 import {
-    Close,
     FindInPage
 } from '@mui/icons-material';
 import {
@@ -8,22 +7,11 @@ import {
     Box,
     Button,
     Container,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
     Grid,
     Snackbar,
     Tab,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
     Tabs,
     Typography,
-    IconButton,
     useMediaQuery,
     useTheme
 } from '@mui/material';
@@ -39,6 +27,7 @@ import CloudDriveSettings from '../components/Settings/CloudDriveSettings';
 import CloudflareSettings from '../components/Settings/CloudflareSettings';
 import CookieSettings from '../components/Settings/CookieSettings';
 import DatabaseSettings from '../components/Settings/DatabaseSettings';
+import DeploymentSecurityDetailsModal from '../components/Settings/DeploymentSecurityDetailsModal';
 import DownloadSettings from '../components/Settings/DownloadSettings';
 import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
@@ -60,6 +49,7 @@ import { api } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { getTwitchCredentialValidationCode } from '../utils/twitch';
+import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { Language } from '../utils/translations';
 
 const SettingsPage: React.FC = () => {
@@ -113,10 +103,22 @@ const SettingsPage: React.FC = () => {
         settings.twitchClientSecret,
     );
     const hasTwitchCredentialValidationError = twitchCredentialValidationCode !== null;
-    const translateOrFallback = (key: string, fallback: string) => {
-        const translated = t(key);
-        return translated === key ? fallback : translated;
-    };
+    const translateOrFallback = createTranslateOrFallback(t);
+    const deploymentSecurityDetailsTitle = translateOrFallback(
+        'deploymentSecurityDetailsTitle',
+        'Deployment Security Details',
+    );
+    const renderDeploymentSecurityDetailsButton = (ariaLabel: string) => (
+        <Button
+            variant="text"
+            size="small"
+            onClick={() => setShowTrustDetailsModal(true)}
+            aria-label={ariaLabel}
+            sx={{ minWidth: 0, p: 0, ml: 0.5, verticalAlign: 'baseline', textTransform: 'none' }}
+        >
+            {translateOrFallback('deploymentSecurityDetails', 'Details')}
+        </Button>
+    );
 
     const triggerGlow = () => {
         setIsGlowing(false);
@@ -351,16 +353,7 @@ const SettingsPage: React.FC = () => {
     );
 
     const renderDeploymentSecuritySummary = () => {
-        const renderDetailsLink = () => (
-            <Button
-                variant="text"
-                size="small"
-                onClick={() => setShowTrustDetailsModal(true)}
-                sx={{ minWidth: 0, p: 0, ml: 0.5, verticalAlign: 'baseline', textTransform: 'none' }}
-            >
-                {translateOrFallback('deploymentSecurityDetails', 'Details')}
-            </Button>
-        );
+        const renderDetailsLink = () => renderDeploymentSecurityDetailsButton(deploymentSecurityDetailsTitle);
 
         if (!deploymentSecurity || !adminTrustLevel) {
             return (
@@ -412,192 +405,6 @@ const SettingsPage: React.FC = () => {
                     {renderDetailsLink()}
                 </Typography>
             </Alert>
-        );
-    };
-
-    const renderDeploymentSecurityDetailsModal = () => {
-        const allowedLabel = '\u2713';
-        const blockedLabel = '\u2715';
-        const codeBlockSx = {
-            mt: 1,
-            mb: 0,
-            p: 1.5,
-            borderRadius: 1,
-            bgcolor: 'action.hover',
-            overflowX: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '0.875rem',
-            lineHeight: 1.5,
-        };
-        const capabilityRows = [
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityStandardAppManagement',
-                    'Standard app management (videos, collections, tags, login, backups)'
-                ),
-                application: allowedLabel,
-                container: allowedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityTaskHooksCapability',
-                    'Task hooks upload/delete/execute'
-                ),
-                application: blockedLabel,
-                container: allowedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityRawYtDlpConfigTextArea',
-                    'Raw yt-dlp config text area'
-                ),
-                application: blockedLabel,
-                container: allowedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityFullRawYtDlpFlagPassthrough',
-                    'Full raw yt-dlp flag passthrough'
-                ),
-                application: blockedLabel,
-                container: allowedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityMountDirectorySettingsPersistence',
-                    'Mount directory settings persistence'
-                ),
-                application: blockedLabel,
-                container: blockedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityScanMountDirectories',
-                    'Scan files from configured mount directories'
-                ),
-                application: blockedLabel,
-                container: blockedLabel,
-                host: allowedLabel,
-            },
-            {
-                capability: translateOrFallback(
-                    'deploymentSecurityFutureHostPathMaintenanceFeatures',
-                    'Future host-path maintenance features'
-                ),
-                application: blockedLabel,
-                container: blockedLabel,
-                host: allowedLabel,
-            },
-        ];
-
-        return (
-            <Dialog
-                open={showTrustDetailsModal}
-                onClose={() => setShowTrustDetailsModal(false)}
-                maxWidth="md"
-                fullWidth
-            >
-                <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-                        {translateOrFallback('deploymentSecurityDetailsTitle', 'Deployment Security Details')}
-                    </Typography>
-                    <IconButton
-                        aria-label="close"
-                        onClick={() => setShowTrustDetailsModal(false)}
-                        sx={{ color: (muiTheme) => muiTheme.palette.grey[500] }}
-                    >
-                        <Close />
-                    </IconButton>
-                </DialogTitle>
-                <DialogContent dividers>
-                    <TableContainer sx={{ overflowX: 'auto' }}>
-                        <Table size="small">
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>
-                                        {translateOrFallback('deploymentSecurityCapabilityFeature', 'Capability / Feature')}
-                                    </TableCell>
-                                    <TableCell>{translateOrFallback('adminTrustLevelApplication', 'Application')}</TableCell>
-                                    <TableCell>{translateOrFallback('adminTrustLevelContainer', 'Container')}</TableCell>
-                                    <TableCell>{translateOrFallback('adminTrustLevelHost', 'Host')}</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {capabilityRows.map((row) => (
-                                    <TableRow key={typeof row.capability === 'string' ? row.capability : String(row.capability)}>
-                                        <TableCell>{row.capability}</TableCell>
-                                        <TableCell>{row.application}</TableCell>
-                                        <TableCell>{row.container}</TableCell>
-                                        <TableCell>{row.host}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                    <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                        <Box>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                {translateOrFallback('deploymentSecurityConfigurationTitle', 'How to configure')}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                {translateOrFallback(
-                                    'deploymentSecurityConfigurationValuesNote',
-                                    'Use MYTUBE_ADMIN_TRUST_LEVEL with application, container, or host. Missing or invalid values fall back to container.'
-                                )}
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                {translateOrFallback('deploymentSecurityDockerConfigTitle', 'Docker / Docker Compose')}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                {translateOrFallback(
-                                    'deploymentSecurityDockerConfigDescription',
-                                    'Set MYTUBE_ADMIN_TRUST_LEVEL in the service environment. Replace application with container or host as needed.'
-                                )}
-                            </Typography>
-                            <Box component="pre" sx={codeBlockSx}>
-{`environment:
-  - MYTUBE_ADMIN_TRUST_LEVEL=application`}
-                            </Box>
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                {translateOrFallback('deploymentSecurityLocalConfigTitle', 'Local source run')}
-                            </Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5 }}>
-                                {translateOrFallback(
-                                    'deploymentSecurityLocalConfigDescription',
-                                    'Export MYTUBE_ADMIN_TRUST_LEVEL before starting MyTube, or pass it inline when running npm run dev.'
-                                )}
-                            </Typography>
-                            <Box component="pre" sx={codeBlockSx}>
-{`MYTUBE_ADMIN_TRUST_LEVEL=application npm run dev`}
-                            </Box>
-                            <Typography variant="body2" sx={{ mt: 1 }}>
-                                {translateOrFallback(
-                                    'deploymentSecurityLocalEnvFileNote',
-                                    'You can also put the same line in backend/.env.'
-                                )}
-                            </Typography>
-                            <Box component="pre" sx={codeBlockSx}>
-{`# backend/.env
-MYTUBE_ADMIN_TRUST_LEVEL=application`}
-                            </Box>
-                        </Box>
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setShowTrustDetailsModal(false)} variant="outlined">
-                        {translateOrFallback('deploymentSecurityClose', 'Close')}
-                    </Button>
-                </DialogActions>
-            </Dialog>
         );
     };
 
@@ -662,6 +469,9 @@ MYTUBE_ADMIN_TRUST_LEVEL=application`}
                             'ytDlpConfigurationPolicyNotice',
                             'Raw yt-dlp configuration is disabled by deployment security policy in application trust mode.'
                         )}
+                        {renderDeploymentSecurityDetailsButton(
+                            `${deploymentSecurityDetailsTitle}: ${translateOrFallback('ytDlpConfiguration', 'yt-dlp Configuration')}`
+                        )}
                     </Alert>
                 )}
             </Box>
@@ -710,6 +520,9 @@ MYTUBE_ADMIN_TRUST_LEVEL=application`}
                     {translateOrFallback(
                         'mountDirectoriesPolicyNotice',
                         'Mount directories require host-level admin trust.'
+                    )}
+                    {renderDeploymentSecurityDetailsButton(
+                        `${deploymentSecurityDetailsTitle}: ${translateOrFallback('mountDirectories', 'Mount Directories')}`
                     )}
                 </Alert>
             )}
@@ -790,6 +603,9 @@ MYTUBE_ADMIN_TRUST_LEVEL=application`}
                     {translateOrFallback(
                         'taskHooksPolicyNotice',
                         'Task hooks are disabled by deployment security policy in application trust mode.'
+                    )}
+                    {renderDeploymentSecurityDetailsButton(
+                        `${deploymentSecurityDetailsTitle}: ${translateOrFallback('taskHooks', 'Task Hooks')}`
                     )}
                 </Alert>
             )}
@@ -1081,7 +897,10 @@ MYTUBE_ADMIN_TRUST_LEVEL=application`}
                 showCancel={false}
                 isDanger={infoModal.type === 'error'}
             />
-            {renderDeploymentSecurityDetailsModal()}
+            <DeploymentSecurityDetailsModal
+                open={showTrustDetailsModal}
+                onClose={() => setShowTrustDetailsModal(false)}
+            />
         </Container >
     );
 };

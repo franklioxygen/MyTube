@@ -28,6 +28,9 @@ vi.mock('../../utils/translations', () => ({
 
 const mockedApi = vi.mocked(api, true);
 const mockedLoadLocale = vi.mocked(loadLocale);
+const mockApiGet = (implementation: (url: string) => Promise<{ data: unknown }>) => {
+    mockedApi.get.mockImplementation(implementation as any);
+};
 
 const createWrapper = () => {
     const queryClient = new QueryClient({
@@ -92,11 +95,11 @@ describe('LanguageContext', () => {
         vi.clearAllMocks();
         setLocalStorageMock();
 
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: true, authenticatedRole: null } });
+                return { data: { loginRequired: true, authenticatedRole: null } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
         mockedApi.patch.mockResolvedValue({ data: { success: true } } as any);
         mockedLoadLocale.mockResolvedValue({
@@ -126,14 +129,14 @@ describe('LanguageContext', () => {
 
     it('fetches language from backend when settings can be read', async () => {
         const localStorageMock = setLocalStorageMock();
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+                return { data: { loginRequired: false, authenticatedRole: 'admin' } };
             }
             if (url === '/settings') {
-                return Promise.resolve({ data: { language: 'fr' } });
+                return { data: { language: 'fr' } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
 
         const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
@@ -144,14 +147,14 @@ describe('LanguageContext', () => {
 
     it('falls back to en when backend returns an invalid language value', async () => {
         const localStorageMock = setLocalStorageMock({ initial: { mytube_language: 'fr' } });
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+                return { data: { loginRequired: false, authenticatedRole: 'admin' } };
             }
             if (url === '/settings') {
-                return Promise.resolve({ data: { language: 'invalid-language' } });
+                return { data: { language: 'invalid-language' } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
 
         const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });
@@ -174,14 +177,14 @@ describe('LanguageContext', () => {
 
     it('logs when syncing backend language to localStorage fails', async () => {
         setLocalStorageMock({ throwOnSet: true });
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+                return { data: { loginRequired: false, authenticatedRole: 'admin' } };
             }
             if (url === '/settings') {
-                return Promise.resolve({ data: { language: 'de' } });
+                return { data: { language: 'de' } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
 
         const { result } = renderHook(() => useLanguage(), { wrapper: createWrapper() });

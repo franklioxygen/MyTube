@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { FormEvent } from 'react';
+import type { ComponentProps, FormEvent } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MobileMenu from '../MobileMenu';
 
@@ -62,7 +62,7 @@ vi.mock('../SearchInput', () => ({
 }));
 
 describe('MobileMenu', () => {
-    const baseProps = {
+    const baseProps: ComponentProps<typeof MobileMenu> = {
         open: true,
         videoUrl: '',
         setVideoUrl: vi.fn(),

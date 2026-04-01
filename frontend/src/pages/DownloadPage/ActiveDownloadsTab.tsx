@@ -9,7 +9,6 @@ import {
     Paper,
     Typography
 } from '@mui/material';
-import React from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 interface Download {
@@ -77,4 +76,3 @@ export function ActiveDownloadsTab({ downloads, onCancel }: ActiveDownloadsTabPr
         </List>
     );
 }
-

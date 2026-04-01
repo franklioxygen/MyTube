@@ -1,4 +1,5 @@
 import { getErrorMessage } from "./apiClient";
+import type { TranslationKey } from "./translations";
 
 function getBackendErrorMessage(error: unknown): string | null {
   if (!error || typeof error !== "object") {
@@ -16,7 +17,7 @@ function getBackendErrorMessage(error: unknown): string | null {
 export function resolveSubscriptionErrorMessage(
   error: unknown,
   source: string | undefined,
-  t: (key: string, params?: Record<string, string | number>) => string
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string
 ): string {
   const backendMessage = getBackendErrorMessage(error);
   if (backendMessage) {

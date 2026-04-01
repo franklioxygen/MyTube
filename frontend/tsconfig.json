@@ -7,6 +7,11 @@
             "DOM",
             "DOM.Iterable"
         ],
+        "types": [
+            "vite/client",
+            "node",
+            "vitest/globals"
+        ],
         "module": "ESNext",
         "skipLibCheck": true,
         /* Bundler mode */

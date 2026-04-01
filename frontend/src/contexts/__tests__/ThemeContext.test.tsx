@@ -13,6 +13,9 @@ vi.mock('../../utils/apiClient', () => ({
 }));
 
 const mockedApi = vi.mocked(api, true);
+const mockApiGet = (implementation: (url: string) => Promise<{ data: unknown }>) => {
+    mockedApi.get.mockImplementation(implementation as any);
+};
 
 const createWrapper = () => {
     const queryClient = new QueryClient({
@@ -53,16 +56,20 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Mock matchMedia
-const mockMatchMedia = vi.fn((query: string) => ({
-    matches: query.includes('dark'),
-    media: query,
+const createMediaQueryList = (matches: boolean, media = '(prefers-color-scheme: dark)'): MediaQueryList => ({
+    matches,
+    media,
     onchange: null,
     addListener: vi.fn(),
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-}));
+} as MediaQueryList);
+
+const mockMatchMedia = vi.fn<(query: string) => MediaQueryList>((query: string) =>
+    createMediaQueryList(query.includes('dark'), query)
+);
 
 Object.defineProperty(window, 'matchMedia', {
     writable: true,
@@ -75,11 +82,11 @@ describe('ThemeContext', () => {
         vi.clearAllMocks();
         document.documentElement.style.colorScheme = '';
         delete document.documentElement.dataset.theme;
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: true, authenticatedRole: null } });
+                return { data: { loginRequired: true, authenticatedRole: null } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
         mockedApi.patch.mockResolvedValue({ data: { success: true } } as any);
     });
@@ -102,16 +109,7 @@ describe('ThemeContext', () => {
     });
 
     it('should initialize with light theme when no saved preference', () => {
-        mockMatchMedia.mockReturnValue({
-            matches: false,
-            media: '(prefers-color-scheme: dark)',
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-        } as MediaQueryList);
+        mockMatchMedia.mockReturnValue(createMediaQueryList(false));
 
         const { result } = renderHook(() => useThemeContext(), {
             wrapper: createWrapper()
@@ -123,16 +121,7 @@ describe('ThemeContext', () => {
     });
 
     it('should initialize with dark theme from system preference', () => {
-        mockMatchMedia.mockReturnValue({
-            matches: true,
-            media: '(prefers-color-scheme: dark)',
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-        } as MediaQueryList);
+        mockMatchMedia.mockReturnValue(createMediaQueryList(true));
 
         const { result } = renderHook(() => useThemeContext(), {
             wrapper: createWrapper()
@@ -156,25 +145,16 @@ describe('ThemeContext', () => {
     });
 
     it('falls back to system when backend returns an invalid theme value', async () => {
-        mockMatchMedia.mockReturnValue({
-            matches: false,
-            media: '(prefers-color-scheme: dark)',
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(),
-        } as MediaQueryList);
+        mockMatchMedia.mockReturnValue(createMediaQueryList(false));
         localStorageMock.setItem('themeMode', 'dark');
-        mockedApi.get.mockImplementation((url: string) => {
+        mockApiGet(async (url: string) => {
             if (url === '/settings/password-enabled') {
-                return Promise.resolve({ data: { loginRequired: false, authenticatedRole: 'admin' } });
+                return { data: { loginRequired: false, authenticatedRole: 'admin' } };
             }
             if (url === '/settings') {
-                return Promise.resolve({ data: { theme: 'invalid-theme' } });
+                return { data: { theme: 'invalid-theme' } };
             }
-            return Promise.resolve({ data: {} });
+            return { data: {} };
         });
 
         const { result } = renderHook(() => useThemeContext(), {
