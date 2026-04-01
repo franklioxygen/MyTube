@@ -41,6 +41,9 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      # Optional: declare the admin trust boundary for this deployment.
+      # Valid values: application | container | host
+      - MYTUBE_ADMIN_TRUST_LEVEL=container
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -150,9 +153,24 @@ The `docker-compose.yml` above creates two folders in your current directory t
 
 You can customize the deployment by adding a `.env` file or modifying the `environment` section in `docker-compose.yml`.
 
+For the admin trust model, set:
+
+```env
+MYTUBE_ADMIN_TRUST_LEVEL=container
+```
+
+Available values:
+
+- `application`: admin is trusted at the application layer only
+- `container`: admin is trusted with backend/container-process-level actions
+- `host`: admin is trusted with host-scoped administrative actions
+
+For the full capability breakdown, see [Deployment Security Model](deployment-security-model.md).
+
 |Variable|Service|Description|Default|
 |---|---|---|---|
 |`PORT`|Backend|Port the backend listens on internally|`5551`|
+|`MYTUBE_ADMIN_TRUST_LEVEL`|Backend|Deployment-declared admin trust boundary (`application`, `container`, `host`)|`container`|
 |`VITE_API_URL`|Frontend|API endpoint path|`/api`|
 |`API_HOST`|Frontend|**Advanced:** Force a specific backend IP|_(Auto-detected)_|
 |`API_PORT`|Frontend|**Advanced:** Force a specific backend Port|`5551`|

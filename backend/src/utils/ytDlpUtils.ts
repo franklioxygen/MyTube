@@ -3,6 +3,7 @@ import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
+import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
@@ -928,6 +929,10 @@ export function parseYtDlpConfig(configText: string): Record<string, any> {
  */
 export function getUserYtDlpConfig(url?: string): Record<string, any> {
   try {
+    if (!isAdminTrustLevelAtLeast("container")) {
+      return {};
+    }
+
     const settings = storageService.getSettings();
     const configText = settings.ytDlpConfig;
     const proxyOnlyYoutube = settings.proxyOnlyYoutube === true;

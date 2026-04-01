@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VIDEOS_DIR } from "../../config/paths";
 import { scanFiles, scanMountDirectories } from "../../controllers/scanController";
 import * as storageService from "../../services/storageService";
@@ -61,13 +61,23 @@ vi.mock("fs-extra", () => ({
 }));
 
 describe("scanController extra coverage", () => {
+  const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
   let req: Partial<Request>;
   let res: Partial<Response>;
   let json: any;
   let status: any;
 
+  afterEach(() => {
+    if (originalTrustLevel === undefined) {
+      delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+    } else {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = originalTrustLevel;
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.MYTUBE_ADMIN_TRUST_LEVEL = "host";
     json = vi.fn();
     status = vi.fn(() => ({ json }));
     req = { body: {} };
@@ -125,9 +135,12 @@ describe("scanController extra coverage", () => {
     await scanMountDirectories(req as Request, res as Response);
 
     expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({
-      error: "Directories array is required and must not be empty",
-    });
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: "Directories array is required and must not be empty",
+      })
+    );
   });
 
   it("scanMountDirectories rejects blank directory values", async () => {
@@ -138,7 +151,12 @@ describe("scanController extra coverage", () => {
     await scanMountDirectories(req as Request, res as Response);
 
     expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({ error: "No valid directories provided" });
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: "No valid directories provided",
+      })
+    );
   });
 
   it("scanMountDirectories rejects invalid mount directories", async () => {
@@ -151,6 +169,7 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
+        success: false,
         error: "Invalid mount directories detected (must be absolute safe paths)",
         invalidDirectories: ["../unsafe", "/tmp/../still-bad"],
       })
@@ -254,6 +273,7 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
+        success: false,
         error: "Invalid mount directories detected (must be absolute safe paths)",
         invalidDirectories: [VIDEOS_DIR, path.dirname(VIDEOS_DIR)],
       })
@@ -451,6 +471,7 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
+        success: false,
         error: "Invalid mount directories detected (must be absolute safe paths)",
       })
     );

@@ -264,6 +264,50 @@ export const ru = {
     "Выполняйте пользовательские shell-команды в определенные моменты жизненного цикла задачи. Доступные переменные окружения: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning:
     "Предупреждение: Команды выполняются с правами сервера. Используйте с осторожностью.",
+  deploymentSecurityTitle: "Модель безопасности развертывания",
+  deploymentSecurityLoading:
+    "Политика безопасности развертывания загружается. Ограниченные функции останутся скрытыми, пока политика не станет доступна.",
+  deploymentSecurityDetails: "Подробнее",
+  deploymentSecurityDetailsTitle: "Подробности безопасности развертывания",
+  deploymentSecurityCapabilityFeature: "Возможность / Функция",
+  deploymentSecurityClose: "Закрыть",
+  adminTrustLevelLabel: "Уровень доверия администратора",
+  adminTrustLevelApplication: "Приложение",
+  adminTrustLevelContainer: "Контейнер",
+  adminTrustLevelHost: "Хост",
+  adminTrustLevelApplicationDescription:
+    "Администратор считается доверенным только на уровне приложения.",
+  adminTrustLevelContainerDescription:
+    "Администратор считается доверенным для действий на уровне backend или процесса контейнера.",
+  adminTrustLevelHostDescription:
+    "Администратор считается доверенным для административных действий на уровне хоста.",
+  deploymentSecurityStandardAppManagement:
+    "Стандартное управление приложением (видео, коллекции, теги, вход, резервные копии)",
+  deploymentSecurityTaskHooksCapability:
+    "Загрузка / удаление / выполнение хуков задач",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "Текстовое поле сырой конфигурации yt-dlp",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "Полная передача сырых флагов yt-dlp",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "Сохранение настроек подключенных директорий",
+  deploymentSecurityScanMountDirectories:
+    "Сканирование файлов из настроенных подключенных директорий",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "Будущие функции обслуживания путей хоста",
+  deploymentSecurityConfigurationTitle: "Как настроить",
+  deploymentSecurityConfigurationValuesNote:
+    "Используйте MYTUBE_ADMIN_TRUST_LEVEL со значением application, container или host. При отсутствии или некорректном значении MyTube возвращается к container.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "Задайте MYTUBE_ADMIN_TRUST_LEVEL в environment сервиса. При необходимости замените application на container или host.",
+  deploymentSecurityLocalConfigTitle: "Локальный запуск из исходников",
+  deploymentSecurityLocalConfigDescription:
+    "Экспортируйте MYTUBE_ADMIN_TRUST_LEVEL перед запуском MyTube или передайте переменную inline при запуске npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "Ту же строку можно добавить и в backend/.env.",
+  taskHooksPolicyNotice:
+    "Хуки задач отключены политикой безопасности развертывания в режиме доверия application.",
   hookTaskBeforeStart: "Перед Началом Задачи",
   hookTaskBeforeStartHelper: "Выполняется перед началом загрузки.",
   hookTaskSuccess: "Успех Задачи",
@@ -924,6 +968,10 @@ export const ru = {
   ytDlpConfigurationDescription: "Настройте параметры загрузки yt-dlp. См.",
   ytDlpConfigurationDocs: "документацию",
   ytDlpConfigurationDescriptionEnd: "для получения дополнительной информации.",
+  ytDlpConfigurationPolicyNotice:
+    "Сырая конфигурация yt-dlp отключена политикой безопасности развертывания в режиме доверия application.",
+  mountDirectoriesPolicyNotice:
+    "Подключенные директории требуют доверия администратора на уровне хоста.",
   customize: "Настроить",
   hide: "Скрыть",
   reset: "Сбросить",

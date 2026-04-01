@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Request, Response } from 'express';
 import fs from 'fs-extra';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { deleteLegacyData, getSettings, migrateData, patchSettings, updateSettings } from '../../controllers/settingsController';
 import { verifyPassword } from '../../controllers/passwordController';
 import downloadManager from '../../services/downloadManager';
@@ -25,10 +25,19 @@ vi.mock('../../services/migrationService', () => ({
 }));
 
 describe('SettingsController', () => {
+  const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
   let req: Partial<Request>;
   let res: Partial<Response>;
   let json: any;
   let status: any;
+
+  afterEach(() => {
+    if (originalTrustLevel === undefined) {
+      delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+    } else {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = originalTrustLevel;
+    }
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +58,13 @@ describe('SettingsController', () => {
       await getSettings(req as Request, res as Response);
 
       expect(json).toHaveBeenCalledWith(expect.objectContaining({ theme: 'dark' }));
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          deploymentSecurity: expect.objectContaining({
+            adminTrustLevel: 'container',
+          }),
+        })
+      );
     });
 
     it('should hide api key from visitor users', async () => {
@@ -203,6 +219,72 @@ describe('SettingsController', () => {
       const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
       expect(savedPayload.apiKeyEnabled).toBe(true);
       expect(savedPayload.apiKey).toMatch(/^[a-f0-9]{64}$/);
+    });
+
+    it('should reject raw yt-dlp config changes in application trust mode', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'application';
+      req.body = { ytDlpConfig: '--exec echo hi' };
+      (storageService.getSettings as any).mockReturnValue({
+        ytDlpConfig: '',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(403);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should reject mount directory changes unless trust level is host', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'container';
+      req.body = { mountDirectories: '/mnt/videos' };
+      (storageService.getSettings as any).mockReturnValue({
+        mountDirectories: '',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(status).toHaveBeenCalledWith(403);
+      expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it('should ignore unchanged gated fields when trust level is lower', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'application';
+      req.body = {
+        ytDlpConfig: '--format best',
+        theme: 'light',
+      };
+      (storageService.getSettings as any).mockReturnValue({
+        ytDlpConfig: '--format best',
+        theme: 'dark',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: 'light' })
+      );
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.ytDlpConfig).toBeUndefined();
+    });
+
+    it('should treat proxyOnlyYoutube null as unchanged false in application trust mode', async () => {
+      process.env.MYTUBE_ADMIN_TRUST_LEVEL = 'application';
+      req.body = {
+        proxyOnlyYoutube: null,
+        theme: 'light',
+      };
+      (storageService.getSettings as any).mockReturnValue({
+        proxyOnlyYoutube: false,
+        theme: 'dark',
+      });
+
+      await patchSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: 'light' })
+      );
+      const savedPayload = (storageService.saveSettings as any).mock.calls[0][0];
+      expect(savedPayload.proxyOnlyYoutube).toBeUndefined();
     });
   });
 

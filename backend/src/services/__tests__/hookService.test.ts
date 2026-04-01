@@ -71,6 +71,25 @@ describe("HookService", () => {
     expect(env?.MYTUBE_TASK_STATUS).toBe("start");
   });
 
+  it("should sanitize multiline hook context values before passing env", async () => {
+    mocks.existsSync.mockImplementation((p: string) => {
+      return p === path.join(HOOKS_DIR, "task_start.sh");
+    });
+
+    await HookService.executeHook("task_start", {
+      taskId: "123",
+      taskTitle: "Test\nTask",
+      sourceUrl: "https://example.com/watch\nSECOND",
+      status: "start",
+      error: "first line\r\nsecond line",
+    });
+
+    const env = mocks.exec.mock.calls[0][1]?.env;
+    expect(env?.MYTUBE_TASK_TITLE).toBe("Test Task");
+    expect(env?.MYTUBE_SOURCE_URL).toBe("https://example.com/watch SECOND");
+    expect(env?.MYTUBE_ERROR).toBe("first line second line");
+  });
+
   it("should not execute if hook file does not exist", async () => {
     mocks.existsSync.mockReturnValue(false);
 

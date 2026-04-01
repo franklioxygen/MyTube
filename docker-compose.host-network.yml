@@ -17,6 +17,10 @@ services:
       - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
     environment:
       - PORT=5551
+      # Optional: declare the admin trust boundary for this deployment.
+      # Valid values: application | container | host
+      # Docs: documents/en/deployment-security-model.md
+      - MYTUBE_ADMIN_TRUST_LEVEL=container
     restart: unless-stopped
     # Note: In host mode, the container uses the host's network stack directly
     # The backend will be accessible at localhost:5551 on the host

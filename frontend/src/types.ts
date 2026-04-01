@@ -61,6 +61,15 @@ export interface Comment {
   avatar?: string;
 }
 
+export type AdminTrustLevel = 'application' | 'container' | 'host';
+
+export interface DeploymentSecurityModel {
+  adminTrustLevel: AdminTrustLevel;
+  adminTrustedWithContainer: boolean;
+  adminTrustedWithHost: boolean;
+  source: 'env';
+}
+
 export interface Settings {
   loginEnabled: boolean;
   password?: string;
@@ -124,4 +133,5 @@ export interface Settings {
   telegramNotifyOnFail?: boolean;
   twitchClientId?: string;
   twitchClientSecret?: string;
+  deploymentSecurity?: DeploymentSecurityModel;
 }

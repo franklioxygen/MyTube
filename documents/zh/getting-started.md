@@ -52,12 +52,18 @@ pipx inject yt-dlp bgutil-ytdlp-pot-provider
 
 ```env
 PORT=5551
+# 可选：声明当前部署中管理员的信任边界。
+# 可选值：application | container | host
+# 默认值：container
+# MYTUBE_ADMIN_TRUST_LEVEL=container
 # 可选：yt-dlp 在 YouTube 挑战处理时使用的 JS 运行时。
 # 默认是 "deno"。在 Alpine Linux（musl）上若 Deno 不稳定，请改为 "node"。
 # YT_DLP_JS_RUNTIME=node
 ```
 
 默认数据与上传路径位于 `backend/data` 和 `backend/uploads`（相对于后端工作目录）。
+
+关于 `application`、`container`、`host` 三档的详细说明，请参考 [部署安全模型](deployment-security-model.md)。
 
 #### 前端配置
 

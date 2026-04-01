@@ -13,4 +13,8 @@ services:
       - ./data:/app/data
     environment:
       - PORT=5551
+      # Optional: declare the admin trust boundary for this deployment.
+      # Valid values: application | container | host
+      # Docs: documents/en/deployment-security-model.md
+      - MYTUBE_ADMIN_TRUST_LEVEL=container
     restart: unless-stopped

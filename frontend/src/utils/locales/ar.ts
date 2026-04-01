@@ -259,6 +259,49 @@ export const ar = {
   taskHooksDescription:
     "نفذ أوامر shell مخصصة في نقاط محددة من دورة حياة المهمة. متغيرات البيئة المتاحة: MYTUBE_TASK_ID, MYTUBE_TASK_TITLE, MYTUBE_SOURCE_URL, MYTUBE_VIDEO_PATH.",
   taskHooksWarning: "تحذير: يتم تشغيل الأوامر بصلاحيات الخادم. استخدم بحذر.",
+  deploymentSecurityTitle: "نموذج أمان النشر",
+  deploymentSecurityLoading:
+    "يجري تحميل سياسة أمان النشر. ستبقى الميزات المقيّدة مخفية حتى تصبح السياسة متاحة.",
+  deploymentSecurityDetails: "التفاصيل",
+  deploymentSecurityDetailsTitle: "تفاصيل أمان النشر",
+  deploymentSecurityCapabilityFeature: "القدرة / الميزة",
+  deploymentSecurityClose: "إغلاق",
+  adminTrustLevelLabel: "مستوى ثقة المدير",
+  adminTrustLevelApplication: "التطبيق",
+  adminTrustLevelContainer: "الحاوية",
+  adminTrustLevelHost: "المضيف",
+  adminTrustLevelApplicationDescription:
+    "يُعتبر المدير موثوقًا به على مستوى التطبيق فقط.",
+  adminTrustLevelContainerDescription:
+    "يُعتبر المدير موثوقًا به لإجراءات الخلفية وعلى مستوى عملية الحاوية.",
+  adminTrustLevelHostDescription:
+    "يُعتبر المدير موثوقًا به للإجراءات الإدارية على مستوى المضيف.",
+  deploymentSecurityStandardAppManagement:
+    "إدارة التطبيق القياسية (الفيديوهات، المجموعات، الوسوم، تسجيل الدخول، النسخ الاحتياطية)",
+  deploymentSecurityTaskHooksCapability: "رفع / حذف / تنفيذ خطافات المهام",
+  deploymentSecurityRawYtDlpConfigTextArea:
+    "حقل إعداد yt-dlp الخام النصي",
+  deploymentSecurityFullRawYtDlpFlagPassthrough:
+    "تمرير كامل لأعلام yt-dlp الخام",
+  deploymentSecurityMountDirectorySettingsPersistence:
+    "استمرار إعدادات أدلة الربط",
+  deploymentSecurityScanMountDirectories:
+    "فحص الملفات من أدلة الربط المُعدّة",
+  deploymentSecurityFutureHostPathMaintenanceFeatures:
+    "ميزات صيانة مسارات المضيف المستقبلية",
+  deploymentSecurityConfigurationTitle: "كيفية الإعداد",
+  deploymentSecurityConfigurationValuesNote:
+    "استخدم MYTUBE_ADMIN_TRUST_LEVEL مع application أو container أو host. إذا كانت القيمة مفقودة أو غير صالحة فسيتم الرجوع إلى container.",
+  deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
+  deploymentSecurityDockerConfigDescription:
+    "اضبط MYTUBE_ADMIN_TRUST_LEVEL في environment الخاصة بالخدمة. استبدل application بـ container أو host حسب الحاجة.",
+  deploymentSecurityLocalConfigTitle: "تشغيل المصدر محليًا",
+  deploymentSecurityLocalConfigDescription:
+    "قم بتصدير MYTUBE_ADMIN_TRUST_LEVEL قبل تشغيل MyTube، أو مرره inline عند تشغيل npm run dev.",
+  deploymentSecurityLocalEnvFileNote:
+    "يمكنك أيضًا وضع السطر نفسه في backend/.env.",
+  taskHooksPolicyNotice:
+    "يتم تعطيل خطافات المهام بواسطة سياسة أمان النشر في وضع الثقة application.",
   hookTaskBeforeStart: "قبل بدء المهمة",
   hookTaskBeforeStartHelper: "ينفذ قبل بدء التنزيل.",
   hookTaskSuccess: "نجاح المهمة",
@@ -904,6 +947,10 @@ export const ar = {
   ytDlpConfigurationDescription: "تكوين خيارات تنزيل yt-dlp. راجع",
   ytDlpConfigurationDocs: "الوثائق",
   ytDlpConfigurationDescriptionEnd: "لمزيد من المعلومات.",
+  ytDlpConfigurationPolicyNotice:
+    "يتم تعطيل إعدادات yt-dlp الخام بواسطة سياسة أمان النشر في وضع الثقة application.",
+  mountDirectoriesPolicyNotice:
+    "تتطلب أدلة الربط ثقة مدير على مستوى المضيف.",
   customize: "تخصيص",
   hide: "إخفاء",
   reset: "إعادة تعيين",

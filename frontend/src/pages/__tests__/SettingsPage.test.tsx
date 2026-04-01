@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '../SettingsPage';
@@ -70,7 +69,7 @@ vi.mock('../../utils/apiClient', () => ({
 }));
 
 vi.mock('../../hooks/useSettings', () => ({
-  useSettings: () => ({ data: mockSettingsData }),
+  useSettings: () => ({ data: mockSettingsData, isFetching: false }),
 }));
 
 vi.mock('../../contexts/LanguageContext', () => ({
@@ -413,6 +412,14 @@ describe('SettingsPage', () => {
 
   it('updates settings through child callbacks and triggers glow animation', async () => {
     vi.useFakeTimers();
+    mockSettingsData = {
+      deploymentSecurity: {
+        adminTrustLevel: 'container',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: false,
+        source: 'env',
+      },
+    };
     renderPage('/settings');
 
     fireEvent.click(screen.getByText('basic-change-language'));
@@ -505,7 +512,15 @@ describe('SettingsPage', () => {
   });
 
   it('shows mount directory empty message when scan is triggered with no directories', async () => {
-    mockSettingsData = { mountDirectories: '' };
+    mockSettingsData = {
+      mountDirectories: '',
+      deploymentSecurity: {
+        adminTrustLevel: 'host',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: true,
+        source: 'env',
+      },
+    };
     renderPage('/settings');
 
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
@@ -515,7 +530,15 @@ describe('SettingsPage', () => {
   });
 
   it('scans mount directories and saves settings on successful scan', async () => {
-    mockSettingsData = { mountDirectories: '/a\n/b' };
+    mockSettingsData = {
+      mountDirectories: '/a\n/b',
+      deploymentSecurity: {
+        adminTrustLevel: 'host',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: true,
+        source: 'env',
+      },
+    };
     renderPage('/settings');
 
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
@@ -529,7 +552,15 @@ describe('SettingsPage', () => {
   });
 
   it('shows warning snackbar when scan succeeds but saving settings fails', async () => {
-    mockSettingsData = { mountDirectories: '/tmp/videos' };
+    mockSettingsData = {
+      mountDirectories: '/tmp/videos',
+      deploymentSecurity: {
+        adminTrustLevel: 'host',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: true,
+        source: 'env',
+      },
+    };
     saveShouldError = true;
 
     renderPage('/settings');
@@ -540,7 +571,15 @@ describe('SettingsPage', () => {
   });
 
   it('shows error snackbar when scan request fails', async () => {
-    mockSettingsData = { mountDirectories: '/tmp/videos' };
+    mockSettingsData = {
+      mountDirectories: '/tmp/videos',
+      deploymentSecurity: {
+        adminTrustLevel: 'host',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: true,
+        source: 'env',
+      },
+    };
     mockApiPost.mockRejectedValueOnce({ response: { data: { details: 'scan failed details' } } });
 
     renderPage('/settings');
@@ -548,6 +587,65 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
     expect(await screen.findByText('scanFilesFailed: scan failed details')).toBeInTheDocument();
+  });
+
+  it('hides mount directory controls unless deployment trust is host', () => {
+    renderPage('/settings');
+
+    expect(screen.queryByRole('button', { name: 'scanFiles' })).not.toBeInTheDocument();
+    expect(screen.getByText('Mount directories require host-level admin trust.')).toBeInTheDocument();
+  });
+
+  it('hides container-only features in application trust mode', () => {
+    mockSettingsData = {
+      deploymentSecurity: {
+        adminTrustLevel: 'application',
+        adminTrustedWithContainer: false,
+        adminTrustedWithHost: false,
+        source: 'env',
+      },
+    };
+
+    renderPage('/settings');
+
+    expect(screen.queryByTestId('ytdlp-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hook-settings')).not.toBeInTheDocument();
+    expect(screen.getByText('Raw yt-dlp configuration is disabled by deployment security policy in application trust mode.')).toBeInTheDocument();
+    expect(screen.getByText('Task hooks are disabled by deployment security policy in application trust mode.')).toBeInTheDocument();
+  });
+
+  it('opens deployment security details modal', () => {
+    mockSettingsData = {
+      deploymentSecurity: {
+        adminTrustLevel: 'container',
+        adminTrustedWithContainer: true,
+        adminTrustedWithHost: false,
+        source: 'env',
+      },
+    };
+
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+
+    expect(screen.getByText('Deployment Security Details')).toBeInTheDocument();
+    expect(screen.getByText('Capability / Feature')).toBeInTheDocument();
+    expect(screen.getByText('Task hooks upload/delete/execute')).toBeInTheDocument();
+    expect(screen.getByText('Scan files from configured mount directories')).toBeInTheDocument();
+    expect(screen.getByText('How to configure')).toBeInTheDocument();
+    expect(screen.getByText('Docker / Docker Compose')).toBeInTheDocument();
+    expect(screen.getByText('Local source run')).toBeInTheDocument();
+    expect(screen.getByText('MYTUBE_ADMIN_TRUST_LEVEL=application npm run dev')).toBeInTheDocument();
+  });
+
+  it('fails closed for container-only features until deployment security is loaded', () => {
+    mockSettingsData = {};
+
+    renderPage('/settings');
+
+    expect(screen.queryByTestId('ytdlp-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hook-settings')).not.toBeInTheDocument();
+    expect(screen.getByText('Deployment security policy is loading. Restricted features remain hidden until the policy is available.')).toBeInTheDocument();
   });
 
   it('triggers data management callbacks and modal openers', async () => {

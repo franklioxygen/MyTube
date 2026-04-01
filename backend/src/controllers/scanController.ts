@@ -2,12 +2,16 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
+import {
+  createAdminTrustLevelError,
+  isAdminTrustLevelAtLeast,
+} from "../config/adminTrust";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { formatVideoFilename } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { successResponse } from "../utils/response";
+import { errorResponse, sendBadRequest, successResponse } from "../utils/response";
 import {
   execFileSafe,
   isPathWithinDirectory,
@@ -67,28 +71,62 @@ const runWithConcurrencyLimit = async <T>(
   await Promise.all(workers);
 };
 
-// Recursive function to get all files in a directory (restricted to VIDEOS_DIR)
-const getFilesRecursively = async (dir: string): Promise<string[]> => {
-  const safeDir = resolveSafePath(dir, VIDEOS_DIR);
+type RecursiveCollectionMode = "local" | "mount";
+
+const resolveDirectoryForCollection = (
+  dir: string,
+  mode: RecursiveCollectionMode
+): string => {
+  return mode === "mount" ? validateMountDirectory(dir) : resolveSafePath(dir, VIDEOS_DIR);
+};
+
+const collectFilesRecursively = async (
+  dir: string,
+  mode: RecursiveCollectionMode,
+  rootDir: string
+): Promise<string[]> => {
+  const resolvedDir = resolveDirectoryForCollection(dir, mode);
+  const safeRoot = resolveDirectoryForCollection(rootDir, mode);
+
+  if (mode === "mount") {
+    if (!isPathWithinDirectory(resolvedDir, safeRoot)) {
+      logger.warn(`Skipping directory outside mount root: ${resolvedDir}`);
+      return [];
+    }
+
+    if (!(await fs.pathExists(resolvedDir))) {
+      logger.warn(`Mount directory does not exist: ${resolvedDir}`);
+      return [];
+    }
+  }
+
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const entries = await fs.readdir(safeDir, { withFileTypes: true });
+  const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
-      const filePath = path.join(safeDir, entry.name);
+      const filePath = path.join(resolvedDir, entry.name);
 
-      if (!isPathWithinDirectory(filePath, safeDir)) {
-        logger.warn(`Skipping file outside allowed directory: ${filePath}`);
+      if (!isPathWithinDirectory(filePath, resolvedDir)) {
+        logger.warn(
+          mode === "mount"
+            ? `Skipping file outside mount directory: ${filePath}`
+            : `Skipping file outside allowed directory: ${filePath}`
+        );
         return [] as string[];
       }
 
       if (entry.isSymbolicLink()) {
-        logger.warn(`Skipping symlink during scan: ${filePath}`);
+        logger.warn(
+          mode === "mount"
+            ? `Skipping symlink during mount scan: ${filePath}`
+            : `Skipping symlink during scan: ${filePath}`
+        );
         return [] as string[];
       }
 
       if (entry.isDirectory()) {
-        return getFilesRecursively(filePath);
+        return collectFilesRecursively(filePath, mode, safeRoot);
       }
 
       return [filePath];
@@ -96,6 +134,11 @@ const getFilesRecursively = async (dir: string): Promise<string[]> => {
   );
 
   return nestedResults.flat();
+};
+
+// Recursive function to get all files in a directory (restricted to VIDEOS_DIR)
+const getFilesRecursively = async (dir: string): Promise<string[]> => {
+  return collectFilesRecursively(dir, "local", VIDEOS_DIR);
 };
 
 const validateMountDirectory = (dir: string): string => {
@@ -129,50 +172,11 @@ const overlapsLocalVideosDirectory = (dir: string): boolean => {
   );
 };
 
-// Recursive function to get all files from a mount directory (no VIDEOS_DIR restriction)
 const getFilesRecursivelyFromMount = async (
   dir: string,
   rootDir?: string
 ): Promise<string[]> => {
-  const resolvedDir = validateMountDirectory(dir);
-  const safeRoot = rootDir ? validateMountDirectory(rootDir) : resolvedDir;
-
-  if (!isPathWithinDirectory(resolvedDir, safeRoot)) {
-    logger.warn(`Skipping directory outside mount root: ${resolvedDir}`);
-    return [];
-  }
-
-  if (!(await fs.pathExists(resolvedDir))) {
-    logger.warn(`Mount directory does not exist: ${resolvedDir}`);
-    return [];
-  }
-
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
-
-  const nestedResults = await Promise.all(
-    entries.map(async (entry) => {
-      const filePath = path.join(resolvedDir, entry.name);
-
-      if (!isPathWithinDirectory(filePath, resolvedDir)) {
-        logger.warn(`Skipping file outside mount directory: ${filePath}`);
-        return [] as string[];
-      }
-
-      if (entry.isSymbolicLink()) {
-        logger.warn(`Skipping symlink during mount scan: ${filePath}`);
-        return [] as string[];
-      }
-
-      if (entry.isDirectory()) {
-        return getFilesRecursivelyFromMount(filePath, safeRoot);
-      }
-
-      return [filePath];
-    })
-  );
-
-  return nestedResults.flat();
+  return collectFilesRecursively(dir, "mount", rootDir ?? dir);
 };
 
 const buildVideoWebPath = (
@@ -510,6 +514,8 @@ const processDirectoryFiles = async (
 
 /**
  * Scan files in videos directory and sync with database
+ * This endpoint intentionally remains available across trust levels because it
+ * only operates on the app-managed local /videos tree, not arbitrary host paths.
  * Errors are automatically handled by asyncHandler middleware
  */
 export const scanFiles = async (
@@ -603,14 +609,17 @@ export const scanMountDirectories = async (
   req: Request,
   res: Response
 ): Promise<void> => {
+  if (!isAdminTrustLevelAtLeast("host")) {
+    res.status(403).json(createAdminTrustLevelError("host"));
+    return;
+  }
+
   logger.info("Starting mount directories scan...");
 
   const { directories } = req.body;
 
   if (!directories || !Array.isArray(directories) || directories.length === 0) {
-    res
-      .status(400)
-      .json({ error: "Directories array is required and must not be empty" });
+    sendBadRequest(res, "Directories array is required and must not be empty");
     return;
   }
 
@@ -619,7 +628,7 @@ export const scanMountDirectories = async (
     .filter((dir: string) => dir.length > 0);
 
   if (trimmedDirectories.length === 0) {
-    res.status(400).json({ error: "No valid directories provided" });
+    sendBadRequest(res, "No valid directories provided");
     return;
   }
 
@@ -640,10 +649,11 @@ export const scanMountDirectories = async (
   }
 
   if (invalidDirectories.length > 0) {
-    res.status(400).json({
-      error: "Invalid mount directories detected (must be absolute safe paths)",
-      invalidDirectories,
-    });
+    res.status(400).json(
+      errorResponse("Invalid mount directories detected (must be absolute safe paths)", {
+        invalidDirectories,
+      })
+    );
     return;
   }
 

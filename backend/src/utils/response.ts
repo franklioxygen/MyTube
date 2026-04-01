@@ -31,10 +31,14 @@ export function successResponse<T>(data: T, message?: string): ApiResponse<T> {
  * @param error - Error message
  * @returns Standardized error response
  */
-export function errorResponse(error: string): ApiResponse<never> {
+export function errorResponse<T extends Record<string, unknown> = Record<string, never>>(
+  error: string,
+  details?: T
+): ApiResponse<never> & T {
   return {
     success: false,
     error,
+    ...(details ?? ({} as T)),
   };
 }
 
