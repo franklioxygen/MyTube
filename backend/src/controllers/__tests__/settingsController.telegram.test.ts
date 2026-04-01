@@ -82,6 +82,9 @@ describe("testTelegramNotification", () => {
     await testTelegramNotification(req as Request, res as Response);
 
     expect(statusMock).toHaveBeenCalledWith(400);
-    expect(jsonMock).toHaveBeenCalledWith({ error: "chat not found" });
+    expect(jsonMock).toHaveBeenCalledWith({
+      success: false,
+      error: "chat not found",
+    });
   });
 });
