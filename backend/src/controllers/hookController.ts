@@ -72,22 +72,48 @@ const scanForRiskCommands = (content: string): string | null => {
   // Keep patterns simple to avoid ReDoS from complex regular expressions.
   // Use simpler, more specific patterns to avoid ReDoS (Regular Expression Denial of Service)
   // Avoid nested quantifiers and complex alternations that can cause exponential backtracking
+  const recursiveDeletePatterns = [
+    {
+      flags: "-[rf]+",
+      display: "rm -rf",
+    },
+    {
+      flags: "-[fr]+",
+      display: "rm -fr",
+    },
+    {
+      flags: "-r\\s+-f",
+      display: "rm -r -f",
+    },
+    {
+      flags: "-f\\s+-r",
+      display: "rm -f -r",
+    },
+    {
+      flags: "--recursive\\s+--force",
+      display: "rm --recursive --force",
+    },
+    {
+      flags: "--force\\s+--recursive",
+      display: "rm --force --recursive",
+    },
+  ];
+  const destructiveTargets = [
+    { pattern: "\\/", display: "/" },
+    { pattern: "\\*", display: "*" },
+    { pattern: "~(?:\\/|\\b)", display: "~" },
+    {
+      pattern: "(?:\\$HOME|\\$\\{HOME\\})(?:\\/|\\b)",
+      display: "$HOME",
+    },
+  ];
   const riskyPatterns = [
-    // Check for rm -rf / or rm -fr / with simpler pattern
-    { pattern: /rm\s+-[rf]+\s+\//, name: "rm -rf / (recursive delete)" },
-    { pattern: /rm\s+-[fr]+\s+\//, name: "rm -fr / (recursive delete)" },
-    { pattern: /rm\s+-r\s+-f\s+\//, name: "rm -r -f / (recursive delete)" },
-    { pattern: /rm\s+-f\s+-r\s+\//, name: "rm -f -r / (recursive delete)" },
-    {
-      pattern: /rm\s+--recursive\s+--force\s+\//,
-      name: "rm --recursive --force / (recursive delete)",
-    },
-    {
-      pattern: /rm\s+--force\s+--recursive\s+\//,
-      name: "rm --force --recursive / (recursive delete)",
-    },
-    { pattern: /rm\s+-rf\s+\*/, name: "rm -rf * (recursive delete all)" },
-    { pattern: /rm\s+-fr\s+\*/, name: "rm -fr * (recursive delete all)" },
+    ...recursiveDeletePatterns.flatMap(({ flags, display }) =>
+      destructiveTargets.map(({ pattern, display: targetDisplay }) => ({
+        pattern: new RegExp(`rm\\s+${flags}\\s+${pattern}`),
+        name: `${display} ${targetDisplay} (destructive delete)`,
+      }))
+    ),
     { pattern: /mkfs/, name: "mkfs (format disk)" },
     { pattern: /dd\s+if=/, name: "dd (disk write)" },
     {
@@ -104,8 +130,20 @@ const scanForRiskCommands = (content: string): string | null => {
     { pattern: /chmod\s+777\s+\//, name: "chmod 777 root" },
     { pattern: /wget\s+\S+:\/\//, name: "wget (potential malware download)" },
     {
+      pattern: /wget\b[^\n]{0,240}\|\s*(?:bash|sh)\b/,
+      name: "wget piped to shell",
+    },
+    {
       pattern: /curl\b[^\n]{0,200}\b(?:https?|ftp):\/\//,
       name: "curl (potential malware download)",
+    },
+    {
+      pattern: /curl\b[^\n]{0,240}\|\s*(?:bash|sh)\b/,
+      name: "curl piped to shell",
+    },
+    {
+      pattern: /(?:base64|openssl\s+base64)\b[^\n]{0,240}\|\s*(?:bash|sh)\b/,
+      name: "decoded payload piped to shell",
     },
   ];
 
