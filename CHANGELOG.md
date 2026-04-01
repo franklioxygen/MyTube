@@ -1,5 +1,260 @@
 # Change Log
 
+## v1.9.3 (2026-03-31)
+
+### Fix
+
+- fix frontend types and settings details (4629fa17)
+
+### Docs
+
+- docs: Delete admin trust level feature document (8a7d99b6)
+
+## v1.9.2 (2026-03-31)
+
+### Feat
+
+- Implement admin trust model and deployment security docs (dc2cc639)
+
+### Fix
+
+- Harden hook risk scanning and docs (d174d11c)
+
+### Refactor
+
+- Replace dynamic hook risk regex construction (62989194)
+
+### Test
+
+- Update telegram controller test for error response (fc30142a)
+
+## v1.9.1 (2026-03-31)
+
+### Fix
+
+- Apply Codacy hardening fixes (f62da10b)
+- Harden storage path operations (fcb4831c)
+- Address Codacy path traversal findings (04a03109)
+- Fix stale backend test expectations (f2310ebb)
+- Fix randomInt test typing (7e6c6e01)
+
+### Refactor
+
+- Tighten storage path validation (39994466)
+
+## v1.9.0 (2026-03-30)
+
+### Feat
+
+- Add Twitch subscription support (89fa16d9)
+- Add subscription interval editing (e7a290c4)
+- Update subscription check timestamp display (48841818)
+
+### Fix
+
+- Fix backend tests for Twitch support (f6150e92)
+
+### Refactor
+
+- Improve mobile subscription interval editing (4aa540fc)
+- refactor: standardize frontend date display format (ea1c45b2)
+- refactor: Update picomatch and diff versions (9ab0d213)
+
+### Chore
+
+- chore(deps): bump path-to-regexp from 0.1.12 to 0.1.13 in /backend (fb6b54d9)
+- chore(deps): bump path-to-regexp in /backend/bgutil-ytdlp-pot-provider (48ba31d0)
+- chore(deps): bump picomatch from 4.0.3 to 4.0.4 in /frontend (f798942c)
+- chore(deps): bump picomatch in /backend/bgutil-ytdlp-pot-provider/server (f60f305a)
+
+## v1.8.74 (2026-03-26)
+
+### Refactor
+
+- refactor: Update picomatch and diff versions (2930b6fa)
+
+## v1.8.73 (2026-03-25)
+
+### Refactor
+
+- refactor: Update ThemeContext and useStickyButton logic (2e5e3d08)
+
+## v1.8.72 (2026-03-25)
+
+### Fix
+
+- Harden auth password recovery flows (4d89b146)
+- Harden admin auth and remove public reset endpoint (dd7b4a61)
+- Refine auth recovery and limiter updates (752bc7f0)
+
+## v1.8.71 (2026-03-24)
+
+### Fix
+
+- Fix passkey registration authorization (d6c1275a)
+
+## v1.8.70 (2026-03-23)
+
+### Refactor
+
+- refactor: Remove unnecessary endpoint path for CSRF protection (39831773)
+
+## v1.8.69 (2026-03-23)
+
+### Fix
+
+- fix: Add CSRF middleware to protect against cross-site request forgery (5842debe)
+- fix: Prevent authorization bypass via query parameter injection (b7bf9b79)
+
+## v1.8.68 (2026-03-23)
+
+### Refactor
+
+- refactor: Update settingsController tests and safe payload logic (796ca186)
+
+## v1.8.67 (2026-03-23)
+
+### Feat
+
+- feat: Add lazy loading with retry functionality (5ae4fe4d)
+
+### Chore
+
+- chore(deps-dev): bump flatted from 3.3.3 to 3.4.2 in /frontend (aa52d69c)
+
+## v1.8.66 (2026-03-18)
+
+### Feat
+
+- feat: Add lastPlayedAt to VideoContext and sync history cache (0c161264)
+
+### Refactor
+
+- refactor: Improve startTime application logic (01484ead)
+- refactor: Improve startTime handling in useVideoPlayer (c994061d)
+
+## v1.8.65 (2026-03-17)
+
+### Fix
+
+- fix: harden upload path handling (40349504)
+
+## v1.8.64 (2026-03-16)
+
+### Refactor
+
+- refactor: Optimize stored upload filename handling (96b9e086)
+
+## v1.8.63 (2026-03-16)
+
+### Refactor
+
+- refactor: Update imports and add security measures (262db76c)
+
+## v1.8.62 (2026-03-16)
+
+### Chore
+
+- Remove pngjs dependency from file type test (c5c7df48)
+
+## v1.8.61 (2026-03-16)
+
+### Fix
+
+- Fix test suite after thumbnail mirror refactor (c51dec50)
+
+### Refactor
+
+- Refactor thumbnails to use images-small mirrors (c7f05f23)
+
+## v1.8.60 (2026-03-16)
+
+### Feat
+
+- Allow uploads when login protection is disabled (1e0f03ea)
+
+## v1.8.59 (2026-03-16)
+
+### Fix
+
+- Clarify upload count and size limits (c870171a)
+
+## v1.8.58 (2026-03-16)
+
+### Feat
+
+- Add secure batch uploads and sync locale keys (ad9a13b9)
+
+## v1.8.57 (2026-03-13)
+
+### Fix
+
+- fix security alerts and static asset routing (9bfa1ef9)
+
+### Chore
+
+- chore(deps): bump undici from 7.18.2 to 7.24.1 in /backend (41fb1771)
+
+## v1.8.56 (2026-03-13)
+
+### Fix
+
+- Improve Lighthouse mobile loading path (0a970cb9)
+
+### Test
+
+- test: improve frontend coverage and stabilize tests (db77e2c6)
+
+### Docs
+
+- Add desktop Lighthouse score badge (df8be34c)
+
+## v1.8.55 (2026-03-13)
+
+### Chore
+
+- chore: sort translations (c3bd7c09)
+
+## v1.8.54 (2026-03-12)
+
+### Feat
+
+- feat: Implement function to validate uploaded image content (46cb1ab2)
+
+## v1.8.53 (2026-03-12)
+
+### Refactor
+
+- refactor: Update fromFile to fromBuffer in file-type index (cce16877)
+
+## v1.8.52 (2026-03-12)
+
+### Fix
+
+- Improve file path validation and localize video load errors (7f9073e8)
+
+## v1.8.51 (2026-03-12)
+
+### Build
+
+- build: Disable provenance attestations in Docker Buildx (1f6b9c34)
+
+## v1.8.50 (2026-03-12)
+
+### Feat
+
+- feat: Add file path validation to prevent access outside allowed roots (03401a06)
+
+## v1.8.49 (2026-03-12)
+
+### Fix
+
+- fix: protect local media during mount cleanup (f1898e2f)
+
+### Build
+
+- build: reduce qemu work in multi-arch images (9e295647)
+
 ## 1.8.48 (2026-03-12)
 
 ### Feat
