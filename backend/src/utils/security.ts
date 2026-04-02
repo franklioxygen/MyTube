@@ -1,6 +1,7 @@
 import { execFile } from "child_process";
 import fs from "fs-extra";
 import type {
+  Dirent,
   Stats,
   WriteFileOptions,
 } from "fs";
@@ -213,6 +214,7 @@ export function resolveSafePathInDirectories(
 
 type ReadStreamOptions = Parameters<typeof fs.createReadStream>[1];
 type WriteStreamOptions = Parameters<typeof fs.createWriteStream>[1];
+type MoveSyncOptions = Parameters<typeof fs.moveSync>[2];
 
 function normalizeAllowedDirectories(
   allowedDirOrDirs: string | readonly string[],
@@ -245,6 +247,15 @@ export function pathExistsSafeSync(
   return fs.existsSync(safePath);
 }
 
+export async function pathExistsSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Promise<boolean> {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.pathExists(safePath);
+}
+
 export function statSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -254,6 +265,15 @@ export function statSafeSync(
   return fs.statSync(safePath);
 }
 
+export async function statSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Promise<Stats> {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.stat(safePath);
+}
+
 export function readdirSafeSync(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -261,6 +281,24 @@ export function readdirSafeSync(
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.readdirSync(safePath);
+}
+
+export async function readdirSafe(
+  dirPath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Promise<string[]> {
+  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.readdir(safePath);
+}
+
+export async function readdirDirentsSafe(
+  dirPath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Promise<Dirent[]> {
+  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.readdir(safePath, { withFileTypes: true }) as Promise<Dirent[]>;
 }
 
 export function writeFileSafeSync(
@@ -281,6 +319,15 @@ export function unlinkSafeSync(
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.unlinkSync(safePath);
+}
+
+export async function removeSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Promise<void> {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  await fs.remove(safePath);
 }
 
 export function copyFileSafeSync(
@@ -317,6 +364,25 @@ export function renameSafeSync(
   );
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.renameSync(safeSourcePath, safeDestinationPath);
+}
+
+export function moveSafeSync(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+  options?: MoveSyncOptions,
+): void {
+  const safeSourcePath = resolveSafePathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveSafePathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.moveSync(safeSourcePath, safeDestinationPath, options);
 }
 
 export function createReadStreamSafe(
@@ -396,6 +462,26 @@ export function resolveSafeChildPath(
   }
 
   return resolveSafePath(`${allowedDir}${path.sep}${childPath}`, allowedDir);
+}
+
+export function normalizeSafeAbsolutePath(filePath: string): string {
+  if (!filePath || typeof filePath !== "string") {
+    throw new Error(`Invalid absolute path: ${filePath}`);
+  }
+
+  let sanitizedPath: string;
+  try {
+    sanitizedPath = sanitizePathWithoutTraversal(filePath);
+  } catch {
+    throw new Error(`Path traversal detected: ${filePath}`);
+  }
+
+  const resolvedPath = path.resolve(sanitizedPath);
+  if (!path.isAbsolute(resolvedPath)) {
+    throw new Error(`Path must resolve to an absolute path: ${filePath}`);
+  }
+
+  return resolvedPath;
 }
 
 /**

@@ -25,6 +25,14 @@ import {
   getUserYtDlpConfig,
   InvalidProxyError,
 } from "../../../utils/ytDlpUtils";
+import {
+  moveSafeSync,
+  pathExistsSafeSync,
+  removeSafe,
+  resolveSafeChildPath,
+  statSafeSync,
+  unlinkSafeSync,
+} from "../../../utils/security";
 import * as storageService from "../../storageService";
 import { Video } from "../../storageService";
 import { deleteSmallThumbnailMirrorSync } from "../../thumbnailMirrorService";
@@ -229,13 +237,10 @@ export async function downloadVideo(
       imageDir: IMAGES_DIR,
     });
 
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-    const newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
+    const newVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
     let newThumbnailPath = moveThumbnailsToVideoFolder
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      ? path.join(VIDEOS_DIR, finalThumbnailFilename)
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      : path.join(IMAGES_DIR, finalThumbnailFilename);
+      ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
+      : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
 
     logger.info("Preparing video download path:", newVideoPath);
 
@@ -284,12 +289,12 @@ export async function downloadVideo(
     );
 
     // If file already exists (e.g. redownload), deduplicate the filename
-    if (fs.existsSync(newVideoPathWithFormat)) {
+    if (pathExistsSafeSync(newVideoPathWithFormat, VIDEOS_DIR)) {
       let counter = 1;
       const ext = `.${videoExtension}`;
       const basePath = stripTrailingExtension(newVideoPathWithFormat, ext);
       const baseName = stripTrailingExtension(finalVideoFilename, ext);
-      while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+      while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
         counter++;
       }
       newVideoPathWithFormat = `${basePath}_${counter}${ext}`;
@@ -299,8 +304,8 @@ export async function downloadVideo(
         `_${counter}.jpg`
       );
       newThumbnailPath = moveThumbnailsToVideoFolder
-        ? path.join(VIDEOS_DIR, finalThumbnailFilename)
-        : path.join(IMAGES_DIR, finalThumbnailFilename);
+        ? resolveSafeChildPath(VIDEOS_DIR, finalThumbnailFilename)
+        : resolveSafeChildPath(IMAGES_DIR, finalThumbnailFilename);
       logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
     }
 
@@ -329,10 +334,7 @@ export async function downloadVideo(
           await cleanupVideoArtifacts(newSafeBaseFilename, IMAGES_DIR);
         }
 
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newThumbnailPath)) {
-          await fs.remove(newThumbnailPath);
-        }
+        await removeSafe(newThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]);
         await cleanupSubtitleFiles(newSafeBaseFilename);
       });
     }
@@ -468,7 +470,10 @@ export async function downloadVideo(
       });
 
       // Download channel avatar using yt-dlp to a temp file first
-      const tempAvatarPath = path.join(AVATARS_DIR, `temp_${Date.now()}.jpg`);
+      const tempAvatarPath = resolveSafeChildPath(
+        AVATARS_DIR,
+        `temp_${Date.now()}.jpg`
+      );
       fs.ensureDirSync(AVATARS_DIR);
 
       const downloaded = await downloadChannelAvatar(
@@ -477,8 +482,7 @@ export async function downloadVideo(
         networkConfig
       );
 
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (downloaded && fs.existsSync(tempAvatarPath)) {
+      if (downloaded && pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
         // Process the downloaded avatar (check if exists, resize)
         authorAvatarPath = await downloadAndProcessAvatar(
           tempAvatarPath, // Use temp file path as "URL" for processing
@@ -486,9 +490,10 @@ export async function downloadVideo(
           videoAuthor,
           async (url: string, savePath: string) => {
             // This function just moves the temp file
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (fs.existsSync(url)) {
-              fs.moveSync(url, savePath, { overwrite: true });
+            if (pathExistsSafeSync(url, AVATARS_DIR)) {
+              moveSafeSync(url, AVATARS_DIR, savePath, AVATARS_DIR, {
+                overwrite: true,
+              });
               return true;
             }
             return false;
@@ -497,11 +502,9 @@ export async function downloadVideo(
         authorAvatarSaved = authorAvatarPath !== null;
 
         // Clean up temp file if it still exists (in case processing failed or file wasn't moved)
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(tempAvatarPath)) {
+        if (pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
           try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(tempAvatarPath);
+            unlinkSafeSync(tempAvatarPath, AVATARS_DIR);
             logger.info(`Cleaned up temp avatar file: ${tempAvatarPath}`);
           } catch (cleanupError) {
             logger.warn(
@@ -510,11 +513,10 @@ export async function downloadVideo(
             );
           }
         }
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      } else if (fs.existsSync(tempAvatarPath)) {
+      } else if (pathExistsSafeSync(tempAvatarPath, AVATARS_DIR)) {
         // Clean up temp file if download failed
         try {
-          fs.unlinkSync(tempAvatarPath);
+          unlinkSafeSync(tempAvatarPath, AVATARS_DIR);
           logger.info(
             `Cleaned up temp avatar file after failed download: ${tempAvatarPath}`
           );
@@ -631,8 +633,7 @@ export async function downloadVideo(
   };
 
   // If duration is missing from info, try to extract it from file
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const finalVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
+  const finalVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
 
   try {
     const { getVideoDuration } = await import(
@@ -648,10 +649,8 @@ export async function downloadVideo(
 
   // Get file size
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(finalVideoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(finalVideoPath);
+    if (pathExistsSafeSync(finalVideoPath, VIDEOS_DIR)) {
+      const stats = statSafeSync(finalVideoPath, VIDEOS_DIR);
       videoData.fileSize = stats.size.toString();
     }
   } catch (e) {
@@ -669,11 +668,13 @@ export async function downloadVideo(
 
     // Delete old video file if filename changed
     if (existingVideo.videoFilename && existingVideo.videoFilename !== finalVideoFilename) {
-      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-      const oldVideoPath = path.join(VIDEOS_DIR, existingVideo.videoFilename);
+      const oldVideoPath = resolveSafeChildPath(
+        VIDEOS_DIR,
+        existingVideo.videoFilename
+      );
       try {
-        if (fs.existsSync(oldVideoPath)) {
-          fs.unlinkSync(oldVideoPath);
+        if (pathExistsSafeSync(oldVideoPath, VIDEOS_DIR)) {
+          unlinkSafeSync(oldVideoPath, VIDEOS_DIR);
           logger.info(`Deleted old video file: ${existingVideo.videoFilename}`);
         }
       } catch (e) {
@@ -684,19 +685,25 @@ export async function downloadVideo(
     // Delete old thumbnail file if being replaced with a new one
     if (thumbnailSaved && existingVideo.thumbnailFilename && existingVideo.thumbnailFilename !== finalThumbnailFilename) {
       const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
-        ? path.join(VIDEOS_DIR, existingVideo.thumbnailPath.replace(/^\/videos\//, ""))
+        ? resolveSafeChildPath(
+            VIDEOS_DIR,
+            existingVideo.thumbnailPath.replace(/^\/videos\//, "")
+          )
         : existingVideo.thumbnailPath?.startsWith("/images/")
-          ? path.join(IMAGES_DIR, existingVideo.thumbnailPath.replace(/^\/images\//, ""))
-          : path.join(IMAGES_DIR, existingVideo.thumbnailFilename);
+          ? resolveSafeChildPath(
+              IMAGES_DIR,
+              existingVideo.thumbnailPath.replace(/^\/images\//, "")
+            )
+          : resolveSafeChildPath(IMAGES_DIR, existingVideo.thumbnailFilename);
       try {
         if (
-          fs.existsSync(oldThumbnailPath) &&
+          pathExistsSafeSync(oldThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]) &&
           !storageService.isThumbnailReferencedByOtherVideo(
             existingVideo,
             existingVideo.id,
           )
         ) {
-          fs.unlinkSync(oldThumbnailPath);
+          unlinkSafeSync(oldThumbnailPath, [VIDEOS_DIR, IMAGES_DIR]);
           deleteSmallThumbnailMirrorSync(oldThumbnailPath);
           logger.info(`Deleted old thumbnail file: ${existingVideo.thumbnailFilename}`);
         }
