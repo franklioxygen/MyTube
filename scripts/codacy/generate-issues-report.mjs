@@ -5,23 +5,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-const CATEGORY_LABELS = {
-  BestPractice: "Best practice",
-  CodeStyle: "Code style",
-  Compatibility: "Compatibility",
-  ErrorProne: "Error prone",
-  Performance: "Performance",
-  Security: "Security",
-  UnusedCode: "Unused code",
-};
+const CATEGORY_LABELS = new Map([
+  ["BestPractice", "Best practice"],
+  ["CodeStyle", "Code style"],
+  ["Compatibility", "Compatibility"],
+  ["ErrorProne", "Error prone"],
+  ["Performance", "Performance"],
+  ["Security", "Security"],
+  ["UnusedCode", "Unused code"],
+]);
+const USAGE =
+  "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider PROVIDER] [--owner OWNER] [--repo REPO] [--out OUTPUT_PATH]";
 
 function usageAndExit(message) {
   if (message) {
     console.error(`Error: ${message}`);
   }
-  console.error(
-    "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider gh] [--owner <owner>] [--repo <repo>] [--out <path>]",
-  );
+  console.error(USAGE);
   process.exit(1);
 }
 
@@ -33,32 +33,47 @@ function parseArgs(argv) {
     out: "reports/codacy-current-issues.md",
   };
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
+  const iterator = argv[Symbol.iterator]();
+  for (const arg of iterator) {
     if (arg === "--provider") {
-      args.provider = argv[i + 1];
-      i += 1;
+      args.provider = iterator.next().value;
       continue;
     }
     if (arg === "--owner") {
-      args.owner = argv[i + 1];
-      i += 1;
+      args.owner = iterator.next().value;
       continue;
     }
     if (arg === "--repo") {
-      args.repo = argv[i + 1];
-      i += 1;
+      args.repo = iterator.next().value;
       continue;
     }
     if (arg === "--out") {
-      args.out = argv[i + 1];
-      i += 1;
+      args.out = iterator.next().value;
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
   }
 
   return args;
+}
+
+function resolvePathWithinCwd(targetPath) {
+  if (!targetPath || typeof targetPath !== "string") {
+    throw new Error(`Invalid path: ${targetPath}`);
+  }
+
+  const workspaceRoot = process.cwd();
+  const absolutePath = path.resolve(workspaceRoot, targetPath);
+  const relativePath = path.relative(workspaceRoot, absolutePath);
+
+  if (
+    relativePath.startsWith("..") ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(`Path must stay within ${workspaceRoot}: ${targetPath}`);
+  }
+
+  return absolutePath;
 }
 
 function safeRemoteUrl() {
@@ -145,7 +160,7 @@ function escapePipes(text) {
 }
 
 function categoryLabel(raw) {
-  return CATEGORY_LABELS[raw] || raw || "Unknown";
+  return CATEGORY_LABELS.get(raw) || raw || "Unknown";
 }
 
 function buildMarkdown({
@@ -289,8 +304,12 @@ async function main() {
     generatedAt: new Date().toISOString(),
   });
 
-  const outputPath = path.resolve(process.cwd(), out);
+  const outputPath = resolvePathWithinCwd(out);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.writeFile(outputPath, markdown, "utf8");
 
   console.log(`Report written: ${outputPath}`);

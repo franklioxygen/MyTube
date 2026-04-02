@@ -1,4 +1,3 @@
-import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "./storageService";
@@ -7,6 +6,39 @@ import {
     moveSmallThumbnailMirrorSync,
     resolveManagedThumbnailWebPathFromAbsolutePath,
 } from "./thumbnailMirrorService";
+import {
+    ensureDirSafeSync,
+    moveSafeSync,
+    pathExistsSafeSync,
+    resolveSafeChildPath,
+    sanitizePathSegment,
+} from "../utils/security";
+
+const SHARED_THUMBNAIL_ALLOWED_DIRS = [IMAGES_DIR, VIDEOS_DIR] as const;
+
+const resolveManagedThumbnailAbsolutePath = (
+    thumbnailPath: string | null | undefined,
+) => {
+    if (!thumbnailPath) {
+        return null;
+    }
+
+    if (thumbnailPath.startsWith("/videos/")) {
+        return resolveSafeChildPath(
+            VIDEOS_DIR,
+            thumbnailPath.replace(/^\/videos\//, ""),
+        );
+    }
+
+    if (thumbnailPath.startsWith("/images/")) {
+        return resolveSafeChildPath(
+            IMAGES_DIR,
+            thumbnailPath.replace(/^\/images\//, ""),
+        );
+    }
+
+    return null;
+};
 
 export const moveAllThumbnails = async (toVideoFolder: boolean) => {
     console.log(`Starting to move all thumbnails. Target: ${toVideoFolder ? 'Video Folders' : 'Central Images Folder'}`);
@@ -29,7 +61,7 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                 const cleanPath = video.videoPath.replace(/^\/videos\//, '');
                 const dirName = path.dirname(cleanPath);
                 if (dirName && dirName !== '.') {
-                    videoDir = path.join(VIDEOS_DIR, dirName);
+                    videoDir = resolveSafeChildPath(VIDEOS_DIR, dirName);
                     relativeVideoDir = dirName;
                 }
             } else {
@@ -38,9 +70,10 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
                 for (const col of collections) {
                     if (col.videos.includes(video.id)) {
                         const colName = col.name || col.title;
-                        if (colName) {
-                            videoDir = path.join(VIDEOS_DIR, colName);
-                            relativeVideoDir = colName;
+                        const safeCollectionName = sanitizePathSegment(colName || "");
+                        if (safeCollectionName) {
+                            videoDir = resolveSafeChildPath(VIDEOS_DIR, safeCollectionName);
+                            relativeVideoDir = safeCollectionName;
                             break;
                         }
                     }
@@ -50,38 +83,35 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
 
         try {
             // Determine current absolute path of the thumbnail
-            let currentAbsPath = "";
+            let currentAbsPath: string | null = null;
             let currentWebPath = video.thumbnailPath || null;
+            const safeThumbnailFilename = path.basename(video.thumbnailFilename);
             
             // Check based on current path property if available
-            if (video.thumbnailPath) {
-                if (video.thumbnailPath.startsWith("/videos/")) {
-                    currentAbsPath = path.join(VIDEOS_DIR, video.thumbnailPath.replace(/^\/videos\//, ""));
-                } else if (video.thumbnailPath.startsWith("/images/")) {
-                    currentAbsPath = path.join(IMAGES_DIR, video.thumbnailPath.replace(/^\/images\//, ""));
-                }
-            }
+            currentAbsPath = resolveManagedThumbnailAbsolutePath(video.thumbnailPath);
 
             // Fallback search if path is invalid or file doesn't exist at path
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (!currentAbsPath || !fs.existsSync(currentAbsPath)) {
-                const centralPath = path.join(IMAGES_DIR, video.thumbnailFilename);
-                // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                if (fs.existsSync(centralPath)) {
+            if (
+                !currentAbsPath ||
+                !pathExistsSafeSync(currentAbsPath, SHARED_THUMBNAIL_ALLOWED_DIRS)
+            ) {
+                const centralPath = resolveSafeChildPath(IMAGES_DIR, safeThumbnailFilename);
+                if (pathExistsSafeSync(centralPath, IMAGES_DIR)) {
                     currentAbsPath = centralPath;
                     currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(centralPath);
                 } else {
-                    const localPath = path.join(videoDir, video.thumbnailFilename);
-                    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                    if (fs.existsSync(localPath)) {
+                    const localPath = resolveSafeChildPath(videoDir, safeThumbnailFilename);
+                    if (pathExistsSafeSync(localPath, videoDir)) {
                         currentAbsPath = localPath;
                         currentWebPath = resolveManagedThumbnailWebPathFromAbsolutePath(localPath);
                     }
                 }
             }
 
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (!fs.existsSync(currentAbsPath)) {
+            if (
+                !currentAbsPath ||
+                !pathExistsSafeSync(currentAbsPath, SHARED_THUMBNAIL_ALLOWED_DIRS)
+            ) {
                 // console.warn(`Thumbnail file not found: ${video.thumbnailFilename}`);
                 continue;
             }
@@ -91,27 +121,33 @@ export const moveAllThumbnails = async (toVideoFolder: boolean) => {
 
             if (toVideoFolder) {
                 // Move TO video folder
-                targetAbsPath = path.join(videoDir, video.thumbnailFilename);
+                targetAbsPath = resolveSafeChildPath(videoDir, safeThumbnailFilename);
                 if (relativeVideoDir) {
-                    newWebPath = `/videos/${relativeVideoDir}/${video.thumbnailFilename}`;
+                    newWebPath = `/videos/${relativeVideoDir}/${safeThumbnailFilename}`;
                 } else {
-                    newWebPath = `/videos/${video.thumbnailFilename}`;
+                    newWebPath = `/videos/${safeThumbnailFilename}`;
                 }
             } else {
                 // Move TO central images folder
                 if (relativeVideoDir) {
-                    const targetDir = path.join(IMAGES_DIR, relativeVideoDir);
-                    fs.ensureDirSync(targetDir);
-                    targetAbsPath = path.join(targetDir, video.thumbnailFilename);
-                    newWebPath = `/images/${relativeVideoDir}/${video.thumbnailFilename}`;
+                    const targetDir = resolveSafeChildPath(IMAGES_DIR, relativeVideoDir);
+                    ensureDirSafeSync(targetDir, IMAGES_DIR);
+                    targetAbsPath = resolveSafeChildPath(targetDir, safeThumbnailFilename);
+                    newWebPath = `/images/${relativeVideoDir}/${safeThumbnailFilename}`;
                 } else {
-                    targetAbsPath = path.join(IMAGES_DIR, video.thumbnailFilename);
-                    newWebPath = `/images/${video.thumbnailFilename}`;
+                    targetAbsPath = resolveSafeChildPath(IMAGES_DIR, safeThumbnailFilename);
+                    newWebPath = `/images/${safeThumbnailFilename}`;
                 }
             }
 
             if (currentAbsPath !== targetAbsPath) {
-                fs.moveSync(currentAbsPath, targetAbsPath, { overwrite: true });
+                moveSafeSync(
+                    currentAbsPath,
+                    SHARED_THUMBNAIL_ALLOWED_DIRS,
+                    targetAbsPath,
+                    SHARED_THUMBNAIL_ALLOWED_DIRS,
+                    { overwrite: true },
+                );
                 moveSmallThumbnailMirrorSync(
                     currentWebPath,
                     newWebPath,

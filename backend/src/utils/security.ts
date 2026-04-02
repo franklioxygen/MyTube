@@ -292,6 +292,15 @@ export async function readdirSafe(
   return fs.readdir(safePath);
 }
 
+export function ensureDirSafeSync(
+  dirPath: string,
+  allowedDirOrDirs: string | readonly string[],
+): void {
+  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.ensureDirSync(safePath);
+}
+
 export async function readdirDirentsSafe(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],

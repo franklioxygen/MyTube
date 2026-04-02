@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import {
@@ -10,11 +9,13 @@ import { safeRemove } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
+  ensureDirSafeSync,
+  moveSafeSync,
   pathExistsSafeSync,
   readdirSafeSync,
   renameSafeSync,
-  resolveSafePath,
   resolveSafePathInDirectories,
+  resolveSafeChildPath,
   sanitizePathSegment,
 } from "../../../utils/security";
 
@@ -36,11 +37,11 @@ export interface RenamedPaths {
  * Create a temporary directory for download
  */
 export function createTempDir(): string {
-  const tempDir = path.join(
+  const tempDir = resolveSafeChildPath(
     VIDEOS_DIR,
     `temp_${Date.now()}_${crypto.randomUUID()}`
   );
-  fs.ensureDirSync(tempDir);
+  ensureDirSafeSync(tempDir, VIDEOS_DIR);
   logger.info("Created temp directory:", tempDir);
   return tempDir;
 }
@@ -77,26 +78,23 @@ export function prepareFilePaths(
 
   // Determine directories based on collection name
   const videoDir = safeCollectionName
-    ? resolveSafePath(path.join(VIDEOS_DIR, safeCollectionName), VIDEOS_DIR)
+    ? resolveSafeChildPath(VIDEOS_DIR, safeCollectionName)
     : VIDEOS_DIR;
   const imageDir = moveThumbnailsToVideoFolder
     ? safeCollectionName
-      ? resolveSafePath(path.join(VIDEOS_DIR, safeCollectionName), VIDEOS_DIR)
+      ? resolveSafeChildPath(VIDEOS_DIR, safeCollectionName)
       : VIDEOS_DIR
     : safeCollectionName
-      ? resolveSafePath(path.join(IMAGES_DIR, safeCollectionName), IMAGES_DIR)
+      ? resolveSafeChildPath(IMAGES_DIR, safeCollectionName)
       : IMAGES_DIR;
 
   // Ensure directories exist
-  fs.ensureDirSync(videoDir);
-  fs.ensureDirSync(imageDir);
+  ensureDirSafeSync(videoDir, VIDEOS_DIR);
+  ensureDirSafeSync(imageDir, [IMAGES_DIR, VIDEOS_DIR]);
 
   // Set full paths for video and thumbnail
-  const videoPath = resolveSafePath(path.join(videoDir, videoFilename), videoDir);
-  const thumbnailPath = resolveSafePath(
-    path.join(imageDir, thumbnailFilename),
-    imageDir
-  );
+  const videoPath = resolveSafeChildPath(videoDir, videoFilename);
+  const thumbnailPath = resolveSafeChildPath(imageDir, thumbnailFilename);
 
   return {
     videoPath,
@@ -134,12 +132,11 @@ export function moveVideoFile(
 ): void {
   const safeTempDir = resolveSafePathInDirectories(tempDir, [VIDEOS_DIR]);
   const safeVideoFilename = path.basename(videoFile);
-  const tempVideoPath = resolveSafePath(
-    path.join(safeTempDir, safeVideoFilename),
-    safeTempDir
-  );
+  const tempVideoPath = resolveSafeChildPath(safeTempDir, safeVideoFilename);
   const safeVideoPath = resolveSafePathInDirectories(videoPath, [VIDEOS_DIR]);
-  fs.moveSync(tempVideoPath, safeVideoPath, { overwrite: true });
+  moveSafeSync(tempVideoPath, safeTempDir, safeVideoPath, VIDEOS_DIR, {
+    overwrite: true,
+  });
   logger.info("Moved video file to:", safeVideoPath);
 }
 
@@ -178,13 +175,10 @@ export function renameFilesWithMetadata(
     VIDEOS_DIR,
   ]);
 
-  const newVideoPath = resolveSafePath(
-    path.join(safeVideoDir, newVideoFilename),
-    safeVideoDir
-  );
-  const newThumbnailPath = resolveSafePath(
-    path.join(safeImageDir, newThumbnailFilename),
-    safeImageDir
+  const newVideoPath = resolveSafeChildPath(safeVideoDir, newVideoFilename);
+  const newThumbnailPath = resolveSafeChildPath(
+    safeImageDir,
+    newThumbnailFilename
   );
 
   if (pathExistsSafeSync(safeVideoPath, VIDEOS_DIR)) {
