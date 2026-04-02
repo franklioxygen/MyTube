@@ -17,9 +17,11 @@ const mockFetchVideos = vi.fn();
 const mockDeleteCollection = vi.fn();
 const mockUpdateCollection = vi.fn();
 const mockShowSnackbar = vi.fn();
+const mockApiPost = vi.fn();
 const mockMutate = vi.fn(), mockRefreshFileSizesMutate = vi.fn();
 let scanMutationCallbacks: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown } = {};
 let refreshFileSizesMutationCallbacks: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown } = {};
+let scanMutationFn: (() => Promise<any>) | undefined;
 let scanMutationPending = false;
 let refreshFileSizesMutationPending = false;
 
@@ -73,11 +75,12 @@ vi.mock('../../contexts/CollectionContext', () => ({
 // Track useMutation calls per render cycle using a counter that resets
 let mutationCallIndex = 0;
 vi.mock('@tanstack/react-query', () => ({
-    useMutation: ({ onSuccess, onError }: { onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown }) => {
+    useMutation: ({ mutationFn, onSuccess, onError }: { mutationFn?: () => Promise<any>; onSuccess?: (data: any) => unknown; onError?: (error: any) => unknown }) => {
         const index = mutationCallIndex++;
         if (index % 2 === 0) {
             // First call in each render = scanMutation
             scanMutationCallbacks = { onSuccess, onError };
+            scanMutationFn = mutationFn;
             return {
                 mutate: mockMutate,
                 isPending: scanMutationPending,
@@ -95,7 +98,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('../../utils/apiClient', () => ({
     api: {
-        post: vi.fn(),
+        post: (...args: any[]) => mockApiPost(...args),
     },
 }));
 
@@ -222,6 +225,7 @@ describe('ManagePage', () => {
         capturedCollectionsTableProps = null;
         scanMutationCallbacks = {};
         refreshFileSizesMutationCallbacks = {};
+        scanMutationFn = undefined;
         scanMutationPending = false;
         refreshFileSizesMutationPending = false;
         window.scrollTo = vi.fn();
@@ -494,6 +498,16 @@ describe('ManagePage', () => {
             fireEvent.click(within(dialog).getByText('continue'));
 
             expect(mockMutate).toHaveBeenCalled();
+        });
+
+        it('calls scan endpoint without a client-side timeout', async () => {
+            mockApiPost.mockResolvedValueOnce({ data: { addedCount: 0, deletedCount: 0 } });
+
+            renderManagePage();
+
+            await scanMutationFn?.();
+
+            expect(mockApiPost).toHaveBeenCalledWith('/scan-files', undefined, { timeout: 0 });
         });
 
         it('closes scan modal on cancel', async () => {

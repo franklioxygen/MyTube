@@ -71,7 +71,7 @@ const ManagePage: React.FC = () => {
     // Scan files mutation
     const scanMutation = useMutation({
         mutationFn: async () => {
-            const res = await api.post('/scan-files');
+            const res = await api.post('/scan-files', undefined, { timeout: 0 });
             return res.data;
         },
         onSuccess: (data) => {

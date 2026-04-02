@@ -217,8 +217,8 @@ const SettingsPage: React.FC = () => {
     // Scan mount directories mutation
     const scanMountDirectoriesMutation = useMutation({
         mutationFn: async ({ directories, mountDirectoriesText }: { directories: string[]; mountDirectoriesText: string }) => {
-            // Send directories to the API
-            const res = await api.post('/scan-mount-directories', { directories });
+            // Mount scans can take much longer than the global API default timeout.
+            const res = await api.post('/scan-mount-directories', { directories }, { timeout: 0 });
             // Return scan results along with mountDirectoriesText for saving
             return { addedCount: res.data.addedCount, deletedCount: res.data.deletedCount, mountDirectoriesText };
         },

@@ -544,7 +544,11 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
     await waitFor(() => {
-      expect(mockApiPost).toHaveBeenCalledWith('/scan-mount-directories', { directories: ['/a', '/b'] });
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/scan-mount-directories',
+        { directories: ['/a', '/b'] },
+        { timeout: 0 }
+      );
     });
 
     expect(mockSaveMutate).toHaveBeenCalled();
