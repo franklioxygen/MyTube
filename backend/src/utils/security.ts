@@ -312,6 +312,17 @@ export function writeFileSafeSync(
   fs.writeFileSync(safePath, data, options);
 }
 
+export async function writeFileSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  data: string | NodeJS.ArrayBufferView,
+  options?: WriteFileOptions,
+): Promise<void> {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  await fs.writeFile(safePath, data, options);
+}
+
 export function unlinkSafeSync(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -346,6 +357,24 @@ export function copyFileSafeSync(
   );
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.copyFileSync(safeSourcePath, safeDestinationPath);
+}
+
+export async function copySafe(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+): Promise<void> {
+  const safeSourcePath = resolveSafePathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveSafePathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  await fs.copy(safeSourcePath, safeDestinationPath);
 }
 
 export function renameSafeSync(

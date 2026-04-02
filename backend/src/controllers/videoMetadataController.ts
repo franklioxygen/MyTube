@@ -19,10 +19,17 @@ import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
 import {
   execFileSafe,
+  isPathWithinDirectory,
+  normalizeSafeAbsolutePath,
+  pathExistsSafe,
   pathExistsSafeSync,
+  removeSafe,
+  resolveSafeChildPath,
+  statSafe,
   validateImagePath,
   validateUrl,
   validateVideoPath,
+  writeFileSafe,
 } from "../utils/security";
 
 // Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
@@ -50,30 +57,34 @@ const resolveLocalThumbnailAbsolutePath = (
   const rawPath = thumbnailPath.split("?")[0].trim();
 
   if (rawPath.startsWith("/videos/")) {
-    return validateVideoPath(path.join(VIDEOS_DIR, relativePath));
+    return resolveSafeChildPath(VIDEOS_DIR, relativePath);
   }
 
   if (rawPath.startsWith("/images/")) {
-    return validateImagePath(path.join(IMAGES_DIR, relativePath));
+    return resolveSafeChildPath(IMAGES_DIR, relativePath);
   }
 
   if (path.isAbsolute(rawPath)) {
-    const resolvedPath = path.resolve(rawPath);
-    if (resolvedPath.startsWith(path.resolve(VIDEOS_DIR))) {
-      return validateVideoPath(resolvedPath);
-    }
-    if (resolvedPath.startsWith(path.resolve(IMAGES_DIR))) {
-      return validateImagePath(resolvedPath);
+    try {
+      const resolvedPath = normalizeSafeAbsolutePath(rawPath);
+      if (isPathWithinDirectory(resolvedPath, VIDEOS_DIR)) {
+        return validateVideoPath(resolvedPath);
+      }
+      if (isPathWithinDirectory(resolvedPath, IMAGES_DIR)) {
+        return validateImagePath(resolvedPath);
+      }
+    } catch {
+      return null;
     }
     return null;
   }
 
-  const imageCandidate = validateImagePath(path.join(IMAGES_DIR, relativePath));
+  const imageCandidate = resolveSafeChildPath(IMAGES_DIR, relativePath);
   if (pathExistsSafeSync(imageCandidate, IMAGES_DIR)) {
     return imageCandidate;
   }
 
-  return validateVideoPath(path.join(VIDEOS_DIR, relativePath));
+  return resolveSafeChildPath(VIDEOS_DIR, relativePath);
 };
 
 const removeImageFileSafely = async (imagePath: string): Promise<void> => {
@@ -82,12 +93,12 @@ const removeImageFileSafely = async (imagePath: string): Promise<void> => {
     return;
   }
 
-  const exists = await fs.pathExists(safeResolvedPath);
+  const exists = await pathExistsSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
   if (!exists) {
     return;
   }
 
-  const stats = await fs.stat(safeResolvedPath);
+  const stats = await statSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
   if (!stats.isFile()) {
     logger.warn("Skip deleting thumbnail path because it is not a file", {
       path: safeResolvedPath,
@@ -95,7 +106,7 @@ const removeImageFileSafely = async (imagePath: string): Promise<void> => {
     return;
   }
 
-  await fs.remove(safeResolvedPath);
+  await removeSafe(safeResolvedPath, [VIDEOS_DIR, IMAGES_DIR]);
   deleteSmallThumbnailMirrorSync(imagePath);
 };
 
@@ -176,7 +187,11 @@ const refreshThumbnailFromSource = async (
     timeout: 15000,
   });
 
-  await fs.writeFile(thumbnailAbsolutePath, Buffer.from(response.data));
+  await writeFileSafe(
+    thumbnailAbsolutePath,
+    [VIDEOS_DIR, IMAGES_DIR],
+    Buffer.from(response.data)
+  );
   await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
 
   storageService.updateVideo(id, {
@@ -390,15 +405,14 @@ const resolveMountVideoPathForFileSize = (
     return null;
   }
 
-  return path.resolve(path.normalize(rawPath));
+  return normalizeSafeAbsolutePath(rawPath);
 };
 
 const resolveLocalVideoPathForFileSize = (
   videoPath: string
 ): string => {
   const relativePath = videoPath.replace(/^\/videos\//, "");
-  const localPath = path.join(VIDEOS_DIR, ...relativePath.split("/"));
-  return validateVideoPath(localPath);
+  return resolveSafeChildPath(VIDEOS_DIR, relativePath);
 };
 
 const resolveFilenamePathForFileSize = (
@@ -408,7 +422,7 @@ const resolveFilenamePathForFileSize = (
     return null;
   }
 
-  return validateVideoPath(path.join(VIDEOS_DIR, videoFilename));
+  return resolveSafeChildPath(VIDEOS_DIR, path.basename(videoFilename));
 };
 
 const resolveVideoPathForFileSize = (
@@ -460,14 +474,16 @@ export const refreshAllFileSizes = async (
     }
 
     try {
-      const exists = await fs.pathExists(resolvedPath);
+      const allowedDir = video.videoPath?.startsWith("mount:")
+        ? resolvedPath
+        : VIDEOS_DIR;
+      const exists = await pathExistsSafe(resolvedPath, allowedDir);
       if (!exists) {
         skippedCount += 1;
         continue;
       }
 
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = await fs.stat(resolvedPath);
+      const stats = await statSafe(resolvedPath, allowedDir);
       if (!stats.isFile()) {
         skippedCount += 1;
         continue;
@@ -589,7 +605,11 @@ export const uploadThumbnail = async (
   const newThumbnailPath = thumbnailTarget.webPath;
   fs.ensureDirSync(path.dirname(uploadedThumbnailAbsPath));
   try {
-    await fs.writeFile(uploadedThumbnailAbsPath, uploadedThumbnailBuffer);
+    await writeFileSafe(
+      uploadedThumbnailAbsPath,
+      [VIDEOS_DIR, IMAGES_DIR],
+      uploadedThumbnailBuffer
+    );
     await regenerateSmallThumbnailForThumbnailPath(newThumbnailPath);
   } catch (error) {
     try {

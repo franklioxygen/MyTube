@@ -62,7 +62,23 @@ vi.mock("../../utils/security", () => ({
   validateImagePath: vi.fn((targetPath: string) => targetPath),
   validateUrl: vi.fn((url: string) => url),
   execFileSafe: vi.fn(),
+  isPathWithinDirectory: vi.fn((targetPath: string, allowedDir: string) =>
+    targetPath.startsWith(allowedDir)
+  ),
+  normalizeSafeAbsolutePath: vi.fn((targetPath: string) => targetPath),
+  pathExistsSafe: vi.fn((targetPath: string) => fs.pathExists(targetPath)),
   pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
+  removeSafe: vi.fn((targetPath: string) => fs.remove(targetPath)),
+  resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => {
+    if (childPath.includes("..")) {
+      throw new Error("invalid child path");
+    }
+    return `${baseDir}/${childPath}`.replace(/\/+/g, "/");
+  }),
+  statSafe: vi.fn((targetPath: string) => fs.stat(targetPath)),
+  writeFileSafe: vi.fn((targetPath: string, _allowedDir: string | string[], data: Buffer) =>
+    fs.writeFile(targetPath, data)
+  ),
 }));
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -446,7 +462,7 @@ describe("videoMetadataController", () => {
         { id: "cloud", videoPath: "cloud:abc" },
         { id: "mount-invalid", videoPath: "mount:../escape.mp4" },
         { id: "mount-miss", videoPath: "mount:/mnt/v3.mp4" },
-        { id: "bad-local", videoPath: "/videos/bad.mp4" },
+        { id: "bad-local", videoPath: "/videos/../bad.mp4" },
         { id: "not-file", videoFilename: "v5.mp4" },
         { id: "updated", videoFilename: "v6.mp4", fileSize: "123" },
         { id: "same", videoFilename: "v7.mp4", fileSize: "777" },

@@ -6,10 +6,26 @@
 import axios from "axios";
 import crypto from "crypto";
 import fs from "fs-extra";
+import os from "os";
 import path from "path";
 import { CLOUD_THUMBNAIL_CACHE_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
-import { validateCloudThumbnailCachePath } from "../../utils/security";
+import {
+  copySafe,
+  pathExistsSafeSync,
+  readdirSafeSync,
+  resolveSafeChildPath,
+  statSafeSync,
+  unlinkSafeSync,
+  validateUrl,
+  writeFileSafe,
+} from "../../utils/security";
+
+const CACHE_COPY_SOURCE_ALLOWED_DIRS = [
+  CLOUD_THUMBNAIL_CACHE_DIR,
+  os.tmpdir(),
+  "/tmp",
+];
 
 // Ensure cache directory exists
 fs.ensureDirSync(CLOUD_THUMBNAIL_CACHE_DIR);
@@ -28,7 +44,7 @@ function getCacheKey(cloudPath: string): string {
  */
 function getCacheFilePath(cloudPath: string): string {
   const cacheKey = getCacheKey(cloudPath);
-  return path.join(CLOUD_THUMBNAIL_CACHE_DIR, cacheKey);
+  return resolveSafeChildPath(CLOUD_THUMBNAIL_CACHE_DIR, cacheKey);
 }
 
 /**
@@ -43,8 +59,7 @@ export function getCachedThumbnail(cloudPath: string): string | null {
 
   const cachePath = getCacheFilePath(cloudPath);
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(cachePath)) {
+  if (pathExistsSafeSync(cachePath, CLOUD_THUMBNAIL_CACHE_DIR)) {
     logger.debug(`[CloudThumbnailCache] Cache hit for ${cloudPath}`);
     return cachePath;
   }
@@ -68,25 +83,26 @@ export async function saveThumbnailToCache(
 
   try {
     const cachePath = getCacheFilePath(cloudPath);
-
-    // Validate path to prevent path traversal
-    const validatedPath = validateCloudThumbnailCachePath(cachePath);
+    const validatedPath = cachePath;
 
     // Ensure directory exists
     fs.ensureDirSync(path.dirname(validatedPath));
 
     if (typeof thumbnailData === "string") {
       // If it's a file path, copy it
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(validatedPath)) {
+      if (pathExistsSafeSync(validatedPath, CLOUD_THUMBNAIL_CACHE_DIR)) {
         // File already exists, skip
         return;
       }
-      await fs.copy(thumbnailData, validatedPath);
+      await copySafe(
+        thumbnailData,
+        CACHE_COPY_SOURCE_ALLOWED_DIRS,
+        validatedPath,
+        CLOUD_THUMBNAIL_CACHE_DIR
+      );
     } else {
       // If it's a buffer, write it
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      await fs.writeFile(validatedPath, thumbnailData);
+      await writeFileSafe(validatedPath, CLOUD_THUMBNAIL_CACHE_DIR, thumbnailData);
     }
 
     logger.debug(`[CloudThumbnailCache] Cached thumbnail for ${cloudPath}`);
@@ -128,8 +144,6 @@ export async function downloadAndCacheThumbnail(
       `[CloudThumbnailCache] Downloading thumbnail from cloud: ${cloudPath}`
     );
 
-    // Validate URL to prevent SSRF
-    const { validateUrl } = await import("../../utils/security");
     const validatedUrl = validateUrl(signedUrl);
 
     const response = await axios.get(validatedUrl, {
@@ -146,14 +160,16 @@ export async function downloadAndCacheThumbnail(
     }
 
     const cachePath = getCacheFilePath(cloudPath);
-    const validatedPath = validateCloudThumbnailCachePath(cachePath);
+    const validatedPath = cachePath;
 
     // Ensure directory exists
     fs.ensureDirSync(path.dirname(validatedPath));
 
-    // Save to cache
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    await fs.writeFile(validatedPath, Buffer.from(response.data));
+    await writeFileSafe(
+      validatedPath,
+      CLOUD_THUMBNAIL_CACHE_DIR,
+      Buffer.from(response.data)
+    );
 
     logger.info(
       `[CloudThumbnailCache] Successfully downloaded and cached thumbnail for ${cloudPath}`
@@ -176,21 +192,20 @@ export function clearThumbnailCache(cloudPath?: string): void {
   try {
     if (cloudPath) {
       const cachePath = getCacheFilePath(cloudPath);
-      if (fs.existsSync(cachePath)) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(cachePath);
+      if (pathExistsSafeSync(cachePath, CLOUD_THUMBNAIL_CACHE_DIR)) {
+        unlinkSafeSync(cachePath, CLOUD_THUMBNAIL_CACHE_DIR);
         logger.debug(`[CloudThumbnailCache] Cleared cache for ${cloudPath}`);
       }
     } else {
       // Clear all cache
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const files = fs.readdirSync(CLOUD_THUMBNAIL_CACHE_DIR);
+      const files = readdirSafeSync(
+        CLOUD_THUMBNAIL_CACHE_DIR,
+        CLOUD_THUMBNAIL_CACHE_DIR
+      );
       for (const file of files) {
-        const filePath = path.join(CLOUD_THUMBNAIL_CACHE_DIR, file);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.statSync(filePath).isFile()) {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(filePath);
+        const filePath = resolveSafeChildPath(CLOUD_THUMBNAIL_CACHE_DIR, file);
+        if (statSafeSync(filePath, CLOUD_THUMBNAIL_CACHE_DIR).isFile()) {
+          unlinkSafeSync(filePath, CLOUD_THUMBNAIL_CACHE_DIR);
         }
       }
       logger.debug(`[CloudThumbnailCache] Cleared all cache`);
@@ -205,19 +220,20 @@ export function clearThumbnailCache(cloudPath?: string): void {
  */
 export function getCacheStats(): { count: number; size: number } {
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(CLOUD_THUMBNAIL_CACHE_DIR)) {
+    if (!pathExistsSafeSync(CLOUD_THUMBNAIL_CACHE_DIR, CLOUD_THUMBNAIL_CACHE_DIR)) {
       return { count: 0, size: 0 };
     }
 
-    const files = fs.readdirSync(CLOUD_THUMBNAIL_CACHE_DIR);
+    const files = readdirSafeSync(
+      CLOUD_THUMBNAIL_CACHE_DIR,
+      CLOUD_THUMBNAIL_CACHE_DIR
+    );
     let totalSize = 0;
     let fileCount = 0;
 
     for (const file of files) {
-      const filePath = path.join(CLOUD_THUMBNAIL_CACHE_DIR, file);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(filePath);
+      const filePath = resolveSafeChildPath(CLOUD_THUMBNAIL_CACHE_DIR, file);
+      const stats = statSafeSync(filePath, CLOUD_THUMBNAIL_CACHE_DIR);
       if (stats.isFile()) {
         totalSize += stats.size;
         fileCount++;

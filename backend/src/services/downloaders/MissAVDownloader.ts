@@ -9,6 +9,12 @@ import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import { ProgressTracker } from "../../utils/progressTracker";
 import {
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  statSafeSync,
+  writeFileSafeSync,
+} from "../../utils/security";
+import {
   flagsToArgs,
   getAxiosProxyConfig,
   getNetworkConfigFromUserConfig,
@@ -400,9 +406,11 @@ export class MissAVDownloader extends BaseDownloader {
       }
 
       if (!m3u8Url) {
-        const debugFile = path.join(DATA_DIR, `missav_debug_${timestamp}.html`);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.writeFileSync(debugFile, html);
+        const debugFile = resolveSafeChildPath(
+          DATA_DIR,
+          `missav_debug_${timestamp}.html`
+        );
+        writeFileSafeSync(debugFile, DATA_DIR, html);
         logger.error(`Could not find m3u8 URL. HTML dumped to ${debugFile}`);
         throw new Error(
           "Could not find m3u8 URL in page source or network requests",
@@ -427,7 +435,7 @@ export class MissAVDownloader extends BaseDownloader {
 
       let finalVideoFilename = newVideoFilename;
       let finalThumbnailFilename = newThumbnailFilename;
-      let newVideoPath = path.join(VIDEOS_DIR, finalVideoFilename);
+      let newVideoPath = resolveSafeChildPath(VIDEOS_DIR, finalVideoFilename);
       const settings = storageService.getSettings();
       const moveThumbnailsToVideoFolder =
         settings.moveThumbnailsToVideoFolder || false;
@@ -436,12 +444,12 @@ export class MissAVDownloader extends BaseDownloader {
         : IMAGES_DIR;
 
       // If file already exists (e.g. redownload), deduplicate the filename
-      if (fs.existsSync(newVideoPath)) {
+      if (pathExistsSafeSync(newVideoPath, VIDEOS_DIR)) {
         let counter = 1;
         const ext = `.${mergeOutputFormat}`;
         const basePath = stripTrailingExtension(newVideoPath, ext);
         const baseName = newSafeBaseFilename;
-        while (fs.existsSync(`${basePath}_${counter}${ext}`)) {
+        while (pathExistsSafeSync(`${basePath}_${counter}${ext}`, VIDEOS_DIR)) {
           counter++;
         }
         newVideoPath = `${basePath}_${counter}${ext}`;
@@ -450,7 +458,10 @@ export class MissAVDownloader extends BaseDownloader {
         logger.info(`File exists, using deduplicated filename: ${finalVideoFilename}`);
       }
 
-      let newThumbnailPath = path.join(thumbnailDir, finalThumbnailFilename);
+      let newThumbnailPath = resolveSafeChildPath(
+        thumbnailDir,
+        finalThumbnailFilename
+      );
 
       // 7. Download the video using yt-dlp with the m3u8 URL
       logger.info("Downloading video from m3u8 URL using yt-dlp:", m3u8Url);
@@ -650,10 +661,8 @@ export class MissAVDownloader extends BaseDownloader {
       // 10. Get file size
       let fileSize: string | undefined;
       try {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(newVideoPath)) {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          const stats = fs.statSync(newVideoPath);
+        if (pathExistsSafeSync(newVideoPath, VIDEOS_DIR)) {
+          const stats = statSafeSync(newVideoPath, VIDEOS_DIR);
           fileSize = stats.size.toString();
         }
       } catch (e) {
@@ -714,27 +723,22 @@ export class MissAVDownloader extends BaseDownloader {
           videoAuthor,
           videoDate,
         );
-        const cleanupVideoPath = path.join(
+        const cleanupVideoPath = resolveSafeChildPath(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.${cleanupFormat}`,
+          `${cleanupSafeBaseFilename}.${cleanupFormat}`
         );
-        const cleanupThumbnailPath = path.join(
+        const cleanupThumbnailPath = resolveSafeChildPath(
           IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`,
+          `${cleanupSafeBaseFilename}.jpg`
         );
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupThumbnailPath))
-          await safeRemove(cleanupThumbnailPath);
+        await safeRemove(cleanupVideoPath);
+        await safeRemove(cleanupThumbnailPath);
         // Also try mp4 in case the file was created with default extension
-        const cleanupVideoPathMp4 = path.join(
+        const cleanupVideoPathMp4 = resolveSafeChildPath(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`,
+          `${cleanupSafeBaseFilename}.mp4`
         );
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(cleanupVideoPathMp4))
-          await safeRemove(cleanupVideoPathMp4);
+        await safeRemove(cleanupVideoPathMp4);
       } catch (cleanupError) {
         // If cleanup fails, try with default mp4 extension
         const cleanupSafeBaseFilename = formatVideoFilename(
@@ -742,17 +746,16 @@ export class MissAVDownloader extends BaseDownloader {
           videoAuthor,
           videoDate,
         );
-        const cleanupVideoPath = path.join(
+        const cleanupVideoPath = resolveSafeChildPath(
           VIDEOS_DIR,
-          `${cleanupSafeBaseFilename}.mp4`,
+          `${cleanupSafeBaseFilename}.mp4`
         );
-        const cleanupThumbnailPath = path.join(
+        const cleanupThumbnailPath = resolveSafeChildPath(
           IMAGES_DIR,
-          `${cleanupSafeBaseFilename}.jpg`,
+          `${cleanupSafeBaseFilename}.jpg`
         );
-        if (fs.existsSync(cleanupVideoPath)) await safeRemove(cleanupVideoPath);
-        if (fs.existsSync(cleanupThumbnailPath))
-          await safeRemove(cleanupThumbnailPath);
+        await safeRemove(cleanupVideoPath);
+        await safeRemove(cleanupThumbnailPath);
       }
       throw error;
     }

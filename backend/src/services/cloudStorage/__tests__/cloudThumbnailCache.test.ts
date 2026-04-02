@@ -8,8 +8,17 @@ import { clearThumbnailCache, downloadAndCacheThumbnail, getCachedThumbnail, get
 vi.mock('fs-extra');
 vi.mock('axios');
 vi.mock('../../../utils/security', () => ({
+  copySafe: vi.fn((sourcePath, _sourceAllowedDirs, destinationPath) =>
+    fs.copy(sourcePath, destinationPath)
+  ),
+  pathExistsSafeSync: vi.fn((targetPath) => fs.existsSync(targetPath)),
+  readdirSafeSync: vi.fn((targetPath) => fs.readdirSync(targetPath)),
+  resolveSafeChildPath: vi.fn((baseDir, childPath) => `${baseDir}/${childPath}`.replace(/\/+/g, '/')),
+  statSafeSync: vi.fn((targetPath) => fs.statSync(targetPath)),
+  unlinkSafeSync: vi.fn((targetPath) => fs.unlinkSync(targetPath)),
   validateCloudThumbnailCachePath: vi.fn((p) => p),
   validateUrl: vi.fn((u) => u),
+  writeFileSafe: vi.fn((targetPath, _allowedDir, data) => fs.writeFile(targetPath, data)),
 }));
 
 describe('cloudThumbnailCache', () => {
