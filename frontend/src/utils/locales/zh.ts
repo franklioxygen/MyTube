@@ -62,6 +62,15 @@ export const zh = {
   tmdbApiKey: "TMDB API 密钥",
   tmdbApiKeyHelper:
     "TheMovieDB API 密钥，用于抓取电影/电视剧元数据和海报。在 https://www.themoviedb.org/settings/api 获取您的密钥",
+  testTmdbCredential: "测试凭据",
+  tmdbCredentialMissing: "请先输入 TMDB 凭据。",
+  tmdbCredentialValid: "TMDB 凭据有效。",
+  tmdbCredentialTestFailed: "TMDB 凭据测试失败。",
+  tmdbCredentialValidApiKey: "TMDB API Key 有效。",
+  tmdbCredentialValidReadAccessToken: "TMDB Read Access Token 有效。",
+  tmdbCredentialInvalid:
+    "TMDB 凭据无效。请检查它是否为有效的 API Key 或 Read Access Token。",
+  tmdbCredentialRequestFailed: "无法连接到 TMDB，请稍后重试。",
   mountDirectories: "挂载目录",
   mountDirectoriesPlaceholder:
     "输入挂载目录（每行一个）\n示例：\n/mnt/media1\n/mnt/media2",
@@ -285,6 +294,8 @@ export const zh = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "在服务的 environment 中设置 MYTUBE_ADMIN_TRUST_LEVEL。按需将 application 替换为 container 或 host。",
+  deploymentSecurityDockerPermissionsNote:
+    "如果你升级的是 v1.9.0 之前创建的 bind mount 部署，请确保宿主机上的 uploads 和 data 目录对 uid/gid 1000（`node`）可写。这也会一并修复由 root 创建的 uploads/images-small 目录，否则缩略图生成或扫描可能因 EACCES 失败。",
   deploymentSecurityLocalConfigTitle: "本地运行源码",
   deploymentSecurityLocalConfigDescription:
     "启动 MyTube 前先导出 MYTUBE_ADMIN_TRUST_LEVEL，或在运行 npm run dev 时内联指定。",

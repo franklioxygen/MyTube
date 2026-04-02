@@ -133,6 +133,7 @@ export const WHITELISTED_SETTINGS = [
   "allowedHosts",
   "pauseOnFocusLoss",
   "playSoundOnTaskComplete",
+  "tmdbApiKey",
   "mountDirectories",
   "defaultSort",
   "preferredAudioLanguage",

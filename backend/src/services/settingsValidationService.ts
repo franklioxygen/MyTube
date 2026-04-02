@@ -70,6 +70,13 @@ export function validateSettings(newSettings: Partial<Settings>): void {
   }
 
   if (
+    newSettings.tmdbApiKey !== undefined &&
+    typeof newSettings.tmdbApiKey !== "string"
+  ) {
+    throw new ValidationError("TMDB API key must be a string.", "tmdbApiKey");
+  }
+
+  if (
     newSettings.twitchClientId !== undefined &&
     typeof newSettings.twitchClientId !== "string"
   ) {

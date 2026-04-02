@@ -4,7 +4,11 @@ import fs from "fs-extra";
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { IMAGES_DIR } from "../../config/paths";
-import { parseFilename, scrapeMetadataFromTMDB } from "../../services/tmdbService";
+import {
+  parseFilename,
+  scrapeMetadataFromTMDB,
+  testTMDBCredential,
+} from "../../services/tmdbService";
 import * as settingsService from "../../services/storageService/settings";
 
 vi.mock("axios");
@@ -80,7 +84,7 @@ describe("tmdbService", () => {
       );
 
       expect(parsed.year).toBe(1997);
-      expect(parsed.titles).toEqual(["有话好好说"]);
+      expect(parsed.titles[0]).toBe("有话好好说");
       expect(parsed.quality).toBe("1080P");
       expect(parsed.source?.toUpperCase()).toBe("WEB-DL");
     });
@@ -97,8 +101,50 @@ describe("tmdbService", () => {
       const parsed = parseFilename("A.and.of.web.rip.upload.hello.world.2020.mkv");
 
       expect(parsed.year).toBe(2020);
-      expect(parsed.titles).toEqual(["A and of upload hello world"]);
+      expect(parsed.titles[0]).toBe("A and of upload hello world");
       expect(parsed.source?.toLowerCase()).toBe("web");
+    });
+
+    it("should preserve bracketed cjk titles and strip trailing audio metadata", () => {
+      const parsed = parseFilename(
+        "[BTSCHOOL].[重返寂静岭]Return.to.Silent.Hill.2026.Bluray.1080p.x264.DTS-HD.MA.5.1-BtsHD.mp4"
+      );
+
+      expect(parsed.year).toBe(2026);
+      expect(parsed.source?.toLowerCase()).toBe("bluray");
+      expect(parsed.quality).toBe("1080P");
+      expect(parsed.titles).toContain("重返寂静岭");
+      expect(parsed.titles).toContain("Return to Silent Hill");
+      expect(parsed.titles.join(" | ")).not.toMatch(/\bHD\b|\bMA\b|\b5 1\b/i);
+      expect(parsed.titles.join(" | ")).not.toContain("BtsHD");
+    });
+
+    it("should strip mixed-case release group tails after technical metadata", () => {
+      const playBdParsed = parseFilename(
+        "Movie.Title.2022.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.7.1.Atmos-playBD.mkv"
+      );
+      const muhdParsed = parseFilename(
+        "Movie.Title.2022.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.7.1.Atmos-mUHD-FRDS.mkv"
+      );
+
+      expect(playBdParsed.titles[0]).toBe("Movie Title");
+      expect(muhdParsed.titles[0]).toBe("Movie Title");
+      expect(playBdParsed.titles.join(" | ")).not.toMatch(/playBD|UHD|7 1/i);
+      expect(muhdParsed.titles.join(" | ")).not.toMatch(/mUHD|FRDS|UHD|7 1/i);
+    });
+
+    it("should keep short all-caps title suffixes instead of treating them as release groups", () => {
+      const parsed = parseFilename("Title.US.2022.1080p.WEB-DL.mkv");
+
+      expect(parsed.titles[0]).toBe("Title US");
+      expect(parsed.source?.toUpperCase()).toBe("WEB-DL");
+    });
+
+    it("should keep numeric camera suffixes instead of stripping them as release groups", () => {
+      const parsed = parseFilename("IMG_0999.MOV");
+
+      expect(parsed.titles[0]).toBe("IMG 0999");
+      expect(parsed.year).toBeUndefined();
     });
   });
 
@@ -112,6 +158,92 @@ describe("tmdbService", () => {
       const result = await scrapeMetadataFromTMDB("Some.Movie.2021.mkv");
       expect(result).toBeNull();
       expect(axios.get).not.toHaveBeenCalled();
+    });
+
+    it("should stop retrying when TMDB returns an authentication error", async () => {
+      vi.mocked(axios.get).mockRejectedValue({
+        name: "AxiosError",
+        message: "Request failed with status code 401",
+        isAxiosError: true,
+        response: {
+          status: 401,
+          data: {
+            status_message: "Invalid API key: You must be granted a valid key.",
+          },
+        },
+      } as any);
+
+      const result = await scrapeMetadataFromTMDB("Some.Movie.2021.mkv");
+
+      expect(result).toBeNull();
+      expect(getCallsBySegment("/search/multi")).toHaveLength(1);
+      expect(getCallsBySegment("/search/movie")).toHaveLength(0);
+      expect(getCallsBySegment("/search/tv")).toHaveLength(0);
+    });
+
+    it("should use bearer authorization when tmdbApiKey is a read access token", async () => {
+      vi.mocked(settingsService.getSettings).mockReturnValue({
+        tmdbApiKey: "Bearer token.part.signature",
+        language: "en",
+      } as any);
+
+      vi.mocked(axios.get).mockImplementation(async (url: any) => {
+        const asText = String(url);
+        if (asText.includes("/search/multi")) {
+          return {
+            data: {
+              results: [
+                {
+                  media_type: "movie",
+                  id: 100,
+                  title: "Inception",
+                  release_date: "2010-07-16",
+                  popularity: 99,
+                  vote_average: 8.8,
+                  poster_path: "/inception.jpg",
+                },
+              ],
+            },
+          } as any;
+        }
+        if (asText.endsWith("/movie/100")) {
+          return {
+            data: {
+              id: 100,
+              title: "Inception",
+              release_date: "2010-07-16",
+              overview: "Dreams within dreams",
+              vote_average: 8.8,
+              poster_path: "/inception.jpg",
+            },
+          } as any;
+        }
+        if (asText.endsWith("/movie/100/credits")) {
+          return {
+            data: {
+              crew: [{ job: "Director", name: "Christopher Nolan" }],
+            },
+          } as any;
+        }
+        if (asText.startsWith("https://image.tmdb.org/t/p/w500/")) {
+          return { data: Buffer.from("img-data") } as any;
+        }
+        throw new Error(`Unexpected URL: ${asText}`);
+      });
+
+      const result = await scrapeMetadataFromTMDB("Inception.2010.1080p.mkv");
+
+      expect(result?.title).toBe("Inception");
+      const tmdbApiCalls = vi
+        .mocked(axios.get)
+        .mock.calls.filter(([url]) => String(url).includes("api.themoviedb.org/3"));
+      expect(tmdbApiCalls.length).toBeGreaterThan(0);
+      for (const [, config] of tmdbApiCalls) {
+        expect(config?.headers).toMatchObject({
+          Authorization: "Bearer token.part.signature",
+        });
+        expect((config?.params as Record<string, string> | undefined)?.api_key).toBeUndefined();
+      }
     });
 
     it("should scrape movie metadata and download poster with safe nested thumbnail path", async () => {
@@ -275,6 +407,61 @@ describe("tmdbService", () => {
       );
     });
 
+    it("should reject sibling directory traversal that only differs by prefix", async () => {
+      vi.mocked(axios.get).mockImplementation(async (url: any) => {
+        const asText = String(url);
+        if (asText.includes("/search/multi")) {
+          return {
+            data: {
+              results: [
+                {
+                  media_type: "movie",
+                  id: 103,
+                  title: "Prefix Safe",
+                  release_date: "2021-01-01",
+                  popularity: 90,
+                  vote_average: 6.8,
+                  poster_path: "/prefix-safe.jpg",
+                },
+              ],
+            },
+          } as any;
+        }
+        if (asText.endsWith("/movie/103")) {
+          return {
+            data: {
+              id: 103,
+              title: "Prefix Safe",
+              release_date: "2021-01-01",
+              overview: "safe fallback",
+              vote_average: 6.8,
+              poster_path: "/prefix-safe.jpg",
+            },
+          } as any;
+        }
+        if (asText.endsWith("/movie/103/credits")) {
+          return { data: { crew: [] } } as any;
+        }
+        if (asText.startsWith("https://image.tmdb.org/t/p/w500/")) {
+          return { data: Buffer.from("img-data") } as any;
+        }
+        throw new Error(`Unexpected URL: ${asText}`);
+      });
+
+      const result = await scrapeMetadataFromTMDB(
+        "Prefix.Safe.2021.mkv",
+        "../images-small/unsafe.jpg"
+      );
+
+      expect(result?.title).toBe("Prefix Safe");
+      expect(result?.thumbnailPath).toBe("/images/Prefix.Safe.2021.jpg");
+      expect(fs.writeFile).toHaveBeenCalledTimes(1);
+      const writePath = vi.mocked(fs.writeFile).mock.calls[0][0] as string;
+      expect(path.normalize(writePath)).toBe(
+        path.normalize(path.join(IMAGES_DIR, "Prefix.Safe.2021.jpg"))
+      );
+    });
+
     it("should use strategy 2 for tv search when multi search with year misses", async () => {
       vi.mocked(axios.get).mockImplementation(async (url: any) => {
         const asText = String(url);
@@ -430,6 +617,111 @@ describe("tmdbService", () => {
       const result = await scrapeMetadataFromTMDB("Nothing.Match.2099.mkv");
       expect(result).toBeNull();
       expect(getCallsBySegment("/search/multi").length).toBeGreaterThan(0);
+    });
+
+    it("should skip TMDB lookup for generic capture filenames like IMG_0999", async () => {
+      const result = await scrapeMetadataFromTMDB("IMG_0999.MOV");
+
+      expect(result).toBeNull();
+      expect(axios.get).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("testTMDBCredential", () => {
+    it("should validate a TMDB API key with the v3 configuration endpoint", async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: {} } as any);
+
+      const result = await testTMDBCredential("tmdb-key");
+
+      expect(result).toEqual({
+        success: true,
+        authType: "apiKey",
+        messageKey: "tmdbCredentialValidApiKey",
+      });
+      expect(vi.mocked(axios.get)).toHaveBeenCalledWith(
+        expect.stringContaining("/configuration"),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            api_key: "tmdb-key",
+          }),
+        })
+      );
+    });
+
+    it("should validate a read access token with bearer authorization", async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: {} } as any);
+
+      const result = await testTMDBCredential("Bearer token.part.signature");
+
+      expect(result).toEqual({
+        success: true,
+        authType: "readAccessToken",
+        messageKey: "tmdbCredentialValidReadAccessToken",
+      });
+      expect(vi.mocked(axios.get)).toHaveBeenCalledWith(
+        expect.stringContaining("/configuration"),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer token.part.signature",
+          }),
+        })
+      );
+    });
+
+    it("should treat short dotted credentials as api keys instead of bearer tokens", async () => {
+      vi.mocked(axios.get).mockResolvedValue({ data: {} } as any);
+
+      const result = await testTMDBCredential("foo.bar.baz");
+
+      expect(result).toEqual({
+        success: true,
+        authType: "apiKey",
+        messageKey: "tmdbCredentialValidApiKey",
+      });
+      expect(vi.mocked(axios.get)).toHaveBeenCalledWith(
+        expect.stringContaining("/configuration"),
+        expect.objectContaining({
+          params: expect.objectContaining({
+            api_key: "foo.bar.baz",
+          }),
+          headers: undefined,
+        })
+      );
+    });
+
+    it("should surface authentication errors when testing a TMDB credential", async () => {
+      vi.mocked(axios.get).mockRejectedValue({
+        response: {
+          status: 401,
+          data: {
+            status_message: "Invalid API key: You must be granted a valid key.",
+          },
+        },
+      } as any);
+
+      const result = await testTMDBCredential("tmdb-key");
+
+      expect(result).toEqual({
+        success: false,
+        authType: "apiKey",
+        code: "auth-failed",
+        messageKey: "tmdbCredentialInvalid",
+        error: "Invalid API key: You must be granted a valid key.",
+      });
+    });
+
+    it("should reject empty credentials without calling TMDB", async () => {
+      const result = await testTMDBCredential("   ");
+
+      expect(result).toEqual({
+        success: false,
+        authType: "apiKey",
+        code: "request-failed",
+        messageKey: "tmdbCredentialRequestFailed",
+        error: "TMDB credential is required.",
+      });
+      expect(axios.get).not.toHaveBeenCalled();
     });
   });
 });

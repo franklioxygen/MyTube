@@ -4,7 +4,7 @@ import { IMAGES_DIR } from "../config/paths";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { regenerateSmallThumbnailForThumbnailPath } from "../services/thumbnailMirrorService";
 import { logger } from "../utils/logger";
-import { validateImagePath } from "../utils/security";
+import { resolveSafeChildPath, validateImagePath } from "../utils/security";
 
 export type TmdbMetadata = Awaited<ReturnType<typeof scrapeMetadataFromTMDB>>;
 
@@ -34,7 +34,10 @@ const resolveTmdbThumbnailHelper = async (
   ) {
     if (tmdbThumbnailFilename) {
       const tmdbFilePath = validateImagePath(
-        path.join(IMAGES_DIR, tmdbThumbnailFilename.split("/").join(path.sep))
+        resolveSafeChildPath(
+          IMAGES_DIR,
+          tmdbThumbnailFilename.split("/").join(path.sep)
+        )
       );
 
       if (await fs.pathExists(tmdbFilePath)) {
@@ -65,55 +68,68 @@ const resolveTmdbThumbnailHelper = async (
 };
 
 const resolveLocalThumbnail = async (
-  tempThumbnailPath: string,
+  tempThumbnailPath: string | null,
   targetThumbnailFilename: string
 ): Promise<ThumbnailResolution> => {
-  let finalThumbnailFilename = targetThumbnailFilename;
+  const safeTargetThumbnailPath = validateImagePath(
+    resolveSafeChildPath(IMAGES_DIR, targetThumbnailFilename)
+  );
+  const safeTempThumbnailPath = tempThumbnailPath
+    ? validateImagePath(tempThumbnailPath)
+    : null;
+
+  const finalizeThumbnail = async (
+    absoluteThumbnailPath: string
+  ): Promise<ThumbnailResolution> => {
+    const finalThumbnailFilename = path.basename(absoluteThumbnailPath);
+
+    try {
+      await regenerateSmallThumbnailForThumbnailPath(
+        `/images/${finalThumbnailFilename}`,
+      );
+    } catch (error) {
+      logger.warn(
+        `Failed to regenerate small thumbnail mirror for "${finalThumbnailFilename}", continuing with original thumbnail`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+
+    return {
+      filename: finalThumbnailFilename,
+      path: `/images/${finalThumbnailFilename}`,
+      url: `/images/${finalThumbnailFilename}`,
+    };
+  };
 
   try {
-    const safeTargetThumbnailPath = validateImagePath(
-      path.join(IMAGES_DIR, finalThumbnailFilename)
-    );
-    const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
-
-    if (await fs.pathExists(safeTempThumbnailPath)) {
+    if (safeTempThumbnailPath && await fs.pathExists(safeTempThumbnailPath)) {
       if (
         (await fs.pathExists(safeTargetThumbnailPath)) &&
         safeTempThumbnailPath !== safeTargetThumbnailPath
       ) {
         await fs.remove(safeTempThumbnailPath);
         logger.warn(
-          `Thumbnail filename already exists: ${finalThumbnailFilename}, using existing`
+          `Thumbnail filename already exists: ${targetThumbnailFilename}, using existing`
         );
       } else if (safeTempThumbnailPath !== safeTargetThumbnailPath) {
         await fs.move(safeTempThumbnailPath, safeTargetThumbnailPath);
-        logger.info(`Renamed thumbnail file to "${finalThumbnailFilename}"`);
+        logger.info(`Renamed thumbnail file to "${targetThumbnailFilename}"`);
       }
 
-      await regenerateSmallThumbnailForThumbnailPath(
-        `/images/${finalThumbnailFilename}`,
-      );
-
-      return {
-        filename: finalThumbnailFilename,
-        path: `/images/${finalThumbnailFilename}`,
-        url: `/images/${finalThumbnailFilename}`,
-      };
+      return finalizeThumbnail(safeTargetThumbnailPath);
     }
   } catch (error) {
     logger.error(`Error resolving thumbnail file: ${error}`);
   }
 
-  if (await fs.pathExists(tempThumbnailPath)) {
-    finalThumbnailFilename = path.basename(tempThumbnailPath);
-    await regenerateSmallThumbnailForThumbnailPath(
-      `/images/${finalThumbnailFilename}`,
-    );
-    return {
-      filename: finalThumbnailFilename,
-      path: `/images/${finalThumbnailFilename}`,
-      url: `/images/${finalThumbnailFilename}`,
-    };
+  if (await fs.pathExists(safeTargetThumbnailPath)) {
+    return finalizeThumbnail(safeTargetThumbnailPath);
+  }
+
+  if (safeTempThumbnailPath && await fs.pathExists(safeTempThumbnailPath)) {
+    return finalizeThumbnail(safeTempThumbnailPath);
   }
 
   return {};
@@ -122,7 +138,7 @@ const resolveLocalThumbnail = async (
 export const resolveThumbnail = async (
   filename: string,
   tmdbMetadata: TmdbMetadata,
-  tempThumbnailPath: string,
+  tempThumbnailPath: string | null,
   fallbackThumbnailFilename: string
 ): Promise<ThumbnailResolution> => {
   // 1. Try TMDB thumbnail

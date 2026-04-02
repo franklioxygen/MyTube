@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import fs from "fs-extra";
 import path from "path";
 import {
   CLOUD_THUMBNAIL_CACHE_DIR,
@@ -233,6 +234,36 @@ export function validateVideoPath(filePath: string): string {
  */
 export function validateImagePath(filePath: string): string {
   return resolveSafePath(filePath, IMAGES_DIR);
+}
+
+export async function imagePathExists(filePath: string): Promise<boolean> {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.pathExists(validateImagePath(filePath));
+}
+
+export async function removeImagePath(filePath: string): Promise<void> {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  await fs.remove(validateImagePath(filePath));
+}
+
+/**
+ * Resolves a child path inside an allowed directory.
+ * Accepts relative path fragments and ensures the final path remains inside allowedDir.
+ */
+export function resolveSafeChildPath(
+  allowedDir: string,
+  childPath: string,
+): string {
+  if (
+    !allowedDir ||
+    typeof allowedDir !== "string" ||
+    !childPath ||
+    typeof childPath !== "string"
+  ) {
+    throw new Error(`Invalid child path: ${childPath}`);
+  }
+
+  return resolveSafePath(`${allowedDir}${path.sep}${childPath}`, allowedDir);
 }
 
 /**

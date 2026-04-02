@@ -60,6 +60,15 @@ export const en = {
   tmdbApiKey: "TMDB API Key",
   tmdbApiKeyHelper:
     "TheMovieDB API key for scraping movie/TV show metadata and posters. Get your key at https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "Test Credential",
+  tmdbCredentialMissing: "Please enter a TMDB credential first.",
+  tmdbCredentialValid: "TMDB credential is valid.",
+  tmdbCredentialTestFailed: "Failed to test TMDB credential.",
+  tmdbCredentialValidApiKey: "TMDB API key is valid.",
+  tmdbCredentialValidReadAccessToken: "TMDB Read Access Token is valid.",
+  tmdbCredentialInvalid:
+    "TMDB credential is invalid. Check whether it is a valid API key or Read Access Token.",
+  tmdbCredentialRequestFailed: "Failed to reach TMDB. Please try again.",
   mountDirectories: "Mount Directories",
   mountDirectoriesPlaceholder:
     "Enter mount directories (one per line)\nExample:\n/mnt/media1\n/mnt/media2",
@@ -293,6 +302,8 @@ export const en = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "Set MYTUBE_ADMIN_TRUST_LEVEL in the service environment. Replace application with container or host as needed.",
+  deploymentSecurityDockerPermissionsNote:
+    "If you are upgrading a bind-mounted installation created before v1.9.0, make sure the host-side uploads and data folders are writable by uid/gid 1000 (`node`). This also fixes root-owned uploads/images-small directories that can cause thumbnail generation or scans to fail with EACCES.",
   deploymentSecurityLocalConfigTitle: "Local source run",
   deploymentSecurityLocalConfigDescription:
     "Export MYTUBE_ADMIN_TRUST_LEVEL before starting MyTube, or pass it inline when running npm run dev.",

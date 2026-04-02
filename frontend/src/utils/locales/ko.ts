@@ -64,6 +64,17 @@ export const ko = {
   tmdbApiKey: "TMDB API 키",
   tmdbApiKeyHelper:
     "영화/TV 프로그램 메타데이터 및 포스터를 가져오기 위한 TheMovieDB API 키. https://www.themoviedb.org/settings/api 에서 키를 받으세요",
+  testTmdbCredential: "자격 증명 테스트",
+  tmdbCredentialMissing: "먼저 TMDB 자격 증명을 입력하세요.",
+  tmdbCredentialValid: "TMDB 자격 증명이 유효합니다.",
+  tmdbCredentialTestFailed: "TMDB 자격 증명 테스트에 실패했습니다.",
+  tmdbCredentialValidApiKey: "TMDB API 키가 유효합니다.",
+  tmdbCredentialValidReadAccessToken:
+    "TMDB Read Access Token이 유효합니다.",
+  tmdbCredentialInvalid:
+    "TMDB 자격 증명이 유효하지 않습니다. 올바른 API 키 또는 Read Access Token인지 확인하세요.",
+  tmdbCredentialRequestFailed:
+    "TMDB에 연결하지 못했습니다. 잠시 후 다시 시도하세요.",
   mountDirectories: "마운트 디렉토리",
   mountDirectoriesPlaceholder:
     "마운트 디렉토리를 입력하세요 (한 줄에 하나)\n예:\n/mnt/media1\n/mnt/media2",
@@ -299,6 +310,8 @@ export const ko = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "서비스 environment 에서 MYTUBE_ADMIN_TRUST_LEVEL 을 설정하세요. 필요에 따라 application 을 container 또는 host 로 바꾸면 됩니다.",
+  deploymentSecurityDockerPermissionsNote:
+    "v1.9.0 이전에 만든 bind mount 설치를 업그레이드하는 경우, 호스트 측 uploads 및 data 디렉터리가 uid/gid 1000(`node`)에 쓰기 가능해야 합니다. 이렇게 하면 root 소유의 uploads/images-small 디렉터리 때문에 썸네일 생성이나 스캔이 EACCES로 실패하는 문제도 함께 해결됩니다.",
   deploymentSecurityLocalConfigTitle: "로컬 소스 실행",
   deploymentSecurityLocalConfigDescription:
     "MyTube 를 시작하기 전에 MYTUBE_ADMIN_TRUST_LEVEL 을 export 하거나 npm run dev 실행 시 인라인으로 전달하세요.",

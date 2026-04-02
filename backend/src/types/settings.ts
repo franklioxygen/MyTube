@@ -35,6 +35,7 @@ export interface Settings {
   allowedHosts?: string;
   pauseOnFocusLoss?: boolean;
   playSoundOnTaskComplete?: string;
+  tmdbApiKey?: string;
   mountDirectories?: string;
   defaultSort?: string;
   preferredAudioLanguage?: string;
@@ -82,6 +83,7 @@ export const defaultSettings: Settings = {
   videoColumns: 4,
   pauseOnFocusLoss: false,
   playSoundOnTaskComplete: "",
+  tmdbApiKey: "",
   showTagsOnThumbnail: true,
   playFromBeginning: false,
   showThemeButton: true,

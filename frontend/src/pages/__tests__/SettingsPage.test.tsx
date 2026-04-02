@@ -332,7 +332,19 @@ describe('SettingsPage', () => {
       infoModal: { isOpen: false, title: '', message: '', type: 'info' },
     };
 
-    mockApiPost.mockResolvedValue({ data: { addedCount: 2, deletedCount: 1 } });
+    mockApiPost.mockImplementation((url: string) => {
+      if (url === '/settings/tmdb/test') {
+        return Promise.resolve({
+          data: {
+            success: true,
+            authType: 'apiKey',
+            messageKey: 'tmdbCredentialValidApiKey',
+          },
+        });
+      }
+
+      return Promise.resolve({ data: { addedCount: 2, deletedCount: 1 } });
+    });
     mockPreviewMergeDatabaseMutateAsync.mockResolvedValue({
       videos: { merged: 1, skipped: 0 },
       collections: { merged: 0, skipped: 0 },
@@ -591,6 +603,86 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'scanFiles' }));
 
     expect(await screen.findByText('scanFilesFailed: scan failed details')).toBeInTheDocument();
+  });
+
+  it('tests TMDB credentials successfully from the content management tab', async () => {
+    mockIsDesktop = true;
+    mockSettingsData = {
+      tmdbApiKey: 'tmdb-key',
+    };
+
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/settings/tmdb/test', {
+        tmdbApiKey: 'tmdb-key',
+      });
+    });
+
+    expect(await screen.findByText('TMDB API key is valid.')).toBeInTheDocument();
+  });
+
+  it('shows TMDB credential test errors inline', async () => {
+    mockIsDesktop = true;
+    mockSettingsData = {
+      tmdbApiKey: 'bad-key',
+    };
+    mockApiPost.mockImplementation((url: string) => {
+      if (url === '/settings/tmdb/test') {
+        return Promise.reject({
+          response: {
+            data: {
+              errorKey: 'tmdbCredentialInvalid',
+              error: 'Invalid API key: You must be granted a valid key.',
+            },
+          },
+        });
+      }
+
+      return Promise.resolve({ data: { addedCount: 2, deletedCount: 1 } });
+    });
+
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
+
+    expect(
+      await screen.findByText(
+        'TMDB credential is invalid. Check whether it is a valid API key or Read Access Token.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('does not render raw TMDB server error text for unknown errors', async () => {
+    mockIsDesktop = true;
+    mockSettingsData = {
+      tmdbApiKey: 'bad-key',
+    };
+    mockApiPost.mockImplementation((url: string) => {
+      if (url === '/settings/tmdb/test') {
+        return Promise.reject({
+          response: {
+            data: {
+              error: 'Sensitive backend failure details',
+            },
+          },
+        });
+      }
+
+      return Promise.resolve({ data: { addedCount: 2, deletedCount: 1 } });
+    });
+
+    renderPage('/settings');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'contentManagement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Test Credential' }));
+
+    expect(await screen.findByText('Failed to test TMDB credential.')).toBeInTheDocument();
+    expect(screen.queryByText('Sensitive backend failure details')).not.toBeInTheDocument();
   });
 
   it('hides mount directory controls unless deployment trust is host', () => {

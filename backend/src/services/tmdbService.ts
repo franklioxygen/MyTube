@@ -1,9 +1,11 @@
-import axios from "axios";
+import crypto from "crypto";
+import axios, { AxiosRequestConfig } from "axios";
 import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../config/paths";
 import { regenerateSmallThumbnailForThumbnailPath } from "./thumbnailMirrorService";
 import { logger } from "../utils/logger";
+import { resolveSafeChildPath, resolveSafePath } from "../utils/security";
 import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
@@ -11,6 +13,9 @@ const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const TMDB_SEARCH_CACHE_MAX_ENTRIES = 500;
 const TMDB_SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
 const TMDB_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
+const TMDB_REQUEST_TIMEOUT_MS = 10000;
+const TMDB_BEARER_TOKEN_PATTERN =
+  /^(?:Bearer\s+)?[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/;
 
 // Whitelist of allowed hosts for image downloads to prevent SSRF
 const ALLOWED_IMAGE_HOSTS = ["image.tmdb.org"];
@@ -44,6 +49,7 @@ function mapLanguageToTMDB(language?: string): string {
 export interface TMDBMovieResult {
   id: number;
   title: string;
+  original_title?: string;
   release_date?: string;
   overview?: string;
   poster_path?: string;
@@ -55,6 +61,7 @@ export interface TMDBMovieResult {
 export interface TMDBTVResult {
   id: number;
   name: string;
+  original_name?: string;
   first_air_date?: string;
   overview?: string;
   poster_path?: string;
@@ -68,7 +75,9 @@ export interface TMDBSearchResult {
   media_type: "movie" | "tv" | "person";
   id: number;
   title?: string; // For movies
+  original_title?: string; // For movies
   name?: string; // For TV shows
+  original_name?: string; // For TV shows
   release_date?: string; // For movies
   first_air_date?: string; // For TV shows
   overview?: string;
@@ -95,6 +104,37 @@ type MultiStrategySearchResult = {
   director?: string;
 };
 
+export type TMDBCredentialAuthType = "apiKey" | "readAccessToken";
+
+export type TMDBCredentialMessageKey =
+  | "tmdbCredentialValidApiKey"
+  | "tmdbCredentialValidReadAccessToken"
+  | "tmdbCredentialInvalid"
+  | "tmdbCredentialRequestFailed";
+
+export type TMDBCredentialTestResult =
+  | {
+      success: true;
+      authType: TMDBCredentialAuthType;
+      messageKey:
+        | "tmdbCredentialValidApiKey"
+        | "tmdbCredentialValidReadAccessToken";
+    }
+  | {
+      success: false;
+      authType: TMDBCredentialAuthType;
+      code: "auth-failed" | "request-failed";
+      messageKey: "tmdbCredentialInvalid" | "tmdbCredentialRequestFailed";
+      error: string;
+    };
+
+class TMDBAuthenticationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TMDBAuthenticationError";
+  }
+}
+
 type CacheEntry<T> = {
   value: T;
   expiresAt: number;
@@ -102,6 +142,149 @@ type CacheEntry<T> = {
 
 const tmdbSearchCache = new Map<string, CacheEntry<MultiStrategySearchResult>>();
 const tmdbSearchInFlight = new Map<string, Promise<MultiStrategySearchResult>>();
+
+function normalizeTMDBCredential(credential: string): string {
+  return credential.trim();
+}
+
+function getTMDBCredentialAuthType(
+  credential: string
+): TMDBCredentialAuthType {
+  const normalizedCredential = normalizeTMDBCredential(credential);
+  return normalizedCredential.toLowerCase().startsWith("bearer ") ||
+    TMDB_BEARER_TOKEN_PATTERN.test(normalizedCredential)
+    ? "readAccessToken"
+    : "apiKey";
+}
+
+function hashTMDBCredential(credential: string): string {
+  return crypto.scryptSync(
+    normalizeTMDBCredential(credential),
+    "mytube:tmdb-cache-key",
+    32
+  ).toString("hex");
+}
+
+function requireTMDBCredential(credential: string): string {
+  const normalizedCredential = normalizeTMDBCredential(credential);
+  if (!normalizedCredential) {
+    throw new Error("TMDB credential is required.");
+  }
+
+  return normalizedCredential;
+}
+
+function buildTMDBRequestConfig(
+  credential: string,
+  params: Record<string, string> = {},
+  extraConfig: AxiosRequestConfig = {}
+): AxiosRequestConfig {
+  const normalizedCredential = requireTMDBCredential(credential);
+  const requestParams = { ...params };
+  const requestHeaders: Record<string, string> = {
+    ...(extraConfig.headers as Record<string, string> | undefined),
+  };
+  const authType = getTMDBCredentialAuthType(normalizedCredential);
+
+  if (authType === "readAccessToken") {
+    requestHeaders.Authorization = `Bearer ${normalizedCredential.replace(
+      /^Bearer\s+/i,
+      ""
+    )}`;
+  } else {
+    requestParams.api_key = normalizedCredential;
+  }
+
+  return {
+    timeout: TMDB_REQUEST_TIMEOUT_MS,
+    ...extraConfig,
+    params: requestParams,
+    headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
+  };
+}
+
+export async function testTMDBCredential(
+  credential: string
+): Promise<TMDBCredentialTestResult> {
+  const normalizedCredential = normalizeTMDBCredential(credential);
+  if (!normalizedCredential) {
+    return {
+      success: false,
+      authType: "apiKey",
+      code: "request-failed",
+      messageKey: "tmdbCredentialRequestFailed",
+      error: "TMDB credential is required.",
+    };
+  }
+
+  const authType = getTMDBCredentialAuthType(normalizedCredential);
+
+  try {
+    await axios.get(
+      `${TMDB_API_BASE}/configuration`,
+      buildTMDBRequestConfig(normalizedCredential)
+    );
+
+    return {
+      success: true,
+      authType,
+      messageKey:
+        authType === "readAccessToken"
+          ? "tmdbCredentialValidReadAccessToken"
+          : "tmdbCredentialValidApiKey",
+    };
+  } catch (error) {
+    const authErrorMessage = getTMDBAuthErrorMessage(error);
+    if (authErrorMessage) {
+      return {
+        success: false,
+        authType,
+        code: "auth-failed",
+        messageKey: "tmdbCredentialInvalid",
+        error: authErrorMessage,
+      };
+    }
+
+    logger.error("Error testing TMDB credential:", error);
+    return {
+      success: false,
+      authType,
+      code: "request-failed",
+      messageKey: "tmdbCredentialRequestFailed",
+      error: "Failed to reach TMDB. Please try again.",
+    };
+  }
+}
+
+function getTMDBAuthErrorMessage(error: unknown): string | null {
+  const maybeAxiosError = error as
+    | {
+        response?: { status?: number; data?: { status_message?: string } };
+        message?: string;
+      }
+    | undefined;
+
+  if (maybeAxiosError?.response?.status !== 401) {
+    return null;
+  }
+
+  return (
+    maybeAxiosError.response.data?.status_message ||
+    maybeAxiosError.message ||
+    "TMDB authentication failed."
+  );
+}
+
+function throwIfTMDBAuthenticationError(error: unknown): void {
+  if (error instanceof TMDBAuthenticationError) {
+    throw error;
+  }
+
+  const message = getTMDBAuthErrorMessage(error);
+  if (message) {
+    throw new TMDBAuthenticationError(message);
+  }
+}
 
 const getCachedValue = <T>(
   cache: Map<string, CacheEntry<T>>,
@@ -144,7 +327,7 @@ const setCachedValue = <T>(
 
 const buildSearchCacheKey = (
   parsed: ParsedFilename,
-  apiKey: string,
+  credential: string,
   language?: string
 ): string => {
   const normalizedTitles = parsed.titles
@@ -158,7 +341,7 @@ const buildSearchCacheKey = (
     episode: parsed.episode ?? null,
     isTVShow: parsed.isTVShow,
     language: mapLanguageToTMDB(language),
-    apiKey,
+    credentialHash: hashTMDBCredential(credential),
   });
 };
 
@@ -192,6 +375,11 @@ const RESOLUTION_SEGMENT_PATTERN = /^\d+p$/i;
 const COMMON_FORMAT_SEGMENT_PATTERN = /^(web|dl|rip|remux|mux)$/i;
 const ALL_CAPS_ACRONYM_PATTERN = /^[A-Z]{2,5}$/;
 const ENGLISH_TITLE_PATTERN = /^[a-zA-Z0-9\s]+$/;
+const CHANNEL_LAYOUT_PATTERN = /^\d(?:\.\d)?$/;
+const BRACKETED_METADATA_KEYWORD_PATTERN =
+  /(简中|繁中|中字|双字|字幕|硬字|软字|内封|外挂|特效|压制|发布|转载|招募)/;
+const TRAILING_RELEASE_GROUP_PATTERN =
+  /[._-]([A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*)\s*$/;
 const METADATA_TERMS = new Set([
   "web",
   "dl",
@@ -228,10 +416,44 @@ const METADATA_TERMS = new Set([
   "eac3",
   "truehd",
   "atmos",
+  "ma",
+  "dd",
+  "ddp",
+  "hdr",
+  "dv",
   "admin",
   "upload",
   "download",
 ]);
+const COMMON_RELEASE_GROUPS = new Set([
+  "adweb",
+  "btschool",
+  "btshd",
+  "chd",
+  "cinephiles",
+  "ctrlhd",
+  "don",
+  "frds",
+  "hdc",
+  "hdchina",
+  "hdsweb",
+  "hifi",
+  "mteam",
+  "muhd",
+  "pter",
+  "playbd",
+  "quickio",
+  "rarbg",
+  "wiki",
+  "yts",
+  "ytsmx",
+]);
+const GENERIC_CAPTURE_FILENAME_PATTERNS = [
+  /^(?:IMG|VID|MOV)[._-]?\d{3,}$/i,
+  /^DSC[A-Z]?[._-]?\d{3,}$/i,
+  /^PXL[_-]\d{8}[_-]\d{6,}(?:\.[A-Z0-9_]+)?$/i,
+  /^SCREEN(?:SHOT|RECORDING)?[._-]?\d{3,}$/i,
+];
 
 type TVMetadata = {
   name: string;
@@ -316,14 +538,119 @@ function extractSourceMetadata(name: string): { name: string; source?: string } 
 }
 
 function stripTechnicalMetadata(name: string): string {
-  return name
+  return stripTrailingReleaseGroup(
+    name
     .replace(/\b(H26[45]|HEVC|x26[45]|VP9|AV1|H\.26[45])\b/gi, "")
     .replace(/\b(AAC|AC3|DTS|FLAC|MP3|Vorbis|EAC3|TrueHD|Atmos)\b/gi, "")
     .replace(/[-_]?[A-Z][a-zA-Z0-9]{2,}(?:\.[a-zA-Z0-9]+)*\s*$/, "")
     .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
     .replace(/\b(Rip|Remux|Mux|Enc|Dec)\b/gi, "")
-    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\[([^\]]+)\]/g, (_match, content: string) => {
+      if (
+        CJK_TEXT_PATTERN.test(content) &&
+        !BRACKETED_METADATA_KEYWORD_PATTERN.test(content)
+      ) {
+        return ` ${content} `;
+      }
+      return " ";
+    })
+    .trim()
+  );
+}
+
+function looksLikeReleaseGroupPart(part: string): boolean {
+  const normalized = part.trim();
+  if (normalized.length < 2 || CJK_TEXT_PATTERN.test(normalized)) {
+    return false;
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return false;
+  }
+
+  const lowerCased = normalized.toLowerCase();
+  if (COMMON_RELEASE_GROUPS.has(lowerCased)) {
+    return true;
+  }
+
+  if (/^[A-Za-z]+$/.test(normalized) && normalized.length < 4) {
+    return false;
+  }
+
+  if (/^[A-Z0-9]{2,10}$/.test(normalized)) {
+    return true;
+  }
+
+  const uppercaseCount = (normalized.match(/[A-Z]/g) || []).length;
+  return uppercaseCount >= 2 && normalized.length <= 12;
+}
+
+function stripTrailingReleaseGroup(name: string): string {
+  let remaining = name.trim();
+
+  while (remaining.length > 0) {
+    const match = remaining.match(TRAILING_RELEASE_GROUP_PATTERN);
+    if (!match) {
+      break;
+    }
+
+    const fullGroup = match[1];
+    const parts = fullGroup.split(/[._-]/).filter(Boolean);
+    if (parts.length === 0 || !parts.every(looksLikeReleaseGroupPart)) {
+      break;
+    }
+
+    remaining = remaining.slice(0, remaining.length - match[0].length).trim();
+  }
+
+  return remaining;
+}
+
+function normalizeCandidateSpacing(candidate: string): string {
+  return candidate
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+function stripTrailingTechnicalTokens(candidate: string): string {
+  const normalized = normalizeCandidateSpacing(candidate);
+  if (!normalized) {
+    return "";
+  }
+
+  const tokens = normalized.split(" ");
+  while (tokens.length > 0) {
+    const lastToken = tokens[tokens.length - 1]
+      .replace(/^[._-]+|[._-]+$/g, "")
+      .trim();
+    if (!lastToken) {
+      tokens.pop();
+      continue;
+    }
+
+    const lowerToken = lastToken.toLowerCase();
+    if (
+      CHANNEL_LAYOUT_PATTERN.test(lastToken) ||
+      isMetadataTerm(lowerToken)
+    ) {
+      tokens.pop();
+      continue;
+    }
+    break;
+  }
+
+  return tokens.join(" ").trim();
+}
+
+function buildReadableEnglishCandidate(name: string): string {
+  const normalized = normalizeCandidateSpacing(name);
+  if (!normalized) {
+    return "";
+  }
+
+  const englishOnly = normalized.replace(CJK_PATTERN, " ").replace(/\s+/g, " ").trim();
+  return stripTrailingTechnicalTokens(englishOnly);
 }
 
 function collectChineseMatches(name: string): string[] {
@@ -402,11 +729,12 @@ function addCandidate(
   seen: Set<string>,
   candidate: string
 ): void {
-  const normalized = candidate.toLowerCase();
-  if (candidate.length < 2 || seen.has(normalized)) {
+  const cleanedCandidate = stripTrailingTechnicalTokens(candidate);
+  const normalized = cleanedCandidate.toLowerCase();
+  if (cleanedCandidate.length < 2 || seen.has(normalized)) {
     return;
   }
-  titleCandidates.push(candidate);
+  titleCandidates.push(cleanedCandidate);
   seen.add(normalized);
 }
 
@@ -491,12 +819,46 @@ function buildOrderedTitles(titleCandidates: string[]): string[] {
   return orderedTitles;
 }
 
+function containsLatinText(value: string): boolean {
+  return /[A-Za-z]/.test(value);
+}
+
+function getSearchTitlePriority(title: string): number {
+  const hasCJK = CJK_TEXT_PATTERN.test(title);
+  const hasLatin = containsLatinText(title);
+
+  if (hasCJK && !hasLatin) {
+    return 0;
+  }
+
+  if (hasCJK) {
+    return 1;
+  }
+
+  if (title.includes(" ")) {
+    return 2;
+  }
+
+  return 3;
+}
+
 function buildFallbackTitles(cleanName: string, filename: string): string[] {
   const fallbackTitle = cleanName
     .replace(/[._-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return fallbackTitle ? [fallbackTitle] : [path.parse(filename).name];
+}
+
+function isLikelyGenericCaptureFilename(filename: string): boolean {
+  const baseName = path.parse(filename).name.trim();
+  if (!baseName) {
+    return false;
+  }
+
+  return GENERIC_CAPTURE_FILENAME_PATTERNS.some((pattern) =>
+    pattern.test(baseName)
+  );
 }
 
 /**
@@ -530,6 +892,11 @@ export function parseFilename(filename: string): ParsedFilename {
 
   for (const chineseTitle of chineseMatches) {
     addCandidate(titleCandidates, seen, chineseTitle);
+  }
+
+  const readableEnglishCandidate = buildReadableEnglishCandidate(nameWithoutExt);
+  if (readableEnglishCandidate) {
+    addCandidate(titleCandidates, seen, readableEnglishCandidate);
   }
 
   const englishWords = extractEnglishWords(segments);
@@ -575,14 +942,13 @@ export function parseFilename(filename: string): ParsedFilename {
  */
 async function searchMovie(
   title: string,
-  apiKey: string,
+  credential: string,
   year?: number,
   language?: string
 ): Promise<TMDBMovieResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
     const params: Record<string, string> = {
-      api_key: apiKey,
       query: title,
       language: tmdbLanguage,
     };
@@ -592,32 +958,47 @@ async function searchMovie(
     }
 
     const response = await axios.get(`${TMDB_API_BASE}/search/movie`, {
-      params,
-      timeout: 10000,
+      ...buildTMDBRequestConfig(credential, params),
     });
 
     const results: TMDBMovieResult[] = response.data.results || [];
     if (results.length > 0) {
+      const matchedResults = results.filter((movie) =>
+        isConfidentTMDBTitleMatch(title, movie)
+      );
+      if (matchedResults.length === 0) {
+        return null;
+      }
+
       // Prefer exact year match if year was provided
       if (year) {
-        const yearMatch = results.find((movie) => {
+        const yearMatch = matchedResults.find((movie) => {
           if (!movie.release_date) return false;
           const movieYear = parseInt(movie.release_date.substring(0, 4), 10);
           return movieYear === year;
         });
         if (yearMatch) {
           // Fetch full details with language to get localized poster_path and title
-          const details = await getMovieDetails(yearMatch.id, apiKey, tmdbLanguage);
+          const details = await getMovieDetails(
+            yearMatch.id,
+            credential,
+            tmdbLanguage
+          );
           return details?.movie || null;
         }
       }
       // Fetch full details for the first result with language
-      const details = await getMovieDetails(results[0].id, apiKey, tmdbLanguage);
+      const details = await getMovieDetails(
+        matchedResults[0].id,
+        credential,
+        tmdbLanguage
+      );
       return details?.movie || null;
     }
 
     return null;
   } catch (error) {
+    throwIfTMDBAuthenticationError(error);
     logger.error(`Error searching TMDB for movie "${title}":`, error);
     return null;
   }
@@ -629,25 +1010,21 @@ async function searchMovie(
  */
 async function getMovieDetails(
   movieId: number,
-  apiKey: string,
+  credential: string,
   language: string
 ): Promise<{ movie: TMDBMovieResult; director?: string } | null> {
   try {
     // Fetch both movie details and credits in parallel
     const [movieResponse, creditsResponse] = await Promise.all([
       axios.get(`${TMDB_API_BASE}/movie/${movieId}`, {
-        params: {
-          api_key: apiKey,
-          language: language,
-        },
-        timeout: 10000,
+        ...buildTMDBRequestConfig(credential, {
+          language,
+        }),
       }),
       axios.get(`${TMDB_API_BASE}/movie/${movieId}/credits`, {
-        params: {
-          api_key: apiKey,
-          language: language,
-        },
-        timeout: 10000,
+        ...buildTMDBRequestConfig(credential, {
+          language,
+        }),
       }),
     ]);
 
@@ -666,6 +1043,7 @@ async function getMovieDetails(
 
     return { movie, director };
   } catch (error) {
+    throwIfTMDBAuthenticationError(error);
     logger.error(`Error fetching TMDB movie details for ID ${movieId}:`, error);
     return null;
   }
@@ -676,29 +1054,39 @@ async function getMovieDetails(
  */
 async function searchTVShow(
   title: string,
-  apiKey: string,
+  credential: string,
   language?: string
 ): Promise<TMDBTVResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
     const response = await axios.get(`${TMDB_API_BASE}/search/tv`, {
-      params: {
-        api_key: apiKey,
+      ...buildTMDBRequestConfig(credential, {
         query: title,
         language: tmdbLanguage,
-      },
-      timeout: 10000,
+      }),
     });
 
     const results: TMDBTVResult[] = response.data.results || [];
     if (results.length > 0) {
+      const matchedResults = results.filter((tvShow) =>
+        isConfidentTMDBTitleMatch(title, tvShow)
+      );
+      if (matchedResults.length === 0) {
+        return null;
+      }
+
       // Fetch full details with language to get localized poster_path and title
-      const details = await getTVShowDetails(results[0].id, apiKey, tmdbLanguage);
+      const details = await getTVShowDetails(
+        matchedResults[0].id,
+        credential,
+        tmdbLanguage
+      );
       return details?.tv || null;
     }
 
     return null;
   } catch (error) {
+    throwIfTMDBAuthenticationError(error);
     logger.error(`Error searching TMDB for TV show "${title}":`, error);
     return null;
   }
@@ -710,25 +1098,21 @@ async function searchTVShow(
  */
 async function getTVShowDetails(
   tvId: number,
-  apiKey: string,
+  credential: string,
   language: string
 ): Promise<{ tv: TMDBTVResult; director?: string } | null> {
   try {
     // Fetch both TV show details and credits in parallel
     const [tvResponse, creditsResponse] = await Promise.all([
       axios.get(`${TMDB_API_BASE}/tv/${tvId}`, {
-        params: {
-          api_key: apiKey,
-          language: language,
-        },
-        timeout: 10000,
+        ...buildTMDBRequestConfig(credential, {
+          language,
+        }),
       }),
       axios.get(`${TMDB_API_BASE}/tv/${tvId}/credits`, {
-        params: {
-          api_key: apiKey,
-          language: language,
-        },
-        timeout: 10000,
+        ...buildTMDBRequestConfig(credential, {
+          language,
+        }),
       }),
     ]);
 
@@ -753,6 +1137,7 @@ async function getTVShowDetails(
 
     return { tv, director };
   } catch (error) {
+    throwIfTMDBAuthenticationError(error);
     logger.error(`Error fetching TMDB TV show details for ID ${tvId}:`, error);
     return null;
   }
@@ -768,12 +1153,10 @@ type TMDBMediaSearchResult = TMDBSearchResult & { media_type: "movie" | "tv" };
 
 function buildMultiSearchParams(
   title: string,
-  apiKey: string,
   tmdbLanguage: string,
   year?: number
 ): Record<string, string> {
   const params: Record<string, string> = {
-    api_key: apiKey,
     query: title,
     language: tmdbLanguage,
   };
@@ -781,6 +1164,108 @@ function buildMultiSearchParams(
     params.year = year.toString();
   }
   return params;
+}
+
+function normalizeComparableTitle(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[._-]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractComparableTokens(value: string): string[] {
+  return normalizeComparableTitle(value)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !/^\d+$/.test(token));
+}
+
+function collapseComparableTitle(value: string): string {
+  return normalizeComparableTitle(value).replace(/\s+/g, "");
+}
+
+function getResultTitleCandidates(
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
+): string[] {
+  return [
+    ...new Set(
+      [
+        item.title,
+        item.original_title,
+        item.name,
+        item.original_name,
+      ].filter((value): value is string => Boolean(value && value.trim()))
+    ),
+  ];
+}
+
+function isConfidentTMDBTitleMatch(
+  searchTitle: string,
+  item: Partial<TMDBMovieResult & TMDBTVResult & TMDBSearchResult>
+): boolean {
+  const normalizedSearchTitle = normalizeComparableTitle(searchTitle);
+  if (normalizedSearchTitle.length < 2) {
+    return false;
+  }
+
+  const searchTokens = extractComparableTokens(searchTitle);
+
+  for (const candidateTitle of getResultTitleCandidates(item)) {
+    const normalizedCandidateTitle = normalizeComparableTitle(candidateTitle);
+    if (!normalizedCandidateTitle) {
+      continue;
+    }
+
+    const collapsedSearchTitle = collapseComparableTitle(searchTitle);
+    const collapsedCandidateTitle = collapseComparableTitle(candidateTitle);
+
+    if (normalizedCandidateTitle === normalizedSearchTitle) {
+      return true;
+    }
+
+    if (
+      collapsedSearchTitle.length >= 4 &&
+      collapsedCandidateTitle === collapsedSearchTitle
+    ) {
+      return true;
+    }
+
+    const shorterComparableLength = Math.min(
+      normalizedSearchTitle.length,
+      normalizedCandidateTitle.length
+    );
+    if (
+      shorterComparableLength >= 4 &&
+      (
+        normalizedCandidateTitle.includes(normalizedSearchTitle) ||
+        normalizedSearchTitle.includes(normalizedCandidateTitle)
+      )
+    ) {
+      return true;
+    }
+
+    if (searchTokens.length === 0) {
+      continue;
+    }
+
+    const candidateTokens = new Set(extractComparableTokens(candidateTitle));
+    const matchedTokens = searchTokens.filter((token) =>
+      candidateTokens.has(token)
+    );
+
+    if (matchedTokens.length === searchTokens.length) {
+      return true;
+    }
+
+    if (searchTokens.length >= 2 && matchedTokens.length >= 2) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function isTMDBMediaSearchResult(
@@ -829,6 +1314,7 @@ function scoreMultiSearchResult(item: TMDBMediaSearchResult, year?: number): num
 
 function pickBestMultiSearchResult(
   results: TMDBSearchResult[],
+  queryTitle: string,
   year?: number
 ): TMDBMediaSearchResult | null {
   let bestMatch: TMDBMediaSearchResult | null = null;
@@ -840,6 +1326,10 @@ function pickBestMultiSearchResult(
     }
 
     const mediaItem = item as TMDBMediaSearchResult;
+    if (!isConfidentTMDBTitleMatch(queryTitle, mediaItem)) {
+      continue;
+    }
+
     const score = scoreMultiSearchResult(mediaItem, year);
     if (score > bestScore) {
       bestScore = score;
@@ -852,11 +1342,15 @@ function pickBestMultiSearchResult(
 
 async function fetchTMDBSearchDetails(
   bestMatch: TMDBMediaSearchResult,
-  apiKey: string,
+  credential: string,
   tmdbLanguage: string
 ): Promise<TMDBSingleSearchResult | null> {
   if (bestMatch.media_type === "movie") {
-    const movieDetails = await getMovieDetails(bestMatch.id, apiKey, tmdbLanguage);
+    const movieDetails = await getMovieDetails(
+      bestMatch.id,
+      credential,
+      tmdbLanguage
+    );
     if (movieDetails?.movie) {
       return {
         result: movieDetails.movie,
@@ -867,7 +1361,7 @@ async function fetchTMDBSearchDetails(
     return null;
   }
 
-  const tvDetails = await getTVShowDetails(bestMatch.id, apiKey, tmdbLanguage);
+  const tvDetails = await getTVShowDetails(bestMatch.id, credential, tmdbLanguage);
   if (tvDetails?.tv) {
     return {
       result: tvDetails.tv,
@@ -916,27 +1410,26 @@ function buildTMDBSearchFallbackResult(
  */
 async function searchTMDBSingle(
   title: string,
-  apiKey: string,
+  credential: string,
   year?: number,
   language?: string
 ): Promise<TMDBSingleSearchResult> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
-    const params = buildMultiSearchParams(title, apiKey, tmdbLanguage, year);
+    const params = buildMultiSearchParams(title, tmdbLanguage, year);
     const response = await axios.get(`${TMDB_API_BASE}/search/multi`, {
-      params,
-      timeout: 10000,
+      ...buildTMDBRequestConfig(credential, params),
     });
 
     const results: TMDBSearchResult[] = response.data.results || [];
-    const bestMatch = pickBestMultiSearchResult(results, year);
+    const bestMatch = pickBestMultiSearchResult(results, title, year);
     if (!bestMatch) {
       return { result: null, mediaType: null };
     }
 
     const detailsResult = await fetchTMDBSearchDetails(
       bestMatch,
-      apiKey,
+      credential,
       tmdbLanguage
     );
     if (detailsResult) {
@@ -945,6 +1438,7 @@ async function searchTMDBSingle(
 
     return buildTMDBSearchFallbackResult(bestMatch);
   } catch (error) {
+    throwIfTMDBAuthenticationError(error);
     logger.error(`Error searching TMDB multi for "${title}":`, error);
     return { result: null, mediaType: null };
   }
@@ -1067,13 +1561,13 @@ async function downloadPoster(
       timeout: 10000,
     });
 
-    // Normalize and validate save path to prevent path traversal
-    const normalizedSavePath = path.normalize(savePath);
-    const imagesDirNormalized = path.normalize(IMAGES_DIR);
-
-    if (!normalizedSavePath.startsWith(imagesDirNormalized)) {
+    let normalizedSavePath: string;
+    try {
+      normalizedSavePath = resolveSafePath(savePath, IMAGES_DIR);
+    } catch (error) {
       logger.error(
-        `Invalid save path (outside IMAGES_DIR): ${normalizedSavePath}`
+        `Invalid save path (outside IMAGES_DIR): ${savePath}`,
+        error
       );
       return false;
     }
@@ -1084,7 +1578,7 @@ async function downloadPoster(
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     await fs.writeFile(normalizedSavePath, response.data);
-    const relativePath = path.relative(imagesDirNormalized, normalizedSavePath);
+    const relativePath = path.relative(path.resolve(IMAGES_DIR), normalizedSavePath);
     await regenerateSmallThumbnailForThumbnailPath(
       `/images/${relativePath.replace(/\\/g, "/")}`,
     );
@@ -1097,6 +1591,92 @@ async function downloadPoster(
   }
 }
 
+function sanitizeThumbnailDirectory(relativeDirectory: string): string | null {
+  const normalizedDirectory = relativeDirectory.replace(/\\/g, "/").trim();
+  if (
+    !normalizedDirectory ||
+    normalizedDirectory === "." ||
+    normalizedDirectory === "/"
+  ) {
+    return "";
+  }
+
+  const rawSegments = normalizedDirectory
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  if (
+    rawSegments.some(
+      (segment) =>
+        segment === "." ||
+        segment === ".." ||
+        segment.includes("\0")
+    )
+  ) {
+    return null;
+  }
+
+  const sanitizedSegments = rawSegments
+    .map((segment) =>
+      segment.replace(/[^a-zA-Z0-9.\u4e00-\u9fff_-]/g, "_")
+    )
+    .filter((segment) => segment.length > 0);
+
+  if (sanitizedSegments.length === 0) {
+    return "";
+  }
+
+  return path.join(...sanitizedSegments);
+}
+
+function resolvePosterSaveLocation(
+  safeFilenameBase: string,
+  thumbnailFilename?: string
+): { absolutePath: string; relativePath: string } | null {
+  const fallbackRelativePath = `${safeFilenameBase}.jpg`;
+
+  let preferredRelativePath = fallbackRelativePath;
+  if (thumbnailFilename) {
+    const providedDir = path.dirname(thumbnailFilename);
+    const safeDir = sanitizeThumbnailDirectory(providedDir);
+
+    if (safeDir === null) {
+      logger.warn(
+        `Ignoring unsafe thumbnail directory from "${thumbnailFilename}", using root images directory`
+      );
+    } else if (safeDir) {
+      preferredRelativePath = `${safeDir.replace(/\\/g, "/")}/${fallbackRelativePath}`;
+    }
+  }
+
+  for (const candidateRelativePath of [
+    preferredRelativePath,
+    fallbackRelativePath,
+  ]) {
+    try {
+      const absolutePath = resolveSafeChildPath(
+        IMAGES_DIR,
+        candidateRelativePath
+      );
+
+      return {
+        absolutePath,
+        relativePath: path
+          .relative(path.resolve(IMAGES_DIR), absolutePath)
+          .replace(/\\/g, "/"),
+      };
+    } catch (error) {
+      logger.error(
+        `Invalid thumbnail path candidate: ${candidateRelativePath}`,
+        error
+      );
+    }
+  }
+
+  return null;
+}
+
 /**
  * Multi-strategy search for TMDB metadata using fallback mechanisms
  * Tries multiple titles and search strategies to find best match
@@ -1104,7 +1684,7 @@ async function downloadPoster(
  */
 async function searchTMDBMultiStrategyUncached(
   parsed: ParsedFilename,
-  apiKey: string,
+  credential: string,
   language?: string
 ): Promise<MultiStrategySearchResult> {
   const titles = parsed.titles.length > 0 ? parsed.titles : ["Unknown"];
@@ -1117,210 +1697,239 @@ async function searchTMDBMultiStrategyUncached(
     }, Language: ${language || "en"}`
   );
 
-  // Strategy 1: Try TMDB multi-search API with each title + year (most efficient)
-  // Try longer/multi-word titles first, then shorter ones
-  const sortedTitles = [...titles].sort((a, b) => {
-    // Prioritize multi-word titles (containing spaces)
-    const aHasSpace = a.includes(" ");
-    const bHasSpace = b.includes(" ");
-    if (aHasSpace && !bHasSpace) return -1;
-    if (!aHasSpace && bHasSpace) return 1;
-    // Then by length (longer first)
-    return b.length - a.length;
-  });
+  try {
+    // Strategy 1: Try TMDB multi-search API with each title + year (most efficient)
+    // Prefer pure CJK titles first, then bilingual titles, then longer English titles.
+    const sortedTitles = [...titles].sort((a, b) => {
+      const priorityDiff = getSearchTitlePriority(a) - getSearchTitlePriority(b);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+      return b.length - a.length;
+    });
 
-  if (parsed.year && sortedTitles.length > 0) {
-    // Try each title with year (prioritize longer/multi-word)
-    for (const title of sortedTitles) {
-      logger.info(
-        `[TMDB Multi-Strategy] Strategy 1: Multi-search with "${title}" + year ${parsed.year}`
-      );
-      const multiResult = await searchTMDBSingle(
-        title,
-        apiKey,
-        parsed.year,
-        language
-      );
-      if (multiResult.result) {
-        // Verify the match makes sense (year should be close)
-        let yearMatch = true;
-        if (
-          multiResult.mediaType === "movie" &&
-          "release_date" in multiResult.result &&
-          multiResult.result.release_date
-        ) {
-          const resultYear = parseInt(
-            multiResult.result.release_date.substring(0, 4),
-            10
-          );
-          yearMatch =
-            resultYear === parsed.year ||
-            Math.abs(resultYear - parsed.year) <= 1;
-        } else if (
-          multiResult.mediaType === "tv" &&
-          "first_air_date" in multiResult.result &&
-          multiResult.result.first_air_date
-        ) {
-          const resultYear = parseInt(
-            multiResult.result.first_air_date.substring(0, 4),
-            10
-          );
-          yearMatch =
-            resultYear === parsed.year ||
-            Math.abs(resultYear - parsed.year) <= 1;
-        }
+    if (parsed.year && sortedTitles.length > 0) {
+      // Try each title with year (prioritize longer/multi-word)
+      for (const title of sortedTitles) {
+        logger.info(
+          `[TMDB Multi-Strategy] Strategy 1: Multi-search with "${title}" + year ${parsed.year}`
+        );
+        const multiResult = await searchTMDBSingle(
+          title,
+          credential,
+          parsed.year,
+          language
+        );
+        if (multiResult.result) {
+          // Verify the match makes sense (year should be close)
+          let yearMatch = true;
+          if (
+            multiResult.mediaType === "movie" &&
+            "release_date" in multiResult.result &&
+            multiResult.result.release_date
+          ) {
+            const resultYear = parseInt(
+              multiResult.result.release_date.substring(0, 4),
+              10
+            );
+            yearMatch =
+              resultYear === parsed.year ||
+              Math.abs(resultYear - parsed.year) <= 1;
+          } else if (
+            multiResult.mediaType === "tv" &&
+            "first_air_date" in multiResult.result &&
+            multiResult.result.first_air_date
+          ) {
+            const resultYear = parseInt(
+              multiResult.result.first_air_date.substring(0, 4),
+              10
+            );
+            yearMatch =
+              resultYear === parsed.year ||
+              Math.abs(resultYear - parsed.year) <= 1;
+          }
 
-        if (yearMatch) {
-          logger.info(
-            `[TMDB Multi-Strategy] Strategy 1 succeeded: Found ${multiResult.mediaType} match for "${title}"`
-          );
-          return { ...multiResult, strategy: "multi-search-with-year" };
-        } else {
-          logger.info(
-            `[TMDB Multi-Strategy] Strategy 1: Year mismatch for "${title}", trying next title...`
-          );
+          if (yearMatch) {
+            logger.info(
+              `[TMDB Multi-Strategy] Strategy 1 succeeded: Found ${multiResult.mediaType} match for "${title}"`
+            );
+            return { ...multiResult, strategy: "multi-search-with-year" };
+          } else {
+            logger.info(
+              `[TMDB Multi-Strategy] Strategy 1: Year mismatch for "${title}", trying next title...`
+            );
+          }
         }
       }
     }
-  }
 
-  // Strategy 2: Try each title with year on dedicated endpoints
-  for (const title of titles) {
-    if (parsed.year) {
-      if (parsed.isTVShow) {
-        logger.info(
-          `[TMDB Multi-Strategy] Strategy 2a: TV search "${title}" + year ${parsed.year}`
-        );
-        const tvResult = await searchTVShow(title, apiKey, language);
-        if (tvResult && tvResult.first_air_date) {
-          const resultYear = parseInt(
-            tvResult.first_air_date.substring(0, 4),
-            10
+    // Strategy 2: Try each title with year on dedicated endpoints
+    for (const title of titles) {
+      if (parsed.year) {
+        if (parsed.isTVShow) {
+          logger.info(
+            `[TMDB Multi-Strategy] Strategy 2a: TV search "${title}" + year ${parsed.year}`
           );
-          if (
-            resultYear === parsed.year ||
-            Math.abs(resultYear - parsed.year) <= 1
-          ) {
+          const tvResult = await searchTVShow(title, credential, language);
+          if (tvResult && tvResult.first_air_date) {
+            const resultYear = parseInt(
+              tvResult.first_air_date.substring(0, 4),
+              10
+            );
+            if (
+              resultYear === parsed.year ||
+              Math.abs(resultYear - parsed.year) <= 1
+            ) {
+              logger.info(
+                `[TMDB Multi-Strategy] Strategy 2a succeeded: Found TV match`
+              );
+              // Get director from full details
+              const details = await getTVShowDetails(
+                tvResult.id,
+                credential,
+                mapLanguageToTMDB(language)
+              );
+              return {
+                result: tvResult,
+                mediaType: "tv",
+                strategy: "tv-search-with-year",
+                director: details?.director,
+              };
+            }
+          }
+        } else {
+          logger.info(
+            `[TMDB Multi-Strategy] Strategy 2b: Movie search "${title}" + year ${parsed.year}`
+          );
+          const movieResult = await searchMovie(
+            title,
+            credential,
+            parsed.year,
+            language
+          );
+          if (movieResult) {
             logger.info(
-              `[TMDB Multi-Strategy] Strategy 2a succeeded: Found TV match`
+              `[TMDB Multi-Strategy] Strategy 2b succeeded: Found movie match`
             );
             // Get director from full details
-            const details = await getTVShowDetails(tvResult.id, apiKey, mapLanguageToTMDB(language));
+            const details = await getMovieDetails(
+              movieResult.id,
+              credential,
+              mapLanguageToTMDB(language)
+            );
             return {
-              result: tvResult,
-              mediaType: "tv",
-              strategy: "tv-search-with-year",
+              result: movieResult,
+              mediaType: "movie",
+              strategy: "movie-search-with-year",
               director: details?.director,
             };
           }
         }
+      }
+    }
+
+    // Strategy 3: Try TMDB multi-search without year constraint
+    for (const title of titles) {
+      logger.info(
+        `[TMDB Multi-Strategy] Strategy 3: Multi-search "${title}" (no year)`
+      );
+      const multiResult = await searchTMDBSingle(
+        title,
+        credential,
+        undefined,
+        language
+      );
+      if (multiResult.result) {
+        logger.info(
+          `[TMDB Multi-Strategy] Strategy 3 succeeded: Found ${multiResult.mediaType} match`
+        );
+        return { ...multiResult, strategy: "multi-search-no-year" };
+      }
+    }
+
+    // Strategy 4: Try each title without year on dedicated endpoints
+    for (const title of titles) {
+      if (parsed.isTVShow) {
+        logger.info(
+          `[TMDB Multi-Strategy] Strategy 4a: TV search "${title}" (no year)`
+        );
+        const tvResult = await searchTVShow(title, credential, language);
+        if (tvResult) {
+          logger.info(
+            `[TMDB Multi-Strategy] Strategy 4a succeeded: Found TV match`
+          );
+          // Get director from full details
+          const details = await getTVShowDetails(
+            tvResult.id,
+            credential,
+            mapLanguageToTMDB(language)
+          );
+          return {
+            result: tvResult,
+            mediaType: "tv",
+            strategy: "tv-search-no-year",
+            director: details?.director,
+          };
+        }
       } else {
         logger.info(
-          `[TMDB Multi-Strategy] Strategy 2b: Movie search "${title}" + year ${parsed.year}`
+          `[TMDB Multi-Strategy] Strategy 4b: Movie search "${title}" (no year)`
         );
         const movieResult = await searchMovie(
           title,
-          apiKey,
-          parsed.year,
+          credential,
+          undefined,
           language
         );
         if (movieResult) {
           logger.info(
-            `[TMDB Multi-Strategy] Strategy 2b succeeded: Found movie match`
+            `[TMDB Multi-Strategy] Strategy 4b succeeded: Found movie match`
           );
           // Get director from full details
-          const details = await getMovieDetails(movieResult.id, apiKey, mapLanguageToTMDB(language));
+          const details = await getMovieDetails(
+            movieResult.id,
+            credential,
+            mapLanguageToTMDB(language)
+          );
           return {
             result: movieResult,
             mediaType: "movie",
-            strategy: "movie-search-with-year",
+            strategy: "movie-search-no-year",
             director: details?.director,
           };
         }
       }
     }
-  }
 
-  // Strategy 3: Try TMDB multi-search without year constraint
-  for (const title of titles) {
-    logger.info(
-      `[TMDB Multi-Strategy] Strategy 3: Multi-search "${title}" (no year)`
-    );
-    const multiResult = await searchTMDBSingle(
-      title,
-      apiKey,
-      undefined,
-      language
-    );
-    if (multiResult.result) {
-      logger.info(
-        `[TMDB Multi-Strategy] Strategy 3 succeeded: Found ${multiResult.mediaType} match`
-      );
-      return { ...multiResult, strategy: "multi-search-no-year" };
-    }
-  }
-
-  // Strategy 4: Try each title without year on dedicated endpoints
-  for (const title of titles) {
-    if (parsed.isTVShow) {
-      logger.info(
-        `[TMDB Multi-Strategy] Strategy 4a: TV search "${title}" (no year)`
-      );
-      const tvResult = await searchTVShow(title, apiKey, language);
-      if (tvResult) {
+    // Strategy 5: Fuzzy matching - try simplified titles (remove special characters)
+    for (const title of titles) {
+      const simplifiedTitle = title.replace(/[^\w\s\u4e00-\u9fff]/g, "").trim();
+      if (simplifiedTitle !== title && simplifiedTitle.length >= 3) {
         logger.info(
-          `[TMDB Multi-Strategy] Strategy 4a succeeded: Found TV match`
+          `[TMDB Multi-Strategy] Strategy 5: Fuzzy search "${simplifiedTitle}"`
         );
-        // Get director from full details
-        const details = await getTVShowDetails(tvResult.id, apiKey, mapLanguageToTMDB(language));
-        return {
-          result: tvResult,
-          mediaType: "tv",
-          strategy: "tv-search-no-year",
-          director: details?.director,
-        };
-      }
-    } else {
-      logger.info(
-        `[TMDB Multi-Strategy] Strategy 4b: Movie search "${title}" (no year)`
-      );
-      const movieResult = await searchMovie(title, apiKey, undefined, language);
-      if (movieResult) {
-        logger.info(
-          `[TMDB Multi-Strategy] Strategy 4b succeeded: Found movie match`
+        const fuzzyResult = await searchTMDBSingle(
+          simplifiedTitle,
+          credential,
+          parsed.year,
+          language
         );
-        // Get director from full details
-        const details = await getMovieDetails(movieResult.id, apiKey, mapLanguageToTMDB(language));
-        return {
-          result: movieResult,
-          mediaType: "movie",
-          strategy: "movie-search-no-year",
-          director: details?.director,
-        };
+        if (fuzzyResult.result) {
+          logger.info(
+            `[TMDB Multi-Strategy] Strategy 5 succeeded: Found ${fuzzyResult.mediaType} match`
+          );
+          return { ...fuzzyResult, strategy: "fuzzy-search" };
+        }
       }
     }
-  }
-
-  // Strategy 5: Fuzzy matching - try simplified titles (remove special characters)
-  for (const title of titles) {
-    const simplifiedTitle = title.replace(/[^\w\s\u4e00-\u9fff]/g, "").trim();
-    if (simplifiedTitle !== title && simplifiedTitle.length >= 3) {
-      logger.info(
-        `[TMDB Multi-Strategy] Strategy 5: Fuzzy search "${simplifiedTitle}"`
+  } catch (error) {
+    if (error instanceof TMDBAuthenticationError) {
+      logger.error(
+        `[TMDB Multi-Strategy] Authentication failed: ${error.message}`
       );
-      const fuzzyResult = await searchTMDBSingle(
-        simplifiedTitle,
-        apiKey,
-        parsed.year,
-        language
-      );
-      if (fuzzyResult.result) {
-        logger.info(
-          `[TMDB Multi-Strategy] Strategy 5 succeeded: Found ${fuzzyResult.mediaType} match`
-        );
-        return { ...fuzzyResult, strategy: "fuzzy-search" };
-      }
+      return { result: null, mediaType: null, strategy: "auth-failed" };
     }
+    throw error;
   }
 
   logger.info(`[TMDB Multi-Strategy] All strategies failed for filename`);
@@ -1389,10 +1998,19 @@ export async function scrapeMetadataFromTMDB(
 } | null> {
   try {
     const settings = getSettings();
-    const tmdbApiKey = settings.tmdbApiKey || process.env.TMDB_API_KEY;
+    const tmdbApiKey = normalizeTMDBCredential(
+      settings.tmdbApiKey || process.env.TMDB_API_KEY || ""
+    );
 
     if (!tmdbApiKey) {
       logger.warn("TMDB API key not configured. Skipping metadata scraping.");
+      return null;
+    }
+
+    if (isLikelyGenericCaptureFilename(filename)) {
+      logger.info(
+        `[TMDB Scrape] Skipping TMDB lookup for generic capture filename "${filename}"`
+      );
       return null;
     }
 
@@ -1418,6 +2036,12 @@ export async function scrapeMetadataFromTMDB(
     );
 
     if (!searchResult.result) {
+      if (searchResult.strategy === "auth-failed") {
+        logger.warn(
+          "TMDB authentication failed. Check whether the configured TMDB credential is a valid API key or Read Access Token."
+        );
+        return null;
+      }
       logger.info(
         `[TMDB Scrape] No TMDB match found for "${filename}" (strategy: ${searchResult.strategy})`
       );
@@ -1482,88 +2106,27 @@ export async function scrapeMetadataFromTMDB(
         .replace(/[\/\\]/g, "_") // Remove path separators
         .substring(0, 200); // Limit total length
 
-      // Use provided thumbnailFilename directory structure if available, but use TMDB title for filename
-      let finalThumbnailFilename: string;
-      if (thumbnailFilename) {
-        const providedDir = path.dirname(thumbnailFilename);
-        if (providedDir !== "." && providedDir !== "/") {
-          // Preserve directory structure from provided filename
-          // But validate it's safe
-          const safeDir = providedDir.replace(
-            /[^a-zA-Z0-9.\u4e00-\u9fff-_\/]/g,
-            "_"
-          );
-          finalThumbnailFilename = path.join(
-            safeDir,
-            `${safeFilenameBase}.jpg`
-          );
-        } else {
-          // No subdirectory, use root images directory
-          finalThumbnailFilename = `${safeFilenameBase}.jpg`;
-        }
-      } else {
-        // No provided filename, generate from TMDB title
-        finalThumbnailFilename = `${safeFilenameBase}.jpg`;
+      const posterSaveLocation = resolvePosterSaveLocation(
+        safeFilenameBase,
+        thumbnailFilename
+      );
+      if (!posterSaveLocation) {
+        logger.error("Unable to resolve a safe poster save location.");
+        return metadata;
       }
 
-      // Normalize and validate path to prevent path traversal
-      const posterSavePath = path.join(IMAGES_DIR, finalThumbnailFilename);
-      const normalizedSavePath = path.normalize(posterSavePath);
-      const imagesDirNormalized = path.normalize(IMAGES_DIR);
+      const downloaded = await downloadPoster(
+        result.poster_path,
+        posterSaveLocation.absolutePath
+      );
 
-      // Ensure the path is within IMAGES_DIR (critical path traversal protection)
-      if (!normalizedSavePath.startsWith(imagesDirNormalized)) {
-        logger.error(
-          `Invalid thumbnail path (outside IMAGES_DIR): ${normalizedSavePath}. Using safe filename only.`
-        );
-        // Fallback to filename only (no subdirectory) - most safe option
-        const fallbackBase = safeFilenameBase.replace(/[\/\\]/g, "_");
-        finalThumbnailFilename = `${fallbackBase}.jpg`;
-        // Rebuild path with fallback filename
-        const fallbackPath = path.join(IMAGES_DIR, finalThumbnailFilename);
-        const normalizedFallbackPath = path.normalize(fallbackPath);
-        if (!normalizedFallbackPath.startsWith(imagesDirNormalized)) {
-          logger.error(
-            `Fallback path still invalid: ${normalizedFallbackPath}`
-          );
-          return metadata; // Return metadata without thumbnail if path is unsafe
-        }
-
-        const downloaded = await downloadPoster(
-          result.poster_path,
-          normalizedFallbackPath
-        );
-
-        if (downloaded) {
-          const savedFilename = path.basename(normalizedFallbackPath);
-          metadata.thumbnailPath = `/images/${savedFilename}`;
-          metadata.thumbnailUrl = `/images/${savedFilename}`;
-          // Store the actual filename used for the scanController
-          (metadata as any).thumbnailFilename = savedFilename;
-        }
-      } else {
-        // Path is safe, use it
-        const downloaded = await downloadPoster(
-          result.poster_path,
-          normalizedSavePath
-        );
-
-        if (downloaded) {
-          // Calculate relative path from IMAGES_DIR for web path
-          const relativePath = path.relative(
-            imagesDirNormalized,
-            normalizedSavePath
-          );
-          const webPath = `/images/${relativePath.replace(/\\/g, "/")}`;
-          metadata.thumbnailPath = webPath;
-          metadata.thumbnailUrl = webPath;
-          // Store the actual filename (relative path) used for the scanController
-          // This includes subdirectory if the file was saved in one
-          (metadata as any).thumbnailFilename = relativePath.replace(
-            /\\/g,
-            "/"
-          );
-        }
+      if (downloaded) {
+        const webPath = `/images/${posterSaveLocation.relativePath}`;
+        metadata.thumbnailPath = webPath;
+        metadata.thumbnailUrl = webPath;
+        // Store the actual filename (relative path) used for the scanController
+        // This includes subdirectory if the file was saved in one
+        (metadata as any).thumbnailFilename = posterSaveLocation.relativePath;
       }
     }
 

@@ -5,6 +5,7 @@ const {
   staticMock,
   ensureSmallThumbnailForRelativePathMock,
   getThumbnailRelativePathMock,
+  pathExistsMock,
 } = vi.hoisted(() => ({
   staticMock: vi.fn((dir: string, options?: any) => ({
     dir,
@@ -12,6 +13,7 @@ const {
   })),
   ensureSmallThumbnailForRelativePathMock: vi.fn(),
   getThumbnailRelativePathMock: vi.fn(),
+  pathExistsMock: vi.fn(),
 }));
 
 vi.mock("express", () => {
@@ -28,6 +30,13 @@ vi.mock("../../services/thumbnailMirrorService", () => ({
   getThumbnailRelativePath: getThumbnailRelativePathMock,
 }));
 
+vi.mock("fs-extra", () => ({
+  default: {
+    pathExists: pathExistsMock,
+  },
+  pathExists: pathExistsMock,
+}));
+
 import {
   registerSpaFallback,
   registerStaticRoutes,
@@ -38,6 +47,7 @@ describe("server/staticRoutes", () => {
     vi.clearAllMocks();
     ensureSmallThumbnailForRelativePathMock.mockResolvedValue(null);
     getThumbnailRelativePathMock.mockImplementation((value: string) => value);
+    pathExistsMock.mockResolvedValue(false);
   });
 
   it("should register static mounts and set headers for media files", () => {
@@ -175,6 +185,53 @@ describe("server/staticRoutes", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.send).toHaveBeenCalledWith("Invalid image path");
     expect(ensureSmallThumbnailForRelativePathMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should fall back to the original thumbnail when images-small generation fails", async () => {
+    getThumbnailRelativePathMock.mockReturnValue("folder/poster.jpg");
+    ensureSmallThumbnailForRelativePathMock.mockRejectedValue(
+      new Error("EACCES: permission denied")
+    );
+    pathExistsMock.mockImplementation(async (target: string) =>
+      String(target).includes("/uploads/images/folder/poster.jpg")
+    );
+
+    const use = vi.fn();
+    const get = vi.fn();
+    const app = { use, get } as any;
+    registerStaticRoutes(app, "/frontend-dist");
+
+    const smallImageHandler = get.mock.calls[0][1];
+    const sendFile = vi.fn((_path: string, cb?: (err?: Error | null) => void) => {
+      cb?.(null);
+    });
+    const res = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      setHeader: vi.fn(),
+      sendFile,
+    };
+    const next = vi.fn();
+
+    smallImageHandler(
+      {
+        path: "/images-small/folder/poster.jpg",
+        params: { 0: "folder/poster.jpg" },
+      } as any,
+      res,
+      next,
+    );
+
+    await vi.waitFor(() => {
+      expect(sendFile).toHaveBeenCalled();
+    });
+
+    expect(sendFile).toHaveBeenCalledWith(
+      expect.stringContaining("/uploads/images/folder/poster.jpg"),
+      expect.any(Function),
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Access-Control-Allow-Origin", "*");
     expect(next).not.toHaveBeenCalled();
   });
 

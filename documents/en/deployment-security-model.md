@@ -131,6 +131,18 @@ environment:
   - MYTUBE_ADMIN_TRUST_LEVEL=host
 ```
 
+Permission note for upgrades:
+
+- since v1.9.0, the backend container runs as the non-root `node` user (`uid/gid 1000`)
+- if you are upgrading an older bind-mounted deployment created before v1.9.0, make sure the host-side mounted `uploads` and `data` directories are writable by `uid/gid 1000`
+- this also applies to existing subdirectories such as `uploads/images-small`; if they are still owned by `root`, thumbnail generation or scans can fail with `EACCES`
+
+Example fix on the host:
+
+```bash
+chown -R 1000:1000 /path/to/mytube/uploads /path/to/mytube/data
+```
+
 ### Local Source Run
 
 ```bash

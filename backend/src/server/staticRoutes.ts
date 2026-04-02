@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from "express";
+import fs from "fs-extra";
 import path from "path";
 import {
   AVATARS_DIR,
@@ -12,10 +13,33 @@ import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
 } from "../services/thumbnailMirrorService";
+import { resolveSafeChildPath } from "../utils/security";
 
 const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("X-Content-Type-Options", "nosniff");
+};
+
+const resolveOriginalThumbnailAbsolutePath = async (
+  relativePath: string,
+): Promise<string | null> => {
+  const candidates: string[] = [];
+
+  for (const baseDir of [IMAGES_DIR, VIDEOS_DIR]) {
+    try {
+      candidates.push(resolveSafeChildPath(baseDir, relativePath));
+    } catch {
+      // Ignore traversal attempts and continue checking other managed roots.
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (await fs.pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 };
 
 const ensureSmallThumbnail = async (
@@ -23,21 +47,34 @@ const ensureSmallThumbnail = async (
   res: Response,
   next: express.NextFunction,
 ): Promise<void> => {
+  const wildcardPath = req.params?.["0"];
+  const relativePath = getThumbnailRelativePath(
+    typeof wildcardPath === "string" ? wildcardPath : req.path,
+  );
+
+  if (!relativePath) {
+    res.status(400).send("Invalid image path");
+    return;
+  }
+
   try {
-    const wildcardPath = req.params?.["0"];
-    const relativePath = getThumbnailRelativePath(
-      typeof wildcardPath === "string" ? wildcardPath : req.path,
-    );
-
-    if (!relativePath) {
-      res.status(400).send("Invalid image path");
-      return;
-    }
-
     await ensureSmallThumbnailForRelativePath(relativePath);
     next();
   } catch (error) {
-    next(error);
+    const fallbackAbsolutePath = await resolveOriginalThumbnailAbsolutePath(
+      relativePath,
+    );
+    if (!fallbackAbsolutePath) {
+      next(error);
+      return;
+    }
+
+    setCommonImageHeaders(res);
+    res.sendFile(fallbackAbsolutePath, (sendFileError) => {
+      if (sendFileError) {
+        next(sendFileError);
+      }
+    });
   }
 };
 

@@ -62,6 +62,16 @@ describe("settingsValidationService", () => {
       expect(settings.twitchClientSecret).toBe("client-secret");
     });
 
+    it("should validate tmdbApiKey without mutating the input object", () => {
+      const settings: any = {
+        tmdbApiKey: "  tmdb-token  ",
+      };
+
+      settingsValidationService.validateSettings(settings);
+
+      expect(settings.tmdbApiKey).toBe("  tmdb-token  ");
+    });
+
     it("should reject partial or invalid Twitch client credentials", () => {
       expect(() => {
         settingsValidationService.validateSettings({

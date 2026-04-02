@@ -15,12 +15,15 @@ import { errorResponse, sendBadRequest, successResponse } from "../utils/respons
 import {
   execFileSafe,
   isPathWithinDirectory,
+  imagePathExists,
+  removeImagePath,
   resolveSafePath,
-  validateImagePath,
 } from "../utils/security";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
 const DEFAULT_SCAN_FILE_CONCURRENCY = 3;
+const DEFAULT_SCAN_FFPROBE_TIMEOUT_MS = 15000;
+const DEFAULT_SCAN_FFMPEG_TIMEOUT_MS = 30000;
 
 const SCAN_FILE_CONCURRENCY = (() => {
   const configured = Number(
@@ -30,6 +33,26 @@ const SCAN_FILE_CONCURRENCY = (() => {
     return Math.floor(configured);
   }
   return DEFAULT_SCAN_FILE_CONCURRENCY;
+})();
+
+const SCAN_FFPROBE_TIMEOUT_MS = (() => {
+  const configured = Number(
+    process.env.SCAN_FFPROBE_TIMEOUT_MS || DEFAULT_SCAN_FFPROBE_TIMEOUT_MS
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_SCAN_FFPROBE_TIMEOUT_MS;
+})();
+
+const SCAN_FFMPEG_TIMEOUT_MS = (() => {
+  const configured = Number(
+    process.env.SCAN_FFMPEG_TIMEOUT_MS || DEFAULT_SCAN_FFMPEG_TIMEOUT_MS
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_SCAN_FFMPEG_TIMEOUT_MS;
 })();
 
 type ProcessDirectoryOptions = {
@@ -229,7 +252,7 @@ const extractDuration = async (
       "-of",
       "default=noprint_wrappers=1:nokey=1",
       safeFilePath,
-    ]);
+    ], { timeout: SCAN_FFPROBE_TIMEOUT_MS });
 
     const durationOutput = stdout.trim();
     if (!durationOutput) {
@@ -249,28 +272,59 @@ const extractDuration = async (
 };
 
 const maybeGenerateThumbnail = async (
-  safeFilePath: string,
-  tempThumbnailPath: string
-): Promise<void> => {
+  safeFilePath: string
+): Promise<string | null> => {
+  const baseThumbnailDir = path.resolve(IMAGES_DIR);
+  const joinedThumbnailPath = path.join(
+    baseThumbnailDir,
+    `.scan-${crypto.randomUUID()}.jpg`
+  );
+  const normalizedThumbnailPath = path.normalize(joinedThumbnailPath);
+
+  if (!normalizedThumbnailPath.startsWith(`${baseThumbnailDir}${path.sep}`)) {
+    throw new Error("Generated thumbnail path escapes images directory");
+  }
+
   try {
-    const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
     await execFileSafe("ffmpeg", [
+      "-nostdin",
+      "-y",
       "-i",
       safeFilePath,
       "-ss",
       "00:00:00",
       "-vframes",
       "1",
-      validatedThumbnailPath,
-    ]);
+      "-update",
+      "1",
+      normalizedThumbnailPath,
+    ], { timeout: SCAN_FFMPEG_TIMEOUT_MS });
+
+    const thumbnailExists = await imagePathExists(normalizedThumbnailPath);
+    if (!thumbnailExists) {
+      throw new Error("Generated thumbnail file does not exist");
+    }
+
+    return normalizedThumbnailPath;
   } catch (error) {
+    try {
+      if (await imagePathExists(normalizedThumbnailPath)) {
+        await removeImagePath(normalizedThumbnailPath);
+      }
+    } catch (cleanupError) {
+      logger.warn("Failed to clean up invalid generated thumbnail", {
+        thumbnailPath: normalizedThumbnailPath,
+        error:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError),
+      });
+    }
+
     logger.error("Error generating thumbnail:", error);
+    return null;
   }
 };
-
-
-
-
 const processSingleVideoFile = async (
   filePath: string,
   normalizedDirectory: string,
@@ -326,13 +380,12 @@ const processSingleVideoFile = async (
 
   const thumbnailBaseName = path.parse(filename).name;
   const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
-  const tempThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
 
   const safeFilePath = getSafeFilePathForProcessing(filePath, isMountDirectory);
-
-  if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl && safeFilePath) {
-    await maybeGenerateThumbnail(safeFilePath, tempThumbnailPath);
-  }
+  const tempThumbnailPath =
+    !tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl && safeFilePath
+      ? await maybeGenerateThumbnail(safeFilePath)
+      : null;
 
   const duration = safeFilePath
     ? await extractDuration(safeFilePath)
