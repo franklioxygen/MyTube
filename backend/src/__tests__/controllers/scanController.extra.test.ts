@@ -15,7 +15,6 @@ import {
   isPathWithinDirectory,
   removeImagePath,
   resolveSafePath,
-  statImagePath,
 } from "../../utils/security";
 
 vi.mock("../../services/storageService", () => ({
@@ -50,7 +49,6 @@ vi.mock("../../utils/security", () => ({
     `${baseDir}${path.sep}${childPath}`
   ),
   resolveSafePath: vi.fn((target: string) => target),
-  statImagePath: vi.fn(async () => ({ size: 100 })),
   validateImagePath: vi.fn((target: string) => target),
 }));
 
@@ -353,9 +351,6 @@ describe("scanController extra coverage", () => {
     vi.mocked(removeImagePath).mockImplementation(async (target: any) => {
       existingPaths.delete(String(target));
     });
-    vi.mocked(statImagePath).mockResolvedValue({
-      size: 100,
-    } as any);
 
     vi.mocked(fs.readdir).mockImplementation(async (target: any) => {
       if (String(target) === "/mnt/library") {

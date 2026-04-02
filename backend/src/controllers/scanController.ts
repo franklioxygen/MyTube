@@ -18,7 +18,6 @@ import {
   imagePathExists,
   removeImagePath,
   resolveSafePath,
-  statImagePath,
 } from "../utils/security";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
@@ -304,11 +303,6 @@ const maybeGenerateThumbnail = async (
     const thumbnailExists = await imagePathExists(normalizedThumbnailPath);
     if (!thumbnailExists) {
       throw new Error("Generated thumbnail file does not exist");
-    }
-
-    const generatedThumbnailStats = await statImagePath(normalizedThumbnailPath);
-    if (generatedThumbnailStats.size <= 0) {
-      throw new Error("Generated thumbnail file is empty");
     }
 
     return normalizedThumbnailPath;

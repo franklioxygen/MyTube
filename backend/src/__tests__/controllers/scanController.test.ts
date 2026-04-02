@@ -49,7 +49,6 @@ vi.mock('../../utils/security', () => ({
   removeImagePath: vi.fn().mockResolvedValue(undefined),
   resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => `${baseDir}/${childPath}`),
   resolveSafePath: vi.fn((path: string) => path),
-  statImagePath: vi.fn().mockResolvedValue({ size: 1024 }),
   validateImagePath: vi.fn((path: string) => path),
 }));
 vi.mock('child_process');

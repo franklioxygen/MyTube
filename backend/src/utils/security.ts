@@ -241,15 +241,6 @@ export async function imagePathExists(filePath: string): Promise<boolean> {
   return fs.pathExists(validateImagePath(filePath));
 }
 
-export async function statImagePath(filePath: string): Promise<fs.Stats> {
-  const basePath = path.normalize(IMAGES_DIR) + path.sep;
-  const safePath = path.normalize(validateImagePath(filePath));
-  if (!safePath.startsWith(basePath)) {
-    throw new Error(`Path traversal detected: ${filePath} is outside ${IMAGES_DIR}`);
-  }
-  return fs.stat(safePath);
-}
-
 export async function removeImagePath(filePath: string): Promise<void> {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.remove(validateImagePath(filePath));
