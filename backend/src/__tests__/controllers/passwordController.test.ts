@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as passwordController from '../../controllers/passwordController';
 import * as authService from '../../services/authService';
+import * as csrfMiddleware from '../../middleware/csrfMiddleware';
 import * as passwordService from '../../services/passwordService';
 
 // Mock dependencies
@@ -9,6 +10,9 @@ vi.mock('../../services/passwordService');
 vi.mock('../../services/authService', () => ({
   setAuthCookie: vi.fn(),
   clearAuthCookie: vi.fn(),
+}));
+vi.mock('../../middleware/csrfMiddleware', () => ({
+  refreshCsrfTokenForSession: vi.fn(),
 }));
 vi.mock('../../utils/logger'); // if used
 
@@ -22,7 +26,7 @@ describe('passwordController', () => {
     vi.clearAllMocks();
     jsonMock = vi.fn();
     statusMock = vi.fn().mockReturnValue({ json: jsonMock });
-    mockReq = {};
+    mockReq = { cookies: {} };
     mockRes = {
       json: jsonMock,
       status: statusMock,
@@ -65,11 +69,17 @@ describe('passwordController', () => {
         token: 'mock-token', 
         role: 'admin' 
       });
+      vi.mocked(authService.setAuthCookie).mockReturnValue('session-1');
 
       await passwordController.verifyPassword(mockReq as Request, mockRes as Response);
 
       expect(passwordService.verifyPassword).toHaveBeenCalledWith('pass');
       expect(authService.setAuthCookie).toHaveBeenCalledWith(mockRes, 'mock-token', 'admin');
+      expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        'session-1'
+      );
       expect(mockRes.json).toHaveBeenCalledWith({ success: true, role: 'admin' });
     });
 
@@ -99,6 +109,7 @@ describe('passwordController', () => {
         token: 'admin-token',
         role: 'admin',
       });
+      vi.mocked(authService.setAuthCookie).mockReturnValue('session-2');
 
       await passwordController.verifyAdminPassword(mockReq as Request, mockRes as Response);
 
@@ -107,6 +118,11 @@ describe('passwordController', () => {
         mockRes,
         'admin-token',
         'admin'
+      );
+      expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        'session-2'
       );
       expect(jsonMock).toHaveBeenCalledWith({ success: true, role: 'admin' });
     });
@@ -138,6 +154,7 @@ describe('passwordController', () => {
         token: 'visitor-token',
         role: 'visitor',
       });
+      vi.mocked(authService.setAuthCookie).mockReturnValue('session-3');
 
       await passwordController.verifyVisitorPassword(mockReq as Request, mockRes as Response);
 
@@ -146,6 +163,11 @@ describe('passwordController', () => {
         mockRes,
         'visitor-token',
         'visitor'
+      );
+      expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+        mockReq,
+        mockRes,
+        'session-3'
       );
       expect(jsonMock).toHaveBeenCalledWith({ success: true, role: 'visitor' });
     });
@@ -210,6 +232,10 @@ describe('passwordController', () => {
       await passwordController.logout(mockReq as Request, mockRes as Response);
 
       expect(authService.clearAuthCookie).toHaveBeenCalledWith(mockRes);
+      expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+        mockReq,
+        mockRes
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: true,
         message: 'Logged out successfully',

@@ -27,6 +27,20 @@ const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
   },
 });
 
+type CsrfTokenOptions = {
+  overwrite?: boolean;
+};
+
+const setCsrfTokenHeader = (
+  req: Request,
+  res: Response,
+  options: CsrfTokenOptions = {},
+): string => {
+  const token = generateCsrfToken(req, res, options);
+  res.setHeader("X-CSRF-Token", token);
+  return token;
+};
+
 /**
  * Middleware that generates a CSRF token and sets the cookie on every response.
  * The token value is exposed via the `X-CSRF-Token` response header so the
@@ -37,9 +51,41 @@ export const csrfTokenProvider = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const token = generateCsrfToken(req, res);
-  res.setHeader("X-CSRF-Token", token);
+  setCsrfTokenHeader(req, res);
   next();
+};
+
+/**
+ * Re-issues a CSRF token immediately after the auth session changes so the
+ * response carries a token bound to the new session identifier.
+ */
+export const refreshCsrfTokenForSession = (
+  req: Request,
+  res: Response,
+  sessionId?: string,
+): string => {
+  const authCookieName = getAuthCookieName();
+  // Keep req.cookies aligned with the session cookie we just issued/cleared on
+  // the response so the regenerated CSRF token is bound to the new session.
+  req.cookies = req.cookies ?? {};
+
+  if (sessionId) {
+    req.cookies[authCookieName] = sessionId;
+  } else {
+    delete req.cookies[authCookieName];
+  }
+
+  return setCsrfTokenHeader(req, res, { overwrite: true });
+};
+
+export const isCsrfTokenError = (
+  error: unknown,
+): error is Error & { code: "EBADCSRFTOKEN" } => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return "code" in error && error.code === "EBADCSRFTOKEN";
 };
 
 /**

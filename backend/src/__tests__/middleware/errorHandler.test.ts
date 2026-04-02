@@ -153,6 +153,21 @@ describe('ErrorHandler Middleware', () => {
       });
     });
 
+    it('should handle csrf errors with 403 status', () => {
+      const error = Object.assign(new Error('invalid csrf token'), {
+        code: 'EBADCSRFTOKEN',
+      });
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.warn).toHaveBeenCalledWith('[CSRF] invalid csrf token');
+      expect(status).toHaveBeenCalledWith(403);
+      expect(json).toHaveBeenCalledWith({
+        error: 'invalid csrf token',
+        type: 'csrf',
+      });
+    });
+
     it('should include error message in development mode', () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
@@ -205,4 +220,3 @@ describe('ErrorHandler Middleware', () => {
     });
   });
 });
-

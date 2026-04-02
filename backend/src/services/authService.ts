@@ -87,7 +87,11 @@ export const getUserPayloadFromSession = (
  * Set HTTP-only cookie with opaque server-side session id
  * This avoids storing sensitive auth material in clear-text client cookies.
  */
-export const setAuthCookie = (res: Response, token: string, role: "admin" | "visitor"): void => {
+export const setAuthCookie = (
+  res: Response,
+  token: string,
+  role: "admin" | "visitor",
+): string => {
   const payload = verifyToken(token) ?? { role, id: uuidv4() };
   const sessionId = createSession(payload);
   const isSecure = process.env.SECURE_COOKIES === "true";
@@ -99,6 +103,8 @@ export const setAuthCookie = (res: Response, token: string, role: "admin" | "vis
     maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   });
+
+  return sessionId;
 };
 
 /**
