@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import crypto from "crypto";
 import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
@@ -66,12 +67,14 @@ vi.mock("fs-extra", () => ({
 
 describe("scanController extra coverage", () => {
   const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
+  let randomUuidSpy: ReturnType<typeof vi.spyOn>;
   let req: Partial<Request>;
   let res: Partial<Response>;
   let json: any;
   let status: any;
 
   afterEach(() => {
+    randomUuidSpy.mockRestore();
     if (originalTrustLevel === undefined) {
       delete process.env.MYTUBE_ADMIN_TRUST_LEVEL;
     } else {
@@ -81,6 +84,10 @@ describe("scanController extra coverage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    let uuidCounter = 0;
+    randomUuidSpy = vi
+      .spyOn(crypto, "randomUUID")
+      .mockImplementation(() => `uuid-${++uuidCounter}`);
     process.env.MYTUBE_ADMIN_TRUST_LEVEL = "host";
     json = vi.fn();
     status = vi.fn(() => ({ json }));
@@ -318,7 +325,7 @@ describe("scanController extra coverage", () => {
 
     const existingPaths = new Set<string>([
       "/mnt/library",
-      path.join(IMAGES_DIR, "new.jpg"),
+      path.join(IMAGES_DIR, ".scan-uuid-1.jpg"),
     ]);
 
     vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
@@ -356,7 +363,9 @@ describe("scanController extra coverage", () => {
 
     await scanMountDirectories(req as Request, res as Response);
 
-    expect(fs.remove).toHaveBeenCalledWith(path.join(IMAGES_DIR, "new.jpg"));
+    expect(fs.remove).toHaveBeenCalledWith(
+      path.join(IMAGES_DIR, ".scan-uuid-1.jpg")
+    );
     expect(storageService.saveVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         videoPath: "mount:/mnt/library/new.mp4",

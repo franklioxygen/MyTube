@@ -378,7 +378,10 @@ const processSingleVideoFile = async (
 
   const thumbnailBaseName = path.parse(filename).name;
   const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
-  const tempThumbnailPath = path.join(IMAGES_DIR, newThumbnailFilename);
+  const tempThumbnailPath = path.join(
+    IMAGES_DIR,
+    `.scan-${crypto.randomUUID()}.jpg`
+  );
 
   const safeFilePath = getSafeFilePathForProcessing(filePath, isMountDirectory);
 
