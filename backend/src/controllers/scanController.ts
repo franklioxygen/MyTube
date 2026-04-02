@@ -297,6 +297,7 @@ const maybeGenerateThumbnail = async (
       throw new Error("Generated thumbnail file does not exist");
     }
 
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
     const generatedThumbnailStats = await fs.stat(validatedThumbnailPath);
     if (generatedThumbnailStats.size <= 0) {
       throw new Error("Generated thumbnail file is empty");

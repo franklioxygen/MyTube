@@ -13,6 +13,7 @@ import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
 } from "../services/thumbnailMirrorService";
+import { resolveSafeChildPath } from "../utils/security";
 
 const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -22,10 +23,15 @@ const setCommonImageHeaders = (res: Response): void => {
 const resolveOriginalThumbnailAbsolutePath = async (
   relativePath: string,
 ): Promise<string | null> => {
-  const candidates = [
-    path.resolve(IMAGES_DIR, relativePath),
-    path.resolve(VIDEOS_DIR, relativePath),
-  ];
+  const candidates: string[] = [];
+
+  for (const baseDir of [IMAGES_DIR, VIDEOS_DIR]) {
+    try {
+      candidates.push(resolveSafeChildPath(baseDir, relativePath));
+    } catch {
+      // Ignore traversal attempts and continue checking other managed roots.
+    }
+  }
 
   for (const candidate of candidates) {
     if (await fs.pathExists(candidate)) {

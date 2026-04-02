@@ -4,7 +4,7 @@ import { IMAGES_DIR } from "../config/paths";
 import { scrapeMetadataFromTMDB } from "../services/tmdbService";
 import { regenerateSmallThumbnailForThumbnailPath } from "../services/thumbnailMirrorService";
 import { logger } from "../utils/logger";
-import { validateImagePath } from "../utils/security";
+import { resolveSafeChildPath, validateImagePath } from "../utils/security";
 
 export type TmdbMetadata = Awaited<ReturnType<typeof scrapeMetadataFromTMDB>>;
 
@@ -34,7 +34,10 @@ const resolveTmdbThumbnailHelper = async (
   ) {
     if (tmdbThumbnailFilename) {
       const tmdbFilePath = validateImagePath(
-        path.join(IMAGES_DIR, tmdbThumbnailFilename.split("/").join(path.sep))
+        resolveSafeChildPath(
+          IMAGES_DIR,
+          tmdbThumbnailFilename.split("/").join(path.sep)
+        )
       );
 
       if (await fs.pathExists(tmdbFilePath)) {
@@ -69,7 +72,7 @@ const resolveLocalThumbnail = async (
   targetThumbnailFilename: string
 ): Promise<ThumbnailResolution> => {
   const safeTargetThumbnailPath = validateImagePath(
-    path.join(IMAGES_DIR, targetThumbnailFilename)
+    resolveSafeChildPath(IMAGES_DIR, targetThumbnailFilename)
   );
   const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
 

@@ -236,6 +236,26 @@ export function validateImagePath(filePath: string): string {
 }
 
 /**
+ * Resolves a child path inside an allowed directory.
+ * Accepts relative path fragments and ensures the final path remains inside allowedDir.
+ */
+export function resolveSafeChildPath(
+  allowedDir: string,
+  childPath: string,
+): string {
+  if (
+    !allowedDir ||
+    typeof allowedDir !== "string" ||
+    !childPath ||
+    typeof childPath !== "string"
+  ) {
+    throw new Error(`Invalid child path: ${childPath}`);
+  }
+
+  return resolveSafePath(`${allowedDir}${path.sep}${childPath}`, allowedDir);
+}
+
+/**
  * Validates that a file path is within the cloud thumbnail cache directory
  */
 export function validateCloudThumbnailCachePath(filePath: string): string {

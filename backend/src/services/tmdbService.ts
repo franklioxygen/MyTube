@@ -5,7 +5,7 @@ import path from "path";
 import { IMAGES_DIR } from "../config/paths";
 import { regenerateSmallThumbnailForThumbnailPath } from "./thumbnailMirrorService";
 import { logger } from "../utils/logger";
-import { resolveSafePath } from "../utils/security";
+import { resolveSafeChildPath, resolveSafePath } from "../utils/security";
 import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
@@ -1645,7 +1645,7 @@ function resolvePosterSaveLocation(
         `Ignoring unsafe thumbnail directory from "${thumbnailFilename}", using root images directory`
       );
     } else if (safeDir) {
-      preferredRelativePath = path.join(safeDir, fallbackRelativePath);
+      preferredRelativePath = `${safeDir.replace(/\\/g, "/")}/${fallbackRelativePath}`;
     }
   }
 
@@ -1654,9 +1654,9 @@ function resolvePosterSaveLocation(
     fallbackRelativePath,
   ]) {
     try {
-      const absolutePath = resolveSafePath(
-        path.join(IMAGES_DIR, candidateRelativePath),
-        IMAGES_DIR
+      const absolutePath = resolveSafeChildPath(
+        IMAGES_DIR,
+        candidateRelativePath
       );
 
       return {

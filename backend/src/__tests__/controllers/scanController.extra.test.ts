@@ -40,6 +40,9 @@ vi.mock("../../utils/helpers", () => ({
 vi.mock("../../utils/security", () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: "61", stderr: "" }),
   isPathWithinDirectory: vi.fn(() => true),
+  resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) =>
+    `${baseDir}${path.sep}${childPath}`
+  ),
   resolveSafePath: vi.fn((target: string) => target),
   validateImagePath: vi.fn((target: string) => target),
 }));
