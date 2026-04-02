@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { setAuthCookie } from "../services/authService";
+import { refreshCsrfTokenForSession } from "../middleware/csrfMiddleware";
 import * as passkeyService from "../services/passkeyService";
 
 const requireAdminPasskeyRegistration = (
@@ -189,7 +190,8 @@ export const verifyAuthentication = async (
 
   if (result.verified && result.token && result.role) {
     // Set HTTP-only cookie with authentication token
-    setAuthCookie(res, result.token, result.role);
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
     // Return format expected by frontend: { success: boolean, role? }
     // Token is now in HTTP-only cookie, not in response body
     res.json({ success: true, role: result.role });

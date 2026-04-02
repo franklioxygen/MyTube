@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { clearAuthCookie, setAuthCookie } from "../services/authService";
+import { refreshCsrfTokenForSession } from "../middleware/csrfMiddleware";
 import * as passwordService from "../services/passwordService";
 
 type FailedAuthResult = {
@@ -48,7 +49,8 @@ export const verifyPassword = async (
 
   if (result.success && result.token && result.role) {
     // Set HTTP-only cookie with authentication token
-    setAuthCookie(res, result.token, result.role);
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
     // Return format expected by frontend: { success: boolean, role? }
     // Token is now in HTTP-only cookie, not in response body
     res.json({ 
@@ -75,7 +77,8 @@ export const verifyAdminPassword = async (
 
   if (result.success && result.token && result.role) {
     // Set HTTP-only cookie with authentication token
-    setAuthCookie(res, result.token, result.role);
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
     // Return format expected by frontend: { success: boolean, role? }
     // Token is now in HTTP-only cookie, not in response body
     res.json({ 
@@ -102,7 +105,8 @@ export const verifyVisitorPassword = async (
 
   if (result.success && result.token && result.role) {
     // Set HTTP-only cookie with authentication token
-    setAuthCookie(res, result.token, result.role);
+    const sessionId = setAuthCookie(res, result.token, result.role);
+    refreshCsrfTokenForSession(req, res, sessionId);
     // Return format expected by frontend: { success: boolean, role? }
     // Token is now in HTTP-only cookie, not in response body
     res.json({ 
@@ -139,9 +143,10 @@ export const confirmAdminPassword = async (
  * Errors are automatically handled by asyncHandler middleware
  */
 export const logout = async (
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> => {
   clearAuthCookie(res);
+  refreshCsrfTokenForSession(req, res);
   res.json({ success: true, message: "Logged out successfully" });
 };

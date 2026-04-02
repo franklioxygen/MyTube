@@ -43,11 +43,12 @@ describe('SettingsController', () => {
     vi.clearAllMocks();
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
-    req = {};
+    req = { cookies: {} };
     res = {
       json,
       status,
       cookie: vi.fn(),
+      setHeader: vi.fn(),
     };
   });
 

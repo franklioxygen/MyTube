@@ -2,11 +2,15 @@ import { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as passkeyController from "../../controllers/passkeyController";
 import * as authService from "../../services/authService";
+import * as csrfMiddleware from "../../middleware/csrfMiddleware";
 import * as passkeyService from "../../services/passkeyService";
 
 // Mock dependencies
 vi.mock("../../services/passkeyService");
 vi.mock("../../services/authService");
+vi.mock("../../middleware/csrfMiddleware", () => ({
+  refreshCsrfTokenForSession: vi.fn(),
+}));
 
 describe("PasskeyController", () => {
     let req: Partial<Request>;
@@ -22,6 +26,7 @@ describe("PasskeyController", () => {
         req = {
             params: {},
             body: {},
+            cookies: {},
             headers: {
                 origin: "http://localhost:3000",
                 host: "localhost:3000"
@@ -199,10 +204,16 @@ describe("PasskeyController", () => {
         it("should verify and set cookie", async () => {
              req.body = { body: {}, challenge: "c" };
              vi.mocked(passkeyService.verifyPasskeyAuthentication).mockResolvedValue({ verified: true, token: "t", role: "admin" });
+             vi.mocked(authService.setAuthCookie).mockReturnValue("session-1");
              
              await passkeyController.verifyAuthentication(req as Request, res as Response);
              
              expect(authService.setAuthCookie).toHaveBeenCalledWith(res, "t", "admin");
+             expect(csrfMiddleware.refreshCsrfTokenForSession).toHaveBeenCalledWith(
+               req,
+               res,
+               "session-1"
+             );
              expect(json).toHaveBeenCalledWith({ success: true, role: "admin" });
         });
 

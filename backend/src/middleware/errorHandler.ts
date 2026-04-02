@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { DownloadError, ServiceError } from "../errors/DownloadErrors";
+import { isCsrfTokenError } from "./csrfMiddleware";
 import { logger } from "../utils/logger";
 
 /**
@@ -53,6 +54,15 @@ export function errorHandler(
       error: err.message,
       type: err.type,
       recoverable: err.recoverable,
+    });
+    return;
+  }
+
+  if (isCsrfTokenError(err)) {
+    logger.warn(`[CSRF] ${err.message}`);
+    res.status(403).json({
+      error: err.message || "invalid csrf token",
+      type: "csrf",
     });
     return;
   }
