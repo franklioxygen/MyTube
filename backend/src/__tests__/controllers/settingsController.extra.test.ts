@@ -87,8 +87,14 @@ vi.mock("../../utils/logger", () => ({
 
 vi.mock("fs-extra", () => ({
   default: {
+    ensureDirSync: vi.fn(),
+    ensureFileSync: vi.fn(),
+    existsSync: vi.fn(() => true),
     writeFileSync: vi.fn(),
   },
+  ensureDirSync: vi.fn(),
+  ensureFileSync: vi.fn(),
+  existsSync: vi.fn(() => true),
   writeFileSync: vi.fn(),
 }));
 

@@ -158,10 +158,11 @@ function getTMDBCredentialAuthType(
 }
 
 function hashTMDBCredential(credential: string): string {
-  return crypto
-    .createHash("sha256")
-    .update(normalizeTMDBCredential(credential))
-    .digest("hex");
+  return crypto.scryptSync(
+    normalizeTMDBCredential(credential),
+    "mytube:tmdb-cache-key",
+    32
+  ).toString("hex");
 }
 
 function requireTMDBCredential(credential: string): string {
