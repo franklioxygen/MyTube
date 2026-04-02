@@ -15,7 +15,10 @@ import { errorResponse, sendBadRequest, successResponse } from "../utils/respons
 import {
   execFileSafe,
   isPathWithinDirectory,
+  imagePathExists,
+  removeImagePath,
   resolveSafePath,
+  statImagePath,
 } from "../utils/security";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
@@ -298,12 +301,12 @@ const maybeGenerateThumbnail = async (
       normalizedThumbnailPath,
     ], { timeout: SCAN_FFMPEG_TIMEOUT_MS });
 
-    const thumbnailExists = await fs.pathExists(normalizedThumbnailPath);
+    const thumbnailExists = await imagePathExists(normalizedThumbnailPath);
     if (!thumbnailExists) {
       throw new Error("Generated thumbnail file does not exist");
     }
 
-    const generatedThumbnailStats = await fs.stat(normalizedThumbnailPath);
+    const generatedThumbnailStats = await statImagePath(normalizedThumbnailPath);
     if (generatedThumbnailStats.size <= 0) {
       throw new Error("Generated thumbnail file is empty");
     }
@@ -311,8 +314,8 @@ const maybeGenerateThumbnail = async (
     return normalizedThumbnailPath;
   } catch (error) {
     try {
-      if (await fs.pathExists(normalizedThumbnailPath)) {
-        await fs.remove(normalizedThumbnailPath);
+      if (await imagePathExists(normalizedThumbnailPath)) {
+        await removeImagePath(normalizedThumbnailPath);
       }
     } catch (cleanupError) {
       logger.warn("Failed to clean up invalid generated thumbnail", {

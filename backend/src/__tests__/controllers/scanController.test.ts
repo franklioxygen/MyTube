@@ -44,9 +44,12 @@ vi.mock('fs-extra', () => ({
 }));
 vi.mock('../../utils/security', () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
+  imagePathExists: vi.fn().mockResolvedValue(true),
   isPathWithinDirectory: vi.fn().mockReturnValue(true),
+  removeImagePath: vi.fn().mockResolvedValue(undefined),
   resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => `${baseDir}/${childPath}`),
   resolveSafePath: vi.fn((path: string) => path),
+  statImagePath: vi.fn().mockResolvedValue({ size: 1024 }),
   validateImagePath: vi.fn((path: string) => path),
 }));
 vi.mock('child_process');

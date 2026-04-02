@@ -11,8 +11,11 @@ import { regenerateSmallThumbnailForThumbnailPath } from "../../services/thumbna
 import { scrapeMetadataFromTMDB } from "../../services/tmdbService";
 import {
   execFileSafe,
+  imagePathExists,
   isPathWithinDirectory,
+  removeImagePath,
   resolveSafePath,
+  statImagePath,
 } from "../../utils/security";
 
 vi.mock("../../services/storageService", () => ({
@@ -40,11 +43,14 @@ vi.mock("../../utils/helpers", () => ({
 
 vi.mock("../../utils/security", () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: "61", stderr: "" }),
+  imagePathExists: vi.fn(async () => true),
   isPathWithinDirectory: vi.fn(() => true),
+  removeImagePath: vi.fn(async () => undefined),
   resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) =>
     `${baseDir}${path.sep}${childPath}`
   ),
   resolveSafePath: vi.fn((target: string) => target),
+  statImagePath: vi.fn(async () => ({ size: 100 })),
   validateImagePath: vi.fn((target: string) => target),
 }));
 
@@ -338,12 +344,18 @@ describe("scanController extra coverage", () => {
       path.join(IMAGES_DIR, ".scan-11111111-1111-1111-1111-111111111111.jpg"),
     ]);
 
-    vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
-      return existingPaths.has(String(target));
-    });
-    vi.mocked(fs.remove).mockImplementation(async (target: any) => {
+    vi.mocked(fs.pathExists).mockImplementation(async (target: any) =>
+      existingPaths.has(String(target))
+    );
+    vi.mocked(imagePathExists).mockImplementation(async (target: any) =>
+      existingPaths.has(String(target))
+    );
+    vi.mocked(removeImagePath).mockImplementation(async (target: any) => {
       existingPaths.delete(String(target));
     });
+    vi.mocked(statImagePath).mockResolvedValue({
+      size: 100,
+    } as any);
 
     vi.mocked(fs.readdir).mockImplementation(async (target: any) => {
       if (String(target) === "/mnt/library") {
@@ -373,7 +385,7 @@ describe("scanController extra coverage", () => {
 
     await scanMountDirectories(req as Request, res as Response);
 
-    expect(fs.remove).toHaveBeenCalledWith(
+    expect(removeImagePath).toHaveBeenCalledWith(
       path.join(IMAGES_DIR, ".scan-11111111-1111-1111-1111-111111111111.jpg")
     );
     expect(storageService.saveVideo).toHaveBeenCalledWith(

@@ -1,4 +1,5 @@
 import { execFile } from "child_process";
+import fs from "fs-extra";
 import path from "path";
 import {
   CLOUD_THUMBNAIL_CACHE_DIR,
@@ -233,6 +234,18 @@ export function validateVideoPath(filePath: string): string {
  */
 export function validateImagePath(filePath: string): string {
   return resolveSafePath(filePath, IMAGES_DIR);
+}
+
+export async function imagePathExists(filePath: string): Promise<boolean> {
+  return fs.pathExists(validateImagePath(filePath));
+}
+
+export async function statImagePath(filePath: string): Promise<fs.Stats> {
+  return fs.stat(validateImagePath(filePath));
+}
+
+export async function removeImagePath(filePath: string): Promise<void> {
+  await fs.remove(validateImagePath(filePath));
 }
 
 /**
