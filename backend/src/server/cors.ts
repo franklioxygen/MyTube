@@ -55,6 +55,59 @@ function resolveRequestHosts(req: Request): string[] {
   );
 }
 
+function parseHostCandidate(host: string): URL | null {
+  try {
+    return new URL(`http://${host}`);
+  } catch {
+    return null;
+  }
+}
+
+function getOriginPort(origin: string): string | null {
+  try {
+    const parsed = new URL(origin);
+    if (parsed.port) {
+      return parsed.port;
+    }
+
+    if (parsed.protocol === "https:") {
+      return "443";
+    }
+
+    if (parsed.protocol === "http:") {
+      return "80";
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getAllowedOriginPorts(allowedOrigins: ReadonlySet<string>): Set<string> {
+  const ports = new Set<string>();
+
+  for (const allowedOrigin of allowedOrigins) {
+    const port = getOriginPort(allowedOrigin);
+    if (port) {
+      ports.add(port);
+    }
+  }
+
+  return ports;
+}
+
+function resolveRequestHostnames(req: Request): string[] {
+  const hostnames = resolveRequestHosts(req)
+    .map((host) => {
+      const parsedHost = parseHostCandidate(host);
+      return parsedHost?.hostname.toLowerCase() || null;
+    })
+    .filter((hostname): hostname is string => hostname !== null);
+
+  return Array.from(new Set(hostnames));
+}
+
 export function isOriginAllowed(
   origin: string,
   req: Request,
@@ -79,6 +132,38 @@ export function isOriginAllowed(
 
   if (originHost && requestHosts.includes(originHost)) {
     return true;
+  }
+
+  let originHostname: string | null = null;
+  let originPort: string | null = null;
+  try {
+    const parsedOrigin = new URL(normalizedOrigin);
+    originHostname = parsedOrigin.hostname.toLowerCase();
+    originPort = getOriginPort(normalizedOrigin);
+  } catch {
+    originHostname = null;
+    originPort = null;
+  }
+
+  if (originHostname && originPort) {
+    const requestHostnames = resolveRequestHostnames(req);
+    if (!requestHostnames.includes(originHostname)) {
+      return false;
+    }
+
+    const matchingRequestHosts = requestHosts.filter((requestHost) => {
+      const parsedHost = parseHostCandidate(requestHost);
+      return parsedHost?.hostname.toLowerCase() === originHostname;
+    });
+    const hasPortlessMatchingHost = matchingRequestHosts.some((requestHost) => {
+      const parsedHost = parseHostCandidate(requestHost);
+      return parsedHost !== null && parsedHost.port === "";
+    });
+    const allowedOriginPorts = getAllowedOriginPorts(allowedOrigins);
+
+    if (hasPortlessMatchingHost && allowedOriginPorts.has(originPort)) {
+      return true;
+    }
   }
 
   return false;

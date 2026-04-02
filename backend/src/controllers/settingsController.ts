@@ -18,6 +18,7 @@ import downloadManager from "../services/downloadManager";
 import * as passwordService from "../services/passwordService";
 import * as settingsValidationService from "../services/settingsValidationService";
 import * as storageService from "../services/storageService";
+import { testTMDBCredential as testTMDBCredentialService } from "../services/tmdbService";
 import { twitchApiService } from "../services/twitchService";
 import { Settings, defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
@@ -44,6 +45,7 @@ const ADMIN_ONLY_SETTINGS_KEYS = new Set([
   "apiKeyEnabled",
   "openListToken",
   "cloudflaredToken",
+  "tmdbApiKey",
   "telegramBotToken",
   "twitchClientId",
   "twitchClientSecret",
@@ -280,6 +282,11 @@ const sanitizeIncomingSettings = (
   incomingSettings: Partial<Settings>
 ): Partial<Settings> => {
   const sanitized: Partial<Settings> = { ...incomingSettings };
+
+  if (typeof sanitized.tmdbApiKey === "string") {
+    sanitized.tmdbApiKey = sanitized.tmdbApiKey.trim();
+  }
+
   delete sanitized.password;
   delete sanitized.visitorPassword;
   return sanitized;
@@ -712,4 +719,43 @@ export const testTelegramNotification = async (
   } else {
     sendBadRequest(res, result.error || "Failed to send Telegram test notification");
   }
+};
+
+export const testTMDBCredential = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const tmdbApiKey =
+    typeof req.body?.tmdbApiKey === "string" ? req.body.tmdbApiKey.trim() : "";
+
+  if (!tmdbApiKey) {
+    res.status(400).json(
+      errorResponse("tmdbApiKey is required", {
+        errorKey: "tmdbCredentialMissing",
+      })
+    );
+    return;
+  }
+
+  const result = await testTMDBCredentialService(tmdbApiKey);
+
+  if (!result.success) {
+    if (result.code === "auth-failed") {
+      res.status(400).json(
+        errorResponse(result.error, {
+          errorKey: result.messageKey,
+        })
+      );
+      return;
+    }
+
+    res.status(502).json(
+      errorResponse(result.error, {
+        errorKey: result.messageKey,
+      })
+    );
+    return;
+  }
+
+  res.json(result);
 };

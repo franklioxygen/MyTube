@@ -7,6 +7,7 @@ import {
     Box,
     Button,
     Container,
+    CircularProgress,
     Grid,
     Snackbar,
     Tab,
@@ -95,6 +96,11 @@ const SettingsPage: React.FC = () => {
     });
     const { setPreference } = useThemeContext();
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+    const [tmdbCredentialTesting, setTmdbCredentialTesting] = useState(false);
+    const [tmdbCredentialTestResult, setTmdbCredentialTestResult] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
     const [isGlowing, setIsGlowing] = useState(false);
     const [currentTab, setCurrentTab] = useState(0);
     const [showTrustDetailsModal, setShowTrustDetailsModal] = useState(false);
@@ -104,6 +110,44 @@ const SettingsPage: React.FC = () => {
     );
     const hasTwitchCredentialValidationError = twitchCredentialValidationCode !== null;
     const translateOrFallback = createTranslateOrFallback(t);
+    const getTMDBCredentialMessage = (
+        messageKey?: string,
+        fallback?: string
+    ): string => {
+        switch (messageKey) {
+            case 'tmdbCredentialMissing':
+                return translateOrFallback('tmdbCredentialMissing', 'Please enter a TMDB credential first.');
+            case 'tmdbCredentialValid':
+                return translateOrFallback('tmdbCredentialValid', 'TMDB credential is valid.');
+            case 'tmdbCredentialValidApiKey':
+                return translateOrFallback('tmdbCredentialValidApiKey', 'TMDB API key is valid.');
+            case 'tmdbCredentialValidReadAccessToken':
+                return translateOrFallback(
+                    'tmdbCredentialValidReadAccessToken',
+                    'TMDB Read Access Token is valid.'
+                );
+            case 'tmdbCredentialInvalid':
+                return translateOrFallback(
+                    'tmdbCredentialInvalid',
+                    'TMDB credential is invalid. Check whether it is a valid API key or Read Access Token.'
+                );
+            case 'tmdbCredentialRequestFailed':
+                return translateOrFallback(
+                    'tmdbCredentialRequestFailed',
+                    'Failed to reach TMDB. Please try again.'
+                );
+            case 'tmdbCredentialTestFailed':
+                return translateOrFallback(
+                    'tmdbCredentialTestFailed',
+                    'Failed to test TMDB credential.'
+                );
+            default:
+                return fallback || translateOrFallback(
+                    'tmdbCredentialTestFailed',
+                    'Failed to test TMDB credential.'
+                );
+        }
+    };
     const deploymentSecurityDetailsTitle = translateOrFallback(
         'deploymentSecurityDetailsTitle',
         'Deployment Security Details',
@@ -266,6 +310,9 @@ const SettingsPage: React.FC = () => {
 
     const handleChange = (field: keyof Settings, value: string | boolean | number) => {
         setSettings(prev => ({ ...prev, [field]: value }));
+        if (field === 'tmdbApiKey') {
+            setTmdbCredentialTestResult(null);
+        }
         if (field === 'language') {
             setLanguage(value as Language);
         }
@@ -273,6 +320,43 @@ const SettingsPage: React.FC = () => {
             setPreference(value as any);
         }
         triggerGlow();
+    };
+
+    const handleTestTMDBCredential = async () => {
+        const tmdbApiKey = settings.tmdbApiKey?.trim() || '';
+
+        if (!tmdbApiKey) {
+            setTmdbCredentialTestResult({
+                type: 'error',
+                message: getTMDBCredentialMessage('tmdbCredentialMissing'),
+            });
+            return;
+        }
+
+        setTmdbCredentialTesting(true);
+        setTmdbCredentialTestResult(null);
+
+        try {
+            const res = await api.post('/settings/tmdb/test', { tmdbApiKey });
+            setTmdbCredentialTestResult({
+                type: 'success',
+                message: getTMDBCredentialMessage(
+                    res.data?.messageKey,
+                    res.data?.message ||
+                        translateOrFallback('tmdbCredentialValid', 'TMDB credential is valid.')
+                ),
+            });
+        } catch (error: any) {
+            setTmdbCredentialTestResult({
+                type: 'error',
+                message: getTMDBCredentialMessage(
+                    error.response?.data?.errorKey,
+                    translateOrFallback('tmdbCredentialTestFailed', 'Failed to test TMDB credential.')
+                ),
+            });
+        } finally {
+            setTmdbCredentialTesting(false);
+        }
     };
 
     const handleSave = () => {
@@ -542,6 +626,27 @@ const SettingsPage: React.FC = () => {
                 helperText={t('tmdbApiKeyHelper')}
                 placeholder="Enter your TMDB API key"
             />
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Button
+                    variant="outlined"
+                    startIcon={tmdbCredentialTesting ? <CircularProgress size={16} /> : <FindInPage />}
+                    onClick={handleTestTMDBCredential}
+                    disabled={!settings.tmdbApiKey?.trim() || tmdbCredentialTesting}
+                >
+                    {tmdbCredentialTesting
+                        ? translateOrFallback('testing', 'Testing...')
+                        : translateOrFallback('testTmdbCredential', 'Test Credential')}
+                </Button>
+            </Box>
+            {tmdbCredentialTestResult && (
+                <Alert
+                    severity={tmdbCredentialTestResult.type === 'success' ? 'success' : 'error'}
+                    onClose={() => setTmdbCredentialTestResult(null)}
+                    sx={{ mt: 2 }}
+                >
+                    {tmdbCredentialTestResult.message}
+                </Alert>
+            )}
         </Box>
     );
 

@@ -23,7 +23,6 @@ vi.mock("../../services/storageService", () => {
   };
 });
 
-// Mock the telegramService module used by the controller via dynamic import
 const mockSendTestMessage = vi.fn();
 vi.mock("../../services/telegramService", () => ({
   TelegramService: {
@@ -31,7 +30,7 @@ vi.mock("../../services/telegramService", () => ({
   },
 }));
 
-import { testTelegramNotification } from "../settingsController";
+import { testTelegramNotification } from "../../controllers/settingsController";
 
 describe("testTelegramNotification", () => {
   let req: Partial<Request>;

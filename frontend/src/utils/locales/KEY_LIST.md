@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 829
+Total keys: 833
 
 ## Summary
 
@@ -13,7 +13,7 @@ Total keys: 829
 | Header | 11 | `myTube` | `instruction` |
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 119 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 123 | `basicSettings` | `enterNewTagName` |
 | Database | 39 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 68 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
@@ -117,6 +117,14 @@ Total keys: 829
 | `showThemeButtonInHeader` |
 | `tmdbApiKey` |
 | `tmdbApiKeyHelper` |
+| `testTmdbCredential` |
+| `tmdbCredentialMissing` |
+| `tmdbCredentialValid` |
+| `tmdbCredentialTestFailed` |
+| `tmdbCredentialValidApiKey` |
+| `tmdbCredentialValidReadAccessToken` |
+| `tmdbCredentialInvalid` |
+| `tmdbCredentialRequestFailed` |
 | `mountDirectories` |
 | `mountDirectoriesPlaceholder` |
 | `mountDirectoriesHelper` |
@@ -291,6 +299,7 @@ Total keys: 829
 | `deploymentSecurityConfigurationValuesNote` |
 | `deploymentSecurityDockerConfigTitle` |
 | `deploymentSecurityDockerConfigDescription` |
+| `deploymentSecurityDockerPermissionsNote` |
 | `deploymentSecurityLocalConfigTitle` |
 | `deploymentSecurityLocalConfigDescription` |
 | `deploymentSecurityLocalEnvFileNote` |

@@ -1,4 +1,5 @@
 import express, { Express, Request, Response } from "express";
+import fs from "fs-extra";
 import path from "path";
 import {
   AVATARS_DIR,
@@ -18,26 +19,56 @@ const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 };
 
+const resolveOriginalThumbnailAbsolutePath = async (
+  relativePath: string,
+): Promise<string | null> => {
+  const candidates = [
+    path.resolve(IMAGES_DIR, relativePath),
+    path.resolve(VIDEOS_DIR, relativePath),
+  ];
+
+  for (const candidate of candidates) {
+    if (await fs.pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
 const ensureSmallThumbnail = async (
   req: Request,
   res: Response,
   next: express.NextFunction,
 ): Promise<void> => {
+  const wildcardPath = req.params?.["0"];
+  const relativePath = getThumbnailRelativePath(
+    typeof wildcardPath === "string" ? wildcardPath : req.path,
+  );
+
+  if (!relativePath) {
+    res.status(400).send("Invalid image path");
+    return;
+  }
+
   try {
-    const wildcardPath = req.params?.["0"];
-    const relativePath = getThumbnailRelativePath(
-      typeof wildcardPath === "string" ? wildcardPath : req.path,
-    );
-
-    if (!relativePath) {
-      res.status(400).send("Invalid image path");
-      return;
-    }
-
     await ensureSmallThumbnailForRelativePath(relativePath);
     next();
   } catch (error) {
-    next(error);
+    const fallbackAbsolutePath = await resolveOriginalThumbnailAbsolutePath(
+      relativePath,
+    );
+    if (!fallbackAbsolutePath) {
+      next(error);
+      return;
+    }
+
+    setCommonImageHeaders(res);
+    res.sendFile(fallbackAbsolutePath, (sendFileError) => {
+      if (sendFileError) {
+        next(sendFileError);
+      }
+    });
   }
 };
 

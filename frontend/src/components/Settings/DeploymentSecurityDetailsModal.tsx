@@ -175,6 +175,15 @@ const DeploymentSecurityDetailsModal: React.FC<DeploymentSecurityDetailsModalPro
 {`environment:
   - MYTUBE_ADMIN_TRUST_LEVEL=application`}
                         </Box>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                            {translateOrFallback(
+                                'deploymentSecurityDockerPermissionsNote',
+                                'If you are upgrading a bind-mounted installation created before v1.9.0, make sure the host-side uploads and data folders are writable by uid/gid 1000 (`node`). This also fixes root-owned uploads/images-small directories that can cause thumbnail generation or scans to fail with EACCES.'
+                            )}
+                        </Typography>
+                        <Box component="pre" sx={codeBlockSx}>
+{`chown -R 1000:1000 /path/to/mytube/uploads /path/to/mytube/data`}
+                        </Box>
                     </Box>
                     <Box>
                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>

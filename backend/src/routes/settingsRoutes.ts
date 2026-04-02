@@ -44,6 +44,7 @@ import {
     migrateData,
     patchSettings,
     renameTag,
+    testTMDBCredential,
     testTelegramNotification,
 } from "../controllers/settingsController";
 import { asyncHandler } from "../middleware/errorHandler";
@@ -92,6 +93,7 @@ router.get("/check-cookies", asyncHandler(checkCookies));
 
 // Telegram routes
 router.post("/telegram/test", asyncHandler(testTelegramNotification));
+router.post("/tmdb/test", asyncHandler(testTMDBCredential));
 
 // Hook routes
 router.post("/hooks/:name", uploadHookFile, asyncHandler(uploadHook));

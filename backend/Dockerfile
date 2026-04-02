@@ -141,6 +141,12 @@ COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provide
 RUN mkdir -p uploads/videos uploads/images uploads/subtitles data \
     && chown -R node:node /app
 
+# Since v1.9.0 the backend runs as the non-root `node` user (uid/gid 1000).
+# If you are upgrading an older bind-mounted installation created before v1.9.0,
+# make sure the host-side mounted folders are writable by uid/gid 1000, e.g.:
+#   chown -R 1000:1000 /path/to/mytube/uploads /path/to/mytube/data
+# If `/path/to/mytube/uploads/images-small` already exists and was created by root,
+# it must be fixed as well or thumbnail generation will fail with EACCES.
 USER node
 
 EXPOSE 5551

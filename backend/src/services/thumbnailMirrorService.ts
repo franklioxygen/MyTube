@@ -120,6 +120,8 @@ const generateSmallThumbnail = async (
         SMALL_THUMBNAIL_FILTER,
         "-frames:v",
         "1",
+        "-update",
+        "1",
         targetAbsolutePath,
       ],
       { timeout: 60000 },

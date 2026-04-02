@@ -131,6 +131,18 @@ environment:
   - MYTUBE_ADMIN_TRUST_LEVEL=host
 ```
 
+升级权限说明：
+
+- 从 `v1.9.0` 开始，后端容器默认以非 root 的 `node` 用户运行（`uid/gid 1000`）
+- 如果你升级的是 `v1.9.0` 之前创建的 bind mount 部署，需要确保宿主机上的 `uploads` 和 `data` 挂载目录对 `uid/gid 1000` 可写
+- 这同样适用于已有子目录，例如 `uploads/images-small`；如果它仍然归 `root` 所有，缩略图生成或扫描可能会因 `EACCES` 失败
+
+宿主机上的修复示例：
+
+```bash
+chown -R 1000:1000 /path/to/mytube/uploads /path/to/mytube/data
+```
+
 ### 直接运行源码
 
 ```bash

@@ -64,6 +64,17 @@ export const ru = {
   tmdbApiKey: "Ключ API TMDB",
   tmdbApiKeyHelper:
     "Ключ API TheMovieDB для получения метаданных и постеров фильмов/сериалов. Получите свой ключ на https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "Проверить учетные данные",
+  tmdbCredentialMissing: "Сначала введите учетные данные TMDB.",
+  tmdbCredentialValid: "Учетные данные TMDB действительны.",
+  tmdbCredentialTestFailed: "Не удалось проверить учетные данные TMDB.",
+  tmdbCredentialValidApiKey: "Ключ API TMDB действителен.",
+  tmdbCredentialValidReadAccessToken:
+    "Read Access Token TMDB действителен.",
+  tmdbCredentialInvalid:
+    "Учетные данные TMDB недействительны. Проверьте, что это действительный API-ключ или Read Access Token.",
+  tmdbCredentialRequestFailed:
+    "Не удалось подключиться к TMDB. Повторите попытку.",
   mountDirectories: "Подключенные директории",
   mountDirectoriesPlaceholder:
     "Введите подключенные директории (по одной на строку)\nПример:\n/mnt/media1\n/mnt/media2",
@@ -301,6 +312,8 @@ export const ru = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "Задайте MYTUBE_ADMIN_TRUST_LEVEL в environment сервиса. При необходимости замените application на container или host.",
+  deploymentSecurityDockerPermissionsNote:
+    "Если вы обновляете установку с bind mounts, созданную до версии 1.9.0, убедитесь, что каталоги uploads и data на хосте доступны на запись для uid/gid 1000 (`node`). Это также исправит каталоги uploads/images-small, принадлежащие root, из-за которых генерация миниатюр или сканирование могут завершаться с EACCES.",
   deploymentSecurityLocalConfigTitle: "Локальный запуск из исходников",
   deploymentSecurityLocalConfigDescription:
     "Экспортируйте MYTUBE_ADMIN_TRUST_LEVEL перед запуском MyTube или передайте переменную inline при запуске npm run dev.",

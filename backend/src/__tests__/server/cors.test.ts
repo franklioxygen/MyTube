@@ -81,6 +81,28 @@ describe("server/cors", () => {
     );
   });
 
+  it("isOriginAllowed should allow same hostname when proxy strips the host port", () => {
+    const req = createRequest({
+      origin: "http://192.168.1.20:5556",
+      host: "192.168.1.20",
+    });
+    const allowed = new Set(["http://localhost:5556"]);
+    expect(isOriginAllowed("http://192.168.1.20:5556", req, allowed)).toBe(
+      true
+    );
+  });
+
+  it("isOriginAllowed should not allow same hostname on an unexpected port", () => {
+    const req = createRequest({
+      origin: "http://192.168.1.20:3000",
+      host: "192.168.1.20",
+    });
+    const allowed = new Set(["http://localhost:5556"]);
+    expect(isOriginAllowed("http://192.168.1.20:3000", req, allowed)).toBe(
+      false
+    );
+  });
+
   it("isOriginAllowed should allow same host even if scheme differs", () => {
     const req = createRequest({
       origin: "https://mytube.example.com",

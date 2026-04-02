@@ -62,6 +62,15 @@ export const ar = {
   tmdbApiKey: "مفتاح API الخاص بـ TMDB",
   tmdbApiKeyHelper:
     "مفتاح API الخاص بـ TheMovieDB لجلب بيانات وأ posters للفيلم/المسلسل. احصل على مفتاحك من https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "اختبار بيانات الاعتماد",
+  tmdbCredentialMissing: "يرجى إدخال بيانات اعتماد TMDB أولاً.",
+  tmdbCredentialValid: "بيانات اعتماد TMDB صالحة.",
+  tmdbCredentialTestFailed: "فشل اختبار بيانات اعتماد TMDB.",
+  tmdbCredentialValidApiKey: "مفتاح TMDB API صالح.",
+  tmdbCredentialValidReadAccessToken: "رمز الوصول للقراءة من TMDB صالح.",
+  tmdbCredentialInvalid:
+    "بيانات اعتماد TMDB غير صالحة. تحقق مما إذا كانت مفتاح API صالحًا أو رمز وصول للقراءة صالحًا.",
+  tmdbCredentialRequestFailed: "تعذر الوصول إلى TMDB. يُرجى المحاولة مرة أخرى.",
   mountDirectories: "المجلدات المثبتة",
   mountDirectoriesPlaceholder:
     "أدخل المجلدات المثبتة (واحد لكل سطر)\nمثال:\n/mnt/media1\n/mnt/media2",
@@ -295,6 +304,8 @@ export const ar = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "اضبط MYTUBE_ADMIN_TRUST_LEVEL في environment الخاصة بالخدمة. استبدل application بـ container أو host حسب الحاجة.",
+  deploymentSecurityDockerPermissionsNote:
+    "إذا كنت تقوم بترقية تثبيت يستخدم bind mounts وتم إنشاؤه قبل الإصدار 1.9.0، فتأكد من أن مجلدي uploads و data على المضيف قابلان للكتابة بواسطة uid/gid 1000 (`node`). سيؤدي ذلك أيضًا إلى إصلاح أدلة uploads/images-small المملوكة لـ root والتي قد تتسبب في فشل إنشاء الصور المصغرة أو الفحص بسبب EACCES.",
   deploymentSecurityLocalConfigTitle: "تشغيل المصدر محليًا",
   deploymentSecurityLocalConfigDescription:
     "قم بتصدير MYTUBE_ADMIN_TRUST_LEVEL قبل تشغيل MyTube، أو مرره inline عند تشغيل npm run dev.",

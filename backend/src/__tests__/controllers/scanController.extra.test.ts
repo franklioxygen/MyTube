@@ -3,9 +3,10 @@ import { Request, Response } from "express";
 import fs from "fs-extra";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { VIDEOS_DIR } from "../../config/paths";
+import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { scanFiles, scanMountDirectories } from "../../controllers/scanController";
 import * as storageService from "../../services/storageService";
+import { regenerateSmallThumbnailForThumbnailPath } from "../../services/thumbnailMirrorService";
 import { scrapeMetadataFromTMDB } from "../../services/tmdbService";
 import {
   execFileSafe,
@@ -231,6 +232,137 @@ describe("scanController extra coverage", () => {
       deletedCount: 1,
       scannedDirectories: 1,
     });
+    expect(execFileSafe).toHaveBeenCalledWith(
+      "ffmpeg",
+      expect.arrayContaining(["-nostdin", "-y", "-update", "1"]),
+      expect.objectContaining({ timeout: 30000 })
+    );
+    expect(execFileSafe).toHaveBeenCalledWith(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        "/mnt/library/new.mp4",
+      ],
+      expect.objectContaining({ timeout: 15000 })
+    );
+  });
+
+  it("scanMountDirectories still saves videos when small thumbnail generation fails", async () => {
+    req.body = {
+      directories: ["/mnt/library"],
+    };
+
+    vi.mocked(storageService.getVideos).mockReturnValue([] as any);
+
+    vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
+      const value = String(target);
+      return value === "/mnt/library" || value === path.join(IMAGES_DIR, "new.jpg");
+    });
+
+    vi.mocked(fs.readdir).mockImplementation(async (target: any) => {
+      if (String(target) === "/mnt/library") {
+        return [
+          {
+            name: "new.mp4",
+            isDirectory: () => false,
+            isSymbolicLink: () => false,
+          },
+        ] as any;
+      }
+      return [] as any;
+    });
+
+    vi.mocked(fs.stat).mockResolvedValue({
+      size: 100,
+      birthtime: new Date("2024-01-01T00:00:00.000Z"),
+    } as any);
+
+    vi.mocked(regenerateSmallThumbnailForThumbnailPath).mockRejectedValueOnce(
+      new Error("EACCES: permission denied")
+    );
+
+    await scanMountDirectories(req as Request, res as Response);
+
+    expect(regenerateSmallThumbnailForThumbnailPath).toHaveBeenCalledWith(
+      "/images/new.jpg"
+    );
+    expect(storageService.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoPath: "mount:/mnt/library/new.mp4",
+        thumbnailFilename: "new.jpg",
+        thumbnailPath: "/images/new.jpg",
+      })
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith({
+      addedCount: 1,
+      deletedCount: 0,
+      scannedDirectories: 1,
+    });
+  });
+
+  it("scanMountDirectories removes failed ffmpeg thumbnails before saving the video", async () => {
+    req.body = {
+      directories: ["/mnt/library"],
+    };
+
+    vi.mocked(storageService.getVideos).mockReturnValue([] as any);
+
+    const existingPaths = new Set<string>([
+      "/mnt/library",
+      path.join(IMAGES_DIR, "new.jpg"),
+    ]);
+
+    vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
+      return existingPaths.has(String(target));
+    });
+    vi.mocked(fs.remove).mockImplementation(async (target: any) => {
+      existingPaths.delete(String(target));
+    });
+
+    vi.mocked(fs.readdir).mockImplementation(async (target: any) => {
+      if (String(target) === "/mnt/library") {
+        return [
+          {
+            name: "new.mp4",
+            isDirectory: () => false,
+            isSymbolicLink: () => false,
+          },
+        ] as any;
+      }
+      return [] as any;
+    });
+
+    vi.mocked(fs.stat).mockResolvedValue({
+      size: 100,
+      birthtime: new Date("2024-01-01T00:00:00.000Z"),
+    } as any);
+
+    vi.mocked(execFileSafe).mockImplementation(async (command: string) => {
+      if (command === "ffmpeg") {
+        throw new Error("ffmpeg timed out");
+      }
+
+      return { stdout: "61", stderr: "" } as any;
+    });
+
+    await scanMountDirectories(req as Request, res as Response);
+
+    expect(fs.remove).toHaveBeenCalledWith(path.join(IMAGES_DIR, "new.jpg"));
+    expect(storageService.saveVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        videoPath: "mount:/mnt/library/new.mp4",
+        thumbnailFilename: undefined,
+        thumbnailPath: undefined,
+        thumbnailUrl: undefined,
+      })
+    );
+    expect(status).toHaveBeenCalledWith(200);
   });
 
   it("scanMountDirectories does not delete local /videos records when scanning /videos as a mount path", async () => {

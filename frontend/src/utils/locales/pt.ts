@@ -65,6 +65,17 @@ export const pt = {
   tmdbApiKey: "Chave API TMDB",
   tmdbApiKeyHelper:
     "Chave API do TheMovieDB para buscar metadados e pôsteres de filmes/séries. Obtenha sua chave em https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "Testar credencial",
+  tmdbCredentialMissing: "Digite primeiro uma credencial TMDB.",
+  tmdbCredentialValid: "A credencial TMDB é válida.",
+  tmdbCredentialTestFailed: "Falha ao testar a credencial TMDB.",
+  tmdbCredentialValidApiKey: "A API Key do TMDB é válida.",
+  tmdbCredentialValidReadAccessToken:
+    "O Read Access Token do TMDB é válido.",
+  tmdbCredentialInvalid:
+    "A credencial do TMDB é inválida. Verifique se é uma API Key ou um Read Access Token válidos.",
+  tmdbCredentialRequestFailed:
+    "Não foi possível acessar o TMDB. Tente novamente.",
   mountDirectories: "Diretórios de montagem",
   mountDirectoriesPlaceholder:
     "Digite os diretórios de montagem (um por linha)\nExemplo:\n/mnt/media1\n/mnt/media2",
@@ -303,6 +314,8 @@ export const pt = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "Defina MYTUBE_ADMIN_TRUST_LEVEL no environment do serviço. Substitua application por container ou host conforme necessário.",
+  deploymentSecurityDockerPermissionsNote:
+    "Se você estiver atualizando uma instalação com bind mounts criada antes da versão 1.9.0, garanta que as pastas uploads e data no host sejam graváveis por uid/gid 1000 (`node`). Isso também corrige diretórios uploads/images-small pertencentes a root que podem fazer a geração de miniaturas ou as varreduras falharem com EACCES.",
   deploymentSecurityLocalConfigTitle: "Execução local do código-fonte",
   deploymentSecurityLocalConfigDescription:
     "Exporte MYTUBE_ADMIN_TRUST_LEVEL antes de iniciar o MyTube ou passe a variável inline ao executar npm run dev.",

@@ -87,6 +87,7 @@ describe('SettingsController', () => {
         loginEnabled: false,
         apiKeyEnabled: true,
         apiKey: 'super-secret-api-key',
+        tmdbApiKey: 'tmdb-secret',
         openListToken: 'openlist-token',
         cloudflaredToken: 'cloudflared-token',
         telegramBotToken: 'telegram-token',
@@ -99,6 +100,7 @@ describe('SettingsController', () => {
       const responsePayload = json.mock.calls[0][0];
       expect(responsePayload.apiKey).toBe('super-secret-api-key');
       expect(responsePayload.apiKeyEnabled).toBe(true);
+      expect(responsePayload.tmdbApiKey).toBe('tmdb-secret');
       expect(responsePayload.openListToken).toBe('openlist-token');
       expect(responsePayload.cloudflaredToken).toBe('cloudflared-token');
       expect(responsePayload.telegramBotToken).toBe('telegram-token');
@@ -160,6 +162,17 @@ describe('SettingsController', () => {
 
       expect(passwordService.hashPassword).toHaveBeenCalledWith('pass');
       expect(storageService.saveSettings).toHaveBeenCalledWith(expect.objectContaining({ password: 'hashed' }));
+    });
+
+    it('should trim and persist tmdbApiKey updates', async () => {
+      req.body = { tmdbApiKey: '  tmdb-token  ' };
+      (storageService.getSettings as any).mockReturnValue({});
+
+      await updateSettings(req as Request, res as Response);
+
+      expect(storageService.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ tmdbApiKey: 'tmdb-token' })
+      );
     });
 
     it('should validate and update itemsPerPage', async () => {

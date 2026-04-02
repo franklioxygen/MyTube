@@ -65,6 +65,17 @@ export const de = {
   tmdbApiKey: "TMDB API-Schlüssel",
   tmdbApiKeyHelper:
     "TheMovieDB API-Schlüssel zum Abrufen von Film-/Serien-Metadaten und Postern. Holen Sie sich Ihren Schlüssel unter https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "Anmeldedaten testen",
+  tmdbCredentialMissing: "Bitte geben Sie zuerst TMDB-Anmeldedaten ein.",
+  tmdbCredentialValid: "Die TMDB-Anmeldedaten sind gültig.",
+  tmdbCredentialTestFailed: "Die TMDB-Anmeldedaten konnten nicht getestet werden.",
+  tmdbCredentialValidApiKey: "Der TMDB-API-Schlüssel ist gültig.",
+  tmdbCredentialValidReadAccessToken:
+    "Das TMDB-Read-Access-Token ist gültig.",
+  tmdbCredentialInvalid:
+    "Die TMDB-Anmeldedaten sind ungültig. Prüfen Sie, ob es sich um einen gültigen API-Schlüssel oder ein gültiges Read-Access-Token handelt.",
+  tmdbCredentialRequestFailed:
+    "TMDB konnte nicht erreicht werden. Bitte versuchen Sie es erneut.",
   mountDirectories: "Einhängeverzeichnisse",
   mountDirectoriesPlaceholder:
     "Einhängeverzeichnisse eingeben (eines pro Zeile)\nBeispiel:\n/mnt/media1\n/mnt/media2",
@@ -306,6 +317,8 @@ export const de = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "Setzen Sie MYTUBE_ADMIN_TRUST_LEVEL in der Service-Umgebung. Ersetzen Sie application bei Bedarf durch container oder host.",
+  deploymentSecurityDockerPermissionsNote:
+    "Wenn Sie eine vor Version 1.9.0 erstellte Bind-Mount-Installation aktualisieren, stellen Sie sicher, dass die hostseitigen uploads- und data-Ordner für uid/gid 1000 (`node`) beschreibbar sind. Dadurch werden auch root-eigene uploads/images-small-Verzeichnisse behoben, die sonst Thumbnail-Erzeugung oder Scans mit EACCES scheitern lassen können.",
   deploymentSecurityLocalConfigTitle: "Lokaler Quellcode-Start",
   deploymentSecurityLocalConfigDescription:
     "Exportieren Sie MYTUBE_ADMIN_TRUST_LEVEL vor dem Start von MyTube oder setzen Sie die Variable inline bei npm run dev.",

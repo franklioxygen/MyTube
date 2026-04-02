@@ -64,6 +64,17 @@ export const ja = {
   tmdbApiKey: "TMDB APIキー",
   tmdbApiKeyHelper:
     "映画/TV番組のメタデータとポスターを取得するためのTheMovieDB APIキー。https://www.themoviedb.org/settings/api でキーを取得してください",
+  testTmdbCredential: "認証情報をテスト",
+  tmdbCredentialMissing: "まず TMDB の認証情報を入力してください。",
+  tmdbCredentialValid: "TMDB の認証情報は有効です。",
+  tmdbCredentialTestFailed: "TMDB の認証情報のテストに失敗しました。",
+  tmdbCredentialValidApiKey: "TMDB API キーは有効です。",
+  tmdbCredentialValidReadAccessToken:
+    "TMDB Read Access Token は有効です。",
+  tmdbCredentialInvalid:
+    "TMDB の認証情報が無効です。有効な API キーまたは Read Access Token か確認してください。",
+  tmdbCredentialRequestFailed:
+    "TMDB に接続できませんでした。しばらくしてから再試行してください。",
   mountDirectories: "マウントディレクトリ",
   mountDirectoriesPlaceholder:
     "マウントディレクトリを入力してください（1行に1つ）\n例：\n/mnt/media1\n/mnt/media2",
@@ -303,6 +314,8 @@ export const ja = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "サービスの environment で MYTUBE_ADMIN_TRUST_LEVEL を設定します。必要に応じて application を container または host に置き換えてください。",
+  deploymentSecurityDockerPermissionsNote:
+    "v1.9.0 より前に作成した bind mount 構成をアップグレードする場合は、ホスト側の uploads と data ディレクトリを uid/gid 1000（`node`）で書き込み可能にしてください。これにより、root 所有の uploads/images-small ディレクトリが原因でサムネイル生成やスキャンが EACCES で失敗する問題も解消できます。",
   deploymentSecurityLocalConfigTitle: "ローカルでソースコードを実行",
   deploymentSecurityLocalConfigDescription:
     "MyTube を起動する前に MYTUBE_ADMIN_TRUST_LEVEL を export するか、npm run dev 実行時にインライン指定してください。",

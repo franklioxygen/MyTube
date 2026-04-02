@@ -65,6 +65,17 @@ export const fr = {
   tmdbApiKey: "Clé API TMDB",
   tmdbApiKeyHelper:
     "Clé API TheMovieDB pour récupérer les métadonnées et affiches de films/séries. Obtenez votre clé sur https://www.themoviedb.org/settings/api",
+  testTmdbCredential: "Tester l'identifiant",
+  tmdbCredentialMissing: "Veuillez d'abord saisir un identifiant TMDB.",
+  tmdbCredentialValid: "L'identifiant TMDB est valide.",
+  tmdbCredentialTestFailed: "Échec du test de l'identifiant TMDB.",
+  tmdbCredentialValidApiKey: "La clé API TMDB est valide.",
+  tmdbCredentialValidReadAccessToken:
+    "Le jeton d'accès en lecture TMDB est valide.",
+  tmdbCredentialInvalid:
+    "L'identifiant TMDB est invalide. Vérifiez qu'il s'agit bien d'une clé API ou d'un jeton d'accès en lecture valide.",
+  tmdbCredentialRequestFailed:
+    "Impossible de joindre TMDB. Veuillez réessayer.",
   mountDirectories: "Répertoires de montage",
   mountDirectoriesPlaceholder:
     "Entrez les répertoires de montage (un par ligne)\nExemple :\n/mnt/media1\n/mnt/media2",
@@ -303,6 +314,8 @@ export const fr = {
   deploymentSecurityDockerConfigTitle: "Docker / Docker Compose",
   deploymentSecurityDockerConfigDescription:
     "Définissez MYTUBE_ADMIN_TRUST_LEVEL dans l'environnement du service. Remplacez application par container ou host selon vos besoins.",
+  deploymentSecurityDockerPermissionsNote:
+    "Si vous mettez à niveau une installation avec bind mounts créée avant la version 1.9.0, assurez-vous que les dossiers uploads et data côté hôte sont inscriptibles par uid/gid 1000 (`node`). Cela corrige aussi les dossiers uploads/images-small appartenant à root, qui peuvent sinon faire échouer la génération des miniatures ou les scans avec EACCES.",
   deploymentSecurityLocalConfigTitle: "Exécution locale depuis le code source",
   deploymentSecurityLocalConfigDescription:
     "Exportez MYTUBE_ADMIN_TRUST_LEVEL avant de démarrer MyTube, ou passez la variable en ligne avec npm run dev.",

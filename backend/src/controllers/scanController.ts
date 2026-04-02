@@ -21,6 +21,8 @@ import {
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
 const DEFAULT_SCAN_FILE_CONCURRENCY = 3;
+const DEFAULT_SCAN_FFPROBE_TIMEOUT_MS = 15000;
+const DEFAULT_SCAN_FFMPEG_TIMEOUT_MS = 30000;
 
 const SCAN_FILE_CONCURRENCY = (() => {
   const configured = Number(
@@ -30,6 +32,26 @@ const SCAN_FILE_CONCURRENCY = (() => {
     return Math.floor(configured);
   }
   return DEFAULT_SCAN_FILE_CONCURRENCY;
+})();
+
+const SCAN_FFPROBE_TIMEOUT_MS = (() => {
+  const configured = Number(
+    process.env.SCAN_FFPROBE_TIMEOUT_MS || DEFAULT_SCAN_FFPROBE_TIMEOUT_MS
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_SCAN_FFPROBE_TIMEOUT_MS;
+})();
+
+const SCAN_FFMPEG_TIMEOUT_MS = (() => {
+  const configured = Number(
+    process.env.SCAN_FFMPEG_TIMEOUT_MS || DEFAULT_SCAN_FFMPEG_TIMEOUT_MS
+  );
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_SCAN_FFMPEG_TIMEOUT_MS;
 })();
 
 type ProcessDirectoryOptions = {
@@ -229,7 +251,7 @@ const extractDuration = async (
       "-of",
       "default=noprint_wrappers=1:nokey=1",
       safeFilePath,
-    ]);
+    ], { timeout: SCAN_FFPROBE_TIMEOUT_MS });
 
     const durationOutput = stdout.trim();
     if (!durationOutput) {
@@ -252,25 +274,53 @@ const maybeGenerateThumbnail = async (
   safeFilePath: string,
   tempThumbnailPath: string
 ): Promise<void> => {
+  let validatedThumbnailPath: string | null = null;
+
   try {
-    const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
+    validatedThumbnailPath = validateImagePath(tempThumbnailPath);
     await execFileSafe("ffmpeg", [
+      "-nostdin",
+      "-y",
       "-i",
       safeFilePath,
       "-ss",
       "00:00:00",
       "-vframes",
       "1",
+      "-update",
+      "1",
       validatedThumbnailPath,
-    ]);
+    ], { timeout: SCAN_FFMPEG_TIMEOUT_MS });
+
+    const thumbnailExists = await fs.pathExists(validatedThumbnailPath);
+    if (!thumbnailExists) {
+      throw new Error("Generated thumbnail file does not exist");
+    }
+
+    const generatedThumbnailStats = await fs.stat(validatedThumbnailPath);
+    if (generatedThumbnailStats.size <= 0) {
+      throw new Error("Generated thumbnail file is empty");
+    }
   } catch (error) {
+    if (validatedThumbnailPath) {
+      try {
+        if (await fs.pathExists(validatedThumbnailPath)) {
+          await fs.remove(validatedThumbnailPath);
+        }
+      } catch (cleanupError) {
+        logger.warn("Failed to clean up invalid generated thumbnail", {
+          thumbnailPath: validatedThumbnailPath,
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError),
+        });
+      }
+    }
+
     logger.error("Error generating thumbnail:", error);
   }
 };
-
-
-
-
 const processSingleVideoFile = async (
   filePath: string,
   normalizedDirectory: string,
