@@ -33,22 +33,26 @@ function parseArgs(argv) {
     out: "reports/codacy-current-issues.md",
   };
 
-  const iterator = argv[Symbol.iterator]();
-  for (const arg of iterator) {
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--provider") {
-      args.provider = iterator.next().value;
+      args.provider = argv[index + 1];
+      index += 1;
       continue;
     }
     if (arg === "--owner") {
-      args.owner = iterator.next().value;
+      args.owner = argv[index + 1];
+      index += 1;
       continue;
     }
     if (arg === "--repo") {
-      args.repo = iterator.next().value;
+      args.repo = argv[index + 1];
+      index += 1;
       continue;
     }
     if (arg === "--out") {
-      args.out = iterator.next().value;
+      args.out = argv[index + 1];
+      index += 1;
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
@@ -305,11 +309,11 @@ async function main() {
   });
 
   const outputPath = resolvePathWithinCwd(out);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.writeFile(outputPath, markdown, "utf8");
 
   console.log(`Report written: ${outputPath}`);

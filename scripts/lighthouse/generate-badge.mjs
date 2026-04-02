@@ -30,21 +30,22 @@ function resolvePathWithinCwd(targetPath) {
   return absolutePath;
 }
 
-const argIterator = args[Symbol.iterator]();
-for (const arg of argIterator) {
-
+for (let index = 0; index < args.length; index += 1) {
+  const arg = args[index];
   if (arg === "--help" || arg === "-h") {
     console.log(USAGE);
     process.exit(0);
   }
 
   if (arg === "--output") {
-    outputPath = argIterator.next().value ?? outputPath;
+    outputPath = args[index + 1] ?? outputPath;
+    index += 1;
     continue;
   }
 
   if (arg === "--label") {
-    label = argIterator.next().value ?? label;
+    label = args[index + 1] ?? label;
+    index += 1;
     continue;
   }
 
@@ -59,8 +60,8 @@ if (inputPaths.length === 0) {
 const reportScores = inputPaths
   .map((inputPath) => {
     const safeInputPath = resolvePathWithinCwd(inputPath);
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const report = JSON.parse(fs.readFileSync(safeInputPath, "utf8"));
     const score = report?.categories?.performance?.score;
 
@@ -100,11 +101,11 @@ const badgePayload = {
 };
 
 const safeOutputPath = resolvePathWithinCwd(outputPath);
-// eslint-disable-next-line security/detect-non-literal-fs-filename
 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+// eslint-disable-next-line security/detect-non-literal-fs-filename
 fs.mkdirSync(path.dirname(safeOutputPath), { recursive: true });
-// eslint-disable-next-line security/detect-non-literal-fs-filename
 // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+// eslint-disable-next-line security/detect-non-literal-fs-filename
 fs.writeFileSync(
   safeOutputPath,
   `${JSON.stringify(badgePayload, null, 2)}\n`
