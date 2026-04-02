@@ -12,9 +12,13 @@ import { formatAvatarFilename } from "../../utils/helpers";
 import { execFileSafe } from "../../utils/security";
 
 vi.mock("fs-extra");
-vi.mock("../../utils/security", () => ({
-  execFileSafe: vi.fn(),
-}));
+vi.mock("../../utils/security", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/security")>();
+  return {
+    ...actual,
+    execFileSafe: vi.fn(),
+  };
+});
 vi.mock("../../utils/helpers", () => ({
   formatAvatarFilename: vi.fn((platform: string, author: string) =>
     `${platform}_${author}.jpg`

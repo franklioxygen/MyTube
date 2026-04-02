@@ -44,6 +44,16 @@ vi.mock("../../utils/helpers", () => ({
 vi.mock("../../utils/security", () => ({
   resolveSafePath: vi.fn((targetPath: string) => targetPath),
   isPathWithinDirectory: vi.fn(() => true),
+  pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
+  readdirSafeSync: vi.fn((targetPath: string) => fs.readdirSync(targetPath)),
+  statSafeSync: vi.fn((targetPath: string) => fs.statSync(targetPath)),
+  copyFileSafeSync: vi.fn((sourcePath: string, _sourceAllowed: string, destinationPath: string) =>
+    fs.copyFileSync(sourcePath, destinationPath)
+  ),
+  writeFileSafeSync: vi.fn((targetPath: string, _allowed: string, data: Buffer) =>
+    fs.writeFileSync(targetPath, data)
+  ),
+  unlinkSafeSync: vi.fn((targetPath: string) => fs.unlinkSync(targetPath)),
 }));
 vi.mock("../../utils/logger", () => ({
   logger: {

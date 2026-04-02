@@ -9,8 +9,14 @@ import { invalidateSettingsCache } from "./storageService/settings";
 import { generateTimestamp } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import {
+  copyFileSafeSync,
   isPathWithinDirectory,
+  pathExistsSafeSync,
+  readdirSafeSync,
   resolveSafePath,
+  statSafeSync,
+  unlinkSafeSync,
+  writeFileSafeSync,
 } from "../utils/security";
 const dbPath = path.join(DATA_DIR, "mytube.db");
 const backupPattern = /^mytube-backup-(.+)\.db\.backup$/;
@@ -197,18 +203,15 @@ function prepareTempImportFile(fileBuffer: Buffer): string {
     throw new ValidationError("Invalid database path", "file");
   }
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  fs.writeFileSync(tempImportPath, fileBuffer);
+  writeFileSafeSync(tempImportPath, DATA_DIR, fileBuffer);
   validateDatabase(tempImportPath);
   return tempImportPath;
 }
 
 function cleanupTempImportFile(tempImportPath: string): void {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(tempImportPath)) {
+  if (pathExistsSafeSync(tempImportPath, DATA_DIR)) {
     try {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(tempImportPath);
+      unlinkSafeSync(tempImportPath, DATA_DIR);
     } catch (error) {
       logger.error("Error cleaning up temp file:", error);
     }
@@ -869,8 +872,7 @@ function getBackupFiles(): Array<{
   mtime: number;
   filePath: string;
 }> {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const files = fs.readdirSync(DATA_DIR);
+  const files = readdirSafeSync(DATA_DIR, DATA_DIR);
   const backupFiles: Array<{
     filename: string;
     timestamp: string;
@@ -883,8 +885,7 @@ function getBackupFiles(): Array<{
     if (match) {
       const timestamp = match[1];
       const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(filePath);
+      const stats = statSafeSync(filePath, DATA_DIR);
       backupFiles.push({
         filename: file,
         timestamp,
@@ -914,9 +915,13 @@ function createBackup(): string {
     throw new ValidationError("Invalid backup file path", "file");
   }
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(dbPath)) {
-    fs.copyFileSync(RESOLVED_DB_PATH, resolvedBackupPath);
+  if (pathExistsSafeSync(dbPath, DATA_DIR)) {
+    copyFileSafeSync(
+      RESOLVED_DB_PATH,
+      DATA_DIR,
+      resolvedBackupPath,
+      DATA_DIR,
+    );
     logger.info(`Created backup of current database at ${resolvedBackupPath}`);
   }
 
@@ -938,8 +943,7 @@ function reinitializeDatabase(): void {
  * Returns the path to the database file
  */
 export function exportDatabase(): string {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(dbPath)) {
+  if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
     throw new NotFoundError("Database file", "mytube.db");
   }
   return dbPath;
@@ -961,15 +965,14 @@ export function importDatabase(fileBuffer: Buffer): void {
     logger.info("Closed current database connection for import");
 
     // Simply copy the uploaded file to replace the database
-    fs.copyFileSync(tempImportPath, RESOLVED_DB_PATH);
+    copyFileSafeSync(tempImportPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
     logger.info(`Database file replaced successfully`);
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
   } catch (error: any) {
     // Restore backup if import failed
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(backupPath)) {
+    if (pathExistsSafeSync(backupPath, DATA_DIR)) {
       try {
         const resolvedBackupPath = path.resolve(backupPath);
         const isSafeBackupPath = isPathWithinDirectory(
@@ -979,7 +982,12 @@ export function importDatabase(fileBuffer: Buffer): void {
         if (!isSafeBackupPath) {
           throw new ValidationError("Invalid backup file path", "file");
         }
-        fs.copyFileSync(resolvedBackupPath, RESOLVED_DB_PATH);
+        copyFileSafeSync(
+          resolvedBackupPath,
+          DATA_DIR,
+          RESOLVED_DB_PATH,
+          DATA_DIR,
+        );
         logger.info("Restored database from backup after failed import");
       } catch (restoreError) {
         logger.error("Failed to restore database from backup:", restoreError);
@@ -1144,7 +1152,7 @@ export function restoreFromLastBackup(): void {
   logger.info("Closed current database connection for restore");
 
   // Copy the backup file to replace the database
-  fs.copyFileSync(resolvedBackupPath, RESOLVED_DB_PATH);
+  copyFileSafeSync(resolvedBackupPath, DATA_DIR, RESOLVED_DB_PATH, DATA_DIR);
   logger.info(
     `Database file restored successfully from ${lastBackup.filename}`
   );
@@ -1166,14 +1174,13 @@ export function cleanupBackupDatabases(): {
   const errors: string[] = [];
 
   try {
-    const files = fs.readdirSync(DATA_DIR);
+    const files = readdirSafeSync(DATA_DIR, DATA_DIR);
 
     for (const file of files) {
       if (backupPattern.test(file)) {
         const filePath = resolveSafePath(path.join(DATA_DIR, file), DATA_DIR);
         try {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(filePath);
+          unlinkSafeSync(filePath, DATA_DIR);
           deletedCount++;
           logger.info(`Deleted backup database file: ${file}`);
         } catch (error: any) {

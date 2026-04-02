@@ -5,7 +5,7 @@ import fs from "fs-extra";
 import multer from "multer";
 import path from "path";
 import sanitizeFilename from "sanitize-filename";
-import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
+import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import {
@@ -32,8 +32,13 @@ import {
 } from "../utils/videoUpload";
 import { resolvePlayableVideoFilePath } from "../utils/videoFileResolver";
 import {
+  createReadStreamSafe,
+  createWriteStreamSafe,
+  pathExistsSafeSync,
   resolveSafePath,
   sanitizePathSegment,
+  unlinkSafeSync,
+  writeFileSafeSync,
 } from "../utils/security";
 
 const MAX_VIDEO_UPLOAD_FILE_SIZE = 100 * 1024 * 1024 * 1024;
@@ -212,9 +217,11 @@ const cleanupUploadedVideo = (
   }
 
   try {
-    const storedVideoPath = path.join(VIDEOS_DIR, storedVideoFilename);
-    if (fs.existsSync(storedVideoPath)) {
-      fs.unlinkSync(storedVideoPath);
+    const storedVideoPath = validateVideoPath(
+      `${VIDEOS_DIR}/${storedVideoFilename}`,
+    );
+    if (pathExistsSafeSync(storedVideoPath, VIDEOS_DIR)) {
+      unlinkSafeSync(storedVideoPath, VIDEOS_DIR);
     }
   } catch (error) {
     logger.error("Failed to clean up uploaded video:", error);
@@ -227,8 +234,8 @@ const cleanupGeneratedThumbnail = (thumbnailPath: string | undefined): void => {
   }
 
   try {
-    if (fs.existsSync(thumbnailPath)) {
-      fs.unlinkSync(thumbnailPath);
+    if (pathExistsSafeSync(thumbnailPath, [IMAGES_DIR, VIDEOS_DIR])) {
+      unlinkSafeSync(thumbnailPath, [IMAGES_DIR, VIDEOS_DIR]);
     }
     deleteSmallThumbnailMirrorSync(thumbnailPath);
   } catch (error) {
@@ -413,7 +420,11 @@ const getUploadVideoPayload = async (
     logger.error("Error generating thumbnail:", error);
   }
 
-  if (fs.existsSync(validatedThumbnailPath)) {
+  const thumbnailExists = pathExistsSafeSync(validatedThumbnailPath, [
+    IMAGES_DIR,
+    VIDEOS_DIR,
+  ]);
+  if (thumbnailExists) {
     await regenerateSmallThumbnailForThumbnailPath(thumbnailWebPath);
   }
 
@@ -431,16 +442,10 @@ const getUploadVideoPayload = async (
     source: "local",
     sourceUrl: "",
     videoFilename,
-    thumbnailFilename: fs.existsSync(validatedThumbnailPath)
-      ? thumbnailFilename
-      : undefined,
+    thumbnailFilename: thumbnailExists ? thumbnailFilename : undefined,
     videoPath: `/videos/${videoFilename}`,
-    thumbnailPath: fs.existsSync(validatedThumbnailPath)
-      ? thumbnailWebPath
-      : undefined,
-    thumbnailUrl: fs.existsSync(validatedThumbnailPath)
-      ? thumbnailWebPath
-      : undefined,
+    thumbnailPath: thumbnailExists ? thumbnailWebPath : undefined,
+    thumbnailUrl: thumbnailExists ? thumbnailWebPath : undefined,
     duration: duration ? duration.toString() : undefined,
     fileSize,
     createdAt: new Date().toISOString(),
@@ -1018,8 +1023,7 @@ export const uploadSubtitle = async (
   fs.ensureDirSync(SUBTITLES_DIR);
   // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
   let sourcePath = resolveSafePath(path.join(SUBTITLES_DIR, sourceFilename), SUBTITLES_DIR);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  fs.writeFileSync(sourcePath, req.file.buffer);
+  writeFileSafeSync(sourcePath, SUBTITLES_DIR, req.file.buffer);
   let filename = sourceFilename;
 
   // Find the video first
@@ -1028,10 +1032,8 @@ export const uploadSubtitle = async (
     // Clean up the uploaded file if video doesn't exist
     if (req.file) {
       try {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(sourcePath)) {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.unlinkSync(sourcePath);
+        if (pathExistsSafeSync(sourcePath, SUBTITLES_DIR)) {
+          unlinkSafeSync(sourcePath, SUBTITLES_DIR);
         }
       } catch {
         // Ignore cleanup path validation errors for already-missing/invalid temp paths.
@@ -1055,10 +1057,8 @@ export const uploadSubtitle = async (
     const vttPath = resolveSafePath(path.join(sourceDir, vttFilename), sourceDir);
     try {
       await new Promise<void>((resolve, reject) => {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const readStream = fs.createReadStream(sourcePath);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const writeStream = fs.createWriteStream(vttPath);
+        const readStream = createReadStreamSafe(sourcePath, SUBTITLES_DIR);
+        const writeStream = createWriteStreamSafe(vttPath, SUBTITLES_DIR);
         readStream
           .pipe(assToVtt())
           .pipe(writeStream)
@@ -1066,12 +1066,13 @@ export const uploadSubtitle = async (
           .on("error", reject);
         readStream.on("error", reject);
       });
-      fs.unlinkSync(sourcePath);
+      unlinkSafeSync(sourcePath, SUBTITLES_DIR);
       sourcePath = vttPath;
       filename = path.basename(vttPath);
     } catch (err) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(sourcePath)) fs.unlinkSync(sourcePath);
+      if (pathExistsSafeSync(sourcePath, SUBTITLES_DIR)) {
+        unlinkSafeSync(sourcePath, SUBTITLES_DIR);
+      }
       logger.error("ASS/SSA to VTT conversion failed:", err);
       throw new ValidationError(
         "Invalid ASS/SSA file or conversion failed. Try uploading VTT or SRT.",

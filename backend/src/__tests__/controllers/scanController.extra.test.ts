@@ -40,17 +40,37 @@ vi.mock("../../utils/helpers", () => ({
   ),
 }));
 
-vi.mock("../../utils/security", () => ({
-  execFileSafe: vi.fn().mockResolvedValue({ stdout: "61", stderr: "" }),
-  imagePathExists: vi.fn(async () => true),
-  isPathWithinDirectory: vi.fn(() => true),
-  removeImagePath: vi.fn(async () => undefined),
-  resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) =>
-    `${baseDir}${path.sep}${childPath}`
-  ),
-  resolveSafePath: vi.fn((target: string) => target),
-  validateImagePath: vi.fn((target: string) => target),
-}));
+vi.mock("../../utils/security", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/security")>();
+  return {
+    ...actual,
+    execFileSafe: vi.fn().mockResolvedValue({ stdout: "61", stderr: "" }),
+    imagePathExists: vi.fn(async () => true),
+    isPathWithinDirectory: vi.fn((target: string, allowedDir: string) =>
+      actual.isPathWithinDirectory(target, allowedDir)
+    ),
+    normalizeSafeAbsolutePath: vi.fn((target: string) =>
+      actual.normalizeSafeAbsolutePath(target)
+    ),
+    pathExistsSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.pathExistsSafe(target, allowedDirOrDirs)
+    ),
+    readdirDirentsSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.readdirDirentsSafe(target, allowedDirOrDirs)
+    ),
+    removeImagePath: vi.fn(async () => undefined),
+    resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) =>
+      actual.resolveSafeChildPath(baseDir, childPath)
+    ),
+    resolveSafePath: vi.fn((target: string, allowedDir: string) =>
+      actual.resolveSafePath(target, allowedDir)
+    ),
+    statSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.statSafe(target, allowedDirOrDirs)
+    ),
+    validateImagePath: vi.fn((target: string) => actual.validateImagePath(target)),
+  };
+});
 
 vi.mock("fs-extra", () => ({
   default: {
@@ -394,9 +414,9 @@ describe("scanController extra coverage", () => {
     expect(status).toHaveBeenCalledWith(200);
   });
 
-  it("scanMountDirectories does not delete local /videos records when scanning /videos as a mount path", async () => {
+  it("scanMountDirectories does not delete local /videos records when scanning a separate mount path", async () => {
     req.body = {
-      directories: ["/videos"],
+      directories: ["/mnt/remote"],
     };
 
     vi.mocked(storageService.getVideos).mockReturnValue([
@@ -409,7 +429,7 @@ describe("scanController extra coverage", () => {
     ] as any);
 
     vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
-      return String(target) === "/videos";
+      return String(target) === "/mnt/remote";
     });
     vi.mocked(fs.readdir).mockResolvedValue([] as any);
 

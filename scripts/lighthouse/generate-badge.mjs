@@ -2,8 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { resolvePathWithinCwd } from "../utils.mjs";
 
 const args = process.argv.slice(2);
+const USAGE =
+  "Usage: node scripts/lighthouse/generate-badge.mjs REPORT_JSON... [--output OUTPUT_PATH] [--label LABEL]";
 
 let outputPath = "badges/lighthouse-performance.json";
 let label = "Lighthouse mobile";
@@ -11,11 +14,8 @@ const inputPaths = [];
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
-
   if (arg === "--help" || arg === "-h") {
-    console.log(
-      "Usage: node scripts/lighthouse/generate-badge.mjs <report.json...> [--output <path>] [--label <label>]"
-    );
+    console.log(USAGE);
     process.exit(0);
   }
 
@@ -35,15 +35,16 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 if (inputPaths.length === 0) {
-  console.error(
-    "Usage: node scripts/lighthouse/generate-badge.mjs <report.json...> [--output <path>] [--label <label>]"
-  );
+  console.error(USAGE);
   process.exit(1);
 }
 
 const reportScores = inputPaths
   .map((inputPath) => {
-    const report = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+    const safeInputPath = resolvePathWithinCwd(inputPath);
+    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const report = JSON.parse(fs.readFileSync(safeInputPath, "utf8"));
     const score = report?.categories?.performance?.score;
 
     if (typeof score !== "number") {
@@ -81,13 +82,21 @@ const badgePayload = {
   cacheSeconds: 43200,
 };
 
-fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, `${JSON.stringify(badgePayload, null, 2)}\n`);
+const safeOutputPath = resolvePathWithinCwd(outputPath);
+// nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+fs.mkdirSync(path.dirname(safeOutputPath), { recursive: true });
+// nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+// eslint-disable-next-line security/detect-non-literal-fs-filename
+fs.writeFileSync(
+  safeOutputPath,
+  `${JSON.stringify(badgePayload, null, 2)}\n`
+);
 
 console.log(
   JSON.stringify(
     {
-      outputPath,
+      outputPath: safeOutputPath,
       medianScore,
       reports: reportScores,
     },

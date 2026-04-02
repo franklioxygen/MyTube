@@ -16,8 +16,14 @@ import {
   execFileSafe,
   isPathWithinDirectory,
   imagePathExists,
+  normalizeSafeAbsolutePath,
+  pathExistsSafe,
+  pathExistsTrusted,
   removeImagePath,
+  readdirDirentsSafe,
+  resolveSafeChildPath,
   resolveSafePath,
+  statSafe,
 } from "../utils/security";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
@@ -116,19 +122,28 @@ const collectFilesRecursively = async (
       logger.warn(`Skipping directory outside mount root: ${resolvedDir}`);
       return [];
     }
-
-    if (!(await fs.pathExists(resolvedDir))) {
-      logger.warn(`Mount directory does not exist: ${resolvedDir}`);
-      return [];
-    }
   }
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const entries = await fs.readdir(resolvedDir, { withFileTypes: true });
+  if (!(await pathExistsSafe(resolvedDir, safeRoot))) {
+    logger.warn(
+      mode === "mount"
+        ? `Mount directory does not exist: ${resolvedDir}`
+        : `Directory does not exist: ${resolvedDir}`
+    );
+    return [];
+  }
+
+  const entries = await readdirDirentsSafe(resolvedDir, safeRoot);
 
   const nestedResults = await Promise.all(
     entries.map(async (entry) => {
-      const filePath = path.join(resolvedDir, entry.name);
+      let filePath: string;
+      try {
+        filePath = resolveSafeChildPath(resolvedDir, entry.name);
+      } catch {
+        logger.warn(`Skipping invalid path during scan: ${entry.name}`);
+        return [] as string[];
+      }
 
       if (!isPathWithinDirectory(filePath, resolvedDir)) {
         logger.warn(
@@ -173,7 +188,7 @@ const validateMountDirectory = (dir: string): string => {
     throw new Error(`Path traversal detected in mount directory: ${dir}`);
   }
 
-  const resolvedDir = path.resolve(path.normalize(dir));
+  const resolvedDir = normalizeSafeAbsolutePath(dir);
   if (!path.isAbsolute(resolvedDir)) {
     throw new Error(`Invalid mount directory path: ${resolvedDir}`);
   }
@@ -187,8 +202,8 @@ const isSameOrNestedDirectory = (targetDir: string, baseDir: string): boolean =>
 };
 
 const overlapsLocalVideosDirectory = (dir: string): boolean => {
-  const normalizedDir = path.resolve(path.normalize(dir));
-  const normalizedVideosDir = path.resolve(path.normalize(VIDEOS_DIR));
+  const normalizedDir = normalizeSafeAbsolutePath(dir);
+  const normalizedVideosDir = normalizeSafeAbsolutePath(VIDEOS_DIR);
   return (
     isSameOrNestedDirectory(normalizedDir, normalizedVideosDir) ||
     isSameOrNestedDirectory(normalizedVideosDir, normalizedDir)
@@ -208,7 +223,7 @@ const buildVideoWebPath = (
   isMountDirectory: boolean
 ): string => {
   if (isMountDirectory) {
-    return `mount:${path.resolve(path.normalize(filePath))}`;
+    return `mount:${normalizeSafeAbsolutePath(filePath)}`;
   }
 
   const relativePath = path.relative(normalizedDirectory, filePath);
@@ -229,7 +244,7 @@ const getSafeFilePathForProcessing = (
       return null;
     }
 
-    return path.resolve(path.normalize(filePath));
+    return normalizeSafeAbsolutePath(filePath);
   }
 
   try {
@@ -275,15 +290,10 @@ const maybeGenerateThumbnail = async (
   safeFilePath: string
 ): Promise<string | null> => {
   const baseThumbnailDir = path.resolve(IMAGES_DIR);
-  const joinedThumbnailPath = path.join(
+  const normalizedThumbnailPath = resolveSafeChildPath(
     baseThumbnailDir,
     `.scan-${crypto.randomUUID()}.jpg`
   );
-  const normalizedThumbnailPath = path.normalize(joinedThumbnailPath);
-
-  if (!normalizedThumbnailPath.startsWith(`${baseThumbnailDir}${path.sep}`)) {
-    throw new Error("Generated thumbnail path escapes images directory");
-  }
 
   try {
     await execFileSafe("ffmpeg", [
@@ -336,8 +346,7 @@ const processSingleVideoFile = async (
   const relativePath = path.relative(normalizedDirectory, filePath);
   const webPath = buildVideoWebPath(filePath, normalizedDirectory, isMountDirectory);
 
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  const stats = await fs.stat(filePath);
+  const stats = await statSafe(filePath, normalizedDirectory);
   if (stats.size === 0) {
     logger.warn(`Skipping 0-byte video file: ${filePath}`);
     return "skipped";
@@ -466,9 +475,11 @@ const processDirectoryFiles = async (
   options: ProcessDirectoryOptions = {}
 ): Promise<{ addedCount: number; updatedCount: number; allFiles: string[] }> => {
   const isMountDirectory = options.isMountDirectory || false;
-  const normalizedDirectory = path.resolve(path.normalize(directory));
+  const normalizedDirectory = isMountDirectory
+    ? validateMountDirectory(directory)
+    : resolveSafePath(directory, VIDEOS_DIR);
 
-  if (!(await fs.pathExists(normalizedDirectory))) {
+  if (!(await pathExistsTrusted(normalizedDirectory))) {
     logger.warn(`Directory does not exist: ${normalizedDirectory}`);
     return { addedCount: 0, updatedCount: 0, allFiles: [] };
   }
@@ -590,7 +601,7 @@ export const scanFiles = async (
     }
   }
 
-  if (!(await fs.pathExists(VIDEOS_DIR))) {
+  if (!(await pathExistsTrusted(VIDEOS_DIR))) {
     res
       .status(200)
       .json(
@@ -746,7 +757,7 @@ export const scanMountDirectories = async (
     for (const filePath of allFiles) {
       const ext = path.extname(filePath).toLowerCase();
       if (VIDEO_EXTENSIONS.includes(ext)) {
-        actualMountPathsOnDisk.add(path.resolve(path.normalize(filePath)));
+        actualMountPathsOnDisk.add(normalizeSafeAbsolutePath(filePath));
       }
     }
   }
@@ -765,7 +776,7 @@ export const scanMountDirectories = async (
 
     let normalizedVideoPath: string;
     try {
-      normalizedVideoPath = path.resolve(path.normalize(actualVideoPath));
+      normalizedVideoPath = normalizeSafeAbsolutePath(actualVideoPath);
     } catch {
       continue;
     }

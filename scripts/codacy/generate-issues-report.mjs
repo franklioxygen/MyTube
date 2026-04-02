@@ -4,24 +4,25 @@ import { execSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { resolvePathWithinCwd } from "../utils.mjs";
 
-const CATEGORY_LABELS = {
-  BestPractice: "Best practice",
-  CodeStyle: "Code style",
-  Compatibility: "Compatibility",
-  ErrorProne: "Error prone",
-  Performance: "Performance",
-  Security: "Security",
-  UnusedCode: "Unused code",
-};
+const CATEGORY_LABELS = new Map([
+  ["BestPractice", "Best practice"],
+  ["CodeStyle", "Code style"],
+  ["Compatibility", "Compatibility"],
+  ["ErrorProne", "Error prone"],
+  ["Performance", "Performance"],
+  ["Security", "Security"],
+  ["UnusedCode", "Unused code"],
+]);
+const USAGE =
+  "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider PROVIDER] [--owner OWNER] [--repo REPO] [--out OUTPUT_PATH]";
 
 function usageAndExit(message) {
   if (message) {
     console.error(`Error: ${message}`);
   }
-  console.error(
-    "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider gh] [--owner <owner>] [--repo <repo>] [--out <path>]",
-  );
+  console.error(USAGE);
   process.exit(1);
 }
 
@@ -32,30 +33,51 @@ function parseArgs(argv) {
     repo: undefined,
     out: "reports/codacy-current-issues.md",
   };
+  let pendingOption = null;
 
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
+  for (const arg of argv) {
+    if (pendingOption === "--provider") {
+      args.provider = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--owner") {
+      args.owner = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--repo") {
+      args.repo = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--out") {
+      args.out = arg;
+      pendingOption = null;
+      continue;
+    }
+
     if (arg === "--provider") {
-      args.provider = argv[i + 1];
-      i += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--owner") {
-      args.owner = argv[i + 1];
-      i += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--repo") {
-      args.repo = argv[i + 1];
-      i += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--out") {
-      args.out = argv[i + 1];
-      i += 1;
+      pendingOption = arg;
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
+  }
+
+  if (pendingOption) {
+    usageAndExit(`Missing value for ${pendingOption}`);
   }
 
   return args;
@@ -145,7 +167,7 @@ function escapePipes(text) {
 }
 
 function categoryLabel(raw) {
-  return CATEGORY_LABELS[raw] || raw || "Unknown";
+  return CATEGORY_LABELS.get(raw) || raw || "Unknown";
 }
 
 function buildMarkdown({
@@ -289,8 +311,12 @@ async function main() {
     generatedAt: new Date().toISOString(),
   });
 
-  const outputPath = path.resolve(process.cwd(), out);
+  const outputPath = resolvePathWithinCwd(out);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   await fs.writeFile(outputPath, markdown, "utf8");
 
   console.log(`Report written: ${outputPath}`);

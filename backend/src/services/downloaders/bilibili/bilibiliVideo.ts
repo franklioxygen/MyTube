@@ -1,4 +1,3 @@
-import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { DownloadCancelledError } from "../../../errors/DownloadErrors";
@@ -7,6 +6,15 @@ import { formatBytes } from "../../../utils/downloadUtils";
 import { formatVideoFilename } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import { ProgressTracker } from "../../../utils/progressTracker";
+import {
+  pathExistsSafeSync,
+  readdirSafeSync,
+  removeSafe,
+  resolveSafeChildPath,
+  sanitizePathSegment,
+  statSafeSync,
+  unlinkSafeSync,
+} from "../../../utils/security";
 import {
   executeYtDlpJson,
   executeYtDlpSpawn,
@@ -69,6 +77,55 @@ class BilibiliDownloaderHelper extends BaseDownloader {
   ): Promise<boolean> {
     return this.downloadThumbnail(thumbnailUrl, savePath, axiosConfig);
   }
+}
+
+function resolveSubtitleDirectory(
+  collectionName: string | undefined,
+  moveSubtitlesToVideoFolder: boolean,
+  videoDir: string
+): string {
+  if (moveSubtitlesToVideoFolder) {
+    return videoDir;
+  }
+
+  if (!collectionName) {
+    return SUBTITLES_DIR;
+  }
+
+  const safeCollectionName = sanitizePathSegment(collectionName);
+  return safeCollectionName
+    ? resolveSafeChildPath(SUBTITLES_DIR, safeCollectionName)
+    : SUBTITLES_DIR;
+}
+
+function resolveExistingThumbnailAbsolutePath(
+  existingVideo: {
+    thumbnailFilename?: string;
+    thumbnailPath?: string | null;
+  }
+): string | null {
+  if (existingVideo.thumbnailPath?.startsWith("/videos/")) {
+    return resolveSafeChildPath(
+      VIDEOS_DIR,
+      existingVideo.thumbnailPath.replace(/^\/videos\//, "")
+    );
+  }
+
+  if (existingVideo.thumbnailPath?.startsWith("/images/")) {
+    return resolveSafeChildPath(
+      IMAGES_DIR,
+      existingVideo.thumbnailPath.replace(/^\/images\//, "")
+    );
+  }
+
+  if (!existingVideo.thumbnailFilename) {
+    return null;
+  }
+
+  return resolveSafeChildPath(
+    IMAGES_DIR,
+    path.basename(existingVideo.thumbnailFilename)
+  );
 }
 
 /**
@@ -151,7 +208,7 @@ export async function downloadVideo(
 
     // Prepare output path with a safe filename to avoid issues with special characters
     // Use a simple template that yt-dlp will fill in
-    const outputTemplate = path.join(tempDir, "video.%(ext)s");
+    const outputTemplate = resolveSafeChildPath(tempDir, "video.%(ext)s");
 
     // Prepare download flags using the config module
     const { flags } = prepareBilibiliDownloadFlags(url, outputTemplate);
@@ -236,9 +293,8 @@ export async function downloadVideo(
       wasCancelled = true;
       // If we have a download error, prefer showing that over cancellation
       if (!downloadError) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(tempDir)) {
-          fs.removeSync(tempDir);
+        if (pathExistsSafeSync(tempDir, VIDEOS_DIR)) {
+          await removeSafe(tempDir, VIDEOS_DIR);
         }
         throw error;
       }
@@ -273,9 +329,8 @@ export async function downloadVideo(
       throw new Error(errorMsg);
     }
 
-    if (fs.existsSync(tempDir)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const files = fs.readdirSync(tempDir);
+    if (pathExistsSafeSync(tempDir, VIDEOS_DIR)) {
+      const files = readdirSafeSync(tempDir, VIDEOS_DIR);
       logger.info("Files in temp directory:", files);
     }
 
@@ -290,11 +345,9 @@ export async function downloadVideo(
     logger.info("Found video file:", videoFile);
 
     // Get final file size for progress update
-    const tempVideoPath = path.join(tempDir, videoFile);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (downloadId && fs.existsSync(tempVideoPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(tempVideoPath);
+    const tempVideoPath = resolveSafeChildPath(tempDir, videoFile);
+    if (downloadId && pathExistsSafeSync(tempVideoPath, tempDir)) {
+      const stats = statSafeSync(tempVideoPath, tempDir);
       const finalSize = formatBytes(stats.size);
       storageService.updateActiveDownload(downloadId, {
         downloadedSize: finalSize,
@@ -571,11 +624,11 @@ export async function downloadSinglePart(
     }> = [];
     try {
       logger.info("Attempting to download subtitles...");
-      const subtitleDir = moveSubtitlesToVideoFolder
-        ? videoDir
-        : collectionName
-        ? path.join(SUBTITLES_DIR, collectionName)
-        : SUBTITLES_DIR;
+      const subtitleDir = resolveSubtitleDirectory(
+        collectionName,
+        moveSubtitlesToVideoFolder,
+        videoDir
+      );
       const subtitlePathPrefix = moveSubtitlesToVideoFolder
         ? collectionName
           ? `/videos/${collectionName}`
@@ -672,27 +725,19 @@ export async function downloadSinglePart(
           existingVideo.thumbnailFilename &&
           existingVideo.thumbnailFilename !== finalThumbnailFilename
         ) {
-          const oldThumbnailPath = existingVideo.thumbnailPath?.startsWith("/videos/")
-            ? path.join(
-                VIDEOS_DIR,
-                existingVideo.thumbnailPath.replace(/^\/videos\//, ""),
-              )
-            : existingVideo.thumbnailPath?.startsWith("/images/")
-              ? path.join(
-                  IMAGES_DIR,
-                  existingVideo.thumbnailPath.replace(/^\/images\//, ""),
-                )
-              : path.join(IMAGES_DIR, existingVideo.thumbnailFilename);
+          const oldThumbnailPath =
+            resolveExistingThumbnailAbsolutePath(existingVideo);
 
           try {
             if (
-              fs.existsSync(oldThumbnailPath) &&
+              oldThumbnailPath &&
+              pathExistsSafeSync(oldThumbnailPath, [IMAGES_DIR, VIDEOS_DIR]) &&
               !storageService.isThumbnailReferencedByOtherVideo(
                 existingVideo,
                 existingVideo.id,
               )
             ) {
-              fs.unlinkSync(oldThumbnailPath);
+              unlinkSafeSync(oldThumbnailPath, [IMAGES_DIR, VIDEOS_DIR]);
               deleteSmallThumbnailMirrorSync(oldThumbnailPath);
             }
           } catch (error) {

@@ -6,11 +6,15 @@ vi.mock("fs-extra", () => ({
     ensureDir: vi.fn(),
     pathExists: vi.fn(),
     existsSync: vi.fn(),
+    readdirSync: vi.fn(),
+    unlinkSync: vi.fn(),
     copy: vi.fn(),
   },
   ensureDir: vi.fn(),
   pathExists: vi.fn(),
   existsSync: vi.fn(),
+  readdirSync: vi.fn(),
+  unlinkSync: vi.fn(),
   copy: vi.fn(),
 }));
 
@@ -18,6 +22,9 @@ vi.mock("../../utils/security", () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
   isPathWithinDirectory: vi.fn(() => true),
   resolveSafePath: vi.fn((target: string) => target),
+  pathExistsSafeSync: vi.fn((target: string) => fs.existsSync(target)),
+  readdirSafeSync: vi.fn((target: string) => fs.readdirSync(target)),
+  unlinkSafeSync: vi.fn((target: string) => fs.unlinkSync(target)),
 }));
 
 import { regenerateSmallThumbnailForThumbnailPath } from "../../services/thumbnailMirrorService";

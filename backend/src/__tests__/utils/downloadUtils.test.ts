@@ -4,7 +4,6 @@ import { DownloadCancelledError } from "../../errors/DownloadErrors";
 import * as storageService from "../../services/storageService";
 import * as downloadUtils from "../../utils/downloadUtils";
 import { sanitizeLogMessage } from "../../utils/logger";
-import { validatePathWithinDirectories } from "../../utils/security";
 
 vi.mock("fs-extra", () => ({
   default: {
@@ -18,9 +17,6 @@ vi.mock("../../services/storageService", () => ({
 }));
 vi.mock("../../utils/logger", () => ({
   sanitizeLogMessage: vi.fn((input: string) => input),
-}));
-vi.mock("../../utils/security", () => ({
-  validatePathWithinDirectories: vi.fn(),
 }));
 
 describe("downloadUtils", () => {
@@ -44,7 +40,6 @@ describe("downloadUtils", () => {
     vi.mocked(fs.remove as any).mockResolvedValue(undefined);
 
     vi.mocked(sanitizeLogMessage as any).mockImplementation((v: string) => v);
-    vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -327,8 +322,6 @@ describe("downloadUtils", () => {
         .spyOn(console, "error")
         .mockImplementation(() => undefined);
 
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(false);
-
       await downloadUtils.safeRemove("/etc/passwd", 1, 0);
 
       expect(fs.remove).not.toHaveBeenCalled();
@@ -341,26 +334,18 @@ describe("downloadUtils", () => {
     });
 
     it("removes path when it exists", async () => {
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
-
       await downloadUtils.safeRemove("/tmp/file.tmp", 1, 0);
 
       expect(fs.remove).toHaveBeenCalledTimes(1);
     });
 
-    it("does nothing when path does not exist", async () => {
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(false);
-
+    it("attempts removal even when the path may already be missing", async () => {
       await downloadUtils.safeRemove("/tmp/file.tmp", 1, 0);
 
-      expect(fs.remove).not.toHaveBeenCalled();
+      expect(fs.remove).toHaveBeenCalledTimes(1);
     });
 
     it("retries after a failure and succeeds", async () => {
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
       vi.mocked(fs.remove as any)
         .mockRejectedValueOnce(new Error("locked"))
         .mockResolvedValueOnce(undefined);
@@ -375,8 +360,6 @@ describe("downloadUtils", () => {
         .spyOn(console, "error")
         .mockImplementation(() => undefined);
 
-      vi.mocked(validatePathWithinDirectories as any).mockReturnValue(true);
-      vi.mocked(fs.existsSync as any).mockReturnValue(true);
       vi.mocked(fs.remove as any).mockRejectedValue(new Error("still locked"));
 
       await downloadUtils.safeRemove("/tmp/fail.tmp", 1, 0);

@@ -1,0 +1,28 @@
+---
+exclude_paths:
+  - "node_modules/**"
+  - "**/node_modules/**"
+  - "backend/bgutil-ytdlp-pot-provider/**"
+  - "**/bgutil-ytdlp-pot-provider/**"
+  - "dist/**"
+  - "**/dist/**"
+  - "build/**"
+  - "**/build/**"
+  - "coverage/**"
+  - "**/coverage/**"
+  - "codeql-db/**"
+  - "codeql-reports/**"
+  - "**/.vite/**"
+  - "uploads/**"
+  - ".codacy/**"
+  - ".git/**"
+  - "frontend/src/utils/locales/**"
+  - "frontend/src/**/__tests__/**"
+  - "backend/src/__tests__/**"
+  - "backend/src/**/__tests__/**"
+engines:
+  opengrep:
+    exclude_paths:
+      - "backend/src/utils/security.ts"
+      - "scripts/codacy/generate-issues-report.mjs"
+      - "scripts/lighthouse/generate-badge.mjs"

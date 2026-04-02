@@ -42,15 +42,37 @@ vi.mock('fs-extra', () => ({
   removeSync: vi.fn(), // direct export mock
   remove: vi.fn(),
 }));
-vi.mock('../../utils/security', () => ({
-  execFileSafe: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
-  imagePathExists: vi.fn().mockResolvedValue(true),
-  isPathWithinDirectory: vi.fn().mockReturnValue(true),
-  removeImagePath: vi.fn().mockResolvedValue(undefined),
-  resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => `${baseDir}/${childPath}`),
-  resolveSafePath: vi.fn((path: string) => path),
-  validateImagePath: vi.fn((path: string) => path),
-}));
+vi.mock('../../utils/security', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/security')>();
+  return {
+    ...actual,
+    execFileSafe: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
+    imagePathExists: vi.fn().mockResolvedValue(true),
+    isPathWithinDirectory: vi.fn((target: string, allowedDir: string) =>
+      actual.isPathWithinDirectory(target, allowedDir),
+    ),
+    normalizeSafeAbsolutePath: vi.fn((target: string) =>
+      actual.normalizeSafeAbsolutePath(target),
+    ),
+    pathExistsSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.pathExistsSafe(target, allowedDirOrDirs),
+    ),
+    readdirDirentsSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.readdirDirentsSafe(target, allowedDirOrDirs),
+    ),
+    removeImagePath: vi.fn().mockResolvedValue(undefined),
+    resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) =>
+      actual.resolveSafeChildPath(baseDir, childPath),
+    ),
+    resolveSafePath: vi.fn((target: string, allowedDir: string) =>
+      actual.resolveSafePath(target, allowedDir),
+    ),
+    statSafe: vi.fn((target: string, allowedDirOrDirs: string | readonly string[]) =>
+      actual.statSafe(target, allowedDirOrDirs),
+    ),
+    validateImagePath: vi.fn((target: string) => actual.validateImagePath(target)),
+  };
+});
 vi.mock('child_process');
 
 describe('ScanController', () => {

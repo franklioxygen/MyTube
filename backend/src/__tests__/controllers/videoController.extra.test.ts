@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import {
   getAuthorChannelUrl,
   getVideoById,
@@ -51,7 +52,9 @@ vi.mock("../../services/thumbnailMirrorService", () => ({
   resolveManagedThumbnailTarget: vi.fn((video: any, filename: string, moveWithVideo: boolean) => {
     const safeFilename = path.basename(filename);
     return {
-      absolutePath: moveWithVideo ? `/uploads/videos/${safeFilename}` : `/uploads/images/${safeFilename}`,
+      absolutePath: moveWithVideo
+        ? path.join(VIDEOS_DIR, safeFilename)
+        : path.join(IMAGES_DIR, safeFilename),
       webPath: moveWithVideo ? `/videos/${safeFilename}` : `/images/${safeFilename}`,
       relativePath: safeFilename,
     };
@@ -177,6 +180,24 @@ describe("videoController extra coverage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getUserYtDlpConfig).mockReset();
+    vi.mocked(getNetworkConfigFromUserConfig).mockReset();
+    vi.mocked(isYouTubeUrl).mockReset();
+    vi.mocked(isBilibiliUrl).mockReset();
+    vi.mocked(isTwitchChannelUrl).mockReset();
+    vi.mocked(isTwitchVideoUrl).mockReset();
+    vi.mocked(normalizeTwitchChannelUrl).mockReset();
+    vi.mocked(extractBilibiliVideoId).mockReset();
+    vi.mocked(extractTwitchVideoId).mockReset();
+    vi.mocked(storageService.getSettings).mockReset();
+    vi.mocked(storageService.getVideoById).mockReset();
+    vi.mocked(storageService.updateVideo).mockReset();
+    vi.mocked(storageService.saveVideoIfAbsent).mockReset();
+    vi.mocked(fs.moveSync).mockReset();
+    vi.mocked(fs.writeFileSync).mockReset();
+    vi.mocked(fs.unlinkSync).mockReset();
+    vi.mocked(fs.existsSync).mockReset();
+    vi.mocked(fs.readdirSync).mockReset();
 
     json = vi.fn();
     status = vi.fn(() => ({ json }));
