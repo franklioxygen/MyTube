@@ -242,7 +242,11 @@ export async function imagePathExists(filePath: string): Promise<boolean> {
 }
 
 export async function statImagePath(filePath: string): Promise<fs.Stats> {
+  const basePath = path.normalize(IMAGES_DIR) + path.sep;
   const safePath = path.normalize(validateImagePath(filePath));
+  if (!safePath.startsWith(basePath)) {
+    throw new Error(`Path traversal detected: ${filePath} is outside ${IMAGES_DIR}`);
+  }
   return fs.stat(safePath);
 }
 
