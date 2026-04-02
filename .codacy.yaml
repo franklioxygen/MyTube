@@ -19,6 +19,7 @@ exclude_paths:
   - "frontend/src/utils/locales/**"
   - "frontend/src/**/__tests__/**"
   - "backend/src/__tests__/**"
+  - "backend/src/**/__tests__/**"
 engines:
   opengrep:
     exclude_paths:
