@@ -33,30 +33,51 @@ function parseArgs(argv) {
     repo: undefined,
     out: "reports/codacy-current-issues.md",
   };
+  let pendingOption = null;
 
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
+  for (const arg of argv) {
+    if (pendingOption === "--provider") {
+      args.provider = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--owner") {
+      args.owner = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--repo") {
+      args.repo = arg;
+      pendingOption = null;
+      continue;
+    }
+    if (pendingOption === "--out") {
+      args.out = arg;
+      pendingOption = null;
+      continue;
+    }
+
     if (arg === "--provider") {
-      args.provider = argv[index + 1];
-      index += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--owner") {
-      args.owner = argv[index + 1];
-      index += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--repo") {
-      args.repo = argv[index + 1];
-      index += 1;
+      pendingOption = arg;
       continue;
     }
     if (arg === "--out") {
-      args.out = argv[index + 1];
-      index += 1;
+      pendingOption = arg;
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
+  }
+
+  if (pendingOption) {
+    usageAndExit(`Missing value for ${pendingOption}`);
   }
 
   return args;
