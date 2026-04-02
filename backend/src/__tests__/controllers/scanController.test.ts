@@ -45,6 +45,7 @@ vi.mock('fs-extra', () => ({
 vi.mock('../../utils/security', () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: '', stderr: '' }),
   isPathWithinDirectory: vi.fn().mockReturnValue(true),
+  resolveSafeChildPath: vi.fn((baseDir: string, childPath: string) => `${baseDir}/${childPath}`),
   resolveSafePath: vi.fn((path: string) => path),
   validateImagePath: vi.fn((path: string) => path),
 }));
