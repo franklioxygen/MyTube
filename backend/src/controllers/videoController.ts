@@ -218,7 +218,7 @@ const cleanupUploadedVideo = (
 
   try {
     const storedVideoPath = validateVideoPath(
-      path.join(VIDEOS_DIR, storedVideoFilename),
+      `${VIDEOS_DIR}/${storedVideoFilename}`,
     );
     if (pathExistsSafeSync(storedVideoPath, VIDEOS_DIR)) {
       unlinkSafeSync(storedVideoPath, VIDEOS_DIR);
