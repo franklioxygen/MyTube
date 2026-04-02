@@ -16,7 +16,6 @@ import {
   execFileSafe,
   isPathWithinDirectory,
   resolveSafePath,
-  validateImagePath,
 } from "../utils/security";
 
 const VIDEO_EXTENSIONS = [".mp4", ".mkv", ".webm", ".avi", ".mov"];
@@ -271,13 +270,20 @@ const extractDuration = async (
 };
 
 const maybeGenerateThumbnail = async (
-  safeFilePath: string,
-  tempThumbnailPath: string
-): Promise<void> => {
-  let validatedThumbnailPath: string | null = null;
+  safeFilePath: string
+): Promise<string | null> => {
+  const baseThumbnailDir = path.resolve(IMAGES_DIR);
+  const joinedThumbnailPath = path.join(
+    baseThumbnailDir,
+    `.scan-${crypto.randomUUID()}.jpg`
+  );
+  const normalizedThumbnailPath = path.normalize(joinedThumbnailPath);
+
+  if (!normalizedThumbnailPath.startsWith(`${baseThumbnailDir}${path.sep}`)) {
+    throw new Error("Generated thumbnail path escapes images directory");
+  }
 
   try {
-    validatedThumbnailPath = validateImagePath(tempThumbnailPath);
     await execFileSafe("ffmpeg", [
       "-nostdin",
       "-y",
@@ -289,38 +295,37 @@ const maybeGenerateThumbnail = async (
       "1",
       "-update",
       "1",
-      validatedThumbnailPath,
+      normalizedThumbnailPath,
     ], { timeout: SCAN_FFMPEG_TIMEOUT_MS });
 
-    const thumbnailExists = await fs.pathExists(validatedThumbnailPath);
+    const thumbnailExists = await fs.pathExists(normalizedThumbnailPath);
     if (!thumbnailExists) {
       throw new Error("Generated thumbnail file does not exist");
     }
 
-    const generatedThumbnailStats = await fs.stat(
-      validateImagePath(validatedThumbnailPath)
-    );
+    const generatedThumbnailStats = await fs.stat(normalizedThumbnailPath);
     if (generatedThumbnailStats.size <= 0) {
       throw new Error("Generated thumbnail file is empty");
     }
+
+    return normalizedThumbnailPath;
   } catch (error) {
-    if (validatedThumbnailPath) {
-      try {
-        if (await fs.pathExists(validatedThumbnailPath)) {
-          await fs.remove(validatedThumbnailPath);
-        }
-      } catch (cleanupError) {
-        logger.warn("Failed to clean up invalid generated thumbnail", {
-          thumbnailPath: validatedThumbnailPath,
-          error:
-            cleanupError instanceof Error
-              ? cleanupError.message
-              : String(cleanupError),
-        });
+    try {
+      if (await fs.pathExists(normalizedThumbnailPath)) {
+        await fs.remove(normalizedThumbnailPath);
       }
+    } catch (cleanupError) {
+      logger.warn("Failed to clean up invalid generated thumbnail", {
+        thumbnailPath: normalizedThumbnailPath,
+        error:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError),
+      });
     }
 
     logger.error("Error generating thumbnail:", error);
+    return null;
   }
 };
 const processSingleVideoFile = async (
@@ -378,16 +383,12 @@ const processSingleVideoFile = async (
 
   const thumbnailBaseName = path.parse(filename).name;
   const newThumbnailFilename = `${thumbnailBaseName}.jpg`;
-  const tempThumbnailPath = path.join(
-    IMAGES_DIR,
-    `.scan-${crypto.randomUUID()}.jpg`
-  );
 
   const safeFilePath = getSafeFilePathForProcessing(filePath, isMountDirectory);
-
-  if (!tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl && safeFilePath) {
-    await maybeGenerateThumbnail(safeFilePath, tempThumbnailPath);
-  }
+  const tempThumbnailPath =
+    !tmdbMetadata?.thumbnailPath && !tmdbMetadata?.thumbnailUrl && safeFilePath
+      ? await maybeGenerateThumbnail(safeFilePath)
+      : null;
 
   const duration = safeFilePath
     ? await extractDuration(safeFilePath)

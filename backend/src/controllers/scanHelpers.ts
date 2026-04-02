@@ -68,13 +68,15 @@ const resolveTmdbThumbnailHelper = async (
 };
 
 const resolveLocalThumbnail = async (
-  tempThumbnailPath: string,
+  tempThumbnailPath: string | null,
   targetThumbnailFilename: string
 ): Promise<ThumbnailResolution> => {
   const safeTargetThumbnailPath = validateImagePath(
     resolveSafeChildPath(IMAGES_DIR, targetThumbnailFilename)
   );
-  const safeTempThumbnailPath = validateImagePath(tempThumbnailPath);
+  const safeTempThumbnailPath = tempThumbnailPath
+    ? validateImagePath(tempThumbnailPath)
+    : null;
 
   const finalizeThumbnail = async (
     absoluteThumbnailPath: string
@@ -102,7 +104,7 @@ const resolveLocalThumbnail = async (
   };
 
   try {
-    if (await fs.pathExists(safeTempThumbnailPath)) {
+    if (safeTempThumbnailPath && await fs.pathExists(safeTempThumbnailPath)) {
       if (
         (await fs.pathExists(safeTargetThumbnailPath)) &&
         safeTempThumbnailPath !== safeTargetThumbnailPath
@@ -126,7 +128,7 @@ const resolveLocalThumbnail = async (
     return finalizeThumbnail(safeTargetThumbnailPath);
   }
 
-  if (await fs.pathExists(safeTempThumbnailPath)) {
+  if (safeTempThumbnailPath && await fs.pathExists(safeTempThumbnailPath)) {
     return finalizeThumbnail(safeTempThumbnailPath);
   }
 
@@ -136,7 +138,7 @@ const resolveLocalThumbnail = async (
 export const resolveThumbnail = async (
   filename: string,
   tmdbMetadata: TmdbMetadata,
-  tempThumbnailPath: string,
+  tempThumbnailPath: string | null,
   fallbackThumbnailFilename: string
 ): Promise<ThumbnailResolution> => {
   // 1. Try TMDB thumbnail
