@@ -67,7 +67,7 @@ vi.mock("fs-extra", () => ({
 
 describe("scanController extra coverage", () => {
   const originalTrustLevel = process.env.MYTUBE_ADMIN_TRUST_LEVEL;
-  let randomUuidSpy: ReturnType<typeof vi.spyOn>;
+  let randomUuidSpy: { mockRestore: () => void };
   let req: Partial<Request>;
   let res: Partial<Response>;
   let json: any;
@@ -84,10 +84,20 @@ describe("scanController extra coverage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    let uuidCounter = 0;
+    const generatedUuids: Array<ReturnType<typeof crypto.randomUUID>> = [
+      "11111111-1111-1111-1111-111111111111" as ReturnType<typeof crypto.randomUUID>,
+      "22222222-2222-2222-2222-222222222222" as ReturnType<typeof crypto.randomUUID>,
+      "33333333-3333-3333-3333-333333333333" as ReturnType<typeof crypto.randomUUID>,
+    ];
     randomUuidSpy = vi
       .spyOn(crypto, "randomUUID")
-      .mockImplementation(() => `uuid-${++uuidCounter}`);
+      .mockImplementation(
+        () =>
+          generatedUuids.shift() ||
+          ("ffffffff-ffff-ffff-ffff-ffffffffffff" as ReturnType<
+            typeof crypto.randomUUID
+          >)
+      );
     process.env.MYTUBE_ADMIN_TRUST_LEVEL = "host";
     json = vi.fn();
     status = vi.fn(() => ({ json }));
@@ -325,7 +335,7 @@ describe("scanController extra coverage", () => {
 
     const existingPaths = new Set<string>([
       "/mnt/library",
-      path.join(IMAGES_DIR, ".scan-uuid-1.jpg"),
+      path.join(IMAGES_DIR, ".scan-11111111-1111-1111-1111-111111111111.jpg"),
     ]);
 
     vi.mocked(fs.pathExists).mockImplementation(async (target: any) => {
@@ -364,7 +374,7 @@ describe("scanController extra coverage", () => {
     await scanMountDirectories(req as Request, res as Response);
 
     expect(fs.remove).toHaveBeenCalledWith(
-      path.join(IMAGES_DIR, ".scan-uuid-1.jpg")
+      path.join(IMAGES_DIR, ".scan-11111111-1111-1111-1111-111111111111.jpg")
     );
     expect(storageService.saveVideo).toHaveBeenCalledWith(
       expect.objectContaining({
