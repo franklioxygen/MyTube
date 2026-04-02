@@ -237,14 +237,17 @@ export function validateImagePath(filePath: string): string {
 }
 
 export async function imagePathExists(filePath: string): Promise<boolean> {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.pathExists(validateImagePath(filePath));
 }
 
 export async function statImagePath(filePath: string): Promise<fs.Stats> {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.stat(validateImagePath(filePath));
 }
 
 export async function removeImagePath(filePath: string): Promise<void> {
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.remove(validateImagePath(filePath));
 }
 
