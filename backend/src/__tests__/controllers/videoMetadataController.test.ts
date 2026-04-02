@@ -62,6 +62,7 @@ vi.mock("../../utils/security", () => ({
   validateImagePath: vi.fn((targetPath: string) => targetPath),
   validateUrl: vi.fn((url: string) => url),
   execFileSafe: vi.fn(),
+  pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
 }));
 vi.mock("../../utils/logger", () => ({
   logger: {

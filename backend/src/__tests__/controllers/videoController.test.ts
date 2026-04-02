@@ -55,6 +55,13 @@ vi.mock("../../utils/security", () => ({
   validateImagePath: vi.fn((path: string) => path),
   execFileSafe: vi.fn(),
   resolveSafePath: vi.fn((path: string) => path),
+  pathExistsSafeSync: vi.fn((targetPath: string) => fs.existsSync(targetPath)),
+  unlinkSafeSync: vi.fn((targetPath: string) => fs.unlinkSync(targetPath)),
+  writeFileSafeSync: vi.fn((targetPath: string, _allowed: string, data: Buffer) =>
+    fs.writeFileSync(targetPath, data)
+  ),
+  createReadStreamSafe: vi.fn(),
+  createWriteStreamSafe: vi.fn(),
 }));
 vi.mock("../../utils/helpers", () => ({
   extractBilibiliVideoId: vi.fn((url: string) => url.includes("bilibili") ? "BV1xx" : null),

@@ -9,7 +9,10 @@ import { logger } from "../utils/logger";
 import {
   execFileSafe,
   isPathWithinDirectory,
+  pathExistsSafeSync,
+  readdirSafeSync,
   resolveSafePath,
+  unlinkSafeSync,
 } from "../utils/security";
 
 export const SMALL_THUMBNAIL_WIDTH = 480;
@@ -74,7 +77,7 @@ const findOriginalThumbnailAbsolutePathByRelativePath = (
       path.join(location.absoluteRoot, relativePath),
       location.absoluteRoot,
     );
-    if (fs.existsSync(candidatePath)) {
+    if (pathExistsSafeSync(candidatePath, location.absoluteRoot)) {
       return candidatePath;
     }
   }
@@ -89,12 +92,12 @@ const cleanupEmptyParentDirectoriesSync = (startDir: string): void => {
     currentDir !== SMALL_ROOT_PATH &&
     currentDir.startsWith(`${SMALL_ROOT_PATH}${path.sep}`)
   ) {
-    if (!fs.existsSync(currentDir)) {
+    if (!pathExistsSafeSync(currentDir, SMALL_ROOT_PATH)) {
       currentDir = path.dirname(currentDir);
       continue;
     }
 
-    if (fs.readdirSync(currentDir).length > 0) {
+    if (readdirSafeSync(currentDir, SMALL_ROOT_PATH).length > 0) {
       break;
     }
 
@@ -334,7 +337,7 @@ export const moveSmallThumbnailMirrorSync = (
   }
 
   const oldAbsolutePath = resolveSmallThumbnailAbsolutePath(oldRelativePath);
-  if (!fs.existsSync(oldAbsolutePath)) {
+  if (!pathExistsSafeSync(oldAbsolutePath, SMALL_ROOT_PATH)) {
     return;
   }
 
@@ -353,10 +356,10 @@ export const deleteSmallThumbnailMirrorSync = (
   }
 
   const absolutePath = resolveSmallThumbnailAbsolutePath(relativePath);
-  if (!fs.existsSync(absolutePath)) {
+  if (!pathExistsSafeSync(absolutePath, SMALL_ROOT_PATH)) {
     return;
   }
 
-  fs.unlinkSync(absolutePath);
+  unlinkSafeSync(absolutePath, SMALL_ROOT_PATH);
   cleanupEmptyParentDirectoriesSync(path.dirname(absolutePath));
 };

@@ -17,7 +17,13 @@ import {
 } from "../services/thumbnailMirrorService";
 import { logger } from "../utils/logger";
 import { successResponse } from "../utils/response";
-import { execFileSafe, validateImagePath, validateUrl, validateVideoPath } from "../utils/security";
+import {
+  execFileSafe,
+  pathExistsSafeSync,
+  validateImagePath,
+  validateUrl,
+  validateVideoPath,
+} from "../utils/security";
 
 // Strict whitelist: only known-safe MIME types, extension derived from MIME (never from originalname)
 const ALLOWED_IMAGE_MIMES: Record<string, string> = {
@@ -63,7 +69,7 @@ const resolveLocalThumbnailAbsolutePath = (
   }
 
   const imageCandidate = validateImagePath(path.join(IMAGES_DIR, relativePath));
-  if (fs.existsSync(imageCandidate)) {
+  if (pathExistsSafeSync(imageCandidate, IMAGES_DIR)) {
     return imageCandidate;
   }
 
@@ -245,8 +251,7 @@ export const refreshThumbnail = async (
     const relativePath = video.videoPath.replace(/^\/videos\//, "");
     const candidatePath = validateVideoPath(`${VIDEOS_DIR}/${relativePath}`);
     attemptedPaths.push(candidatePath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(candidatePath)) {
+    if (pathExistsSafeSync(candidatePath, VIDEOS_DIR)) {
       validatedVideoPath = candidatePath;
     }
   }
@@ -255,8 +260,7 @@ export const refreshThumbnail = async (
     const safeVideoFilename = path.basename(video.videoFilename);
     const rootPath = validateVideoPath(`${VIDEOS_DIR}/${safeVideoFilename}`);
     attemptedPaths.push(rootPath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(rootPath)) {
+    if (pathExistsSafeSync(rootPath, VIDEOS_DIR)) {
       validatedVideoPath = rootPath;
     } else {
       const fallbackPath = storageService.findVideoFile(
@@ -266,8 +270,7 @@ export const refreshThumbnail = async (
       if (fallbackPath) {
         const safeFallbackPath = validateVideoPath(fallbackPath);
         attemptedPaths.push(safeFallbackPath);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(safeFallbackPath)) {
+        if (pathExistsSafeSync(safeFallbackPath, VIDEOS_DIR)) {
           validatedVideoPath = safeFallbackPath;
         }
       }

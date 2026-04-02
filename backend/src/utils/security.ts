@@ -1,5 +1,9 @@
 import { execFile } from "child_process";
 import fs from "fs-extra";
+import type {
+  Stats,
+  WriteFileOptions,
+} from "fs";
 import path from "path";
 import {
   CLOUD_THUMBNAIL_CACHE_DIR,
@@ -205,6 +209,134 @@ export function resolveSafePathInDirectories(
     );
   }
   return resolvedPath;
+}
+
+type ReadStreamOptions = Parameters<typeof fs.createReadStream>[1];
+type WriteStreamOptions = Parameters<typeof fs.createWriteStream>[1];
+
+function normalizeAllowedDirectories(
+  allowedDirOrDirs: string | readonly string[],
+): string[] {
+  return Array.isArray(allowedDirOrDirs)
+    ? [...allowedDirOrDirs]
+    : [allowedDirOrDirs as string];
+}
+
+function resolveSafePathForOperation(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): string {
+  const allowedDirs = normalizeAllowedDirectories(allowedDirOrDirs);
+  if (allowedDirs.length === 0) {
+    throw new Error("At least one allowed directory is required");
+  }
+
+  return allowedDirs.length === 1
+    ? resolveSafePath(filePath, allowedDirs[0])
+    : resolveSafePathInDirectories(filePath, allowedDirs);
+}
+
+export function pathExistsSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): boolean {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.existsSync(safePath);
+}
+
+export function statSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): Stats {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.statSync(safePath);
+}
+
+export function readdirSafeSync(
+  dirPath: string,
+  allowedDirOrDirs: string | readonly string[],
+): string[] {
+  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.readdirSync(safePath);
+}
+
+export function writeFileSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  data: string | NodeJS.ArrayBufferView,
+  options?: WriteFileOptions,
+): void {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.writeFileSync(safePath, data, options);
+}
+
+export function unlinkSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+): void {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.unlinkSync(safePath);
+}
+
+export function copyFileSafeSync(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+): void {
+  const safeSourcePath = resolveSafePathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveSafePathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.copyFileSync(safeSourcePath, safeDestinationPath);
+}
+
+export function renameSafeSync(
+  sourcePath: string,
+  sourceAllowedDirOrDirs: string | readonly string[],
+  destinationPath: string,
+  destinationAllowedDirOrDirs: string | readonly string[],
+): void {
+  const safeSourcePath = resolveSafePathForOperation(
+    sourcePath,
+    sourceAllowedDirOrDirs,
+  );
+  const safeDestinationPath = resolveSafePathForOperation(
+    destinationPath,
+    destinationAllowedDirOrDirs,
+  );
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  fs.renameSync(safeSourcePath, safeDestinationPath);
+}
+
+export function createReadStreamSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  options?: ReadStreamOptions,
+): fs.ReadStream {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.createReadStream(safePath, options);
+}
+
+export function createWriteStreamSafe(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  options?: WriteStreamOptions,
+): fs.WriteStream {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.createWriteStream(safePath, options);
 }
 
 /**
