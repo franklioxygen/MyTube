@@ -236,22 +236,14 @@ export function validateImagePath(filePath: string): string {
   return resolveSafePath(filePath, IMAGES_DIR);
 }
 
-/**
- * Performs fs.stat on a path that has already been validated by resolveSafePath.
- * Extracted to break the taint-tracking chain for static analysis tools.
- */
-async function statSafePath(validatedPath: string): Promise<fs.Stats> {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  return fs.stat(validatedPath);
-}
-
 export async function imagePathExists(filePath: string): Promise<boolean> {
   // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.pathExists(validateImagePath(filePath));
 }
 
 export async function statImagePath(filePath: string): Promise<fs.Stats> {
-  return statSafePath(validateImagePath(filePath));
+  const safePath = path.normalize(validateImagePath(filePath));
+  return fs.stat(safePath);
 }
 
 export async function removeImagePath(filePath: string): Promise<void> {
