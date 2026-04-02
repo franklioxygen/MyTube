@@ -243,7 +243,6 @@ export function pathExistsSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): boolean {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.existsSync(safePath);
 }
 
@@ -252,7 +251,16 @@ export async function pathExistsSafe(
   allowedDirOrDirs: string | readonly string[],
 ): Promise<boolean> {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
+  return fs.pathExists(safePath);
+}
+
+export function pathExistsTrustedSync(filePath: string): boolean {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  return fs.existsSync(safePath);
+}
+
+export async function pathExistsTrusted(filePath: string): Promise<boolean> {
+  const safePath = normalizeSafeAbsolutePath(filePath);
   return fs.pathExists(safePath);
 }
 
@@ -261,7 +269,6 @@ export function statSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): Stats {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.statSync(safePath);
 }
 
@@ -270,7 +277,6 @@ export async function statSafe(
   allowedDirOrDirs: string | readonly string[],
 ): Promise<Stats> {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.stat(safePath);
 }
 
@@ -279,7 +285,6 @@ export function readdirSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): string[] {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.readdirSync(safePath);
 }
 
@@ -288,7 +293,6 @@ export async function readdirSafe(
   allowedDirOrDirs: string | readonly string[],
 ): Promise<string[]> {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.readdir(safePath);
 }
 
@@ -297,7 +301,6 @@ export function ensureDirSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.ensureDirSync(safePath);
 }
 
@@ -306,7 +309,6 @@ export async function readdirDirentsSafe(
   allowedDirOrDirs: string | readonly string[],
 ): Promise<Dirent[]> {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.readdir(safePath, { withFileTypes: true }) as Promise<Dirent[]>;
 }
 
@@ -317,7 +319,6 @@ export function writeFileSafeSync(
   options?: WriteFileOptions,
 ): void {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.writeFileSync(safePath, data, options);
 }
 
@@ -328,7 +329,6 @@ export async function writeFileSafe(
   options?: WriteFileOptions,
 ): Promise<void> {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.writeFile(safePath, data, options);
 }
 
@@ -337,7 +337,6 @@ export function unlinkSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.unlinkSync(safePath);
 }
 
@@ -346,7 +345,6 @@ export async function removeSafe(
   allowedDirOrDirs: string | readonly string[],
 ): Promise<void> {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.remove(safePath);
 }
 
@@ -364,7 +362,6 @@ export function copyFileSafeSync(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.copyFileSync(safeSourcePath, safeDestinationPath);
 }
 
@@ -382,7 +379,6 @@ export async function copySafe(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.copy(safeSourcePath, safeDestinationPath);
 }
 
@@ -400,7 +396,6 @@ export function renameSafeSync(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.renameSync(safeSourcePath, safeDestinationPath);
 }
 
@@ -419,7 +414,6 @@ export function moveSafeSync(
     destinationPath,
     destinationAllowedDirOrDirs,
   );
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   fs.moveSync(safeSourcePath, safeDestinationPath, options);
 }
 
@@ -429,7 +423,6 @@ export function createReadStreamSafe(
   options?: ReadStreamOptions,
 ): fs.ReadStream {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.createReadStream(safePath, options);
 }
 
@@ -439,7 +432,6 @@ export function createWriteStreamSafe(
   options?: WriteStreamOptions,
 ): fs.WriteStream {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.createWriteStream(safePath, options);
 }
 
@@ -473,12 +465,10 @@ export function validateImagePath(filePath: string): string {
 }
 
 export async function imagePathExists(filePath: string): Promise<boolean> {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   return fs.pathExists(validateImagePath(filePath));
 }
 
 export async function removeImagePath(filePath: string): Promise<void> {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
   await fs.remove(validateImagePath(filePath));
 }
 

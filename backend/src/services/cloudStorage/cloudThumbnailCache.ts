@@ -6,25 +6,25 @@
 import axios from "axios";
 import crypto from "crypto";
 import fs from "fs-extra";
-import os from "os";
 import path from "path";
-import { CLOUD_THUMBNAIL_CACHE_DIR } from "../../config/paths";
+import { CLOUD_THUMBNAIL_CACHE_DIR, IMAGES_DIR } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
   copySafe,
   pathExistsSafeSync,
+  pathExistsTrustedSync,
   readdirSafeSync,
   resolveSafeChildPath,
   statSafeSync,
   unlinkSafeSync,
+  validateCloudThumbnailCachePath,
   validateUrl,
   writeFileSafe,
 } from "../../utils/security";
 
 const CACHE_COPY_SOURCE_ALLOWED_DIRS = [
   CLOUD_THUMBNAIL_CACHE_DIR,
-  os.tmpdir(),
-  "/tmp",
+  IMAGES_DIR,
 ];
 
 // Ensure cache directory exists
@@ -82,27 +82,26 @@ export async function saveThumbnailToCache(
   }
 
   try {
-    const cachePath = getCacheFilePath(cloudPath);
-    const validatedPath = cachePath;
+    const cachePath = validateCloudThumbnailCachePath(getCacheFilePath(cloudPath));
 
     // Ensure directory exists
-    fs.ensureDirSync(path.dirname(validatedPath));
+    fs.ensureDirSync(path.dirname(cachePath));
 
     if (typeof thumbnailData === "string") {
       // If it's a file path, copy it
-      if (pathExistsSafeSync(validatedPath, CLOUD_THUMBNAIL_CACHE_DIR)) {
+      if (pathExistsSafeSync(cachePath, CLOUD_THUMBNAIL_CACHE_DIR)) {
         // File already exists, skip
         return;
       }
       await copySafe(
         thumbnailData,
         CACHE_COPY_SOURCE_ALLOWED_DIRS,
-        validatedPath,
+        cachePath,
         CLOUD_THUMBNAIL_CACHE_DIR
       );
     } else {
       // If it's a buffer, write it
-      await writeFileSafe(validatedPath, CLOUD_THUMBNAIL_CACHE_DIR, thumbnailData);
+      await writeFileSafe(cachePath, CLOUD_THUMBNAIL_CACHE_DIR, thumbnailData);
     }
 
     logger.debug(`[CloudThumbnailCache] Cached thumbnail for ${cloudPath}`);
@@ -159,14 +158,13 @@ export async function downloadAndCacheThumbnail(
       return null;
     }
 
-    const cachePath = getCacheFilePath(cloudPath);
-    const validatedPath = cachePath;
+    const cachePath = validateCloudThumbnailCachePath(getCacheFilePath(cloudPath));
 
     // Ensure directory exists
-    fs.ensureDirSync(path.dirname(validatedPath));
+    fs.ensureDirSync(path.dirname(cachePath));
 
     await writeFileSafe(
-      validatedPath,
+      cachePath,
       CLOUD_THUMBNAIL_CACHE_DIR,
       Buffer.from(response.data)
     );
@@ -174,7 +172,7 @@ export async function downloadAndCacheThumbnail(
     logger.info(
       `[CloudThumbnailCache] Successfully downloaded and cached thumbnail for ${cloudPath}`
     );
-    return validatedPath;
+    return cachePath;
   } catch (error) {
     logger.error(
       `[CloudThumbnailCache] Failed to download and cache thumbnail for ${cloudPath}:`,
@@ -220,7 +218,7 @@ export function clearThumbnailCache(cloudPath?: string): void {
  */
 export function getCacheStats(): { count: number; size: number } {
   try {
-    if (!pathExistsSafeSync(CLOUD_THUMBNAIL_CACHE_DIR, CLOUD_THUMBNAIL_CACHE_DIR)) {
+    if (!pathExistsTrustedSync(CLOUD_THUMBNAIL_CACHE_DIR)) {
       return { count: 0, size: 0 };
     }
 

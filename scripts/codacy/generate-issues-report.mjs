@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { resolvePathWithinCwd } from "../utils.mjs";
 
 const CATEGORY_LABELS = new Map([
   ["BestPractice", "Best practice"],
@@ -59,25 +60,6 @@ function parseArgs(argv) {
   }
 
   return args;
-}
-
-function resolvePathWithinCwd(targetPath) {
-  if (!targetPath || typeof targetPath !== "string") {
-    throw new Error(`Invalid path: ${targetPath}`);
-  }
-
-  const workspaceRoot = process.cwd();
-  const absolutePath = path.resolve(workspaceRoot, targetPath);
-  const relativePath = path.relative(workspaceRoot, absolutePath);
-
-  if (
-    relativePath.startsWith("..") ||
-    path.isAbsolute(relativePath)
-  ) {
-    throw new Error(`Path must stay within ${workspaceRoot}: ${targetPath}`);
-  }
-
-  return absolutePath;
 }
 
 function safeRemoteUrl() {

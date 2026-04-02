@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { resolvePathWithinCwd } from "../utils.mjs";
 
 const args = process.argv.slice(2);
 const USAGE =
@@ -10,25 +11,6 @@ const USAGE =
 let outputPath = "badges/lighthouse-performance.json";
 let label = "Lighthouse mobile";
 const inputPaths = [];
-
-function resolvePathWithinCwd(targetPath) {
-  if (!targetPath || typeof targetPath !== "string") {
-    throw new Error(`Invalid path: ${targetPath}`);
-  }
-
-  const workspaceRoot = process.cwd();
-  const absolutePath = path.resolve(workspaceRoot, targetPath);
-  const relativePath = path.relative(workspaceRoot, absolutePath);
-
-  if (
-    relativePath.startsWith("..") ||
-    path.isAbsolute(relativePath)
-  ) {
-    throw new Error(`Path must stay within ${workspaceRoot}: ${targetPath}`);
-  }
-
-  return absolutePath;
-}
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];

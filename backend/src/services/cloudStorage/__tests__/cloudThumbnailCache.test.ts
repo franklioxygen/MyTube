@@ -1,7 +1,7 @@
 import axios from 'axios';
 import fs from 'fs-extra';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CLOUD_THUMBNAIL_CACHE_DIR } from '../../../config/paths';
+import { CLOUD_THUMBNAIL_CACHE_DIR, IMAGES_DIR } from '../../../config/paths';
 import { clearThumbnailCache, downloadAndCacheThumbnail, getCachedThumbnail, getCacheStats, saveThumbnailToCache } from '../cloudThumbnailCache';
 
 // Mock dependencies
@@ -12,6 +12,7 @@ vi.mock('../../../utils/security', () => ({
     fs.copy(sourcePath, destinationPath)
   ),
   pathExistsSafeSync: vi.fn((targetPath) => fs.existsSync(targetPath)),
+  pathExistsTrustedSync: vi.fn((targetPath) => fs.existsSync(targetPath)),
   readdirSafeSync: vi.fn((targetPath) => fs.readdirSync(targetPath)),
   resolveSafeChildPath: vi.fn((baseDir, childPath) => `${baseDir}/${childPath}`.replace(/\/+/g, '/')),
   statSafeSync: vi.fn((targetPath) => fs.statSync(targetPath)),
@@ -75,7 +76,7 @@ describe('cloudThumbnailCache', () => {
     });
 
     it('should copy file if input is string path', async () => {
-      const inputPath = '/tmp/thumb.jpg';
+      const inputPath = `${IMAGES_DIR}/thumb.jpg`;
       await saveThumbnailToCache(mockCloudPath, inputPath);
       
       expect(fs.copy).toHaveBeenCalledWith(inputPath, expect.stringContaining('.jpg'));
@@ -83,7 +84,7 @@ describe('cloudThumbnailCache', () => {
 
     it('should skip copy if target exists', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      const inputPath = '/tmp/thumb.jpg';
+      const inputPath = `${IMAGES_DIR}/thumb.jpg`;
       
       await saveThumbnailToCache(mockCloudPath, inputPath);
       expect(fs.copy).not.toHaveBeenCalled();

@@ -18,6 +18,7 @@ import {
   imagePathExists,
   normalizeSafeAbsolutePath,
   pathExistsSafe,
+  pathExistsTrusted,
   removeImagePath,
   readdirDirentsSafe,
   resolveSafeChildPath,
@@ -238,10 +239,10 @@ const getSafeFilePathForProcessing = (
       !path.isAbsolute(filePath) ||
       filePath.includes("..") ||
       filePath.includes("\0")
-      ) {
-        logger.warn(`Skipping unsafe mount path: ${filePath}`);
-        return null;
-      }
+    ) {
+      logger.warn(`Skipping unsafe mount path: ${filePath}`);
+      return null;
+    }
 
     return normalizeSafeAbsolutePath(filePath);
   }
@@ -478,7 +479,7 @@ const processDirectoryFiles = async (
     ? validateMountDirectory(directory)
     : resolveSafePath(directory, VIDEOS_DIR);
 
-  if (!(await pathExistsSafe(normalizedDirectory, normalizedDirectory))) {
+  if (!(await pathExistsTrusted(normalizedDirectory))) {
     logger.warn(`Directory does not exist: ${normalizedDirectory}`);
     return { addedCount: 0, updatedCount: 0, allFiles: [] };
   }
@@ -600,7 +601,7 @@ export const scanFiles = async (
     }
   }
 
-  if (!(await pathExistsSafe(VIDEOS_DIR, VIDEOS_DIR))) {
+  if (!(await pathExistsTrusted(VIDEOS_DIR))) {
     res
       .status(200)
       .json(
