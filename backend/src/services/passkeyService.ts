@@ -61,14 +61,6 @@ function isTransportList(
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function getOptionalString(
-  record: Record<string, unknown>,
-  key: string
-): string | undefined {
-  const value = record[key];
-  return typeof value === "string" ? value : undefined;
-}
-
 function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
   if (!isRecord(body) || !isRecord(body.response)) {
     return null;
@@ -108,8 +100,8 @@ function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
     response: {
       clientDataJSON: response.clientDataJSON,
       attestationObject: response.attestationObject,
-      ...(getOptionalString(response, "authenticatorData")
-        ? { authenticatorData: getOptionalString(response, "authenticatorData") }
+      ...(typeof response.authenticatorData === "string"
+        ? { authenticatorData: response.authenticatorData }
         : {}),
       ...(isTransportList(response.transports)
         ? { transports: response.transports }
@@ -117,8 +109,8 @@ function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
       ...(typeof response.publicKeyAlgorithm === "number"
         ? { publicKeyAlgorithm: response.publicKeyAlgorithm }
         : {}),
-      ...(getOptionalString(response, "publicKey")
-        ? { publicKey: getOptionalString(response, "publicKey") }
+      ...(typeof response.publicKey === "string"
+        ? { publicKey: response.publicKey }
         : {}),
     },
     ...(typeof authenticatorAttachment === "string"
