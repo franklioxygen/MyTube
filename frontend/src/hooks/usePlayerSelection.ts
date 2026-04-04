@@ -10,6 +10,10 @@ interface UsePlayerSelectionProps {
     getVideoUrl: () => Promise<string>;
 }
 
+type ClipboardWithOptionalWrite = {
+    writeText?: unknown;
+};
+
 /**
  * Hook to manage player selection menu and external player opening
  */
@@ -21,6 +25,45 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
 
     const handlePlayerMenuClose = () => {
         setPlayerMenuAnchor(null);
+    };
+
+    const copyVideoUrlToClipboard = (resolvedVideoUrl: string) => {
+        const fallbackCopy = () => {
+            const textArea = document.createElement("textarea");
+            textArea.value = resolvedVideoUrl;
+            textArea.style.position = "fixed";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showSnackbar(t('linkCopied'), 'success');
+                } else {
+                    showSnackbar(t('copyFailed'), 'error');
+                }
+            } catch {
+                showSnackbar(t('copyFailed'), 'error');
+            }
+            document.body.removeChild(textArea);
+        };
+
+        const clipboard = navigator.clipboard as ClipboardWithOptionalWrite | undefined;
+        const clipboardWriteText =
+            typeof clipboard?.writeText === "function"
+                ? (clipboard.writeText as (text: string) => Promise<void>).bind(clipboard)
+                : null;
+
+        if (!clipboardWriteText) {
+            fallbackCopy();
+            return;
+        }
+
+        void clipboardWriteText(resolvedVideoUrl).then(() => {
+            showSnackbar(t('linkCopied'), 'success');
+        }).catch(() => {
+            fallbackCopy();
+        });
     };
 
     const handlePlayerSelect = async (player: string) => {
@@ -40,32 +83,7 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
 
             if (player === 'copy') {
                 // Copy URL to clipboard
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
-                        showSnackbar(t('linkCopied'), 'success');
-                    }).catch(() => {
-                        showSnackbar(t('copyFailed'), 'error');
-                    });
-                } else {
-                    // Fallback
-                    const textArea = document.createElement("textarea");
-                    textArea.value = resolvedVideoUrl;
-                    textArea.style.position = "fixed";
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    try {
-                        const successful = document.execCommand('copy');
-                        if (successful) {
-                            showSnackbar(t('linkCopied'), 'success');
-                        } else {
-                            showSnackbar(t('copyFailed'), 'error');
-                        }
-                    } catch {
-                        showSnackbar(t('copyFailed'), 'error');
-                    }
-                    document.body.removeChild(textArea);
-                }
+                copyVideoUrlToClipboard(resolvedVideoUrl);
                 handlePlayerMenuClose();
                 return;
             } else {

@@ -1,5 +1,7 @@
+import path from "path";
 import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IMAGES_DIR, IMAGES_SMALL_DIR } from "../../config/paths";
 
 vi.mock("fs-extra", () => ({
   default: {
@@ -22,6 +24,7 @@ vi.mock("../../utils/security", () => ({
   execFileSafe: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
   isPathWithinDirectory: vi.fn(() => true),
   resolveSafePath: vi.fn((target: string) => target),
+  resolveSafeChildPath: vi.fn((root: string, child: string) => path.join(root, child)),
   pathExistsSafeSync: vi.fn((target: string) => fs.existsSync(target)),
   readdirSafeSync: vi.fn((target: string) => fs.readdirSync(target)),
   unlinkSafeSync: vi.fn((target: string) => fs.unlinkSync(target)),
@@ -86,8 +89,8 @@ describe("thumbnailMirrorService small thumbnail generation", () => {
 
     expect(result).toContain("images-small");
     expect(fs.copy).toHaveBeenCalledWith(
-      expect.stringContaining("/uploads/images/poster.jpg"),
-      expect.stringContaining("/uploads/images-small/poster.jpg"),
+      expect.stringContaining(path.join(IMAGES_DIR, "poster.jpg")),
+      expect.stringContaining(path.join(IMAGES_SMALL_DIR, "poster.jpg")),
       { overwrite: true }
     );
   });

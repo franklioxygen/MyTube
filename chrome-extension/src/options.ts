@@ -17,13 +17,13 @@ function init(): void {
       if (window.currentTranslations) {
         applyStaticTranslations(window.currentTranslations);
       }
-      initializeOptions();
+      void initializeOptions();
     });
     return;
   }
 
   // Fallback if translations are unavailable
-  initializeOptions();
+  void initializeOptions();
 }
 
 function applyStaticTranslations(t: Translations): void {
@@ -81,18 +81,33 @@ if (document.readyState === 'loading') {
   init();
 }
 
-async function initializeOptions(): Promise<void> {
-  const serverUrlInput = document.getElementById('serverUrl') as HTMLInputElement | null;
-  const apiKeyInput = document.getElementById('apiKey') as HTMLInputElement | null;
-  const testConnectionBtn = document.getElementById('testConnection') as HTMLButtonElement | null;
-  const testConnectionText = document.getElementById('testConnectionText');
-  const testConnectionSpinner = document.getElementById('testConnectionSpinner');
-  const testResult = document.getElementById('testResult');
-  const saveSettingsBtn = document.getElementById('saveSettings') as HTMLButtonElement | null;
-  const statusMessage = document.getElementById('statusMessage');
+function getInputElement(id: string): HTMLInputElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLInputElement ? element : null;
+}
 
-  if (!serverUrlInput || !apiKeyInput || !testConnectionBtn || !testConnectionText || !testConnectionSpinner || 
-      !testResult || !saveSettingsBtn || !statusMessage) {
+function getButtonElement(id: string): HTMLButtonElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLButtonElement ? element : null;
+}
+
+function getRequiredElement(id: string): HTMLElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLElement ? element : null;
+}
+
+async function initializeOptions(): Promise<void> {
+  const serverUrlField = getInputElement('serverUrl');
+  const apiKeyField = getInputElement('apiKey');
+  const testConnectionButton = getButtonElement('testConnection');
+  const testConnectionLabel = getRequiredElement('testConnectionText');
+  const testConnectionSpinner = getRequiredElement('testConnectionSpinner');
+  const testResult = getRequiredElement('testResult');
+  const saveSettingsButton = getButtonElement('saveSettings');
+  const statusMessage = getRequiredElement('statusMessage');
+
+  if (!serverUrlField || !apiKeyField || !testConnectionButton || !testConnectionLabel || !testConnectionSpinner ||
+      !testResult || !saveSettingsButton || !statusMessage) {
     console.error('Required DOM elements not found');
     return;
   }
@@ -100,17 +115,17 @@ async function initializeOptions(): Promise<void> {
   // Load saved settings
   const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
   if (result.serverUrl) {
-    serverUrlInput.value = result.serverUrl;
+    serverUrlField.value = result.serverUrl;
   }
   if (typeof result.apiKey === 'string') {
-    apiKeyInput.value = result.apiKey;
+    apiKeyField.value = result.apiKey;
   }
 
   // Test connection
-  testConnectionBtn.addEventListener('click', async () => {
-    const serverUrl = serverUrlInput.value.trim();
-    const apiKey = apiKeyInput.value.trim();
-    
+  const handleTestConnection = async (): Promise<void> => {
+    const serverUrl = serverUrlField.value.trim();
+    const apiKey = apiKeyField.value.trim();
+
     if (!serverUrl) {
       showTestResult('Please enter a server URL', 'error');
       return;
@@ -119,14 +134,14 @@ async function initializeOptions(): Promise<void> {
     // Validate URL format
     try {
       new URL(serverUrl);
-    } catch (e) {
+    } catch {
       showTestResult('Invalid URL format. Please enter a valid URL (e.g., http://localhost:3000)', 'error');
       return;
     }
 
     // Show loading state
-    testConnectionBtn.disabled = true;
-    testConnectionText.textContent = window.currentTranslations?.testing || 'Testing...';
+    testConnectionButton.disabled = true;
+    testConnectionLabel.textContent = window.currentTranslations?.testing || 'Testing...';
     testConnectionSpinner.classList.remove('hidden');
     testResult.classList.add('hidden');
 
@@ -150,16 +165,20 @@ async function initializeOptions(): Promise<void> {
         error instanceof Error ? error.message : 'Failed to test connection';
       showTestResult(connectionFailedTemplate(message), 'error');
     } finally {
-      testConnectionBtn.disabled = false;
-      testConnectionText.textContent = window.currentTranslations?.testConnection || 'Test Connection';
+      testConnectionButton.disabled = false;
+      testConnectionLabel.textContent = window.currentTranslations?.testConnection || 'Test Connection';
       testConnectionSpinner.classList.add('hidden');
     }
+  };
+
+  testConnectionButton.addEventListener('click', () => {
+    void handleTestConnection();
   });
 
   // Save settings
-  saveSettingsBtn.addEventListener('click', async () => {
-    const serverUrl = serverUrlInput.value.trim();
-    const apiKey = apiKeyInput.value.trim();
+  const handleSaveSettings = async (): Promise<void> => {
+    const serverUrl = serverUrlField.value.trim();
+    const apiKey = apiKeyField.value.trim();
 
     if (!serverUrl) {
       showStatus('Please enter a server URL', 'error');
@@ -169,7 +188,7 @@ async function initializeOptions(): Promise<void> {
     // Validate URL format
     try {
       new URL(serverUrl);
-    } catch (e) {
+    } catch {
       showStatus('Invalid URL format. Please enter a valid URL', 'error');
       return;
     }
@@ -186,16 +205,20 @@ async function initializeOptions(): Promise<void> {
       const errorMsg = (window.currentTranslations?.settingsError || 'Error saving settings: {error}').replace('{error}', error instanceof Error ? error.message : String(error));
       showStatus(errorMsg, 'error');
     }
+  };
+
+  saveSettingsButton.addEventListener('click', () => {
+    void handleSaveSettings();
   });
 
   // Allow Enter key to save
   const handleEnterToSave = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
-      saveSettingsBtn.click();
+      saveSettingsButton.click();
     }
   };
-  serverUrlInput.addEventListener('keydown', handleEnterToSave);
-  apiKeyInput.addEventListener('keydown', handleEnterToSave);
+  serverUrlField.addEventListener('keydown', handleEnterToSave);
+  apiKeyField.addEventListener('keydown', handleEnterToSave);
 
   function showTestResult(message: string, type: 'success' | 'error'): void {
     if (!testResult) return;
@@ -212,9 +235,7 @@ async function initializeOptions(): Promise<void> {
 
     // Auto-hide after 3 seconds
     setTimeout(() => {
-      if (statusMessage) {
-        statusMessage.classList.add('hidden');
-      }
+      statusMessage.classList.add('hidden');
     }, 3000);
   }
 }

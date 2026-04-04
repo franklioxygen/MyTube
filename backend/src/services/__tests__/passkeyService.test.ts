@@ -122,7 +122,18 @@ describe("passkeyService", () => {
       (verifyRegistrationResponse as any).mockResolvedValue(mockVerification);
 
       const result = await verifyPasskeyRegistration(
-        { response: {}, name: "My Passkey" },
+        {
+          id: "cred-id",
+          rawId: "cred-id",
+          type: "public-key",
+          clientExtensionResults: {},
+          response: {
+            clientDataJSON: "client-data",
+            attestationObject: "attestation-object",
+            transports: ["internal"],
+          },
+          name: "My Passkey",
+        },
         "mock-challenge"
       );
 
@@ -148,6 +159,44 @@ describe("passkeyService", () => {
 
       expect(result.verified).toBe(false);
       expect(storageService.saveSettings).not.toHaveBeenCalled();
+    });
+
+    it("should accept registration payloads without rawId and clientExtensionResults", async () => {
+      const mockVerification = {
+        verified: true,
+        registrationInfo: {
+          credential: {
+            id: "raw-credential-id-from-browser",
+            publicKey: Buffer.from("mock-public-key"),
+            counter: 1,
+            transports: ["internal"],
+          },
+        },
+      };
+      (verifyRegistrationResponse as any).mockResolvedValue(mockVerification);
+
+      const result = await verifyPasskeyRegistration(
+        {
+          id: "cred-id",
+          response: {
+            clientDataJSON: "client-data",
+            attestationObject: "attestation-object",
+          },
+        },
+        "mock-challenge"
+      );
+
+      expect(result.verified).toBe(true);
+      expect(verifyRegistrationResponse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          response: expect.objectContaining({
+            id: "cred-id",
+            rawId: "cred-id",
+            clientExtensionResults: {},
+            type: "public-key",
+          }),
+        })
+      );
     });
   });
 

@@ -129,7 +129,7 @@ const UploadThumbnailModal: React.FC<UploadThumbnailModalProps> = ({ open, onClo
             </DialogContent>
             {error && (
                 <Box sx={{ px: 3, pb: 1 }}>
-                    <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
+                    <Alert severity="error" onClose={() => { setError(null); }}>{error}</Alert>
                 </Box>
             )}
             <DialogActions>
@@ -138,7 +138,7 @@ const UploadThumbnailModal: React.FC<UploadThumbnailModalProps> = ({ open, onClo
                 </Button>
                 <Button
                     variant="contained"
-                    onClick={handleUpload}
+                    onClick={() => { void handleUpload(); }}
                     disabled={!selectedFile || isUploading}
                     startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
                 >

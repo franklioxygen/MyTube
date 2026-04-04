@@ -29,7 +29,7 @@ export const useFocusPause = (
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'hidden') {
                 handleBlur();
-            } else if (document.visibilityState === 'visible') {
+            } else {
                 handleFocus();
             }
         };

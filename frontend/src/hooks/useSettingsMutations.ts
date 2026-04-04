@@ -20,6 +20,25 @@ interface SaveSettingsMutationResult {
   patchPayload: Partial<Settings>;
 }
 
+type SettingsPatchInput = Settings & {
+  authenticatedRole?: string;
+};
+
+interface MigrationCategoryResult {
+  found: boolean;
+  count: number;
+  path: string;
+}
+
+interface MigrationResults {
+  warnings?: string[];
+  errors?: string[];
+  videos?: MigrationCategoryResult;
+  collections?: MigrationCategoryResult;
+  settings?: MigrationCategoryResult;
+  downloads?: MigrationCategoryResult;
+}
+
 export interface MergePreviewSummary {
   videos: { merged: number; skipped: number };
   collections: { merged: number; skipped: number };
@@ -31,7 +50,9 @@ export interface MergePreviewSummary {
 }
 
 const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true;
+  if (a === b) {
+    return true;
+  }
 
   if (Array.isArray(a) && Array.isArray(b)) {
     return JSON.stringify(a) === JSON.stringify(b);
@@ -49,43 +70,57 @@ const areSettingValuesEqual = (a: unknown, b: unknown): boolean => {
   return false;
 };
 
-const buildSettingsPatchPayload = (
-  newSettings: Settings,
-  currentSettings?: Settings
+const normalizeSettingsPatchInput = (
+  newSettings: SettingsPatchInput,
 ): Partial<Settings> => {
-  const normalized: Partial<Record<keyof Settings, unknown>> = {
-    ...newSettings,
-  };
+  const {
+    password,
+    visitorPassword,
+    isPasswordSet: _isPasswordSet,
+    isVisitorPasswordSet: _isVisitorPasswordSet,
+    deploymentSecurity: _deploymentSecurity,
+    authenticatedRole: _authenticatedRole,
+    ...rest
+  } = newSettings;
+  const normalized: Partial<Settings> = { ...rest };
 
   // Empty password means unchanged in current UI behavior.
-  if (!normalized.password) {
-    delete normalized.password;
+  if (password) {
+    normalized.password = password;
   }
-  if (!normalized.visitorPassword) {
-    delete normalized.visitorPassword;
+  if (visitorPassword) {
+    normalized.visitorPassword = visitorPassword;
   }
 
-  // Backend derives these flags; they are not writable settings.
-  delete normalized.isPasswordSet;
-  delete normalized.isVisitorPasswordSet;
-  delete normalized.deploymentSecurity;
-  delete (normalized as Record<string, unknown>).authenticatedRole;
+  const normalizedEntries = Object.entries(normalized) as Array<
+    [keyof Settings, Settings[keyof Settings] | undefined]
+  >;
 
+  return Object.fromEntries(
+    normalizedEntries.flatMap(([key, value]) =>
+      typeof value === "undefined" ? [] : ([[key, value]] as const),
+    ),
+  ) as Partial<Settings>;
+};
+
+const buildSettingsPatchPayload = (
+  newSettings: SettingsPatchInput,
+  currentSettings?: Settings,
+): Partial<Settings> => {
   if (!currentSettings) {
-    // Without a baseline we should not submit a full settings object.
     return {};
   }
 
-  const patchPayload: Partial<Record<keyof Settings, unknown>> = {};
-  for (const key of Object.keys(normalized) as Array<keyof Settings>) {
-    const value = normalized[key];
-    const previousValue = currentSettings[key];
-    if (!areSettingValuesEqual(value, previousValue)) {
-      patchPayload[key] = value;
-    }
-  }
+  const normalized = normalizeSettingsPatchInput(newSettings);
+  const currentValues = new Map(
+    Object.entries(currentSettings) as Array<[string, unknown]>,
+  );
 
-  return patchPayload as Partial<Settings>;
+  return Object.fromEntries(
+    (Object.entries(normalized) as Array<[string, unknown]>).filter(
+      ([key, value]) => !areSettingValuesEqual(value, currentValues.get(key)),
+    ),
+  ) as Partial<Settings>;
 };
 
 /**
@@ -99,12 +134,12 @@ export function useSettingsMutations({
   const queryClient = useQueryClient();
 
   const invalidateDatabaseQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ["settings"] });
-    queryClient.invalidateQueries({ queryKey: ["videos"] });
-    queryClient.invalidateQueries({ queryKey: ["collections"] });
-    queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-    queryClient.invalidateQueries({ queryKey: ["subscriptionTasks"] });
-    queryClient.invalidateQueries({ queryKey: ["downloadHistory"] });
+    void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    void queryClient.invalidateQueries({ queryKey: ["videos"] });
+    void queryClient.invalidateQueries({ queryKey: ["collections"] });
+    void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    void queryClient.invalidateQueries({ queryKey: ["subscriptionTasks"] });
+    void queryClient.invalidateQueries({ queryKey: ["downloadHistory"] });
   };
 
   const formatErrorText = (fallback: string, detail?: string) =>
@@ -119,6 +154,7 @@ export function useSettingsMutations({
         currentSettings = latestSettings.data as Settings;
         queryClient.setQueryData(["settings"], currentSettings);
       }
+
       const patchPayload = buildSettingsPatchPayload(newSettings, currentSettings);
 
       if (Object.keys(patchPayload).length === 0) {
@@ -138,17 +174,17 @@ export function useSettingsMutations({
     onSuccess: (result, newSettings) => {
       setMessage({ text: t("settingsSaved"), type: "success" });
 
-      const changedSettings = result?.patchPayload ?? newSettings;
+      const changedSettings = result.patchPayload;
       // Update settings cache immediately so Header and other consumers react without waiting for refetch
       queryClient.setQueryData(["settings"], (old: Settings | undefined) =>
         old ? { ...old, ...changedSettings } : ({ ...newSettings } as Settings)
       );
       // Skip refetch when no fields changed.
-      if (!result?.skipped) {
-        queryClient.invalidateQueries({ queryKey: ["settings"] });
+      if (!result.skipped) {
+        void queryClient.invalidateQueries({ queryKey: ["settings"] });
       }
       if (changedSettings.tags !== undefined) {
-        queryClient.invalidateQueries({ queryKey: ["videos"] });
+        void queryClient.invalidateQueries({ queryKey: ["videos"] });
       }
     },
     onError: async (error: unknown) => {
@@ -166,34 +202,45 @@ export function useSettingsMutations({
       const res = await api.post("/settings/migrate");
       return res.data.results;
     },
-    onSuccess: (results) => {
+    onSuccess: (results: MigrationResults) => {
+      const warnings = results.warnings ?? [];
+      const errors = results.errors ?? [];
+      const hasErrors = errors.length > 0;
+      const categoryResults: Array<[string, MigrationCategoryResult | undefined]> = [
+        ["videos", results.videos],
+        ["collections", results.collections],
+        ["settings", results.settings],
+        ["downloads", results.downloads],
+      ];
+      const hasData = categoryResults.some(([, data]) => Boolean(data?.found));
       let msg = `${t("migrationReport")}:\n`;
-      let hasData = false;
 
-      if (results.warnings && results.warnings.length > 0) {
-        msg += `\n⚠️ ${t("migrationWarnings")}:\n${results.warnings.join(
+      if (warnings.length > 0) {
+        msg += `\n⚠️ ${t("migrationWarnings")}:\n${warnings.join(
           "\n"
         )}\n`;
       }
 
-      const categories = ["videos", "collections", "settings", "downloads"];
-      categories.forEach((cat) => {
-        const data = results[cat];
+      const appendCategoryResult = (
+        category: string,
+        data?: MigrationCategoryResult,
+      ) => {
         if (data) {
           if (data.found) {
-            msg += `\n✅ ${cat}: ${data.count} ${t("itemsMigrated")}`;
-            hasData = true;
+            msg += `\n✅ ${category}: ${data.count} ${t("itemsMigrated")}`;
           } else {
-            msg += `\n❌ ${cat}: ${t("fileNotFound")} ${data.path}`;
+            msg += `\n❌ ${category}: ${t("fileNotFound")} ${data.path}`;
           }
         }
+      };
+
+      categoryResults.forEach(([category, data]) => {
+        appendCategoryResult(category, data);
       });
 
-      if (results.errors && results.errors.length > 0) {
-        msg += `\n\n⛔ ${t("migrationErrors")}:\n${results.errors.join("\n")}`;
-      }
-
-      if (!hasData && (!results.errors || results.errors.length === 0)) {
+      if (hasErrors) {
+        msg += `\n\n⛔ ${t("migrationErrors")}:\n${errors.join("\n")}`;
+      } else if (!hasData) {
         msg += `\n\n⚠️ ${t("noDataFilesFound")}`;
       }
 
@@ -454,7 +501,7 @@ export function useSettingsMutations({
         type: "success",
       });
       invalidateDatabaseQueries();
-      refetchLastBackupInfo();
+      void refetchLastBackupInfo();
     },
     onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
@@ -514,7 +561,7 @@ export function useSettingsMutations({
         type: "success",
       });
       // Refetch last backup info after restore
-      refetchLastBackupInfo();
+      void refetchLastBackupInfo();
     },
     onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);

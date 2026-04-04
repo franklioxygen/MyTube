@@ -1,6 +1,11 @@
 import { spawnSync } from "child_process";
-import fs from "fs-extra";
 import path from "path";
+import {
+  pathExistsSafeSync,
+  readdirSafeSync,
+  resolveSafeChildPath,
+  statSafeSync,
+} from "./security";
 
 const VIDEO_CONTAINER_EXTENSIONS = new Set([
   ".mp4",
@@ -147,21 +152,19 @@ export const resolvePlayableVideoFilePath = (
   expectedFilePath: string
 ): string | null => {
   try {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(expectedFilePath)) {
+    const videoDir = path.dirname(expectedFilePath);
+
+    if (pathExistsSafeSync(expectedFilePath, videoDir)) {
       return expectedFilePath;
     }
 
-    const videoDir = path.dirname(expectedFilePath);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(videoDir)) {
+    if (!pathExistsSafeSync(videoDir, videoDir)) {
       return null;
     }
 
     const expectedBaseName = path.parse(path.basename(expectedFilePath)).name;
     const expectedExt = path.extname(expectedFilePath).toLowerCase();
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    const files = fs.readdirSync(videoDir);
+    const files = readdirSafeSync(videoDir, videoDir);
     const ffprobeAvailable = isFfprobeAvailable();
 
     const candidates: CandidateFile[] = files
@@ -169,16 +172,13 @@ export const resolvePlayableVideoFilePath = (
         isLikelySplitVideoArtifact(filename, expectedBaseName)
       )
       .map((filename) => {
-        // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-        const candidatePath = path.join(videoDir, filename);
+        const candidatePath = resolveSafeChildPath(videoDir, filename);
         const candidateExt = path.extname(filename).toLowerCase();
         const extensionPriority = candidateExt === expectedExt ? 1 : 0;
         let size = 0;
         try {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(candidatePath)) {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            size = fs.statSync(candidatePath).size;
+          if (pathExistsSafeSync(candidatePath, videoDir)) {
+            size = statSafeSync(candidatePath, videoDir).size;
           }
         } catch {
           size = 0;

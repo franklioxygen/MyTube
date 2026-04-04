@@ -9,7 +9,11 @@ import {
 } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
+  ensureDirSafeSync,
   isPathWithinDirectories,
+  moveSafeSync,
+  normalizeSafeAbsolutePath,
+  pathExistsTrustedSync,
   sanitizePathSegment,
 } from "../../utils/security";
 import { Collection } from "./types";
@@ -23,16 +27,30 @@ const ALLOWED_STORAGE_DIRS = [
 ]
   .filter((dir): dir is string => typeof dir === "string" && dir.length > 0);
 
+class SafePathValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SafePathValidationError";
+  }
+}
+
 /**
  * Validates that a path is within the allowed directories (Videos, Images, Subtitles)
  * @throws Error if path is outside allowed directories
  */
 function validateSafePath(targetPath: string): string {
-  const resolvedPath = path.resolve(targetPath);
+  let resolvedPath: string;
+  try {
+    resolvedPath = normalizeSafeAbsolutePath(targetPath);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : `Invalid path: ${targetPath}`;
+    throw new SafePathValidationError(message);
+  }
   const isSafe = isPathWithinDirectories(resolvedPath, ALLOWED_STORAGE_DIRS);
 
   if (!isSafe) {
-    throw new Error(
+    throw new SafePathValidationError(
       `Security Error: Path traversal attempted. Access denied to ${targetPath}`
     );
   }
@@ -45,6 +63,20 @@ function splitSafeSegments(segment: string): string[] {
     .split(/[\\/]+/)
     .map((part) => sanitizePathSegment(part))
     .filter((part) => part.length > 0);
+}
+
+function tryBuildStoragePath(
+  baseDir: string,
+  ...segments: Array<string | null | undefined>
+): string | null {
+  try {
+    return buildStoragePath(baseDir, ...segments);
+  } catch (error) {
+    if (error instanceof SafePathValidationError) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 export function buildStoragePath(
@@ -79,7 +111,7 @@ function readDirectoryEntries(targetPath: string): string[] {
 
 export function pathExists(targetPath: string): boolean {
   const safePath = validateSafePath(targetPath);
-  return fs.pathExistsSync(safePath);
+  return pathExistsTrustedSync(safePath);
 }
 
 export function listDirectory(targetPath: string): string[] {
@@ -89,7 +121,13 @@ export function listDirectory(targetPath: string): string[] {
 export function renamePath(sourcePath: string, destPath: string): void {
   const safeSourcePath = validateSafePath(sourcePath);
   const safeDestPath = validateSafePath(destPath);
-  fs.moveSync(safeSourcePath, safeDestPath);
+  moveSafeSync(
+    safeSourcePath,
+    ALLOWED_STORAGE_DIRS,
+    safeDestPath,
+    ALLOWED_STORAGE_DIRS,
+    { overwrite: true }
+  );
 }
 
 export function removeFileIfExists(targetPath: string): void {
@@ -118,120 +156,69 @@ export function removeDirectoryRecursive(targetPath: string): void {
   }
 }
 
-export function findVideoFile(
+function findFileInStorage(
+  baseDir: string,
+  fileLabel: "video" | "image",
   filename: string,
   collections: Collection[] = []
 ): string | null {
   try {
-    // Sanitize filename to prevent path traversal
     const sanitizedFilename = sanitizePathSegment(filename);
     if (!sanitizedFilename) {
       logger.warn(`Invalid filename provided: ${filename}`);
       return null;
     }
 
-    // Validate and check root path
-    const rootPath = path.join(VIDEOS_DIR, sanitizedFilename);
-    try {
-      validateSafePath(rootPath);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(rootPath)) return rootPath;
-    } catch (e) {
-      // Skip unsafe root path
+    const rootPath = tryBuildStoragePath(baseDir, sanitizedFilename);
+    if (rootPath) {
+      if (pathExistsTrustedSync(rootPath)) return rootPath;
+    } else {
       logger.warn(
-        `Unsafe root path detected for video file: ${sanitizedFilename}`
+        `Unsafe root path detected for ${fileLabel} file: ${sanitizedFilename}`
       );
     }
 
     for (const collection of collections) {
-        const collectionName = collection.name || collection.title;
-        if (collectionName) {
-          // Sanitize collection name to prevent path traversal
-          const sanitizedName = sanitizePathSegment(collectionName);
-        if (!sanitizedName) {
-          // Skip if sanitization removed everything
-          continue;
-        }
+      const collectionName = collection.name || collection.title;
+      if (!collectionName) {
+        continue;
+      }
 
-        // Construct path and verify it is safe
-        const collectionPath = path.join(
-          VIDEOS_DIR,
-          sanitizedName,
-          sanitizedFilename
-        );
-        try {
-          validateSafePath(collectionPath);
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(collectionPath)) return collectionPath;
-        } catch (e) {
-          // Skip unsafe paths
-          continue;
-        }
+      const sanitizedName = sanitizePathSegment(collectionName);
+      if (!sanitizedName) {
+        continue;
+      }
+
+      const collectionPath = tryBuildStoragePath(
+        baseDir,
+        sanitizedName,
+        sanitizedFilename
+      );
+      if (collectionPath && pathExistsTrustedSync(collectionPath)) {
+        return collectionPath;
       }
     }
   } catch (error) {
     logger.error(
-      "Error finding video file",
+      `Error finding ${fileLabel} file`,
       error instanceof Error ? error : new Error(String(error))
     );
   }
   return null;
 }
 
+export function findVideoFile(
+  filename: string,
+  collections: Collection[] = []
+): string | null {
+  return findFileInStorage(VIDEOS_DIR, "video", filename, collections);
+}
+
 export function findImageFile(
   filename: string,
   collections: Collection[] = []
 ): string | null {
-  try {
-    // Sanitize filename to prevent path traversal
-    const sanitizedFilename = sanitizePathSegment(filename);
-    if (!sanitizedFilename) {
-      logger.warn(`Invalid filename provided: ${filename}`);
-      return null;
-    }
-
-    // Validate and check root path
-    const rootPath = path.join(IMAGES_DIR, sanitizedFilename);
-    try {
-      validateSafePath(rootPath);
-      if (fs.existsSync(rootPath)) return rootPath;
-    } catch (e) {
-      // Skip unsafe root path
-      logger.warn(
-        `Unsafe root path detected for image file: ${sanitizedFilename}`
-      );
-    }
-
-    for (const collection of collections) {
-        const collectionName = collection.name || collection.title;
-        if (collectionName) {
-          // Sanitize collection name to prevent path traversal
-          const sanitizedName = sanitizePathSegment(collectionName);
-        if (!sanitizedName) {
-          // Skip if sanitization removed everything
-          continue;
-        }
-
-        const collectionPath = path.join(
-          IMAGES_DIR,
-          sanitizedName,
-          sanitizedFilename
-        );
-        try {
-          validateSafePath(collectionPath);
-          if (fs.existsSync(collectionPath)) return collectionPath;
-        } catch (e) {
-          continue;
-        }
-      }
-    }
-  } catch (error) {
-    logger.error(
-      "Error finding image file",
-      error instanceof Error ? error : new Error(String(error))
-    );
-  }
-  return null;
+  return findFileInStorage(IMAGES_DIR, "image", filename, collections);
 }
 
 export function moveFile(sourcePath: string, destPath: string): void {
@@ -240,10 +227,15 @@ export function moveFile(sourcePath: string, destPath: string): void {
     validateSafePath(sourcePath);
     validateSafePath(destPath);
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(sourcePath)) {
-      fs.ensureDirSync(path.dirname(destPath));
-      fs.moveSync(sourcePath, destPath, { overwrite: true });
+    if (pathExistsTrustedSync(sourcePath)) {
+      ensureDirSafeSync(path.dirname(destPath), ALLOWED_STORAGE_DIRS);
+      moveSafeSync(
+        sourcePath,
+        ALLOWED_STORAGE_DIRS,
+        destPath,
+        ALLOWED_STORAGE_DIRS,
+        { overwrite: true }
+      );
       logger.info(`Moved file from ${sourcePath} to ${destPath}`);
     }
   } catch (error) {

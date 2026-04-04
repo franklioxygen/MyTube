@@ -26,6 +26,9 @@
     boxShadowHover: string;
   }
 
+  const DOWNLOAD_BUTTON_TEXT = "📥 Download to MyTube";
+  const DOWNLOAD_BUTTON_PENDING_TEXT = "⏳ Sending...";
+
   const supportedSites: Record<string, SiteConfig> = {
     youtube: {
       urlPattern: /(?:youtube\.com|youtu\.be)/,
@@ -80,12 +83,10 @@
   // Detect if website is using dark theme
   function isDarkTheme(): boolean {
     // Check for common dark mode indicators
-    const html = document.documentElement;
     const body = document.body;
 
     // Check computed styles
     const bgColor = window.getComputedStyle(body).backgroundColor;
-    const htmlBgColor = window.getComputedStyle(html).backgroundColor;
 
     // Parse RGB values
     const parseRGB = (rgb: string): number[] => {
@@ -94,7 +95,6 @@
     };
 
     const bgRGB = parseRGB(bgColor);
-    const htmlRGB = parseRGB(htmlBgColor);
 
     // Calculate luminance
     const getLuminance = (rgb: number[]): number => {
@@ -108,15 +108,14 @@
     };
 
     const bgLuminance = getLuminance(bgRGB);
-    const htmlLuminance = getLuminance(htmlRGB);
-    const avgLuminance = (bgLuminance + htmlLuminance) / 2;
 
     // Also check for dark mode classes/attributes
+    const rootElement = document.documentElement;
     const hasDarkClass =
-      html.classList.contains("dark") ||
+      rootElement.classList.contains("dark") ||
       body.classList.contains("dark") ||
-      (html.hasAttribute("data-theme") &&
-        html.getAttribute("data-theme") === "dark");
+      (rootElement.hasAttribute("data-theme") &&
+        rootElement.getAttribute("data-theme") === "dark");
 
     // Check media query
     const prefersDark = window.matchMedia(
@@ -124,14 +123,19 @@
     ).matches;
 
     // Consider dark if luminance is low OR has dark class OR prefers dark
-    return avgLuminance < 0.5 || hasDarkClass || prefersDark;
+    return bgLuminance < 0.5 || hasDarkClass || prefersDark;
+  }
+
+  function getDownloadButtonElement(): HTMLButtonElement | null {
+    const element = document.getElementById("mytube-download-btn");
+    return element instanceof HTMLButtonElement ? element : null;
   }
 
   // Create download button
   function createDownloadButton(): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.id = "mytube-download-btn";
-    button.innerHTML = "📥 Download to MyTube";
+    const downloadButton = document.createElement("button");
+    downloadButton.id = "mytube-download-btn";
+    downloadButton.textContent = DOWNLOAD_BUTTON_TEXT;
 
     const isDark = isDarkTheme();
 
@@ -150,7 +154,7 @@
           boxShadowHover: "0 6px 20px rgba(0, 0, 0, 0.3)",
         };
 
-    button.style.cssText = `
+    downloadButton.style.cssText = `
       position: fixed;
       bottom: 20px;
       right: 20px;
@@ -168,19 +172,21 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     `;
 
-    button.addEventListener("mouseenter", () => {
-      button.style.transform = "translateY(-2px)";
-      button.style.boxShadow = buttonStyles.boxShadowHover;
+    downloadButton.addEventListener("mouseenter", () => {
+      downloadButton.style.transform = "translateY(-2px)";
+      downloadButton.style.boxShadow = buttonStyles.boxShadowHover;
     });
 
-    button.addEventListener("mouseleave", () => {
-      button.style.transform = "translateY(0)";
-      button.style.boxShadow = buttonStyles.boxShadow;
+    downloadButton.addEventListener("mouseleave", () => {
+      downloadButton.style.transform = "translateY(0)";
+      downloadButton.style.boxShadow = buttonStyles.boxShadow;
     });
 
-    button.addEventListener("click", handleDownloadClick);
+    downloadButton.addEventListener("click", () => {
+      void handleDownloadClick();
+    });
 
-    return button;
+    return downloadButton;
   }
 
   // Handle download button click
@@ -197,12 +203,10 @@
       return;
     }
 
-    const button = document.getElementById(
-      "mytube-download-btn",
-    ) as HTMLButtonElement | null;
-    if (button) {
-      button.disabled = true;
-      button.innerHTML = "⏳ Sending...";
+    const downloadButton = getDownloadButtonElement();
+    if (downloadButton) {
+      downloadButton.disabled = true;
+      downloadButton.textContent = DOWNLOAD_BUTTON_PENDING_TEXT;
     }
 
     try {
@@ -224,9 +228,9 @@
         "error",
       );
     } finally {
-      if (button) {
-        button.disabled = false;
-        button.innerHTML = "📥 Download to MyTube";
+      if (downloadButton) {
+        downloadButton.disabled = false;
+        downloadButton.textContent = DOWNLOAD_BUTTON_TEXT;
       }
     }
   }
@@ -294,7 +298,9 @@
     // Auto remove after 3 seconds
     setTimeout(() => {
       notification.style.animation = "slideIn 0.3s ease reverse";
-      setTimeout(() => notification.remove(), 300);
+      setTimeout(() => {
+        notification.remove();
+      }, 300);
     }, 3000);
   }
 

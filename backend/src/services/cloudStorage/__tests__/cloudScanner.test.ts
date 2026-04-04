@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as security from '../../../utils/security';
 import * as storageService from '../../storageService';
 import { scanCloudFiles } from '../cloudScanner';
@@ -18,6 +18,8 @@ vi.mock('../../../utils/security'); // Auto-mock without factory to avoid hoisti
 vi.mock('../fileUploader');
 vi.mock('../cloudThumbnailCache');
 
+let resolveSafeChildPathActual: typeof security.resolveSafeChildPath;
+
 describe('cloudStorage cloudScanner', () => {
     const mockConfig: CloudDriveConfig = {
         enabled: true,
@@ -29,6 +31,13 @@ describe('cloudStorage cloudScanner', () => {
     };
 
     const mockCallback = vi.fn();
+
+    beforeAll(async () => {
+        const actualSecurity = await vi.importActual<typeof import('../../../utils/security')>(
+            '../../../utils/security'
+        );
+        resolveSafeChildPathActual = actualSecurity.resolveSafeChildPath;
+    });
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -72,6 +81,11 @@ describe('cloudStorage cloudScanner', () => {
 
         // Security / Exec
         // Important: Mock implementations for passthrough functions
+        vi.mocked(security.ensureDirSafeSync).mockReturnValue(undefined);
+        vi.mocked(security.pathExistsSafeSync).mockReturnValue(true);
+        vi.mocked(security.resolveSafeChildPath).mockImplementation(resolveSafeChildPathActual);
+        vi.mocked(security.statSafeSync).mockReturnValue({ size: 1024 } as any);
+        vi.mocked(security.unlinkSafeSync).mockReturnValue(undefined);
         vi.mocked(security.validateUrl).mockImplementation((url) => url);
         vi.mocked(security.validateImagePath).mockImplementation((path) => path);
 

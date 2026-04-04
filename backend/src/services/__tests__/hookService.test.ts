@@ -1,30 +1,22 @@
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Define mocks
 const mocks = vi.hoisted(() => ({
-  exec: vi.fn(),
-  existsSync: vi.fn(),
-  chmodSync: vi.fn(),
-  mkdirSync: vi.fn(),
+  ensureDirSafeSync: vi.fn(),
+  execFileSafe: vi.fn(),
+  pathExistsSafeSync: vi.fn(),
+  resolveSafeChildPath: vi.fn((root: string, child: string) => path.join(root, child)),
+  unlinkSafeSync: vi.fn(),
+  writeFileSafeSync: vi.fn(),
 }));
 
-vi.mock("child_process", () => ({
-  default: {
-    exec: mocks.exec,
-  },
-  exec: mocks.exec,
-}));
-
-vi.mock("fs", () => ({
-  default: {
-    existsSync: mocks.existsSync,
-    chmodSync: mocks.chmodSync,
-    mkdirSync: mocks.mkdirSync,
-  },
-  existsSync: mocks.existsSync,
-  chmodSync: mocks.chmodSync,
-  mkdirSync: mocks.mkdirSync,
+vi.mock("../../utils/security", () => ({
+  ensureDirSafeSync: mocks.ensureDirSafeSync,
+  execFileSafe: mocks.execFileSafe,
+  pathExistsSafeSync: mocks.pathExistsSafeSync,
+  resolveSafeChildPath: mocks.resolveSafeChildPath,
+  unlinkSafeSync: mocks.unlinkSafeSync,
+  writeFileSafeSync: mocks.writeFileSafeSync,
 }));
 
 import { HOOKS_DIR } from "../../config/paths";
@@ -36,19 +28,13 @@ vi.mock("../../utils/logger");
 describe("HookService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default exec implementation
-    mocks.exec.mockImplementation((cmd: string, options: any, callback: any) => {
-        if (callback) {
-            callback(null, { stdout: "ok", stderr: "" });
-        }
-        return { stdout: "ok", stderr: "" };
-    });
+    mocks.pathExistsSafeSync.mockReturnValue(false);
+    mocks.execFileSafe.mockResolvedValue({ stdout: "ok", stderr: "" });
   });
 
   it("should execute configured hook", async () => {
-    // Mock file existence
-    mocks.existsSync.mockImplementation((p: string) => {
-        return p === path.join(HOOKS_DIR, "task_start.sh");
+    mocks.pathExistsSafeSync.mockImplementation((filePath: string) => {
+      return filePath === path.join(HOOKS_DIR, "task_start.sh");
     });
 
     await HookService.executeHook("task_start", {
@@ -58,22 +44,26 @@ describe("HookService", () => {
     });
 
     const expectedPath = path.join(HOOKS_DIR, "task_start.sh");
-    expect(mocks.exec).toHaveBeenCalledTimes(1);
-    
-    // Check command
-    expect(mocks.exec.mock.calls[0][0]).toBe(`bash "${expectedPath}"`);
+    expect(mocks.execFileSafe).toHaveBeenCalledTimes(1);
+    expect(mocks.execFileSafe).toHaveBeenCalledWith(
+      "bash",
+      [expectedPath],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          MYTUBE_TASK_ID: "123",
+          MYTUBE_TASK_TITLE: "Test Task",
+          MYTUBE_TASK_STATUS: "start",
+        }),
+      }),
+    );
 
-    // Check env vars
-    const env = mocks.exec.mock.calls[0][1]?.env;
-    expect(env).toBeDefined();
-    expect(env?.MYTUBE_TASK_ID).toBe("123");
-    expect(env?.MYTUBE_TASK_TITLE).toBe("Test Task");
-    expect(env?.MYTUBE_TASK_STATUS).toBe("start");
+    const execOptions = mocks.execFileSafe.mock.calls[0]?.[2];
+    expect(execOptions?.timeout).toBeUndefined();
   });
 
   it("should sanitize multiline hook context values before passing env", async () => {
-    mocks.existsSync.mockImplementation((p: string) => {
-      return p === path.join(HOOKS_DIR, "task_start.sh");
+    mocks.pathExistsSafeSync.mockImplementation((filePath: string) => {
+      return filePath === path.join(HOOKS_DIR, "task_start.sh");
     });
 
     await HookService.executeHook("task_start", {
@@ -84,14 +74,21 @@ describe("HookService", () => {
       error: "first line\r\nsecond line",
     });
 
-    const env = mocks.exec.mock.calls[0][1]?.env;
-    expect(env?.MYTUBE_TASK_TITLE).toBe("Test Task");
-    expect(env?.MYTUBE_SOURCE_URL).toBe("https://example.com/watch SECOND");
-    expect(env?.MYTUBE_ERROR).toBe("first line second line");
+    expect(mocks.execFileSafe).toHaveBeenCalledWith(
+      "bash",
+      [path.join(HOOKS_DIR, "task_start.sh")],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          MYTUBE_TASK_TITLE: "Test Task",
+          MYTUBE_SOURCE_URL: "https://example.com/watch SECOND",
+          MYTUBE_ERROR: "first line second line",
+        }),
+      }),
+    );
   });
 
   it("should not execute if hook file does not exist", async () => {
-    mocks.existsSync.mockReturnValue(false);
+    mocks.pathExistsSafeSync.mockReturnValue(false);
 
     await HookService.executeHook("task_start", {
       taskId: "123",
@@ -99,17 +96,13 @@ describe("HookService", () => {
       status: "start",
     });
 
-    expect(mocks.exec).not.toHaveBeenCalled();
+    expect(mocks.execFileSafe).not.toHaveBeenCalled();
   });
 
   it("should handle execution errors gracefully", async () => {
-    mocks.existsSync.mockReturnValue(true);
+    mocks.pathExistsSafeSync.mockReturnValue(true);
+    mocks.execFileSafe.mockRejectedValue(new Error("Command failed"));
 
-    mocks.exec.mockImplementation((cmd: string, options: any, callback: any) => {
-         throw new Error("Command failed");
-    });
-
-    // Should not throw
     await HookService.executeHook("task_fail", {
       taskId: "123",
       taskTitle: "Test Task",

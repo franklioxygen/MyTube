@@ -142,14 +142,15 @@ export const useVideoPlayer = ({
   }, [shouldApplyStartTime, startTime]);
 
   const handlePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (isPlaying) {
+      videoElement.pause();
+    } else {
+      void videoElement.play();
     }
+    setIsPlaying(!isPlaying);
   };
 
   // Seek using fastSeek() on mobile for better audio sync, fallback to currentTime

@@ -3,13 +3,17 @@
  */
 
 import crypto from "crypto";
-import fs from "fs-extra";
 import path from "path";
 import { IMAGES_DIR } from "../../config/paths";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import {
+  ensureDirSafeSync,
   execFileSafe,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  statSafeSync,
+  unlinkSafeSync,
   validateImagePath,
   validateUrl,
 } from "../../utils/security";
@@ -255,7 +259,7 @@ export async function scanCloudFiles(
         // Generate thumbnail from video using signed URL
         // Download video temporarily to generate thumbnail
         // Note: ffmpeg can work with URLs, but we'll download a small portion
-        const tempThumbnailPath = path.join(
+        const tempThumbnailPath = resolveSafeChildPath(
           IMAGES_DIR,
           `temp_${Date.now()}_${path.parse(filename).name}.jpg`
         );
@@ -301,7 +305,7 @@ export async function scanCloudFiles(
         }
 
         // Ensure directory exists
-        fs.ensureDirSync(path.dirname(tempThumbnailPath));
+        ensureDirSafeSync(path.dirname(tempThumbnailPath), IMAGES_DIR);
 
         // Validate paths and URL to prevent command injection and SSRF
         const validatedThumbnailPath = validateImagePath(tempThumbnailPath);
@@ -327,7 +331,6 @@ export async function scanCloudFiles(
         // Use retry mechanism for better robustness
         let thumbnailGenerated = false;
         const maxRetries = 3;
-        let lastError: any = null;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
@@ -359,10 +362,8 @@ export async function scanCloudFiles(
             );
 
             // Verify thumbnail was created
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (fs.existsSync(tempThumbnailPath)) {
-              // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-              const stats = fs.statSync(tempThumbnailPath);
+            if (pathExistsSafeSync(tempThumbnailPath, IMAGES_DIR)) {
+              const stats = statSafeSync(tempThumbnailPath, IMAGES_DIR);
               if (stats.size > 0) {
                 thumbnailGenerated = true;
                 logger.debug(
@@ -374,9 +375,8 @@ export async function scanCloudFiles(
                 logger.warn(
                   `[CloudStorage] Generated empty thumbnail for ${filename}, retrying...`
                 );
-                if (fs.existsSync(tempThumbnailPath)) {
-                  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                  fs.unlinkSync(tempThumbnailPath);
+                if (pathExistsSafeSync(tempThumbnailPath, IMAGES_DIR)) {
+                  unlinkSafeSync(tempThumbnailPath, IMAGES_DIR);
                 }
               }
             } else {
@@ -384,8 +384,7 @@ export async function scanCloudFiles(
                 `[CloudStorage] Thumbnail file not created for ${filename}, retrying...`
               );
             }
-          } catch (error: any) {
-            lastError = error;
+          } catch (error: unknown) {
             const errorMessage =
               error instanceof Error ? error.message : String(error);
             logger.warn(
@@ -393,9 +392,9 @@ export async function scanCloudFiles(
             );
 
             // Clean up any partial file
-            if (fs.existsSync(tempThumbnailPath)) {
+            if (pathExistsSafeSync(tempThumbnailPath, IMAGES_DIR)) {
               try {
-                fs.unlinkSync(tempThumbnailPath);
+                unlinkSafeSync(tempThumbnailPath, IMAGES_DIR);
               } catch (cleanupError) {
                 // Ignore cleanup errors
               }
@@ -428,8 +427,7 @@ export async function scanCloudFiles(
         // uploadFile now supports absolute paths, so we can pass it directly
         // uploadFile will check if file already exists before uploading
         let relativeThumbnailPath: string | undefined = undefined;
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (thumbnailGenerated && fs.existsSync(tempThumbnailPath)) {
+        if (thumbnailGenerated && pathExistsSafeSync(tempThumbnailPath, IMAGES_DIR)) {
           const uploadResult = await uploadFile(
             tempThumbnailPath,
             config,
@@ -465,7 +463,7 @@ export async function scanCloudFiles(
           }
 
           // Cleanup temp thumbnail after upload (or skip) and caching
-          fs.unlinkSync(tempThumbnailPath);
+          unlinkSafeSync(tempThumbnailPath, IMAGES_DIR);
         }
 
         // Duration is already obtained above when generating thumbnail

@@ -1,7 +1,11 @@
 import axios from "axios";
 import { IMAGES_DIR, SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { logger } from "../../../utils/logger";
-import { resolveSafePathInDirectories } from "../../../utils/security";
+import {
+  pathExistsSafeSync,
+  resolveSafePathInDirectories,
+  statSafeSync,
+} from "../../../utils/security";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { BilibiliVideoInfo } from "./types";
 
@@ -9,6 +13,20 @@ export interface PartMetadata {
   channelUrl?: string;
   partTitle: string;
 }
+
+type BilibiliViewPage = {
+  page: number;
+  part?: string;
+};
+
+type BilibiliViewResponse = {
+  data?: {
+    owner?: {
+      mid?: number | string;
+    };
+    pages?: BilibiliViewPage[];
+  };
+};
 
 /**
  * Extract channel URL and part-specific title from Bilibili API
@@ -38,7 +56,7 @@ export async function extractPartMetadata(
           ""
         )}`;
 
-    const response = await axios.get(apiUrl, {
+    const response = await axios.get<BilibiliViewResponse>(apiUrl, {
       headers: {
         Referer: "https://www.bilibili.com",
         "User-Agent":
@@ -60,14 +78,14 @@ export async function extractPartMetadata(
         Array.isArray(response.data.data.pages)
       ) {
         const page = response.data.data.pages.find(
-          (p: any) => p.page === partNumber
+          (pageData) => pageData.page === partNumber
         );
         if (page && page.part) {
           partTitle = page.part;
           logger.info(`Found part-specific title: ${partTitle}`);
         } else {
           // Fall back: try to remove collection name from yt-dlp title
-          if (seriesTitle && bilibiliInfo.title?.includes(seriesTitle)) {
+          if (seriesTitle && bilibiliInfo.title.includes(seriesTitle)) {
             partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
             partTitle = partTitle
               .replace(/^\s*[-–—]\s*/, "")
@@ -86,7 +104,7 @@ export async function extractPartMetadata(
     if (
       totalParts > 1 &&
       seriesTitle &&
-      bilibiliInfo.title?.includes(seriesTitle)
+      bilibiliInfo.title.includes(seriesTitle)
     ) {
       partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
       partTitle = partTitle
@@ -123,17 +141,12 @@ export async function getVideoDuration(
  * Get file size from file
  */
 export function getFileSize(filePath: string): string | undefined {
+  const allowedDirs = [VIDEOS_DIR, IMAGES_DIR, SUBTITLES_DIR];
+
   try {
-    const safeFilePath = resolveSafePathInDirectories(filePath, [
-      VIDEOS_DIR,
-      IMAGES_DIR,
-      SUBTITLES_DIR,
-    ]);
-    const fs = require("fs-extra");
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(safeFilePath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const stats = fs.statSync(safeFilePath);
+    const safeFilePath = resolveSafePathInDirectories(filePath, allowedDirs);
+    if (pathExistsSafeSync(safeFilePath, allowedDirs)) {
+      const stats = statSafeSync(safeFilePath, allowedDirs);
       return stats.size.toString();
     }
   } catch (e) {

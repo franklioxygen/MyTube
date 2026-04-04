@@ -1,62 +1,81 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import fs from 'fs-extra';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as cookieService from '../../services/cookieService';
+const securityMocks = vi.hoisted(() => ({
+  ensureDirSafeSync: vi.fn(),
+  moveSafeSync: vi.fn(),
+  pathExistsSafeSync: vi.fn(),
+  resolveSafeChildPath: vi.fn((root: string, child: string) => `${root}/${child}`),
+  unlinkSafeSync: vi.fn(),
+  writeFileSafeSync: vi.fn(),
+}));
 
-// Mock dependencies
-vi.mock('fs-extra');
-vi.mock('../../utils/logger');
+vi.mock("../../utils/security", () => securityMocks);
+vi.mock("../../utils/logger");
 
-describe('cookieService', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
+import * as cookieService from "../../services/cookieService";
+
+describe("cookieService", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    securityMocks.pathExistsSafeSync.mockReturnValue(false);
+  });
+
+  describe("checkCookies", () => {
+    it("should return true if file exists", () => {
+      securityMocks.pathExistsSafeSync.mockReturnValue(true);
+      expect(cookieService.checkCookies()).toEqual({ exists: true });
     });
 
-    describe('checkCookies', () => {
-        it('should return true if file exists', () => {
-            (fs.existsSync as any).mockReturnValue(true);
-            expect(cookieService.checkCookies()).toEqual({ exists: true });
-        });
+    it("should return false if file does not exist", () => {
+      securityMocks.pathExistsSafeSync.mockReturnValue(false);
+      expect(cookieService.checkCookies()).toEqual({ exists: false });
+    });
+  });
 
-        it('should return false if file does not exist', () => {
-            (fs.existsSync as any).mockReturnValue(false);
-            expect(cookieService.checkCookies()).toEqual({ exists: false });
-        });
+  describe("uploadCookies", () => {
+    it("should write and move uploaded buffer to destination", () => {
+      cookieService.uploadCookies(Buffer.from("cookie-data"));
+
+      expect(securityMocks.writeFileSafeSync).toHaveBeenCalledWith(
+        expect.stringContaining("cookies.txt.tmp"),
+        expect.any(String),
+        expect.any(Buffer),
+      );
+      expect(securityMocks.moveSafeSync).toHaveBeenCalledWith(
+        expect.stringContaining("cookies.txt.tmp"),
+        expect.any(String),
+        expect.stringContaining("cookies.txt"),
+        expect.any(String),
+        { overwrite: true },
+      );
     });
 
-    describe('uploadCookies', () => {
-        it('should write and move uploaded buffer to destination', () => {
-            cookieService.uploadCookies(Buffer.from('cookie-data'));
-            expect(fs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining('cookies.txt.tmp'),
-                expect.any(Buffer)
-            );
-            expect(fs.moveSync).toHaveBeenCalledWith(
-                expect.stringContaining('cookies.txt.tmp'),
-                expect.stringContaining('cookies.txt'),
-                { overwrite: true }
-            );
-        });
+    it("should cleanup temporary file on error", () => {
+      securityMocks.moveSafeSync.mockImplementation(() => {
+        throw new Error("Move failed");
+      });
+      securityMocks.pathExistsSafeSync.mockReturnValue(true);
 
-        it('should cleanup temporary file on error', () => {
-            (fs.moveSync as any).mockImplementation(() => { throw new Error('Move failed'); });
-            (fs.existsSync as any).mockReturnValue(true);
+      expect(() => cookieService.uploadCookies(Buffer.from("cookie-data"))).toThrow(
+        "Move failed",
+      );
+      expect(securityMocks.unlinkSafeSync).toHaveBeenCalledWith(
+        expect.stringContaining("cookies.txt.tmp"),
+        expect.any(String),
+      );
+    });
+  });
 
-            expect(() => cookieService.uploadCookies(Buffer.from('cookie-data'))).toThrow('Move failed');
-            expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('cookies.txt.tmp'));
-        });
+  describe("deleteCookies", () => {
+    it("should delete file if exists", () => {
+      securityMocks.pathExistsSafeSync.mockReturnValue(true);
+      cookieService.deleteCookies();
+      expect(securityMocks.unlinkSafeSync).toHaveBeenCalled();
     });
 
-    describe('deleteCookies', () => {
-        it('should delete file if exists', () => {
-            (fs.existsSync as any).mockReturnValue(true);
-            cookieService.deleteCookies();
-            expect(fs.unlinkSync).toHaveBeenCalled();
-        });
-
-        it('should throw if file does not exist', () => {
-            (fs.existsSync as any).mockReturnValue(false);
-            expect(() => cookieService.deleteCookies()).toThrow('Cookies file not found');
-        });
+    it("should throw if file does not exist", () => {
+      securityMocks.pathExistsSafeSync.mockReturnValue(false);
+      expect(() => cookieService.deleteCookies()).toThrow("Cookies file not found");
     });
+  });
 });

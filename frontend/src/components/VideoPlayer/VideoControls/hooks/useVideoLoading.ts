@@ -61,7 +61,7 @@ export const useVideoLoading = () => {
       );
 
       let errorMessage = t("failedToLoadVideo");
-      switch (videoElement.error?.code) {
+      switch (videoElement.error.code) {
         case 1: // MEDIA_ERR_ABORTED
           errorMessage = t("videoLoadingAborted");
           break;

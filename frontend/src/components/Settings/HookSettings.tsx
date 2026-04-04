@@ -39,7 +39,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
             });
         },
         onSuccess: () => {
-            refetchHooks();
+            void refetchHooks();
             setPendingUpload(null);
             setUploadError(null);
         },
@@ -62,7 +62,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
             await api.delete(`/settings/hooks/${hookName}`);
         },
         onSuccess: () => {
-            refetchHooks();
+            void refetchHooks();
             setDeleteHookName(null);
         },
         onError: async (error: unknown) => {
@@ -162,7 +162,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                 </Alert>
 
                 {uploadError && (
-                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setUploadError(null)}>
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => { setUploadError(null); }}>
                         {uploadError}
                     </Alert>
                 )}
@@ -218,7 +218,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
                                                     color="error"
                                                     size="small"
                                                     startIcon={<Delete />}
-                                                    onClick={() => handleDelete(hook.name)}
+                                                    onClick={() => { handleDelete(hook.name); }}
                                                     disabled={deleteMutation.isPending}
                                                 >
                                                     {t('delete') || 'Delete'}
@@ -235,7 +235,7 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
 
             <ConfirmationModal
                 isOpen={!!deleteHookName}
-                onClose={() => setDeleteHookName(null)}
+                onClose={() => { setDeleteHookName(null); }}
                 onConfirm={confirmDelete}
                 title={t('deleteHook') || 'Delete Hook Script'}
                 message={t('confirmDeleteHook') || 'Are you sure you want to delete this hook script?'}

@@ -2,6 +2,16 @@
 
 import type { Translations } from './types';
 
+function getButtonElement(id: string): HTMLButtonElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLButtonElement ? element : null;
+}
+
+function getElement(id: string): HTMLElement | null {
+  const element = document.getElementById(id);
+  return element instanceof HTMLElement ? element : null;
+}
+
 // Wait for DOM to be ready and translations to be loaded
 function init() {
   if (window.loadTranslations) {
@@ -27,11 +37,11 @@ function init() {
       }
 
       // Initialize popup
-      initializePopup();
+      void initializePopup();
     });
   } else {
     // Fallback if translations not loaded
-    initializePopup();
+    void initializePopup();
   }
 }
 
@@ -43,28 +53,31 @@ if (document.readyState === 'loading') {
 }
 
 async function initializePopup(): Promise<void> {
-  const downloadCurrentPageBtn = document.getElementById('downloadCurrentPage') as HTMLButtonElement | null;
-  const openOptionsBtn = document.getElementById('openOptions') as HTMLButtonElement | null;
-  const serverStatus = document.getElementById('serverStatus');
-  const serverStatusText = document.getElementById('serverStatusText');
+  const downloadCurrentPageButton = getButtonElement('downloadCurrentPage');
+  const openOptionsButton = getButtonElement('openOptions');
+  const serverStatus = getElement('serverStatus');
+  const serverStatusText = getElement('serverStatusText');
 
-  if (!downloadCurrentPageBtn || !openOptionsBtn || !serverStatus || !serverStatusText) {
+  if (!downloadCurrentPageButton || !openOptionsButton || !serverStatus || !serverStatusText) {
     console.error('Required DOM elements not found');
     return;
   }
+
+  const serverStatusIndicator = serverStatus;
+  const serverStatusLabel = serverStatusText;
 
   // Check server status
   await checkServerStatus();
 
   // Open options page
-  openOptionsBtn.addEventListener('click', () => {
+  openOptionsButton.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
 
   // Download current page
-  downloadCurrentPageBtn.addEventListener('click', async () => {
-    downloadCurrentPageBtn.disabled = true;
-    downloadCurrentPageBtn.textContent =
+  const handleDownloadCurrentPage = async (): Promise<void> => {
+    downloadCurrentPageButton.disabled = true;
+    downloadCurrentPageButton.textContent =
       window.currentTranslations?.testing || 'Processing...';
 
     try {
@@ -120,27 +133,28 @@ async function initializePopup(): Promise<void> {
     } catch (error) {
       showError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      downloadCurrentPageBtn.disabled = false;
-      downloadCurrentPageBtn.textContent =
+      downloadCurrentPageButton.disabled = false;
+      downloadCurrentPageButton.textContent =
         window.currentTranslations?.downloadCurrentPage ||
         'Download Current Page';
     }
+  };
+
+  downloadCurrentPageButton.addEventListener('click', () => {
+    void handleDownloadCurrentPage();
   });
 
   async function checkServerStatus(): Promise<void> {
-    if (!serverStatus || !serverStatusText) return;
-    
-    serverStatus.className = 'server-status checking';
-    serverStatusText.textContent =
+    serverStatusIndicator.className = 'server-status checking';
+    serverStatusLabel.textContent =
       window.currentTranslations?.checkingServer || 'Checking server...';
 
     try {
       const result = await chrome.storage.sync.get(['serverUrl', 'apiKey']);
 
       if (!result.serverUrl) {
-        if (!serverStatus || !serverStatusText) return;
-        serverStatus.className = 'server-status disconnected';
-        serverStatusText.textContent =
+        serverStatusIndicator.className = 'server-status disconnected';
+        serverStatusLabel.textContent =
           '⚠ ' +
           (window.currentTranslations?.serverDisconnected ||
             'Server URL not configured');
@@ -153,24 +167,21 @@ async function initializePopup(): Promise<void> {
         apiKey: result.apiKey ?? null,
       }) as { success: boolean; error?: string };
 
-      if (!serverStatus || !serverStatusText) return;
-      
       if (response.success) {
-        serverStatus.className = 'server-status connected';
-        serverStatusText.textContent =
+        serverStatusIndicator.className = 'server-status connected';
+        serverStatusLabel.textContent =
           '✓ ' +
           (window.currentTranslations?.serverConnected || 'Server connected');
       } else {
-        serverStatus.className = 'server-status disconnected';
-        serverStatusText.textContent =
+        serverStatusIndicator.className = 'server-status disconnected';
+        serverStatusLabel.textContent =
           '✗ ' +
           (window.currentTranslations?.serverDisconnected ||
             'Server disconnected');
       }
     } catch (error) {
-      if (!serverStatus || !serverStatusText) return;
-      serverStatus.className = 'server-status disconnected';
-      serverStatusText.textContent =
+      serverStatusIndicator.className = 'server-status disconnected';
+      serverStatusLabel.textContent =
         '✗ ' +
         (window.currentTranslations?.serverDisconnected ||
           'Error checking server');

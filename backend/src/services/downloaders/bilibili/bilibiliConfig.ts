@@ -6,7 +6,7 @@ import {
 } from "../../../utils/ytDlpUtils";
 
 export interface BilibiliDownloadFlags {
-  [key: string]: any;
+  [key: string]: string | number | boolean | string[] | undefined | null;
 }
 
 export interface PreparedBilibiliFlags {
@@ -15,36 +15,94 @@ export interface PreparedBilibiliFlags {
   formatSort?: string;
 }
 
-// Codec filter mapping for format string and formatSort
-const BILIBILI_CODEC_MAP: Record<string, { vcodecFilter: string; formatSort: string }> = {
-  h264: { vcodecFilter: "avc", formatSort: "vcodec:h264" },
-  h265: { vcodecFilter: "hevc", formatSort: "vcodec:h265" },
-  av1: { vcodecFilter: "av01", formatSort: "vcodec:av01" },
-  vp9: { vcodecFilter: "vp9", formatSort: "vcodec:vp9" },
-};
+type SupportedStringFlagKey = "S" | "formatSort" | "f" | "format";
+
+function getSupportedStringFlagValue(
+  flags: BilibiliDownloadFlags,
+  key: SupportedStringFlagKey
+): string | number | boolean | string[] | undefined | null {
+  switch (key) {
+    case "S":
+      return flags.S;
+    case "formatSort":
+      return flags.formatSort;
+    case "f":
+      return flags.f;
+    case "format":
+      return flags.format;
+  }
+}
+
+function getStringFlag(
+  flags: BilibiliDownloadFlags,
+  ...keys: SupportedStringFlagKey[]
+): string | undefined {
+  for (const key of keys) {
+    const value = getSupportedStringFlagValue(flags, key);
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getBilibiliCodecPreference(
+  codec: string,
+): { vcodecFilter: string; formatSort: string } | undefined {
+  switch (codec) {
+    case "h264":
+      return { vcodecFilter: "avc", formatSort: "vcodec:h264" };
+    case "h265":
+      return { vcodecFilter: "hevc", formatSort: "vcodec:h265" };
+    case "av1":
+      return { vcodecFilter: "av01", formatSort: "vcodec:av01" };
+    case "vp9":
+      return { vcodecFilter: "vp9", formatSort: "vcodec:vp9" };
+    default:
+      return undefined;
+  }
+}
 
 function resolveCodecPreference(): { codecFilter: string; codecFormatSort: string } {
   const appSettings = storageService.getSettings();
-  const codecSetting = appSettings?.defaultVideoCodec;
-  if (codecSetting && typeof codecSetting === "string" && codecSetting.trim() !== "") {
-    const mapped = BILIBILI_CODEC_MAP[codecSetting.trim().toLowerCase()];
-    if (mapped) {
-      logger.info("Using codec preference for Bilibili:", mapped.vcodecFilter);
-      return { codecFilter: mapped.vcodecFilter, codecFormatSort: mapped.formatSort };
+  const codecSetting = appSettings.defaultVideoCodec;
+
+  if (typeof codecSetting === "string") {
+    const normalizedCodec = codecSetting.trim().toLowerCase();
+    if (normalizedCodec !== "") {
+      const codecPreference = getBilibiliCodecPreference(normalizedCodec);
+      if (codecPreference) {
+        logger.info(
+          "Using codec preference for Bilibili:",
+          codecPreference.vcodecFilter
+        );
+        return {
+          codecFilter: codecPreference.vcodecFilter,
+          codecFormatSort: codecPreference.formatSort,
+        };
+      }
     }
   }
   return { codecFilter: "avc", codecFormatSort: "vcodec:h264" };
 }
 
 function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
-  writeSubs: any;
-  writeAutoSubs: any;
-  convertSubs: any;
+  writeSubs: boolean;
+  writeAutoSubs: boolean;
+  convertSubs: string;
 } {
   return {
-    writeSubs: userConfig.writeSubs !== undefined ? userConfig.writeSubs : true,
-    writeAutoSubs: userConfig.writeAutoSubs !== undefined ? userConfig.writeAutoSubs : true,
-    convertSubs: userConfig.convertSubs !== undefined ? userConfig.convertSubs : "vtt",
+    writeSubs:
+      typeof userConfig.writeSubs === "boolean" ? userConfig.writeSubs : true,
+    writeAutoSubs:
+      typeof userConfig.writeAutoSubs === "boolean"
+        ? userConfig.writeAutoSubs
+        : true,
+    convertSubs:
+      typeof userConfig.convertSubs === "string"
+        ? userConfig.convertSubs
+        : "vtt",
   };
 }
 
@@ -52,7 +110,7 @@ function resolveBilibiliFormatSort(
   userConfig: BilibiliDownloadFlags,
   codecFormatSort: string,
 ): string | undefined {
-  const userSort = userConfig.S || userConfig.formatSort;
+  const userSort = getStringFlag(userConfig, "S", "formatSort");
   if (userSort) {
     return userSort;
   }
@@ -68,16 +126,16 @@ function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
   downloadFormat: string;
   codecFormatSort: string;
 } {
-  const hasUserFormat = Boolean(userConfig.f || userConfig.format);
-  const hasUserFormatSort = Boolean(userConfig.S || userConfig.formatSort);
+  const userFormat = getStringFlag(userConfig, "f", "format");
+  const hasUserFormat = Boolean(userFormat);
+  const hasUserFormatSort = Boolean(getStringFlag(userConfig, "S", "formatSort"));
 
   if (hasUserFormat) {
-    const downloadFormat = userConfig.f || userConfig.format;
-    logger.info("Using user-specified format for Bilibili:", downloadFormat);
-    return { downloadFormat, codecFormatSort: "" };
+    logger.info("Using user-specified format for Bilibili:", userFormat);
+    return { downloadFormat: userFormat ?? "best", codecFormatSort: "" };
   }
 
-  if (!hasUserFormat && !hasUserFormatSort) {
+  if (!hasUserFormatSort) {
     const { codecFilter, codecFormatSort } = resolveCodecPreference();
     const downloadFormat =
       `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +

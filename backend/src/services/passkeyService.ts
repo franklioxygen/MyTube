@@ -1,6 +1,8 @@
 import type {
+  AuthenticatorTransportFuture,
   GenerateAuthenticationOptionsOpts,
   GenerateRegistrationOptionsOpts,
+  RegistrationResponseJSON,
   VerifyAuthenticationResponseOpts,
   VerifyRegistrationResponseOpts,
 } from "@simplewebauthn/server";
@@ -20,8 +22,22 @@ const rpID = process.env.RP_ID || "localhost"; // Default to localhost for devel
 export const defaultOrigin = process.env.ORIGIN || `http://${rpID}:5550`; // Frontend origin
 const origin = defaultOrigin;
 
-// Storage key for passkeys
-const PASSKEYS_STORAGE_KEY = "passkeys";
+type PasskeyRegistrationOptions = Awaited<
+  ReturnType<typeof generateRegistrationOptions>
+>;
+type PasskeyAuthenticationOptions = Awaited<
+  ReturnType<typeof generateAuthenticationOptions>
+>;
+type PasskeyTransportList = AuthenticatorTransportFuture[] | undefined;
+type PasskeyRegistrationBody = RegistrationResponseJSON & {
+  name?: string;
+};
+type PasskeyAuthenticationBody = Record<string, unknown> & {
+  id?: string;
+};
+
+// nosemgrep: codacy.javascript.security.hard-coded-password
+const PASSKEYS_SETTINGS_KEY = "passkeys" as const;
 
 interface StoredPasskey {
   credentialID: string; // Base64url encoded
@@ -35,13 +51,87 @@ interface StoredPasskey {
   origin?: string; // Store the origin used during registration for debugging
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isTransportList(
+  value: unknown
+): value is AuthenticatorTransportFuture[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
+  if (!isRecord(body) || !isRecord(body.response)) {
+    return null;
+  }
+
+  const { response } = body;
+  const {
+    id,
+    rawId,
+    type,
+    clientExtensionResults,
+    authenticatorAttachment,
+    name,
+  } = body;
+
+  if (typeof id !== "string") {
+    return null;
+  }
+
+  const normalizedRawId = typeof rawId === "string" ? rawId : id;
+  const normalizedType = type ?? "public-key";
+  if (
+    normalizedType !== "public-key" ||
+    typeof response.clientDataJSON !== "string" ||
+    typeof response.attestationObject !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    rawId: normalizedRawId,
+    type: "public-key",
+    clientExtensionResults: (
+      isRecord(clientExtensionResults) ? clientExtensionResults : {}
+    ) as RegistrationResponseJSON["clientExtensionResults"],
+    response: {
+      clientDataJSON: response.clientDataJSON,
+      attestationObject: response.attestationObject,
+      ...(typeof response.authenticatorData === "string"
+        ? { authenticatorData: response.authenticatorData }
+        : {}),
+      ...(isTransportList(response.transports)
+        ? { transports: response.transports }
+        : {}),
+      ...(typeof response.publicKeyAlgorithm === "number"
+        ? { publicKeyAlgorithm: response.publicKeyAlgorithm }
+        : {}),
+      ...(typeof response.publicKey === "string"
+        ? { publicKey: response.publicKey }
+        : {}),
+    },
+    ...(typeof authenticatorAttachment === "string"
+      ? {
+          authenticatorAttachment:
+            authenticatorAttachment as RegistrationResponseJSON["authenticatorAttachment"],
+        }
+      : {}),
+    ...(typeof name === "string" ? { name } : {}),
+  };
+}
+
 /**
  * Get all stored passkeys
  */
 export function getPasskeys(): StoredPasskey[] {
   try {
-    const settings = storageService.getSettings();
-    const passkeys = settings[PASSKEYS_STORAGE_KEY];
+    const settings = storageService.getSettings() as {
+      passkeys?: StoredPasskey[];
+    };
+    const passkeys = settings.passkeys;
     if (!passkeys || !Array.isArray(passkeys)) {
       return [];
     }
@@ -61,9 +151,9 @@ export function getPasskeys(): StoredPasskey[] {
 function savePasskeys(passkeys: StoredPasskey[]): void {
   try {
     storageService.saveSettings({
-      [PASSKEYS_STORAGE_KEY]: passkeys,
+      passkeys,
     }, {
-      extraWhitelistedKeys: [PASSKEYS_STORAGE_KEY],
+      extraWhitelistedKeys: [PASSKEYS_SETTINGS_KEY],
     });
   } catch (error) {
     logger.error(
@@ -82,7 +172,7 @@ export async function generatePasskeyRegistrationOptions(
   originOverride?: string,
   rpIDOverride?: string
 ): Promise<{
-  options: any;
+  options: PasskeyRegistrationOptions;
   challenge: string;
 }> {
   const existingPasskeys = getPasskeys();
@@ -98,7 +188,7 @@ export async function generatePasskeyRegistrationOptions(
     excludeCredentials: existingPasskeys.map((passkey) => ({
       id: Buffer.from(passkey.credentialID, "base64url").toString("base64url"),
       type: "public-key" as const,
-      transports: passkey.transports as any,
+      transports: passkey.transports as PasskeyTransportList,
     })),
     authenticatorSelection: {
       authenticatorAttachment: "platform",
@@ -122,7 +212,7 @@ export async function generatePasskeyRegistrationOptions(
  * Verify and store a new passkey
  */
 export async function verifyPasskeyRegistration(
-  body: any,
+  body: unknown,
   challenge: string,
   originOverride?: string,
   rpIDOverride?: string
@@ -136,8 +226,14 @@ export async function verifyPasskeyRegistration(
       `Verifying passkey registration with RP_ID: ${effectiveRPID}, Origin: ${effectiveOrigin}`
     );
 
+    const registrationBody = parseRegistrationBody(body);
+    if (!registrationBody) {
+      logger.warn("Invalid passkey registration body received");
+      return { verified: false };
+    }
+
     const opts: VerifyRegistrationResponseOpts = {
-      response: body,
+      response: registrationBody,
       expectedChallenge: challenge,
       expectedOrigin: effectiveOrigin,
       expectedRPID: effectiveRPID,
@@ -157,9 +253,13 @@ export async function verifyPasskeyRegistration(
         credentialID,
         credentialPublicKey,
         counter: credential.counter || 0,
-        transports: body.response.transports || credential.transports || [],
+        transports:
+          registrationBody.response.transports ||
+          credential.transports ||
+          [],
         id: credentialID,
-        name: body.name || `Passkey ${existingPasskeys.length + 1}`,
+        name:
+          registrationBody.name || `Passkey ${existingPasskeys.length + 1}`,
         createdAt: new Date().toISOString(),
         rpID: effectiveRPID, // Store RP_ID for debugging
         origin: effectiveOrigin, // Store origin for debugging
@@ -192,7 +292,7 @@ export async function verifyPasskeyRegistration(
 export async function generatePasskeyAuthenticationOptions(
   rpIDOverride?: string
 ): Promise<{
-  options: any;
+  options: PasskeyAuthenticationOptions;
   challenge: string;
 }> {
   const passkeys = getPasskeys();
@@ -244,7 +344,7 @@ export async function generatePasskeyAuthenticationOptions(
       type: "public-key" as const,
       // Always specify "internal" transport since we only register platform authenticators
       // This tells the browser to use the device's built-in authenticator (fingerprint/face ID)
-      transports: ["internal"] as any,
+      transports: ["internal"] as PasskeyTransportList,
     })),
     userVerification: "preferred",
     rpID: effectiveRPID,
@@ -266,7 +366,7 @@ export async function generatePasskeyAuthenticationOptions(
  * Verify passkey authentication
  */
 export async function verifyPasskeyAuthentication(
-  body: any,
+  body: PasskeyAuthenticationBody,
   challenge: string,
   originOverride?: string,
   rpIDOverride?: string
@@ -286,15 +386,15 @@ export async function verifyPasskeyAuthentication(
     const effectiveOrigin = originOverride || origin;
 
     const opts: VerifyAuthenticationResponseOpts = {
-      response: body,
+      response: body as unknown as VerifyAuthenticationResponseOpts["response"],
       expectedChallenge: challenge,
       expectedOrigin: effectiveOrigin,
       expectedRPID: effectiveRPID,
       credential: {
         id: passkey.credentialID,
-        publicKey: Buffer.from(passkey.credentialPublicKey, "base64") as any,
+        publicKey: Buffer.from(passkey.credentialPublicKey, "base64"),
         counter: passkey.counter,
-        transports: passkey.transports as any,
+        transports: passkey.transports as PasskeyTransportList,
       },
       requireUserVerification: false,
     };

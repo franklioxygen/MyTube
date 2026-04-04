@@ -1,4 +1,5 @@
-import fs from "fs";
+import { DATA_DIR } from "../../config/paths";
+import { readFileSafeSync } from "../../utils/security";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { ContinuousDownloadTask } from "./types";
@@ -29,7 +30,7 @@ export class TaskCleanup {
 
       if (task.frozenVideoListPath) {
         try {
-          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+          const raw = readFileSafeSync(task.frozenVideoListPath, DATA_DIR, "utf8");
           videoUrls = JSON.parse(raw) as string[];
         } catch (err) {
           logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);
@@ -54,7 +55,7 @@ export class TaskCleanup {
         const { getVideoInfo } = await import("../downloadService");
         const videoInfo = await getVideoInfo(currentVideoUrl);
 
-        if (videoInfo && videoInfo.title) {
+        if (videoInfo.title) {
           const { formatVideoFilename } = await import("../../utils/helpers");
           const { VIDEOS_DIR } = await import("../../config/paths");
           const path = await import("path");
@@ -84,7 +85,7 @@ export class TaskCleanup {
 
           // Also check active downloads and cancel any matching download
           const downloadStatus = storageService.getDownloadStatus();
-          const activeDownloads = downloadStatus.activeDownloads || [];
+          const activeDownloads = downloadStatus.activeDownloads;
 
           // Import download manager to properly cancel downloads
           const downloadManager = await import("../downloadManager");

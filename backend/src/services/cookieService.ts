@@ -1,17 +1,25 @@
-import fs from "fs-extra";
-import path from "path";
 import { DATA_DIR } from "../config/paths";
 import { NotFoundError, ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
+import {
+  ensureDirSafeSync,
+  moveSafeSync,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+  writeFileSafeSync,
+} from "../utils/security";
 
-const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
+const COOKIES_FILENAME = "cookies.txt";
+const COOKIES_TEMP_FILENAME = "cookies.txt.tmp";
+const COOKIES_PATH = resolveSafeChildPath(DATA_DIR, COOKIES_FILENAME);
+const COOKIES_TEMP_PATH = resolveSafeChildPath(DATA_DIR, COOKIES_TEMP_FILENAME);
 
 /**
  * Check if cookies file exists
  */
 export function checkCookies(): { exists: boolean } {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  return { exists: fs.existsSync(COOKIES_PATH) };
+  return { exists: pathExistsSafeSync(COOKIES_PATH, DATA_DIR) };
 }
 
 /**
@@ -23,20 +31,16 @@ export function uploadCookies(fileBuffer: Buffer): void {
     throw new ValidationError("Invalid uploaded file", "file");
   }
 
-  const targetPath = path.resolve(COOKIES_PATH);
-  const tempPath = `${targetPath}.tmp`;
-
   try {
-    fs.ensureDirSync(path.dirname(targetPath));
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(tempPath, fileBuffer);
-    fs.moveSync(tempPath, targetPath, { overwrite: true });
-    logger.info(`Cookies uploaded and saved to ${targetPath}`);
-  } catch (error: any) {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(tempPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(tempPath);
+    ensureDirSafeSync(DATA_DIR, DATA_DIR);
+    writeFileSafeSync(COOKIES_TEMP_PATH, DATA_DIR, fileBuffer);
+    moveSafeSync(COOKIES_TEMP_PATH, DATA_DIR, COOKIES_PATH, DATA_DIR, {
+      overwrite: true,
+    });
+    logger.info(`Cookies uploaded and saved to ${COOKIES_PATH}`);
+  } catch (error: unknown) {
+    if (pathExistsSafeSync(COOKIES_TEMP_PATH, DATA_DIR)) {
+      unlinkSafeSync(COOKIES_TEMP_PATH, DATA_DIR);
     }
     throw error;
   }
@@ -46,12 +50,9 @@ export function uploadCookies(fileBuffer: Buffer): void {
  * Delete cookies file
  */
 export function deleteCookies(): void {
-  const safeCookiesPath = path.resolve(COOKIES_PATH);
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(safeCookiesPath)) {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.unlinkSync(safeCookiesPath);
+  if (pathExistsSafeSync(COOKIES_PATH, DATA_DIR)) {
+    unlinkSafeSync(COOKIES_PATH, DATA_DIR);
   } else {
-    throw new NotFoundError("Cookies file", "cookies.txt");
+    throw new NotFoundError("Cookies file", COOKIES_FILENAME);
   }
 }

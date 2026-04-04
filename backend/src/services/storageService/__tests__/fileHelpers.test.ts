@@ -19,7 +19,11 @@ vi.mock("../../../utils/logger", () => ({
 }));
 
 vi.mock("../../../utils/security", () => ({
+  ensureDirSafeSync: vi.fn(),
   isPathWithinDirectories: vi.fn(() => true),
+  moveSafeSync: vi.fn(),
+  normalizeSafeAbsolutePath: vi.fn((targetPath: string) => targetPath),
+  pathExistsTrustedSync: vi.fn(() => false),
   sanitizePathSegment: vi.fn((segment: string) =>
     segment.replace(/\.\./g, "").replace(/[\\/]/g, "")
   ),
@@ -27,19 +31,21 @@ vi.mock("../../../utils/security", () => ({
 
 vi.mock("fs-extra", () => ({
   default: {
-    existsSync: vi.fn(),
-    ensureDirSync: vi.fn(),
-    moveSync: vi.fn(),
+    opendirSync: vi.fn(),
+    pathExistsSync: vi.fn(),
+    removeSync: vi.fn(),
   },
-  existsSync: vi.fn(),
-  ensureDirSync: vi.fn(),
-  moveSync: vi.fn(),
+  opendirSync: vi.fn(),
+  pathExistsSync: vi.fn(),
+  removeSync: vi.fn(),
 }));
 
-import fs from "fs-extra";
 import { logger } from "../../../utils/logger";
 import {
+  ensureDirSafeSync,
   isPathWithinDirectories,
+  moveSafeSync,
+  pathExistsTrustedSync,
   sanitizePathSegment,
 } from "../../../utils/security";
 import {
@@ -49,12 +55,19 @@ import {
   moveFile,
 } from "../fileHelpers";
 
-const existsSyncMock = vi.mocked(fs.existsSync);
-const ensureDirSyncMock = vi.mocked(fs.ensureDirSync);
-const moveSyncMock = vi.mocked(fs.moveSync);
+const pathExistsTrustedSyncMock = vi.mocked(pathExistsTrustedSync);
+const ensureDirSafeSyncMock = vi.mocked(ensureDirSafeSync);
+const moveSafeSyncMock = vi.mocked(moveSafeSync);
 const loggerInfoMock = vi.mocked(logger.info);
 const loggerWarnMock = vi.mocked(logger.warn);
 const loggerErrorMock = vi.mocked(logger.error);
+const expectedAllowedStorageDirs = [
+  "/safe/videos",
+  "/safe/images",
+  "/safe/images-small",
+  "/safe/subtitles",
+  "/safe/avatars",
+];
 
 describe("fileHelpers", () => {
   beforeEach(() => {
@@ -63,6 +76,7 @@ describe("fileHelpers", () => {
     vi.mocked(sanitizePathSegment).mockImplementation((segment: string) =>
       segment.replace(/\.\./g, "").replace(/[\\/]/g, "")
     );
+    pathExistsTrustedSyncMock.mockReturnValue(false);
   });
 
   it("returns null for invalid video filename after sanitization", () => {
@@ -102,7 +116,7 @@ describe("fileHelpers", () => {
 
   it("finds video file in root videos directory", () => {
     const rootPath = path.join("/safe/videos", "movie.mp4");
-    existsSyncMock.mockImplementation((p: any) => p === rootPath);
+    pathExistsTrustedSyncMock.mockImplementation((targetPath: string) => targetPath === rootPath);
 
     const result = findVideoFile("movie.mp4");
 
@@ -112,7 +126,9 @@ describe("fileHelpers", () => {
   it("falls back to collection directories for video files", () => {
     const collectionPath = path.join("/safe/videos", "SciFi", "movie.mp4");
 
-    existsSyncMock.mockImplementation((p: any) => p === collectionPath);
+    pathExistsTrustedSyncMock.mockImplementation(
+      (targetPath: string) => targetPath === collectionPath
+    );
 
     const result = findVideoFile("movie.mp4", [
       { id: "c1", title: "SciFi", videos: [] } as any,
@@ -126,7 +142,9 @@ describe("fileHelpers", () => {
     vi.mocked(isPathWithinDirectories)
       .mockReturnValueOnce(false)
       .mockReturnValue(true);
-    existsSyncMock.mockImplementation((p: any) => p === collectionPath);
+    pathExistsTrustedSyncMock.mockImplementation(
+      (targetPath: string) => targetPath === collectionPath
+    );
 
     const result = findVideoFile("movie.mp4", [
       { id: "c1", name: "Drama", videos: [] } as any,
@@ -140,7 +158,9 @@ describe("fileHelpers", () => {
 
   it("finds image file from collection path", () => {
     const imagePath = path.join("/safe/images", "Anime", "cover.jpg");
-    existsSyncMock.mockImplementation((p: any) => p === imagePath);
+    pathExistsTrustedSyncMock.mockImplementation(
+      (targetPath: string) => targetPath === imagePath
+    );
 
     const result = findImageFile("cover.jpg", [
       { id: "c2", title: "Anime", videos: [] } as any,
@@ -167,26 +187,35 @@ describe("fileHelpers", () => {
     const sourcePath = "/safe/videos/a.mp4";
     const destPath = "/safe/videos/sub/b.mp4";
 
-    existsSyncMock.mockImplementation((p: any) => p === sourcePath);
+    pathExistsTrustedSyncMock.mockImplementation(
+      (targetPath: string) => targetPath === sourcePath
+    );
 
     moveFile(sourcePath, destPath);
 
-    expect(ensureDirSyncMock).toHaveBeenCalledWith(path.dirname(destPath));
-    expect(moveSyncMock).toHaveBeenCalledWith(sourcePath, destPath, {
-      overwrite: true,
-    });
+    expect(ensureDirSafeSyncMock).toHaveBeenCalledWith(
+      path.dirname(destPath),
+      expectedAllowedStorageDirs
+    );
+    expect(moveSafeSyncMock).toHaveBeenCalledWith(
+      sourcePath,
+      expectedAllowedStorageDirs,
+      destPath,
+      expectedAllowedStorageDirs,
+      { overwrite: true }
+    );
     expect(loggerInfoMock).toHaveBeenCalledWith(
       `Moved file from ${sourcePath} to ${destPath}`
     );
   });
 
   it("does nothing when source file does not exist", () => {
-    existsSyncMock.mockReturnValue(false);
+    pathExistsTrustedSyncMock.mockReturnValue(false);
 
     moveFile("/safe/videos/missing.mp4", "/safe/videos/out.mp4");
 
-    expect(ensureDirSyncMock).not.toHaveBeenCalled();
-    expect(moveSyncMock).not.toHaveBeenCalled();
+    expect(ensureDirSafeSyncMock).not.toHaveBeenCalled();
+    expect(moveSafeSyncMock).not.toHaveBeenCalled();
   });
 
   it("throws and logs when path validation fails", () => {

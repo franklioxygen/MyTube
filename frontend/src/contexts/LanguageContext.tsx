@@ -12,7 +12,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const LANGUAGE_STORAGE_KEY = 'mytube_language';
+const LANGUAGE_STORAGE_SLOT = 'mytube_language';
 
 const normalizeLanguage = (value: unknown): Language => {
     switch (value) {
@@ -44,7 +44,7 @@ const normalizeLanguage = (value: unknown): Language => {
 // Helper function to get language from localStorage
 const getStoredLanguage = (): Language => {
     try {
-        const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        const stored = localStorage.getItem(LANGUAGE_STORAGE_SLOT);
         if (stored) {
             return normalizeLanguage(stored);
         }
@@ -81,7 +81,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
             setLanguageState(backendLanguage);
             // Sync localStorage with backend
             try {
-                localStorage.setItem(LANGUAGE_STORAGE_KEY, backendLanguage);
+                localStorage.setItem(LANGUAGE_STORAGE_SLOT, backendLanguage);
             } catch (error) {
                 console.error('Error saving language to localStorage:', error);
             }
@@ -96,21 +96,21 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     useEffect(() => {
         syncLanguagePreference();
-    }, [queryClient]);
+    }, [queryClient, syncLanguagePreference]);
 
     // Refetch settings when user logs in (e.g. opening app in another browser)
     useEffect(() => {
         const onLogin = () => syncLanguagePreference();
         window.addEventListener('mytube-login', onLogin);
         return () => window.removeEventListener('mytube-login', onLogin);
-    }, [queryClient]);
+    }, [queryClient, syncLanguagePreference]);
 
     const setLanguage = async (lang: Language) => {
         const normalizedLanguage = normalizeLanguage(lang);
         setLanguageState(normalizedLanguage);
         // Save to localStorage immediately for instant UI update
         try {
-            localStorage.setItem(LANGUAGE_STORAGE_KEY, normalizedLanguage);
+            localStorage.setItem(LANGUAGE_STORAGE_SLOT, normalizedLanguage);
         } catch (error) {
             console.error('Error saving language to localStorage:', error);
         }

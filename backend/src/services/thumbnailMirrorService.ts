@@ -7,10 +7,14 @@ import {
 } from "../config/paths";
 import { logger } from "../utils/logger";
 import {
+  ensureDirSafeSync,
   execFileSafe,
   isPathWithinDirectory,
+  moveSafeSync,
+  removeEmptyDirSafeSync,
   pathExistsSafeSync,
   readdirSafeSync,
+  resolveSafeChildPath,
   resolveSafePath,
   unlinkSafeSync,
 } from "../utils/security";
@@ -66,17 +70,14 @@ const normalizeRelativeThumbnailPath = (
 };
 
 const resolveSmallThumbnailAbsolutePath = (relativePath: string): string => {
-  return resolveSafePath(path.join(IMAGES_SMALL_DIR, relativePath), IMAGES_SMALL_DIR);
+  return resolveSafeChildPath(IMAGES_SMALL_DIR, relativePath);
 };
 
 const findOriginalThumbnailAbsolutePathByRelativePath = (
   relativePath: string,
 ): string | null => {
   for (const location of ORIGINAL_THUMBNAIL_LOCATIONS) {
-    const candidatePath = resolveSafePath(
-      path.join(location.absoluteRoot, relativePath),
-      location.absoluteRoot,
-    );
+    const candidatePath = resolveSafeChildPath(location.absoluteRoot, relativePath);
     if (pathExistsSafeSync(candidatePath, location.absoluteRoot)) {
       return candidatePath;
     }
@@ -86,7 +87,7 @@ const findOriginalThumbnailAbsolutePathByRelativePath = (
 };
 
 const cleanupEmptyParentDirectoriesSync = (startDir: string): void => {
-  let currentDir = path.resolve(startDir);
+  let currentDir = resolveSafePath(startDir, SMALL_ROOT_PATH);
 
   while (
     currentDir !== SMALL_ROOT_PATH &&
@@ -101,7 +102,7 @@ const cleanupEmptyParentDirectoriesSync = (startDir: string): void => {
       break;
     }
 
-    fs.rmdirSync(currentDir);
+    removeEmptyDirSafeSync(currentDir, SMALL_ROOT_PATH);
     currentDir = path.dirname(currentDir);
   }
 };
@@ -172,12 +173,14 @@ export const getThumbnailRelativePath = (
   }
 
   if (path.isAbsolute(rawPath)) {
-    const resolvedPath = path.resolve(rawPath);
     for (const location of ORIGINAL_THUMBNAIL_LOCATIONS) {
-      if (isPathWithinDirectory(resolvedPath, location.absoluteRoot)) {
+      try {
+        const resolvedPath = resolveSafePath(rawPath, location.absoluteRoot);
         return normalizeRelativeThumbnailPath(
           path.relative(location.absoluteRoot, resolvedPath),
         );
+      } catch {
+        continue;
       }
     }
 
@@ -199,7 +202,11 @@ export const deriveSmallThumbnailWebPath = (
 };
 
 export const resolveManagedThumbnailTarget = (
-  video: Record<string, any>,
+  video: {
+    [key: string]: unknown;
+    videoPath?: string | null;
+    thumbnailPath?: string | null;
+  },
   thumbnailFilename: string,
   moveThumbnailsToVideoFolder: boolean,
 ): {
@@ -232,15 +239,17 @@ export const resolveManagedThumbnailTarget = (
 
   const baseAbsolutePath = shouldStoreAlongsideVideo ? VIDEOS_DIR : IMAGES_DIR;
   const baseWebPath = shouldStoreAlongsideVideo ? "/videos" : "/images";
-  const relativePath = relativeDirectory
-    ? path.join(relativeDirectory, safeThumbnailFilename)
-    : safeThumbnailFilename;
+  const relativePath = normalizeRelativeThumbnailPath(
+    relativeDirectory
+      ? `${relativeDirectory.replace(/\\/g, "/")}/${safeThumbnailFilename}`
+      : safeThumbnailFilename,
+  );
+  if (!relativePath) {
+    throw new Error("Invalid thumbnail target path");
+  }
 
   return {
-    absolutePath: resolveSafePath(
-      path.join(baseAbsolutePath, relativePath),
-      baseAbsolutePath,
-    ),
+    absolutePath: resolveSafeChildPath(baseAbsolutePath, relativePath),
     webPath: `${baseWebPath}/${relativePath.replace(/\\/g, "/")}`,
     relativePath: relativePath.replace(/\\/g, "/"),
   };
@@ -249,10 +258,9 @@ export const resolveManagedThumbnailTarget = (
 export const resolveManagedThumbnailWebPathFromAbsolutePath = (
   absolutePath: string,
 ): string | null => {
-  const resolvedPath = path.resolve(absolutePath);
-
   for (const location of ORIGINAL_THUMBNAIL_LOCATIONS) {
-    if (isPathWithinDirectory(resolvedPath, location.absoluteRoot)) {
+    try {
+      const resolvedPath = resolveSafePath(absolutePath, location.absoluteRoot);
       const relativePath = path.relative(location.absoluteRoot, resolvedPath);
       const normalizedRelativePath = normalizeRelativeThumbnailPath(relativePath);
       if (!normalizedRelativePath) {
@@ -260,6 +268,8 @@ export const resolveManagedThumbnailWebPathFromAbsolutePath = (
       }
 
       return `${location.webPrefix}${normalizedRelativePath.replace(/\\/g, "/")}`;
+    } catch {
+      continue;
     }
   }
 
@@ -342,8 +352,10 @@ export const moveSmallThumbnailMirrorSync = (
   }
 
   const newAbsolutePath = resolveSmallThumbnailAbsolutePath(newRelativePath);
-  fs.ensureDirSync(path.dirname(newAbsolutePath));
-  fs.moveSync(oldAbsolutePath, newAbsolutePath, { overwrite: true });
+  ensureDirSafeSync(path.dirname(newAbsolutePath), SMALL_ROOT_PATH);
+  moveSafeSync(oldAbsolutePath, SMALL_ROOT_PATH, newAbsolutePath, SMALL_ROOT_PATH, {
+    overwrite: true,
+  });
   cleanupEmptyParentDirectoriesSync(path.dirname(oldAbsolutePath));
 };
 

@@ -47,7 +47,7 @@ const ensureSmallThumbnail = async (
   res: Response,
   next: express.NextFunction,
 ): Promise<void> => {
-  const wildcardPath = req.params?.["0"];
+  const wildcardPath = req.params["0"];
   const relativePath = getThumbnailRelativePath(
     typeof wildcardPath === "string" ? wildcardPath : req.path,
   );
@@ -70,8 +70,8 @@ const ensureSmallThumbnail = async (
     }
 
     setCommonImageHeaders(res);
-    res.sendFile(fallbackAbsolutePath, (sendFileError) => {
-      if (sendFileError) {
+    res.sendFile(fallbackAbsolutePath, (sendFileError?: Error | null) => {
+      if (sendFileError != null) {
         next(sendFileError);
       }
     });

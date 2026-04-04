@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -11,6 +12,27 @@ interface UseVideoSubscriptionsProps {
   video: Video | undefined;
 }
 
+interface SubscriptionRecord {
+  id: string;
+  author?: string;
+  authorUrl?: string;
+  platform?: string;
+}
+
+const matchesVideoAuthor = (
+  subscription: SubscriptionRecord,
+  video: Video,
+): boolean => {
+  const subscriptionPlatform =
+    typeof subscription.platform === "string"
+      ? subscription.platform.toLowerCase()
+      : "";
+  return (
+    subscription.author === video.author &&
+    subscriptionPlatform === video.source.toLowerCase()
+  );
+};
+
 /**
  * Custom hook to manage video subscriptions
  */
@@ -22,11 +44,11 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
   const [showSubscribeModal, setShowSubscribeModal] = useState<boolean>(false);
 
   // Fetch subscriptions
-  const { data: subscriptions = [] } = useQuery({
+  const { data: subscriptions = [] } = useQuery<SubscriptionRecord[]>({
     queryKey: ["subscriptions"],
     queryFn: async () => {
       const response = await api.get("/subscriptions");
-      return response.data;
+      return response.data as SubscriptionRecord[];
     },
   });
 
@@ -59,31 +81,28 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
       }
     };
 
-    fetchChannelUrl();
+    void fetchChannelUrl();
   }, [video]);
 
   // Check if author is subscribed
   const isSubscribed = useMemo(() => {
-    if (!subscriptions || subscriptions.length === 0) {
+    if (subscriptions.length === 0) {
       return false;
     }
 
     // 1. Strict check by Channel URL (most accurate)
     if (authorChannelUrl) {
       const hasUrlMatch = subscriptions.some(
-        (sub: any) => sub.authorUrl === authorChannelUrl
+        (subscription) => subscription.authorUrl === authorChannelUrl
       );
       if (hasUrlMatch) return true;
     }
 
     // 2. Fallback check by Author Name and Platform matching
     if (video) {
-      return subscriptions.some((sub: any) => {
-        const nameMatch = sub.author === video.author;
-        const platformMatch =
-          sub.platform?.toLowerCase() === video.source?.toLowerCase();
-        return nameMatch && platformMatch;
-      });
+      return subscriptions.some((subscription) =>
+        matchesVideoAuthor(subscription, video)
+      );
     }
 
     return false;
@@ -91,26 +110,23 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
 
   // Get subscription ID if subscribed
   const subscriptionId = useMemo(() => {
-    if (!subscriptions || subscriptions.length === 0) {
+    if (subscriptions.length === 0) {
       return null;
     }
 
     // 1. Strict check by Channel URL
     if (authorChannelUrl) {
       const subscription = subscriptions.find(
-        (sub: any) => sub.authorUrl === authorChannelUrl
+        (item) => item.authorUrl === authorChannelUrl
       );
       if (subscription) return subscription.id;
     }
 
     // 2. Fallback check by Author Name and Platform matching
     if (video) {
-      const subscription = subscriptions.find((sub: any) => {
-        const nameMatch = sub.author === video.author;
-        const platformMatch =
-          sub.platform?.toLowerCase() === video.source?.toLowerCase();
-        return nameMatch && platformMatch;
-      });
+      const subscription = subscriptions.find((item) =>
+        matchesVideoAuthor(item, video)
+      );
       if (subscription) return subscription.id;
     }
 
@@ -171,11 +187,11 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
         ...(downloadAllPrevious ? { downloadOrder } : {}),
       });
       showSnackbar(t("subscribedSuccessfully"));
-      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
       setShowSubscribeModal(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error subscribing:", error);
-      if (error.response && error.response.status === 409) {
+      if (isAxiosError(error) && error.response?.status === 409) {
         showSnackbar(t("subscriptionAlreadyExists"), "warning");
       } else {
         showSnackbar(
@@ -201,7 +217,7 @@ export function useVideoSubscriptions({ video }: UseVideoSubscriptionsProps) {
     },
     onSuccess: () => {
       showSnackbar(t("unsubscribedSuccessfully"));
-      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      void queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
     },
     onError: () => {
       showSnackbar(t("error"), "error");

@@ -5,7 +5,11 @@ import path from "path";
 import { IMAGES_DIR } from "../config/paths";
 import { regenerateSmallThumbnailForThumbnailPath } from "./thumbnailMirrorService";
 import { logger } from "../utils/logger";
-import { resolveSafeChildPath, resolveSafePath } from "../utils/security";
+import {
+  resolveSafeChildPath,
+  resolveSafePath,
+  writeFileSafe,
+} from "../utils/security";
 import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
@@ -28,22 +32,29 @@ const ALLOWED_IMAGE_URLS = ["https://image.tmdb.org/t/p/w500"];
  * TMDB uses ISO 639-1 with region codes (e.g., en-US, zh-CN)
  */
 function mapLanguageToTMDB(language?: string): string {
-  if (!language) return "en-US";
-
-  const languageMap: Record<string, string> = {
-    en: "en-US",
-    zh: "zh-CN",
-    es: "es-ES",
-    de: "de-DE",
-    ja: "ja-JP",
-    fr: "fr-FR",
-    ko: "ko-KR",
-    ar: "ar-SA",
-    pt: "pt-BR",
-    ru: "ru-RU",
-  };
-
-  return languageMap[language] || "en-US";
+  switch (language) {
+    case "zh":
+      return "zh-CN";
+    case "es":
+      return "es-ES";
+    case "de":
+      return "de-DE";
+    case "ja":
+      return "ja-JP";
+    case "fr":
+      return "fr-FR";
+    case "ko":
+      return "ko-KR";
+    case "ar":
+      return "ar-SA";
+    case "pt":
+      return "pt-BR";
+    case "ru":
+      return "ru-RU";
+    case "en":
+    default:
+      return "en-US";
+  }
 }
 
 export interface TMDBMovieResult {
@@ -102,6 +113,11 @@ type MultiStrategySearchResult = {
   mediaType: "movie" | "tv" | null;
   strategy: string;
   director?: string;
+};
+
+type TMDBCrewMember = {
+  job?: string;
+  name?: string;
 };
 
 export type TMDBCredentialAuthType = "apiKey" | "readAccessToken";
@@ -756,12 +772,19 @@ function buildEnglishCombinations(
     return combinations;
   }
 
-  for (let i = 0; i < englishWords.length - 1; i++) {
-    const combined = `${englishWords[i]} ${englishWords[i + 1]}`;
+  let previousWord: string | null = null;
+  for (const word of englishWords) {
+    if (!previousWord) {
+      previousWord = word;
+      continue;
+    }
+
+    const combined = `${previousWord} ${word}`;
     if (combined.length >= 4 && !seen.has(combined.toLowerCase())) {
       combinations.push(combined);
       seen.add(combined.toLowerCase());
     }
+    previousWord = word;
   }
 
   return combinations.sort((a, b) => b.length - a.length);
@@ -1032,9 +1055,12 @@ async function getMovieDetails(
     
     // Extract director from crew
     let director: string | undefined;
-    if (creditsResponse.data?.crew) {
-      const directorCrew = creditsResponse.data.crew.find(
-        (member: any) => member.job === "Director"
+    const crew = Array.isArray(creditsResponse.data?.crew)
+      ? (creditsResponse.data.crew as TMDBCrewMember[])
+      : [];
+    if (crew.length > 0) {
+      const directorCrew = crew.find(
+        (member) => member.job === "Director"
       );
       if (directorCrew && directorCrew.name) {
         director = directorCrew.name;
@@ -1121,14 +1147,17 @@ async function getTVShowDetails(
     // Extract director/creator from TV show
     // Priority: 1) Creator from created_by array, 2) Director from crew
     let director: string | undefined;
+    const crew = Array.isArray(creditsResponse.data?.crew)
+      ? (creditsResponse.data.crew as TMDBCrewMember[])
+      : [];
     
     // First, try to get creator from created_by array
     if (tv.created_by && tv.created_by.length > 0 && tv.created_by[0].name) {
       director = tv.created_by[0].name;
-    } else if (creditsResponse.data?.crew) {
+    } else if (crew.length > 0) {
       // Fallback to director from crew
-      const directorCrew = creditsResponse.data.crew.find(
-        (member: any) => member.job === "Director" || member.job === "Executive Producer"
+      const directorCrew = crew.find(
+        (member) => member.job === "Director" || member.job === "Executive Producer"
       );
       if (directorCrew && directorCrew.name) {
         director = directorCrew.name;
@@ -1577,8 +1606,8 @@ async function downloadPoster(
 
     // Save image
     // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    await fs.writeFile(normalizedSavePath, response.data);
-    const relativePath = path.relative(path.resolve(IMAGES_DIR), normalizedSavePath);
+    await writeFileSafe(normalizedSavePath, IMAGES_DIR, response.data);
+    const relativePath = path.relative(IMAGES_DIR, normalizedSavePath);
     await regenerateSmallThumbnailForThumbnailPath(
       `/images/${relativePath.replace(/\\/g, "/")}`,
     );
@@ -2066,6 +2095,7 @@ export async function scrapeMetadataFromTMDB(
       description?: string;
       thumbnailPath?: string;
       thumbnailUrl?: string;
+      thumbnailFilename?: string;
       year?: string;
       rating?: number;
       director?: string;
@@ -2135,7 +2165,7 @@ export async function scrapeMetadataFromTMDB(
         metadata.thumbnailUrl = webPath;
         // Store the actual filename (relative path) used for the scanController
         // This includes subdirectory if the file was saved in one
-        (metadata as any).thumbnailFilename = posterSaveLocation.relativePath;
+        metadata.thumbnailFilename = posterSaveLocation.relativePath;
       }
     }
 

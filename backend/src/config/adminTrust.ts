@@ -12,17 +12,22 @@ export interface DeploymentSecurityModel {
 
 const DEFAULT_ADMIN_TRUST_LEVEL: AdminTrustLevel = "container";
 
-const TRUST_LEVEL_ORDER: Record<AdminTrustLevel, number> = {
-  application: 0,
-  container: 1,
-  host: 2,
-};
-
 const VALID_TRUST_LEVELS = new Set<AdminTrustLevel>([
   "application",
   "container",
   "host",
 ]);
+
+function getAdminTrustRank(level: AdminTrustLevel): number {
+  switch (level) {
+    case "application":
+      return 0;
+    case "container":
+      return 1;
+    case "host":
+      return 2;
+  }
+}
 
 export function parseAdminTrustLevel(rawValue?: string): AdminTrustLevel {
   const normalized = rawValue?.trim().toLowerCase();
@@ -49,12 +54,12 @@ export function getAdminTrustLevel(): AdminTrustLevel {
 
 export function getDeploymentSecurityModel(): DeploymentSecurityModel {
   const adminTrustLevel = getAdminTrustLevel();
+  const adminTrustRank = getAdminTrustRank(adminTrustLevel);
   return {
     adminTrustLevel,
     adminTrustedWithContainer:
-      TRUST_LEVEL_ORDER[adminTrustLevel] >= TRUST_LEVEL_ORDER.container,
-    adminTrustedWithHost:
-      TRUST_LEVEL_ORDER[adminTrustLevel] >= TRUST_LEVEL_ORDER.host,
+      adminTrustRank >= getAdminTrustRank("container"),
+    adminTrustedWithHost: adminTrustRank >= getAdminTrustRank("host"),
     source: "env",
   };
 }
@@ -63,7 +68,7 @@ export function isAdminTrustLevelAtLeast(
   required: AdminTrustLevel,
   current: AdminTrustLevel = getAdminTrustLevel()
 ): boolean {
-  return TRUST_LEVEL_ORDER[current] >= TRUST_LEVEL_ORDER[required];
+  return getAdminTrustRank(current) >= getAdminTrustRank(required);
 }
 
 export function createAdminTrustLevelError(required: AdminTrustLevel): {

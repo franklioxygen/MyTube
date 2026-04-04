@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import fs from "fs";
 import path from "path";
 import downloadManager from "../../services/downloadManager";
 import { ContinuousDownloadService } from "../../services/continuousDownloadService";
 import * as storageService from "../../services/storageService";
+import * as security from "../../utils/security";
 
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -334,8 +334,12 @@ describe("ContinuousDownloadService", () => {
         { url: "u2", uploadDate: "20240102", viewCount: 2, sourceIndex: 1 },
       ]);
 
-      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+      const ensureDirSpy = vi
+        .spyOn(security, "ensureDirSafeSync")
+        .mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(security, "writeFileSafeSync")
+        .mockImplementation(() => undefined);
 
       await (service as any).processTask("freeze-create");
 
@@ -343,7 +347,7 @@ describe("ContinuousDownloadService", () => {
         "https://youtube.com/@freeze",
         "YouTube"
       );
-      expect(mkdirSpy).toHaveBeenCalled();
+      expect(ensureDirSpy).toHaveBeenCalled();
       expect(writeSpy).toHaveBeenCalled();
       expect(repo.updateFrozenVideoListPath).toHaveBeenCalledWith(
         "freeze-create",
@@ -352,7 +356,7 @@ describe("ContinuousDownloadService", () => {
       expect(repo.updateTotalVideos).toHaveBeenCalledWith("freeze-create", 2);
       expect(processor.processTask).toHaveBeenCalledWith(task, ["u1", "u2"]);
 
-      mkdirSpy.mockRestore();
+      ensureDirSpy.mockRestore();
       writeSpy.mockRestore();
     });
 
@@ -370,12 +374,16 @@ describe("ContinuousDownloadService", () => {
         .mockResolvedValueOnce(task);
 
       const readSpy = vi
-        .spyOn(fs, "readFileSync")
+        .spyOn(security, "readFileSafeSync")
         .mockReturnValue(JSON.stringify(["r1", "r2"]));
 
       await (service as any).processTask("freeze-resume");
 
-      expect(readSpy).toHaveBeenCalledWith(frozenListPath, "utf8");
+      expect(readSpy).toHaveBeenCalledWith(
+        frozenListPath,
+        frozenListsRoot,
+        "utf8"
+      );
       expect(fetcher.getAllVideoEntries).not.toHaveBeenCalled();
       expect(processor.processTask).toHaveBeenCalledWith(task, ["r1", "r2"]);
 
@@ -402,16 +410,22 @@ describe("ContinuousDownloadService", () => {
         { url: "d1", uploadDate: "20240101", viewCount: 1, sourceIndex: 0 },
       ]);
 
-      const mkdirSpy = vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-      const writeSpy = vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
-      const unlinkSpy = vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+      const ensureDirSpy = vi
+        .spyOn(security, "ensureDirSafeSync")
+        .mockImplementation(() => undefined);
+      const writeSpy = vi
+        .spyOn(security, "writeFileSafeSync")
+        .mockImplementation(() => undefined);
+      const unlinkSpy = vi
+        .spyOn(security, "unlinkSafeSync")
+        .mockImplementation(() => undefined);
 
       await (service as any).processTask("freeze-done");
 
-      expect(unlinkSpy).toHaveBeenCalledWith(frozenListPath);
+      expect(unlinkSpy).toHaveBeenCalledWith(frozenListPath, frozenListsRoot);
       expect(repo.clearFrozenVideoListPath).toHaveBeenCalledWith("freeze-done");
 
-      mkdirSpy.mockRestore();
+      ensureDirSpy.mockRestore();
       writeSpy.mockRestore();
       unlinkSpy.mockRestore();
     });

@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
+type FullscreenTarget = Element & {
+  requestFullscreen?: () => Promise<void>;
+};
+
+type LegacyFullscreenTarget = Element & {
+  webkitEnterFullscreen?: () => void;
+};
+
+type FullscreenApiDocument = Document & {
+  exitFullscreen?: () => Promise<void>;
+};
+
 export const useFullscreen = (
   videoRef: React.RefObject<HTMLVideoElement | null>
 ) => {
@@ -111,20 +123,22 @@ export const useFullscreen = (
 
     if (!container || !videoElement) return;
 
+    const fullscreenTarget = container as FullscreenTarget;
+    const legacyFullscreenTarget = videoElement as LegacyFullscreenTarget;
+    const fullscreenDocument = document as FullscreenApiDocument;
+
     if (!document.fullscreenElement) {
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch((err) => {
+      if (typeof fullscreenTarget.requestFullscreen === "function") {
+        void fullscreenTarget.requestFullscreen().catch((err) => {
           console.error(
             `Error attempting to enable fullscreen: ${err.message}`
           );
         });
-      } else if ((videoElement as any).webkitEnterFullscreen) {
-        (videoElement as any).webkitEnterFullscreen();
+      } else if (typeof legacyFullscreenTarget.webkitEnterFullscreen === "function") {
+        legacyFullscreenTarget.webkitEnterFullscreen();
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    } else if (typeof fullscreenDocument.exitFullscreen === "function") {
+      void fullscreenDocument.exitFullscreen();
     }
   };
 

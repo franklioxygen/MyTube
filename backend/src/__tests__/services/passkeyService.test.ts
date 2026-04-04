@@ -72,7 +72,21 @@ describe("PasskeyService", () => {
               }
           } as any);
 
-          const result = await verifyPasskeyRegistration({ name: "my-key", response: {} }, "challenge");
+      const result = await verifyPasskeyRegistration(
+        {
+          id: "cred-id",
+          rawId: "cred-id",
+          type: "public-key",
+          clientExtensionResults: {},
+          response: {
+            clientDataJSON: "client-data",
+            attestationObject: "attestation-object",
+            transports: ["internal"],
+          },
+          name: "my-key",
+        },
+        "challenge"
+      );
           
           expect(result.verified).toBe(true);
           expect(result.passkey).toBeDefined();

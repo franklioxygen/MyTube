@@ -215,6 +215,11 @@ export function resolveSafePathInDirectories(
 type ReadStreamOptions = Parameters<typeof fs.createReadStream>[1];
 type WriteStreamOptions = Parameters<typeof fs.createWriteStream>[1];
 type MoveSyncOptions = Parameters<typeof fs.moveSync>[2];
+type ExecFileSafeOptions = {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  timeout?: number;
+};
 
 function normalizeAllowedDirectories(
   allowedDirOrDirs: string | readonly string[],
@@ -272,6 +277,11 @@ export function statSafeSync(
   return fs.statSync(safePath);
 }
 
+export function statTrustedSync(filePath: string): Stats {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  return fs.statSync(safePath);
+}
+
 export async function statSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -302,6 +312,15 @@ export function ensureDirSafeSync(
 ): void {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
   fs.ensureDirSync(safePath);
+}
+
+export function readFileSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  encoding: BufferEncoding,
+): string {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  return fs.readFileSync(safePath, encoding);
 }
 
 export async function readdirDirentsSafe(
@@ -338,6 +357,19 @@ export function unlinkSafeSync(
 ): void {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
   fs.unlinkSync(safePath);
+}
+
+export function unlinkTrustedSync(filePath: string): void {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  fs.unlinkSync(safePath);
+}
+
+export function removeEmptyDirSafeSync(
+  dirPath: string,
+  allowedDirOrDirs: string | readonly string[],
+): void {
+  const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
+  fs.rmdirSync(safePath);
 }
 
 export async function removeSafe(
@@ -526,7 +558,7 @@ export function validateCloudThumbnailCachePath(filePath: string): string {
 export function execFileSafe(
   command: string,
   args: string[],
-  options?: { cwd?: string; timeout?: number },
+  options?: ExecFileSafeOptions,
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     execFile(command, args, options, (error, stdout, stderr) => {

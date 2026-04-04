@@ -105,36 +105,27 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
   };
 
   app.use((req, res, next) => {
-    if (
+    const shouldBypassLimiter =
       req.path.startsWith("/videos/") ||
       req.path.startsWith("/api/mount-video/") ||
       req.path.startsWith("/images/") ||
       req.path.startsWith("/subtitles/") ||
-      req.path.startsWith("/avatars/")
-    ) {
-      return next();
-    }
-
-    if (
+      req.path.startsWith("/avatars/") ||
       req.path.startsWith("/api/download") ||
       req.path.startsWith("/api/check-video-download") ||
       req.path.startsWith("/api/check-bilibili") ||
       req.path.startsWith("/api/check-playlist") ||
       req.path.startsWith("/api/collections") ||
-      req.path.startsWith("/api/downloads/")
-    ) {
-      return next();
-    }
-
-    if (
+      req.path.startsWith("/api/downloads/") ||
       req.path === "/api/settings/password-enabled" ||
       req.path === "/api/settings/passkeys/exists" ||
-      req.path === "/api/settings"
-    ) {
-      return next();
-    }
+      req.path === "/api/settings";
 
-    return generalLimiter(req, res, next);
+    if (shouldBypassLimiter) {
+      next();
+    } else {
+      generalLimiter(req, res, next);
+    }
   });
 
   return authLimiters;

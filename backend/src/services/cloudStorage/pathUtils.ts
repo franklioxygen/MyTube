@@ -2,10 +2,12 @@
  * Path resolution and filename utilities
  */
 
-import fs from "fs-extra";
 import path from "path";
 import { logger } from "../../utils/logger";
-import { validatePathWithinDirectory } from "../../utils/security";
+import {
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+} from "../../utils/security";
 
 /**
  * Resolve absolute path from relative path
@@ -42,36 +44,41 @@ export function resolveAbsolutePath(relativePath: string): string | null {
   const uploadsBase = path.join(process.cwd(), "uploads");
   logger.debug("uploadsBase:", uploadsBase);
 
+  const resolveManagedPath = (root: string): string | null => {
+    try {
+      const fullPath = resolveSafeChildPath(root, cleanRelative);
+      if (pathExistsSafeSync(fullPath, root)) {
+        return fullPath;
+      }
+    } catch (error) {
+      logger.warn("Rejected unsafe managed path", error);
+    }
+    return null;
+  };
+
   if (cleanRelative.startsWith("videos/")) {
-    const fullPath = path.join(uploadsBase, cleanRelative);
-    logger.debug("Trying uploads videos path:", fullPath);
-    // Validate path is within uploadsBase to prevent path traversal
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (validatePathWithinDirectory(fullPath, uploadsBase) && fs.existsSync(fullPath)) {
+    const fullPath = resolveManagedPath(uploadsBase);
+    if (fullPath) {
       logger.debug("Found video file at:", fullPath);
       return fullPath;
     }
-    logger.debug("Video path does not exist or is invalid:", fullPath);
+    logger.debug("Video path does not exist or is invalid:", cleanRelative);
   }
   if (cleanRelative.startsWith("images/")) {
-    const fullPath = path.join(uploadsBase, cleanRelative);
-    logger.debug("Trying uploads images path:", fullPath);
-    // Validate path is within uploadsBase to prevent path traversal
-    if (validatePathWithinDirectory(fullPath, uploadsBase) && fs.existsSync(fullPath)) {
+    const fullPath = resolveManagedPath(uploadsBase);
+    if (fullPath) {
       logger.debug("Found image file at:", fullPath);
       return fullPath;
     }
-    logger.debug("Image path does not exist or is invalid:", fullPath);
+    logger.debug("Image path does not exist or is invalid:", cleanRelative);
   }
   if (cleanRelative.startsWith("subtitles/")) {
-    const fullPath = path.join(uploadsBase, cleanRelative);
-    logger.debug("Trying uploads subtitles path:", fullPath);
-    // Validate path is within uploadsBase to prevent path traversal
-    if (validatePathWithinDirectory(fullPath, uploadsBase) && fs.existsSync(fullPath)) {
+    const fullPath = resolveManagedPath(uploadsBase);
+    if (fullPath) {
       logger.debug("Found subtitle file at:", fullPath);
       return fullPath;
     }
-    logger.debug("Subtitle path does not exist or is invalid:", fullPath);
+    logger.debug("Subtitle path does not exist or is invalid:", cleanRelative);
   }
 
   // Old data directory logic (backward compatibility)
@@ -82,20 +89,12 @@ export function resolveAbsolutePath(relativePath: string): string | null {
   ];
   for (const root of possibleRoots) {
     logger.debug("Checking data root:", root);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(root)) {
-      const fullPath = path.join(root, cleanRelative);
-      logger.debug("Found data root directory, trying file:", fullPath);
-      // Validate path is within root to prevent path traversal
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (validatePathWithinDirectory(fullPath, root) && fs.existsSync(fullPath)) {
-        logger.debug("Found file in data root:", fullPath);
-        return fullPath;
-      }
-      logger.debug("File not found in data root or path traversal detected:", fullPath);
-    } else {
-      logger.debug("Data root does not exist:", root);
+    const fullPath = resolveManagedPath(root);
+    if (fullPath) {
+      logger.debug("Found file in data root:", fullPath);
+      return fullPath;
     }
+    logger.debug("File not found in data root:", root, cleanRelative);
   }
 
   logger.debug("No matching absolute path found for:", relativePath);

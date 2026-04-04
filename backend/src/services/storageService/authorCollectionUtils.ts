@@ -8,6 +8,18 @@ import {
 } from "./collections";
 import { Collection } from "./types";
 
+const replaceInvalidFilesystemCharacters = (value: string): string => {
+  let sanitized = "";
+
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    const isControlCharacter = code >= 0 && code <= 31;
+    sanitized += isControlCharacter || /[<>:"/\\|?*]/.test(char) ? "_" : char;
+  }
+
+  return sanitized;
+};
+
 /**
  * Validates a collection name to ensure it's safe for filesystem use
  * @param name - The collection name to validate
@@ -37,9 +49,7 @@ export function validateCollectionName(name: string): string | null {
   // Remove or replace invalid filesystem characters
   // Windows: < > : " / \ | ? *
   // Unix: / (forward slash)
-  // Common: control characters, null bytes
-  const sanitized = trimmed
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_") // Replace invalid chars with underscore
+  const sanitized = replaceInvalidFilesystemCharacters(trimmed)
     .replace(/\.+$/, "") // Remove trailing dots (Windows restriction)
     .replace(/\s+/g, " ") // Normalize whitespace
     .trim();

@@ -56,6 +56,19 @@ type TaskProgressState = {
   currentVideoIndex: number;
 };
 
+function getArrayItem<T>(items: readonly T[], index: number): T | null {
+  if (index < 0 || index >= items.length) {
+    return null;
+  }
+
+  const [item] = items.slice(index, index + 1);
+  return item ?? null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * Service for processing continuous download tasks
  */
@@ -155,13 +168,21 @@ export class TaskProcessor {
           );
           break;
         }
-        videoUrl = videoUrlBatch[indexInBatch];
-      } else {
-        // Non-incremental: access from full list
-        if (i >= allVideoUrls.length) {
+        const batchVideoUrl = getArrayItem(videoUrlBatch, indexInBatch);
+        if (!batchVideoUrl) {
+          logger.warn(
+            `No video URL found at batch index ${indexInBatch} for task ${task.id}`
+          );
           break;
         }
-        videoUrl = allVideoUrls[i];
+        videoUrl = batchVideoUrl;
+      } else {
+        // Non-incremental: access from full list
+        const fullListVideoUrl = getArrayItem(allVideoUrls, i);
+        if (!fullListVideoUrl) {
+          break;
+        }
+        videoUrl = fullListVideoUrl;
       }
 
       // Double-check status right before starting video download
@@ -190,12 +211,13 @@ export class TaskProcessor {
           progressState,
           maxConcurrentDownloads
         );
-      } catch (downloadError: any) {
+      } catch (downloadError: unknown) {
+        const downloadErrorMessage = getErrorMessage(downloadError);
         // Check if error is due to task being paused/cancelled
         const isPauseOrCancel =
-          downloadError.message?.includes("not active") ||
-          downloadError.message?.includes("paused") ||
-          downloadError.message?.includes("cancelled");
+          downloadErrorMessage.includes("not active") ||
+          downloadErrorMessage.includes("paused") ||
+          downloadErrorMessage.includes("cancelled");
 
         if (isPauseOrCancel) {
           // Task was paused/cancelled, don't treat as download error
@@ -219,7 +241,7 @@ export class TaskProcessor {
           sourceUrl: videoUrl,
           finishedAt: Date.now(),
           status: "failed",
-          error: downloadError.message || "Download failed",
+          error: downloadErrorMessage || "Download failed",
           taskId: task.id,
           subscriptionId: task.subscriptionId,
         });
@@ -450,7 +472,7 @@ export class TaskProcessor {
     maxConcurrent: number
   ): Promise<void> {
     // Poll until a slot is available
-    while (true) {
+    for (;;) {
       // Check if task was cancelled or paused while waiting
       const currentTaskStatus = await this.taskRepository.getTaskStatus(taskId);
       if (currentTaskStatus !== "active") {

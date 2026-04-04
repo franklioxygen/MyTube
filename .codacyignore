@@ -17,3 +17,5 @@ uploads/
 frontend/src/utils/locales/
 frontend/src/**/__tests__/
 backend/src/__tests__/
+# SQLite Drizzle migrations are being analyzed with T-SQL-specific rules in Codacy.
+backend/drizzle/
