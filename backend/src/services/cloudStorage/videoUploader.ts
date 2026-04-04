@@ -98,7 +98,7 @@ export async function uploadVideo(
       : `${sanitizeFilename(videoData.title)}.json`;
     const tempMetadataDir = path.join(process.cwd(), "temp_metadata");
     const metadataPath = resolveSafeChildPath(tempMetadataDir, metadataFileName);
-    ensureDirSafeSync(tempMetadataDir, tempMetadataDir);
+    ensureDirSafeSync(path.dirname(metadataPath), tempMetadataDir);
     writeFileSafeSync(
       metadataPath,
       tempMetadataDir,

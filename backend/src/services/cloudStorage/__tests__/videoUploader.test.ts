@@ -1,4 +1,5 @@
 import fs from 'fs-extra';
+import path from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as storageService from '../../storageService';
 import * as fileLister from '../fileLister';
@@ -99,6 +100,26 @@ describe('cloudStorage videoUploader', () => {
         // Metadata is always temp file unlinkSync'd separately.
         
         expect(fs.unlinkSync).toHaveBeenCalledTimes(1); // Metadata only
+    });
+
+    it('should create nested temp metadata directories for relative thumbnail filenames', async () => {
+        const nestedThumbnailVideoData = {
+            ...mockVideoData,
+            thumbnailFilename: 'collection/test.jpg',
+        };
+
+        await uploadVideo(nestedThumbnailVideoData, mockConfig);
+
+        expect(fs.ensureDirSync).toHaveBeenCalledWith(
+            expect.stringContaining(`${path.sep}temp_metadata${path.sep}collection`)
+        );
+        expect(fileUploader.uploadFile).toHaveBeenCalledWith(
+            expect.stringContaining(`${path.sep}temp_metadata${path.sep}collection${path.sep}test.json`),
+            mockConfig
+        );
+        expect(storageService.updateVideo).toHaveBeenCalledWith('video-123', expect.objectContaining({
+            thumbnailPath: 'cloud:collection/test.jpg'
+        }));
     });
 
     it('should skip file if local file missing', async () => {

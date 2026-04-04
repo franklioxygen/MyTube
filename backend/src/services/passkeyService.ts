@@ -61,6 +61,14 @@ function isTransportList(
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function getOptionalString(
+  record: Record<string, unknown>,
+  key: string
+): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
   if (!isRecord(body) || !isRecord(body.response)) {
     return null;
@@ -76,11 +84,14 @@ function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
     name,
   } = body;
 
+  if (typeof id !== "string") {
+    return null;
+  }
+
+  const normalizedRawId = typeof rawId === "string" ? rawId : id;
+  const normalizedType = type ?? "public-key";
   if (
-    typeof id !== "string" ||
-    typeof rawId !== "string" ||
-    type !== "public-key" ||
-    !isRecord(clientExtensionResults) ||
+    normalizedType !== "public-key" ||
     typeof response.clientDataJSON !== "string" ||
     typeof response.attestationObject !== "string"
   ) {
@@ -89,15 +100,16 @@ function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
 
   return {
     id,
-    rawId,
+    rawId: normalizedRawId,
     type: "public-key",
-    clientExtensionResults:
-      clientExtensionResults as RegistrationResponseJSON["clientExtensionResults"],
+    clientExtensionResults: (
+      isRecord(clientExtensionResults) ? clientExtensionResults : {}
+    ) as RegistrationResponseJSON["clientExtensionResults"],
     response: {
       clientDataJSON: response.clientDataJSON,
       attestationObject: response.attestationObject,
-      ...(typeof response.authenticatorData === "string"
-        ? { authenticatorData: response.authenticatorData }
+      ...(getOptionalString(response, "authenticatorData")
+        ? { authenticatorData: getOptionalString(response, "authenticatorData") }
         : {}),
       ...(isTransportList(response.transports)
         ? { transports: response.transports }
@@ -105,8 +117,8 @@ function parseRegistrationBody(body: unknown): PasskeyRegistrationBody | null {
       ...(typeof response.publicKeyAlgorithm === "number"
         ? { publicKeyAlgorithm: response.publicKeyAlgorithm }
         : {}),
-      ...(typeof response.publicKey === "string"
-        ? { publicKey: response.publicKey }
+      ...(getOptionalString(response, "publicKey")
+        ? { publicKey: getOptionalString(response, "publicKey") }
         : {}),
     },
     ...(typeof authenticatorAttachment === "string"

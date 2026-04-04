@@ -23,6 +23,23 @@ export interface HookContext {
 const sanitizeHookEnvValue = (value: string): string =>
   value.replace(/\0/g, "").replace(/[\r\n]+/g, " ").trim();
 
+const getHookTimeoutMs = (): number | undefined => {
+  const rawTimeout = process.env.MYTUBE_HOOK_TIMEOUT_MS?.trim();
+  if (!rawTimeout) {
+    return undefined;
+  }
+
+  const parsedTimeout = Number.parseInt(rawTimeout, 10);
+  if (!Number.isFinite(parsedTimeout) || parsedTimeout <= 0) {
+    logger.warn(
+      `[HookService] Ignoring invalid MYTUBE_HOOK_TIMEOUT_MS="${rawTimeout}".`
+    );
+    return undefined;
+  }
+
+  return parsedTimeout;
+};
+
 export class HookService {
   /**
    * Initialize hooks directory
@@ -92,10 +109,11 @@ export class HookService {
         env.MYTUBE_ERROR = sanitizeHookEnvValue(context.error);
       }
 
+      const timeout = getHookTimeoutMs();
       const { stdout, stderr } = await execFileSafe(
         "bash",
         [hookPath],
-        { env, timeout: 60000 },
+        timeout ? { env, timeout } : { env },
       );
       
       if (stdout && stdout.trim()) {

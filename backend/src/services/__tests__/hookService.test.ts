@@ -56,6 +56,9 @@ describe("HookService", () => {
         }),
       }),
     );
+
+    const execOptions = mocks.execFileSafe.mock.calls[0]?.[2];
+    expect(execOptions?.timeout).toBeUndefined();
   });
 
   it("should sanitize multiline hook context values before passing env", async () => {
