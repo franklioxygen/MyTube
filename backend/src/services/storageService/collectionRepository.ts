@@ -34,8 +34,9 @@ export function getCollections(): Collection[] {
           videos: [],
         });
       }
-      if (row.cv) {
-        map.get(row.c.id)!.videos.push(row.cv.videoId);
+      const collectionEntry = map.get(row.c.id);
+      if (row.cv && collectionEntry) {
+        collectionEntry.videos.push(row.cv.videoId);
       }
     }
     return Array.from(map.values());
@@ -172,7 +173,7 @@ export function saveCollection(collection: Collection): Collection {
         .run();
 
       // Then insert new links
-      if (collection.videos && collection.videos.length > 0) {
+      if (collection.videos.length > 0) {
         for (const videoId of collection.videos) {
           // Check if video exists to avoid FK error
           const videoExists = db

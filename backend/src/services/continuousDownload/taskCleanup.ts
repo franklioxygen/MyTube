@@ -54,7 +54,7 @@ export class TaskCleanup {
         const { getVideoInfo } = await import("../downloadService");
         const videoInfo = await getVideoInfo(currentVideoUrl);
 
-        if (videoInfo && videoInfo.title) {
+        if (videoInfo.title) {
           const { formatVideoFilename } = await import("../../utils/helpers");
           const { VIDEOS_DIR } = await import("../../config/paths");
           const path = await import("path");
@@ -84,7 +84,7 @@ export class TaskCleanup {
 
           // Also check active downloads and cancel any matching download
           const downloadStatus = storageService.getDownloadStatus();
-          const activeDownloads = downloadStatus.activeDownloads || [];
+          const activeDownloads = downloadStatus.activeDownloads;
 
           // Import download manager to properly cancel downloads
           const downloadManager = await import("../downloadManager");

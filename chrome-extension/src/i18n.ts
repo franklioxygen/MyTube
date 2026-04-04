@@ -3,24 +3,50 @@
 
 import type { Translations } from "./types";
 
-// Language code mapping (browser language -> translation file)
-const languageMap: Record<string, string> = {
-  en: "en",
-  zh: "zh",
-  "zh-CN": "zh",
-  "zh-TW": "zh",
-  de: "de",
-  es: "es",
-  fr: "fr",
-  ja: "ja",
-  ko: "ko",
-  pt: "pt",
-  "pt-BR": "pt",
-  ru: "ru",
-  ar: "ar",
-};
-
 const DEFAULT_LANG = "en";
+const SUPPORTED_LANGUAGE_CODES = new Set([
+  "en",
+  "zh",
+  "de",
+  "es",
+  "fr",
+  "ja",
+  "ko",
+  "pt",
+  "ru",
+  "ar",
+]);
+
+function normalizeLanguageAlias(lang: string): string {
+  switch (lang.trim().toLowerCase()) {
+    case "zh-cn":
+    case "zh-tw":
+      return "zh";
+    case "pt-br":
+      return "pt";
+    default:
+      return lang.trim().toLowerCase();
+  }
+}
+
+function getSupportedLanguageCode(lang: string): string {
+  const normalizedLang = normalizeLanguageAlias(lang);
+  const [baseCode = DEFAULT_LANG] = normalizedLang.split("-");
+  return SUPPORTED_LANGUAGE_CODES.has(baseCode) ? baseCode : DEFAULT_LANG;
+}
+
+function getTranslationValue(
+  translations: Translations,
+  key: keyof Translations
+): string | undefined {
+  for (const [translationKey, translationValue] of Object.entries(translations)) {
+    if (translationKey === key) {
+      return translationValue;
+    }
+  }
+
+  return undefined;
+}
 
 // Get browser language
 export function getBrowserLanguage(): string {
@@ -35,8 +61,8 @@ export function getBrowserLanguage(): string {
 
   // Fallback for web context
   return (
-    navigator?.language ||
-    (navigator as { userLanguage?: string })?.userLanguage ||
+    navigator.language ||
+    (navigator as { userLanguage?: string }).userLanguage ||
     DEFAULT_LANG
   );
 }
@@ -44,8 +70,7 @@ export function getBrowserLanguage(): string {
 // Normalize language code
 export function normalizeLanguage(lang: string): string {
   if (!lang) return DEFAULT_LANG;
-  const code = lang.split("-")[0].toLowerCase();
-  return languageMap[code] || languageMap[lang] || DEFAULT_LANG;
+  return getSupportedLanguageCode(lang);
 }
 
 // Translation function (translations should be loaded before use)
@@ -57,11 +82,12 @@ export function t(
     return key;
   }
 
-  let text = window.currentTranslations[key] || key;
-  Object.keys(params).forEach((param) => {
-    const placeholder = `{${param}}`;
-    text = text.split(placeholder).join(params[param]);
-  });
+  let text = getTranslationValue(window.currentTranslations, key) || key;
+  for (const [paramName, paramValue] of Object.entries(params)) {
+    const placeholder = `{${paramName}}`;
+    text = text.split(placeholder).join(paramValue);
+  }
+
   return text;
 }
 

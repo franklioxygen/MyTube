@@ -67,7 +67,7 @@ export async function extractPartMetadata(
           logger.info(`Found part-specific title: ${partTitle}`);
         } else {
           // Fall back: try to remove collection name from yt-dlp title
-          if (seriesTitle && bilibiliInfo.title?.includes(seriesTitle)) {
+          if (seriesTitle && bilibiliInfo.title.includes(seriesTitle)) {
             partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
             partTitle = partTitle
               .replace(/^\s*[-–—]\s*/, "")
@@ -86,7 +86,7 @@ export async function extractPartMetadata(
     if (
       totalParts > 1 &&
       seriesTitle &&
-      bilibiliInfo.title?.includes(seriesTitle)
+      bilibiliInfo.title.includes(seriesTitle)
     ) {
       partTitle = bilibiliInfo.title.replace(seriesTitle, "").trim();
       partTitle = partTitle

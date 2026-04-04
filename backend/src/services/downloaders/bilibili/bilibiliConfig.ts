@@ -15,22 +15,41 @@ export interface PreparedBilibiliFlags {
   formatSort?: string;
 }
 
-// Codec filter mapping for format string and formatSort
-const BILIBILI_CODEC_MAP: Record<string, { vcodecFilter: string; formatSort: string }> = {
-  h264: { vcodecFilter: "avc", formatSort: "vcodec:h264" },
-  h265: { vcodecFilter: "hevc", formatSort: "vcodec:h265" },
-  av1: { vcodecFilter: "av01", formatSort: "vcodec:av01" },
-  vp9: { vcodecFilter: "vp9", formatSort: "vcodec:vp9" },
-};
+function getBilibiliCodecPreference(
+  codec: string,
+): { vcodecFilter: string; formatSort: string } | undefined {
+  switch (codec) {
+    case "h264":
+      return { vcodecFilter: "avc", formatSort: "vcodec:h264" };
+    case "h265":
+      return { vcodecFilter: "hevc", formatSort: "vcodec:h265" };
+    case "av1":
+      return { vcodecFilter: "av01", formatSort: "vcodec:av01" };
+    case "vp9":
+      return { vcodecFilter: "vp9", formatSort: "vcodec:vp9" };
+    default:
+      return undefined;
+  }
+}
 
 function resolveCodecPreference(): { codecFilter: string; codecFormatSort: string } {
   const appSettings = storageService.getSettings();
-  const codecSetting = appSettings?.defaultVideoCodec;
-  if (codecSetting && typeof codecSetting === "string" && codecSetting.trim() !== "") {
-    const mapped = BILIBILI_CODEC_MAP[codecSetting.trim().toLowerCase()];
-    if (mapped) {
-      logger.info("Using codec preference for Bilibili:", mapped.vcodecFilter);
-      return { codecFilter: mapped.vcodecFilter, codecFormatSort: mapped.formatSort };
+  const codecSetting = appSettings.defaultVideoCodec;
+
+  if (typeof codecSetting === "string") {
+    const normalizedCodec = codecSetting.trim().toLowerCase();
+    if (normalizedCodec !== "") {
+      const codecPreference = getBilibiliCodecPreference(normalizedCodec);
+      if (codecPreference) {
+        logger.info(
+          "Using codec preference for Bilibili:",
+          codecPreference.vcodecFilter
+        );
+        return {
+          codecFilter: codecPreference.vcodecFilter,
+          codecFormatSort: codecPreference.formatSort,
+        };
+      }
     }
   }
   return { codecFilter: "avc", codecFormatSort: "vcodec:h264" };
@@ -77,7 +96,7 @@ function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
     return { downloadFormat, codecFormatSort: "" };
   }
 
-  if (!hasUserFormat && !hasUserFormatSort) {
+  if (!hasUserFormatSort) {
     const { codecFilter, codecFormatSort } = resolveCodecPreference();
     const downloadFormat =
       `bestvideo[ext=mp4][vcodec^=${codecFilter}]+bestaudio[ext=m4a]/` +

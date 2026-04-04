@@ -29,6 +29,19 @@ interface MessageResponse {
   lang?: string;
 }
 
+const SUPPORTED_LANGUAGE_CODES = new Set([
+  'en',
+  'zh',
+  'de',
+  'es',
+  'fr',
+  'ja',
+  'ko',
+  'pt',
+  'ru',
+  'ar',
+]);
+
 const normalizeApiKey = (apiKey?: string | null): string | undefined => {
   if (typeof apiKey !== 'string') {
     return undefined;
@@ -56,48 +69,41 @@ const parseErrorMessage = async (
   return errorData.message || errorData.error || fallbackMessage;
 };
 
+const getUiLanguageCode = (): string => {
+  const browserLanguage = chrome.i18n.getUILanguage() || navigator.language || 'en';
+  const [languageCode = 'en'] = browserLanguage.split('-');
+  return SUPPORTED_LANGUAGE_CODES.has(languageCode) ? languageCode : 'en';
+};
+
 // Listen for messages from content script and popup
 chrome.runtime.onMessage.addListener((
   request: MessageRequest,
   _sender: chrome.runtime.MessageSender,
   sendResponse: (response: MessageResponse) => void
 ): boolean => {
-  if (request.action === 'downloadVideo') {
-    handleDownload(request.url, request.serverUrl, request.apiKey)
-      .then(result => {
-        sendResponse({ success: true, data: result });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
-      });
-    return true; // Indicates we will send a response asynchronously
-  }
-
-  if (request.action === 'testConnection') {
-    testConnection(request.serverUrl, request.apiKey)
-      .then(result => {
-        sendResponse({ success: true, data: result });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
-      });
-    return true; // Indicates we will send a response asynchronously
-  }
-
-  if (request.action === 'getTranslations') {
-    // Get browser language and return appropriate translations
-    const lang = chrome.i18n?.getUILanguage?.() || navigator.language || 'en';
-    const langCode = lang.split('-')[0].toLowerCase();
-    const languageMap: Record<string, string> = {
-      'en': 'en', 'zh': 'zh', 'de': 'de', 'es': 'es', 'fr': 'fr',
-      'ja': 'ja', 'ko': 'ko', 'pt': 'pt', 'ru': 'ru', 'ar': 'ar'
-    };
-    const normalizedLang = languageMap[langCode] || 'en';
-
-    // For now, return language code - content script will use English as fallback
-    // Full translation support for content script would require more complex setup
-    sendResponse({ success: true, lang: normalizedLang });
-    return true;
+  switch (request.action) {
+    case 'downloadVideo':
+      handleDownload(request.url, request.serverUrl, request.apiKey)
+        .then(result => {
+          sendResponse({ success: true, data: result });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+        });
+      return true;
+    case 'testConnection':
+      testConnection(request.serverUrl, request.apiKey)
+        .then(result => {
+          sendResponse({ success: true, data: result });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+        });
+      return true;
+    case 'getTranslations':
+      // For now, return language code - content script will use English as fallback.
+      sendResponse({ success: true, lang: getUiLanguageCode() });
+      return true;
   }
 
   // Return false if we don't handle the message
@@ -252,7 +258,7 @@ async function handleDownload(
 
     const data = await response.json();
     // Refresh status immediately
-    fetchDownloadStatus();
+    void fetchDownloadStatus();
     return { message: data.message || 'Download queued successfully', downloadId: data.downloadId };
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
@@ -314,18 +320,18 @@ chrome.alarms.create('pollDownloadStatus', {
 // For MV3, alarms are preferred.
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'pollDownloadStatus') {
-    fetchDownloadStatus();
+    void fetchDownloadStatus();
   }
 });
 
 // Also poll on startup
 chrome.runtime.onStartup.addListener(() => {
-  fetchDownloadStatus();
+  void fetchDownloadStatus();
 });
 
 // Poll when messages are received (interaction happened)
 chrome.runtime.onMessage.addListener(() => {
-  fetchDownloadStatus();
+  void fetchDownloadStatus();
   // Return false, we just want to trigger a check
   return false;
 });

@@ -25,7 +25,29 @@ const translations: Record<string, TelegramStrings> = {
 };
 
 function getStrings(lang?: string): TelegramStrings {
-  return translations[lang || "en"] || translations.en;
+  switch (lang) {
+    case "zh":
+      return translations.zh;
+    case "ja":
+      return translations.ja;
+    case "ko":
+      return translations.ko;
+    case "fr":
+      return translations.fr;
+    case "de":
+      return translations.de;
+    case "es":
+      return translations.es;
+    case "pt":
+      return translations.pt;
+    case "ru":
+      return translations.ru;
+    case "ar":
+      return translations.ar;
+    case "en":
+    default:
+      return translations.en;
+  }
 }
 
 function escapeHtml(text: string): string {
