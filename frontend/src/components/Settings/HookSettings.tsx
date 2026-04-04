@@ -4,13 +4,13 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Settings } from '../../types';
-import { api } from '../../utils/apiClient';
+import { api, getApiErrorMessage, getWaitTime, isRateLimitError } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
 import PasswordModal from '../PasswordModal';
 
 interface HookSettingsProps {
     settings: Settings;
-    onChange: (field: keyof Settings, value: any) => void;
+    onChange: (field: keyof Settings, value: unknown) => void;
 }
 
 const HookSettings: React.FC<HookSettingsProps> = () => {
@@ -43,9 +43,9 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
             setPendingUpload(null);
             setUploadError(null);
         },
-        onError: (error: any) => {
+        onError: async (error: unknown) => {
             console.error('Upload failed:', error);
-            const message = error.response?.data?.message || error.message;
+            const message = await getApiErrorMessage(error, t);
             // Try to match risk command error
             // Backend sends: "Risk command detected: {command}. Upload rejected."
             const riskMatch = message?.match(/Risk command detected: (.*)\. Upload rejected\./);
@@ -64,6 +64,10 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
         onSuccess: () => {
             refetchHooks();
             setDeleteHookName(null);
+        },
+        onError: async (error: unknown) => {
+            console.error('Delete failed:', error);
+            setUploadError(await getApiErrorMessage(error, t) || t('deleteFailed'));
         }
     });
 
@@ -94,13 +98,13 @@ const HookSettings: React.FC<HookSettingsProps> = () => {
             if (pendingUpload) {
                 uploadMutation.mutate(pendingUpload);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Password verification failed:', error);
-            if (error.response?.status === 429) {
-                const waitTime = error.response.data.waitTime;
+            if (isRateLimitError(error)) {
+                const waitTime = getWaitTime(error);
                 setPasswordError(t('tooManyAttempts') + ` Try again in ${Math.ceil(waitTime / 1000)}s`);
             } else {
-                const message = error.response?.data?.message;
+                const message = await getApiErrorMessage(error, t);
                 if (message === 'Incorrect admin password' || !message) {
                     setPasswordError(t('incorrectPassword'));
                 } else {

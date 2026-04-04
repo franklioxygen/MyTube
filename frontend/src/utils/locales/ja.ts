@@ -258,6 +258,7 @@ export const ja = {
   removeLegacyDataConfirmMessage:
     "レガシーJSONデータファイルを削除してもよろしいですか？この操作は元に戻せません。",
   legacyDataDeleted: "レガシーデータが正常に削除されました。",
+  legacyDataDeleteFailed: "レガシーデータの削除に失敗しました",
   formatLegacyFilenames: "レガシーファイル名のフォーマット",
   formatLegacyFilenamesDescription:
     "すべての動画ファイル、サムネイル、字幕を新しい標準フォーマット（タイトル-作成者-YYYY）に一括リネームします。この操作はディスク上のファイル名を変更し、データベースのロジックを更新します。",
@@ -1134,4 +1135,16 @@ export const ja = {
     "Safari ではこの動画形式はサポートされていません。Safari では H.264/MP4 動画が最も適しています。H.264 コーデックで再ダウンロードしてください。",
   browserVideoFormatNotSupported:
     "お使いのブラウザではこの動画形式はサポートされていません。",
+
+  // ロールベース設定ミドルウェアのエラー
+  settingsApiKeyForbidden:
+    "APIキー認証では設定エンドポイントにアクセスできません。",
+  settingsVisitorAccessRestricted:
+    "訪問者ロール：このリソースへのアクセスは制限されています。",
+  settingsVisitorWriteRestricted:
+    "訪問者ロール：設定の読み取りと CloudFlare 設定の更新のみ許可されています。",
+  settingsVisitorWriteForbidden:
+    "訪問者ロール：書き込み操作は許可されていません。",
+  settingsAuthRequired:
+    "認証が必要です。このリソースにアクセスするにはログインしてください。",
 };

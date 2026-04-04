@@ -115,9 +115,82 @@ export interface ApiResponse<T = any> {
   success?: boolean;
   data?: T;
   error?: string;
+  errorKey?: string;
+  details?: string;
   message?: string;
   [key: string]: any; // Allow additional properties for backward compatibility
 }
+
+type TranslationFn = (
+  key: string,
+  replacements?: Record<string, string | number>
+) => string;
+
+type BlobLikeResponse = {
+  constructor?: { name?: string };
+  text?: () => Promise<string>;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+};
+
+const isNamedBlob = (value: unknown) =>
+  typeof value === "object" &&
+  value !== null &&
+  ((value as BlobLikeResponse).constructor?.name === "Blob" ||
+    Object.prototype.toString.call(value) === "[object Blob]");
+
+const isBlobResponse = (value: unknown): value is BlobLikeResponse =>
+  isNamedBlob(value);
+
+const readBlobText = async (data: BlobLikeResponse): Promise<string | undefined> => {
+  if (typeof data.text === "function") {
+    return data.text();
+  }
+  if (typeof data.arrayBuffer === "function") {
+    return new TextDecoder().decode(await data.arrayBuffer());
+  }
+  if (typeof Response !== "undefined") {
+    try {
+      return await new Response(data as BodyInit).text();
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+};
+
+const normalizeApiErrorData = async (
+  data: unknown
+): Promise<ApiResponse | undefined> => {
+  if (!data) {
+    return undefined;
+  }
+
+  if (isBlobResponse(data)) {
+    const text = await readBlobText(data);
+    if (text === undefined) {
+      return undefined;
+    }
+    return normalizeApiErrorData(text);
+  }
+
+  if (typeof data === "string") {
+    if (!data.trim()) {
+      return undefined;
+    }
+
+    try {
+      return JSON.parse(data) as ApiResponse;
+    } catch {
+      return { message: data };
+    }
+  }
+
+  if (typeof data === "object") {
+    return data as ApiResponse;
+  }
+
+  return undefined;
+};
 
 /**
  * Extract error message from axios error
@@ -139,6 +212,52 @@ export function getErrorMessage(error: unknown): string {
     return error.message;
   }
   return "An unknown error occurred";
+}
+
+/**
+ * Extract and normalize structured API error data.
+ * Supports JSON error payloads returned as objects, strings, or blobs.
+ */
+export async function getApiErrorData(
+  error: unknown
+): Promise<ApiResponse | undefined> {
+  if (!axios.isAxiosError(error)) {
+    return undefined;
+  }
+
+  const axiosError = error as AxiosError<ApiResponse>;
+  return normalizeApiErrorData(axiosError.response?.data);
+}
+
+/**
+ * Extract the most useful user-facing API error message, optionally translating errorKey values.
+ */
+export async function getApiErrorMessage(
+  error: unknown,
+  t?: TranslationFn
+): Promise<string | undefined> {
+  const data = await getApiErrorData(error);
+  const errorKey = typeof data?.errorKey === "string" ? data.errorKey : undefined;
+
+  if (errorKey && t) {
+    const translated = t(errorKey);
+    if (translated && translated !== errorKey) {
+      return translated;
+    }
+  }
+
+  if (typeof data?.error === "string" && data.error) {
+    return data.error;
+  }
+  if (typeof data?.details === "string" && data.details) {
+    return data.details;
+  }
+  if (typeof data?.message === "string" && data.message) {
+    return data.message;
+  }
+
+  const fallback = getErrorMessage(error);
+  return fallback || undefined;
 }
 
 /**

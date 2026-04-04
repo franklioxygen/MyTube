@@ -1936,7 +1936,33 @@ async function searchTMDBMultiStrategyUncached(
   return { result: null, mediaType: null, strategy: "all-failed" };
 }
 
-async function searchTMDBMultiStrategy(
+function createTMDBMultiStrategySearchPromise(
+  cacheKey: string,
+  parsed: ParsedFilename,
+  apiKey: string,
+  language?: string
+): Promise<MultiStrategySearchResult> {
+  return searchTMDBMultiStrategyUncached(parsed, apiKey, language)
+    .then((searchResult) => {
+      const ttl = searchResult.result
+        ? TMDB_SEARCH_CACHE_TTL_MS
+        : TMDB_NEGATIVE_CACHE_TTL_MS;
+
+      setCachedValue(
+        tmdbSearchCache,
+        cacheKey,
+        searchResult,
+        ttl,
+        TMDB_SEARCH_CACHE_MAX_ENTRIES
+      );
+      return searchResult;
+    })
+    .finally(() => {
+      tmdbSearchInFlight.delete(cacheKey);
+    });
+}
+
+function searchTMDBMultiStrategy(
   parsed: ParsedFilename,
   apiKey: string,
   language?: string
@@ -1944,7 +1970,7 @@ async function searchTMDBMultiStrategy(
   const cacheKey = buildSearchCacheKey(parsed, apiKey, language);
   const cached = getCachedValue(tmdbSearchCache, cacheKey);
   if (cached) {
-    return cached;
+    return Promise.resolve(cached);
   }
 
   const inFlight = tmdbSearchInFlight.get(cacheKey);
@@ -1952,32 +1978,15 @@ async function searchTMDBMultiStrategy(
     return inFlight;
   }
 
-  const searchPromise = (async () => {
-    const searchResult = await searchTMDBMultiStrategyUncached(
-      parsed,
-      apiKey,
-      language
-    );
-    const ttl = searchResult.result
-      ? TMDB_SEARCH_CACHE_TTL_MS
-      : TMDB_NEGATIVE_CACHE_TTL_MS;
-
-    setCachedValue(
-      tmdbSearchCache,
-      cacheKey,
-      searchResult,
-      ttl,
-      TMDB_SEARCH_CACHE_MAX_ENTRIES
-    );
-    return searchResult;
-  })();
+  const searchPromise = createTMDBMultiStrategySearchPromise(
+    cacheKey,
+    parsed,
+    apiKey,
+    language
+  );
 
   tmdbSearchInFlight.set(cacheKey, searchPromise);
-  try {
-    return await searchPromise;
-  } finally {
-    tmdbSearchInFlight.delete(cacheKey);
-  }
+  return searchPromise;
 }
 
 /**

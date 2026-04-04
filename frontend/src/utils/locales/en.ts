@@ -247,6 +247,7 @@ export const en = {
   removeLegacyDataConfirmMessage:
     "Are you sure you want to delete the legacy JSON data files? This action cannot be undone.",
   legacyDataDeleted: "Legacy data deleted successfully.",
+  legacyDataDeleteFailed: "Failed to delete legacy data",
   formatLegacyFilenames: "Format Legacy Filenames",
   formatLegacyFilenamesDescription:
     "Batch rename all video files, thumbnails, and subtitles to the new standard format: Title-Author-YYYY. This operation will modify filenames on the disk and update the database logic.",
@@ -1078,4 +1079,16 @@ export const en = {
     "Video format not supported by Safari. Safari works best with H.264/MP4 videos. Please re-download with H.264 codec.",
   browserVideoFormatNotSupported:
     "Video format not supported by your browser.",
+
+  // Role-based settings middleware errors
+  settingsApiKeyForbidden:
+    "API key authentication cannot access settings endpoints.",
+  settingsVisitorAccessRestricted:
+    "Visitor role: Access to this resource is restricted.",
+  settingsVisitorWriteRestricted:
+    "Visitor role: Only reading settings and updating CloudFlare settings is allowed.",
+  settingsVisitorWriteForbidden:
+    "Visitor role: Write operations are not allowed.",
+  settingsAuthRequired:
+    "Authentication required. Please log in to access this resource.",
 };

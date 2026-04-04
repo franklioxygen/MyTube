@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosRequestConfig } from "axios";
 import api, {
   apiClient,
+  getApiErrorMessage,
   getErrorMessage,
   getWaitTime,
   isAuthError,
@@ -52,6 +53,77 @@ describe("apiClient helpers", () => {
     );
     expect(getErrorMessage(new Error("native error"))).toBe("native error");
     expect(getErrorMessage("unknown")).toBe("An unknown error occurred");
+  });
+
+  it("translates errorKey values before falling back to raw messages", async () => {
+    const t = (key: string) =>
+      key === "settingsAuthRequired" ? "Please sign in first." : key;
+
+    await expect(
+      getApiErrorMessage(
+        makeAxiosLikeError({
+          status: 401,
+          data: {
+            errorKey: "settingsAuthRequired",
+            error: "Authentication required. Please log in to access this resource.",
+          },
+        }),
+        t
+      )
+    ).resolves.toBe("Please sign in first.");
+
+    await expect(
+      getApiErrorMessage(
+        makeAxiosLikeError({
+          status: 401,
+          data: {
+            errorKey: "settingsAuthRequired",
+            error: "Authentication required. Please log in to access this resource.",
+          },
+        }),
+        (key: string) => key
+      )
+    ).resolves.toBe(
+      "Authentication required. Please log in to access this resource."
+    );
+  });
+
+  it("parses JSON error payloads returned as blobs", async () => {
+    const errorBlob = {
+      constructor: { name: "Blob" },
+      text: async () =>
+        JSON.stringify({
+          errorKey: "settingsVisitorAccessRestricted",
+          error: "Visitor role: Access to this resource is restricted.",
+        }),
+    };
+
+    await expect(
+      getApiErrorMessage(
+        makeAxiosLikeError({
+          status: 403,
+          data: errorBlob,
+        }),
+        (key: string) =>
+          key === "settingsVisitorAccessRestricted"
+            ? "Localized visitor restriction"
+            : key
+      )
+    ).resolves.toBe("Localized visitor restriction");
+  });
+
+  it("keeps plain objects with non-callable text fields as regular API payloads", async () => {
+    await expect(
+      getApiErrorMessage(
+        makeAxiosLikeError({
+          status: 400,
+          data: {
+            text: "plain text field",
+            error: "validation failed",
+          },
+        })
+      )
+    ).resolves.toBe("validation failed");
   });
 
   it("extracts rate-limit wait time", () => {

@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 833
+Total keys: 839
 
 ## Summary
 
@@ -14,7 +14,7 @@ Total keys: 833
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
 | Settings Categories | 123 | `basicSettings` | `enterNewTagName` |
-| Database | 39 | `database` | `cleanupTempFilesConfirmMessage` |
+| Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
 | Task Hooks | 68 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
@@ -43,6 +43,7 @@ Total keys: 833
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 38 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
+| Role-Based Settings Errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
 
 ## Details
 
@@ -259,6 +260,7 @@ Total keys: 833
 | `removeLegacyDataConfirmTitle` |
 | `removeLegacyDataConfirmMessage` |
 | `legacyDataDeleted` |
+| `legacyDataDeleteFailed` |
 | `formatLegacyFilenames` |
 | `formatLegacyFilenamesDescription` |
 | `formatLegacyFilenamesButton` |
@@ -1048,3 +1050,13 @@ Total keys: 833
 | `videoDecodeError` |
 | `safariVideoFormatNotSupported` |
 | `browserVideoFormatNotSupported` |
+
+### Role-Based Settings Errors
+
+| Key |
+| --- |
+| `settingsApiKeyForbidden` |
+| `settingsVisitorAccessRestricted` |
+| `settingsVisitorWriteRestricted` |
+| `settingsVisitorWriteForbidden` |
+| `settingsAuthRequired` |

@@ -239,6 +239,7 @@ export const zh = {
   removeLegacyDataConfirmMessage:
     "确定要删除旧的 JSON 数据文件吗？此操作无法撤销。",
   legacyDataDeleted: "旧数据删除成功。",
+  legacyDataDeleteFailed: "删除旧数据失败",
   formatLegacyFilenames: "格式化旧文件名",
   formatLegacyFilenamesDescription:
     "批量将所有视频文件、缩略图和字幕重命名为新的标准格式：标题-作者-YYYY。此操作将修改磁盘上的文件名并更新数据库记录。",
@@ -1064,4 +1065,12 @@ export const zh = {
   safariVideoFormatNotSupported:
     "Safari 不支持此视频格式。Safari 最适合播放 H.264/MP4 视频。请使用 H.264 编解码器重新下载。",
   browserVideoFormatNotSupported: "您的浏览器不支持此视频格式。",
+
+  // 基于角色的设置中间件错误
+  settingsApiKeyForbidden: "API 密钥认证无法访问设置端点。",
+  settingsVisitorAccessRestricted: "访客角色：无权访问此资源。",
+  settingsVisitorWriteRestricted:
+    "访客角色：仅允许读取设置和更新 CloudFlare 设置。",
+  settingsVisitorWriteForbidden: "访客角色：不允许写入操作。",
+  settingsAuthRequired: "需要身份验证。请登录以访问此资源。",
 };

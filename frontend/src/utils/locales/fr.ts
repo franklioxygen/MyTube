@@ -258,6 +258,7 @@ export const fr = {
   removeLegacyDataConfirmMessage:
     "Êtes-vous sûr de vouloir supprimer les fichiers de données JSON hérités ? Cette action est irréversible.",
   legacyDataDeleted: "Données héritées supprimées avec succès.",
+  legacyDataDeleteFailed: "Échec de la suppression des données héritées",
   formatLegacyFilenames: "Formater les noms de fichiers hérités",
   formatLegacyFilenamesDescription:
     "Renommer par lot tous les fichiers vidéo, miniatures et sous-titres au nouveau format standard : Titre-Auteur-AAAA. Cette opération modifiera les noms de fichiers sur le disque et mettra à jour la logique de la base de données.",
@@ -1154,4 +1155,16 @@ export const fr = {
     "Format vidéo non pris en charge par Safari. Safari fonctionne mieux avec les vidéos H.264/MP4. Veuillez retélécharger la vidéo avec le codec H.264.",
   browserVideoFormatNotSupported:
     "Le format vidéo n'est pas pris en charge par votre navigateur.",
+
+  // Erreurs du middleware de paramètres basé sur les rôles
+  settingsApiKeyForbidden:
+    "L'authentification par clé API ne peut pas accéder aux points de terminaison des paramètres.",
+  settingsVisitorAccessRestricted:
+    "Rôle visiteur : L'accès à cette ressource est restreint.",
+  settingsVisitorWriteRestricted:
+    "Rôle visiteur : Seules la lecture des paramètres et la mise à jour des paramètres CloudFlare sont autorisées.",
+  settingsVisitorWriteForbidden:
+    "Rôle visiteur : Les opérations d'écriture ne sont pas autorisées.",
+  settingsAuthRequired:
+    "Authentification requise. Veuillez vous connecter pour accéder à cette ressource.",
 };

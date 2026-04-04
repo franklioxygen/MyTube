@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Settings } from "../types";
-import { api } from "../utils/apiClient";
+import { api, getApiErrorData, getApiErrorMessage } from "../utils/apiClient";
 import { generateTimestamp } from "../utils/formatUtils";
 import { InfoModalState } from "./useSettingsModals";
 
@@ -107,6 +107,9 @@ export function useSettingsMutations({
     queryClient.invalidateQueries({ queryKey: ["downloadHistory"] });
   };
 
+  const formatErrorText = (fallback: string, detail?: string) =>
+    detail ? `${fallback}: ${detail}` : fallback;
+
   // Save settings mutation
   const saveMutation = useMutation({
     mutationFn: async (newSettings: Settings): Promise<SaveSettingsMutationResult> => {
@@ -148,11 +151,8 @@ export function useSettingsMutations({
         queryClient.invalidateQueries({ queryKey: ["videos"] });
       }
     },
-    onError: (error: any) => {
-      const msg =
-        error?.response?.data?.error ||
-        error?.response?.data?.details ||
-        error?.message;
+    onError: async (error: unknown) => {
+      const msg = await getApiErrorMessage(error, t);
       setMessage({
         text: typeof msg === "string" && msg ? msg : t("settingsFailed"),
         type: "error",
@@ -204,13 +204,12 @@ export function useSettingsMutations({
         type: hasData ? "success" : "warning",
       });
     },
-    onError: (error: any) => {
+    onError: async (error: unknown) => {
+      const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
-        message: `${t("migrationFailed")}: ${
-          error.response?.data?.details || error.message
-        }`,
+        message: formatErrorText(t("migrationFailed"), detail),
         type: "error",
       });
     },
@@ -239,14 +238,16 @@ export function useSettingsMutations({
         type: errors && errors.length > 0 ? "warning" : "success",
       });
     },
-    onError: (error: any) => {
+    onError: async (error: unknown) => {
+      const errorData = await getApiErrorData(error);
       const errorMsg =
-        error.response?.data?.error ===
+        errorData?.error ===
         "Cannot clean up while downloads are active"
           ? t("cleanupTempFilesActiveDownloads")
-          : `${t("cleanupTempFilesFailed")}: ${
-              error.response?.data?.details || error.message
-            }`;
+          : formatErrorText(
+              t("cleanupTempFilesFailed"),
+              await getApiErrorMessage(error, t)
+            );
 
       setInfoModal({
         isOpen: true,
@@ -279,13 +280,12 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: (error: any) => {
+    onError: async (error: unknown) => {
+      const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
-        message: `Failed to delete legacy data: ${
-          error.response?.data?.details || error.message
-        }`,
+        message: formatErrorText(t("legacyDataDeleteFailed"), detail),
         type: "error",
       });
     },
@@ -325,13 +325,14 @@ export function useSettingsMutations({
         type: results.errors > 0 ? "warning" : "success",
       });
     },
-    onError: (error: any) => {
+    onError: async (error: unknown) => {
+      const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
         message: t("formatFilenamesError").replace(
           "{error}",
-          error.response?.data?.details || error.message
+          detail || t("error")
         ),
         type: "error",
       });
@@ -367,12 +368,10 @@ export function useSettingsMutations({
 
       setMessage({ text: t("databaseExportedSuccess"), type: "success" });
     },
-    onError: (error: any) => {
-      const errorDetails = error.response?.data?.details || error.message;
+    onError: async (error: unknown) => {
+      const errorDetails = await getApiErrorMessage(error, t);
       setMessage({
-        text: `${t("databaseExportFailed")}${
-          errorDetails ? `: ${errorDetails}` : ""
-        }`,
+        text: formatErrorText(t("databaseExportFailed"), errorDetails),
         type: "error",
       });
     },
@@ -402,14 +401,12 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: (error: any) => {
-      const errorDetails = error.response?.data?.details || error.message;
+    onError: async (error: unknown) => {
+      const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
-        message: `${t("databaseImportFailed")}${
-          errorDetails ? `: ${errorDetails}` : ""
-        }`,
+        message: formatErrorText(t("databaseImportFailed"), errorDetails),
         type: "error",
       });
     },
@@ -459,14 +456,12 @@ export function useSettingsMutations({
       invalidateDatabaseQueries();
       refetchLastBackupInfo();
     },
-    onError: (error: any) => {
-      const errorDetails = error.response?.data?.details || error.message;
+    onError: async (error: unknown) => {
+      const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
-        message: `${t("databaseMergeFailed")}${
-          errorDetails ? `: ${errorDetails}` : ""
-        }`,
+        message: formatErrorText(t("databaseMergeFailed"), errorDetails),
         type: "error",
       });
     },
@@ -484,12 +479,10 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: (error: any) => {
-      const errorDetails = error.response?.data?.details || error.message;
+    onError: async (error: unknown) => {
+      const errorDetails = await getApiErrorMessage(error, t);
       setMessage({
-        text: `${t("backupDatabasesCleanupFailed")}${
-          errorDetails ? `: ${errorDetails}` : ""
-        }`,
+        text: formatErrorText(t("backupDatabasesCleanupFailed"), errorDetails),
         type: "error",
       });
     },
@@ -523,14 +516,12 @@ export function useSettingsMutations({
       // Refetch last backup info after restore
       refetchLastBackupInfo();
     },
-    onError: (error: any) => {
-      const errorDetails = error.response?.data?.details || error.message;
+    onError: async (error: unknown) => {
+      const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
         title: t("error"),
-        message: `${t("restoreFromLastBackupFailed")}${
-          errorDetails ? `: ${errorDetails}` : ""
-        }`,
+        message: formatErrorText(t("restoreFromLastBackupFailed"), errorDetails),
         type: "error",
       });
     },
@@ -556,11 +547,8 @@ export function useSettingsMutations({
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["videos"] });
     },
-    onError: (error: any) => {
-      const apiMsg =
-        error?.response?.data?.error ||
-        error?.response?.data?.details ||
-        error?.message;
+    onError: async (error: unknown) => {
+      const apiMsg = await getApiErrorMessage(error, t);
       const text =
         typeof apiMsg === "string" && apiMsg
           ? apiMsg

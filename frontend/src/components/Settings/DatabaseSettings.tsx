@@ -16,6 +16,7 @@ import {
 import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import type { MergePreviewSummary } from '../../hooks/useSettingsMutations';
+import { getApiErrorMessage } from '../../utils/apiClient';
 import { formatDisplayDateTime } from '../../utils/formatUtils';
 
 interface DatabaseSettingsProps {
@@ -150,9 +151,7 @@ const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
                 return;
             }
             const message =
-                error?.response?.data?.details ||
-                error?.response?.data?.message ||
-                error?.message ||
+                await getApiErrorMessage(error, t) ||
                 t('mergeDatabasePreviewErrorDefault');
             setMergePreviewError(String(message));
         } finally {

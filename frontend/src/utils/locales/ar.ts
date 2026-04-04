@@ -250,6 +250,7 @@ export const ar = {
   removeLegacyDataConfirmMessage:
     "هل أنت متأكد أنك تريد حذف ملفات بيانات JSON القديمة؟ لا يمكن التراجع عن هذا الإجراء.",
   legacyDataDeleted: "تم حذف البيانات القديمة بنجاح.",
+  legacyDataDeleteFailed: "فشل حذف البيانات القديمة",
   formatLegacyFilenames: "تنسيق أسماء الملفات القديمة",
   formatLegacyFilenamesDescription:
     "إعادة تسمية جميع ملفات الفيديو والصور والترجمات دفعة واحدة إلى التنسيق القياسي الجديد: العنوان-المؤلف-السنة. ستؤدي هذه العملية إلى تعديل أسماء الملفات على القرص وتحديث منطق قاعدة البيانات.",
@@ -1102,4 +1103,16 @@ export const ar = {
     "صيغة الفيديو غير مدعومة في Safari. يعمل Safari بشكل أفضل مع فيديوهات H.264/MP4. يرجى إعادة تنزيل الفيديو بترميز H.264.",
   browserVideoFormatNotSupported:
     "صيغة الفيديو غير مدعومة في متصفحك.",
+
+  // أخطاء وسيط الإعدادات المستندة إلى الأدوار
+  settingsApiKeyForbidden:
+    "لا يمكن لمصادقة مفتاح API الوصول إلى نقاط نهاية الإعدادات.",
+  settingsVisitorAccessRestricted:
+    "دور الزائر: الوصول إلى هذا المورد مقيّد.",
+  settingsVisitorWriteRestricted:
+    "دور الزائر: يُسمح فقط بقراءة الإعدادات وتحديث إعدادات CloudFlare.",
+  settingsVisitorWriteForbidden:
+    "دور الزائر: عمليات الكتابة غير مسموح بها.",
+  settingsAuthRequired:
+    "المصادقة مطلوبة. يرجى تسجيل الدخول للوصول إلى هذا المورد.",
 };
