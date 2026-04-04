@@ -55,6 +55,16 @@ const MERGEABLE_TABLES = [
   "settings",
 ] as const;
 
+function getMergeRowValue(row: MergeRow, key: string): unknown {
+  for (const [entryKey, entryValue] of Object.entries(row)) {
+    if (entryKey === key) {
+      return entryValue;
+    }
+  }
+
+  return undefined;
+}
+
 function createEmptyMergeSummary(): DatabaseMergeSummary {
   return {
     videos: { merged: 0, skipped: 0 },
@@ -159,7 +169,7 @@ function toLookupKey(
 }
 
 function getRequiredString(row: MergeRow, key: string): string {
-  const value = row[key];
+  const value = getMergeRowValue(row, key);
   if (typeof value !== "string" || value.length === 0) {
     throw new ValidationError(
       `Database merge failed because ${key} is missing from ${String(
@@ -176,14 +186,14 @@ function remapRow(
   columns: string[],
   overrides: Record<string, unknown> = {}
 ): MergeRow {
-  const remapped: MergeRow = {};
-  for (const column of columns) {
-    remapped[column] =
-      Object.prototype.hasOwnProperty.call(overrides, column)
-        ? overrides[column]
-        : row[column];
-  }
-  return remapped;
+  return Object.fromEntries(
+    columns.map((column) => {
+      const value = Object.prototype.hasOwnProperty.call(overrides, column)
+        ? getMergeRowValue(overrides, column)
+        : getMergeRowValue(row, column);
+      return [column, value];
+    })
+  );
 }
 
 function prepareTempImportFile(fileBuffer: Buffer): string {
@@ -848,7 +858,7 @@ function executeDatabaseMerge(
  * Validate that a file is a valid SQLite database
  */
 function validateDatabase(filePath: string): void {
-  let sourceDb: any = null;
+  let sourceDb: Database.Database | null = null;
   try {
     sourceDb = new Database(filePath, { readonly: true });
     // Try to query the database to verify it's valid
@@ -974,7 +984,7 @@ export function importDatabase(fileBuffer: Buffer): void {
 
     // Reinitialize the database connection with the new file
     reinitializeDatabase();
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Restore backup if import failed
     if (pathExistsSafeSync(backupPath, DATA_DIR)) {
       try {
@@ -1187,15 +1197,17 @@ export function cleanupBackupDatabases(): {
           unlinkSafeSync(filePath, DATA_DIR);
           deletedCount++;
           logger.info(`Deleted backup database file: ${file}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           failedCount++;
-          const errorMsg = `Failed to delete ${file}: ${error.message}`;
+          const errorMsg = `Failed to delete ${file}: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
           errors.push(errorMsg);
           logger.error(errorMsg);
         }
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error("Error cleaning up backup databases:", error);
     throw error;
   }

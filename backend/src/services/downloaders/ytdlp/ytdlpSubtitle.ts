@@ -1,8 +1,15 @@
-import fs from "fs-extra";
 import path from "path";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { cleanupSubtitleFiles } from "../../../utils/downloadUtils";
 import { logger } from "../../../utils/logger";
+import {
+  copyFileSafeSync,
+  readFileSafeSync,
+  readdirSafeSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+  writeFileSafeSync,
+} from "../../../utils/security";
 import { BaseDownloader } from "../BaseDownloader";
 
 // Helper class to access BaseDownloader methods without circular dependency
@@ -60,8 +67,7 @@ export async function processSubtitles(
     const seenFiles = new Set<string>();
 
     for (const dir of searchDirs) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const files = fs.readdirSync(dir).filter((file: string) => {
+      const files = readdirSafeSync(dir, dir).filter((file: string) => {
         const ext = path.extname(file).toLowerCase();
         return file.startsWith(baseFilename) && subtitleExtensions.has(ext);
       });
@@ -96,33 +102,34 @@ export async function processSubtitles(
       const extension = ext;
 
       // Move subtitle to subtitles directory or keep in video directory if requested
-      const sourceSubPath = path.join(dir, subtitleFile);
+      const sourceSubPath = resolveSafeChildPath(dir, subtitleFile);
       const destSubFilename = `${baseFilename}.${language}${extension}`;
+      const destinationDir = moveSubtitlesToVideoFolder
+        ? VIDEOS_DIR
+        : SUBTITLES_DIR;
       let destSubPath: string;
       let webPath: string;
 
       if (moveSubtitlesToVideoFolder) {
-        destSubPath = path.join(VIDEOS_DIR, destSubFilename);
+        destSubPath = resolveSafeChildPath(VIDEOS_DIR, destSubFilename);
         webPath = `/videos/${destSubFilename}`;
       } else {
-        destSubPath = path.join(SUBTITLES_DIR, destSubFilename);
+        destSubPath = resolveSafeChildPath(SUBTITLES_DIR, destSubFilename);
         webPath = `/subtitles/${destSubFilename}`;
       }
 
       if (extension.toLowerCase() === ".vtt") {
         // Read VTT file and fix alignment for centering
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        let vttContent = fs.readFileSync(sourceSubPath, "utf-8");
+        let vttContent = readFileSafeSync(sourceSubPath, dir, "utf-8");
         // Replace align:start with align:middle for centered subtitles
         // Also remove position:0% which forces left positioning
         vttContent = vttContent.replace(/ align:start/g, " align:middle");
         vttContent = vttContent.replace(/ position:0%/g, "");
 
         // Write cleaned VTT to destination
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.writeFileSync(destSubPath, vttContent, "utf-8");
+        writeFileSafeSync(destSubPath, destinationDir, vttContent, "utf-8");
       } else if (sourceSubPath !== destSubPath) {
-        fs.copyFileSync(sourceSubPath, destSubPath);
+        copyFileSafeSync(sourceSubPath, dir, destSubPath, destinationDir);
       }
 
       // Remove original file if we moved it (if dest is different from source)
@@ -131,8 +138,7 @@ export async function processSubtitles(
       // Actually source is usually video_uuid.en.vtt (from yt-dlp) and dest is video_uuid.en.vtt
       // So if names are same and dir is same, we're just overwriting in place, which is fine
       if (sourceSubPath !== destSubPath) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        fs.unlinkSync(sourceSubPath);
+        unlinkSafeSync(sourceSubPath, dir);
       }
 
       logger.info(

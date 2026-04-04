@@ -338,7 +338,10 @@ describe("useVideoSubscriptions", () => {
   });
 
   it("shows warning snackbar on 409 subscribe conflicts", async () => {
-    mockApiPost.mockRejectedValueOnce({ response: { status: 409 } });
+    mockApiPost.mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 409 },
+    });
 
     const { result } = renderHook(
       () => useVideoSubscriptions({ video: baseVideo as any }),

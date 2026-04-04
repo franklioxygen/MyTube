@@ -6,13 +6,27 @@ import {
 } from "../../../utils/ytDlpUtils";
 
 export interface BilibiliDownloadFlags {
-  [key: string]: any;
+  [key: string]: string | number | boolean | string[] | undefined | null;
 }
 
 export interface PreparedBilibiliFlags {
   flags: BilibiliDownloadFlags;
   mergeOutputFormat: string;
   formatSort?: string;
+}
+
+function getStringFlag(
+  flags: BilibiliDownloadFlags,
+  ...keys: string[]
+): string | undefined {
+  for (const key of keys) {
+    const value = flags[key];
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  return undefined;
 }
 
 function getBilibiliCodecPreference(
@@ -56,14 +70,21 @@ function resolveCodecPreference(): { codecFilter: string; codecFormatSort: strin
 }
 
 function resolveSubtitleDefaults(userConfig: BilibiliDownloadFlags): {
-  writeSubs: any;
-  writeAutoSubs: any;
-  convertSubs: any;
+  writeSubs: boolean;
+  writeAutoSubs: boolean;
+  convertSubs: string;
 } {
   return {
-    writeSubs: userConfig.writeSubs !== undefined ? userConfig.writeSubs : true,
-    writeAutoSubs: userConfig.writeAutoSubs !== undefined ? userConfig.writeAutoSubs : true,
-    convertSubs: userConfig.convertSubs !== undefined ? userConfig.convertSubs : "vtt",
+    writeSubs:
+      typeof userConfig.writeSubs === "boolean" ? userConfig.writeSubs : true,
+    writeAutoSubs:
+      typeof userConfig.writeAutoSubs === "boolean"
+        ? userConfig.writeAutoSubs
+        : true,
+    convertSubs:
+      typeof userConfig.convertSubs === "string"
+        ? userConfig.convertSubs
+        : "vtt",
   };
 }
 
@@ -71,7 +92,7 @@ function resolveBilibiliFormatSort(
   userConfig: BilibiliDownloadFlags,
   codecFormatSort: string,
 ): string | undefined {
-  const userSort = userConfig.S || userConfig.formatSort;
+  const userSort = getStringFlag(userConfig, "S", "formatSort");
   if (userSort) {
     return userSort;
   }
@@ -87,13 +108,13 @@ function resolveBilibiliFormat(userConfig: BilibiliDownloadFlags): {
   downloadFormat: string;
   codecFormatSort: string;
 } {
-  const hasUserFormat = Boolean(userConfig.f || userConfig.format);
-  const hasUserFormatSort = Boolean(userConfig.S || userConfig.formatSort);
+  const userFormat = getStringFlag(userConfig, "f", "format");
+  const hasUserFormat = Boolean(userFormat);
+  const hasUserFormatSort = Boolean(getStringFlag(userConfig, "S", "formatSort"));
 
   if (hasUserFormat) {
-    const downloadFormat = userConfig.f || userConfig.format;
-    logger.info("Using user-specified format for Bilibili:", downloadFormat);
-    return { downloadFormat, codecFormatSort: "" };
+    logger.info("Using user-specified format for Bilibili:", userFormat);
+    return { downloadFormat: userFormat ?? "best", codecFormatSort: "" };
   }
 
   if (!hasUserFormatSort) {

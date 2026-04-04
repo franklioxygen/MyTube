@@ -15,6 +15,7 @@ import {
   videos,
 } from "../db/schema";
 import { FileError } from "../errors/DownloadErrors";
+import { pathExistsSafeSync } from "../utils/security";
 
 // Hardcoded path for settings since it might not be exported from paths.ts
 const SETTINGS_DATA_PATH = path.join(
@@ -35,16 +36,14 @@ export async function runMigration() {
 
   // Check for common misconfiguration (nested data directory)
   const nestedDataPath = path.join(DATA_DIR, "data");
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(nestedDataPath)) {
+  if (pathExistsSafeSync(nestedDataPath, DATA_DIR)) {
     results.warnings.push(
       `Found nested data directory at ${nestedDataPath}. Your volume mount might be incorrect (mounting /data to /app/data instead of /app/data contents).`
     );
   }
 
   // Migrate Videos
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(VIDEOS_DATA_PATH)) {
+  if (pathExistsSafeSync(VIDEOS_DATA_PATH, DATA_DIR)) {
     results.videos.found = true;
     try {
       const videosData = fs.readJSONSync(VIDEOS_DATA_PATH);
@@ -112,8 +111,7 @@ export async function runMigration() {
   }
 
   // Migrate Collections
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(COLLECTIONS_DATA_PATH)) {
+  if (pathExistsSafeSync(COLLECTIONS_DATA_PATH, DATA_DIR)) {
     results.collections.found = true;
     try {
       const collectionsData = fs.readJSONSync(COLLECTIONS_DATA_PATH);
@@ -180,8 +178,7 @@ export async function runMigration() {
   }
 
   // Migrate Settings
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(SETTINGS_DATA_PATH)) {
+  if (pathExistsSafeSync(SETTINGS_DATA_PATH, DATA_DIR)) {
     results.settings.found = true;
     try {
       const settingsData = fs.readJSONSync(SETTINGS_DATA_PATH);
@@ -209,8 +206,7 @@ export async function runMigration() {
   }
 
   // Migrate Status (Downloads)
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(STATUS_DATA_PATH)) {
+  if (pathExistsSafeSync(STATUS_DATA_PATH, DATA_DIR)) {
     results.downloads.found = true;
     try {
       const statusData = fs.readJSONSync(STATUS_DATA_PATH);

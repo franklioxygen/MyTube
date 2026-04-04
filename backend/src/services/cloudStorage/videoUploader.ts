@@ -2,7 +2,6 @@
  * Video upload operations (handles video, thumbnail, and metadata uploads)
  */
 
-import fs from "fs-extra";
 import path from "path";
 import { logger } from "../../utils/logger";
 import { updateVideo } from "../storageService";
@@ -15,6 +14,14 @@ import {
 } from "./pathUtils";
 import { CloudDriveConfig } from "./types";
 import { clearSignedUrlCache } from "./urlSigner";
+import {
+  ensureDirSafeSync,
+  pathExistsTrustedSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+  unlinkTrustedSync,
+  writeFileSafeSync,
+} from "../../utils/security";
 
 /**
  * Upload video, thumbnail, and metadata to cloud storage
@@ -34,8 +41,7 @@ export async function uploadVideo(
     // Upload Video File
     if (videoData.videoPath) {
       const absoluteVideoPath = resolveAbsolutePath(videoData.videoPath);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (absoluteVideoPath && fs.existsSync(absoluteVideoPath)) {
+      if (absoluteVideoPath && pathExistsTrustedSync(absoluteVideoPath)) {
         const uploadResult: UploadResult = await uploadFile(
           absoluteVideoPath,
           config
@@ -58,8 +64,7 @@ export async function uploadVideo(
     // Upload Thumbnail
     if (videoData.thumbnailPath) {
       const absoluteThumbPath = resolveAbsolutePath(videoData.thumbnailPath);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (absoluteThumbPath && fs.existsSync(absoluteThumbPath)) {
+      if (absoluteThumbPath && pathExistsTrustedSync(absoluteThumbPath)) {
         const uploadResult: UploadResult = await uploadFile(
           absoluteThumbPath,
           config
@@ -91,14 +96,14 @@ export async function uploadVideo(
           .replace(".jpg", ".json")
           .replace(".png", ".json")
       : `${sanitizeFilename(videoData.title)}.json`;
-    const metadataPath = path.join(
-      process.cwd(),
-      "temp_metadata",
-      metadataFileName
+    const tempMetadataDir = path.join(process.cwd(), "temp_metadata");
+    const metadataPath = resolveSafeChildPath(tempMetadataDir, metadataFileName);
+    ensureDirSafeSync(tempMetadataDir, tempMetadataDir);
+    writeFileSafeSync(
+      metadataPath,
+      tempMetadataDir,
+      JSON.stringify(metadata, null, 2)
     );
-    fs.ensureDirSync(path.dirname(metadataPath));
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
     const metadataUploadResult: UploadResult = await uploadFile(
       metadataPath,
@@ -106,8 +111,7 @@ export async function uploadVideo(
     );
 
     // Cleanup temp metadata (always delete temp file)
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.unlinkSync(metadataPath);
+    unlinkSafeSync(metadataPath, tempMetadataDir);
 
     logger.info(`[CloudStorage] Upload completed for: ${videoData.title}`);
 
@@ -121,10 +125,8 @@ export async function uploadVideo(
       const deletedFiles: string[] = [];
       for (const filePath of uploadedFiles) {
         try {
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(filePath)) {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(filePath);
+          if (pathExistsTrustedSync(filePath)) {
+            unlinkTrustedSync(filePath);
             deletedFiles.push(filePath);
             logger.info(`[CloudStorage] Deleted local file: ${filePath}`);
           }

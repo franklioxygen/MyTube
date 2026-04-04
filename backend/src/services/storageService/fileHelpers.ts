@@ -9,7 +9,11 @@ import {
 } from "../../config/paths";
 import { logger } from "../../utils/logger";
 import {
+  ensureDirSafeSync,
   isPathWithinDirectories,
+  moveSafeSync,
+  normalizeSafeAbsolutePath,
+  pathExistsTrustedSync,
   sanitizePathSegment,
 } from "../../utils/security";
 import { Collection } from "./types";
@@ -28,7 +32,7 @@ const ALLOWED_STORAGE_DIRS = [
  * @throws Error if path is outside allowed directories
  */
 function validateSafePath(targetPath: string): string {
-  const resolvedPath = path.resolve(targetPath);
+  const resolvedPath = normalizeSafeAbsolutePath(targetPath);
   const isSafe = isPathWithinDirectories(resolvedPath, ALLOWED_STORAGE_DIRS);
 
   if (!isSafe) {
@@ -79,7 +83,7 @@ function readDirectoryEntries(targetPath: string): string[] {
 
 export function pathExists(targetPath: string): boolean {
   const safePath = validateSafePath(targetPath);
-  return fs.pathExistsSync(safePath);
+  return pathExistsTrustedSync(safePath);
 }
 
 export function listDirectory(targetPath: string): string[] {
@@ -89,7 +93,13 @@ export function listDirectory(targetPath: string): string[] {
 export function renamePath(sourcePath: string, destPath: string): void {
   const safeSourcePath = validateSafePath(sourcePath);
   const safeDestPath = validateSafePath(destPath);
-  fs.moveSync(safeSourcePath, safeDestPath);
+  moveSafeSync(
+    safeSourcePath,
+    ALLOWED_STORAGE_DIRS,
+    safeDestPath,
+    ALLOWED_STORAGE_DIRS,
+    { overwrite: true }
+  );
 }
 
 export function removeFileIfExists(targetPath: string): void {
@@ -131,11 +141,10 @@ export function findVideoFile(
     }
 
     // Validate and check root path
-    const rootPath = path.join(VIDEOS_DIR, sanitizedFilename);
+    const rootPath = buildStoragePath(VIDEOS_DIR, sanitizedFilename);
     try {
       validateSafePath(rootPath);
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(rootPath)) return rootPath;
+      if (pathExistsTrustedSync(rootPath)) return rootPath;
     } catch (e) {
       // Skip unsafe root path
       logger.warn(
@@ -154,15 +163,14 @@ export function findVideoFile(
         }
 
         // Construct path and verify it is safe
-        const collectionPath = path.join(
+        const collectionPath = buildStoragePath(
           VIDEOS_DIR,
           sanitizedName,
           sanitizedFilename
         );
         try {
           validateSafePath(collectionPath);
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(collectionPath)) return collectionPath;
+          if (pathExistsTrustedSync(collectionPath)) return collectionPath;
         } catch (e) {
           // Skip unsafe paths
           continue;
@@ -191,10 +199,10 @@ export function findImageFile(
     }
 
     // Validate and check root path
-    const rootPath = path.join(IMAGES_DIR, sanitizedFilename);
+    const rootPath = buildStoragePath(IMAGES_DIR, sanitizedFilename);
     try {
       validateSafePath(rootPath);
-      if (fs.existsSync(rootPath)) return rootPath;
+      if (pathExistsTrustedSync(rootPath)) return rootPath;
     } catch (e) {
       // Skip unsafe root path
       logger.warn(
@@ -212,14 +220,14 @@ export function findImageFile(
           continue;
         }
 
-        const collectionPath = path.join(
+        const collectionPath = buildStoragePath(
           IMAGES_DIR,
           sanitizedName,
           sanitizedFilename
         );
         try {
           validateSafePath(collectionPath);
-          if (fs.existsSync(collectionPath)) return collectionPath;
+          if (pathExistsTrustedSync(collectionPath)) return collectionPath;
         } catch (e) {
           continue;
         }
@@ -240,10 +248,15 @@ export function moveFile(sourcePath: string, destPath: string): void {
     validateSafePath(sourcePath);
     validateSafePath(destPath);
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(sourcePath)) {
-      fs.ensureDirSync(path.dirname(destPath));
-      fs.moveSync(sourcePath, destPath, { overwrite: true });
+    if (pathExistsTrustedSync(sourcePath)) {
+      ensureDirSafeSync(path.dirname(destPath), ALLOWED_STORAGE_DIRS);
+      moveSafeSync(
+        sourcePath,
+        ALLOWED_STORAGE_DIRS,
+        destPath,
+        ALLOWED_STORAGE_DIRS,
+        { overwrite: true }
+      );
       logger.info(`Moved file from ${sourcePath} to ${destPath}`);
     }
   } catch (error) {

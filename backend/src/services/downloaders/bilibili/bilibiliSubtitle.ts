@@ -1,14 +1,17 @@
 import axios from "axios";
-import fs from "fs-extra";
 import path from "path";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../../../config/paths";
 import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
+  ensureDirSafeSync,
   resolveSafePath,
+  writeFileSafeSync,
 } from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
+
+type SubtitleDownloadConfig = Record<string, unknown>;
 
 /**
  * Download subtitles for a Bilibili video
@@ -18,7 +21,7 @@ export async function downloadSubtitles(
   baseFilename: string,
   _subtitleDir: string,
   subtitlePathPrefix: string,
-  axiosConfig: any = {}
+  axiosConfig: SubtitleDownloadConfig = {}
 ): Promise<Array<{ language: string; filename: string; path: string }>> {
   try {
     const videoId = extractBilibiliVideoId(videoUrl);
@@ -43,8 +46,12 @@ export async function downloadSubtitles(
     let viewResponse;
     try {
       viewResponse = await axios.get(viewApiUrl, { headers, ...axiosConfig });
-    } catch (viewError: any) {
-      logger.error(`Failed to fetch view API: ${viewError.message}`);
+    } catch (viewError: unknown) {
+      logger.error(
+        `Failed to fetch view API: ${
+          viewError instanceof Error ? viewError.message : String(viewError)
+        }`
+      );
       return [];
     }
 
@@ -61,8 +68,12 @@ export async function downloadSubtitles(
     let playerResponse;
     try {
       playerResponse = await axios.get(playerApiUrl, { headers, ...axiosConfig });
-    } catch (playerError: any) {
-      logger.warn(`Player API failed: ${playerError.message}`);
+    } catch (playerError: unknown) {
+      logger.warn(
+        `Player API failed: ${
+          playerError instanceof Error ? playerError.message : String(playerError)
+        }`
+      );
       // Continue to check view API fallback
       playerResponse = null;
     }
@@ -107,7 +118,7 @@ export async function downloadSubtitles(
       ? path.resolve(VIDEOS_DIR)
       : path.resolve(SUBTITLES_DIR);
     const safePathPrefix = useVideoRoot ? "/videos" : "/subtitles";
-    fs.ensureDirSync(resolvedSubtitleDir);
+    ensureDirSafeSync(resolvedSubtitleDir, resolvedSubtitleDir);
 
     // Process subtitles (matching v1.5.14 approach - simple and direct)
     for (const sub of subtitlesData) {
@@ -145,8 +156,7 @@ export async function downloadSubtitles(
             resolvedSubtitleDir
           );
 
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          fs.writeFileSync(subPath, vttContent);
+          writeFileSafeSync(subPath, resolvedSubtitleDir, vttContent);
           logger.info(`Saved subtitle file: ${subPath}`);
 
           savedSubtitles.push({
@@ -157,9 +167,11 @@ export async function downloadSubtitles(
         } else {
           logger.warn(`Failed to convert subtitle to VTT format for ${lang}`);
         }
-      } catch (subError: any) {
+      } catch (subError: unknown) {
         logger.error(
-          `Failed to download subtitle (${lang}): ${subError.message}`
+          `Failed to download subtitle (${lang}): ${
+            subError instanceof Error ? subError.message : String(subError)
+          }`
         );
         continue;
       }

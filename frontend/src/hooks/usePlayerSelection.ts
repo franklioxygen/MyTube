@@ -44,7 +44,13 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
             document.body.removeChild(textArea);
         };
 
-        void navigator.clipboard.writeText(resolvedVideoUrl).then(() => {
+        const clipboard = navigator.clipboard;
+        if (!clipboard?.writeText) {
+            fallbackCopy();
+            return;
+        }
+
+        void clipboard.writeText(resolvedVideoUrl).then(() => {
             showSnackbar(t('linkCopied'), 'success');
         }).catch(() => {
             fallbackCopy();

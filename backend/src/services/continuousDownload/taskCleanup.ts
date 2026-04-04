@@ -1,4 +1,5 @@
-import fs from "fs";
+import { DATA_DIR } from "../../config/paths";
+import { readFileSafeSync } from "../../utils/security";
 import { logger } from "../../utils/logger";
 import * as storageService from "../storageService";
 import { ContinuousDownloadTask } from "./types";
@@ -29,7 +30,7 @@ export class TaskCleanup {
 
       if (task.frozenVideoListPath) {
         try {
-          const raw = fs.readFileSync(task.frozenVideoListPath, "utf8");
+          const raw = readFileSafeSync(task.frozenVideoListPath, DATA_DIR, "utf8");
           videoUrls = JSON.parse(raw) as string[];
         } catch (err) {
           logger.debug(`Could not read frozen list for cleanup of task ${task.id}:`, err);

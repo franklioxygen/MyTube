@@ -122,7 +122,18 @@ describe("passkeyService", () => {
       (verifyRegistrationResponse as any).mockResolvedValue(mockVerification);
 
       const result = await verifyPasskeyRegistration(
-        { response: {}, name: "My Passkey" },
+        {
+          id: "cred-id",
+          rawId: "cred-id",
+          type: "public-key",
+          clientExtensionResults: {},
+          response: {
+            clientDataJSON: "client-data",
+            attestationObject: "attestation-object",
+            transports: ["internal"],
+          },
+          name: "My Passkey",
+        },
         "mock-challenge"
       );
 

@@ -277,6 +277,11 @@ export function statSafeSync(
   return fs.statSync(safePath);
 }
 
+export function statTrustedSync(filePath: string): Stats {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  return fs.statSync(safePath);
+}
+
 export async function statSafe(
   filePath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -307,6 +312,15 @@ export function ensureDirSafeSync(
 ): void {
   const safePath = resolveSafePathForOperation(dirPath, allowedDirOrDirs);
   fs.ensureDirSync(safePath);
+}
+
+export function readFileSafeSync(
+  filePath: string,
+  allowedDirOrDirs: string | readonly string[],
+  encoding: BufferEncoding,
+): string {
+  const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  return fs.readFileSync(safePath, encoding);
 }
 
 export async function readdirDirentsSafe(
@@ -342,6 +356,11 @@ export function unlinkSafeSync(
   allowedDirOrDirs: string | readonly string[],
 ): void {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  fs.unlinkSync(safePath);
+}
+
+export function unlinkTrustedSync(filePath: string): void {
+  const safePath = normalizeSafeAbsolutePath(filePath);
   fs.unlinkSync(safePath);
 }
 

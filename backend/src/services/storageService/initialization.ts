@@ -15,6 +15,15 @@ import { downloads, videos } from "../../db/schema";
 import { MigrationError } from "../../errors/DownloadErrors";
 import { extractTwitchVideoId } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
+import {
+  pathExistsSafeSync,
+  pathExistsTrustedSync,
+  readFileSafeSync,
+  resolveSafeChildPath,
+  statSafeSync,
+  statTrustedSync,
+  writeFileSafeSync,
+} from "../../utils/security";
 import { findVideoFile } from "./fileHelpers";
 
 type VideoDownloadDuplicateGroup = {
@@ -289,29 +298,31 @@ export function initializeStorage(): void {
   fs.ensureDirSync(DATA_DIR);
 
   // Initialize status.json if it doesn't exist
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(STATUS_DATA_PATH)) {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(
+  if (!pathExistsSafeSync(STATUS_DATA_PATH, DATA_DIR)) {
+    writeFileSafeSync(
       STATUS_DATA_PATH,
+      DATA_DIR,
       JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
     );
   } else {
     try {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const status = JSON.parse(fs.readFileSync(STATUS_DATA_PATH, "utf8"));
+      const status = JSON.parse(readFileSafeSync(STATUS_DATA_PATH, DATA_DIR, "utf8"));
       status.activeDownloads = [];
       if (!status.queuedDownloads) status.queuedDownloads = [];
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.writeFileSync(STATUS_DATA_PATH, JSON.stringify(status, null, 2));
+      writeFileSafeSync(
+        STATUS_DATA_PATH,
+        DATA_DIR,
+        JSON.stringify(status, null, 2)
+      );
       logger.info("Cleared active downloads on startup");
     } catch (error) {
       logger.error(
         "Error resetting active downloads",
         error instanceof Error ? error : new Error(String(error))
       );
-      fs.writeFileSync(
+      writeFileSafeSync(
         STATUS_DATA_PATH,
+        DATA_DIR,
         JSON.stringify({ activeDownloads: [], queuedDownloads: [] }, null, 2)
       );
     }
@@ -732,8 +743,7 @@ export function initializeStorage(): void {
           // Validate path is absolute and doesn't contain traversal
           if (path.isAbsolute(rawFilePath) && !rawFilePath.includes("..") && !rawFilePath.includes("\0")) {
             const resolvedPath = path.resolve(rawFilePath);
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            if (fs.existsSync(resolvedPath)) {
+            if (pathExistsTrustedSync(resolvedPath)) {
               videoPath = resolvedPath;
             }
           }
@@ -743,18 +753,15 @@ export function initializeStorage(): void {
         } else if (video.videoPath?.startsWith("/videos/")) {
           // Fallback: try to resolve from videoPath
           const relativePath = video.videoPath.replace("/videos/", "");
-          const fullPath = path.join(VIDEOS_DIR, relativePath);
-          // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-          if (fs.existsSync(fullPath)) {
+          const fullPath = resolveSafeChildPath(VIDEOS_DIR, relativePath);
+          if (pathExistsSafeSync(fullPath, VIDEOS_DIR)) {
             videoPath = fullPath;
           }
         }
         
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (videoPath && fs.existsSync(videoPath)) {
+        if (videoPath && pathExistsTrustedSync(videoPath)) {
           try {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            const stats = fs.statSync(videoPath);
+            const stats = statTrustedSync(videoPath);
             // Skip 0-byte files
             if (stats.size > 0) {
               db.update(videos)

@@ -1,6 +1,11 @@
-import fs from "fs-extra";
-import path from "path";
 import { SUBTITLES_DIR } from "../config/paths";
+import {
+  pathExistsSafeSync,
+  readFileSafeSync,
+  readdirSafeSync,
+  resolveSafeChildPath,
+  writeFileSafeSync,
+} from "../utils/security";
 
 /**
  * Clean existing VTT files by removing alignment tags that force left-alignment
@@ -9,24 +14,21 @@ async function cleanVttFiles() {
     console.log("Starting VTT file cleanup...");
     
     try {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!fs.existsSync(SUBTITLES_DIR)) {
+        if (!pathExistsSafeSync(SUBTITLES_DIR, SUBTITLES_DIR)) {
             console.log("Subtitles directory doesn't exist");
             return;
         }
         
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const vttFiles = fs.readdirSync(SUBTITLES_DIR).filter((file) => file.endsWith(".vtt"));
+        const vttFiles = readdirSafeSync(SUBTITLES_DIR, SUBTITLES_DIR).filter((file) => file.endsWith(".vtt"));
         console.log(`Found ${vttFiles.length} VTT files to clean`);
         
         let cleanedCount = 0;
         
         for (const vttFile of vttFiles) {
-            const filePath = path.join(SUBTITLES_DIR, vttFile);
+            const filePath = resolveSafeChildPath(SUBTITLES_DIR, vttFile);
             
             // Read VTT file
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            let vttContent = fs.readFileSync(filePath, 'utf-8');
+            let vttContent = readFileSafeSync(filePath, SUBTITLES_DIR, 'utf-8');
             
             // Check if it has alignment tags
             if (vttContent.includes('align:start') || vttContent.includes('position:0%')) {
@@ -36,8 +38,7 @@ async function cleanVttFiles() {
                 vttContent = vttContent.replace(/ position:0%/g, '');
                 
                 // Write cleaned content back
-                // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                fs.writeFileSync(filePath, vttContent, 'utf-8');
+                writeFileSafeSync(filePath, SUBTITLES_DIR, vttContent, 'utf-8');
                 console.log(`Cleaned: ${vttFile}`);
                 cleanedCount++;
             }

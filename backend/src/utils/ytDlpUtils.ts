@@ -1,5 +1,4 @@
 import { spawn } from "child_process";
-import fs from "fs-extra";
 import path from "path";
 import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -7,6 +6,11 @@ import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { DATA_DIR } from "../config/paths";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
+import {
+  moveSafeSync,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+} from "./security";
 
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
@@ -185,8 +189,7 @@ function preprocessUrl(url: string): string {
  * Get cookies file path if it exists
  */
 function getCookiesPath(): string | null {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (fs.existsSync(COOKIES_PATH)) {
+  if (pathExistsSafeSync(COOKIES_PATH, DATA_DIR)) {
     return COOKIES_PATH;
   }
   return null;
@@ -601,7 +604,10 @@ export async function downloadChannelAvatar(
   const channelUrl = preprocessUrl(channelUrlRaw);
   const outputDir = path.dirname(outputPath);
   const outputFilename = path.basename(outputPath, path.extname(outputPath));
-  const outputTemplate = path.join(outputDir, `${outputFilename}.%(ext)s`);
+  const outputTemplate = resolveSafeChildPath(
+    outputDir,
+    `${outputFilename}.%(ext)s`
+  );
 
   const args = [
     "--write-thumbnail",
@@ -650,13 +656,17 @@ export async function downloadChannelAvatar(
       const possibleExtensions = ["jpg", "jpeg", "png", "webp"];
       let foundFile = false;
       for (const ext of possibleExtensions) {
-        const possiblePath = path.join(outputDir, `${outputFilename}.${ext}`);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(possiblePath)) {
+        const possiblePath = resolveSafeChildPath(
+          outputDir,
+          `${outputFilename}.${ext}`
+        );
+        if (pathExistsSafeSync(possiblePath, outputDir)) {
           // If it's not a jpg, rename it to jpg
           if (ext !== "jpg" && outputPath.endsWith(".jpg")) {
             try {
-              fs.moveSync(possiblePath, outputPath, { overwrite: true });
+              moveSafeSync(possiblePath, outputDir, outputPath, outputDir, {
+                overwrite: true,
+              });
             } catch (error) {
               console.warn(`Failed to rename avatar to .jpg:`, error);
               // If rename fails, just use the original file
@@ -674,8 +684,7 @@ export async function downloadChannelAvatar(
       }
 
       // If no file found, check if outputPath exists (might have been created directly)
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (fs.existsSync(outputPath)) {
+      if (pathExistsSafeSync(outputPath, outputDir)) {
         resolve(true);
         return;
       }
