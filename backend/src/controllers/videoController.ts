@@ -1059,12 +1059,15 @@ export const uploadSubtitle = async (
       await new Promise<void>((resolve, reject) => {
         const readStream = createReadStreamSafe(sourcePath, SUBTITLES_DIR);
         const writeStream = createWriteStreamSafe(vttPath, SUBTITLES_DIR);
-        readStream
-          .pipe(assToVtt())
-          .pipe(writeStream)
-          .on("finish", () => resolve())
-          .on("error", reject);
+        const assToVttStream = assToVtt();
+
         readStream.on("error", reject);
+        assToVttStream.on("error", reject);
+        writeStream.on("finish", () => resolve());
+        writeStream.on("error", reject);
+
+        readStream.pipe(assToVttStream);
+        assToVttStream.pipe(writeStream);
       });
       unlinkSafeSync(sourcePath, SUBTITLES_DIR);
       sourcePath = vttPath;
