@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "../contexts/LanguageContext";
 import { Settings } from "../types";
-import { api, getApiErrorMessage } from "../utils/apiClient";
+import { api, getApiErrorData, getApiErrorMessage } from "../utils/apiClient";
 import { generateTimestamp } from "../utils/formatUtils";
 import { InfoModalState } from "./useSettingsModals";
 
@@ -151,7 +151,7 @@ export function useSettingsMutations({
         queryClient.invalidateQueries({ queryKey: ["videos"] });
       }
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const msg = await getApiErrorMessage(error, t);
       setMessage({
         text: typeof msg === "string" && msg ? msg : t("settingsFailed"),
@@ -204,7 +204,7 @@ export function useSettingsMutations({
         type: hasData ? "success" : "warning",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -238,9 +238,10 @@ export function useSettingsMutations({
         type: errors && errors.length > 0 ? "warning" : "success",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
+      const errorData = await getApiErrorData(error);
       const errorMsg =
-        error.response?.data?.error ===
+        errorData?.error ===
         "Cannot clean up while downloads are active"
           ? t("cleanupTempFilesActiveDownloads")
           : formatErrorText(
@@ -279,7 +280,7 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -324,7 +325,7 @@ export function useSettingsMutations({
         type: results.errors > 0 ? "warning" : "success",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const detail = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -367,7 +368,7 @@ export function useSettingsMutations({
 
       setMessage({ text: t("databaseExportedSuccess"), type: "success" });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
       setMessage({
         text: formatErrorText(t("databaseExportFailed"), errorDetails),
@@ -400,7 +401,7 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -455,7 +456,7 @@ export function useSettingsMutations({
       invalidateDatabaseQueries();
       refetchLastBackupInfo();
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -478,7 +479,7 @@ export function useSettingsMutations({
         type: "success",
       });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
       setMessage({
         text: formatErrorText(t("backupDatabasesCleanupFailed"), errorDetails),
@@ -515,7 +516,7 @@ export function useSettingsMutations({
       // Refetch last backup info after restore
       refetchLastBackupInfo();
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const errorDetails = await getApiErrorMessage(error, t);
       setInfoModal({
         isOpen: true,
@@ -546,7 +547,7 @@ export function useSettingsMutations({
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["videos"] });
     },
-    onError: async (error: any) => {
+    onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);
       const text =
         typeof apiMsg === "string" && apiMsg
