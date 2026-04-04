@@ -31,8 +31,8 @@ interface MigrationCategoryResult {
 }
 
 interface MigrationResults {
-  warnings: string[];
-  errors: string[];
+  warnings?: string[];
+  errors?: string[];
   videos?: MigrationCategoryResult;
   collections?: MigrationCategoryResult;
   settings?: MigrationCategoryResult;
@@ -197,11 +197,13 @@ export function useSettingsMutations({
       return res.data.results;
     },
     onSuccess: (results: MigrationResults) => {
+      const warnings = results.warnings ?? [];
+      const errors = results.errors ?? [];
       let msg = `${t("migrationReport")}:\n`;
       let hasData = false;
 
-      if (results.warnings && results.warnings.length > 0) {
-        msg += `\n⚠️ ${t("migrationWarnings")}:\n${results.warnings.join(
+      if (warnings.length > 0) {
+        msg += `\n⚠️ ${t("migrationWarnings")}:\n${warnings.join(
           "\n"
         )}\n`;
       }
@@ -225,11 +227,11 @@ export function useSettingsMutations({
       appendCategoryResult("settings", results.settings);
       appendCategoryResult("downloads", results.downloads);
 
-      if (results.errors && results.errors.length > 0) {
-        msg += `\n\n⛔ ${t("migrationErrors")}:\n${results.errors.join("\n")}`;
+      if (errors.length > 0) {
+        msg += `\n\n⛔ ${t("migrationErrors")}:\n${errors.join("\n")}`;
       }
 
-      if (!hasData && results.errors.length === 0) {
+      if (!hasData && errors.length === 0) {
         msg += `\n\n⚠️ ${t("noDataFilesFound")}`;
       }
 
