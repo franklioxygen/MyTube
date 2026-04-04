@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
+type FullscreenTarget = Element & {
+  requestFullscreen?: () => Promise<void>;
+};
+
+type LegacyFullscreenTarget = Element & {
+  webkitEnterFullscreen?: () => void;
+};
+
+type FullscreenApiDocument = Document & {
+  exitFullscreen?: () => Promise<void>;
+};
+
 export const useFullscreen = (
   videoRef: React.RefObject<HTMLVideoElement | null>
 ) => {
@@ -108,27 +120,22 @@ export const useFullscreen = (
     // Use the container that wraps both video and controls so controls stay visible in fullscreen
     const container = videoContainerRef.current;
     const videoElement = videoRef.current;
-    const fullscreenContainer = container as HTMLDivElement & {
-      requestFullscreen?: () => Promise<void>;
-    };
-    const webkitVideoElement = videoElement as HTMLVideoElement & {
-      webkitEnterFullscreen?: () => void;
-    };
-    const fullscreenDocument = document as Document & {
-      exitFullscreen?: () => Promise<void>;
-    };
 
     if (!container || !videoElement) return;
 
+    const fullscreenTarget = container as FullscreenTarget;
+    const legacyFullscreenTarget = videoElement as LegacyFullscreenTarget;
+    const fullscreenDocument = document as FullscreenApiDocument;
+
     if (!document.fullscreenElement) {
-      if (typeof fullscreenContainer.requestFullscreen === "function") {
-        void fullscreenContainer.requestFullscreen().catch((err) => {
+      if (typeof fullscreenTarget.requestFullscreen === "function") {
+        void fullscreenTarget.requestFullscreen().catch((err) => {
           console.error(
             `Error attempting to enable fullscreen: ${err.message}`
           );
         });
-      } else if (typeof webkitVideoElement.webkitEnterFullscreen === "function") {
-        webkitVideoElement.webkitEnterFullscreen();
+      } else if (typeof legacyFullscreenTarget.webkitEnterFullscreen === "function") {
+        legacyFullscreenTarget.webkitEnterFullscreen();
       }
     } else if (typeof fullscreenDocument.exitFullscreen === "function") {
       void fullscreenDocument.exitFullscreen();

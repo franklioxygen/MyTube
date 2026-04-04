@@ -70,8 +70,8 @@ const ensureSmallThumbnail = async (
     }
 
     setCommonImageHeaders(res);
-    res.sendFile(fallbackAbsolutePath, (sendFileError?: Error) => {
-      if (typeof sendFileError !== "undefined") {
+    res.sendFile(fallbackAbsolutePath, (sendFileError?: Error | null) => {
+      if (sendFileError != null) {
         next(sendFileError);
       }
     });

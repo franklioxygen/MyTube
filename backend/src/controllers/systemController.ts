@@ -56,7 +56,7 @@ const createVersionResponse = (
   };
 };
 
-const getReleasePageHtmlUrl = (release: GithubReleaseResponse): string => {
+const getReleasePageUrl = (release: GithubReleaseResponse): string => {
   return release.html_url;
 };
 
@@ -78,9 +78,9 @@ export const getLatestVersion = async (req: Request, res: Response) => {
     );
 
     const latestVersion = response.data.tag_name.replace(/^v/, "");
-    const releaseHtmlUrl = getReleasePageHtmlUrl(response.data);
+    const releaseUrl = getReleasePageUrl(response.data);
 
-    res.json(createVersionResponse(latestVersion, releaseHtmlUrl));
+    res.json(createVersionResponse(latestVersion, releaseUrl));
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       // Fallback: Try to get tags if no release is published

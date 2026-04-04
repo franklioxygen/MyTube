@@ -92,8 +92,14 @@ const normalizeSettingsPatchInput = (
     normalized.visitorPassword = visitorPassword;
   }
 
+  const normalizedEntries = Object.entries(normalized) as Array<
+    [keyof Settings, Settings[keyof Settings] | undefined]
+  >;
+
   return Object.fromEntries(
-    Object.entries(normalized).filter(([, value]) => value !== undefined),
+    normalizedEntries.flatMap(([key, value]) =>
+      typeof value === "undefined" ? [] : ([[key, value]] as const),
+    ),
   ) as Partial<Settings>;
 };
 
@@ -199,6 +205,7 @@ export function useSettingsMutations({
     onSuccess: (results: MigrationResults) => {
       const warnings = results.warnings ?? [];
       const errors = results.errors ?? [];
+      const hasErrors = errors.length > 0;
       let msg = `${t("migrationReport")}:\n`;
       let hasData = false;
 
@@ -227,11 +234,11 @@ export function useSettingsMutations({
       appendCategoryResult("settings", results.settings);
       appendCategoryResult("downloads", results.downloads);
 
-      if (errors.length > 0) {
+      if (hasErrors) {
         msg += `\n\n⛔ ${t("migrationErrors")}:\n${errors.join("\n")}`;
       }
 
-      if (!hasData && errors.length === 0) {
+      if (!hasData && !hasErrors) {
         msg += `\n\n⚠️ ${t("noDataFilesFound")}`;
       }
 
