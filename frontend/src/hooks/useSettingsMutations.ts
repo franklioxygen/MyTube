@@ -236,9 +236,7 @@ export function useSettingsMutations({
 
       if (hasErrors) {
         msg += `\n\n⛔ ${t("migrationErrors")}:\n${errors.join("\n")}`;
-      }
-
-      if (!hasData && !hasErrors) {
+      } else if (!hasData) {
         msg += `\n\n⚠️ ${t("noDataFilesFound")}`;
       }
 

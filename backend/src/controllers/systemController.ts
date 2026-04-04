@@ -56,10 +56,6 @@ const createVersionResponse = (
   };
 };
 
-const getReleasePageUrl = (release: GithubReleaseResponse): string => {
-  return release.html_url;
-};
-
 const getTagReleaseUrl = (tag: GithubTag): string => {
   return `https://github.com/franklioxygen/mytube/releases/tag/${tag.name}`;
 };
@@ -78,7 +74,7 @@ export const getLatestVersion = async (req: Request, res: Response) => {
     );
 
     const latestVersion = response.data.tag_name.replace(/^v/, "");
-    const releaseUrl = getReleasePageUrl(response.data);
+    const releaseUrl = response.data.html_url;
 
     res.json(createVersionResponse(latestVersion, releaseUrl));
   } catch (error) {
