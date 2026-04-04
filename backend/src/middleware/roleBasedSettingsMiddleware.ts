@@ -63,6 +63,7 @@ export const roleBasedSettingsMiddleware = (
     res.status(403).json({
       success: false,
       error: "API key authentication cannot access settings endpoints.",
+      errorKey: "settingsApiKeyForbidden",
     });
     return;
   }
@@ -97,6 +98,7 @@ export const roleBasedSettingsMiddleware = (
       res.status(403).json({
         success: false,
         error: "Visitor role: Access to this resource is restricted.",
+        errorKey: "settingsVisitorAccessRestricted",
       });
       return;
     }
@@ -136,6 +138,7 @@ export const roleBasedSettingsMiddleware = (
         success: false,
         error:
           "Visitor role: Only reading settings and updating CloudFlare settings is allowed.",
+        errorKey: "settingsVisitorWriteRestricted",
       });
       return;
     }
@@ -144,6 +147,7 @@ export const roleBasedSettingsMiddleware = (
     res.status(403).json({
       success: false,
       error: "Visitor role: Write operations are not allowed.",
+      errorKey: "settingsVisitorWriteForbidden",
     });
     return;
   }
@@ -155,6 +159,7 @@ export const roleBasedSettingsMiddleware = (
       res.status(401).json({
         success: false,
         error: "Authentication required. Please log in to access this resource.",
+        errorKey: "settingsAuthRequired",
       });
       return;
     }

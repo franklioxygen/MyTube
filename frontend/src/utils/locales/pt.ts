@@ -258,6 +258,7 @@ export const pt = {
   removeLegacyDataConfirmMessage:
     "Tem certeza de que deseja excluir os arquivos de dados JSON legados? Esta ação não pode ser desfeita.",
   legacyDataDeleted: "Dados legados excluídos com sucesso.",
+  legacyDataDeleteFailed: "Falha ao excluir dados legados",
   formatLegacyFilenames: "Formatar Nomes de Arquivos Legados",
   formatLegacyFilenamesDescription:
     "Renomear em lote todos os arquivos de vídeo, miniaturas e legendas para o novo formato padrão: Título-Autor-AAAA. Esta operação modificará os nomes dos arquivos no disco e atualizará a lógica do banco de dados.",
@@ -1135,4 +1136,16 @@ export const pt = {
     "Formato de vídeo não compatível com o Safari. O Safari funciona melhor com vídeos H.264/MP4. Baixe novamente com o codec H.264.",
   browserVideoFormatNotSupported:
     "O formato de vídeo não é compatível com seu navegador.",
+
+  // Erros do middleware de configurações baseado em funções
+  settingsApiKeyForbidden:
+    "A autenticação por chave API não pode acessar os endpoints de configurações.",
+  settingsVisitorAccessRestricted:
+    "Função de visitante: O acesso a este recurso é restrito.",
+  settingsVisitorWriteRestricted:
+    "Função de visitante: Somente a leitura de configurações e a atualização das configurações do CloudFlare são permitidas.",
+  settingsVisitorWriteForbidden:
+    "Função de visitante: Operações de escrita não são permitidas.",
+  settingsAuthRequired:
+    "Autenticação necessária. Faça login para acessar este recurso.",
 };

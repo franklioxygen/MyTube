@@ -254,6 +254,7 @@ export const ko = {
   removeLegacyDataConfirmMessage:
     "레거시 JSON 데이터 파일을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
   legacyDataDeleted: "레거시 데이터가 성공적으로 삭제되었습니다.",
+  legacyDataDeleteFailed: "레거시 데이터 삭제에 실패했습니다",
   formatLegacyFilenames: "레거시 파일 이름 형식 지정",
   formatLegacyFilenamesDescription:
     "모든 동영상 파일, 썸네일, 자막을 새로운 표준 형식인 제목-작성자-YYYY로 일괄 이름을 변경합니다. 이 작업은 디스크의 파일 이름을 수정하고 데이터베이스 로직을 업데이트합니다.",
@@ -1111,4 +1112,16 @@ export const ko = {
     "Safari에서 이 동영상 형식은 지원되지 않습니다. Safari는 H.264/MP4 동영상에서 가장 잘 작동합니다. H.264 코덱으로 다시 다운로드해 주세요.",
   browserVideoFormatNotSupported:
     "브라우저에서 이 동영상 형식을 지원하지 않습니다.",
+
+  // 역할 기반 설정 미들웨어 오류
+  settingsApiKeyForbidden:
+    "API 키 인증으로는 설정 엔드포인트에 접근할 수 없습니다.",
+  settingsVisitorAccessRestricted:
+    "방문자 역할: 이 리소스에 대한 접근이 제한되어 있습니다.",
+  settingsVisitorWriteRestricted:
+    "방문자 역할: 설정 읽기와 CloudFlare 설정 업데이트만 허용됩니다.",
+  settingsVisitorWriteForbidden:
+    "방문자 역할: 쓰기 작업은 허용되지 않습니다.",
+  settingsAuthRequired:
+    "인증이 필요합니다. 이 리소스에 접근하려면 로그인하세요.",
 };

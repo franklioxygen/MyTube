@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CookieSettings from '../CookieSettings';
+
+const mockApiPost = vi.fn();
+const mockGetApiErrorMessage = vi.fn();
 
 // Mock contexts and hooks
 vi.mock('../../../contexts/LanguageContext', () => ({
@@ -28,8 +30,12 @@ vi.mock('../../ConfirmationModal', () => ({
     },
 }));
 
-// Mock axios
-vi.mock('axios');
+vi.mock('../../../utils/apiClient', () => ({
+    api: {
+        post: (...args: any[]) => mockApiPost(...args),
+    },
+    getApiErrorMessage: (...args: any[]) => mockGetApiErrorMessage(...args),
+}));
 
 describe('CookieSettings', () => {
     const mockOnSuccess = vi.fn();
@@ -37,6 +43,7 @@ describe('CookieSettings', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetApiErrorMessage.mockResolvedValue(undefined);
         // Default useQuery mock
         (useQuery as any).mockReturnValue({
             data: { exists: false },
@@ -78,7 +85,7 @@ describe('CookieSettings', () => {
             refetch: refetchMock,
             isLoading: false,
         });
-        (axios.post as any).mockResolvedValue({ data: {} });
+        mockApiPost.mockResolvedValue({ data: {} });
 
         render(<CookieSettings onSuccess={mockOnSuccess} onError={mockOnError} />);
 
@@ -95,7 +102,7 @@ describe('CookieSettings', () => {
             await user.upload(fileInput, file);
         }
 
-        expect(axios.post).toHaveBeenCalledWith(
+        expect(mockApiPost).toHaveBeenCalledWith(
             expect.stringContaining('/settings/upload-cookies'),
             expect.any(FormData),
             expect.any(Object)
@@ -118,7 +125,7 @@ describe('CookieSettings', () => {
         }
 
         expect(mockOnError).toHaveBeenCalledWith('onlyTxtFilesAllowed');
-        expect(axios.post).not.toHaveBeenCalled();
+        expect(mockApiPost).not.toHaveBeenCalled();
     });
 
     it('should handle delete cookies', async () => {
@@ -144,5 +151,46 @@ describe('CookieSettings', () => {
         await user.click(screen.getByText('Confirm'));
 
         expect(mutateMock).toHaveBeenCalled();
+    });
+
+    it('surfaces translated upload errors from the backend', async () => {
+        const user = userEvent.setup();
+        mockApiPost.mockRejectedValue(new Error('forbidden'));
+        mockGetApiErrorMessage.mockResolvedValue('localized settings auth error');
+
+        render(<CookieSettings onSuccess={mockOnSuccess} onError={mockOnError} />);
+
+        const file = new File(['cookie data'], 'cookies.txt', { type: 'text/plain' });
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        await user.upload(fileInput, file);
+
+        await waitFor(() => {
+            expect(mockOnError).toHaveBeenCalledWith('localized settings auth error');
+        });
+    });
+
+    it('surfaces translated delete errors from the backend', async () => {
+        const user = userEvent.setup();
+        (useQuery as any).mockReturnValue({
+            data: { exists: true },
+            refetch: vi.fn(),
+            isLoading: false,
+        });
+        (useMutation as any).mockImplementation(({ onError }: any) => ({
+            mutate: () => {
+                Promise.resolve().then(() => onError?.(new Error('delete failed')));
+            },
+            isPending: false,
+        }));
+        mockGetApiErrorMessage.mockResolvedValue('localized delete denied');
+
+        render(<CookieSettings onSuccess={mockOnSuccess} onError={mockOnError} />);
+
+        await user.click(screen.getByText('deleteCookies'));
+        await user.click(screen.getByText('Confirm'));
+
+        await waitFor(() => {
+            expect(mockOnError).toHaveBeenCalledWith('localized delete denied');
+        });
     });
 });

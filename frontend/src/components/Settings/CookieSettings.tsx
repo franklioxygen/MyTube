@@ -3,7 +3,7 @@ import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material'
 import { useMutation, useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { api } from '../../utils/apiClient';
+import { api, getApiErrorMessage } from '../../utils/apiClient';
 import ConfirmationModal from '../ConfirmationModal';
 
 interface CookieSettingsProps {
@@ -35,7 +35,7 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
             handleSuccess(t('cookiesUploadedSuccess') || 'Cookies uploaded successfully');
         } catch (error) {
             console.error('Error uploading cookies:', error);
-            onError(t('cookiesUploadFailed') || 'Failed to upload cookies');
+            onError(await getApiErrorMessage(error, t) || t('cookiesUploadFailed') || 'Failed to upload cookies');
         }
 
     };
@@ -63,8 +63,8 @@ const CookieSettings: React.FC<CookieSettingsProps> = ({ onSuccess, onError }) =
             onSuccess(t('cookiesDeletedSuccess') || 'Cookies deleted successfully');
             refetchCookieStatus();
         },
-        onError: () => {
-            onError(t('cookiesDeleteFailed') || 'Failed to delete cookies');
+        onError: async (error: any) => {
+            onError(await getApiErrorMessage(error, t) || t('cookiesDeleteFailed') || 'Failed to delete cookies');
         }
     });
 

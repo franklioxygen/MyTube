@@ -46,7 +46,7 @@ import { useSettingsModals } from '../hooks/useSettingsModals';
 import { useSettingsMutations } from '../hooks/useSettingsMutations';
 import { useStickyButton } from '../hooks/useStickyButton';
 import { AdminTrustLevel, Settings } from '../types';
-import { api } from '../utils/apiClient';
+import { api, getApiErrorMessage } from '../utils/apiClient';
 import ConsoleManager from '../utils/consoleManager';
 import { SNACKBAR_AUTO_HIDE_DURATION } from '../utils/constants';
 import { getTwitchCredentialValidationCode } from '../utils/twitch';
@@ -286,12 +286,12 @@ const SettingsPage: React.FC = () => {
                         // Update local settings state to reflect saved mountDirectories
                         setSettings(prev => ({ ...prev, mountDirectories: data.mountDirectoriesText }));
                     },
-                    onError: (saveError: any) => {
+                    onError: async (saveError: any) => {
                         const scanMsg = t('scanMountDirectoriesSuccess', {
                             addedCount: data.addedCount,
                             deletedCount: data.deletedCount
                         }) || `Mount directories scan complete. Added ${data.addedCount} new videos. Deleted ${data.deletedCount} missing videos.`;
-                        const saveErrorMsg = saveError.response?.data?.message || t('settingsFailed') || 'Failed to save settings.';
+                        const saveErrorMsg = await getApiErrorMessage(saveError, t) || t('settingsFailed') || 'Failed to save settings.';
                         setMessage({ text: `${scanMsg} Warning: ${saveErrorMsg}`, type: 'warning' });
                     }
                 });
@@ -303,8 +303,9 @@ const SettingsPage: React.FC = () => {
                 setMessage({ text: scanMsg, type: 'success' });
             }
         },
-        onError: (error: any) => {
-            setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${error.response?.data?.error || error.response?.data?.details || error.message}`, type: 'error' });
+        onError: async (error: any) => {
+            const detail = await getApiErrorMessage(error, t);
+            setMessage({ text: `${t('scanFilesFailed') || 'Scan failed'}: ${detail}`, type: 'error' });
         }
     });
 

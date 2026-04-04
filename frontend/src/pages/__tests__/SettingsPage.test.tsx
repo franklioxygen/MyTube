@@ -66,6 +66,11 @@ vi.mock('../../utils/apiClient', () => ({
   api: {
     post: (...args: any[]) => mockApiPost(...args),
   },
+  getApiErrorMessage: async (error: any) =>
+    error?.response?.data?.error ||
+    error?.response?.data?.details ||
+    error?.response?.data?.message ||
+    error?.message,
 }));
 
 vi.mock('../../hooks/useSettings', () => ({
