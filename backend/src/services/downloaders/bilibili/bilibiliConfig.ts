@@ -15,12 +15,30 @@ export interface PreparedBilibiliFlags {
   formatSort?: string;
 }
 
+type SupportedStringFlagKey = "S" | "formatSort" | "f" | "format";
+
+function getSupportedStringFlagValue(
+  flags: BilibiliDownloadFlags,
+  key: SupportedStringFlagKey
+): string | number | boolean | string[] | undefined | null {
+  switch (key) {
+    case "S":
+      return flags.S;
+    case "formatSort":
+      return flags.formatSort;
+    case "f":
+      return flags.f;
+    case "format":
+      return flags.format;
+  }
+}
+
 function getStringFlag(
   flags: BilibiliDownloadFlags,
-  ...keys: string[]
+  ...keys: SupportedStringFlagKey[]
 ): string | undefined {
   for (const key of keys) {
-    const value = flags[key];
+    const value = getSupportedStringFlagValue(flags, key);
     if (typeof value === "string" && value.length > 0) {
       return value;
     }

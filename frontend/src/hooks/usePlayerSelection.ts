@@ -10,6 +10,10 @@ interface UsePlayerSelectionProps {
     getVideoUrl: () => Promise<string>;
 }
 
+type ClipboardWithOptionalWrite = {
+    writeText?: unknown;
+};
+
 /**
  * Hook to manage player selection menu and external player opening
  */
@@ -44,13 +48,18 @@ export const usePlayerSelection = ({ video, getVideoUrl }: UsePlayerSelectionPro
             document.body.removeChild(textArea);
         };
 
-        const clipboard = navigator.clipboard;
-        if (!clipboard?.writeText) {
+        const clipboard = navigator.clipboard as ClipboardWithOptionalWrite | undefined;
+        const clipboardWriteText =
+            typeof clipboard?.writeText === "function"
+                ? (clipboard.writeText as (text: string) => Promise<void>).bind(clipboard)
+                : null;
+
+        if (!clipboardWriteText) {
             fallbackCopy();
             return;
         }
 
-        void clipboard.writeText(resolvedVideoUrl).then(() => {
+        void clipboardWriteText(resolvedVideoUrl).then(() => {
             showSnackbar(t('linkCopied'), 'success');
         }).catch(() => {
             fallbackCopy();

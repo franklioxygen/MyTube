@@ -206,8 +206,14 @@ export function useSettingsMutations({
       const warnings = results.warnings ?? [];
       const errors = results.errors ?? [];
       const hasErrors = errors.length > 0;
+      const categoryResults: Array<[string, MigrationCategoryResult | undefined]> = [
+        ["videos", results.videos],
+        ["collections", results.collections],
+        ["settings", results.settings],
+        ["downloads", results.downloads],
+      ];
+      const hasData = categoryResults.some(([, data]) => Boolean(data?.found));
       let msg = `${t("migrationReport")}:\n`;
-      let hasData = false;
 
       if (warnings.length > 0) {
         msg += `\n⚠️ ${t("migrationWarnings")}:\n${warnings.join(
@@ -222,17 +228,15 @@ export function useSettingsMutations({
         if (data) {
           if (data.found) {
             msg += `\n✅ ${category}: ${data.count} ${t("itemsMigrated")}`;
-            hasData = true;
           } else {
             msg += `\n❌ ${category}: ${t("fileNotFound")} ${data.path}`;
           }
         }
       };
 
-      appendCategoryResult("videos", results.videos);
-      appendCategoryResult("collections", results.collections);
-      appendCategoryResult("settings", results.settings);
-      appendCategoryResult("downloads", results.downloads);
+      categoryResults.forEach(([category, data]) => {
+        appendCategoryResult(category, data);
+      });
 
       if (hasErrors) {
         msg += `\n\n⛔ ${t("migrationErrors")}:\n${errors.join("\n")}`;
