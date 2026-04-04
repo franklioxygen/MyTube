@@ -15,8 +15,26 @@ const CATEGORY_LABELS = new Map([
   ["Security", "Security"],
   ["UnusedCode", "Unused code"],
 ]);
+const CATEGORY_ORDER = [
+  "Security",
+  "ErrorProne",
+  "Performance",
+  "Compatibility",
+  "BestPractice",
+  "CodeStyle",
+  "UnusedCode",
+];
+const SEVERITY_ORDER = [
+  "Critical",
+  "High",
+  "Error",
+  "Medium",
+  "Warning",
+  "Low",
+  "Info",
+];
 const USAGE =
-  "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider PROVIDER] [--owner OWNER] [--repo REPO] [--out OUTPUT_PATH]";
+  "Usage: CODACY_API_TOKEN=... node scripts/codacy/generate-issues-report.mjs [--provider PROVIDER] [--owner OWNER] [--repo REPO] [--out OUTPUT_PATH] [--full-details]";
 
 function usageAndExit(message) {
   if (message) {
@@ -32,6 +50,7 @@ function parseArgs(argv) {
     owner: undefined,
     repo: undefined,
     out: "reports/codacy-current-issues.md",
+    fullDetails: false,
   };
   let pendingOption = null;
 
@@ -71,6 +90,10 @@ function parseArgs(argv) {
     }
     if (arg === "--out") {
       pendingOption = arg;
+      continue;
+    }
+    if (arg === "--full-details") {
+      args.fullDetails = true;
       continue;
     }
     usageAndExit(`Unknown argument: ${arg}`);
@@ -170,6 +193,120 @@ function categoryLabel(raw) {
   return CATEGORY_LABELS.get(raw) || raw || "Unknown";
 }
 
+function inlineCode(text) {
+  const value = String(text ?? "").replace(/\s+/g, " ").trim();
+  return value ? `\`${value.replaceAll("`", "\\`")}\`` : "_(none)_";
+}
+
+function normalizeText(text) {
+  const value = String(text ?? "").replace(/\s+/g, " ").trim();
+  return value || "n/a";
+}
+
+function sortIssues(issues) {
+  const categoryRank = new Map(CATEGORY_ORDER.map((value, index) => [value, index]));
+  const severityRank = new Map(SEVERITY_ORDER.map((value, index) => [value, index]));
+
+  return [...issues].sort((left, right) => {
+    const leftCategory = left?.patternInfo?.category || "Unknown";
+    const rightCategory = right?.patternInfo?.category || "Unknown";
+    const leftCategoryRank = categoryRank.get(leftCategory) ?? CATEGORY_ORDER.length;
+    const rightCategoryRank = categoryRank.get(rightCategory) ?? CATEGORY_ORDER.length;
+    if (leftCategoryRank !== rightCategoryRank) {
+      return leftCategoryRank - rightCategoryRank;
+    }
+
+    const leftSeverity = left?.patternInfo?.severityLevel || "Unknown";
+    const rightSeverity = right?.patternInfo?.severityLevel || "Unknown";
+    const leftSeverityRank = severityRank.get(leftSeverity) ?? SEVERITY_ORDER.length;
+    const rightSeverityRank = severityRank.get(rightSeverity) ?? SEVERITY_ORDER.length;
+    if (leftSeverityRank !== rightSeverityRank) {
+      return leftSeverityRank - rightSeverityRank;
+    }
+
+    const leftFile = left?.filePath || "";
+    const rightFile = right?.filePath || "";
+    const fileCompare = leftFile.localeCompare(rightFile);
+    if (fileCompare !== 0) {
+      return fileCompare;
+    }
+
+    const leftLine = Number(left?.lineNumber || 0);
+    const rightLine = Number(right?.lineNumber || 0);
+    if (leftLine !== rightLine) {
+      return leftLine - rightLine;
+    }
+
+    const leftRule = left?.patternInfo?.id || "";
+    const rightRule = right?.patternInfo?.id || "";
+    const ruleCompare = leftRule.localeCompare(rightRule);
+    if (ruleCompare !== 0) {
+      return ruleCompare;
+    }
+
+    return String(left?.issueId || "").localeCompare(String(right?.issueId || ""));
+  });
+}
+
+function formatIssue(issue, index) {
+  const category = categoryLabel(issue?.patternInfo?.category);
+  const severity = issue?.patternInfo?.severityLevel || issue?.patternInfo?.level || "Unknown";
+  const subCategory = issue?.patternInfo?.subCategory || "n/a";
+  const toolName = issue?.toolInfo?.name || "Unknown";
+  const toolUuid = issue?.toolInfo?.uuid || "";
+  const filePath = issue?.filePath || "unknown";
+  const lineNumber = issue?.lineNumber || "?";
+  const commitSha = issue?.commitInfo?.sha || "n/a";
+  const commitName = issue?.commitInfo?.commiterName || "n/a";
+  const commitEmail = issue?.commitInfo?.commiter || "n/a";
+  const commitTimestamp = issue?.commitInfo?.timestamp || "n/a";
+  const falsePositiveThreshold =
+    issue?.falsePositiveThreshold === undefined ? "n/a" : String(issue.falsePositiveThreshold);
+
+  return [
+    `### ${index}. ${inlineCode(`${filePath}:${lineNumber}`)}`,
+    "",
+    `- Category: ${category}`,
+    `- Severity: ${severity}`,
+    `- Rule: ${inlineCode(issue?.patternInfo?.id || "Unknown")}`,
+    `- Subcategory: ${inlineCode(subCategory)}`,
+    `- Tool: ${inlineCode(toolName)}${toolUuid ? ` (${inlineCode(toolUuid)})` : ""}`,
+    `- Language: ${inlineCode(issue?.language || "Unknown")}`,
+    `- Message: ${normalizeText(issue?.message)}`,
+    `- Source line: ${inlineCode(issue?.lineText || "")}`,
+    `- Codacy IDs: issue ${inlineCode(issue?.issueId || "n/a")}, result data ${inlineCode(issue?.resultDataId || "n/a")}, file ${inlineCode(issue?.fileId || "n/a")}`,
+    `- False positive threshold: ${falsePositiveThreshold}`,
+    `- Commit: ${inlineCode(commitSha)} by ${inlineCode(commitName)} (${inlineCode(commitEmail)}) at ${inlineCode(commitTimestamp)}`,
+  ].join("\n");
+}
+
+function buildFullDetailsSections(issues) {
+  const grouped = new Map();
+  const sortedIssues = sortIssues(issues);
+
+  for (const issue of sortedIssues) {
+    const category = issue?.patternInfo?.category || "Unknown";
+    if (!grouped.has(category)) {
+      grouped.set(category, []);
+    }
+    grouped.get(category).push(issue);
+  }
+
+  return [...grouped.entries()]
+    .map(([category, categoryIssues]) => {
+      const issueSections = categoryIssues
+        .map((issue, index) => formatIssue(issue, index + 1))
+        .join("\n\n");
+
+      return [
+        `## ${categoryLabel(category)} Issues (${categoryIssues.length})`,
+        "",
+        issueSections,
+      ].join("\n");
+    })
+    .join("\n\n");
+}
+
 function buildMarkdown({
   provider,
   owner,
@@ -177,6 +314,7 @@ function buildMarkdown({
   issues,
   totalFromApi,
   generatedAt,
+  fullDetails,
 }) {
   const byCategory = countBy(issues, (issue) => issue?.patternInfo?.category);
   const bySeverity = countBy(issues, (issue) => issue?.patternInfo?.severityLevel);
@@ -240,6 +378,13 @@ function buildMarkdown({
       ].join("\n");
     })
     .join("\n\n");
+  const fullIssueSections = fullDetails
+    ? [
+        "## Full Issue Details",
+        "",
+        buildFullDetailsSections(issues),
+      ].join("\n")
+    : "";
 
   return [
     "# Codacy Current Issues Report",
@@ -270,12 +415,13 @@ function buildMarkdown({
     mdTable(["File", "Total"], topFileRows),
     "",
     detailsSections,
+    ...(fullIssueSections ? ["", fullIssueSections] : []),
     "",
   ].join("\n");
 }
 
 async function main() {
-  const { provider, owner: cliOwner, repo: cliRepo, out } = parseArgs(
+  const { provider, owner: cliOwner, repo: cliRepo, out, fullDetails } = parseArgs(
     process.argv.slice(2),
   );
   const token = process.env.CODACY_API_TOKEN;
@@ -309,6 +455,7 @@ async function main() {
     issues: allIssues,
     totalFromApi,
     generatedAt: new Date().toISOString(),
+    fullDetails,
   });
 
   const outputPath = resolvePathWithinCwd(out);

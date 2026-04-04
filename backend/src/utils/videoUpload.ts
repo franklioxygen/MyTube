@@ -4,6 +4,13 @@ import fs from "fs-extra";
 import multer from "multer";
 import path from "path";
 import { ValidationError } from "../errors/DownloadErrors";
+import {
+  createWriteStreamSafe,
+  ensureDirSafeSync,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+} from "./security";
 
 const HEADER_SNIFF_BYTES = 4096;
 
@@ -202,7 +209,7 @@ export const createVideoUploadStorage = (
 
       const originalExtension = path.extname(file.originalname).toLowerCase();
       const filename = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${originalExtension || ".upload"}`;
-      const targetPath = path.join(destinationDir, filename);
+      const targetPath = resolveSafeChildPath(destinationDir, filename);
       const hash = crypto.createHash("sha256");
       const bufferedChunks: Buffer[] = [];
       let bufferedBytes = 0;
@@ -233,8 +240,8 @@ export const createVideoUploadStorage = (
         if (writeStream) {
           writeStream.destroy();
         }
-        if (fs.existsSync(targetPath)) {
-          fs.unlinkSync(targetPath);
+        if (pathExistsSafeSync(targetPath, destinationDir)) {
+          unlinkSafeSync(targetPath, destinationDir);
         }
       };
 
@@ -259,8 +266,8 @@ export const createVideoUploadStorage = (
           return writeStream;
         }
 
-        fs.ensureDirSync(destinationDir);
-        writeStream = fs.createWriteStream(targetPath);
+        ensureDirSafeSync(destinationDir, destinationDir);
+        writeStream = createWriteStreamSafe(targetPath, destinationDir);
         writeStream.on("error", (error) => {
           cleanup();
           if (!settled) {
@@ -402,8 +409,8 @@ export const createVideoUploadStorage = (
     _removeFile(_req, file, cb) {
       try {
         const storedFile = file as UploadedVideoFile;
-        if (storedFile.path && fs.existsSync(storedFile.path)) {
-          fs.unlinkSync(storedFile.path);
+        if (storedFile.path && pathExistsSafeSync(storedFile.path, destinationDir)) {
+          unlinkSafeSync(storedFile.path, destinationDir);
         }
         cb(null);
       } catch (error) {

@@ -1,11 +1,14 @@
-import child_process from "child_process";
-import fs from "fs";
-import path from "path";
-import util from "util";
 import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { HOOKS_DIR } from "../config/paths";
 import { logger } from "../utils/logger";
-import { isPathWithinDirectory } from "../utils/security";
+import {
+  ensureDirSafeSync,
+  execFileSafe,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  unlinkSafeSync,
+  writeFileSafeSync,
+} from "../utils/security";
 
 export interface HookContext {
   taskId: string;
@@ -17,8 +20,6 @@ export interface HookContext {
   error?: string;
 }
 
-const execPromise = util.promisify(child_process.exec);
-
 const sanitizeHookEnvValue = (value: string): string =>
   value.replace(/\0/g, "").replace(/[\r\n]+/g, " ").trim();
 
@@ -27,11 +28,7 @@ export class HookService {
    * Initialize hooks directory
    */
   static initialize(): void {
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(HOOKS_DIR)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.mkdirSync(HOOKS_DIR, { recursive: true });
-    }
+    ensureDirSafeSync(HOOKS_DIR, HOOKS_DIR);
   }
 
   private static sanitizeHookName(hookName: string): string {
@@ -44,12 +41,7 @@ export class HookService {
 
   private static getSafeHookPath(hookName: string): string {
     const safeName = this.sanitizeHookName(hookName);
-    const resolvedHooksDir = path.resolve(HOOKS_DIR);
-    const hookPath = path.resolve(resolvedHooksDir, `${safeName}.sh`);
-    if (!isPathWithinDirectory(hookPath, resolvedHooksDir)) {
-      throw new Error("Invalid hook path");
-    }
-    return hookPath;
+    return resolveSafeChildPath(HOOKS_DIR, `${safeName}.sh`);
   }
 
   /**
@@ -70,18 +62,13 @@ export class HookService {
       const safeEventName = this.sanitizeHookName(eventName);
       const hookPath = this.getSafeHookPath(safeEventName);
 
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(hookPath)) {
+      if (!pathExistsSafeSync(hookPath, HOOKS_DIR)) {
         return;
       }
 
       logger.info(
         `[HookService] Executing hook: ${safeEventName} (${hookPath})`
       );
-
-      // Ensure the script is executable
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.chmodSync(hookPath, "755");
 
       const env: Record<string, string> = { ...process.env } as Record<string, string>;
       
@@ -105,7 +92,11 @@ export class HookService {
         env.MYTUBE_ERROR = sanitizeHookEnvValue(context.error);
       }
 
-      const { stdout, stderr } = await execPromise(`bash "${hookPath}"`, { env });
+      const { stdout, stderr } = await execFileSafe(
+        "bash",
+        [hookPath],
+        { env, timeout: 60000 },
+      );
       
       if (stdout && stdout.trim()) {
         logger.info(`[HookService] ${safeEventName} stdout: ${stdout.trim()}`);
@@ -115,9 +106,10 @@ export class HookService {
       }
 
       logger.info(`[HookService] Hook ${safeEventName} executed successfully.`);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error(
-        `[HookService] Error executing hook ${eventName}: ${error.message}`
+        `[HookService] Error executing hook ${eventName}: ${errorMessage}`
       );
       // We log but don't re-throw to prevent hook failures from stopping the task
     }
@@ -131,13 +123,8 @@ export class HookService {
     if (!Buffer.isBuffer(fileContent) || fileContent.length === 0) {
       throw new Error("Invalid upload content");
     }
-    
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.writeFileSync(destPath, fileContent);
-    
-    // Make executable
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    fs.chmodSync(destPath, "755");
+
+    writeFileSafeSync(destPath, HOOKS_DIR, fileContent);
     logger.info(`[HookService] Uploaded hook script: ${destPath}`);
   }
 
@@ -146,10 +133,8 @@ export class HookService {
    */
   static deleteHook(hookName: string): boolean {
     const hookPath = this.getSafeHookPath(hookName);
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(hookPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      fs.unlinkSync(hookPath);
+    if (pathExistsSafeSync(hookPath, HOOKS_DIR)) {
+      unlinkSafeSync(hookPath, HOOKS_DIR);
       logger.info(`[HookService] Deleted hook script: ${hookPath}`);
       return true;
     }
@@ -161,17 +146,23 @@ export class HookService {
    */
   static getHookStatus(): Record<string, boolean> {
     this.initialize();
-    const hooks = [
-      "task_before_start",
-      "task_success",
-      "task_fail",
-      "task_cancel",
-    ];
-    
-    return hooks.reduce((acc, hook) => {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      acc[hook] = fs.existsSync(this.getSafeHookPath(hook));
-      return acc;
-    }, {} as Record<string, boolean>);
+    return {
+      task_before_start: pathExistsSafeSync(
+        this.getSafeHookPath("task_before_start"),
+        HOOKS_DIR,
+      ),
+      task_success: pathExistsSafeSync(
+        this.getSafeHookPath("task_success"),
+        HOOKS_DIR,
+      ),
+      task_fail: pathExistsSafeSync(
+        this.getSafeHookPath("task_fail"),
+        HOOKS_DIR,
+      ),
+      task_cancel: pathExistsSafeSync(
+        this.getSafeHookPath("task_cancel"),
+        HOOKS_DIR,
+      ),
+    };
   }
 }

@@ -23,9 +23,9 @@
 
 import Database from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import fs from "fs-extra";
 import path from "path";
 import dotenv from "dotenv";
+import { pathExistsTrustedSync } from "../src/utils/security";
 
 // Load environment variables
 dotenv.config();
@@ -69,8 +69,7 @@ async function hashPassword(password: string): Promise<string> {
  */
 async function resetPassword(newPassword: string): Promise<void> {
   // Check if database exists
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(dbPath)) {
+  if (!pathExistsTrustedSync(dbPath)) {
     console.error(`Error: Database not found at ${dbPath}`);
     console.error("Please ensure the MyTube backend has been started at least once.");
     process.exit(1);
@@ -131,7 +130,7 @@ const providedPassword = args[0];
 
 if (!providedPassword) {
   console.error("Error: Missing password argument.");
-  console.error("Usage: npm run reset-password <new-password>");
+  console.error("Usage: npm run reset-password [new-password]");
   process.exit(1);
 }
 
