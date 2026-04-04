@@ -544,7 +544,8 @@ export function updateVideoPathsForCollectionRename(
   }
 
   if (video.subtitles) {
-    const newSubtitles = video.subtitles.map(sub => {
+    const originalSubtitles = video.subtitles;
+    const newSubtitles = originalSubtitles.map(sub => {
       let newPath = sub.path;
       if (sub.path.startsWith('/videos/')) {
          newPath = replacePath(sub.path, '/videos');
@@ -555,7 +556,9 @@ export function updateVideoPathsForCollectionRename(
     });
 
     // Check if any subtitle changed
-    const changed = newSubtitles.some((sub, i) => sub.path !== video.subtitles![i].path);
+    const changed = newSubtitles.some(
+      (sub, i) => sub.path !== originalSubtitles[i].path
+    );
     if (changed) updates.subtitles = newSubtitles;
   }
 

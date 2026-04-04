@@ -108,23 +108,30 @@ export const useFullscreen = (
     // Use the container that wraps both video and controls so controls stay visible in fullscreen
     const container = videoContainerRef.current;
     const videoElement = videoRef.current;
+    const fullscreenContainer = container as HTMLDivElement & {
+      requestFullscreen?: () => Promise<void>;
+    };
+    const webkitVideoElement = videoElement as HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+    };
+    const fullscreenDocument = document as Document & {
+      exitFullscreen?: () => Promise<void>;
+    };
 
     if (!container || !videoElement) return;
 
     if (!document.fullscreenElement) {
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch((err) => {
+      if (typeof fullscreenContainer.requestFullscreen === "function") {
+        void fullscreenContainer.requestFullscreen().catch((err) => {
           console.error(
             `Error attempting to enable fullscreen: ${err.message}`
           );
         });
-      } else if ((videoElement as any).webkitEnterFullscreen) {
-        (videoElement as any).webkitEnterFullscreen();
+      } else if (typeof webkitVideoElement.webkitEnterFullscreen === "function") {
+        webkitVideoElement.webkitEnterFullscreen();
       }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+    } else if (typeof fullscreenDocument.exitFullscreen === "function") {
+      void fullscreenDocument.exitFullscreen();
     }
   };
 

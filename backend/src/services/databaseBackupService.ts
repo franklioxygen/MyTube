@@ -488,7 +488,11 @@ function mergeCollectionLinks(
           "SELECT collection_id AS collection_id, video_id AS video_id FROM collection_videos"
         )
         .all() as MergeRow[]
-    ).map((row) => `${row.collection_id}::${row.video_id}`)
+    ).map((row) => {
+      const collectionId = getRequiredString(row, "collection_id");
+      const videoId = getRequiredString(row, "video_id");
+      return `${collectionId}::${videoId}`;
+    })
   );
 
   const insertStatement = buildInsertStatement(

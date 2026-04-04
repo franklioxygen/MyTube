@@ -13,9 +13,10 @@ interface LCPImagePreloaderProps {
 
 export const LCPImagePreloader: React.FC<LCPImagePreloaderProps> = ({ videos }) => {
     useLayoutEffect(() => {
+        if (videos.length === 0) return;
+
         // Get the first video (likely to be the LCP element)
         const firstVideo = videos[0];
-        if (!firstVideo) return;
 
         // Determine thumbnail URL
         const isVideoInCloud = firstVideo.videoPath?.startsWith('cloud:') ?? false;

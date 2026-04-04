@@ -450,7 +450,7 @@ export class TaskProcessor {
     maxConcurrent: number
   ): Promise<void> {
     // Poll until a slot is available
-    while (true) {
+    for (;;) {
       // Check if task was cancelled or paused while waiting
       const currentTaskStatus = await this.taskRepository.getTaskStatus(taskId);
       if (currentTaskStatus !== "active") {

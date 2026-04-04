@@ -197,7 +197,7 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
                     <Button onClick={handleCloseDeleteModal} color="inherit" variant="text">
                         {t('cancel') || 'Cancel'}
                     </Button>
-                    <Button onClick={handleConfirmDelete} color="error" variant="outlined" autoFocus>
+                    <Button onClick={() => { void handleConfirmDelete(); }} color="error" variant="outlined" autoFocus>
                         {t('delete') || 'Delete'}
                     </Button>
                 </DialogActions>
@@ -207,4 +207,3 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
 };
 
 export default SubtitleControl;
-

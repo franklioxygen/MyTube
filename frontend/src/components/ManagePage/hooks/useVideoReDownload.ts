@@ -33,7 +33,7 @@ export const useVideoReDownload = () => {
 
             if (response.data.downloadId) {
                 showSnackbar(t('videoDownloading') || 'Video downloading');
-                queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
+                void queryClient.invalidateQueries({ queryKey: ['downloadStatus'] });
             }
         } catch (error: unknown) {
             console.error('Error re-downloading video:', error);

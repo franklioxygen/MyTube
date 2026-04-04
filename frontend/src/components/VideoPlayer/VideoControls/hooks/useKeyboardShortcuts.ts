@@ -63,7 +63,7 @@ export const useKeyboardShortcuts = ({
       // Execute seek
       if (e.key === "ArrowLeft") {
         onSeekLeft();
-      } else if (e.key === "ArrowRight") {
+      } else {
         onSeekRight();
       }
     };

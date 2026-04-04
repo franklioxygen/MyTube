@@ -86,7 +86,7 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
 
                         if (videoEl.currentTime >= endTime) {
                             videoEl.currentTime = startTime;
-                            videoEl.play();
+                            void videoEl.play();
                         }
                     }}
                 />

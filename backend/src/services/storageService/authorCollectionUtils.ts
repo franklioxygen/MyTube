@@ -38,8 +38,9 @@ export function validateCollectionName(name: string): string | null {
   // Windows: < > : " / \ | ? *
   // Unix: / (forward slash)
   // Common: control characters, null bytes
+  // eslint-disable-next-line no-control-regex
   const sanitized = trimmed
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_") // Replace invalid chars with underscore
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
     .replace(/\.+$/, "") // Remove trailing dots (Windows restriction)
     .replace(/\s+/g, " ") // Normalize whitespace
     .trim();
