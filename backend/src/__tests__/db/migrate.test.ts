@@ -4,14 +4,14 @@ import { runMigrations } from "../../db/migrate";
 
 const migrateMock = vi.hoisted(() => vi.fn());
 const configureDatabaseMock = vi.hoisted(() => vi.fn());
-const pathExistsSafeSyncMock = vi.hoisted(() => vi.fn());
 const runDataMigrationMock = vi.hoisted(() => vi.fn());
-const fsMocks = vi.hoisted(() => ({
-  accessSync: vi.fn(),
-  existsSync: vi.fn(),
-  statSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  writeFileSync: vi.fn(),
+const securityMocks = vi.hoisted(() => ({
+  accessTrustedSync: vi.fn(),
+  pathExistsSafeSync: vi.fn(),
+  pathExistsTrustedSync: vi.fn(),
+  statTrustedSync: vi.fn(),
+  unlinkTrustedSync: vi.fn(),
+  writeFileSafeSync: vi.fn(),
 }));
 
 vi.mock("drizzle-orm/better-sqlite3/migrator", () => ({
@@ -20,23 +20,7 @@ vi.mock("drizzle-orm/better-sqlite3/migrator", () => ({
 
 vi.mock("fs", () => {
   const constants = { R_OK: 4, W_OK: 2 };
-
-  return {
-    accessSync: fsMocks.accessSync,
-    constants,
-    default: {
-      accessSync: fsMocks.accessSync,
-      constants,
-      existsSync: fsMocks.existsSync,
-      statSync: fsMocks.statSync,
-      unlinkSync: fsMocks.unlinkSync,
-      writeFileSync: fsMocks.writeFileSync,
-    },
-    existsSync: fsMocks.existsSync,
-    statSync: fsMocks.statSync,
-    unlinkSync: fsMocks.unlinkSync,
-    writeFileSync: fsMocks.writeFileSync,
-  };
+  return { constants, default: { constants } };
 });
 
 vi.mock("../../config/paths", () => ({
@@ -48,7 +32,12 @@ vi.mock("../../config/paths", () => ({
 }));
 
 vi.mock("../../utils/security", () => ({
-  pathExistsSafeSync: pathExistsSafeSyncMock,
+  accessTrustedSync: securityMocks.accessTrustedSync,
+  pathExistsSafeSync: securityMocks.pathExistsSafeSync,
+  pathExistsTrustedSync: securityMocks.pathExistsTrustedSync,
+  statTrustedSync: securityMocks.statTrustedSync,
+  unlinkTrustedSync: securityMocks.unlinkTrustedSync,
+  writeFileSafeSync: securityMocks.writeFileSafeSync,
 }));
 
 vi.mock("../../db", () => ({
@@ -64,12 +53,12 @@ vi.mock("../../services/migrationService", () => ({
 describe("runMigrations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    pathExistsSafeSyncMock.mockReturnValue(true);
-    fsMocks.writeFileSync.mockImplementation(() => undefined);
-    fsMocks.existsSync.mockReturnValue(false);
-    fsMocks.unlinkSync.mockImplementation(() => undefined);
-    fsMocks.accessSync.mockImplementation(() => undefined);
-    fsMocks.statSync.mockReturnValue({
+    securityMocks.pathExistsSafeSync.mockReturnValue(true);
+    securityMocks.pathExistsTrustedSync.mockReturnValue(false);
+    securityMocks.writeFileSafeSync.mockImplementation(() => undefined);
+    securityMocks.unlinkTrustedSync.mockImplementation(() => undefined);
+    securityMocks.accessTrustedSync.mockImplementation(() => undefined);
+    securityMocks.statTrustedSync.mockReturnValue({
       gid: 0,
       mode: 0o100644,
       uid: 0,
@@ -80,7 +69,7 @@ describe("runMigrations", () => {
   });
 
   it("fails fast with an actionable message when the database file is not writable", async () => {
-    fsMocks.accessSync.mockImplementation(() => {
+    securityMocks.accessTrustedSync.mockImplementation(() => {
       throw Object.assign(new Error("EACCES: permission denied"), {
         code: "EACCES",
       });

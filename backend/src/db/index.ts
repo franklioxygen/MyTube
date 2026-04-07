@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import fs from "fs-extra";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
+import { pathExistsTrustedSync } from "../utils/security";
 import * as schema from "./schema";
 
 // Ensure data directory exists
@@ -58,8 +59,7 @@ function createDatabaseConnection(
     try {
       // Ensure the database file exists (better-sqlite3 will create it if it doesn't exist)
       // But we need to ensure the directory is accessible first
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(dbPath)) {
+      if (!pathExistsTrustedSync(dbPath)) {
         // Touch the file to ensure it exists before opening
         fs.ensureFileSync(dbPath);
       }

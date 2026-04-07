@@ -1,9 +1,16 @@
-import fs from "fs";
+import { constants as fsConstants } from "fs";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import path from "path";
 import { DATA_DIR, ROOT_DIR } from "../config/paths";
 import { MigrationError } from "../errors/DownloadErrors";
-import { pathExistsSafeSync } from "../utils/security";
+import {
+  accessTrustedSync,
+  pathExistsSafeSync,
+  pathExistsTrustedSync,
+  statTrustedSync,
+  unlinkTrustedSync,
+  writeFileSafeSync,
+} from "../utils/security";
 import { configureDatabase, db, sqlite } from "./index";
 
 const DB_FILENAME = "mytube.db";
@@ -21,7 +28,7 @@ function getCurrentIdentity(): { uid?: number; gid?: number } {
 
 function getTargetOwnershipSummary(targetPath: string): string | null {
   try {
-    const stats = fs.statSync(targetPath);
+    const stats = statTrustedSync(targetPath);
     const mode = (stats.mode & 0o777).toString(8).padStart(3, "0");
     return `owner uid/gid ${stats.uid}/${stats.gid}, mode ${mode}`;
   } catch {
@@ -78,7 +85,7 @@ function ensureDatabaseWritable(dbPath: string): void {
   const probePath = path.join(DATA_DIR, `.mytube-write-probe-${process.pid}`);
 
   try {
-    fs.writeFileSync(probePath, "");
+    writeFileSafeSync(probePath, DATA_DIR, "");
   } catch (error) {
     throw new MigrationError(
       buildReadonlyDatabaseMessage(
@@ -91,8 +98,8 @@ function ensureDatabaseWritable(dbPath: string): void {
     );
   } finally {
     try {
-      if (fs.existsSync(probePath)) {
-        fs.unlinkSync(probePath);
+      if (pathExistsSafeSync(probePath, DATA_DIR)) {
+        unlinkTrustedSync(probePath);
       }
     } catch {
       // Best effort cleanup for the write probe.
@@ -104,7 +111,7 @@ function ensureDatabaseWritable(dbPath: string): void {
   }
 
   try {
-    fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
+    accessTrustedSync(dbPath, fsConstants.R_OK | fsConstants.W_OK);
   } catch (error) {
     throw new MigrationError(
       buildReadonlyDatabaseMessage(

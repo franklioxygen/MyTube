@@ -160,5 +160,7 @@ RUN mkdir -p \
 
 EXPOSE 5551
 
+# The entrypoint starts as root only to reconcile bind-mount ownership,
+# then drops to PUID:PGID via gosu before executing CMD.
 ENTRYPOINT ["/usr/local/bin/mytube-entrypoint.sh"]
 CMD ["node", "dist/src/server.js"]
