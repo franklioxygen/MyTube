@@ -1,8 +1,139 @@
+import fs from "fs";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import path from "path";
 import { DATA_DIR, ROOT_DIR } from "../config/paths";
+import { MigrationError } from "../errors/DownloadErrors";
 import { pathExistsSafeSync } from "../utils/security";
 import { configureDatabase, db, sqlite } from "./index";
+
+const DB_FILENAME = "mytube.db";
+
+function normalizeError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function getCurrentIdentity(): { uid?: number; gid?: number } {
+  return {
+    uid: typeof process.getuid === "function" ? process.getuid() : undefined,
+    gid: typeof process.getgid === "function" ? process.getgid() : undefined,
+  };
+}
+
+function getTargetOwnershipSummary(targetPath: string): string | null {
+  try {
+    const stats = fs.statSync(targetPath);
+    const mode = (stats.mode & 0o777).toString(8).padStart(3, "0");
+    return `owner uid/gid ${stats.uid}/${stats.gid}, mode ${mode}`;
+  } catch {
+    return null;
+  }
+}
+
+function buildPermissionFixHint(): string {
+  const { uid, gid } = getCurrentIdentity();
+
+  if (typeof uid === "number" && typeof gid === "number") {
+    return `If this is a Docker bind mount, fix the host-side permissions, for example: chown -R ${uid}:${gid} /path/to/mytube/data /path/to/mytube/uploads.`;
+  }
+
+  return "Ensure the data directory and database file are writable by the user running MyTube.";
+}
+
+function getCauseMessage(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+  const cause = (error as { cause?: unknown }).cause;
+  if (typeof cause === "object" && cause !== null && "message" in cause) {
+    const msg = (cause as { message?: unknown }).message;
+    return typeof msg === "string" && msg.length > 0 ? msg : undefined;
+  }
+  return undefined;
+}
+
+function buildReadonlyDatabaseMessage(
+  targetPath: string,
+  description: string,
+  originalError?: Error
+): string {
+  const { uid, gid } = getCurrentIdentity();
+  const identity =
+    typeof uid === "number" && typeof gid === "number"
+      ? `uid/gid ${uid}/${gid}`
+      : "the current process user";
+  const ownership = getTargetOwnershipSummary(targetPath);
+  const ownershipText = ownership ? ` Current ${description} ${ownership}.` : "";
+  const causeMessage = getCauseMessage(originalError);
+  const errorMessages = [originalError?.message, causeMessage].filter(
+    (value, index, array): value is string =>
+      typeof value === "string" && value.length > 0 && array.indexOf(value) === index
+  );
+  const errorText =
+    errorMessages.length > 0
+      ? ` Underlying error: ${errorMessages.join(" | ")}.`
+      : "";
+
+  return `${description} is not writable: ${targetPath}. MyTube is running as ${identity} and cannot update the SQLite database.${ownershipText} ${buildPermissionFixHint()}${errorText}`.trim();
+}
+
+function ensureDatabaseWritable(dbPath: string): void {
+  const probePath = path.join(DATA_DIR, `.mytube-write-probe-${process.pid}`);
+
+  try {
+    fs.writeFileSync(probePath, "");
+  } catch (error) {
+    throw new MigrationError(
+      buildReadonlyDatabaseMessage(
+        DATA_DIR,
+        "Data directory",
+        normalizeError(error)
+      ),
+      "database_write_preflight",
+      normalizeError(error)
+    );
+  } finally {
+    try {
+      if (fs.existsSync(probePath)) {
+        fs.unlinkSync(probePath);
+      }
+    } catch {
+      // Best effort cleanup for the write probe.
+    }
+  }
+
+  if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
+    return;
+  }
+
+  try {
+    fs.accessSync(dbPath, fs.constants.R_OK | fs.constants.W_OK);
+  } catch (error) {
+    throw new MigrationError(
+      buildReadonlyDatabaseMessage(
+        dbPath,
+        "Database file",
+        normalizeError(error)
+      ),
+      "database_write_preflight",
+      normalizeError(error)
+    );
+  }
+}
+
+function isReadonlySqliteError(error: unknown): boolean {
+  const candidate = error as
+    | {
+        code?: string;
+        message?: string;
+        cause?: { code?: string; message?: string };
+      }
+    | undefined;
+
+  return (
+    candidate?.code === "SQLITE_READONLY" ||
+    candidate?.cause?.code === "SQLITE_READONLY" ||
+    candidate?.message?.includes("readonly database") === true ||
+    candidate?.cause?.message?.includes("readonly database") === true
+  );
+}
 
 export async function runMigrations() {
   try {
@@ -11,13 +142,15 @@ export async function runMigrations() {
     // For network filesystems (NFS/SMB), add a small delay to ensure
     // the database file is fully accessible before attempting migration
     // This helps prevent "database is locked" errors on first deployment
-    const dbPath = path.join(ROOT_DIR, "data", "mytube.db");
+    const dbPath = path.join(ROOT_DIR, "data", DB_FILENAME);
     if (!pathExistsSafeSync(dbPath, DATA_DIR)) {
       console.log(
         "Database file does not exist yet, waiting for file system sync..."
       );
       await new Promise((resolve) => setTimeout(resolve, 2000)); // 2 second delay
     }
+
+    ensureDatabaseWritable(dbPath);
 
     // In production/docker, the drizzle folder is copied to the root or src/drizzle
     // We need to find where it is.
@@ -40,6 +173,16 @@ export async function runMigrations() {
           "Columns will be verified by initialization.ts"
         );
         // Don't throw - let initialization.ts handle missing columns
+      } else if (isReadonlySqliteError(migrationError)) {
+        throw new MigrationError(
+          buildReadonlyDatabaseMessage(
+            dbPath,
+            "SQLite database",
+            normalizeError(migrationError)
+          ),
+          "drizzle_migrate",
+          normalizeError(migrationError)
+        );
       } else {
         // Re-throw other migration errors
         throw migrationError;

@@ -70,6 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     curl \
+    gosu \
     unzip \
     libcairo2 \
     libpango-1.0-0 \
@@ -119,14 +120,19 @@ ENV PORT=5551
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
 ENV SKIP_FFMPEG_AUTO_INSTALL=1
+ENV PUID=1000
+ENV PGID=1000
+ENV MYTUBE_AUTO_FIX_PERMISSIONS=1
 # Debian chromium path
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install production dependencies only
 COPY backend/package*.json ./
+COPY backend/entrypoint.sh /usr/local/bin/mytube-entrypoint.sh
 COPY backend/scripts ./scripts
 COPY backend/vendor ./vendor
-RUN npm ci --only=production
+RUN chmod +x /usr/local/bin/mytube-entrypoint.sh \
+    && npm ci --only=production
 
 # Copy built artifacts from builder
 COPY --from=builder /app/dist ./dist
@@ -138,17 +144,21 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/bgutil-ytdlp-pot-provider /app/bgutil-ytdlp-pot-provider
 
 # Create necessary directories
-RUN mkdir -p uploads/videos uploads/images uploads/subtitles data \
-    && chown -R node:node /app
+RUN mkdir -p \
+    uploads/videos \
+    uploads/images \
+    uploads/images-small \
+    uploads/subtitles \
+    uploads/avatars \
+    uploads/cloud-thumbnail-cache \
+    data \
+    && chown -R 1000:1000 uploads data
 
-# Since v1.9.0 the backend runs as the non-root `node` user (uid/gid 1000).
-# If you are upgrading an older bind-mounted installation created before v1.9.0,
-# make sure the host-side mounted folders are writable by uid/gid 1000, e.g.:
-#   chown -R 1000:1000 /path/to/mytube/uploads /path/to/mytube/data
-# If `/path/to/mytube/uploads/images-small` already exists and was created by root,
-# it must be fixed as well or thumbnail generation will fail with EACCES.
-USER node
+# The container starts as root only long enough for the entrypoint to reconcile
+# bind-mount ownership. The backend process itself is then launched as PUID:PGID
+# (default 1000:1000) via gosu.
 
 EXPOSE 5551
 
+ENTRYPOINT ["/usr/local/bin/mytube-entrypoint.sh"]
 CMD ["node", "dist/src/server.js"]

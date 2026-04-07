@@ -79,7 +79,20 @@ function createDatabaseConnection(
           continue;
         }
       }
-      // If it's not a busy/locked error, or we've exhausted retries, throw
+      // Provide an actionable message for permission errors — the most common
+      // failure when upgrading Docker bind-mount deployments.
+      if (error.code === "EACCES") {
+        const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
+        const gid = typeof process.getgid === "function" ? process.getgid() : undefined;
+        const identity = uid != null && gid != null ? `uid/gid ${uid}/${gid}` : "the current user";
+        const hint = uid != null && gid != null
+          ? `If this is a Docker bind mount, fix the host-side permissions: chown -R ${uid}:${gid} /path/to/mytube/data /path/to/mytube/uploads`
+          : "Ensure the data directory and database file are writable by the user running MyTube.";
+        throw new Error(
+          `Permission denied: cannot open database at ${dbPath}. MyTube is running as ${identity}. ${hint}`
+        );
+      }
+      // If it's not a busy/locked/permission error, or we've exhausted retries, throw
       throw error;
     }
   }
