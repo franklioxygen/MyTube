@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import fs from "fs-extra";
 import path from "path";
 import { DATA_DIR } from "../config/paths";
+import { pathExistsTrustedSync } from "../utils/security";
 import * as schema from "./schema";
 
 // Ensure data directory exists
@@ -58,8 +59,7 @@ function createDatabaseConnection(
     try {
       // Ensure the database file exists (better-sqlite3 will create it if it doesn't exist)
       // But we need to ensure the directory is accessible first
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(dbPath)) {
+      if (!pathExistsTrustedSync(dbPath)) {
         // Touch the file to ensure it exists before opening
         fs.ensureFileSync(dbPath);
       }
@@ -79,7 +79,20 @@ function createDatabaseConnection(
           continue;
         }
       }
-      // If it's not a busy/locked error, or we've exhausted retries, throw
+      // Provide an actionable message for permission errors — the most common
+      // failure when upgrading Docker bind-mount deployments.
+      if (error.code === "EACCES") {
+        const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
+        const gid = typeof process.getgid === "function" ? process.getgid() : undefined;
+        const identity = uid != null && gid != null ? `uid/gid ${uid}/${gid}` : "the current user";
+        const hint = uid != null && gid != null
+          ? `If this is a Docker bind mount, fix the host-side permissions: chown -R ${uid}:${gid} /path/to/mytube/data /path/to/mytube/uploads`
+          : "Ensure the data directory and database file are writable by the user running MyTube.";
+        throw new Error(
+          `Permission denied: cannot open database at ${dbPath}. MyTube is running as ${identity}. ${hint}`
+        );
+      }
+      // If it's not a busy/locked/permission error, or we've exhausted retries, throw
       throw error;
     }
   }

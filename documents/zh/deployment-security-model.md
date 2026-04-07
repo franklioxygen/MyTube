@@ -133,9 +133,10 @@ environment:
 
 升级权限说明：
 
-- 从 `v1.9.0` 开始，后端容器默认以非 root 的 `node` 用户运行（`uid/gid 1000`）
-- 如果你升级的是 `v1.9.0` 之前创建的 bind mount 部署，需要确保宿主机上的 `uploads` 和 `data` 挂载目录对 `uid/gid 1000` 可写
-- 这同样适用于已有子目录，例如 `uploads/images-small`；如果它仍然归 `root` 所有，缩略图生成或扫描可能会因 `EACCES` 失败
+- 容器现在会先以 `root` 启动，仅用于协调 bind mount 权限，随后再以 `PUID:PGID` 启动后端进程（默认 `1000:1000`）
+- 如果你升级的是旧的 bind mount 部署，MyTube 会在启动时自动尝试修复 `uploads` 和 `data` 的 owner
+- 如果宿主机上的文件本来就归其他用户所有，请在 compose 文件或 `.env` 中把 `PUID` / `PGID` 设置成对应值
+- 这同样适用于已有子目录，例如 `uploads/images-small`；如果宿主机文件系统拒绝 `chown`，缩略图生成或扫描仍可能因 `EACCES` 失败
 
 宿主机上的修复示例：
 

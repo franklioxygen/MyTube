@@ -43,6 +43,11 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      # 可选：让后端进程使用与宿主机文件一致的 uid/gid。
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      # 可选：设为 0 可禁用启动时对 bind mount 的 chown 过程。
+      - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
       # 可选：声明当前部署中管理员的信任边界。
       # 可选值：application | container | host
       - MYTUBE_ADMIN_TRUST_LEVEL=container
@@ -126,6 +131,9 @@ services:
       - "5551:5551"
     environment:
       - PORT=5551
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -146,6 +154,16 @@ services:
 - `./data`: 存储 SQLite 数据库和日志。
 
 **重要提示：**  如果您移动  `docker-compose.yml`  文件，必须同时移动这些文件夹以保留您的数据。
+
+对于新部署，建议继续把 `uploads` 挂载到宿主机，但把 `/app/data` 改成 Docker named volume。SQLite 在这种模式下更稳妥，可以避开宿主机权限和 ACL 带来的兼容性问题。
+
+后端卷配置示例：
+
+```yaml
+    volumes:
+      - ./uploads:/app/uploads
+      - mytube-data:/app/data
+```
 
 ### 环境变量
 
@@ -168,11 +186,16 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 | 变量                | 服务     | 描述                                | 默认值                |
 | ------------------- | -------- | ----------------------------------- | --------------------- |
 | `PORT`              | Backend  | 后端内部监听端口                    | `5551`                |
+| `PUID`              | Backend  | 启动权限协调完成后，后端进程使用的 UID | `1000` |
+| `PGID`              | Backend  | 启动权限协调完成后，后端进程使用的 GID | `1000` |
+| `MYTUBE_AUTO_FIX_PERMISSIONS` | Backend | 是否在降权前自动对 bind mount 的 `data`/`uploads` 执行 chown | `1` |
 | `MYTUBE_ADMIN_TRUST_LEVEL` | Backend  | 部署声明的管理员信任边界（`application`、`container`、`host`） | `container` |
 | `VITE_API_URL`      | Frontend | API 端点路径                        | `/api`                |
 | `API_HOST`          | Frontend | **高级：**  强制指定后端 IP         | _(自动检测)_          |
 | `API_PORT`          | Frontend | **高级：**  强制指定后端端口        | `5551`                |
 | `NGINX_BACKEND_URL` | Frontend | **高级：**  覆盖 Nginx 后端上游 URL | `http://backend:5551` |
+
+后端容器现在会先以 root 启动，仅用于协调 bind mount 权限；随后会通过 `gosu` 以 `PUID:PGID` 启动 MyTube 主进程。
 
 ## 🛠️ 高级网络 (远程/NAS 部署)
 
@@ -232,12 +255,20 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
 - **原因:**  浏览器无法访问后端 API。
 - **解决方法:**  确保端口  `5551`  在您的防火墙上已打开。如果在远程服务器上运行，请尝试按照“高级网络”部分的说明在  `.env`  文件中设置  `API_HOST`。
 
-### 2. `./uploads`  权限被拒绝 (Permission Denied)
+### 2. `./uploads` 或 `./data/mytube.db` 权限被拒绝 (Permission Denied)
 
-- **原因:** Docker 容器用户没有主机目录的写入权限。
-- **解决方法:**  调整主机上的权限：
+- **原因:** 后端进程使用的 uid/gid 与宿主机 bind mount 文件 owner 不一致，或者宿主机文件系统不允许容器内执行 `chown`。
+- **解决方法:**  先确认 `PUID` / `PGID` 是否与宿主机文件 owner 一致。默认值为 `1000:1000`，并且 MyTube 会在启动时自动尝试修复权限。
+
+- **解决方法:** 如果自动修复失败，请在宿主机上调整 owner：
   ```
-  chmod -R 777 ./uploads ./data
+  chown -R 1000:1000 ./uploads ./data
+  ```
+
+- **解决方法:** 如果这些文件本来就归其他 uid/gid 所有，请在 `.env` 或 `docker-compose.yml` 中设置匹配值：
+  ```
+  PUID=1001
+  PGID=1001
   ```
 
 ### 3. 容器名称冲突 (Container Name Conflicts)

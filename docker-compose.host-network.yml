@@ -17,6 +17,11 @@ services:
       - /share/CACHEDEV2_DATA/Medias/MyTube/data:/app/data
     environment:
       - PORT=5551
+      # Optional: match the backend process uid/gid to the host-side file ownership.
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      # Set to 0 to disable the startup chown pass for bind-mounted data/uploads.
+      - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
       # Optional: declare the admin trust boundary for this deployment.
       # Valid values: application | container | host
       # Docs: documents/en/deployment-security-model.md

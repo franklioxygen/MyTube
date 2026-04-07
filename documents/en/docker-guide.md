@@ -41,6 +41,11 @@ services:
       - mytube-network
     environment:
       - PORT=5551
+      # Optional: run the backend as the same uid/gid as the host-side files.
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      # Optional: disable the startup chown pass for bind mounts by setting 0.
+      - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
       # Optional: declare the admin trust boundary for this deployment.
       # Valid values: application | container | host
       - MYTUBE_ADMIN_TRUST_LEVEL=container
@@ -125,6 +130,9 @@ services:
       - "5551:5551"
     environment:
       - PORT=5551
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
@@ -149,6 +157,16 @@ The `docker-compose.yml` above creates two folders in your current directory t
 
 **Important:** If you move the `docker-compose.yml` file, you must move these folders with it to keep your data.
 
+For new installs, consider keeping `uploads` as a bind mount but switching `/app/data` to a Docker named volume. SQLite is more reliable there because it avoids host filesystem ownership and ACL edge cases.
+
+Example backend volume section:
+
+```yaml
+    volumes:
+      - ./uploads:/app/uploads
+      - mytube-data:/app/data
+```
+
 ### Environment Variables
 
 You can customize the deployment by adding a `.env` file or modifying the `environment` section in `docker-compose.yml`.
@@ -170,11 +188,16 @@ For the full capability breakdown, see [Deployment Security Model](deployment-se
 |Variable|Service|Description|Default|
 |---|---|---|---|
 |`PORT`|Backend|Port the backend listens on internally|`5551`|
+|`PUID`|Backend|UID used for the backend process after startup permission reconciliation|`1000`|
+|`PGID`|Backend|GID used for the backend process after startup permission reconciliation|`1000`|
+|`MYTUBE_AUTO_FIX_PERMISSIONS`|Backend|Whether the entrypoint should chown bind-mounted `data` and `uploads` before dropping privileges|`1`|
 |`MYTUBE_ADMIN_TRUST_LEVEL`|Backend|Deployment-declared admin trust boundary (`application`, `container`, `host`)|`container`|
 |`VITE_API_URL`|Frontend|API endpoint path|`/api`|
 |`API_HOST`|Frontend|**Advanced:** Force a specific backend IP|_(Auto-detected)_|
 |`API_PORT`|Frontend|**Advanced:** Force a specific backend Port|`5551`|
 |`NGINX_BACKEND_URL`|Frontend|**Advanced:** Override Nginx backend upstream URL|`http://backend:5551`|
+
+The backend container now starts as root only long enough to reconcile bind-mount ownership, then launches MyTube as `PUID:PGID` using `gosu`.
 
 ## 🛠️ Advanced Networking (Remote/NAS Deployment)
 
@@ -238,14 +261,23 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
 - **Fix:** Ensure port `5551` is open on your firewall. If running on a remote server, try setting the `API_HOST` in a `.env` file as described in the "Advanced Networking" section.
     
 
-### 2. Permission Denied for `./uploads`
+### 2. Permission Denied for `./uploads` or `./data/mytube.db`
 
-- **Cause:** The Docker container user doesn't have write permissions to the host directory.
+- **Cause:** The backend process uid/gid does not match the ownership of the bind-mounted host files, or the host filesystem blocks `chown`.
     
-- **Fix:** Adjust permissions on your host machine:
+- **Fix:** First make sure `PUID`/`PGID` match the intended host owner. By default MyTube uses `1000:1000` and will try to reconcile permissions automatically at startup.
+
+- **Fix:** If automatic reconciliation cannot fix the mount, adjust ownership on the host:
     
     ```
-    chmod -R 777 ./uploads ./data
+    chown -R 1000:1000 ./uploads ./data
+    ```
+
+- **Fix:** If your files are intentionally owned by a different user, set matching values in `.env` or `docker-compose.yml`:
+
+    ```
+    PUID=1001
+    PGID=1001
     ```
     
 

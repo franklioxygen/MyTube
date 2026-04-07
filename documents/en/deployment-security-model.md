@@ -133,9 +133,10 @@ environment:
 
 Permission note for upgrades:
 
-- since v1.9.0, the backend container runs as the non-root `node` user (`uid/gid 1000`)
-- if you are upgrading an older bind-mounted deployment created before v1.9.0, make sure the host-side mounted `uploads` and `data` directories are writable by `uid/gid 1000`
-- this also applies to existing subdirectories such as `uploads/images-small`; if they are still owned by `root`, thumbnail generation or scans can fail with `EACCES`
+- the container entrypoint now starts as `root` only long enough to reconcile bind-mount ownership, then launches the backend as `PUID:PGID` (default `1000:1000`)
+- if you are upgrading an older bind-mounted deployment, MyTube will try to repair `uploads` and `data` ownership automatically during startup
+- if your host files are intentionally owned by a different user, set matching `PUID` and `PGID` values in your compose file or `.env`
+- this still applies to existing subdirectories such as `uploads/images-small`; if the host filesystem rejects `chown`, thumbnail generation or scans can still fail with `EACCES`
 
 Example fix on the host:
 

@@ -364,6 +364,11 @@ export function unlinkTrustedSync(filePath: string): void {
   fs.unlinkSync(safePath);
 }
 
+export function accessTrustedSync(filePath: string, mode: number): void {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  fs.accessSync(safePath, mode);
+}
+
 export function removeEmptyDirSafeSync(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
