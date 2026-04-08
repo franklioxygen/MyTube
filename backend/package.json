@@ -28,7 +28,7 @@
     "cors": "^2.8.5",
     "csrf-csrf": "^4.0.3",
     "dotenv": "^16.6.1",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.22.1",
     "express-rate-limit": "^8.2.2",
     "file-type": "file:vendor/file-type",
