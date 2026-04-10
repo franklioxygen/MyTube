@@ -52,7 +52,7 @@ jobs:
     - name: Test Backend
       run: |
         cd backend
-        npm run test -- run
+        npm run test
 
     - name: Generate Coverage Reports
       if: ${{ env.CODACY_API_TOKEN != '' || env.CODACY_PROJECT_TOKEN != '' }}

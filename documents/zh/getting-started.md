@@ -146,6 +146,7 @@ npm run start        # 启动后端 + 前端开发服务器 (便捷)
 npm run build        # 为生产环境构建前端
 npm run install:all  # 安装根目录、前端和后端的依赖
 npm run test         # 运行前后端测试
+npm run test:watch   # 以 watch 模式运行前后端测试
 npm run test:frontend # 运行前端测试
 npm run test:backend  # 运行后端测试
 ```
@@ -157,6 +158,7 @@ npm run dev          # 使用 nodemon 启动后端 (自动重载)
 npm run start        # 以生产模式启动后端
 npm run build        # 将 TypeScript 编译为 JavaScript
 npm run test         # 使用 Vitest 运行测试
+npm run test:watch   # 以 watch 模式使用 Vitest 运行测试
 npm run test:coverage # 运行测试并生成覆盖率报告
 npm run generate     # 使用 Drizzle Kit 生成数据库迁移
 npm run reset-password -- <new-password> # 使用脚本重置管理员密码
@@ -170,6 +172,7 @@ npm run build        # 为生产环境构建
 npm run preview      # 预览生产构建
 npm run lint         # 运行 ESLint
 npm run test         # 使用 Vitest 运行测试
+npm run test:watch   # 以 watch 模式使用 Vitest 运行测试
 npm run test:coverage # 运行测试并生成覆盖率报告
 ```
 

@@ -14,9 +14,12 @@
     "build": "cd frontend && npm run build",
     "lint": "npm run lint:frontend",
     "lint:frontend": "cd frontend && npm run lint",
-    "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:watch": "concurrently --names backend,frontend \"npm run test:backend:watch\" \"npm run test:frontend:watch\"",
     "test:frontend": "cd frontend && npm run test",
+    "test:frontend:watch": "cd frontend && npm run test:watch",
     "test:backend": "cd backend && npm run test",
+    "test:backend:watch": "cd backend && npm run test:watch",
     "codacy:report": "node scripts/codacy/generate-issues-report.mjs"
   },
   "keywords": [

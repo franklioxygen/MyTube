@@ -146,6 +146,7 @@ npm run start        # Start backend + frontend dev server (convenience)
 npm run build        # Build the frontend for production
 npm run install:all  # Install dependencies for root, frontend, and backend
 npm run test         # Run frontend + backend tests
+npm run test:watch   # Run frontend + backend tests in watch mode
 npm run test:frontend # Run frontend tests
 npm run test:backend  # Run backend tests
 ```
@@ -157,6 +158,7 @@ npm run dev          # Start backend with nodemon (auto-reload)
 npm run start        # Start backend in production mode
 npm run build        # Compile TypeScript to JavaScript
 npm run test         # Run tests with Vitest
+npm run test:watch   # Run tests with Vitest in watch mode
 npm run test:coverage # Run tests with coverage report
 npm run generate     # Generate database migrations with Drizzle Kit
 npm run reset-password -- <new-password> # Reset admin password via script
@@ -170,6 +172,7 @@ npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Run ESLint
 npm run test         # Run tests with Vitest
+npm run test:watch   # Run tests with Vitest in watch mode
 npm run test:coverage # Run tests with coverage report
 ```
 

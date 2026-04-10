@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "generate": "drizzle-kit generate",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "reset-password": "ts-node scripts/reset-password.ts",
     "postinstall": "node scripts/postinstall.cjs"

@@ -47,7 +47,7 @@ Alternatively, you can specify the increment type:
 
 ### What the Script Does
 
-1.  **Checks** that you are on `main` and have a clean git status.
+1.  **Checks** that you are on `master` and have a clean git status.
 2.  **Updates** `version` in:
     -   `package.json`
     -   `frontend/package.json`
