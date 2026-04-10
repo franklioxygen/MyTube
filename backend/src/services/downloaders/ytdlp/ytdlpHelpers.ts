@@ -36,9 +36,10 @@ function warnOnce(
 }
 
 function resolveConfiguredProviderScript(configuredPath: string): string | null {
-  const normalizedConfiguredPath = normalizeSafeAbsolutePath(
-    path.resolve(configuredPath),
-  );
+  const absoluteConfiguredPath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.normalize(`${process.cwd()}${path.sep}${configuredPath}`);
+  const normalizedConfiguredPath = normalizeSafeAbsolutePath(absoluteConfiguredPath);
 
   if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
     warnOnce(
