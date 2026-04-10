@@ -120,29 +120,38 @@ describe("ytdlpHelpers", () => {
 
   describe("getProviderScript", () => {
     it("should prefer BGUTIL_SCRIPT_PATH when configured", () => {
-      process.env.BGUTIL_SCRIPT_PATH = "/tmp/custom-provider.js";
+      process.env.BGUTIL_SCRIPT_PATH = "/tmp/generate_once.js";
       pathExistsTrustedSyncMock.mockReturnValue(true);
 
-      expect(getProviderScript()).toBe("/tmp/custom-provider.js");
+      expect(getProviderScript()).toBe("/tmp/generate_once.js");
       expect(normalizeSafeAbsolutePathMock).toHaveBeenCalledWith(
-        "/tmp/custom-provider.js",
+        "/tmp/generate_once.js",
       );
       expect(pathExistsTrustedSyncMock).toHaveBeenCalledWith(
-        "/tmp/custom-provider.js",
+        "/tmp/generate_once.js",
       );
       expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(1);
       expect(loggerWarnMock).not.toHaveBeenCalled();
     });
 
     it("should warn once when BGUTIL_SCRIPT_PATH points to a missing file", () => {
-      process.env.BGUTIL_SCRIPT_PATH = "/tmp/missing-provider.js";
+      process.env.BGUTIL_SCRIPT_PATH = "/tmp/generate_once.js";
 
-      expect(getProviderScript()).toBe("/tmp/missing-provider.js");
-      expect(getProviderScript()).toBe("/tmp/missing-provider.js");
+      expect(getProviderScript()).toBe("/tmp/generate_once.js");
+      expect(getProviderScript()).toBe("/tmp/generate_once.js");
       expect(loggerWarnMock).toHaveBeenCalledTimes(1);
       expect(loggerWarnMock).toHaveBeenCalledWith(
-        "BGUTIL_SCRIPT_PATH points to a non-existent file: /tmp/missing-provider.js",
+        "BGUTIL_SCRIPT_PATH points to a non-existent file: /tmp/generate_once.js",
       );
+    });
+
+    it("should reject BGUTIL_SCRIPT_PATH when it does not point to generate_once.js", () => {
+      process.env.BGUTIL_SCRIPT_PATH = "/tmp/not-provider.txt";
+
+      expect(() => getProviderScript()).toThrow(
+        "BGUTIL_SCRIPT_PATH must point to generate_once.js: /tmp/not-provider.txt",
+      );
+      expect(pathExistsTrustedSyncMock).not.toHaveBeenCalled();
     });
 
     it("should stop searching after finding the bundled provider script in the current working directory", () => {

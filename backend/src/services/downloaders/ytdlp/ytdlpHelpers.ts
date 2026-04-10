@@ -14,6 +14,7 @@ const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
   "build",
   "generate_once.js",
 );
+const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
 const BGUTIL_SCRIPT_SEARCH_ROOTS = [
   // Source layout: backend/src/services/downloaders/ytdlp -> backend/
   "../../../..",
@@ -21,6 +22,10 @@ const BGUTIL_SCRIPT_SEARCH_ROOTS = [
   "../../../../..",
 ];
 const warnedMissingProviderScriptPaths = new Set<string>();
+
+function isValidProviderScriptPath(filePath: string): boolean {
+  return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
+}
 
 function getSafeUploaderId(rawUploaderId: unknown): string | null {
   if (typeof rawUploaderId !== "string") {
@@ -159,6 +164,11 @@ export function getProviderScript(): string {
   const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
   if (configuredPath) {
     const normalizedConfiguredPath = normalizeSafeAbsolutePath(configuredPath);
+    if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
+      throw new Error(
+        `BGUTIL_SCRIPT_PATH must point to ${BGUTIL_SCRIPT_BASENAME}: ${configuredPath}`
+      );
+    }
     if (!pathExistsTrustedSync(normalizedConfiguredPath)) {
       if (!warnedMissingProviderScriptPaths.has(configuredPath)) {
         warnedMissingProviderScriptPaths.add(configuredPath);
