@@ -1,8 +1,23 @@
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 import { logger } from "../../../utils/logger";
 
 const XIAOHONGSHU_PROFILE_ORIGIN = "https://www.xiaohongshu.com";
 const XIAOHONGSHU_UPLOADER_ID_PATTERN = /^[a-zA-Z0-9]{16,64}$/;
+const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
+  "bgutil-ytdlp-pot-provider",
+  "server",
+  "build",
+  "generate_once.js",
+);
+const BGUTIL_SCRIPT_SEARCH_ROOTS = [
+  // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+  "../../../..",
+  // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+  "../../../../..",
+];
+const warnedMissingProviderScriptPaths = new Set<string>();
 
 function getSafeUploaderId(rawUploaderId: unknown): string | null {
   if (typeof rawUploaderId !== "string") {
@@ -138,5 +153,31 @@ export async function extractXiaoHongShuAuthor(
  * Get the PO Token provider script path from environment
  */
 export function getProviderScript(): string {
-  return process.env.BGUTIL_SCRIPT_PATH || "";
+  const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
+  if (configuredPath) {
+    if (!fs.existsSync(configuredPath)) {
+      if (!warnedMissingProviderScriptPaths.has(configuredPath)) {
+        warnedMissingProviderScriptPaths.add(configuredPath);
+        logger.warn(
+          `BGUTIL_SCRIPT_PATH points to a non-existent file: ${configuredPath}`
+        );
+      }
+    }
+    return configuredPath;
+  }
+
+  const candidatePaths = [
+    path.resolve(process.cwd(), BGUTIL_SCRIPT_RELATIVE_PATH),
+    ...BGUTIL_SCRIPT_SEARCH_ROOTS.map((searchRoot) =>
+      path.resolve(__dirname, searchRoot, BGUTIL_SCRIPT_RELATIVE_PATH)
+    ),
+  ];
+
+  for (const candidatePath of candidatePaths) {
+    if (fs.existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  return "";
 }
