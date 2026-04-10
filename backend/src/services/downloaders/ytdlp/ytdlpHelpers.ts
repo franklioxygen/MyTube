@@ -15,12 +15,6 @@ const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
   "generate_once.js",
 );
 const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
-const BGUTIL_SCRIPT_SEARCH_ROOTS = [
-  // Source layout: backend/src/services/downloaders/ytdlp -> backend/
-  "../../../..",
-  // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
-  "../../../../..",
-];
 const warnedMissingProviderScriptPaths = new Set<string>();
 
 function isValidProviderScriptPath(filePath: string): boolean {
@@ -163,7 +157,6 @@ export async function extractXiaoHongShuAuthor(
 export function getProviderScript(): string {
   const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
   if (configuredPath) {
-    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const normalizedConfiguredPath = normalizeSafeAbsolutePath(configuredPath);
     if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
       throw new Error(
@@ -183,9 +176,10 @@ export function getProviderScript(): string {
 
   const candidatePaths = [
     path.resolve(process.cwd(), BGUTIL_SCRIPT_RELATIVE_PATH),
-    ...BGUTIL_SCRIPT_SEARCH_ROOTS.map((searchRoot) =>
-      path.resolve(__dirname, searchRoot, BGUTIL_SCRIPT_RELATIVE_PATH)
-    ),
+    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
+    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
   ];
 
   for (const candidatePath of candidatePaths) {
