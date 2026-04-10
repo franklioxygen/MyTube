@@ -163,6 +163,7 @@ export async function extractXiaoHongShuAuthor(
 export function getProviderScript(): string {
   const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
   if (configuredPath) {
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     const normalizedConfiguredPath = normalizeSafeAbsolutePath(configuredPath);
     if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
       throw new Error(
