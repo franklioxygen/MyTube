@@ -1,8 +1,66 @@
 import axios from "axios";
+import path from "path";
 import { logger } from "../../../utils/logger";
+import {
+  normalizeSafeAbsolutePath,
+  pathExistsTrustedSync,
+} from "../../../utils/security";
 
 const XIAOHONGSHU_PROFILE_ORIGIN = "https://www.xiaohongshu.com";
 const XIAOHONGSHU_UPLOADER_ID_PATTERN = /^[a-zA-Z0-9]{16,64}$/;
+const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
+  "bgutil-ytdlp-pot-provider",
+  "server",
+  "build",
+  "generate_once.js",
+);
+const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
+const warnedInvalidProviderScriptPaths = new Set<string>();
+const warnedMissingProviderScriptPaths = new Set<string>();
+
+function isValidProviderScriptPath(filePath: string): boolean {
+  return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
+}
+
+function warnOnce(
+  warnedPaths: Set<string>,
+  warningKey: string,
+  message: string,
+): void {
+  if (warnedPaths.has(warningKey)) {
+    return;
+  }
+
+  warnedPaths.add(warningKey);
+  logger.warn(message);
+}
+
+function resolveConfiguredProviderScript(configuredPath: string): string | null {
+  const absoluteConfiguredPath = path.isAbsolute(configuredPath)
+    ? configuredPath
+    : path.normalize(`${process.cwd()}${path.sep}${configuredPath}`);
+  const normalizedConfiguredPath = normalizeSafeAbsolutePath(absoluteConfiguredPath);
+
+  if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
+    warnOnce(
+      warnedInvalidProviderScriptPaths,
+      normalizedConfiguredPath,
+      `Ignoring BGUTIL_SCRIPT_PATH because it must point to ${BGUTIL_SCRIPT_BASENAME}: ${configuredPath}`,
+    );
+    return null;
+  }
+
+  if (!pathExistsTrustedSync(normalizedConfiguredPath)) {
+    warnOnce(
+      warnedMissingProviderScriptPaths,
+      normalizedConfiguredPath,
+      `Ignoring BGUTIL_SCRIPT_PATH because the file does not exist: ${configuredPath}`,
+    );
+    return null;
+  }
+
+  return normalizedConfiguredPath;
+}
 
 function getSafeUploaderId(rawUploaderId: unknown): string | null {
   if (typeof rawUploaderId !== "string") {
@@ -138,5 +196,28 @@ export async function extractXiaoHongShuAuthor(
  * Get the PO Token provider script path from environment
  */
 export function getProviderScript(): string {
-  return process.env.BGUTIL_SCRIPT_PATH || "";
+  const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
+  if (configuredPath) {
+    const configuredProviderScript = resolveConfiguredProviderScript(configuredPath);
+    if (configuredProviderScript) {
+      return configuredProviderScript;
+    }
+  }
+
+  const candidatePaths = [
+    path.resolve(process.cwd(), BGUTIL_SCRIPT_RELATIVE_PATH),
+    // Source layout: backend/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
+    // Build layout: backend/dist/src/services/downloaders/ytdlp -> backend/
+    path.resolve(__dirname, "../../../../..", BGUTIL_SCRIPT_RELATIVE_PATH),
+  ];
+
+  for (const candidatePath of candidatePaths) {
+    const normalizedCandidatePath = normalizeSafeAbsolutePath(candidatePath);
+    if (pathExistsTrustedSync(normalizedCandidatePath)) {
+      return normalizedCandidatePath;
+    }
+  }
+
+  return "";
 }
