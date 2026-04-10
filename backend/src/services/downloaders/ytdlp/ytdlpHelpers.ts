@@ -15,10 +15,50 @@ const BGUTIL_SCRIPT_RELATIVE_PATH = path.join(
   "generate_once.js",
 );
 const BGUTIL_SCRIPT_BASENAME = "generate_once.js";
+const warnedInvalidProviderScriptPaths = new Set<string>();
 const warnedMissingProviderScriptPaths = new Set<string>();
 
 function isValidProviderScriptPath(filePath: string): boolean {
   return path.basename(filePath) === BGUTIL_SCRIPT_BASENAME;
+}
+
+function warnOnce(
+  warnedPaths: Set<string>,
+  warningKey: string,
+  message: string,
+): void {
+  if (warnedPaths.has(warningKey)) {
+    return;
+  }
+
+  warnedPaths.add(warningKey);
+  logger.warn(message);
+}
+
+function resolveConfiguredProviderScript(configuredPath: string): string | null {
+  const normalizedConfiguredPath = normalizeSafeAbsolutePath(
+    path.resolve(configuredPath),
+  );
+
+  if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
+    warnOnce(
+      warnedInvalidProviderScriptPaths,
+      normalizedConfiguredPath,
+      `Ignoring BGUTIL_SCRIPT_PATH because it must point to ${BGUTIL_SCRIPT_BASENAME}: ${configuredPath}`,
+    );
+    return null;
+  }
+
+  if (!pathExistsTrustedSync(normalizedConfiguredPath)) {
+    warnOnce(
+      warnedMissingProviderScriptPaths,
+      normalizedConfiguredPath,
+      `Ignoring BGUTIL_SCRIPT_PATH because the file does not exist: ${configuredPath}`,
+    );
+    return null;
+  }
+
+  return normalizedConfiguredPath;
 }
 
 function getSafeUploaderId(rawUploaderId: unknown): string | null {
@@ -157,21 +197,10 @@ export async function extractXiaoHongShuAuthor(
 export function getProviderScript(): string {
   const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
   if (configuredPath) {
-    const normalizedConfiguredPath = normalizeSafeAbsolutePath(configuredPath);
-    if (!isValidProviderScriptPath(normalizedConfiguredPath)) {
-      throw new Error(
-        `BGUTIL_SCRIPT_PATH must point to ${BGUTIL_SCRIPT_BASENAME}: ${configuredPath}`
-      );
+    const configuredProviderScript = resolveConfiguredProviderScript(configuredPath);
+    if (configuredProviderScript) {
+      return configuredProviderScript;
     }
-    if (!pathExistsTrustedSync(normalizedConfiguredPath)) {
-      if (!warnedMissingProviderScriptPaths.has(configuredPath)) {
-        warnedMissingProviderScriptPaths.add(configuredPath);
-        logger.warn(
-          `BGUTIL_SCRIPT_PATH points to a non-existent file: ${configuredPath}`
-        );
-      }
-    }
-    return normalizedConfiguredPath;
   }
 
   const candidatePaths = [

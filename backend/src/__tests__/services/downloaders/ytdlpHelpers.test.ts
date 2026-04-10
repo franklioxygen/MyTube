@@ -34,6 +34,12 @@ describe("ytdlpHelpers", () => {
     originalCwd,
     "bgutil-ytdlp-pot-provider/server/build/generate_once.js",
   );
+  const relativeConfiguredScriptPath = path.resolve(
+    originalCwd,
+    "..",
+    "shared",
+    "generate_once.js",
+  );
   const srcLayoutFallbackPath = path.resolve(
     originalCwd,
     "src/services/downloaders/ytdlp",
@@ -134,24 +140,46 @@ describe("ytdlpHelpers", () => {
       expect(loggerWarnMock).not.toHaveBeenCalled();
     });
 
-    it("should warn once when BGUTIL_SCRIPT_PATH points to a missing file", () => {
-      process.env.BGUTIL_SCRIPT_PATH = "/tmp/generate_once.js";
+    it("should resolve a relative BGUTIL_SCRIPT_PATH before validating it", () => {
+      process.env.BGUTIL_SCRIPT_PATH = "../shared/generate_once.js";
+      pathExistsTrustedSyncMock.mockReturnValue(true);
 
-      expect(getProviderScript()).toBe("/tmp/generate_once.js");
-      expect(getProviderScript()).toBe("/tmp/generate_once.js");
+      expect(getProviderScript()).toBe(relativeConfiguredScriptPath);
+      expect(normalizeSafeAbsolutePathMock).toHaveBeenCalledWith(
+        relativeConfiguredScriptPath,
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledWith(
+        relativeConfiguredScriptPath,
+      );
+      expect(loggerWarnMock).not.toHaveBeenCalled();
+    });
+
+    it("should warn once and fall back when BGUTIL_SCRIPT_PATH points to a missing file", () => {
+      process.env.BGUTIL_SCRIPT_PATH = "/tmp/missing/generate_once.js";
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === bundledScriptPath,
+      );
+
+      expect(getProviderScript()).toBe(bundledScriptPath);
+      expect(getProviderScript()).toBe(bundledScriptPath);
       expect(loggerWarnMock).toHaveBeenCalledTimes(1);
       expect(loggerWarnMock).toHaveBeenCalledWith(
-        "BGUTIL_SCRIPT_PATH points to a non-existent file: /tmp/generate_once.js",
+        "Ignoring BGUTIL_SCRIPT_PATH because the file does not exist: /tmp/missing/generate_once.js",
       );
     });
 
-    it("should reject BGUTIL_SCRIPT_PATH when it does not point to generate_once.js", () => {
+    it("should warn and fall back when BGUTIL_SCRIPT_PATH does not point to generate_once.js", () => {
       process.env.BGUTIL_SCRIPT_PATH = "/tmp/not-provider.txt";
-
-      expect(() => getProviderScript()).toThrow(
-        "BGUTIL_SCRIPT_PATH must point to generate_once.js: /tmp/not-provider.txt",
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === bundledScriptPath,
       );
-      expect(pathExistsTrustedSyncMock).not.toHaveBeenCalled();
+
+      expect(getProviderScript()).toBe(bundledScriptPath);
+      expect(loggerWarnMock).toHaveBeenCalledWith(
+        "Ignoring BGUTIL_SCRIPT_PATH because it must point to generate_once.js: /tmp/not-provider.txt",
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(1);
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledWith(bundledScriptPath);
     });
 
     it("should stop searching after finding the bundled provider script in the current working directory", () => {
