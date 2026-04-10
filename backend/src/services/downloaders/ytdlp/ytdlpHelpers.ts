@@ -1,7 +1,10 @@
 import axios from "axios";
-import fs from "fs";
 import path from "path";
 import { logger } from "../../../utils/logger";
+import {
+  normalizeSafeAbsolutePath,
+  pathExistsTrustedSync,
+} from "../../../utils/security";
 
 const XIAOHONGSHU_PROFILE_ORIGIN = "https://www.xiaohongshu.com";
 const XIAOHONGSHU_UPLOADER_ID_PATTERN = /^[a-zA-Z0-9]{16,64}$/;
@@ -155,7 +158,8 @@ export async function extractXiaoHongShuAuthor(
 export function getProviderScript(): string {
   const configuredPath = process.env.BGUTIL_SCRIPT_PATH?.trim();
   if (configuredPath) {
-    if (!fs.existsSync(configuredPath)) {
+    const normalizedConfiguredPath = normalizeSafeAbsolutePath(configuredPath);
+    if (!pathExistsTrustedSync(normalizedConfiguredPath)) {
       if (!warnedMissingProviderScriptPaths.has(configuredPath)) {
         warnedMissingProviderScriptPaths.add(configuredPath);
         logger.warn(
@@ -163,7 +167,7 @@ export function getProviderScript(): string {
         );
       }
     }
-    return configuredPath;
+    return normalizedConfiguredPath;
   }
 
   const candidatePaths = [
@@ -174,8 +178,9 @@ export function getProviderScript(): string {
   ];
 
   for (const candidatePath of candidatePaths) {
-    if (fs.existsSync(candidatePath)) {
-      return candidatePath;
+    const normalizedCandidatePath = normalizeSafeAbsolutePath(candidatePath);
+    if (pathExistsTrustedSync(normalizedCandidatePath)) {
+      return normalizedCandidatePath;
     }
   }
 

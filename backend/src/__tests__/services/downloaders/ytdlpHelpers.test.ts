@@ -1,20 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios from "axios";
-import fs from "fs";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   extractXiaoHongShuAuthor,
   getProviderScript,
 } from "../../../services/downloaders/ytdlp/ytdlpHelpers";
+import * as securityUtils from "../../../utils/security";
 import { logger } from "../../../utils/logger";
 
 vi.mock("axios");
-vi.mock("fs", () => ({
-  default: {
-    existsSync: vi.fn(),
-  },
-  existsSync: vi.fn(),
+vi.mock("../../../utils/security", () => ({
+  normalizeSafeAbsolutePath: vi.fn((target: string) => path.resolve(target)),
+  pathExistsTrustedSync: vi.fn(),
 }));
 vi.mock("../../../utils/logger", () => ({
   logger: {
@@ -26,7 +24,10 @@ vi.mock("../../../utils/logger", () => ({
 
 describe("ytdlpHelpers", () => {
   const axiosGetMock = vi.mocked(axios.get);
-  const existsSyncMock = vi.mocked(fs.existsSync);
+  const normalizeSafeAbsolutePathMock = vi.mocked(
+    securityUtils.normalizeSafeAbsolutePath,
+  );
+  const pathExistsTrustedSyncMock = vi.mocked(securityUtils.pathExistsTrustedSync);
   const loggerWarnMock = vi.mocked(logger.warn);
   const originalCwd = process.cwd();
   const bundledScriptPath = path.resolve(
@@ -49,7 +50,10 @@ describe("ytdlpHelpers", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    existsSyncMock.mockReturnValue(false);
+    normalizeSafeAbsolutePathMock.mockImplementation((target: string) =>
+      path.resolve(target),
+    );
+    pathExistsTrustedSyncMock.mockReturnValue(false);
     delete process.env.BGUTIL_SCRIPT_PATH;
     process.chdir(originalCwd);
   });
@@ -117,11 +121,16 @@ describe("ytdlpHelpers", () => {
   describe("getProviderScript", () => {
     it("should prefer BGUTIL_SCRIPT_PATH when configured", () => {
       process.env.BGUTIL_SCRIPT_PATH = "/tmp/custom-provider.js";
-      existsSyncMock.mockReturnValue(true);
+      pathExistsTrustedSyncMock.mockReturnValue(true);
 
       expect(getProviderScript()).toBe("/tmp/custom-provider.js");
-      expect(existsSyncMock).toHaveBeenCalledWith("/tmp/custom-provider.js");
-      expect(existsSyncMock).toHaveBeenCalledTimes(1);
+      expect(normalizeSafeAbsolutePathMock).toHaveBeenCalledWith(
+        "/tmp/custom-provider.js",
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledWith(
+        "/tmp/custom-provider.js",
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(1);
       expect(loggerWarnMock).not.toHaveBeenCalled();
     });
 
@@ -137,11 +146,16 @@ describe("ytdlpHelpers", () => {
     });
 
     it("should stop searching after finding the bundled provider script in the current working directory", () => {
-      existsSyncMock.mockImplementation((target: any) => target === bundledScriptPath);
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === bundledScriptPath,
+      );
 
       expect(getProviderScript()).toBe(bundledScriptPath);
-      expect(existsSyncMock).toHaveBeenCalledTimes(1);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(1, bundledScriptPath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(1);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        1,
+        bundledScriptPath,
+      );
     });
 
     it("should fall back to the helper-relative bundled provider script path", () => {
@@ -150,12 +164,17 @@ describe("ytdlpHelpers", () => {
         alternateCwd,
         "bgutil-ytdlp-pot-provider/server/build/generate_once.js",
       );
-      existsSyncMock.mockImplementation((target: any) => target === srcLayoutFallbackPath);
+      pathExistsTrustedSyncMock.mockImplementation(
+        (target: any) => target === srcLayoutFallbackPath,
+      );
 
       expect(getProviderScript()).toBe(srcLayoutFallbackPath);
-      expect(existsSyncMock).toHaveBeenCalledTimes(2);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(2, srcLayoutFallbackPath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(2);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        2,
+        srcLayoutFallbackPath,
+      );
     });
 
     it("should return empty string when no provider script is available", () => {
@@ -166,10 +185,16 @@ describe("ytdlpHelpers", () => {
       );
 
       expect(getProviderScript()).toBe("");
-      expect(existsSyncMock).toHaveBeenCalledTimes(3);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(2, srcLayoutFallbackPath);
-      expect(existsSyncMock).toHaveBeenNthCalledWith(3, deeperFallbackPath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenCalledTimes(3);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(1, cwdCandidatePath);
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        2,
+        srcLayoutFallbackPath,
+      );
+      expect(pathExistsTrustedSyncMock).toHaveBeenNthCalledWith(
+        3,
+        deeperFallbackPath,
+      );
     });
   });
 });
