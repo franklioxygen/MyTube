@@ -5,6 +5,7 @@ import path from "path";
 import { PassThrough } from "stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as storageService from "../../services/storageService";
+import { getProviderScript } from "../../services/downloaders/ytdlp/ytdlpHelpers";
 import {
   InvalidProxyError,
   convertFlagToArg,
@@ -27,6 +28,9 @@ vi.mock("child_process", () => ({
 vi.mock("fs-extra");
 vi.mock("../../services/storageService", () => ({
   getSettings: vi.fn(),
+}));
+vi.mock("../../services/downloaders/ytdlp/ytdlpHelpers", () => ({
+  getProviderScript: vi.fn(),
 }));
 vi.mock("socks-proxy-agent", () => ({
   SocksProxyAgent: vi.fn().mockImplementation((url: string) => ({
@@ -91,6 +95,7 @@ describe("ytDlpUtils", () => {
     resetYtDlpAvailabilityCacheForTests();
     vi.mocked(fs.existsSync).mockReturnValue(false);
     vi.mocked(storageService.getSettings).mockReturnValue({});
+    vi.mocked(getProviderScript).mockReturnValue("");
     delete process.env.YT_DLP_JS_RUNTIME;
   });
 
@@ -131,9 +136,7 @@ describe("ytDlpUtils", () => {
 
       expect(args).toEqual([
         "--extractor-args",
-        "youtube:key=value",
-        "--extractor-args",
-        "generic:abc=def",
+        "youtube:key=value;generic:abc=def",
         "--add-header",
         "X-Test:1",
         "--add-header",
@@ -469,7 +472,7 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).toContain("https://example.com/video");
     });
 
-    it("should retry with explicit best format when format error comes from config", async () => {
+    it("should retry with --ignore-config when format error comes from config", async () => {
       const first = createMockProcess();
       const second = createMockProcess();
       mockSpawnWithVersionCheck(first, second);
@@ -485,8 +488,100 @@ describe("ytDlpUtils", () => {
 
       await expect(promise).resolves.toEqual({ fallback: true });
       const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
-      expect(secondArgs).toContain("--format");
-      expect(secondArgs).toContain("best");
+      expect(secondArgs).toContain("--ignore-config");
+      expect(secondArgs).not.toContain("--format");
+    });
+
+    it("should add provider and mweb extractor args for youtube when bundled provider is available", async () => {
+      vi.mocked(getProviderScript).mockReturnValue(
+        "/app/bgutil-ytdlp-pot-provider/server/build/generate_once.js",
+      );
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc");
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const extractorArgsIndex = args.indexOf("--extractor-args");
+      expect(extractorArgsIndex).toBeGreaterThan(-1);
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtube:player_client=default,mweb",
+      );
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtubepot-bgutilscript:script_path=/app/bgutil-ytdlp-pot-provider/server/build/generate_once.js",
+      );
+    });
+
+    it("should preserve existing youtube extractor args while appending provider support", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
+        extractorArgs: "youtube:max_comments=20",
+      });
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const extractorArgsIndex = args.indexOf("--extractor-args");
+      expect(extractorArgsIndex).toBeGreaterThan(-1);
+      expect(args[extractorArgsIndex + 1]).toContain("youtube:max_comments=20");
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtube:player_client=default,mweb",
+      );
+      expect(args[extractorArgsIndex + 1]).toContain(
+        "youtubepot-bgutilscript:script_path=/tmp/provider.js",
+      );
+    });
+
+    it("should not append duplicate player_client or provider extractor args", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
+        extractorArgs:
+          "youtube:player_client=android;youtubepot-bgutilscript:script_path=/custom/provider.js",
+      });
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      const extractorArgsIndex = args.indexOf("--extractor-args");
+      expect(extractorArgsIndex).toBeGreaterThan(-1);
+      expect(args[extractorArgsIndex + 1]).toBe(
+        "youtube:player_client=android;youtubepot-bgutilscript:script_path=/custom/provider.js",
+      );
+    });
+
+    it("should normalize array extractorArgs into a single extractor-args value for youtube", async () => {
+      vi.mocked(getProviderScript).mockReturnValue("/tmp/provider.js");
+      const proc = createMockProcess();
+      mockSpawnWithVersionAndDenoCheck(proc);
+
+      const promise = executeYtDlpJson("https://www.youtube.com/watch?v=abc", {
+        extractorArgs: ["youtube:max_comments=20", "generic:impersonate=safari"],
+      });
+      await flushAsyncSpawns();
+      proc.stdout?.emit("data", Buffer.from('{"ok":true}'));
+      proc.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ ok: true });
+      const args = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(args.filter((arg) => arg === "--extractor-args")).toHaveLength(1);
+      const extractorArgsIndex = args.indexOf("--extractor-args");
+      expect(args[extractorArgsIndex + 1]).toBe(
+        "youtube:max_comments=20;generic:impersonate=safari;youtube:player_client=default,mweb;youtubepot-bgutilscript:script_path=/tmp/provider.js",
+      );
     });
 
     it("should reject with stderr on non-zero non-format error", async () => {

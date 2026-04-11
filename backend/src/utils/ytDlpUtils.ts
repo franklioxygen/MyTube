@@ -4,6 +4,7 @@ import { PassThrough } from "stream";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isAdminTrustLevelAtLeast } from "../config/adminTrust";
 import { DATA_DIR } from "../config/paths";
+import { getProviderScript } from "../services/downloaders/ytdlp/ytdlpHelpers";
 import * as storageService from "../services/storageService";
 import { isBilibiliUrl, isYouTubeUrl } from "./helpers";
 import {
@@ -15,6 +16,10 @@ import {
 const YT_DLP_PATH = process.env.YT_DLP_PATH || "yt-dlp";
 const COOKIES_PATH = path.join(DATA_DIR, "cookies.txt");
 const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
+const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
+  "youtube:player_client=default,mweb";
+const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
+const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
@@ -283,6 +288,60 @@ async function appendYouTubeJsRuntimeArg(
   args.push("--js-runtime", await getYouTubeJsRuntime());
 }
 
+function parseExtractorArgParts(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => parseExtractorArgParts(entry));
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  return value
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function joinExtractorArgParts(parts: string[]): string | undefined {
+  const uniqueParts = Array.from(new Set(parts));
+  return uniqueParts.length > 0 ? uniqueParts.join(";") : undefined;
+}
+
+function withDefaultYouTubeExtractorArgs(
+  url: string,
+  flags: Record<string, any>
+): Record<string, any> {
+  if (!isYouTubeUrl(url)) {
+    return flags;
+  }
+
+  const providerScript = getProviderScript();
+  if (!providerScript) {
+    return flags;
+  }
+
+  const existingParts = parseExtractorArgParts(flags.extractorArgs);
+  const mergedParts = [...existingParts];
+
+  if (
+    !existingParts.some((part) => part.startsWith(YOUTUBE_PLAYER_CLIENT_ARG_PREFIX))
+  ) {
+    mergedParts.push(DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG);
+  }
+
+  const providerArg = `${PROVIDER_SCRIPT_ARG_PREFIX}${providerScript}`;
+  if (!existingParts.some((part) => part.startsWith(PROVIDER_SCRIPT_ARG_PREFIX))) {
+    mergedParts.push(providerArg);
+  }
+
+  const extractorArgs = joinExtractorArgParts(mergedParts);
+  return {
+    ...flags,
+    extractorArgs,
+  };
+}
+
 /**
  * Convert camelCase flag names to kebab-case CLI arguments
  */
@@ -319,16 +378,14 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
 
     // Handle special cases
     if (key === "extractorArgs") {
-      // Support semicolon-separated extractor args (e.g., "youtube:key=value;other:key=value")
-      if (typeof value === "string" && value.includes(";")) {
-        const parts = value.split(";");
-        for (const part of parts) {
-          if (part.trim()) {
-            args.push("--extractor-args", part.trim());
+      if (Array.isArray(value)) {
+        for (const extractorArg of value) {
+          if (extractorArg) {
+            args.push("--extractor-args", String(extractorArg));
           }
         }
-      } else {
-        args.push("--extractor-args", value);
+      } else if (typeof value === "string" || typeof value === "number") {
+        args.push("--extractor-args", String(value));
       }
       continue;
     }
@@ -383,7 +440,12 @@ export async function executeYtDlpJson(
 ): Promise<any> {
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
-  const args = ["--dump-single-json", "--no-warnings", ...flagsToArgs(flags)];
+  const effectiveFlags = withDefaultYouTubeExtractorArgs(url, flags);
+  const args = [
+    "--dump-single-json",
+    "--no-warnings",
+    ...flagsToArgs(effectiveFlags),
+  ];
 
   // Add cookies if file exists
   const cookiesPath = getCookiesPath();
@@ -424,18 +486,23 @@ export async function executeYtDlpJson(
         // If it's a format error and we should retry, try again without format restrictions
         if (isFormatError && retryWithoutFormatRestrictions) {
           const hasFormatRestrictions =
-            (flags.formatSort !== undefined && flags.formatSort !== null) ||
-            (flags.format !== undefined && flags.format !== null) ||
-            (flags.S !== undefined && flags.S !== null) ||
-            (flags.f !== undefined && flags.f !== null);
+            (effectiveFlags.formatSort !== undefined &&
+              effectiveFlags.formatSort !== null) ||
+            (effectiveFlags.format !== undefined &&
+              effectiveFlags.format !== null) ||
+            (effectiveFlags.S !== undefined && effectiveFlags.S !== null) ||
+            (effectiveFlags.f !== undefined && effectiveFlags.f !== null);
 
           if (hasFormatRestrictions) {
             console.log(
-              "Format not available, retrying without format restrictions..."
+              "Format not available, retrying without format restrictions and with --ignore-config..."
             );
             try {
               // Remove format-related flags
-              const retryFlags = { ...flags };
+              const retryFlags: Record<string, any> = {
+                ...effectiveFlags,
+                ignoreConfig: true,
+              };
               delete retryFlags.formatSort;
               delete retryFlags.format;
               delete retryFlags.S;
@@ -453,20 +520,14 @@ export async function executeYtDlpJson(
               reject(error);
               return;
             }
-          } else {
-            // Format error but no format restrictions in flags - might be from config file
-            // Try with explicit format override to bypass config file
+          } else if (!effectiveFlags.ignoreConfig) {
             console.log(
-              "Format not available (possibly from config file), retrying with explicit format override..."
+              "Format not available without explicit format flags, retrying with --ignore-config..."
             );
             try {
-              const retryFlags = {
-                ...flags,
-                // Explicitly set format to "best" to override any config file settings
-                format: "best",
-                formatSort: undefined,
-                S: undefined,
-                f: undefined,
+              const retryFlags: Record<string, any> = {
+                ...effectiveFlags,
+                ignoreConfig: true,
               };
               // Retry without format restrictions (don't retry again to avoid infinite loop)
               const result = await executeYtDlpJson(url, retryFlags, false);
