@@ -13,6 +13,12 @@ This guide provides step-by-step instructions to deploy [MyTube](https://github
 
 The easiest way to run MyTube is using the official pre-built images.
 
+If you want to use the repository-provided default stack directly, run:
+
+```bash
+docker-compose -f stacks/docker-compose.yml up -d
+```
+
 ### 1. Create a Project Directory
 
 Create a folder for your project and navigate into it:
@@ -26,7 +32,7 @@ cd mytube-deploy
 
 Create a file named `docker-compose.yml` inside your folder and paste the following content.
 
-**Note:** This version uses standard relative paths (`./data`, `./uploads`). If you copy the repo’s `docker-compose.yml`, update the volume paths to match your host.
+**Note:** This version uses standard relative paths (`./data`, `./uploads`). If you copy the repo’s `stacks/docker-compose.yml`, update the volume paths to match your host.
 
 ```yaml
 services:
@@ -114,7 +120,18 @@ If you prefer a single container, use the backend-integrated image published to 
 You can run the compose file included in this repository:
 
 ```
-docker-compose -f docker-compose.single-container.yml up -d
+docker-compose -f stacks/docker-compose.single-container.yml up -d
+```
+
+By default, this stack keeps using the current host paths `../uploads` and `../data`
+(relative to `stacks/`, meaning the repo-root `uploads/` and `data/` folders).
+If you want a cleaner repo root or want to co-locate data with the backend folder,
+override the host paths when starting compose:
+
+```bash
+MYTUBE_UPLOADS_DIR=../backend/uploads \
+MYTUBE_DATA_DIR=../backend/data \
+docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```
 
 Or use an equivalent standalone compose file:
@@ -134,8 +151,8 @@ services:
       - PGID=${PGID:-1000}
       - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
     volumes:
-      - ./uploads:/app/uploads
-      - ./data:/app/data
+      - ${MYTUBE_UPLOADS_DIR:-./uploads}:/app/uploads
+      - ${MYTUBE_DATA_DIR:-./data}:/app/data
 ```
 
 Access both frontend and API through the same port:
@@ -156,6 +173,10 @@ The `docker-compose.yml` above creates two folders in your current directory t
     
 
 **Important:** If you move the `docker-compose.yml` file, you must move these folders with it to keep your data.
+
+For the repo-provided single-container stack under `stacks/`, you can override the
+host-side paths with `MYTUBE_UPLOADS_DIR` and `MYTUBE_DATA_DIR` without breaking
+existing users who still rely on the default repo-root directories.
 
 For new installs, consider keeping `uploads` as a bind mount but switching `/app/data` to a Docker named volume. SQLite is more reliable there because it avoids host filesystem ownership and ACL edge cases.
 
@@ -302,14 +323,14 @@ If you prefer to build the images yourself (e.g., to modify code), follow these 
     4.  Set `NGINX_BACKEND_URL=http://localhost:5551` in the `frontend` environment variables.
     5.  Restart containers: `docker-compose up -d`
 
-Alternatively, the repo includes `docker-compose.host-network.yml` for host-network deployments:
+Alternatively, the repo includes `stacks/docker-compose.host-network.yml` for host-network deployments:
 
 ```
-docker-compose -f docker-compose.host-network.yml up -d
+docker-compose -f stacks/docker-compose.host-network.yml up -d
 ```
 
 For unified frontend+backend deployment, the repo also includes:
 
 ```
-docker-compose -f docker-compose.single-container.yml up -d
+docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```

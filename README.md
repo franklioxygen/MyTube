@@ -143,7 +143,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 ## Deployment
 
-For detailed Docker deployment instructions, including the official GitHub Container image (`ghcr.io/franklioxygen/mytube:latest`) and the single-container compose file (`docker-compose.single-container.yml`), please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
+For detailed Docker deployment instructions, including the official GitHub Container image (`ghcr.io/franklioxygen/mytube:latest`) and the single-container compose file (`stacks/docker-compose.single-container.yml`), please refer to [Docker Deployment Guide](documents/en/docker-guide.md).
 For the `application` / `container` / `host` admin trust boundary, please refer to [Deployment Security Model](documents/en/deployment-security-model.md).
 
 ## Star History

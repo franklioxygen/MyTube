@@ -45,7 +45,7 @@ jobs:
           PUSH_REF_NAME: ${{ github.ref_name }}
           INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          chmod +x ./build-and-push.sh
+          chmod +x ./scripts/release/build-and-push.sh
           
           if [ "$EVENT_NAME" = "release" ]; then
             VERSION="$RELEASE_TAG_NAME"
@@ -60,8 +60,8 @@ jobs:
           
           if [ -n "$VERSION" ]; then
             echo "🔖 Building version: $VERSION"
-            ./build-and-push.sh "$VERSION"
+            ./scripts/release/build-and-push.sh "$VERSION"
           else
             echo "⚠️  No version specified, building 'latest'"
-            ./build-and-push.sh
+            ./scripts/release/build-and-push.sh
           fi

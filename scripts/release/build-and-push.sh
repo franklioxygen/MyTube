@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
+
 DOCKER_PATH="docker"
 USERNAME="franklioxygen"
 VERSION=$1
@@ -83,19 +87,19 @@ if [ -n "$VERSION" ]; then
 fi
 echo ""
 echo "To deploy to your server or QNAP Container Station:"
-echo "1. Use the multi-arch tags in docker-compose.yml (recommended):"
+echo "1. Use the multi-arch tags in stacks/docker-compose.yml (recommended):"
 echo "   - Docker will automatically select the correct architecture"
 echo "   - Example: franklioxygen/mytube:backend-latest"
 echo ""
-echo "2. Set environment variables in your docker-compose.yml file:"
+echo "2. Set environment variables in your compose file:"
 echo "   - VITE_API_URL=http://your-server-ip:port/api"
 echo "   - VITE_BACKEND_URL=http://your-server-ip:port"
 echo ""
 echo "Usage examples:"
 echo "  # Build both platforms with latest tags:"
-echo "  ./build-and-push.sh"
+echo "  ./scripts/release/build-and-push.sh"
 echo ""
 echo "  # Build both platforms with version tags:"
-echo "  ./build-and-push.sh 1.6.43"
+echo "  ./scripts/release/build-and-push.sh 1.6.43"
 echo ""
 echo "🕐 Build completed at: $(date '+%Y-%m-%d %H:%M:%S %Z')"

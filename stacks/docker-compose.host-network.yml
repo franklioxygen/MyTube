@@ -1,7 +1,7 @@
 # Example configuration for systems where bridge network cannot access internet
 # (e.g., OpenWrt/iStoreOS on arm64)
 #
-# Usage: docker compose -f docker-compose.host-network.yml up -d
+# Usage: docker compose -f stacks/docker-compose.host-network.yml up -d
 #
 # This configuration uses host network mode for the backend to allow internet access,
 # while keeping the frontend on bridge network with proper nginx configuration.
