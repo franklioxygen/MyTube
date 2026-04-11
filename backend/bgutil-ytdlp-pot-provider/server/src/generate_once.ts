@@ -1,4 +1,4 @@
-import { SessionManager, YoutubeSessionDataCaches } from "./session_manager.js";
+import type { YoutubeSessionDataCaches } from "./session_manager.js";
 import { VERSION } from "./utils.js";
 import { Command } from "commander";
 import * as fs from "fs";
@@ -105,6 +105,7 @@ const options = program.opts();
         }
     }
 
+    const { SessionManager } = await import("./session_manager.js");
     const sessionManager = new SessionManager(verbose, cache || {});
 
     try {
