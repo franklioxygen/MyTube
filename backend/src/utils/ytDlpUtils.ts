@@ -427,6 +427,16 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
   return args;
 }
 
+function stripFormatSelectionFlags(flags: Record<string, any>): Record<string, any> {
+  const nextFlags = { ...flags };
+  delete nextFlags.formatSort;
+  delete nextFlags.format;
+  delete nextFlags.S;
+  delete nextFlags.f;
+  delete nextFlags.preferFreeFormats;
+  return nextFlags;
+}
+
 /**
  * Execute yt-dlp with JSON output and return parsed result
  * @param url - Video URL
@@ -498,15 +508,10 @@ export async function executeYtDlpJson(
               "Format not available, retrying without format restrictions and with --ignore-config..."
             );
             try {
-              // Remove format-related flags
               const retryFlags: Record<string, any> = {
-                ...effectiveFlags,
+                ...stripFormatSelectionFlags(effectiveFlags),
                 ignoreConfig: true,
               };
-              delete retryFlags.formatSort;
-              delete retryFlags.format;
-              delete retryFlags.S;
-              delete retryFlags.f;
               // Retry without format restrictions (don't retry again to avoid infinite loop)
               const result = await executeYtDlpJson(url, retryFlags, false);
               resolve(result);
@@ -526,7 +531,7 @@ export async function executeYtDlpJson(
             );
             try {
               const retryFlags: Record<string, any> = {
-                ...effectiveFlags,
+                ...stripFormatSelectionFlags(effectiveFlags),
                 ignoreConfig: true,
               };
               // Retry without format restrictions (don't retry again to avoid infinite loop)

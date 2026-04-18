@@ -145,7 +145,6 @@ export async function downloadVideo(
     const info = await executeYtDlpJson(videoUrl, {
       ...networkConfig,
       noWarnings: true,
-      preferFreeFormats: true,
       ...(PROVIDER_SCRIPT
         ? {
             extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,

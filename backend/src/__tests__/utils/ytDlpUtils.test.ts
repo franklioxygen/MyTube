@@ -492,6 +492,28 @@ describe("ytDlpUtils", () => {
       expect(secondArgs).not.toContain("--format");
     });
 
+    it("should drop prefer-free-formats when retrying after a format error", async () => {
+      const first = createMockProcess();
+      const second = createMockProcess();
+      mockSpawnWithVersionCheck(first, second);
+
+      const promise = executeYtDlpJson("https://example.com/video", {
+        preferFreeFormats: true,
+      });
+      await flushAsyncSpawns();
+
+      first.stderr?.emit("data", Buffer.from("Requested format is not available"));
+      first.emit("close", 1);
+      await flushAsyncSpawns();
+      second.stdout?.emit("data", Buffer.from('{"fallback":true}'));
+      second.emit("close", 0);
+
+      await expect(promise).resolves.toEqual({ fallback: true });
+      const secondArgs = vi.mocked(spawn).mock.calls[2][1] as string[];
+      expect(secondArgs).toContain("--ignore-config");
+      expect(secondArgs).not.toContain("--prefer-free-formats");
+    });
+
     it("should add provider and mweb extractor args for youtube when bundled provider is available", async () => {
       vi.mocked(getProviderScript).mockReturnValue(
         "/app/bgutil-ytdlp-pot-provider/server/build/generate_once.js",
