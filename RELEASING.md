@@ -12,7 +12,7 @@ Versions are formatted as `MAJOR.MINOR.PATCH` (e.g., `1.0.0`).
 
 ## Creating a Release
 
-We use the `release.sh` script to automate the release process. This script handles:
+We use the `scripts/release/release.sh` script to automate the release process. This script handles:
 1.  Updating version numbers in `package.json` files.
 2.  Creating a git tag.
 3.  Building and pushing Docker images.
@@ -28,21 +28,21 @@ We use the `release.sh` script to automate the release process. This script hand
 Run the release script with the desired version number:
 
 ```bash
-./release.sh <version>
+./scripts/release/release.sh <version>
 ```
 
 Example:
 
 ```bash
-./release.sh 1.2.0
+./scripts/release/release.sh 1.2.0
 ```
 
 Alternatively, you can specify the increment type:
 
 ```bash
-./release.sh patch  # 1.1.0 -> 1.1.1
-./release.sh minor  # 1.1.0 -> 1.2.0
-./release.sh major  # 1.1.0 -> 2.0.0
+./scripts/release/release.sh patch  # 1.1.0 -> 1.1.1
+./scripts/release/release.sh minor  # 1.1.0 -> 1.2.0
+./scripts/release/release.sh major  # 1.1.0 -> 2.0.0
 ```
 
 ### What the Script Does

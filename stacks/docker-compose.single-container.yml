@@ -1,5 +1,5 @@
 # Single-container deployment: backend API + frontend SPA in one image
-# Usage: docker compose -f docker-compose.single-container.yml up -d
+# Usage: docker compose -f stacks/docker-compose.single-container.yml up -d
 
 services:
   mytube:
@@ -9,8 +9,10 @@ services:
     ports:
       - "5551:5551"
     volumes:
-      - ./uploads:/app/uploads
-      - ./data:/app/data
+      # Override MYTUBE_UPLOADS_DIR / MYTUBE_DATA_DIR to relocate host data
+      # while preserving the current defaults for existing deployments.
+      - ${MYTUBE_UPLOADS_DIR:-../uploads}:/app/uploads
+      - ${MYTUBE_DATA_DIR:-../data}:/app/data
     environment:
       - PORT=5551
       # Optional: match the backend process uid/gid to the host-side file ownership.

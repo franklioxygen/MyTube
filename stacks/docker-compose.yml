@@ -1,3 +1,6 @@
+# Default two-container deployment
+# Usage: docker compose -f stacks/docker-compose.yml up -d
+
 services:
   backend:
     image: franklioxygen/mytube:backend-latest

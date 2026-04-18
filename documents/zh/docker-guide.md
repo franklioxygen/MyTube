@@ -13,6 +13,12 @@
 
 运行 MyTube 最简单的方法是使用官方预构建的镜像。
 
+如果你想直接使用仓库内置的默认 stack，可以运行：
+
+```bash
+docker-compose -f stacks/docker-compose.yml up -d
+```
+
 ### 1. 创建项目目录
 
 为您的项目创建一个文件夹并进入该目录：
@@ -26,7 +32,7 @@ cd mytube-deploy
 
 在文件夹中创建一个名为  `docker-compose.yml`  的文件，并粘贴以下内容。
 
-**注意：** 此版本使用标准相对路径（`./data`, `./uploads`）。若使用仓库内的 `docker-compose.yml`，请先调整卷路径。
+**注意：** 此版本使用标准相对路径（`./data`, `./uploads`）。若使用仓库内的 `stacks/docker-compose.yml`，请先调整卷路径。
 
 ```yaml
 version: "3.8"
@@ -115,7 +121,18 @@ docker-compose up -d
 可以直接使用仓库内置的 compose 文件：
 
 ```
-docker-compose -f docker-compose.single-container.yml up -d
+docker-compose -f stacks/docker-compose.single-container.yml up -d
+```
+
+默认情况下，这个 stack 仍然使用当前的宿主机路径 `../uploads` 和 `../data`
+（相对于 `stacks/`，也就是仓库根目录下的 `uploads/` 和 `data/`）。
+如果你想让根目录更干净，或者希望把数据和 `backend/` 放在一起，
+可以在启动时覆盖这两个路径：
+
+```bash
+MYTUBE_UPLOADS_DIR=../backend/uploads \
+MYTUBE_DATA_DIR=../backend/data \
+docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```
 
 或者使用等价的独立 compose 文件：
@@ -135,8 +152,8 @@ services:
       - PGID=${PGID:-1000}
       - MYTUBE_AUTO_FIX_PERMISSIONS=${MYTUBE_AUTO_FIX_PERMISSIONS:-1}
     volumes:
-      - ./uploads:/app/uploads
-      - ./data:/app/data
+      - ${MYTUBE_UPLOADS_DIR:-./uploads}:/app/uploads
+      - ${MYTUBE_DATA_DIR:-./data}:/app/data
 ```
 
 此模式下前端和 API 共用同一个端口：
@@ -154,6 +171,10 @@ services:
 - `./data`: 存储 SQLite 数据库和日志。
 
 **重要提示：**  如果您移动  `docker-compose.yml`  文件，必须同时移动这些文件夹以保留您的数据。
+
+对于仓库中 `stacks/` 下提供的单容器 stack，也可以通过 `MYTUBE_UPLOADS_DIR`
+和 `MYTUBE_DATA_DIR` 覆盖宿主机路径，在不破坏现有默认路径兼容性的前提下，
+把数据放到其他位置。
 
 对于新部署，建议继续把 `uploads` 挂载到宿主机，但把 `/app/data` 改成 Docker named volume。SQLite 在这种模式下更稳妥，可以避开宿主机权限和 ACL 带来的兼容性问题。
 
@@ -290,14 +311,14 @@ MYTUBE_ADMIN_TRUST_LEVEL=container
   4.  在 `frontend` 环境变量中设置 `NGINX_BACKEND_URL=http://localhost:5551`。
   5.  重启容器：`docker-compose up -d`
 
-或者直接使用仓库提供的 `docker-compose.host-network.yml`：
+或者直接使用仓库提供的 `stacks/docker-compose.host-network.yml`：
 
 ```
-docker-compose -f docker-compose.host-network.yml up -d
+docker-compose -f stacks/docker-compose.host-network.yml up -d
 ```
 
 如果使用前后端合一的单容器部署，仓库还提供：
 
 ```
-docker-compose -f docker-compose.single-container.yml up -d
+docker-compose -f stacks/docker-compose.single-container.yml up -d
 ```

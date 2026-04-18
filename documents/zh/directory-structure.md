@@ -85,9 +85,9 @@ mytube/
 ├── data/                              # 可选运行时数据 (如果从仓库根目录启动)
 ├── uploads/                           # 可选运行时媒体 (如果从仓库根目录启动)
 ├── stacks/                            # 部署栈示例
-├── docker-compose.yml
-├── docker-compose.host-network.yml
-├── docker-compose.single-container.yml
+│   ├── docker-compose.yml
+│   ├── docker-compose.host-network.yml
+│   └── docker-compose.single-container.yml
 ├── README.md
 ├── README-zh.md
 └── package.json                       # 根目录任务运行脚本

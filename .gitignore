@@ -27,6 +27,8 @@ lerna-debug.log*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+.cursor/
+.claude/
 .idea
 .DS_Store
 *.suo
@@ -53,15 +55,15 @@ backend/data/*
 # But keep the directory structure if needed
 !backend/data/.gitkeep
 
+# Root runtime directories used by the single-container stack
+data/*
+uploads/*
+
 # Large video files (test files)
 *.webm
 *.mp4
 *.mkv
 *.avi
-
-# Snyk Security Extension - AI Rules (auto-generated)
-.cursor/rules/snyk_rules.mdc
-
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md

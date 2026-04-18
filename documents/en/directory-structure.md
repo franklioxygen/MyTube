@@ -85,9 +85,9 @@ mytube/
 ├── data/                              # Optional runtime data (if backend started from repo root)
 ├── uploads/                           # Optional runtime media (if backend started from repo root)
 ├── stacks/                            # Deployment stack examples
-├── docker-compose.yml
-├── docker-compose.host-network.yml
-├── docker-compose.single-container.yml
+│   ├── docker-compose.yml
+│   ├── docker-compose.host-network.yml
+│   └── docker-compose.single-container.yml
 ├── README.md
 ├── README-zh.md
 └── package.json                       # Root task runner scripts
