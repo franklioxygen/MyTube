@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import path from "path";
 import {
     AVATARS_DIR,
@@ -8,7 +8,7 @@ import {
     VIDEOS_DIR,
 } from "../../config/paths";
 import { db } from "../../db";
-import { videos } from "../../db/schema";
+import { downloadHistory, videos } from "../../db/schema";
 import { DatabaseError } from "../../errors/DownloadErrors";
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
@@ -583,6 +583,12 @@ export function deleteVideo(id: string): boolean {
 
     // Mark video as deleted in download history
     markVideoDownloadDeleted(id);
+
+    // Mark any download history entries for this video as deleted
+    db.update(downloadHistory)
+      .set({ status: "deleted", deletedAt: Date.now() })
+      .where(and(eq(downloadHistory.videoId, id), eq(downloadHistory.status, "success")))
+      .run();
 
     // Delete from DB
     db.delete(videos).where(eq(videos.id, id)).run();

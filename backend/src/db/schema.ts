@@ -151,6 +151,7 @@ export const subscriptions = sqliteTable("subscriptions", {
   twitchBroadcasterId: text("twitch_broadcaster_id"),
   twitchBroadcasterLogin: text("twitch_broadcaster_login"),
   lastTwitchVideoId: text("last_twitch_video_id"),
+  retentionDays: integer("retention_days"), // Auto-delete videos older than this many days (null = disabled)
 });
 
 // Track downloaded video IDs to prevent re-downloading
