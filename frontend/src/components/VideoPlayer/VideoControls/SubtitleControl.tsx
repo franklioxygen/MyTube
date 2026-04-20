@@ -32,7 +32,7 @@ interface SubtitleControlProps {
     isFullscreen?: boolean;
 }
 
-const SubtitleControl: React.FC<SubtitleControlProps> = ({
+const SubtitleControlView: React.FC<SubtitleControlProps> = ({
     subtitles,
     subtitlesEnabled,
     selectedSubtitleIndices,
@@ -86,7 +86,7 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
         setIndexToDelete(null);
     };
 
-    const hasSubtitles = Boolean(subtitles?.length);
+    const hasSubtitles = subtitles.length > 0;
     const showControl = hasSubtitles || onUploadSubtitle;
     if (!showControl) return null;
 
@@ -197,7 +197,14 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
                     <Button onClick={handleCloseDeleteModal} color="inherit" variant="text">
                         {t('cancel') || 'Cancel'}
                     </Button>
-                    <Button onClick={() => { void handleConfirmDelete(); }} color="error" variant="outlined" autoFocus>
+                    <Button
+                        onClick={() => {
+                            void handleConfirmDelete();
+                        }}
+                        color="error"
+                        variant="outlined"
+                        autoFocus
+                    >
                         {t('delete') || 'Delete'}
                     </Button>
                 </DialogActions>
@@ -206,4 +213,4 @@ const SubtitleControl: React.FC<SubtitleControlProps> = ({
     );
 };
 
-export default SubtitleControl;
+export default SubtitleControlView;

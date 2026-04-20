@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
-import fs from "fs-extra";
-import path from "path";
 import { VIDEOS_DIR } from "../config/paths";
 import { ValidationError } from "../errors/DownloadErrors";
 import * as storageService from "../services/storageService";
 import { logger } from "../utils/logger";
+import {
+  readdirDirentsSafe,
+  removeSafe,
+  resolveSafeChildPath,
+} from "../utils/security";
 
 /**
  * Clean up temporary download files (.ytdl, .part)
@@ -29,17 +32,16 @@ export const cleanupTempFiles = async (
   // Recursively find and delete .ytdl and .part files
   const cleanupDirectory = async (dir: string) => {
     try {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+      const entries = await readdirDirentsSafe(dir, VIDEOS_DIR);
 
       for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
+        const fullPath = resolveSafeChildPath(dir, entry.name);
 
         if (entry.isDirectory()) {
           // Check for temp_ folder
           if (entry.name.startsWith("temp_")) {
             try {
-              await fs.remove(fullPath);
+              await removeSafe(fullPath, VIDEOS_DIR);
               deletedCount++;
               logger.debug(`Deleted temp directory: ${fullPath}`);
             } catch (error) {
@@ -57,8 +59,7 @@ export const cleanupTempFiles = async (
           // Check if file has .ytdl or .part extension
           if (entry.name.endsWith(".ytdl") || entry.name.endsWith(".part")) {
             try {
-              // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-              await fs.unlink(fullPath);
+              await removeSafe(fullPath, VIDEOS_DIR);
               deletedCount++;
               logger.debug(`Deleted temp file: ${fullPath}`);
             } catch (error) {

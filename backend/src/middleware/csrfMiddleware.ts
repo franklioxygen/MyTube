@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { doubleCsrf } from "csrf-csrf";
 import crypto from "crypto";
-import { getAuthCookieName } from "../services/authService";
 
 const CSRF_SECRET =
   process.env.CSRF_SECRET || crypto.randomBytes(32).toString("hex");
@@ -10,10 +9,7 @@ const CSRF_COOKIE_NAME = "mytube_csrf";
 
 const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
-  getSessionIdentifier: (req: Request) => {
-    const cookieName = getAuthCookieName();
-    return req.cookies?.[cookieName] ?? "anonymous";
-  },
+  getSessionIdentifier: (req: Request) => req.cookies?.mytube_auth_session ?? "anonymous",
   cookieName: CSRF_COOKIE_NAME,
   cookieOptions: {
     sameSite: "lax",
@@ -64,15 +60,14 @@ export const refreshCsrfTokenForSession = (
   res: Response,
   sessionId?: string,
 ): string => {
-  const authCookieName = getAuthCookieName();
   // Keep req.cookies aligned with the session cookie we just issued/cleared on
   // the response so the regenerated CSRF token is bound to the new session.
   req.cookies = req.cookies ?? {};
 
   if (sessionId) {
-    req.cookies[authCookieName] = sessionId;
+    req.cookies.mytube_auth_session = sessionId;
   } else {
-    delete req.cookies[authCookieName];
+    req.cookies.mytube_auth_session = undefined;
   }
 
   return setCsrfTokenHeader(req, res, { overwrite: true });

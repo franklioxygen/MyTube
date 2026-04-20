@@ -157,13 +157,12 @@ RUN mkdir -p \
     data \
     && chown -R 1000:1000 uploads data
 
-# The container starts as root only long enough for the entrypoint to reconcile
-# bind-mount ownership. The backend process itself is then launched as PUID:PGID
-# (default 1000:1000) via gosu.
+# Run the container as the unprivileged app user by default. The entrypoint
+# still supports non-root startup and will skip permission reconciliation when
+# the container is not launched as uid 0.
+USER 1000:1000
 
 EXPOSE 5551
 
-# The entrypoint starts as root only to reconcile bind-mount ownership,
-# then drops to PUID:PGID via gosu before executing CMD.
 ENTRYPOINT ["/usr/local/bin/mytube-entrypoint.sh"]
 CMD ["node", "dist/src/server.js"]

@@ -55,8 +55,6 @@ export interface Settings {
   twitchClientSecret?: string;
 }
 
-export const DEFAULT_ADMIN_PASSWORD = "123";
-
 export const defaultSettings: Settings = {
   loginEnabled: false,
   password: "",

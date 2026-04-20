@@ -23,7 +23,7 @@ export function useVideoCollections({ videoId }: UseVideoCollectionsProps) {
 
     // Find collections that contain the current video
     useEffect(() => {
-        if (collections && collections.length > 0 && videoId) {
+        if (collections.length > 0 && videoId) {
             const belongsToCollections = collections.filter(collection =>
                 collection.videos.includes(videoId)
             );
@@ -35,7 +35,7 @@ export function useVideoCollections({ videoId }: UseVideoCollectionsProps) {
 
     // Calculate collections for the modal (can be current video or sidebar video)
     const modalVideoCollections = useMemo(() => {
-        if (collections && collections.length > 0 && activeCollectionVideoId) {
+        if (collections.length > 0 && activeCollectionVideoId) {
             return collections.filter(collection =>
                 collection.videos.includes(activeCollectionVideoId)
             );

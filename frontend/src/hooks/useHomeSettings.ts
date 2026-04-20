@@ -28,6 +28,15 @@ interface UseHomeSettingsParams {
     settingsLoading?: boolean;
 }
 
+const getErrorStatus = (error: unknown): number | undefined => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+        return undefined;
+    }
+
+    const response = (error as { response?: { status?: number } }).response;
+    return response?.status;
+};
+
 export const useHomeSettings = ({ settings, settingsLoading = false }: UseHomeSettingsParams = {}): UseHomeSettingsReturn => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -84,9 +93,9 @@ export const useHomeSettings = ({ settings, settingsLoading = false }: UseHomeSe
             await api.patch('/settings', {
                 homeSidebarOpen: newState
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Silently handle 401 errors (expected when not authenticated)
-            if (error?.response?.status !== 401) {
+            if (getErrorStatus(error) !== 401) {
                 console.error('Failed to save sidebar state:', error);
             }
         }

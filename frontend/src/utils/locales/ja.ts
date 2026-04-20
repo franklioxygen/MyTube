@@ -552,7 +552,7 @@ export const ja = {
   verifying: "確認中...",
   incorrectPassword: "パスワードが間違っています",
   loginFailed: "パスワードの確認に失敗しました",
-  defaultPasswordHint: "デフォルトのパスワード: 123",
+  defaultPasswordHint: "設定で構成した管理者パスワードを使用してください。",
   checkingConnection: "接続を確認中...",
   connectionError: "接続エラー",
   backendConnectionFailed:
@@ -923,7 +923,7 @@ export const ja = {
     "システムパラメータの構成、データの維持、および機能の拡張。",
   instructionSection3Sub1: "セキュリティ設定：",
   instructionSection3Text1:
-    "システムログインパスワードを設定します（デフォルトの初期パスワードは123です。初回ログイン後に変更することをお勧めします）。",
+    "サインインを有効にする前にシステムログイン用パスワードを設定してください。アクセスできなくなった場合は、バックエンドの reset-password スクリプトで再設定できます。",
   instructionSection3Sub2: "タグ管理：",
   instructionSection3Text2:
     "ビデオ分類タグの追加または削除をサポートします。注：変更を有効にするには、ページ下部の「保存」ボタンをクリックする必要があります。",

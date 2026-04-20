@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useSnackbar } from '../contexts/SnackbarContext';
+import { Settings } from '../types';
 import { api } from '../utils/apiClient';
 import { settingsQueryOptions } from '../utils/settingsQueries';
 
@@ -38,7 +39,7 @@ export function useVideoPlayerSettings() {
         },
         onSuccess: (data) => {
             if (data.success) {
-                queryClient.setQueryData(['settings'], (old: any) => 
+                queryClient.setQueryData(['settings'], (old: Settings | undefined) =>
                     old ? { ...old, subtitlesEnabled: data.settings.subtitlesEnabled } : old
                 );
             }
@@ -58,7 +59,7 @@ export function useVideoPlayerSettings() {
         },
         onSuccess: (data) => {
             if (data.success) {
-                queryClient.setQueryData(['settings'], (old: any) => 
+                queryClient.setQueryData(['settings'], (old: Settings | undefined) =>
                     old ? { ...old, defaultAutoLoop: data.settings.defaultAutoLoop } : old
                 );
             }

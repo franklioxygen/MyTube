@@ -529,7 +529,7 @@ export const en = {
   verifying: "Verifying...",
   incorrectPassword: "Incorrect password",
   loginFailed: "Failed to verify password",
-  defaultPasswordHint: "Default password: 123",
+  defaultPasswordHint: "Use the admin password configured in Settings.",
   checkingConnection: "Checking connection...",
   connectionError: "Connection Error",
   backendConnectionFailed:
@@ -878,7 +878,7 @@ export const en = {
     "Configure system parameters, maintain data, and extend functions.",
   instructionSection3Sub1: "Security Settings:",
   instructionSection3Text1:
-    "Set the system login password (default initial password is 123, recommended to change after first login).",
+    "Set the system login password before enabling sign-in. If you lose access, reset it with the backend reset-password script.",
   instructionSection3Sub2: "Tag Management:",
   instructionSection3Text2:
     'Supports adding or deleting video classification tags. Note: You must click the "Save" button at the bottom of the page for changes to take effect.',

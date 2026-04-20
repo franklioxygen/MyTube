@@ -1,10 +1,13 @@
 import { exec } from 'child_process';
 import { eq } from 'drizzle-orm';
-import fs from 'fs-extra';
-import path from 'path';
 import { VIDEOS_DIR } from '../src/config/paths';
 import { db } from '../src/db';
 import { videos } from '../src/db/schema';
+import { getVideoDuration } from '../src/services/metadataService';
+import {
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+} from '../src/utils/security';
 
 async function updateDurations() {
   console.log('Starting duration update...');
@@ -36,38 +39,26 @@ async function updateDurations() {
     let fsPath = '';
     if (videoPath.startsWith('/videos/')) {
         const relativePath = videoPath.replace('/videos/', '');
-        fsPath = path.join(VIDEOS_DIR, relativePath);
+        fsPath = resolveSafeChildPath(VIDEOS_DIR, relativePath);
     } else {
         // Fallback or other path structure
         continue;
     }
 
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(fsPath)) {
+    if (!pathExistsSafeSync(fsPath, VIDEOS_DIR)) {
         console.warn(`File not found: ${fsPath}`);
         continue;
     }
 
     try {
-        const duration = await new Promise<string>((resolve, reject) => {
-            exec(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${fsPath}"`, (error, stdout, _stderr) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(stdout.trim());
-                }
-            });
-        });
+        const duration = await getVideoDuration(fsPath);
 
-        if (duration) {
-            const durationSec = parseFloat(duration);
-            if (!isNaN(durationSec)) {
-                await db.update(videos)
-                    .set({ duration: Math.round(durationSec).toString() })
-                    .where(eq(videos.id, video.id));
-                console.log(`Updated duration for ${video.title}: ${Math.round(durationSec)}s`);
-                updatedCount++;
-            }
+        if (duration !== null) {
+            await db.update(videos)
+                .set({ duration: Math.round(duration).toString() })
+                .where(eq(videos.id, video.id));
+            console.log(`Updated duration for ${video.title}: ${Math.round(duration)}s`);
+            updatedCount++;
         }
     } catch (error) {
         console.error(`Error getting duration for ${video.title}:`, error);

@@ -33,6 +33,17 @@ type TwitchYtDlpChannelResult = {
   videos: TwitchYtDlpVideoEntry[];
 };
 
+type TwitchYtDlpEntry = {
+  webpage_url?: unknown;
+  url?: unknown;
+  id?: unknown;
+  title?: unknown;
+  uploader?: unknown;
+  uploader_id?: unknown;
+  upload_date?: unknown;
+  view_count?: unknown;
+};
+
 function buildTwitchVideosUrl(channelUrl: string): string {
   const normalizedUrl = normalizeTwitchChannelUrl(channelUrl);
   return normalizedUrl.endsWith("/videos")
@@ -59,16 +70,16 @@ function stripChannelLoginPrefix(
     : title;
 }
 
-function resolveTwitchVideoUrl(entry: any): string | null {
-  if (typeof entry?.webpage_url === "string" && entry.webpage_url.includes("/videos/")) {
+function resolveTwitchVideoUrl(entry: TwitchYtDlpEntry): string | null {
+  if (typeof entry.webpage_url === "string" && entry.webpage_url.includes("/videos/")) {
     return entry.webpage_url;
   }
 
-  if (typeof entry?.url === "string" && entry.url.includes("/videos/")) {
+  if (typeof entry.url === "string" && entry.url.includes("/videos/")) {
     return entry.url;
   }
 
-  if (typeof entry?.id === "string") {
+  if (typeof entry.id === "string") {
     if (/^v\d+$/.test(entry.id)) {
       return `https://www.twitch.tv/videos/${entry.id.slice(1)}`;
     }
@@ -80,13 +91,16 @@ function resolveTwitchVideoUrl(entry: any): string | null {
   return null;
 }
 
-function resolveTwitchVideoId(entry: any, resolvedUrl: string | null): string | null {
+function resolveTwitchVideoId(
+  entry: TwitchYtDlpEntry,
+  resolvedUrl: string | null
+): string | null {
   const fromUrl = resolvedUrl ? extractTwitchVideoId(resolvedUrl) : null;
   if (fromUrl) {
     return fromUrl;
   }
 
-  if (typeof entry?.id === "string") {
+  if (typeof entry.id === "string") {
     if (/^v\d+$/.test(entry.id)) {
       return entry.id.slice(1);
     }
@@ -127,32 +141,35 @@ export async function getTwitchChannelVideos(
 
   const videos: TwitchYtDlpVideoEntry[] = [];
   for (const [index, entry] of entries.entries()) {
-    const url = resolveTwitchVideoUrl(entry);
-    const id = resolveTwitchVideoId(entry, url);
+    const candidate = entry as TwitchYtDlpEntry;
+    const url = resolveTwitchVideoUrl(candidate);
+    const id = resolveTwitchVideoId(candidate, url);
 
     if (!url || !id) {
       continue;
     }
 
     const title =
-      typeof entry?.title === "string" && entry.title.trim()
-        ? entry.title.trim()
+      typeof candidate.title === "string" && candidate.title.trim()
+        ? candidate.title.trim()
         : "Twitch Video";
     const author =
-      typeof entry?.uploader === "string" && entry.uploader.trim()
-        ? entry.uploader.trim()
+      typeof candidate.uploader === "string" && candidate.uploader.trim()
+        ? candidate.uploader.trim()
         : null;
     const authorLogin =
-      typeof entry?.uploader_id === "string" && entry.uploader_id.trim()
-        ? entry.uploader_id.trim().toLowerCase()
+      typeof candidate.uploader_id === "string" && candidate.uploader_id.trim()
+        ? candidate.uploader_id.trim().toLowerCase()
         : channelLogin;
     const uploadDate =
-      typeof entry?.upload_date === "string" && /^\d{8}$/.test(entry.upload_date)
-        ? entry.upload_date
+      typeof candidate.upload_date === "string" &&
+      /^\d{8}$/.test(candidate.upload_date)
+        ? candidate.upload_date
         : null;
     const viewCount =
-      typeof entry?.view_count === "number" && Number.isFinite(entry.view_count)
-        ? Math.floor(entry.view_count)
+      typeof candidate.view_count === "number" &&
+      Number.isFinite(candidate.view_count)
+        ? Math.floor(candidate.view_count)
         : 0;
 
     videos.push({

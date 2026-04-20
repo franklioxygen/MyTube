@@ -323,6 +323,14 @@ export function readFileSafeSync(
   return fs.readFileSync(safePath, encoding);
 }
 
+export function readFileTrustedSync(
+  filePath: string,
+  encoding: BufferEncoding,
+): string {
+  const safePath = normalizeSafeAbsolutePath(filePath);
+  return fs.readFileSync(safePath, encoding);
+}
+
 export async function readdirDirentsSafe(
   dirPath: string,
   allowedDirOrDirs: string | readonly string[],
@@ -460,6 +468,14 @@ export function createReadStreamSafe(
   options?: ReadStreamOptions,
 ): fs.ReadStream {
   const safePath = resolveSafePathForOperation(filePath, allowedDirOrDirs);
+  return fs.createReadStream(safePath, options);
+}
+
+export function createReadStreamTrusted(
+  filePath: string,
+  options?: ReadStreamOptions,
+): fs.ReadStream {
+  const safePath = normalizeSafeAbsolutePath(filePath);
   return fs.createReadStream(safePath, options);
 }
 

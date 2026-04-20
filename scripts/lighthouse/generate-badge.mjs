@@ -11,27 +11,28 @@ const USAGE =
 let outputPath = "badges/lighthouse-performance.json";
 let label = "Lighthouse mobile";
 const inputPaths = [];
+const remainingArgs = [...args];
 
-for (let index = 0; index < args.length; index += 1) {
-  const arg = args[index];
+while (remainingArgs.length > 0) {
+  const arg = remainingArgs.shift();
   if (arg === "--help" || arg === "-h") {
     console.log(USAGE);
     process.exit(0);
   }
 
   if (arg === "--output") {
-    outputPath = args[index + 1] ?? outputPath;
-    index += 1;
+    outputPath = remainingArgs.shift() ?? outputPath;
     continue;
   }
 
   if (arg === "--label") {
-    label = args[index + 1] ?? label;
-    index += 1;
+    label = remainingArgs.shift() ?? label;
     continue;
   }
 
-  inputPaths.push(arg);
+  if (arg) {
+    inputPaths.push(arg);
+  }
 }
 
 if (inputPaths.length === 0) {

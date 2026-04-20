@@ -1,7 +1,10 @@
 import { exec } from "child_process";
-import fs from "fs";
 import path from "path";
 import { getVideoDuration } from "../src/services/metadataService";
+import {
+  pathExistsSafeSync,
+  unlinkSafeSync,
+} from "../src/utils/security";
 
 const TEST_VIDEO_PATH = path.join(__dirname, "test_video.mp4");
 
@@ -38,10 +41,8 @@ async function runTest() {
         console.error("Test failed:", error);
         process.exit(1);
     } finally {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(TEST_VIDEO_PATH)) {
-            // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-            fs.unlinkSync(TEST_VIDEO_PATH);
+        if (pathExistsSafeSync(TEST_VIDEO_PATH, __dirname)) {
+            unlinkSafeSync(TEST_VIDEO_PATH, __dirname);
             console.log("Test video deleted.");
         }
     }

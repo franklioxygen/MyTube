@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { DEFAULT_ADMIN_PASSWORD, defaultSettings } from "../types/settings";
+import { defaultSettings } from "../types/settings";
 import { logger } from "../utils/logger";
 import * as storageService from "./storageService";
 import { generateToken } from "./authService";
@@ -9,21 +9,7 @@ const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/;
 type PasswordMatchResult =
   | "match"
   | "legacy_plaintext_match"
-  | "default_admin_password_match"
   | "mismatch";
-
-function compareDefaultAdminPassword(
-  inputPassword: string,
-  loginEnabled: boolean
-): PasswordMatchResult {
-  if (!loginEnabled || typeof inputPassword !== "string") {
-    return "mismatch";
-  }
-
-  return inputPassword === DEFAULT_ADMIN_PASSWORD
-    ? "default_admin_password_match"
-    : "mismatch";
-}
 
 async function compareStoredPassword(
   inputPassword: string,
@@ -58,24 +44,14 @@ async function compareStoredPassword(
 
 function isHashPersistenceMatch(
   matchResult: PasswordMatchResult
-): matchResult is "legacy_plaintext_match" | "default_admin_password_match" {
-  return (
-    matchResult === "legacy_plaintext_match" ||
-    matchResult === "default_admin_password_match"
-  );
+): matchResult is "legacy_plaintext_match" {
+  return matchResult === "legacy_plaintext_match";
 }
 
 function getHashPersistenceMessages(
   key: "password" | "visitorPassword",
-  matchResult: "legacy_plaintext_match" | "default_admin_password_match"
+  matchResult: "legacy_plaintext_match"
 ): { success: string; failure: string } {
-  if (matchResult === "default_admin_password_match") {
-    return {
-      success: `Accepted default admin password fallback. Persisted bcrypt hash for ${key}.`,
-      failure: `Failed to persist bcrypt hash for default admin password fallback ${key}.`,
-    };
-  }
-
   return {
     success: `Detected legacy plaintext ${key}. Automatically migrated to bcrypt hash.`,
     failure: `Failed to migrate legacy plaintext ${key}.`,
@@ -190,20 +166,6 @@ export async function verifyPassword(
       const token = generateToken({ role: "admin" });
       return { success: true, role: "admin", token };
     }
-  } else {
-    const defaultAdminMatchResult = compareDefaultAdminPassword(
-      password,
-      mergedSettings.loginEnabled === true
-    );
-    if (defaultAdminMatchResult !== "mismatch") {
-      await persistHashForCompatibleMatch(
-        "password",
-        DEFAULT_ADMIN_PASSWORD,
-        defaultAdminMatchResult,
-      );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
-    }
   }
 
   // 2. Check Visitor Password (if visitorPassword is set and visitor user is enabled)
@@ -273,20 +235,6 @@ export async function verifyAdminPassword(
       return { success: true, role: "admin", token };
     }
   } else {
-    const defaultAdminMatchResult = compareDefaultAdminPassword(
-      password,
-      mergedSettings.loginEnabled === true
-    );
-    if (defaultAdminMatchResult !== "mismatch") {
-      await persistHashForCompatibleMatch(
-        "password",
-        DEFAULT_ADMIN_PASSWORD,
-        defaultAdminMatchResult,
-      );
-      const token = generateToken({ role: "admin" });
-      return { success: true, role: "admin", token };
-    }
-
     return {
       success: false,
       message:
@@ -380,19 +328,6 @@ export async function confirmAdminPassword(
   const mergedSettings = { ...defaultSettings, ...settings };
 
   if (!mergedSettings.password) {
-    const defaultAdminMatchResult = compareDefaultAdminPassword(
-      password,
-      mergedSettings.loginEnabled === true
-    );
-    if (defaultAdminMatchResult !== "mismatch") {
-      await persistHashForCompatibleMatch(
-        "password",
-        DEFAULT_ADMIN_PASSWORD,
-        defaultAdminMatchResult
-      );
-      return { success: true };
-    }
-
     return {
       success: false,
       message:

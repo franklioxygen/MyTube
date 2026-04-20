@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const VOLUME_STORAGE_KEY = 'videoPlayerVolume';
-const PREVIOUS_VOLUME_STORAGE_KEY = 'videoPlayerPreviousVolume';
+const VOLUME_STORAGE_ID = 'mytube:player-volume';
+const PREVIOUS_VOLUME_STORAGE_ID = 'mytube:player-previous-volume';
 
 const getStoredVolume = (): number => {
     try {
-        const stored = localStorage.getItem(VOLUME_STORAGE_KEY);
+        const stored = localStorage.getItem(VOLUME_STORAGE_ID);
         if (stored !== null) {
             const parsed = parseFloat(stored);
             if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
@@ -20,7 +20,7 @@ const getStoredVolume = (): number => {
 
 const getStoredPreviousVolume = (): number => {
     try {
-        const stored = localStorage.getItem(PREVIOUS_VOLUME_STORAGE_KEY);
+        const stored = localStorage.getItem(PREVIOUS_VOLUME_STORAGE_ID);
         if (stored !== null) {
             const parsed = parseFloat(stored);
             if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
@@ -49,7 +49,7 @@ export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     // Save volume to localStorage when it changes
     useEffect(() => {
         try {
-            localStorage.setItem(VOLUME_STORAGE_KEY, volume.toString());
+            localStorage.setItem(VOLUME_STORAGE_ID, volume.toString());
         } catch (error) {
             console.error('Error saving volume to localStorage:', error);
         }
@@ -58,7 +58,7 @@ export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
     // Save previous volume to localStorage when it changes
     useEffect(() => {
         try {
-            localStorage.setItem(PREVIOUS_VOLUME_STORAGE_KEY, previousVolume.toString());
+            localStorage.setItem(PREVIOUS_VOLUME_STORAGE_ID, previousVolume.toString());
         } catch (error) {
             console.error('Error saving previous volume to localStorage:', error);
         }
@@ -178,4 +178,3 @@ export const useVolume = (videoRef: React.RefObject<HTMLVideoElement | null>) =>
         handleSliderMouseLeave
     };
 };
-

@@ -9,6 +9,15 @@ export interface AuthSettingsResponse {
     authenticatedRole?: 'admin' | 'visitor' | null;
 }
 
+const getErrorStatus = (error: unknown): number | undefined => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+        return undefined;
+    }
+
+    const response = (error as { response?: { status?: number } }).response;
+    return response?.status;
+};
+
 export const isUnauthenticatedAuthProbeStatus = (status?: number) =>
     status === 401 || status === 403;
 
@@ -22,8 +31,8 @@ export const fetchAuthSettings = async (): Promise<AuthSettingsResponse | null> 
     try {
         const response = await api.get('/settings/password-enabled');
         return response.data as AuthSettingsResponse;
-    } catch (error: any) {
-        if (isUnauthenticatedAuthProbeStatus(error?.response?.status)) {
+    } catch (error: unknown) {
+        if (isUnauthenticatedAuthProbeStatus(getErrorStatus(error))) {
             return null;
         }
 
@@ -34,19 +43,20 @@ export const fetchAuthSettings = async (): Promise<AuthSettingsResponse | null> 
 export const authSettingsQueryOptions = {
     queryKey: ['authSettings'],
     queryFn: fetchAuthSettings,
-    retry: (failureCount: number, error: any) => {
-        if (isUnauthenticatedAuthProbeStatus(error?.response?.status)) {
+    retry: (failureCount: number, error: unknown) => {
+        const status = getErrorStatus(error);
+        if (isUnauthenticatedAuthProbeStatus(status)) {
             return false;
         }
 
-        if (isRateLimitedAuthProbeStatus(error?.response?.status)) {
+        if (isRateLimitedAuthProbeStatus(status)) {
             return failureCount < 1;
         }
 
         return failureCount < 1;
     },
-    retryDelay: (_attemptIndex: number, error: any) => {
-        if (isRateLimitedAuthProbeStatus(error?.response?.status)) {
+    retryDelay: (_attemptIndex: number, error: unknown) => {
+        if (isRateLimitedAuthProbeStatus(getErrorStatus(error))) {
             return Math.max(getWaitTime(error), 1000);
         }
 
@@ -68,8 +78,8 @@ export const settingsQueryOptions = {
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
-    retry: (failureCount: number, error: any) => {
-        if (error?.response?.status === 401) {
+    retry: (failureCount: number, error: unknown) => {
+        if (getErrorStatus(error) === 401) {
             return false;
         }
 

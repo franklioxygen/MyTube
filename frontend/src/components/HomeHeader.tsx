@@ -10,6 +10,21 @@ const SortControlMenu = lazyWithRetry(
     'sort-control-menu',
 );
 
+const getViewModeLabel = (
+    viewMode: ViewMode,
+    t: (key: string) => string
+): string => {
+    switch (viewMode) {
+        case 'collections':
+            return t('collections');
+        case 'history':
+            return t('history');
+        case 'all-videos':
+        default:
+            return t('allVideos');
+    }
+};
+
 interface HomeHeaderProps {
     viewMode: ViewMode;
     onViewModeChange: (mode: ViewMode) => void;
@@ -64,11 +79,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                     </Tooltip>
                 )}
                 <Box component="span" sx={{ display: { xs: 'block', md: 'none' } }}>
-                    {{
-                        'collections': t('collections'),
-                        'all-videos': t('allVideos'),
-                        'history': t('history')
-                    }[viewMode]}
+                    {getViewModeLabel(viewMode, t)}
                 </Box>
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>

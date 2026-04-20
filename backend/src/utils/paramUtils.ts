@@ -31,7 +31,7 @@ export function getStringParam(
   value: ExpressQueryValue,
   defaultValue?: string
 ): string | undefined {
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     return defaultValue;
   }
   if (Array.isArray(value)) {

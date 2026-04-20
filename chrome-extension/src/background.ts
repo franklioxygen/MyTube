@@ -41,6 +41,7 @@ const SUPPORTED_LANGUAGE_CODES = new Set([
   'ru',
   'ar',
 ]);
+const SUPPORTED_SERVER_PROTOCOLS = new Set(['http:', 'https:']);
 
 const normalizeApiKey = (apiKey?: string | null): string | undefined => {
   if (typeof apiKey !== 'string') {
@@ -67,6 +68,41 @@ const parseErrorMessage = async (
 ): Promise<string> => {
   const errorData = await response.json().catch(() => ({}));
   return errorData.message || errorData.error || fallbackMessage;
+};
+
+const parseServerBaseUrl = (serverUrl: string): URL => {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(serverUrl.trim());
+  } catch {
+    throw new Error('Server URL is invalid.');
+  }
+
+  if (!SUPPORTED_SERVER_PROTOCOLS.has(parsedUrl.protocol)) {
+    throw new Error('Server URL must use http or https.');
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error('Server URL must not contain credentials.');
+  }
+
+  parsedUrl.search = '';
+  parsedUrl.hash = '';
+  parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, '');
+  if (!parsedUrl.pathname.endsWith('/')) {
+    parsedUrl.pathname = `${parsedUrl.pathname}/`;
+  }
+
+  return parsedUrl;
+};
+
+const buildServerEndpoint = (
+  serverUrl: string,
+  endpointPath: string
+): string => {
+  const baseUrl = parseServerBaseUrl(serverUrl);
+  const normalizedEndpointPath = endpointPath.replace(/^\/+/, '');
+  return new URL(normalizedEndpointPath, baseUrl).toString();
 };
 
 const getUiLanguageCode = (): string => {
@@ -123,13 +159,11 @@ async function testConnection(
     throw new Error('Server URL is required');
   }
 
-  // Normalize URL - remove trailing slash
-  const normalizedUrl = serverUrl.replace(/\/+$/, '');
   const normalizedApiKey = normalizeApiKey(apiKey);
 
   try {
     if (normalizedApiKey) {
-      const response = await fetch(`${normalizedUrl}/api/download`, {
+      const response = await fetch(buildServerEndpoint(serverUrl, 'api/download'), {
         method: 'POST',
         headers: withApiKeyHeader(
           {
@@ -156,8 +190,7 @@ async function testConnection(
       );
     }
 
-    const testUrl = `${normalizedUrl}/api/settings`;
-    const response = await fetch(testUrl, {
+    const response = await fetch(buildServerEndpoint(serverUrl, 'api/settings'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -208,15 +241,15 @@ async function handleDownload(
     throw new Error('Server URL not configured. Please set it in extension options.');
   }
 
-  // Normalize URL - remove trailing slash
-  const normalizedUrl = finalServerUrl.replace(/\/+$/, '');
-  const downloadUrl = `${normalizedUrl}/api/download`;
+  const downloadUrl = buildServerEndpoint(finalServerUrl, 'api/download');
 
   // /api/check-video-download is not allowed for API key auth.
   if (!finalApiKey) {
     try {
-      const checkUrl = `${normalizedUrl}/api/check-video-download?url=${encodeURIComponent(videoUrl)}`;
-      const checkResponse = await fetch(checkUrl, {
+      const checkUrl = buildServerEndpoint(finalServerUrl, 'api/check-video-download');
+      const checkUrlWithQuery = new URL(checkUrl);
+      checkUrlWithQuery.searchParams.set('url', videoUrl);
+      const checkResponse = await fetch(checkUrlWithQuery.toString(), {
         method: 'GET',
       });
 
@@ -282,8 +315,7 @@ async function fetchDownloadStatus(): Promise<void> {
     return;
   }
 
-  const normalizedUrl = serverUrl.replace(/\/+$/, '');
-  const statusUrl = `${normalizedUrl}/api/download-status`;
+  const statusUrl = buildServerEndpoint(serverUrl, 'api/download-status');
 
   try {
     const response = await fetch(statusUrl, {

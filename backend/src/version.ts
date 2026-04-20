@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { readFileTrustedSync } from "./utils/security";
 
 const PACKAGE_JSON_PATH = path.resolve(__dirname, "..", "..", "package.json");
 const BANNER_CONTENT_WIDTH = 45;
@@ -12,7 +13,7 @@ function formatBannerLine(content: string = ""): string {
 
 function getPackageVersion(): string {
   try {
-    const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, "utf8")) as {
+    const packageJson = JSON.parse(readFileTrustedSync(PACKAGE_JSON_PATH, "utf8")) as {
       version?: unknown;
     };
     return typeof packageJson.version === "string" && packageJson.version.trim()

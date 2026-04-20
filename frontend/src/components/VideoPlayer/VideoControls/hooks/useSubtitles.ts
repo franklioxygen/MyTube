@@ -41,11 +41,14 @@ export const useSubtitles = ({
         setSubtitlesEnabled(initialSubtitlesEnabled);
         setSelectedSubtitleIndices(newIndices);
 
-        for (let i = 0; i < tracks.length; i++) {
-            tracks[i].mode = 'hidden';
-        }
+        Array.from(tracks).forEach((track) => {
+            track.mode = 'hidden';
+        });
         if (newIndices.length > 0) {
-            tracks[0].mode = 'showing';
+            const [firstTrack] = Array.from(tracks);
+            if (firstTrack) {
+                firstTrack.mode = 'showing';
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [subtitles]); // intentionally omit initialSubtitlesEnabled — see comment above
@@ -80,9 +83,9 @@ export const useSubtitles = ({
             // Keep menu open so user can pick a second subtitle
         }
 
-        for (let i = 0; i < tracks.length; i++) {
-            tracks[i].mode = newIndices.includes(i) ? 'showing' : 'hidden';
-        }
+        Array.from(tracks).forEach((track, trackIndex) => {
+            track.mode = newIndices.includes(trackIndex) ? 'showing' : 'hidden';
+        });
 
         setSelectedSubtitleIndices(newIndices);
         const enabled = newIndices.length > 0;
@@ -94,13 +97,16 @@ export const useSubtitles = ({
         const tracks = e.currentTarget.textTracks;
         const shouldShow = initialSubtitlesEnabled && subtitles.length > 0;
 
-        for (let i = 0; i < tracks.length; i++) {
-            tracks[i].mode = 'hidden';
-        }
+        Array.from(tracks).forEach((track) => {
+            track.mode = 'hidden';
+        });
 
         const newIndices = shouldShow && tracks.length > 0 ? [0] : [];
         if (newIndices.length > 0) {
-            tracks[0].mode = 'showing';
+            const [firstTrack] = Array.from(tracks);
+            if (firstTrack) {
+                firstTrack.mode = 'showing';
+            }
         }
         setSelectedSubtitleIndices(newIndices);
     };
@@ -115,4 +121,3 @@ export const useSubtitles = ({
         initializeSubtitles
     };
 };
-

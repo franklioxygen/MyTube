@@ -591,8 +591,8 @@ export function useSettingsMutations({
         text: t("tagRenamedSuccess") || "Tag renamed successfully",
         type: "success",
       });
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["videos"] });
     },
     onError: async (error: unknown) => {
       const apiMsg = await getApiErrorMessage(error, t);

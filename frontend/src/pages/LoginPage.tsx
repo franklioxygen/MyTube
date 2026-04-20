@@ -455,7 +455,7 @@ const LoginPage: React.FC = () => {
                                                         onChange={(e) => setPassword(e.target.value)}
                                                         autoFocus={!showVisitorTab || activeTab === 0}
                                                         disabled={waitTime > 0 || adminLoginMutation.isPending}
-                                                        helperText={t('defaultPasswordHint') || "Default password: 123"}
+                                                        helperText={t('defaultPasswordHint') || 'Use the admin password configured in Settings.'}
                                                         slotProps={{
                                                             input: {
                                                                 endAdornment: (

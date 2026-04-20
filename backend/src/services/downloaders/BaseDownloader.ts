@@ -11,8 +11,11 @@ import {
 import { formatVideoFilename } from "../../utils/helpers";
 import { logger } from "../../utils/logger";
 import {
+  createWriteStreamSafe,
+  ensureDirSafeSync,
   isPathWithinDirectories,
   resolveSafePathInDirectories,
+  validateUrl,
 } from "../../utils/security";
 import { Video } from "../storageService";
 
@@ -59,6 +62,7 @@ export abstract class BaseDownloader implements IDownloader {
     axiosConfig: any = {}
   ): Promise<boolean> {
     try {
+      const validatedThumbnailUrl = validateUrl(thumbnailUrl);
       const safeSavePath = resolveSafePathInDirectories(savePath, [
         VIDEOS_DIR,
         IMAGES_DIR,
@@ -70,18 +74,25 @@ export abstract class BaseDownloader implements IDownloader {
       }
 
       // Ensure directory exists
-      fs.ensureDirSync(path.dirname(safeSavePath));
+      ensureDirSafeSync(path.dirname(safeSavePath), [
+        VIDEOS_DIR,
+        IMAGES_DIR,
+        AVATARS_DIR,
+      ]);
 
       const response = await axios({
         method: "GET",
-        url: thumbnailUrl,
+        url: validatedThumbnailUrl,
         responseType: "stream",
         timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
         ...axiosConfig,
       });
 
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const writer = fs.createWriteStream(safeSavePath);
+      const writer = createWriteStreamSafe(safeSavePath, [
+        VIDEOS_DIR,
+        IMAGES_DIR,
+        AVATARS_DIR,
+      ]);
       response.data.pipe(writer);
 
       return new Promise<boolean>((resolve, reject) => {

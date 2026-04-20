@@ -46,6 +46,15 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
     const clientSecretError =
         credentialValidationCode === 'missing_client_secret' ||
         credentialValidationCode === 'invalid_client_secret';
+    const handleOpenHelpModal = () => {
+        setShowHelpModal(true);
+    };
+    const handleToggleSecret = () => {
+        setShowSecret((current) => !current);
+    };
+    const handleCloseHelpModal = () => {
+        setShowHelpModal(false);
+    };
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 640 }}>
@@ -55,7 +64,7 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
             <Link
                 component="button"
                 type="button"
-                onClick={() => setShowHelpModal(true)}
+                onClick={handleOpenHelpModal}
                 underline="hover"
                 sx={{ alignSelf: 'flex-start', fontWeight: 500 }}
             >
@@ -96,7 +105,7 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
                             <IconButton
                                 aria-label={t('togglePasswordVisibility')}
                                 edge="end"
-                                onClick={() => setShowSecret((current) => !current)}
+                                onClick={handleToggleSecret}
                             >
                                 {showSecret ? <VisibilityOff /> : <Visibility />}
                             </IconButton>
@@ -118,7 +127,7 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
             />
             <Dialog
                 open={showHelpModal}
-                onClose={() => setShowHelpModal(false)}
+                onClose={handleCloseHelpModal}
                 maxWidth="sm"
                 fullWidth
             >
@@ -169,7 +178,7 @@ const TwitchSettings: React.FC<TwitchSettingsProps> = ({
                     </Typography>
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setShowHelpModal(false)} color="primary">
+                    <Button onClick={handleCloseHelpModal} color="primary">
                         {t('close') || 'Close'}
                     </Button>
                 </DialogActions>

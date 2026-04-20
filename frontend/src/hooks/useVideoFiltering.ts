@@ -86,7 +86,7 @@ export const useVideoFiltering = ({
   const normalizedSelectedTags = useMemo(
     () =>
       selectedTags
-        .filter((t): t is string => t != null && String(t).trim() !== "")
+        .filter((tag) => tag.trim() !== "")
         .map(normalizeTag),
     [selectedTags]
   );

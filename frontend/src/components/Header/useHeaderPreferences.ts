@@ -48,7 +48,7 @@ export const useHeaderPreferences = (
             }
         };
 
-        fetchSettings();
+        void fetchSettings();
     }, [isAuthenticated]);
 
     return useMemo(() => {
@@ -61,7 +61,7 @@ export const useHeaderPreferences = (
         }
 
         return {
-            websiteName: websiteNameState?.trim() || 'MyTube',
+            websiteName: websiteNameState.trim() || 'MyTube',
             infiniteScroll: infiniteScrollState,
             showThemeButton: showThemeButtonState
         };

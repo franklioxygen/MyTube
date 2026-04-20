@@ -89,11 +89,9 @@ export const useVideoPlayer = ({
     }
 
     return () => {
-      if (videoElement) {
-        videoElement.pause();
-        videoElement.src = "";
-        videoElement.load();
-      }
+      videoElement.pause();
+      videoElement.src = "";
+      videoElement.load();
     };
   }, [src]);
 

@@ -22,7 +22,7 @@ const resolveTmdbThumbnailHelper = async (
     return null;
   }
 
-  const tmdbThumbnailFilename = (tmdbMetadata as Record<string, unknown>)?.thumbnailFilename as
+  const tmdbThumbnailFilename = (tmdbMetadata as Record<string, unknown>).thumbnailFilename as
     | string
     | undefined;
   const tmdbThumbnailPath = tmdbMetadata.thumbnailPath;

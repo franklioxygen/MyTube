@@ -25,7 +25,7 @@ export const useVideoPrefetch = ({ videoId, video }: UseVideoPrefetchProps) => {
     }
 
     // Prefetch video details
-    queryClient.prefetchQuery({
+    void queryClient.prefetchQuery({
       queryKey: ["video", videoId],
       queryFn: async () => {
         const response = await api.get(`/videos/${videoId}`);

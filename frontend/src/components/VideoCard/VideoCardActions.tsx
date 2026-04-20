@@ -91,7 +91,9 @@ export const VideoCardActions: React.FC<VideoCardActionsProps> = ({
                     opacity: (!isMobile && !isTouch && !isHovered) ? 0 : 1,
                     transition: 'opacity 0.2s',
                 }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                    e.stopPropagation();
+                }}
             >
                 <VideoKebabMenuButtons
                     onPlayWith={(anchor) => setPlayerMenuAnchor(anchor)}

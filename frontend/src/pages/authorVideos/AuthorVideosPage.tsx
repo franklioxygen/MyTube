@@ -32,7 +32,7 @@ const AuthorVideosPage: React.FC = () => {
         () => getAuthorVideos(videos, authorName),
         [videos, authorName]
     );
-    const authorDisplayName = authorVideos[0]?.author ?? authorName ?? '';
+    const authorDisplayName = authorVideos[0]?.author || authorName || '';
     const showTagsOnThumbnail = settings?.showTagsOnThumbnail ?? true;
 
     const {
@@ -112,7 +112,9 @@ const AuthorVideosPage: React.FC = () => {
                         sortAnchorEl={sortAnchorEl}
                         onSortClick={handleSortClick}
                         onSortClose={handleSortClose}
-                        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+                        onToggleSidebar={() => {
+                            setIsSidebarOpen((prev) => !prev);
+                        }}
                         onOpenTagsModal={actions.openTagsModal}
                         onOpenCreateCollectionModal={actions.openCreateCollectionModal}
                         onOpenDeleteModal={actions.openDeleteModal}
@@ -155,7 +157,7 @@ const AuthorVideosPage: React.FC = () => {
                 open={actions.isTagsModalOpen}
                 onClose={actions.closeTagsModal}
                 videoTags={commonTags}
-                availableTags={globalAvailableTags ?? []}
+                availableTags={globalAvailableTags}
                 onSave={actions.handleSaveAuthorTags}
             />
         </Container>

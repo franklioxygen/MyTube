@@ -6,7 +6,7 @@ import { Video } from '../types';
 
 interface UseVideoCardActionsProps {
     video: Video;
-    onDeleteVideo?: (id: string) => Promise<any>;
+    onDeleteVideo?: (id: string) => Promise<unknown>;
     showDeleteButton?: boolean;
 }
 

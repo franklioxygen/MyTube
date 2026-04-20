@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import fs from "fs-extra";
 import path from "path";
 import { ValidationError } from "../errors/DownloadErrors";
 import {
@@ -7,6 +6,7 @@ import {
   downloadAndCacheThumbnail,
   getCachedThumbnail,
 } from "../services/cloudStorage/cloudThumbnailCache";
+import { resolveAbsolutePath } from "../services/cloudStorage/pathUtils";
 import { CloudStorageService } from "../services/CloudStorageService";
 import { getVideos } from "../services/storageService";
 import { logger } from "../utils/logger";
@@ -172,48 +172,6 @@ export const syncToCloud = async (
   try {
     // Get all videos
     const allVideos = getVideos();
-
-    // Helper function to resolve absolute path (similar to CloudStorageService.resolveAbsolutePath)
-    const resolveAbsolutePath = (relativePath: string): string | null => {
-      if (!relativePath || relativePath.startsWith("cloud:")) {
-        return null;
-      }
-
-      const cleanRelative = relativePath.startsWith("/")
-        ? relativePath.slice(1)
-        : relativePath;
-
-      // Check uploads directory first
-      const uploadsBase = path.join(process.cwd(), "uploads");
-      if (
-        cleanRelative.startsWith("videos/") ||
-        cleanRelative.startsWith("images/") ||
-        cleanRelative.startsWith("subtitles/")
-      ) {
-        const fullPath = path.join(uploadsBase, cleanRelative);
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(fullPath)) {
-          return fullPath;
-        }
-      }
-
-      // Check data directory (backward compatibility)
-      const possibleRoots = [
-        path.join(process.cwd(), "data"),
-        path.join(process.cwd(), "..", "data"),
-      ];
-      for (const root of possibleRoots) {
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (fs.existsSync(root)) {
-          const fullPath = path.join(root, cleanRelative);
-          if (fs.existsSync(fullPath)) {
-            return fullPath;
-          }
-        }
-      }
-
-      return null;
-    };
 
     // Filter videos that have local files (not already in cloud)
     const localVideos = allVideos.filter((video) => {

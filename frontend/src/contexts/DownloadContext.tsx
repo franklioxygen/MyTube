@@ -15,7 +15,7 @@ import {
     isTwitchChannelUrl,
     normalizeTwitchChannelUrlOrNull,
 } from '../utils/twitch';
-const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
+const DOWNLOAD_STATUS_STORAGE_ID = 'mytube:download-status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const ACTIVE_POLL_INTERVAL_MS = 2000;
 const IDLE_POLL_INTERVAL_MS = 10000;
@@ -72,21 +72,21 @@ export const useDownload = () => {
 // Helper function to get download status from localStorage
 const getStoredDownloadStatus = () => {
     try {
-        const savedStatus = localStorage.getItem(DOWNLOAD_STATUS_KEY);
+        const savedStatus = localStorage.getItem(DOWNLOAD_STATUS_STORAGE_ID);
         if (!savedStatus) return null;
 
         const parsedStatus = JSON.parse(savedStatus);
 
         // Check if the saved status is too old (stale)
         if (parsedStatus.timestamp && Date.now() - parsedStatus.timestamp > DOWNLOAD_TIMEOUT) {
-            localStorage.removeItem(DOWNLOAD_STATUS_KEY);
+            localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
             return null;
         }
 
         return parsedStatus;
     } catch (error) {
         console.error('Error parsing download status from localStorage:', error);
-        localStorage.removeItem(DOWNLOAD_STATUS_KEY);
+        localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
         return null;
     }
 };
@@ -205,9 +205,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 queuedDownloads,
                 timestamp: Date.now()
             };
-            localStorage.setItem(DOWNLOAD_STATUS_KEY, JSON.stringify(statusData));
+            localStorage.setItem(DOWNLOAD_STATUS_STORAGE_ID, JSON.stringify(statusData));
         } else {
-            localStorage.removeItem(DOWNLOAD_STATUS_KEY);
+            localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
         }
     }, [activeDownloads, queuedDownloads, fetchVideos, settings]);
 

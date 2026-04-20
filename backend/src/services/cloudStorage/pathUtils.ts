@@ -7,7 +7,10 @@ import { logger } from "../../utils/logger";
 import {
   pathExistsSafeSync,
   resolveSafeChildPath,
+  validateUrlWithAllowlist,
 } from "../../utils/security";
+
+const CLOUD_API_PUT_PATH = "/api/fs/put";
 
 /**
  * Resolve absolute path from relative path
@@ -114,4 +117,52 @@ export function sanitizeFilename(filename: string): string {
 export function normalizeUploadPath(uploadPath: string): string {
   const normalized = uploadPath.replace(/\\/g, "/");
   return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function parseValidatedCloudApiUrl(apiUrl: string): URL {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(apiUrl);
+  } catch {
+    throw new Error(`Invalid cloud API URL: ${apiUrl}`);
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error("Cloud API URL must not contain credentials");
+  }
+
+  const validatedUrl = validateUrlWithAllowlist(apiUrl, [parsedUrl.hostname]);
+  const validatedParsedUrl = new URL(validatedUrl);
+
+  if (!validatedParsedUrl.pathname.endsWith(CLOUD_API_PUT_PATH)) {
+    throw new Error(
+      `Cloud API URL must end with ${CLOUD_API_PUT_PATH}: ${apiUrl}`,
+    );
+  }
+
+  return validatedParsedUrl;
+}
+
+export function validateCloudApiUrl(apiUrl: string): string {
+  return parseValidatedCloudApiUrl(apiUrl).toString();
+}
+
+export function buildCloudApiEndpoint(
+  apiUrl: string,
+  endpointPath: string,
+): string {
+  const parsedUrl = parseValidatedCloudApiUrl(apiUrl);
+  const normalizedEndpointPath = endpointPath.startsWith("/")
+    ? endpointPath
+    : `/${endpointPath}`;
+  const cloudApiBasePath = parsedUrl.pathname.slice(
+    0,
+    -CLOUD_API_PUT_PATH.length,
+  );
+  const endpointUrl = new URL(parsedUrl.origin);
+  endpointUrl.pathname = `${cloudApiBasePath}${normalizedEndpointPath}`;
+  endpointUrl.search = "";
+  endpointUrl.hash = "";
+
+  return validateUrlWithAllowlist(endpointUrl.toString(), [parsedUrl.hostname]);
 }

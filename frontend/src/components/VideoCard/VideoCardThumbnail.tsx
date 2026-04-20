@@ -26,7 +26,7 @@ interface VideoCardThumbnailProps {
     onTagClick?: (tag: string) => void;
 }
 
-export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
+const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
     video,
     thumbnailSrc,
     thumbnailSrcSet,
@@ -60,7 +60,9 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                     muted
                     autoPlay
                     playsInline
-                    onPlaying={() => setIsVideoPlaying(true)}
+                    onPlaying={() => {
+                        setIsVideoPlaying(true);
+                    }}
                     sx={{
                         position: 'absolute',
                         top: 0,
@@ -72,21 +74,21 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                         zIndex: 1 // Ensure video is above thumbnail when playing
                     }}
                     onLoadedMetadata={(e) => {
-                        const videoEl = e.target as HTMLVideoElement;
+                        const videoNode = e.target as HTMLVideoElement;
                         const duration = parseDuration(video.duration);
                         if (duration > 5) {
-                            videoEl.currentTime = Math.max(0, (duration / 2) - 2.5);
+                            videoNode.currentTime = Math.max(0, (duration / 2) - 2.5);
                         }
                     }}
                     onTimeUpdate={(e) => {
-                        const videoEl = e.target as HTMLVideoElement;
+                        const videoNode = e.target as HTMLVideoElement;
                         const duration = parseDuration(video.duration);
                         const startTime = Math.max(0, (duration / 2) - 2.5);
                         const endTime = startTime + 5;
 
-                        if (videoEl.currentTime >= endTime) {
-                            videoEl.currentTime = startTime;
-                            void videoEl.play();
+                        if (videoNode.currentTime >= endTime) {
+                            videoNode.currentTime = startTime;
+                            void videoNode.play();
                         }
                     }}
                 />
@@ -121,7 +123,9 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                 sizes={thumbnailSizes}
                 width="480"
                 height="270"
-                onLoad={() => setIsImageLoaded(true)}
+                onLoad={() => {
+                    setIsImageLoaded(true);
+                }}
                 sx={{
                     position: 'absolute',
                     top: 0,
@@ -138,13 +142,13 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
                     // If error, we can still show the placeholder or the fallback image
                     // For now, let's treat error as loaded so we see the fallback/alt text if any
                     setIsImageLoaded(true);
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.srcset = '';
-                    target.sizes = '';
-                    target.removeAttribute('srcset');
-                    target.removeAttribute('sizes');
-                    target.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                    const imageNode = e.target as HTMLImageElement;
+                    imageNode.onerror = null;
+                    imageNode.srcset = '';
+                    imageNode.sizes = '';
+                    imageNode.removeAttribute('srcset');
+                    imageNode.removeAttribute('sizes');
+                    imageNode.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
                 }}
             />
 
@@ -275,3 +279,5 @@ export const VideoCardThumbnail: React.FC<VideoCardThumbnailProps> = ({
         </Box>
     );
 };
+
+export { VideoCardThumbnailView as VideoCardThumbnail };

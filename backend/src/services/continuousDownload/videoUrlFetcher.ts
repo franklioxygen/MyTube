@@ -21,7 +21,7 @@ export function sortVideoEntries(entries: VideoEntry[], order: DownloadOrder): V
     } else if (order === "viewsDesc") {
       primary = b.viewCount - a.viewCount;
       if (primary === 0) primary = b.uploadDate.localeCompare(a.uploadDate);
-    } else if (order === "viewsAsc") {
+    } else {
       primary = a.viewCount - b.viewCount;
       if (primary === 0) primary = a.uploadDate.localeCompare(b.uploadDate);
     }
@@ -628,10 +628,8 @@ export class VideoUrlFetcher {
           let videosResult;
           if (collectionInfo.type === "collection") {
             videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
-          } else if (collectionInfo.type === "series") {
-            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
           } else {
-            throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
+            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
           }
 
           if (videosResult.success && videosResult.videos.length > 0) {

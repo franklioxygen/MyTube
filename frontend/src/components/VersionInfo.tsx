@@ -8,12 +8,12 @@ import { scheduleNonCriticalTask } from '../utils/scheduleNonCriticalTask';
 // Helper to compare semantic versions (v1 > v2)
 const isNewerVersion = (latest: string, current: string): boolean => {
     try {
-        const v1 = latest.split('.').map(Number);
-        const v2 = current.split('.').map(Number);
+        const latestParts = latest.split('.').map(Number);
+        const currentParts = current.split('.').map(Number);
 
-        for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
-            const num1 = v1[i] || 0;
-            const num2 = v2[i] || 0;
+        while (latestParts.length > 0 || currentParts.length > 0) {
+            const num1 = latestParts.shift() ?? 0;
+            const num2 = currentParts.shift() ?? 0;
             if (num1 > num2) return true;
             if (num1 < num2) return false;
         }

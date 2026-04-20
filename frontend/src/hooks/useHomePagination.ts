@@ -73,8 +73,8 @@ export const useHomePagination = ({
 
         const handleKeyDown = (event: KeyboardEvent) => {
             // Don't handle keyboard navigation if user is typing in an input field
-            const target = event.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+            const eventTarget = event.target as HTMLElement;
+            if (eventTarget.tagName === 'INPUT' || eventTarget.tagName === 'TEXTAREA' || eventTarget.isContentEditable) {
                 return;
             }
 
