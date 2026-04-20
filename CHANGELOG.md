@@ -1,5 +1,185 @@
 # Change Log
 
+## Unreleased
+
+### Fix
+
+- Restrict API key library endpoints (3e000568)
+- Harden asset delivery and yt-dlp compatibility (ae2badf0)
+
+### Chore
+
+- chore: add single-container test image release script (aa882d2a)
+- chore: reorganize repo layout and deployment stacks (2177d3ee)
+- chore(deps): bump basic-ftp from 5.2.2 to 5.3.0 in /backend (6bcdea78)
+- chore(deps): bump basic-ftp in /backend/bgutil-ytdlp-pot-provider/server (3c383287)
+- chore(deps): bump follow-redirects (087d683b)
+- chore(deps): bump follow-redirects from 1.15.11 to 1.16.0 in /backend (ff171cec)
+- chore(deps): bump follow-redirects from 1.15.11 to 1.16.0 in /frontend (5005f94f)
+
+## v1.9.14 (2026-04-11)
+
+### Refactor
+
+- refactor: Update import statement for YoutubeSessionDataCaches (4690ad60)
+
+## v1.9.13 (2026-04-11)
+
+### Fix
+
+- fix: stabilize youtube yt-dlp extractor args (2d39d6b7)
+
+### Chore
+
+- chore(deps): bump basic-ftp from 5.2.1 to 5.2.2 in /backend (9d823851)
+- chore(deps): bump basic-ftp in /backend/bgutil-ytdlp-pot-provider/server (2476daf6)
+
+## v1.9.12 (2026-04-10)
+
+### Fix
+
+- fix: bump axios in bgutil-ytdlp-pot-provider (70a1f3db)
+
+## v1.9.11 (2026-04-10)
+
+### Feat
+
+- feat: Update test scripts for backend and frontend (daf6a290)
+
+### Fix
+
+- fix: sync backend lockfile for axios upgrade (7cc1ce06)
+- fix: frontend/package.json & frontend/package-lock.json to reduce vulnerabilities (56cb4ab5)
+- fix: backend/package.json to reduce vulnerabilities (a1a8b899)
+
+## v1.9.10 (2026-04-10)
+
+### Fix
+
+- fix: avoid codacy path resolve warning (3f309dad)
+- fix: tolerate invalid bgutil provider env path (20ad4e94)
+- fix: remove codacy suppression from provider detection (abfd80fc)
+- fix: constrain bgutil provider env path (d124f4de)
+- fix: use trusted path helpers for provider detection (77a4874b)
+- fix: auto-detect bundled bgutil provider script (d22d1cf3)
+
+### Chore
+
+- chore: suppress trusted provider path false positive (a1322a72)
+- chore(deps): bump basic-ftp in /backend/bgutil-ytdlp-pot-provider/server (0088f2ba)
+- chore(deps): bump basic-ftp from 5.2.0 to 5.2.1 in /backend (bdf71ac5)
+- chore(deps): bump drizzle-orm from 0.45.1 to 0.45.2 in /backend (249f33b8)
+
+## v1.9.9 (2026-04-07)
+
+### Fix
+
+- fix: replace nosemgrep comments with safe wrappers from security.ts (d4bb9a5b)
+- fix: resolve EACCES permission denied on Docker bind mounts after v1.9.0 upgrade (5585aa80)
+
+### Chore
+
+- chore(deps-dev): bump vite from 6.4.1 to 6.4.2 in /frontend (3b13464f)
+- chore(deps): bump vite from 7.2.4 to 7.3.2 in /backend (3838bf26)
+
+## v1.9.8 (2026-04-04)
+
+### Fix
+
+- Fix Codacy object injection warning (69d963e2)
+- Fix compatibility regressions in hooks and passkeys (c88038fc)
+- fix: address latest Codacy findings (9e4a1890)
+- fix: address more Codacy findings and review issues (9dc4e619)
+- fix: address remaining Codacy issues (5287af98)
+- fix: resolve remaining Codacy findings (d5366071)
+- fix: address more Codacy findings (e737573e)
+- fix: address additional Codacy findings (cfb263b3)
+
+### Test
+
+- test: fix backend storage and cloud scanner regressions (450b70c9)
+- test: Add security mocks and update cookieService tests (d2958b21)
+
+### Chore
+
+- chore: address Codacy findings and reporting (51ff5626)
+
+## v1.9.7 (2026-04-04)
+
+### Fix
+
+- fix: resolve codacy lint findings (7dbb546b)
+- fix: avoid codacy eslint rule crashes (b1a42f42)
+- Fix settings error localization handling (c6c233f4)
+
+### Test
+
+- test: improve frontend coverage (b422ddcb)
+- test: expand settings mutations coverage (19d44089)
+
+### Chore
+
+- chore: trigger codacy reanalysis (6df1f023)
+
+## v1.9.6 (2026-04-02)
+
+### Fix
+
+- Fix CSRF token rotation after auth changes (74b2540e)
+- Fix Codacy object injection false positive (7cf07636)
+- Address review feedback on path safety cleanup (f9c17df5)
+- Fix Codacy script lint regressions (5db7bd3f)
+- Harden upload paths and fix controller tests (9c7d7ad8)
+- Reduce more Codacy script and thumbnail findings (b39fc805)
+- Reduce more Codacy thumbnail path findings (9b562644)
+- Reduce more Codacy path safety findings (64273502)
+- Reduce Codacy path safety findings (ebecbcfd)
+
+### Chore
+
+- Exclude validated scripts from Codacy opengrep (663d9369)
+- Tune Codacy exclusions for PR analysis (57c032f2)
+
+## v1.9.5 (2026-04-02)
+
+### Fix
+
+- fix: add explicit startsWith guard in statImagePath for Codacy (8a09a6e5)
+- fix: use path.normalize as Codacy-recognized sanitizer in statImagePath (9eb778f0)
+- fix: break taint-tracking chain in statImagePath for Codacy (e6210097)
+- Generate scan thumbnails from internal paths (d65fcb23)
+- Use internal temp thumbnail paths during scans (738f6cdc)
+- Make thumbnail stat revalidation explicit (388a15af)
+- Resolve Codacy path traversal findings (e6d1e627)
+- Address review feedback and harden TMDB/settings flows (6ca476b2)
+- fix: package.json & package-lock.json to reduce vulnerabilities (cad1e339)
+
+### Refactor
+
+- Drop scan thumbnail stat helper to satisfy Codacy (25909dcf)
+- Suppress safe image path helper FS access (3fa9980d)
+- Route scan image IO through security helpers (07160ffa)
+
+### Test
+
+- Fix UUID typing in scan controller tests (b59cd205)
+- Update scan controller test security mocks (2a56af68)
+- Fix pipeline test mock and TMDB credential hashing (c4acde63)
+
+### Chore
+
+- chore(deps): bump lodash from 4.17.23 to 4.18.1 (c530267d)
+
+## v1.9.4 (2026-04-02)
+
+### Feat
+
+- feat: Implement admin trust model and deployment security docs (c83d8181)
+
+### Fix
+
+- Avoid client-side timeout for scan requests (e9b5244b)
+
 ## v1.9.3 (2026-03-31)
 
 ### Fix

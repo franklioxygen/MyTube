@@ -63,7 +63,9 @@ export const roleBasedAuthMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  // API keys are intentionally restricted to task submission only.
+  // API-key-only read routes are mounted before this middleware.
+  // Requests that still reach this guard are forbidden, except for the legacy
+  // POST /api/download fallback which remains explicitly allowed here.
   if (req.apiKeyAuthenticated === true) {
     if (isApiKeyDownloadEndpoint(req)) {
       next();
@@ -73,7 +75,7 @@ export const roleBasedAuthMiddleware = (
     res.status(403).json({
       success: false,
       error:
-        "API key authentication only allows POST /api/download requests.",
+        "API key authentication only allows POST /api/download and read-only library endpoints.",
     });
     return;
   }

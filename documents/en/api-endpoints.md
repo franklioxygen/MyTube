@@ -8,7 +8,12 @@ All API routes are mounted under `/api` unless noted otherwise.
 - When password login is enabled, unauthenticated users can only access login-related public endpoints.
 - Visitor role is read-only for most resources.
 - API key auth is supported via `X-API-Key` or `Authorization: ApiKey <key>` when `apiKeyEnabled` is true.
-- API key auth is restricted to `POST /api/download` only; using it on other endpoints returns `403`.
+- API key auth allows `POST /api/download` plus a minimal read-only library surface:
+  - `GET /api/videos`
+  - `GET /api/videos/:id`
+  - `GET /api/mount-video/:id`
+  - `GET /api/collections`
+  - Other API-key-authenticated endpoints return `403`.
 
 ## Video Download & Search
 
@@ -43,8 +48,11 @@ All API routes are mounted under `/api` unless noted otherwise.
     - Folder uploads import supported video files only; subdirectory structure is not preserved.
     - Duplicate uploads are skipped by content hash.
 - `GET /api/videos` - Get all videos (no server-side pagination/filtering in current implementation)
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` - Get one video by ID
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/mount-video/:id` - Stream a mount-directory video by video ID (supports Range)
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `PUT /api/videos/:id` - Update video metadata
   - Body allows: `{ title?, tags?, visibility?, subtitles? }`
 - `POST /api/videos/:id/subtitles` - Upload subtitle file for a video
@@ -76,6 +84,7 @@ All API routes are mounted under `/api` unless noted otherwise.
 ## Collections
 
 - `GET /api/collections` - Get all collections
+  - Auth: accepts session cookie/Bearer JWT, or API key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `POST /api/collections` - Create collection
   - Body: `{ name: string, videoId?: string }`
 - `PUT /api/collections/:id` - Update collection
