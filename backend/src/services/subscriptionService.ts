@@ -825,6 +825,15 @@ export class SubscriptionService {
                   }
                 }
 
+                // Notify via Telegram on success
+                import("./telegramService").then(({ TelegramService }) =>
+                  TelegramService.notifyTaskComplete({
+                    taskTitle: videoData.title || `New video from ${sub.author}`,
+                    status: "success",
+                    sourceUrl: latestVideoUrl,
+                  })
+                ).catch(() => {});
+
                 // 4. Update subscription record with new video link and stats on success
                 const updateResult = await db
                   .update(subscriptions)
@@ -850,6 +859,16 @@ export class SubscriptionService {
                   `Error downloading subscription video for ${sub.author}:`,
                   downloadError
                 );
+
+                // Notify via Telegram on failure
+                import("./telegramService").then(({ TelegramService }) =>
+                  TelegramService.notifyTaskComplete({
+                    taskTitle: `Video from ${sub.author}`,
+                    status: "fail",
+                    sourceUrl: latestVideoUrl,
+                    error: downloadError?.message || "Download failed",
+                  })
+                ).catch(() => {});
 
                 // Add to download history on failure
                 storageService.addDownloadHistoryItem({
@@ -929,6 +948,15 @@ export class SubscriptionService {
                     subscriptionId: sub.id,
                   });
 
+                  // Notify via Telegram on success
+                  import("./telegramService").then(({ TelegramService }) =>
+                    TelegramService.notifyTaskComplete({
+                      taskTitle: videoData.title || `New short from ${sub.author}`,
+                      status: "success",
+                      sourceUrl: latestShortUrl,
+                    })
+                  ).catch(() => {});
+
                   // Update subscription record with new short link
                   await db
                     .update(subscriptions)
@@ -946,6 +974,16 @@ export class SubscriptionService {
                     `Error downloading subscription short for ${sub.author}:`,
                     downloadError instanceof Error ? downloadError : new Error(String(downloadError))
                   );
+
+                  // Notify via Telegram on failure
+                  import("./telegramService").then(({ TelegramService }) =>
+                    TelegramService.notifyTaskComplete({
+                      taskTitle: `Short from ${sub.author}`,
+                      status: "fail",
+                      sourceUrl: latestShortUrl,
+                      error: downloadError instanceof Error ? downloadError.message : "Download failed",
+                    })
+                  ).catch(() => {});
 
                   storageService.addDownloadHistoryItem({
                     id: uuidv4(),
@@ -1273,6 +1311,15 @@ export class SubscriptionService {
           subscriptionId: sub.id,
         });
 
+        // Notify via Telegram on success
+        import("./telegramService").then(({ TelegramService }) =>
+          TelegramService.notifyTaskComplete({
+            taskTitle: videoData.title || video.title,
+            status: "success",
+            sourceUrl: video.url,
+          })
+        ).catch(() => {});
+
         currentLastTwitchVideoId = video.id;
         currentLastVideoLink = video.url;
         currentDownloadCount += 1;
@@ -1290,6 +1337,16 @@ export class SubscriptionService {
           `Error downloading Twitch subscription video for ${sub.author}:`,
           downloadError
         );
+
+        // Notify via Telegram on failure
+        import("./telegramService").then(({ TelegramService }) =>
+          TelegramService.notifyTaskComplete({
+            taskTitle: video.title || `Video from ${sub.author}`,
+            status: "fail",
+            sourceUrl: video.url,
+            error: downloadError?.message || "Download failed",
+          })
+        ).catch(() => {});
 
         storageService.addDownloadHistoryItem({
           id: uuidv4(),
