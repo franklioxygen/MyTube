@@ -332,31 +332,29 @@ const VideoPlayer: React.FC = () => {
                 {/* Main Column: Video + Info + Comments */}
                 <Box sx={{ gridArea: 'main' }}>
                     {useAppleNativeRoutePlayer ? (
-                        <Box
-                            sx={{
-                                width: '100%',
-                                bgcolor: 'black',
-                                borderRadius: { xs: 0, sm: 2 },
-                                overflow: 'hidden',
-                                boxShadow: 4
-                            }}
-                        >
-                            <video
-                                controls
-                                playsInline
-                                src={rawVideoSrc || undefined}
-                                poster={rawPosterSrc}
-                                preload="metadata"
-                                autoPlay={autoPlay}
-                                loop={autoLoop}
-                                onEnded={handleVideoEnded}
-                                style={{
+                        <Box sx={{ px: { xs: 0, md: 0 } }}>
+                            <Box
+                                sx={{
                                     width: '100%',
-                                    maxHeight: 'calc(100vh - 180px)',
-                                    display: 'block',
-                                    backgroundColor: 'black'
+                                    bgcolor: 'black',
+                                    borderRadius: { xs: 0, sm: 2 },
+                                    overflow: 'hidden',
+                                    boxShadow: 4
                                 }}
-                            />
+                            >
+                                <video
+                                    controls
+                                    playsInline
+                                    src={rawVideoSrc || undefined}
+                                    preload="metadata"
+                                    style={{
+                                        width: '100%',
+                                        maxHeight: 'calc(100vh - 180px)',
+                                        display: 'block',
+                                        backgroundColor: 'black'
+                                    }}
+                                />
+                            </Box>
                         </Box>
                     ) : (
                         <VideoControls
