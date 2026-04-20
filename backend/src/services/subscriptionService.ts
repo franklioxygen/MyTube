@@ -114,6 +114,9 @@ export interface Subscription {
   twitchBroadcasterId?: string;
   twitchBroadcasterLogin?: string;
   lastTwitchVideoId?: string;
+
+  // Retention
+  retentionDays?: number | null; // Auto-delete videos older than this many days (null = disabled)
 }
 
 export class SubscriptionService {
@@ -679,6 +682,25 @@ export class SubscriptionService {
 
     logger.info(
       `Updated subscription ${updated[0].id} (${updated[0].author}) interval to ${interval} minutes`
+    );
+  }
+
+  async updateSubscriptionRetention(id: string, retentionDays: number | null): Promise<void> {
+    const updated = await db
+      .update(subscriptions)
+      .set({ retentionDays })
+      .where(eq(subscriptions.id, id))
+      .returning({
+        id: subscriptions.id,
+        author: subscriptions.author,
+      });
+
+    if (updated.length === 0) {
+      throw NotFoundError.subscription(id);
+    }
+
+    logger.info(
+      `Updated subscription ${updated[0].id} (${updated[0].author}) retention to ${retentionDays ?? "disabled"} days`
     );
   }
 
@@ -1317,6 +1339,16 @@ export class SubscriptionService {
       });
     });
     logger.info("Subscription scheduler started (node-cron).");
+
+    // Run retention cleanup once per hour
+    cron.schedule("0 * * * *", () => {
+      import("./subscriptionRetentionService").then(({ runSubscriptionRetentionCleanup }) =>
+        runSubscriptionRetentionCleanup()
+      ).catch((error) => {
+        logger.error("Subscription retention cleanup failed:", error);
+      });
+    });
+    logger.info("Subscription retention scheduler started (node-cron).");
   }
 
   // Helper to get latest video URL based on platform

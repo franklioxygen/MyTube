@@ -193,7 +193,28 @@ export const updateSubscription = async (
     );
   }
 
+  // retentionDays is optional; null means "disable retention"
+  let retentionDays: number | null | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(req.body, "retentionDays")) {
+    const raw = req.body.retentionDays;
+    if (raw === null || raw === "") {
+      retentionDays = null;
+    } else {
+      const parsed = parsePositiveInteger(raw);
+      if (parsed === null) {
+        throw new ValidationError(
+          "retentionDays must be a positive integer or null",
+          "retentionDays"
+        );
+      }
+      retentionDays = parsed;
+    }
+  }
+
   await subscriptionService.updateSubscriptionInterval(id, parsedInterval);
+  if (retentionDays !== undefined) {
+    await subscriptionService.updateSubscriptionRetention(id, retentionDays);
+  }
   res.status(200).json(successMessage("Subscription updated"));
 };
 
