@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import apiRoutes from "../routes/api";
 import { isLoginRequired } from "../services/passwordService";
 import {
   getNormalizedRequestPath,
@@ -45,67 +44,6 @@ const isApiKeyDownloadEndpoint = (req: Request): boolean => {
   return req.method === "POST" && getNormalizedRequestPath(req) === "/download";
 };
 
-const API_KEY_ALLOWED_READ_ROUTE_PATHS = new Set([
-  "/collections",
-  "/mount-video/:id",
-  "/videos",
-  "/videos/:id",
-]);
-
-type ApiRouteLayer = {
-  match?: (path: string) => boolean;
-  route?: {
-    path?: string | string[];
-    methods?: Record<string, boolean>;
-  };
-};
-
-const getMatchedApiRoutePath = (req: Request): string | null => {
-  const requestPath = getNormalizedRequestPath(req);
-  const requestMethod = req.method.toLowerCase();
-  const routeLayers =
-    ((apiRoutes as unknown as { stack?: ApiRouteLayer[] }).stack ?? []);
-
-  for (const layer of routeLayers) {
-    if (!layer.route || typeof layer.match !== "function") {
-      continue;
-    }
-
-    const routePath = layer.route.path;
-    if (typeof routePath !== "string") {
-      continue;
-    }
-
-    const methods = layer.route.methods ?? {};
-    const handlesMethod =
-      requestMethod === "head"
-        ? methods.head === true || methods.get === true
-        : methods[requestMethod] === true;
-
-    if (!handlesMethod) {
-      continue;
-    }
-
-    if (layer.match(requestPath)) {
-      return routePath;
-    }
-  }
-
-  return null;
-};
-
-const isApiKeyReadOnlyEndpoint = (req: Request): boolean => {
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    return false;
-  }
-
-  const matchedRoutePath = getMatchedApiRoutePath(req);
-  return (
-    matchedRoutePath !== null &&
-    API_KEY_ALLOWED_READ_ROUTE_PATHS.has(matchedRoutePath)
-  );
-};
-
 const isAdminUploadEndpoint = (req: Request): boolean => {
   const requestPath = getNormalizedRequestPath(req);
   return (
@@ -125,9 +63,11 @@ export const roleBasedAuthMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  // API keys are restricted to task submission and a minimal read-only library surface.
+  // API-key-only read routes are mounted before this middleware.
+  // Requests that still reach this guard are forbidden, except for the legacy
+  // POST /api/download fallback which remains explicitly allowed here.
   if (req.apiKeyAuthenticated === true) {
-    if (isApiKeyDownloadEndpoint(req) || isApiKeyReadOnlyEndpoint(req)) {
+    if (isApiKeyDownloadEndpoint(req)) {
       next();
       return;
     }

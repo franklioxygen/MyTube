@@ -238,7 +238,7 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
-  it("allows api-key-authenticated GET /videos requests", () => {
+  it("blocks api-key-authenticated GET /videos requests that reach the protected router", () => {
     req = {
       method: "GET",
       path: "/videos",
@@ -248,11 +248,11 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(status).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
   });
 
-  it("allows api-key-authenticated GET /videos/:id requests", () => {
+  it("blocks api-key-authenticated GET /videos/:id requests that reach the protected router", () => {
     req = {
       method: "GET",
       path: "/videos/abc123",
@@ -262,11 +262,11 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(status).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
   });
 
-  it("allows api-key-authenticated GET /mount-video/:id requests", () => {
+  it("blocks api-key-authenticated GET /mount-video/:id requests that reach the protected router", () => {
     req = {
       method: "GET",
       path: "/mount-video/abc123",
@@ -276,11 +276,11 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(status).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
   });
 
-  it("allows api-key-authenticated GET /collections requests", () => {
+  it("blocks api-key-authenticated GET /collections requests that reach the protected router", () => {
     req = {
       method: "GET",
       path: "/collections",
@@ -290,8 +290,8 @@ describe("roleBasedAuthMiddleware", () => {
 
     roleBasedAuthMiddleware(req as Request, res as Response, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(status).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
   });
 
   it("blocks api-key-authenticated GET /videos/author-channel-url requests", () => {

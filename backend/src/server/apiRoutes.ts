@@ -2,7 +2,7 @@ import { Express } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { roleBasedAuthMiddleware } from "../middleware/roleBasedAuthMiddleware";
 import { roleBasedSettingsMiddleware } from "../middleware/roleBasedSettingsMiddleware";
-import apiRoutes from "../routes/api";
+import apiRoutes, { apiKeyRoutes } from "../routes/api";
 import settingsRoutes from "../routes/settingsRoutes";
 import { AuthLimiters } from "./rateLimit";
 
@@ -44,6 +44,7 @@ export const registerApiRoutes = (
   );
 
   app.use("/api", authMiddleware);
+  app.use("/api", apiKeyRoutes);
   app.use("/api", roleBasedAuthMiddleware, apiRoutes);
   app.use("/api/settings", roleBasedSettingsMiddleware, settingsRoutes);
 };

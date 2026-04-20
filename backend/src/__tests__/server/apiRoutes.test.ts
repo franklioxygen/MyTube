@@ -4,7 +4,7 @@ import { registerApiRoutes } from "../../server/apiRoutes";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddleware";
 import { roleBasedSettingsMiddleware } from "../../middleware/roleBasedSettingsMiddleware";
-import apiRoutes from "../../routes/api";
+import apiRoutes, { apiKeyRoutes } from "../../routes/api";
 import settingsRoutes from "../../routes/settingsRoutes";
 
 vi.mock("../../middleware/authMiddleware", () => ({
@@ -20,6 +20,7 @@ vi.mock("../../middleware/roleBasedSettingsMiddleware", () => ({
 }));
 
 vi.mock("../../routes/api", () => ({
+  apiKeyRoutes: { __router: "apiKey" },
   default: { __router: "api" },
 }));
 
@@ -77,19 +78,22 @@ describe("registerApiRoutes", () => {
       authLimiters.passkeyRegistrationLimiter
     );
 
-    expect(app.use).toHaveBeenCalledWith("/api", authMiddleware);
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.use).toHaveBeenNthCalledWith(1, "/api", authMiddleware);
+    expect(app.use).toHaveBeenNthCalledWith(2, "/api", apiKeyRoutes);
+    expect(app.use).toHaveBeenNthCalledWith(
+      3,
       "/api",
       roleBasedAuthMiddleware,
       apiRoutes
     );
-    expect(app.use).toHaveBeenCalledWith(
+    expect(app.use).toHaveBeenNthCalledWith(
+      4,
       "/api/settings",
       roleBasedSettingsMiddleware,
       settingsRoutes
     );
 
     expect(app.post).toHaveBeenCalledTimes(8);
-    expect(app.use).toHaveBeenCalledTimes(3);
+    expect(app.use).toHaveBeenCalledTimes(4);
   });
 });

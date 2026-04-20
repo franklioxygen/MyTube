@@ -1,4 +1,4 @@
-import express from "express";
+import express, { NextFunction, RequestHandler, Router } from "express";
 import * as cleanupController from "../controllers/cleanupController";
 import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
@@ -11,213 +11,385 @@ import * as videoDownloadController from "../controllers/videoDownloadController
 import * as videoMetadataController from "../controllers/videoMetadataController";
 import { asyncHandler } from "../middleware/errorHandler";
 
-const router = express.Router();
+type ApiRouteMethod = "delete" | "get" | "post" | "put";
 
-// Video routes
-router.get("/search", asyncHandler(videoDownloadController.searchVideos));
-router.post("/download", asyncHandler(videoDownloadController.downloadVideo));
-router.post(
-  "/upload",
-  videoController.upload.single("video"),
-  asyncHandler(videoController.uploadVideo)
-);
-router.post(
-  "/upload/batch",
-  videoController.uploadBatch.array("videos"),
-  asyncHandler(videoController.uploadVideosBatch)
-);
-router.get("/videos", asyncHandler(videoController.getVideos));
-router.get(
-  "/videos/author-channel-url",
-  asyncHandler(videoController.getAuthorChannelUrl)
-);
-router.get("/videos/:id", asyncHandler(videoController.getVideoById));
-router.get("/mount-video/:id", asyncHandler(videoController.serveMountVideo));
-router.put("/videos/:id", asyncHandler(videoController.updateVideoDetails));
-router.post(
-  "/videos/:id/subtitles",
-  videoController.uploadSubtitleMiddleware.single("subtitle"),
-  asyncHandler(videoController.uploadSubtitle)
-);
-router.delete("/videos/:id", asyncHandler(videoController.deleteVideo));
-router.get(
-  "/videos/:id/comments",
-  asyncHandler(videoController.getVideoComments)
-);
-router.post(
-  "/videos/:id/rate",
-  asyncHandler(videoMetadataController.rateVideo)
-);
-router.post(
-  "/videos/:id/refresh-thumbnail",
-  asyncHandler(videoMetadataController.refreshThumbnail)
-);
-router.post(
-  "/videos/:id/upload-thumbnail",
-  videoMetadataController.thumbnailUpload.single("thumbnail"),
-  asyncHandler(videoMetadataController.uploadThumbnail)
-);
-router.post(
-  "/videos/refresh-file-sizes",
-  asyncHandler(videoMetadataController.refreshAllFileSizes)
-);
-router.post(
-  "/videos/:id/view",
-  asyncHandler(videoMetadataController.incrementViewCount)
-);
-router.put(
-  "/videos/:id/progress",
-  asyncHandler(videoMetadataController.updateProgress)
-);
+export type ApiRouteDefinition = {
+  allowApiKey?: boolean;
+  handlers: RequestHandler[];
+  method: ApiRouteMethod;
+  path: string;
+};
 
-router.post("/scan-files", asyncHandler(scanController.scanFiles));
-router.post("/scan-mount-directories", asyncHandler(scanController.scanMountDirectories));
-router.post(
-  "/cleanup-temp-files",
-  asyncHandler(cleanupController.cleanupTempFiles)
-);
+const apiRouteDefinitions: ApiRouteDefinition[] = [
+  // Video routes
+  {
+    method: "get",
+    path: "/search",
+    handlers: [asyncHandler(videoDownloadController.searchVideos)],
+  },
+  {
+    method: "post",
+    path: "/download",
+    allowApiKey: true,
+    handlers: [asyncHandler(videoDownloadController.downloadVideo)],
+  },
+  {
+    method: "post",
+    path: "/upload",
+    handlers: [
+      videoController.upload.single("video"),
+      asyncHandler(videoController.uploadVideo),
+    ],
+  },
+  {
+    method: "post",
+    path: "/upload/batch",
+    handlers: [
+      videoController.uploadBatch.array("videos"),
+      asyncHandler(videoController.uploadVideosBatch),
+    ],
+  },
+  {
+    method: "get",
+    path: "/videos",
+    allowApiKey: true,
+    handlers: [asyncHandler(videoController.getVideos)],
+  },
+  {
+    method: "get",
+    path: "/videos/author-channel-url",
+    handlers: [asyncHandler(videoController.getAuthorChannelUrl)],
+  },
+  {
+    method: "get",
+    path: "/videos/:id",
+    allowApiKey: true,
+    handlers: [asyncHandler(videoController.getVideoById)],
+  },
+  {
+    method: "get",
+    path: "/mount-video/:id",
+    allowApiKey: true,
+    handlers: [asyncHandler(videoController.serveMountVideo)],
+  },
+  {
+    method: "put",
+    path: "/videos/:id",
+    handlers: [asyncHandler(videoController.updateVideoDetails)],
+  },
+  {
+    method: "post",
+    path: "/videos/:id/subtitles",
+    handlers: [
+      videoController.uploadSubtitleMiddleware.single("subtitle"),
+      asyncHandler(videoController.uploadSubtitle),
+    ],
+  },
+  {
+    method: "delete",
+    path: "/videos/:id",
+    handlers: [asyncHandler(videoController.deleteVideo)],
+  },
+  {
+    method: "get",
+    path: "/videos/:id/comments",
+    handlers: [asyncHandler(videoController.getVideoComments)],
+  },
+  {
+    method: "post",
+    path: "/videos/:id/rate",
+    handlers: [asyncHandler(videoMetadataController.rateVideo)],
+  },
+  {
+    method: "post",
+    path: "/videos/:id/refresh-thumbnail",
+    handlers: [asyncHandler(videoMetadataController.refreshThumbnail)],
+  },
+  {
+    method: "post",
+    path: "/videos/:id/upload-thumbnail",
+    handlers: [
+      videoMetadataController.thumbnailUpload.single("thumbnail"),
+      asyncHandler(videoMetadataController.uploadThumbnail),
+    ],
+  },
+  {
+    method: "post",
+    path: "/videos/refresh-file-sizes",
+    handlers: [asyncHandler(videoMetadataController.refreshAllFileSizes)],
+  },
+  {
+    method: "post",
+    path: "/videos/:id/view",
+    handlers: [asyncHandler(videoMetadataController.incrementViewCount)],
+  },
+  {
+    method: "put",
+    path: "/videos/:id/progress",
+    handlers: [asyncHandler(videoMetadataController.updateProgress)],
+  },
+  {
+    method: "post",
+    path: "/scan-files",
+    handlers: [asyncHandler(scanController.scanFiles)],
+  },
+  {
+    method: "post",
+    path: "/scan-mount-directories",
+    handlers: [asyncHandler(scanController.scanMountDirectories)],
+  },
+  {
+    method: "post",
+    path: "/cleanup-temp-files",
+    handlers: [asyncHandler(cleanupController.cleanupTempFiles)],
+  },
+  {
+    method: "get",
+    path: "/download-status",
+    handlers: [asyncHandler(videoDownloadController.getDownloadStatus)],
+  },
+  {
+    method: "get",
+    path: "/check-video-download",
+    handlers: [asyncHandler(videoDownloadController.checkVideoDownloadStatus)],
+  },
+  {
+    method: "get",
+    path: "/check-bilibili-parts",
+    handlers: [asyncHandler(videoDownloadController.checkBilibiliParts)],
+  },
+  {
+    method: "get",
+    path: "/check-bilibili-collection",
+    handlers: [asyncHandler(videoDownloadController.checkBilibiliCollection)],
+  },
+  {
+    method: "get",
+    path: "/check-playlist",
+    handlers: [asyncHandler(videoDownloadController.checkPlaylist)],
+  },
+  {
+    method: "post",
+    path: "/downloads/channel-playlists",
+    handlers: [asyncHandler(downloadController.processChannelPlaylists)],
+  },
 
-router.get(
-  "/download-status",
-  asyncHandler(videoDownloadController.getDownloadStatus)
-);
-router.get(
-  "/check-video-download",
-  asyncHandler(videoDownloadController.checkVideoDownloadStatus)
-);
-router.get(
-  "/check-bilibili-parts",
-  asyncHandler(videoDownloadController.checkBilibiliParts)
-);
-router.get(
-  "/check-bilibili-collection",
-  asyncHandler(videoDownloadController.checkBilibiliCollection)
-);
-router.get(
-  "/check-playlist",
-  asyncHandler(videoDownloadController.checkPlaylist)
-);
+  // Download management
+  {
+    method: "post",
+    path: "/downloads/cancel/:id",
+    handlers: [asyncHandler(downloadController.cancelDownload)],
+  },
+  {
+    method: "delete",
+    path: "/downloads/queue/:id",
+    handlers: [asyncHandler(downloadController.removeFromQueue)],
+  },
+  {
+    method: "delete",
+    path: "/downloads/queue",
+    handlers: [asyncHandler(downloadController.clearQueue)],
+  },
+  {
+    method: "get",
+    path: "/downloads/history",
+    handlers: [asyncHandler(downloadController.getDownloadHistory)],
+  },
+  {
+    method: "delete",
+    path: "/downloads/history/:id",
+    handlers: [asyncHandler(downloadController.removeDownloadHistory)],
+  },
+  {
+    method: "delete",
+    path: "/downloads/history",
+    handlers: [asyncHandler(downloadController.clearDownloadHistory)],
+  },
 
-router.post(
-  "/downloads/channel-playlists",
-  asyncHandler(downloadController.processChannelPlaylists)
-);
+  // Collection routes
+  {
+    method: "get",
+    path: "/collections",
+    allowApiKey: true,
+    handlers: [asyncHandler(collectionController.getCollections)],
+  },
+  {
+    method: "post",
+    path: "/collections",
+    handlers: [asyncHandler(collectionController.createCollection)],
+  },
+  {
+    method: "put",
+    path: "/collections/:id",
+    handlers: [asyncHandler(collectionController.updateCollection)],
+  },
+  {
+    method: "delete",
+    path: "/collections/:id",
+    handlers: [asyncHandler(collectionController.deleteCollection)],
+  },
 
-// Download management
-router.post(
-  "/downloads/cancel/:id",
-  asyncHandler(downloadController.cancelDownload)
-);
-router.delete(
-  "/downloads/queue/:id",
-  asyncHandler(downloadController.removeFromQueue)
-);
-router.delete("/downloads/queue", asyncHandler(downloadController.clearQueue));
-router.get(
-  "/downloads/history",
-  asyncHandler(downloadController.getDownloadHistory)
-);
-router.delete(
-  "/downloads/history/:id",
-  asyncHandler(downloadController.removeDownloadHistory)
-);
-router.delete(
-  "/downloads/history",
-  asyncHandler(downloadController.clearDownloadHistory)
-);
+  // Subscription routes
+  {
+    method: "post",
+    path: "/subscriptions",
+    handlers: [asyncHandler(subscriptionController.createSubscription)],
+  },
+  {
+    method: "get",
+    path: "/subscriptions",
+    handlers: [asyncHandler(subscriptionController.getSubscriptions)],
+  },
+  {
+    method: "put",
+    path: "/subscriptions/:id",
+    handlers: [asyncHandler(subscriptionController.updateSubscription)],
+  },
+  {
+    method: "delete",
+    path: "/subscriptions/:id",
+    handlers: [asyncHandler(subscriptionController.deleteSubscription)],
+  },
+  {
+    method: "put",
+    path: "/subscriptions/:id/pause",
+    handlers: [asyncHandler(subscriptionController.pauseSubscription)],
+  },
+  {
+    method: "put",
+    path: "/subscriptions/:id/resume",
+    handlers: [asyncHandler(subscriptionController.resumeSubscription)],
+  },
+  {
+    method: "post",
+    path: "/subscriptions/playlist",
+    handlers: [asyncHandler(subscriptionController.createPlaylistSubscription)],
+  },
+  {
+    method: "post",
+    path: "/subscriptions/channel-playlists",
+    handlers: [asyncHandler(subscriptionController.subscribeChannelPlaylists)],
+  },
 
-// Collection routes
-router.get("/collections", asyncHandler(collectionController.getCollections));
-router.post(
-  "/collections",
-  asyncHandler(collectionController.createCollection)
-);
-router.put(
-  "/collections/:id",
-  asyncHandler(collectionController.updateCollection)
-);
-router.delete(
-  "/collections/:id",
-  asyncHandler(collectionController.deleteCollection)
-);
+  // Continuous download task routes
+  {
+    method: "get",
+    path: "/subscriptions/tasks",
+    handlers: [asyncHandler(subscriptionController.getContinuousDownloadTasks)],
+  },
+  // Specific routes must come before parameterized routes (:id)
+  {
+    method: "delete",
+    path: "/subscriptions/tasks/clear-finished",
+    handlers: [asyncHandler(subscriptionController.clearFinishedTasks)],
+  },
+  {
+    method: "put",
+    path: "/subscriptions/tasks/:id/pause",
+    handlers: [asyncHandler(subscriptionController.pauseContinuousDownloadTask)],
+  },
+  {
+    method: "put",
+    path: "/subscriptions/tasks/:id/resume",
+    handlers: [asyncHandler(subscriptionController.resumeContinuousDownloadTask)],
+  },
+  {
+    method: "delete",
+    path: "/subscriptions/tasks/:id",
+    handlers: [asyncHandler(subscriptionController.cancelContinuousDownloadTask)],
+  },
+  {
+    method: "delete",
+    path: "/subscriptions/tasks/:id/delete",
+    handlers: [asyncHandler(subscriptionController.deleteContinuousDownloadTask)],
+  },
+  {
+    method: "post",
+    path: "/subscriptions/tasks/playlist",
+    handlers: [asyncHandler(subscriptionController.createPlaylistTask)],
+  },
 
-// Subscription routes
-router.post(
-  "/subscriptions",
-  asyncHandler(subscriptionController.createSubscription)
-);
-router.get(
-  "/subscriptions",
-  asyncHandler(subscriptionController.getSubscriptions)
-);
-router.put(
-  "/subscriptions/:id",
-  asyncHandler(subscriptionController.updateSubscription)
-);
-router.delete(
-  "/subscriptions/:id",
-  asyncHandler(subscriptionController.deleteSubscription)
-);
-router.put(
-  "/subscriptions/:id/pause",
-  asyncHandler(subscriptionController.pauseSubscription)
-);
-router.put(
-  "/subscriptions/:id/resume",
-  asyncHandler(subscriptionController.resumeSubscription)
-);
-router.post(
-  "/subscriptions/playlist",
-  asyncHandler(subscriptionController.createPlaylistSubscription)
-);
-router.post(
-  "/subscriptions/channel-playlists",
-  asyncHandler(subscriptionController.subscribeChannelPlaylists)
-);
+  // Cloud storage routes
+  {
+    method: "get",
+    path: "/cloud/signed-url",
+    handlers: [asyncHandler(cloudStorageController.getSignedUrl)],
+  },
+  {
+    method: "post",
+    path: "/cloud/sync",
+    handlers: [asyncHandler(cloudStorageController.syncToCloud)],
+  },
+  {
+    method: "delete",
+    path: "/cloud/thumbnail-cache",
+    handlers: [asyncHandler(cloudStorageController.clearThumbnailCacheEndpoint)],
+  },
 
-// Continuous download task routes
-router.get(
-  "/subscriptions/tasks",
-  asyncHandler(subscriptionController.getContinuousDownloadTasks)
-);
-// Specific routes must come before parameterized routes (:id)
-router.delete(
-  "/subscriptions/tasks/clear-finished",
-  asyncHandler(subscriptionController.clearFinishedTasks)
-);
-router.put(
-  "/subscriptions/tasks/:id/pause",
-  asyncHandler(subscriptionController.pauseContinuousDownloadTask)
-);
-router.put(
-  "/subscriptions/tasks/:id/resume",
-  asyncHandler(subscriptionController.resumeContinuousDownloadTask)
-);
-router.delete(
-  "/subscriptions/tasks/:id",
-  asyncHandler(subscriptionController.cancelContinuousDownloadTask)
-);
-router.delete(
-  "/subscriptions/tasks/:id/delete",
-  asyncHandler(subscriptionController.deleteContinuousDownloadTask)
-);
-router.post(
-  "/subscriptions/tasks/playlist",
-  asyncHandler(subscriptionController.createPlaylistTask)
-);
+  // System routes
+  {
+    method: "get",
+    path: "/system/version",
+    handlers: [asyncHandler(systemController.getLatestVersion)],
+  },
+];
 
-// Cloud storage routes
-router.get(
-  "/cloud/signed-url",
-  asyncHandler(cloudStorageController.getSignedUrl)
-);
-router.post("/cloud/sync", asyncHandler(cloudStorageController.syncToCloud));
-router.delete(
-  "/cloud/thumbnail-cache",
-  asyncHandler(cloudStorageController.clearThumbnailCacheEndpoint)
-);
+const denyApiKeyRoute: RequestHandler = (_req, _res, next: NextFunction) => {
+  next("router");
+};
 
-// System routes
-router.get("/system/version", asyncHandler(systemController.getLatestVersion));
+const registerRoute = (
+  router: Router,
+  definition: ApiRouteDefinition,
+  handlers: RequestHandler[]
+): void => {
+  switch (definition.method) {
+    case "delete":
+      router.delete(definition.path, ...handlers);
+      return;
+    case "get":
+      router.get(definition.path, ...handlers);
+      return;
+    case "post":
+      router.post(definition.path, ...handlers);
+      return;
+    case "put":
+      router.put(definition.path, ...handlers);
+      return;
+  }
+};
 
-export default router;
+export const buildApiRouter = (
+  apiKeyOnly = false,
+  definitions: readonly ApiRouteDefinition[] = apiRouteDefinitions
+): Router => {
+  const router = express.Router();
+
+  if (apiKeyOnly) {
+    router.use((req, _res, next) => {
+      if (req.apiKeyAuthenticated === true) {
+        next();
+        return;
+      }
+
+      next("router");
+    });
+  }
+
+  for (const definition of definitions) {
+    const handlers =
+      apiKeyOnly && definition.allowApiKey !== true
+        ? [denyApiKeyRoute]
+        : definition.handlers;
+
+    registerRoute(router, definition, handlers);
+  }
+
+  return router;
+};
+
+const apiRoutes = buildApiRouter();
+
+export const apiKeyRoutes = buildApiRouter(true);
+
+export default apiRoutes;
