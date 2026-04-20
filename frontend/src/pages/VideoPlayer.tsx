@@ -41,6 +41,7 @@ const VideoPlayer: React.FC = () => {
         return /iPhone|iPod|iPad/.test(ua) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     })();
+    const useAppleMinimalPlaybackLayout = useAppleNativeRoutePlayer;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -321,11 +322,15 @@ const VideoPlayer: React.FC = () => {
                     mt: isCinemaMode ? 0 : { xs: 0, md: 4 },
                     gridTemplateColumns: {
                         xs: 'minmax(0, 1fr)',
-                        lg: isCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
+                        lg: (isCinemaMode || useAppleMinimalPlaybackLayout)
+                            ? '1fr'
+                            : 'minmax(0, 1fr) minmax(280px, 360px)'
                     },
                     gridTemplateAreas: {
                         xs: '"main" "sidebar"',
-                        lg: isCinemaMode ? '"main" "sidebar"' : '"main sidebar"'
+                        lg: (isCinemaMode || useAppleMinimalPlaybackLayout)
+                            ? '"main" "sidebar"'
+                            : '"main sidebar"'
                     }
                 }}
             >
