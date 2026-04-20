@@ -50,6 +50,10 @@
 
 有关安装和使用说明，请参阅 [浏览器扩展](documents/zh/chrome-extension.md)。
 
+## MikMok
+
+[MikMok](https://github.com/franklioxygen/MikMok) 是 MyTube 的短视频 Web 客户端，可通过 API 连接 MyTube，提供更适合短视频浏览的流式观看体验。
+
 ## 目录结构
 
 有关项目结构的详细说明，请参阅 [目录结构](documents/zh/directory-structure.md)。

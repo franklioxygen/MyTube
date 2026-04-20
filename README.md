@@ -50,6 +50,10 @@ Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt
 
 For installation and usage instructions, please refer to [Browser Extension](documents/en/chrome-extension.md).
 
+## MikMok
+
+[MikMok](https://github.com/franklioxygen/MikMok) is a short-form video web client for MyTube. It connects to MyTube through the API and offers a feed-style viewing experience tailored for short videos.
+
 ## Directory Structure
 
 For a detailed breakdown of the project structure, please refer to [Directory Structure](documents/en/directory-structure.md).
