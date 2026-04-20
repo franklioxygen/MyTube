@@ -8,7 +8,12 @@
 - 启用密码登录后，未认证用户只能访问与登录相关的公开端点。
 - 访客角色对大多数资源仅有只读权限。
 - 当 `apiKeyEnabled` 为 true 时，支持通过 `X-API-Key` 或 `Authorization: ApiKey <key>` 进行 API Key 认证。
-- API Key 认证仅允许访问 `POST /api/download`，用于其他端点会返回 `403`。
+- API Key 认证允许访问 `POST /api/download`，以及一组最小只读媒体库接口：
+  - `GET /api/videos`
+  - `GET /api/videos/:id`
+  - `GET /api/mount-video/:id`
+  - `GET /api/collections`
+  - 其它使用 API Key 的接口仍会返回 `403`。
 
 ## 视频下载与搜索
 
@@ -43,8 +48,11 @@
     - 文件夹上传只导入受支持的视频文件，不保留子目录结构。
     - 重复内容会按内容哈希跳过。
 - `GET /api/videos` - 获取所有视频 (当前实现无服务器端分页/过滤)
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/videos/:id` -通过 ID 获取单个视频
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `GET /api/mount-video/:id` - 通过视频 ID 流式传输挂载目录视频 (支持 Range)
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `PUT /api/videos/:id` - 更新视频元数据
   - 请求体允许: `{ title?, tags?, visibility?, subtitles? }`
 - `POST /api/videos/:id/subtitles` - 为视频上传字幕文件
@@ -76,6 +84,7 @@
 ## 收藏夹
 
 - `GET /api/collections` - 获取所有收藏夹
+  - 认证: 支持会话 Cookie/Bearer JWT，或 API Key (`X-API-Key` / `Authorization: ApiKey <key>`)
 - `POST /api/collections` - 创建收藏夹
   - 请求体: `{ name: string, videoId?: string }`
 - `PUT /api/collections/:id` - 更新收藏夹

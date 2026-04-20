@@ -238,11 +238,67 @@ describe("roleBasedAuthMiddleware", () => {
     expect(status).not.toHaveBeenCalled();
   });
 
-  it("blocks api-key-authenticated requests to non-download endpoints", () => {
+  it("allows api-key-authenticated GET /videos requests", () => {
     req = {
       method: "GET",
       path: "/videos",
       url: "/videos",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("allows api-key-authenticated GET /videos/:id requests", () => {
+    req = {
+      method: "GET",
+      path: "/videos/abc123",
+      url: "/videos/abc123",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("allows api-key-authenticated GET /mount-video/:id requests", () => {
+    req = {
+      method: "GET",
+      path: "/mount-video/abc123",
+      url: "/mount-video/abc123",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("allows api-key-authenticated GET /collections requests", () => {
+    req = {
+      method: "GET",
+      path: "/collections",
+      url: "/collections",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it("blocks api-key-authenticated GET /videos/author-channel-url requests", () => {
+    req = {
+      method: "GET",
+      path: "/videos/author-channel-url",
+      url: "/videos/author-channel-url?sourceUrl=https://youtube.com/watch?v=1",
       apiKeyAuthenticated: true,
     };
 
@@ -253,7 +309,27 @@ describe("roleBasedAuthMiddleware", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: expect.stringContaining("only allows POST /api/download"),
+        error: expect.stringContaining("read-only library endpoints"),
+      })
+    );
+  });
+
+  it("blocks api-key-authenticated requests to non-read endpoints", () => {
+    req = {
+      method: "GET",
+      path: "/downloads/history",
+      url: "/downloads/history",
+      apiKeyAuthenticated: true,
+    };
+
+    roleBasedAuthMiddleware(req as Request, res as Response, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.stringContaining("read-only library endpoints"),
       })
     );
   });
