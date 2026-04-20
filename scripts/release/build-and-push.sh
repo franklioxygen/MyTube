@@ -8,6 +8,7 @@ cd "$REPO_ROOT"
 DOCKER_PATH="docker"
 USERNAME="franklioxygen"
 VERSION=$1
+BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}
 
 # Default build arguments (can be overridden by environment variables)
 VITE_API_URL=${VITE_API_URL:-"http://localhost:5551/api"}
@@ -57,6 +58,7 @@ echo "🏗️ Building and pushing backend..."
 $DOCKER_PATH buildx build \
   --platform $PLATFORMS \
   $ATTESTATION_FLAGS \
+  --build-arg BUILD_DATE="$BUILD_DATE" \
   -f backend/Dockerfile \
   $BACKEND_TAGS \
   --push \

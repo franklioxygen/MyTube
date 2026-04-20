@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { Suspense, createContext, lazy, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { DownloadInfo } from '../types';
 import { api } from '../utils/apiClient';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { INFO_SOUNDS } from '../utils/sounds';
 import { resolveSubscriptionErrorMessage } from '../utils/subscriptionErrors';
 import { useAuth } from './AuthContext';
@@ -18,10 +19,19 @@ const DOWNLOAD_STATUS_KEY = 'mytube_download_status';
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const ACTIVE_POLL_INTERVAL_MS = 2000;
 const IDLE_POLL_INTERVAL_MS = 10000;
-const AlertModal = lazy(() => import('../components/AlertModal'));
-const ChannelSubscribeChoiceModal = lazy(() => import('../components/ChannelSubscribeChoiceModal'));
-const ConfirmationModal = lazy(() => import('../components/ConfirmationModal'));
-const SubscribeModal = lazy(() => import('../components/SubscribeModal'));
+const AlertModal = lazyWithRetry(() => import('../components/AlertModal'), 'alert-modal');
+const ChannelSubscribeChoiceModal = lazyWithRetry(
+    () => import('../components/ChannelSubscribeChoiceModal'),
+    'channel-subscribe-choice-modal',
+);
+const ConfirmationModal = lazyWithRetry(
+    () => import('../components/ConfirmationModal'),
+    'confirmation-modal',
+);
+const SubscribeModal = lazyWithRetry(
+    () => import('../components/SubscribeModal'),
+    'subscribe-modal',
+);
 
 interface BilibiliPartsInfo {
     videosNumber: number;

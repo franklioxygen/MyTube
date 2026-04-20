@@ -1,11 +1,15 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import React, { Suspense, lazy, useCallback, useMemo } from 'react';
+import React, { Suspense, useCallback, useMemo } from 'react';
 import { ViewMode } from '../hooks/useViewMode';
 import { Collection, Video } from '../types';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import CollectionCard from './CollectionCard';
 import VideoCard from './VideoCard';
 
-const VirtualizedVideoGrid = lazy(() => import('./VirtualizedVideoGrid'));
+const VirtualizedVideoGrid = lazyWithRetry(
+    () => import('./VirtualizedVideoGrid'),
+    'virtualized-video-grid',
+);
 
 interface GridProps {
     xs: number;

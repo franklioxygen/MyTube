@@ -24,6 +24,9 @@ const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
 // Cached promise so we only check/install once per process
 let ytDlpAvailablePromise: Promise<void> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
+type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
+
+let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
 const runtimeWarningCache = new Set<string>();
 
 /**
@@ -32,6 +35,7 @@ const runtimeWarningCache = new Set<string>();
 export function resetYtDlpAvailabilityCacheForTests(): void {
   ytDlpAvailablePromise = null;
   denoAvailablePromise = null;
+  jsRuntimeFlagPromise = null;
   runtimeWarningCache.clear();
 }
 
@@ -230,6 +234,55 @@ function warnRuntimeOnce(key: string, message: string): void {
   console.warn(message);
 }
 
+async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
+  if (jsRuntimeFlagPromise) {
+    return jsRuntimeFlagPromise;
+  }
+
+  jsRuntimeFlagPromise = new Promise<YouTubeJsRuntimeFlag | null>((resolve) => {
+    let helpText = "";
+    const proc = spawn(YT_DLP_PATH, ["--help"], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    proc.stdout?.on("data", (data: Buffer) => {
+      helpText += data.toString();
+    });
+
+    proc.stderr?.on("data", (data: Buffer) => {
+      helpText += data.toString();
+    });
+
+    const resolveFromHelp = () => {
+      if (helpText.includes("--js-runtimes")) {
+        resolve("--js-runtimes");
+        return;
+      }
+
+      if (helpText.includes("--js-runtime")) {
+        resolve("--js-runtime");
+        return;
+      }
+
+      warnRuntimeOnce(
+        "js-runtime-flag-unsupported",
+        "[yt-dlp] Current yt-dlp binary does not support --js-runtimes. Continuing without it. Upgrade yt-dlp or set YT_DLP_PATH to a newer binary if YouTube extraction becomes unreliable."
+      );
+      resolve(null);
+    };
+
+    proc.on("close", () => {
+      resolveFromHelp();
+    });
+
+    proc.on("error", () => {
+      resolveFromHelp();
+    });
+  });
+
+  return jsRuntimeFlagPromise;
+}
+
 async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
   const rawRuntime = process.env[YT_DLP_JS_RUNTIME_ENV]?.trim();
   const runtime = rawRuntime?.toLowerCase();
@@ -285,7 +338,11 @@ async function appendYouTubeJsRuntimeArg(
   if (!isYouTubeUrl(url)) {
     return;
   }
-  args.push("--js-runtime", await getYouTubeJsRuntime());
+  const runtimeFlag = await getYouTubeJsRuntimeFlag();
+  if (!runtimeFlag) {
+    return;
+  }
+  args.push(runtimeFlag, await getYouTubeJsRuntime());
 }
 
 function parseExtractorArgParts(value: unknown): string[] {
@@ -441,10 +498,11 @@ export async function executeYtDlpJson(
   await ensureYtDlpAvailable();
   const url = preprocessUrl(rawUrl);
   const effectiveFlags = withDefaultYouTubeExtractorArgs(url, flags);
+  const { noWarnings: _noWarnings, ...jsonFlags } = effectiveFlags;
   const args = [
     "--dump-single-json",
     "--no-warnings",
-    ...flagsToArgs(effectiveFlags),
+    ...flagsToArgs(jsonFlags),
   ];
 
   // Add cookies if file exists

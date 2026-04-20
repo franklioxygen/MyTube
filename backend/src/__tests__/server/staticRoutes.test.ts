@@ -235,7 +235,7 @@ describe("server/staticRoutes", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("should register SPA fallback and keep api/cloud paths as 404", () => {
+  it("should register SPA fallback and return correct 404 responses without breaking SPA routes", () => {
     const get = vi.fn();
     const app = { get } as any;
     registerSpaFallback(app, "/frontend-dist");
@@ -246,26 +246,42 @@ describe("server/staticRoutes", () => {
     const apiRes = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
+      json: vi.fn(),
       sendFile: vi.fn(),
     };
     handler({ path: "/api/videos" } as any, apiRes);
     expect(apiRes.status).toHaveBeenCalledWith(404);
-    expect(apiRes.send).toHaveBeenCalledWith("Not Found");
+    expect(apiRes.json).toHaveBeenCalledWith({ error: "Not Found" });
+    expect(apiRes.send).not.toHaveBeenCalled();
 
     const cloudRes = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
+      json: vi.fn(),
       sendFile: vi.fn(),
     };
     handler({ path: "/cloud/file" } as any, cloudRes);
     expect(cloudRes.status).toHaveBeenCalledWith(404);
+    expect(cloudRes.json).toHaveBeenCalledWith({ error: "Not Found" });
+
+    const faviconRes = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      json: vi.fn(),
+      sendFile: vi.fn(),
+    };
+    handler({ path: "/favicon-missing.ico" } as any, faviconRes);
+    expect(faviconRes.status).toHaveBeenCalledWith(404);
+    expect(faviconRes.send).toHaveBeenCalledWith("Not Found");
+    expect(faviconRes.sendFile).not.toHaveBeenCalled();
 
     const spaRes = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
+      json: vi.fn(),
       sendFile: vi.fn(),
     };
-    handler({ path: "/home" } as any, spaRes);
+    handler({ path: "/author/jane.doe" } as any, spaRes);
     expect(spaRes.sendFile).toHaveBeenCalledWith("index.html", {
       root: "/frontend-dist"
     });

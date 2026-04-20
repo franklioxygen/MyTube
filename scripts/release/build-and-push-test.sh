@@ -7,6 +7,7 @@ cd "$REPO_ROOT"
 
 DOCKER_PATH="docker"
 USERNAME="franklioxygen"
+BUILD_DATE=${BUILD_DATE:-$(date -u '+%Y-%m-%dT%H:%M:%SZ')}
 
 # Default build arguments (can be overridden by environment variables)
 VITE_API_URL=${VITE_API_URL:-"http://localhost:5551/api"}
@@ -35,7 +36,12 @@ build_backend() {
   echo "🏗️ Building backend for $platform..."
   # Run build from root context to allow copying frontend files
   # Use -f backend/Dockerfile to specify the Dockerfile path
-  $DOCKER_PATH build --platform $platform -f backend/Dockerfile -t $tag .
+  $DOCKER_PATH build \
+    --platform $platform \
+    --build-arg BUILD_DATE="$BUILD_DATE" \
+    -f backend/Dockerfile \
+    -t $tag \
+    .
   
   # Create additional tag if provided (before pushing, so we can push both)
   if [ -n "$additional_tag" ]; then

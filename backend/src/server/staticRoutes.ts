@@ -20,6 +20,16 @@ const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 };
 
+const isApiOrCloudPath = (requestPath: string): boolean =>
+  requestPath.startsWith("/api") || requestPath.startsWith("/cloud");
+
+const isSingleSegmentRootFileRequest = (requestPath: string): boolean => {
+  const segments = requestPath.split("/").filter(Boolean);
+  return (
+    segments.length === 1 && path.posix.extname(segments[0] ?? "") !== ""
+  );
+};
+
 const resolveOriginalThumbnailAbsolutePath = async (
   relativePath: string,
 ): Promise<string | null> => {
@@ -195,7 +205,12 @@ export const registerSpaFallback = (
   const safeFrontendDist = path.resolve(frontendDist);
 
   app.get("*", (req, res) => {
-    if (req.path.startsWith("/api") || req.path.startsWith("/cloud")) {
+    if (isApiOrCloudPath(req.path)) {
+      res.status(404).json({ error: "Not Found" });
+      return;
+    }
+
+    if (isSingleSegmentRootFileRequest(req.path)) {
       res.status(404).send("Not Found");
       return;
     }

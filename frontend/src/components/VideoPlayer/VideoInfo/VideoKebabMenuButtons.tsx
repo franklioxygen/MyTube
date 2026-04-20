@@ -1,8 +1,12 @@
 import { MoreVert } from '@mui/icons-material';
 import { IconButton, Tooltip, useMediaQuery } from '@mui/material';
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, useState } from 'react';
+import { lazyWithRetry } from '../../../utils/lazyWithRetry';
 
-const VideoKebabMenu = lazy(() => import('./VideoKebabMenu'));
+const VideoKebabMenu = lazyWithRetry(
+    () => import('./VideoKebabMenu'),
+    'video-kebab-menu',
+);
 
 interface VideoKebabMenuButtonsProps {
     onPlayWith: (anchor: HTMLElement) => void;

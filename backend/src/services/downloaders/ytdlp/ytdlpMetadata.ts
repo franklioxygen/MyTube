@@ -61,7 +61,7 @@ export async function getVideoInfo(url: string): Promise<VideoInfo> {
       {
         ...networkConfig,
         noWarnings: true,
-        preferFreeFormats: true,
+        skipDownload: true,
         ...(PROVIDER_SCRIPT
           ? {
               extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,

@@ -4,6 +4,53 @@ import { DownloadError, ServiceError } from "../errors/DownloadErrors";
 import { isCsrfTokenError } from "./csrfMiddleware";
 import { logger } from "../utils/logger";
 
+const STATIC_ASSET_PATH_PREFIXES = [
+  "/assets",
+  "/images",
+  "/images-small",
+  "/videos",
+  "/avatars",
+  "/subtitles",
+  "/favicon",
+  "/site.webmanifest",
+];
+
+type ErrorWithHttpMetadata = Error & {
+  code?: string;
+  status?: number;
+  statusCode?: number;
+};
+
+function getErrorStatus(err: ErrorWithHttpMetadata): number | undefined {
+  const status = err.status ?? err.statusCode;
+  return typeof status === "number" ? status : undefined;
+}
+
+function getRequestPath(req: Request): string {
+  return typeof req.path === "string" ? req.path : "";
+}
+
+function isStaticAssetRequest(req: Request): boolean {
+  const requestPath = getRequestPath(req);
+  return STATIC_ASSET_PATH_PREFIXES.some((prefix) =>
+    requestPath.startsWith(prefix)
+  );
+}
+
+function isApiOrCloudRequest(req: Request): boolean {
+  const requestPath = getRequestPath(req);
+  return requestPath.startsWith("/api") || requestPath.startsWith("/cloud");
+}
+
+function respondNotFound(req: Request, res: Response): void {
+  if (isApiOrCloudRequest(req)) {
+    res.status(404).json({ error: "Not Found" });
+    return;
+  }
+
+  res.status(404).send("Not Found");
+}
+
 /**
  * Global error handling middleware
  */
@@ -64,6 +111,19 @@ export function errorHandler(
       error: err.message || "invalid csrf token",
       type: "csrf",
     });
+    return;
+  }
+
+  const errorWithHttpMetadata = err as ErrorWithHttpMetadata;
+  const errorStatus = getErrorStatus(errorWithHttpMetadata);
+  const isStaticAssetNotFound =
+    isStaticAssetRequest(req) &&
+    (errorStatus === 404 || errorWithHttpMetadata.code === "ENOENT");
+  const isApiOrCloudNotFound =
+    isApiOrCloudRequest(req) && errorStatus === 404;
+
+  if (isStaticAssetNotFound || isApiOrCloudNotFound) {
+    respondNotFound(req, res);
     return;
   }
 

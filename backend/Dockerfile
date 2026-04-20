@@ -86,7 +86,7 @@ ARG TARGETARCH
 RUN curl -L --retry 5 --retry-delay 2 --output /usr/local/bin/cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${TARGETARCH:-amd64} && \
     chmod +x /usr/local/bin/cloudflared
 
-# Install deno for yt-dlp --js-runtime support (pinned + checksum verified)
+# Install deno for yt-dlp JavaScript runtime support (pinned + checksum verified)
 ARG DENO_VERSION=2.3.1
 RUN set -eux; \
     case "${TARGETARCH:-amd64}" in \
@@ -114,12 +114,15 @@ RUN pip3 install --no-cache-dir \
     "curl-cffi==0.14.0" \
     --break-system-packages
 
+ARG BUILD_DATE=unknown
+
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=5551
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 ENV SKIP_PROVIDER_BUILD=1
 ENV SKIP_FFMPEG_AUTO_INSTALL=1
+ENV MYTUBE_BUILD_DATE=${BUILD_DATE}
 ENV PUID=1000
 ENV PGID=1000
 ENV MYTUBE_AUTO_FIX_PERMISSIONS=1

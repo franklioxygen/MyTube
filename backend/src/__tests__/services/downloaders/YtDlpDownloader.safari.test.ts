@@ -154,4 +154,20 @@ describe('YtDlpDownloader Safari Compatibility', () => {
         // Should use user's format
         expect(args.format).toBe('bestvideo+bestaudio');
     });
+
+    it('should fetch metadata with skipDownload before starting the actual download', async () => {
+        await YtDlpDownloader.downloadVideo('https://www.youtube.com/watch?v=123456');
+
+        expect(mockExecuteYtDlpJson).toHaveBeenCalledTimes(1);
+        expect(mockExecuteYtDlpJson).toHaveBeenCalledWith(
+            'https://www.youtube.com/watch?v=123456',
+            expect.objectContaining({
+                noWarnings: true,
+                skipDownload: true,
+            }),
+        );
+
+        const metadataFlags = mockExecuteYtDlpJson.mock.calls[0][1];
+        expect(metadataFlags.preferFreeFormats).toBeUndefined();
+    });
 });

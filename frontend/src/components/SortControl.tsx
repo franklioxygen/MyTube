@@ -1,9 +1,13 @@
 import { Sort } from '@mui/icons-material';
 import { Box, Button, SxProps, Theme } from '@mui/material';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 
-const SortControlMenu = lazy(() => import('./SortControlMenu'));
+const SortControlMenu = lazyWithRetry(
+    () => import('./SortControlMenu'),
+    'sort-control-menu',
+);
 
 interface SortControlProps {
     sortOption: string;

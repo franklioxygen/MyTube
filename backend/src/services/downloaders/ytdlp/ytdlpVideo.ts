@@ -145,7 +145,7 @@ export async function downloadVideo(
     const info = await executeYtDlpJson(videoUrl, {
       ...networkConfig,
       noWarnings: true,
-      preferFreeFormats: true,
+      skipDownload: true,
       ...(PROVIDER_SCRIPT
         ? {
             extractorArgs: `youtubepot-bgutilscript:script_path=${PROVIDER_SCRIPT}`,
@@ -591,7 +591,13 @@ export async function downloadVideo(
       moveSubtitlesToVideoFolder
     );
   } catch (error) {
-    logger.error("Error in download process:", error);
+    logger.error(
+      "Error in download process:",
+      error,
+      typeof (error as { stderr?: unknown })?.stderr === "string"
+        ? { stderr: (error as { stderr: string }).stderr }
+        : undefined,
+    );
     throw error;
   }
 

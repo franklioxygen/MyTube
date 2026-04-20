@@ -27,10 +27,15 @@ describe('ErrorHandler Middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     json = vi.fn();
-    status = vi.fn().mockReturnValue({ json });
+    const chainedRes = {
+      json,
+      send: vi.fn(),
+    };
+    status = vi.fn().mockReturnValue(chainedRes);
     req = {};
     res = {
       json,
+      send: chainedRes.send,
       status,
     };
     next = vi.fn();
@@ -151,6 +156,63 @@ describe('ErrorHandler Middleware', () => {
         error: 'Internal server error',
         message: undefined,
       });
+    });
+
+    it('should return plain 404 for missing static assets', () => {
+      const error = Object.assign(
+        new Error("ENOENT: no such file or directory, stat '/app/frontend/dist/assets/js/LoginPage.js'"),
+        {
+          code: 'ENOENT',
+          status: 404,
+        },
+      );
+      req = {
+        path: '/assets/js/LoginPage.js',
+      };
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(404);
+      expect((res.send as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith('Not Found');
+      expect(json).not.toHaveBeenCalled();
+    });
+
+    it('should return json 404 for api requests', () => {
+      const error = Object.assign(new Error('Route not found'), {
+        status: 404,
+      });
+      req = {
+        path: '/api/videos/missing',
+      };
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(404);
+      expect(json).toHaveBeenCalledWith({
+        error: 'Not Found',
+      });
+    });
+
+    it('should treat non-static 404 errors as unexpected failures', () => {
+      const error = Object.assign(new Error("ENOENT: no such file or directory, stat '/app/frontend/dist/index.html'"), {
+        code: 'ENOENT',
+        status: 404,
+      });
+      req = {
+        path: '/home',
+      };
+
+      errorHandler(error, req as Request, res as Response, next);
+
+      expect(logger.error).toHaveBeenCalledWith('Unhandled error', error);
+      expect(status).toHaveBeenCalledWith(500);
+      expect(json).toHaveBeenCalledWith({
+        error: 'Internal server error',
+        message: undefined,
+      });
+      expect((res.send as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
     });
 
     it('should handle csrf errors with 403 status', () => {

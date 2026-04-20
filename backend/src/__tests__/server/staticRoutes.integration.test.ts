@@ -4,6 +4,7 @@ import os from "os";
 import path from "path";
 import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
+import { errorHandler } from "../../middleware/errorHandler";
 import {
   registerSpaFallback,
   registerStaticRoutes,
@@ -27,16 +28,7 @@ describe("server/staticRoutes integration", () => {
     const app = express();
     registerStaticRoutes(app, frontendDist);
     registerSpaFallback(app, frontendDist);
-    app.use(
-      (
-        err: { status?: number; message?: string },
-        _req: express.Request,
-        res: express.Response,
-        _next: express.NextFunction,
-      ) => {
-        res.status(err.status ?? 500).send(err.message ?? "Error");
-      },
-    );
+    app.use(errorHandler);
 
     const imageRes = await request(app).get("/images/missing.jpg");
     expect(imageRes.status).toBe(404);
@@ -50,8 +42,20 @@ describe("server/staticRoutes integration", () => {
     expect(assetRes.status).toBe(404);
     expect(assetRes.text).not.toBe("SPA");
 
+    const faviconRes = await request(app).get("/favicon-missing.ico");
+    expect(faviconRes.status).toBe(404);
+    expect(faviconRes.text).toBe("Not Found");
+
+    const apiRes = await request(app).get("/api/missing");
+    expect(apiRes.status).toBe(404);
+    expect(apiRes.body).toEqual({ error: "Not Found" });
+
     const spaRes = await request(app).get("/home");
     expect(spaRes.status).toBe(200);
     expect(spaRes.text).toBe("SPA");
+
+    const dottedSpaRes = await request(app).get("/author/jane.doe");
+    expect(dottedSpaRes.status).toBe(200);
+    expect(dottedSpaRes.text).toBe("SPA");
   });
 });

@@ -1,10 +1,14 @@
 import { Collections as CollectionsIcon, Delete as DeleteIcon, GridView, History, Sort, ViewSidebar } from '@mui/icons-material';
 import { Box, Button, IconButton, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 import { ViewMode } from '../hooks/useViewMode';
 
-const SortControlMenu = lazy(() => import('./SortControlMenu'));
+const SortControlMenu = lazyWithRetry(
+    () => import('./SortControlMenu'),
+    'sort-control-menu',
+);
 
 interface HomeHeaderProps {
     viewMode: ViewMode;

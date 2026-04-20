@@ -1,5 +1,5 @@
 import { Alert, Box, Container, Pagination, Typography, useMediaQuery, useTheme } from '@mui/material';
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HomeHeader } from '../components/HomeHeader';
 import { HomeLoadingSkeleton } from '../components/HomeLoadingSkeleton';
@@ -16,8 +16,12 @@ import { useSettings } from '../hooks/useSettings';
 import { useVideoFiltering } from '../hooks/useVideoFiltering';
 import { useVideoSort } from '../hooks/useVideoSort';
 import { useViewMode } from '../hooks/useViewMode';
+import { lazyWithRetry } from '../utils/lazyWithRetry';
 
-const ConfirmationModal = lazy(() => import('../components/ConfirmationModal'));
+const ConfirmationModal = lazyWithRetry(
+    () => import('../components/ConfirmationModal'),
+    'confirmation-modal',
+);
 
 const Home: React.FC = () => {
     const { t } = useLanguage();
