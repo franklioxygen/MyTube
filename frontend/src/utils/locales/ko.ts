@@ -542,7 +542,7 @@ export const ko = {
   verifying: "확인 중...",
   incorrectPassword: "비밀번호가 올바르지 않습니다",
   loginFailed: "비밀번호 확인 실패",
-  defaultPasswordHint: "기본 비밀번호: 123",
+  defaultPasswordHint: "설정에서 구성한 관리자 비밀번호를 사용하세요.",
   checkingConnection: "연결 확인 중...",
   connectionError: "연결 오류",
   backendConnectionFailed:
@@ -907,7 +907,7 @@ export const ko = {
     "시스템 매개변수 구성, 데이터 유지 관리 및 기능 확장.",
   instructionSection3Sub1: "보안 설정:",
   instructionSection3Text1:
-    "시스템 로그인 비밀번호를 설정하십시오(기본 초기 비밀번호는 123이며, 첫 로그인 후 변경하는 것이 좋습니다).",
+    "로그인을 활성화하기 전에 시스템 로그인 비밀번호를 설정하세요. 접근 권한을 잃은 경우 백엔드 reset-password 스크립트로 재설정할 수 있습니다.",
   instructionSection3Sub2: "태그 관리:",
   instructionSection3Text2:
     '비디오 분류 태그 추가 또는 삭제를 지원합니다. 참고: 변경 사항을 적용하려면 페이지 하단의 "저장" 버튼을 클릭해야 합니다.',

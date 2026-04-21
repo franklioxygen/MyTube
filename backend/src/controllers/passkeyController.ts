@@ -64,8 +64,12 @@ function getOriginAndRPID(req: Request): { origin: string; rpID: string } {
     }
   }
   if (!origin) {
+    const forwardedProtoHeader = req.headers["x-forwarded-proto"];
+    const forwardedProto = Array.isArray(forwardedProtoHeader)
+      ? forwardedProtoHeader[0]
+      : forwardedProtoHeader;
     const protocol =
-      req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+      forwardedProto || (req.secure ? "https" : "http");
     const host = req.headers.host || "localhost:5550";
     origin = `${protocol}://${host}`;
   }

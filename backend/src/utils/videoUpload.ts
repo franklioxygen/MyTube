@@ -269,6 +269,7 @@ export const createVideoUploadStorage = (
         ensureDirSafeSync(destinationDir, destinationDir);
         writeStream = createWriteStreamSafe(targetPath, destinationDir);
         writeStream.on("error", (error) => {
+          console.error("Error writing uploaded video stream:", error);
           cleanup();
           if (!settled) {
             complete(error as Error);
@@ -347,6 +348,7 @@ export const createVideoUploadStorage = (
       });
 
       file.stream.on("error", (error) => {
+        console.error("Error reading uploaded video stream:", error);
         cleanup();
         if (!settled) {
           complete(error as Error);

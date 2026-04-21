@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import fs from "fs-extra";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearThumbnailCacheEndpoint,
@@ -13,10 +12,10 @@ import {
   downloadAndCacheThumbnail,
   getCachedThumbnail,
 } from "../../services/cloudStorage/cloudThumbnailCache";
+import { resolveAbsolutePath } from "../../services/cloudStorage/pathUtils";
 import { getVideos } from "../../services/storageService";
 import { logger } from "../../utils/logger";
 
-vi.mock("fs-extra");
 vi.mock("../../services/storageService", () => ({
   getVideos: vi.fn(),
 }));
@@ -31,6 +30,9 @@ vi.mock("../../services/cloudStorage/cloudThumbnailCache", () => ({
   getCachedThumbnail: vi.fn(),
   downloadAndCacheThumbnail: vi.fn(),
   clearThumbnailCache: vi.fn(),
+}));
+vi.mock("../../services/cloudStorage/pathUtils", () => ({
+  resolveAbsolutePath: vi.fn(),
 }));
 vi.mock("../../utils/logger", () => ({
   logger: {
@@ -64,6 +66,7 @@ describe("cloudStorageController", () => {
       write: writeMock,
       end: endMock,
     };
+    vi.mocked(resolveAbsolutePath).mockReturnValue(null);
   });
 
   describe("getSignedUrl", () => {
@@ -219,12 +222,10 @@ describe("cloudStorageController", () => {
         },
       ] as any);
 
-      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
-        const p = String(target);
-        if (p.includes("uploads/videos/video1.mp4")) return true;
-        if (p.includes("uploads/images/video1.jpg")) return true;
-        if (p.endsWith("/data")) return false;
-        return false;
+      vi.mocked(resolveAbsolutePath).mockImplementation((target: string) => {
+        if (target === "/videos/video1.mp4") return "/abs/videos/video1.mp4";
+        if (target === "/images/video1.jpg") return "/abs/images/video1.jpg";
+        return null;
       });
 
       (CloudStorageService.uploadVideo as any).mockResolvedValue(undefined);
@@ -270,9 +271,10 @@ describe("cloudStorageController", () => {
         },
       ] as any);
 
-      vi.mocked(fs.existsSync).mockImplementation((target: any) => {
-        const p = String(target);
-        return p.includes("uploads/videos/video1.mp4") || p.includes("uploads/images/video1.jpg");
+      vi.mocked(resolveAbsolutePath).mockImplementation((target: string) => {
+        if (target === "/videos/video1.mp4") return "/abs/videos/video1.mp4";
+        if (target === "/images/video1.jpg") return "/abs/images/video1.jpg";
+        return null;
       });
 
       (CloudStorageService.uploadVideo as any).mockRejectedValue(

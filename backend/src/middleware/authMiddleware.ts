@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import crypto from "crypto";
 import {
-  getAuthCookieName,
   getUserPayloadFromSession,
   UserPayload,
   verifyToken,
@@ -102,8 +101,7 @@ export const authMiddleware = (
   next: NextFunction
 ): void => {
   // First, try to get user from HTTP-only session cookie (preferred method)
-  const cookieName = getAuthCookieName();
-  const sessionIdFromCookie = req.cookies?.[cookieName];
+  const sessionIdFromCookie = req.cookies?.mytube_auth_session;
 
   // Security: session IDs are opaque random values. User identity is resolved
   // from trusted in-memory server-side session state only.

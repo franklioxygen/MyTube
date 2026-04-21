@@ -21,7 +21,9 @@ export const useFocusPause = (
         const handleFocus = () => {
             const videoElement = videoRef.current;
             if (videoElement && wasPlayingRef.current) {
-                videoElement.play().catch(e => console.error("Error resuming playback:", e));
+                videoElement.play().catch((error) => {
+                    console.error("Error resuming playback:", error);
+                });
             }
             wasPlayingRef.current = false;
         };

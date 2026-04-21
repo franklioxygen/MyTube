@@ -285,17 +285,17 @@ export function moveSubtitlesToCollection(
     const settings = getSettings();
     const moveWithVideo = settings.moveSubtitlesToVideoFolder;
 
-    for (let index = 0; index < newSubtitles.length; index++) {
-      const sub = newSubtitles[index];
+    const updatedSubtitles = newSubtitles.map((sub) => {
       const result = processSubtitleFileMove(sub, sanitizedCollectionName, moveWithVideo);
       if (result && result.updated) {
-        newSubtitles[index] = result.newSub;
         subtitlesUpdated = true;
+        return result.newSub;
       }
-    }
+      return sub;
+    });
 
     if (subtitlesUpdated) {
-      updates.subtitles = newSubtitles;
+      updates.subtitles = updatedSubtitles;
       updated = true;
     }
   }

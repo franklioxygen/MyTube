@@ -135,6 +135,7 @@ describe("passwordService", () => {
         role: "admin",
         token: "token-admin",
       });
+      expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
       expect(storageService.saveSettings).toHaveBeenCalledWith({
         password: "hashed-password",
       });
@@ -276,7 +277,7 @@ describe("passwordService", () => {
       });
     });
 
-    it("accepts the default password when no admin password is set", async () => {
+    it("logs in admin with the default password when no admin password is set", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -288,6 +289,7 @@ describe("passwordService", () => {
         role: "admin",
         token: "token-admin",
       });
+      expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
       expect(storageService.saveSettings).toHaveBeenCalledWith({
         password: "hashed-password",
       });
@@ -319,7 +321,7 @@ describe("passwordService", () => {
   });
 
   describe("confirmAdminPassword", () => {
-    it("accepts the default password when no admin password is configured", async () => {
+    it("confirms the default password when no admin password is configured", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );

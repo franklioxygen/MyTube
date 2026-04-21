@@ -1,9 +1,11 @@
-
-import fs from "fs-extra";
 import { SUBTITLES_DIR } from "../config/paths";
 import { BilibiliDownloader } from "../services/downloaders/BilibiliDownloader";
 import * as storageService from "../services/storageService";
 import { sanitizeFilename } from "../utils/helpers";
+import {
+  pathExistsSafeSync,
+  readdirSafeSync,
+} from "../utils/security";
 
 /**
  * Scan subtitle directory and update video records with subtitle metadata
@@ -17,14 +19,12 @@ async function rescanSubtitles() {
         console.log(`Found ${videos.length} videos to check`);
         
         // Get all subtitle files
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        if (!fs.existsSync(SUBTITLES_DIR)) {
+        if (!pathExistsSafeSync(SUBTITLES_DIR, SUBTITLES_DIR)) {
             console.log("Subtitles directory doesn't exist");
             return;
         }
         
-        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-        const subtitleFiles = fs.readdirSync(SUBTITLES_DIR).filter((file) => file.endsWith(".vtt"));
+        const subtitleFiles = readdirSafeSync(SUBTITLES_DIR, SUBTITLES_DIR).filter((file) => file.endsWith(".vtt"));
         console.log(`Found ${subtitleFiles.length} subtitle files`);
         
         let updatedCount = 0;

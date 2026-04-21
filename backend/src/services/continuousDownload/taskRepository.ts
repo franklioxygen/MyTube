@@ -1,10 +1,11 @@
-import { eq } from "drizzle-orm";
+import { eq, type InferSelectModel } from "drizzle-orm";
 import { db } from "../../db";
 import { continuousDownloadTasks } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { ContinuousDownloadTask } from "./types";
+import { ContinuousDownloadTask, type DownloadOrder } from "./types";
 
 type TaskStatus = "active" | "paused" | "completed" | "cancelled";
+type ContinuousDownloadTaskRow = InferSelectModel<typeof continuousDownloadTasks>;
 
 const toOptional = <T>(value: T | null | undefined): T | undefined =>
   value ?? undefined;
@@ -14,8 +15,21 @@ const toCount = (value: number | null | undefined): number => value ?? 0;
 const toTaskStatus = (value: unknown): TaskStatus =>
   value as TaskStatus;
 
+const toDownloadOrder = (value: unknown): DownloadOrder | undefined => {
+  if (
+    value === "dateDesc" ||
+    value === "dateAsc" ||
+    value === "viewsDesc" ||
+    value === "viewsAsc"
+  ) {
+    return value;
+  }
+
+  return undefined;
+};
+
 const mapTaskRowToEntity = (
-  task: any,
+  task: ContinuousDownloadTaskRow,
   playlistName: string | null
 ): ContinuousDownloadTask => ({
   ...task,
@@ -31,7 +45,7 @@ const mapTaskRowToEntity = (
   skippedCount: toCount(task.skippedCount),
   failedCount: toCount(task.failedCount),
   currentVideoIndex: toCount(task.currentVideoIndex),
-  downloadOrder: toOptional(task.downloadOrder),
+  downloadOrder: toDownloadOrder(task.downloadOrder),
   frozenVideoListPath: toOptional(task.frozenVideoListPath),
 });
 

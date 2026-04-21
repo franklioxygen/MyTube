@@ -13,7 +13,14 @@ export const useViewMode = (): UseViewModeReturn => {
     const [_searchParams, setSearchParams] = useSearchParams();
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
         const saved = localStorage.getItem('homeViewMode');
-        return (saved as ViewMode) || 'all-videos';
+        if (
+            saved === 'collections' ||
+            saved === 'all-videos' ||
+            saved === 'history'
+        ) {
+            return saved;
+        }
+        return 'all-videos';
     });
 
     const handleViewModeChange = (mode: ViewMode) => {

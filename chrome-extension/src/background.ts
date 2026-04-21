@@ -41,6 +41,7 @@ const SUPPORTED_LANGUAGE_CODES = new Set([
   'ru',
   'ar',
 ]);
+const SUPPORTED_SERVER_PROTOCOLS = new Set(['http:', 'https:']);
 
 const normalizeApiKey = (apiKey?: string | null): string | undefined => {
   if (typeof apiKey !== 'string') {
@@ -67,6 +68,69 @@ const parseErrorMessage = async (
 ): Promise<string> => {
   const errorData = await response.json().catch(() => ({}));
   return errorData.message || errorData.error || fallbackMessage;
+};
+
+const parseServerBaseUrl = (serverUrl: string): URL => {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(serverUrl.trim());
+  } catch {
+    throw new Error('Server URL is invalid.');
+  }
+
+  if (!SUPPORTED_SERVER_PROTOCOLS.has(parsedUrl.protocol)) {
+    throw new Error('Server URL must use http or https.');
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error('Server URL must not contain credentials.');
+  }
+
+  parsedUrl.search = '';
+  parsedUrl.hash = '';
+  parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, '');
+  if (!parsedUrl.pathname.endsWith('/')) {
+    parsedUrl.pathname = `${parsedUrl.pathname}/`;
+  }
+
+  return parsedUrl;
+};
+
+const buildServerEndpoint = (
+  serverUrl: string,
+  endpointPath: string
+): string => {
+  const baseUrl = parseServerBaseUrl(serverUrl);
+  const normalizedEndpointPath = endpointPath.replace(/^\/+/, '');
+  return new URL(normalizedEndpointPath, baseUrl).toString();
+};
+
+interface AllowedServerEndpoints {
+  allowedUrls: Set<string>;
+  download: string;
+  settings: string;
+  checkVideoDownload: string;
+  downloadStatus: string;
+}
+
+const buildAllowedServerEndpoints = (serverUrl: string): AllowedServerEndpoints => {
+  const download = buildServerEndpoint(serverUrl, 'api/download');
+  const settings = buildServerEndpoint(serverUrl, 'api/settings');
+  const checkVideoDownload = buildServerEndpoint(serverUrl, 'api/check-video-download');
+  const downloadStatus = buildServerEndpoint(serverUrl, 'api/download-status');
+
+  return {
+    allowedUrls: new Set([
+      download,
+      settings,
+      checkVideoDownload,
+      downloadStatus,
+    ]),
+    download,
+    settings,
+    checkVideoDownload,
+    downloadStatus,
+  };
 };
 
 const getUiLanguageCode = (): string => {
@@ -123,53 +187,59 @@ async function testConnection(
     throw new Error('Server URL is required');
   }
 
-  // Normalize URL - remove trailing slash
-  const normalizedUrl = serverUrl.replace(/\/+$/, '');
   const normalizedApiKey = normalizeApiKey(apiKey);
 
   try {
+    const endpoints = buildAllowedServerEndpoints(serverUrl);
     if (normalizedApiKey) {
-      const response = await fetch(`${normalizedUrl}/api/download`, {
-        method: 'POST',
-        headers: withApiKeyHeader(
-          {
-            'Content-Type': 'application/json',
-          },
-          normalizedApiKey
-        ),
-        body: JSON.stringify({}),
+      if (endpoints.allowedUrls.has(endpoints.download)) {
+        const response = await fetch(endpoints.download, {
+          method: 'POST',
+          headers: withApiKeyHeader(
+            {
+              'Content-Type': 'application/json',
+            },
+            normalizedApiKey
+          ),
+          body: JSON.stringify({}),
+        });
+
+        if (response.ok || response.status === 400) {
+          return { connected: true, message: 'Connection successful' };
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('API key is invalid or API key authentication is disabled on server.');
+        }
+
+        throw new Error(
+          await parseErrorMessage(
+            response,
+            `Server responded with status ${response.status}`
+          )
+        );
+      }
+
+      throw new Error('Server endpoint is not allowed.');
+    }
+
+    if (endpoints.allowedUrls.has(endpoints.settings)) {
+      const response = await fetch(endpoints.settings, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
-      if (response.ok || response.status === 400) {
-        return { connected: true, message: 'Connection successful' };
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
       }
 
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('API key is invalid or API key authentication is disabled on server.');
-      }
-
-      throw new Error(
-        await parseErrorMessage(
-          response,
-          `Server responded with status ${response.status}`
-        )
-      );
+      await response.json();
+      return { connected: true, message: 'Connection successful' };
     }
 
-    const testUrl = `${normalizedUrl}/api/settings`;
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Server responded with status ${response.status}`);
-    }
-
-    await response.json();
-    return { connected: true, message: 'Connection successful' };
+    throw new Error('Server endpoint is not allowed.');
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       throw new Error('Cannot connect to server. Please check the URL and ensure the server is running.');
@@ -208,24 +278,29 @@ async function handleDownload(
     throw new Error('Server URL not configured. Please set it in extension options.');
   }
 
-  // Normalize URL - remove trailing slash
-  const normalizedUrl = finalServerUrl.replace(/\/+$/, '');
-  const downloadUrl = `${normalizedUrl}/api/download`;
+  const endpoints = buildAllowedServerEndpoints(finalServerUrl);
 
   // /api/check-video-download is not allowed for API key auth.
   if (!finalApiKey) {
     try {
-      const checkUrl = `${normalizedUrl}/api/check-video-download?url=${encodeURIComponent(videoUrl)}`;
-      const checkResponse = await fetch(checkUrl, {
-        method: 'GET',
-      });
+      const checkUrlWithQuery = new URL(endpoints.checkVideoDownload);
+      checkUrlWithQuery.searchParams.set('url', videoUrl);
+      const checkUrlWithQueryText = checkUrlWithQuery.toString();
+      const allowedCheckUrls = new Set([checkUrlWithQueryText]);
+      if (allowedCheckUrls.has(checkUrlWithQueryText)) {
+        const checkResponse = await fetch(checkUrlWithQueryText, {
+          method: 'GET',
+        });
 
-      if (checkResponse.ok) {
-        const data = await checkResponse.json();
-        // If video exists, return success immediately without downloading again
-        if (data.found && data.status === 'exists') {
-          return { message: 'Video already downloaded', downloadId: data.videoId };
+        if (checkResponse.ok) {
+          const data = await checkResponse.json();
+          // If video exists, return success immediately without downloading again
+          if (data.found && data.status === 'exists') {
+            return { message: 'Video already downloaded', downloadId: data.videoId };
+          }
         }
+      } else {
+        throw new Error('Server endpoint is not allowed.');
       }
     } catch (error) {
       // Ignore check errors and proceed to download attempt
@@ -234,32 +309,36 @@ async function handleDownload(
   }
 
   try {
-    const response = await fetch(downloadUrl, {
-      method: 'POST',
-      headers: withApiKeyHeader(
-        {
-          'Content-Type': 'application/json',
-        },
-        finalApiKey
-      ),
-      body: JSON.stringify({
-        youtubeUrl: videoUrl,
-      }),
-    });
+    if (endpoints.allowedUrls.has(endpoints.download)) {
+      const response = await fetch(endpoints.download, {
+        method: 'POST',
+        headers: withApiKeyHeader(
+          {
+            'Content-Type': 'application/json',
+          },
+          finalApiKey
+        ),
+        body: JSON.stringify({
+          youtubeUrl: videoUrl,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(
-        await parseErrorMessage(
-          response,
-          `Server responded with status ${response.status}`
-        )
-      );
+      if (!response.ok) {
+        throw new Error(
+          await parseErrorMessage(
+            response,
+            `Server responded with status ${response.status}`
+          )
+        );
+      }
+
+      const data = await response.json();
+      // Refresh status immediately
+      void fetchDownloadStatus();
+      return { message: data.message || 'Download queued successfully', downloadId: data.downloadId };
     }
 
-    const data = await response.json();
-    // Refresh status immediately
-    void fetchDownloadStatus();
-    return { message: data.message || 'Download queued successfully', downloadId: data.downloadId };
+    throw new Error('Server endpoint is not allowed.');
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       throw new Error('Cannot connect to server. Please check the server URL in extension options.');
@@ -282,26 +361,29 @@ async function fetchDownloadStatus(): Promise<void> {
     return;
   }
 
-  const normalizedUrl = serverUrl.replace(/\/+$/, '');
-  const statusUrl = `${normalizedUrl}/api/download-status`;
-
   try {
-    const response = await fetch(statusUrl, {
-      method: 'GET',
-    });
+    const endpoints = buildAllowedServerEndpoints(serverUrl);
 
-    if (response.ok) {
-      const data = await response.json();
-      const activeCount = (data.activeDownloads?.length || 0) + (data.queuedDownloads?.length || 0);
+    if (endpoints.allowedUrls.has(endpoints.downloadStatus)) {
+      const response = await fetch(endpoints.downloadStatus, {
+        method: 'GET',
+      });
 
-      if (activeCount > 0) {
-        chrome.action.setBadgeText({ text: String(activeCount) });
-        chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }); // Green color
+      if (response.ok) {
+        const data = await response.json();
+        const activeCount = (data.activeDownloads?.length || 0) + (data.queuedDownloads?.length || 0);
+
+        if (activeCount > 0) {
+          chrome.action.setBadgeText({ text: String(activeCount) });
+          chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' }); // Green color
+        } else {
+          chrome.action.setBadgeText({ text: '' });
+        }
       } else {
+        // Failed to fetch status (maybe auth error or server down) - clear badge
         chrome.action.setBadgeText({ text: '' });
       }
     } else {
-      // Failed to fetch status (maybe auth error or server down) - clear badge
       chrome.action.setBadgeText({ text: '' });
     }
   } catch (error) {

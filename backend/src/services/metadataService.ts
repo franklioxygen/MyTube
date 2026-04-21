@@ -1,11 +1,15 @@
 import { eq } from "drizzle-orm";
-import fs from "fs-extra";
 import path from "path";
 import { VIDEOS_DIR } from "../config/paths";
 import { db } from "../db";
 import { videos } from "../db/schema";
 import { ExecutionError, FileError } from "../errors/DownloadErrors";
-import { execFileSafe, validateVideoPath } from "../utils/security";
+import {
+  execFileSafe,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  validateVideoPath,
+} from "../utils/security";
 
 const TEMPORARY_VIDEO_ARTIFACT_PATTERN = /(\.temp\.)|(\.part$)|(\.ytdl$)|(\.f\d+\.)/i;
 
@@ -17,14 +21,12 @@ export const getVideoDuration = async (
   filePath: string,
 ): Promise<number | null> => {
   try {
-    // Check if file exists first
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (!fs.existsSync(filePath)) {
-      throw FileError.notFound(filePath);
-    }
-
-    // Validate path to prevent path traversal
     const validatedPath = validateVideoPath(filePath);
+
+    // Check if file exists first
+    if (!pathExistsSafeSync(validatedPath, VIDEOS_DIR)) {
+      throw FileError.notFound(validatedPath);
+    }
 
     // Use execFileSafe to prevent command injection
     const { stdout } = await execFileSafe("ffprobe", [
@@ -76,13 +78,12 @@ export const backfillDurations = async () => {
       let fsPath = "";
       if (videoPath.startsWith("/videos/")) {
         const relativePath = videoPath.replace("/videos/", "");
-        fsPath = path.join(VIDEOS_DIR, relativePath);
+        fsPath = resolveSafeChildPath(VIDEOS_DIR, relativePath);
       } else {
         continue;
       }
 
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      if (!fs.existsSync(fsPath)) {
+      if (!pathExistsSafeSync(fsPath, VIDEOS_DIR)) {
         // console.warn(`File not found: ${fsPath}`); // Reduce noise
         continue;
       }

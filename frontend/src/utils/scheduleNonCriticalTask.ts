@@ -27,12 +27,16 @@ export const scheduleNonCriticalTask = (
 
     if (typeof idleWindow.requestIdleCallback === 'function') {
         const idleCallbackId = idleWindow.requestIdleCallback(
-            () => callback(),
+            () => {
+                callback();
+            },
             { timeout },
         );
 
         return () => {
-            idleWindow.cancelIdleCallback?.(idleCallbackId);
+            if (typeof idleWindow.cancelIdleCallback === 'function') {
+                idleWindow.cancelIdleCallback(idleCallbackId);
+            }
         };
     }
 

@@ -4,6 +4,21 @@ import { useLanguage } from '../../../contexts/LanguageContext';
 import { getBackendUrl } from '../../../utils/apiUrl';
 import { getSubtitleLanguageLabel } from '../../../utils/formatUtils';
 
+type GlobalVideoCounterScope = typeof globalThis & {
+    __videoControlCounter?: number;
+};
+
+type NetworkInformationLike = {
+    effectiveType?: string;
+    saveData?: boolean;
+};
+
+type NavigatorWithConnection = Navigator & {
+    connection?: NetworkInformationLike;
+    mozConnection?: NetworkInformationLike;
+    webkitConnection?: NetworkInformationLike;
+};
+
 interface VideoElementProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     src: string;
@@ -59,7 +74,9 @@ const VideoElement: React.FC<VideoElementProps> = ({
     // Use useMemo to generate a stable unique ID per component instance
     // Using Date.now() and a simple counter is safe for non-cryptographic purposes
     const videoId = useMemo(() => {
-        const counter = (globalThis as any).__videoControlCounter = ((globalThis as any).__videoControlCounter || 0) + 1;
+        const globalScope = globalThis as GlobalVideoCounterScope;
+        const counter = (globalScope.__videoControlCounter || 0) + 1;
+        globalScope.__videoControlCounter = counter;
         return `video-controls-${Date.now()}-${counter}`;
     }, []);
 
@@ -73,7 +90,11 @@ const VideoElement: React.FC<VideoElementProps> = ({
 
     React.useEffect(() => {
         // Dynamic preload strategy based on connection
-        const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+        const navigatorWithConnection = navigator as NavigatorWithConnection;
+        const connection =
+            navigatorWithConnection.connection ||
+            navigatorWithConnection.mozConnection ||
+            navigatorWithConnection.webkitConnection;
 
         if (connection) {
             // If we have connection info

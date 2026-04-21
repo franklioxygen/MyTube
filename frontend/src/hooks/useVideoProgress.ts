@@ -92,9 +92,9 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
           }),
           keepalive: true,
           credentials: "include", // Send cookies for authentication
-        }).catch((err) =>
-          console.error("Error saving progress on unmount:", err)
-        );
+        }).catch((err) => {
+          console.error("Error saving progress on unmount:", err);
+        });
       }
     };
   }, [queryClient, videoId, isVisitor]);
@@ -117,7 +117,9 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
             });
           }
         })
-        .catch((err) => console.error("Error incrementing view count:", err));
+        .catch((err) => {
+          console.error("Error incrementing view count:", err);
+        });
     }
 
     // Save progress every 5 seconds
@@ -134,7 +136,9 @@ export function useVideoProgress({ videoId, video }: UseVideoProgressProps) {
         .put(`/videos/${videoId}/progress`, {
           progress,
         })
-        .catch((err) => console.error("Error saving progress:", err));
+        .catch((err) => {
+          console.error("Error saving progress:", err);
+        });
     }
   };
 

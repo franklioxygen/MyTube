@@ -75,6 +75,24 @@ describe('cloudStorage fileUploader', () => {
             );
         });
 
+        it('should normalize base local OpenList URLs to the upload endpoint', async () => {
+            vi.mocked(axios.put).mockResolvedValue({
+                data: { code: 200, message: 'Success' },
+                status: 200
+            });
+
+            await uploadFile(mockFilePath, {
+                ...mockConfig,
+                apiUrl: 'http://127.0.0.1:5244/',
+            });
+
+            expect(axios.put).toHaveBeenCalledWith(
+                'http://127.0.0.1:5244/api/fs/put',
+                'mock-stream',
+                expect.any(Object)
+            );
+        });
+
         it('should handle nested remote path', async () => {
             vi.mocked(axios.put).mockResolvedValue({
                 data: { code: 200, message: 'Success' },

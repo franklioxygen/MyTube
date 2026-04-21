@@ -11,7 +11,25 @@ import {
 } from "../../services/tmdbService";
 import * as settingsService from "../../services/storageService/settings";
 
-vi.mock("axios");
+const axiosMocks = vi.hoisted(() => {
+  const get = vi.fn();
+  let lastCreateConfig: unknown;
+  return {
+    get,
+    create: vi.fn((config: unknown) => {
+      lastCreateConfig = config;
+      return { get };
+    }),
+    getLastCreateConfig: () => lastCreateConfig,
+  };
+});
+
+vi.mock("axios", () => ({
+  default: {
+    get: axiosMocks.get,
+    create: axiosMocks.create,
+  },
+}));
 vi.mock("fs-extra");
 vi.mock("../../services/storageService/settings", () => ({
   getSettings: vi.fn(),
@@ -74,8 +92,7 @@ describe("tmdbService", () => {
       expect(parsed.isTVShow).toBe(true);
       expect(parsed.season).toBe(2);
       expect(parsed.episode).toBe(5);
-      expect(parsed.titles[0]).toContain("Dark");
-      expect(parsed.titles[0]).toContain("Season 2 Episode 5");
+      expect(parsed.titles[0]).toBe("Dark");
     });
 
     it("should keep cjk titles and compose bilingual candidate", () => {
@@ -145,6 +162,14 @@ describe("tmdbService", () => {
 
       expect(parsed.titles[0]).toBe("IMG 0999");
       expect(parsed.year).toBeUndefined();
+    });
+  });
+
+  describe("TMDB client", () => {
+    it("should use the API origin as baseURL so v3 endpoint paths are not duplicated", () => {
+      expect(axiosMocks.getLastCreateConfig()).toMatchObject({
+        baseURL: "https://api.themoviedb.org/",
+      });
     });
   });
 
@@ -236,7 +261,7 @@ describe("tmdbService", () => {
       expect(result?.title).toBe("Inception");
       const tmdbApiCalls = vi
         .mocked(axios.get)
-        .mock.calls.filter(([url]) => String(url).includes("api.themoviedb.org/3"));
+        .mock.calls.filter(([url]) => String(url).startsWith("/3/"));
       expect(tmdbApiCalls.length).toBeGreaterThan(0);
       for (const [, config] of tmdbApiCalls) {
         expect(config?.headers).toMatchObject({

@@ -63,11 +63,15 @@ describe("server/cloudRoutes", () => {
     const send = vi.fn().mockReturnValue(res);
     const sendFile = vi.fn().mockReturnValue(res);
     const redirect = vi.fn().mockReturnValue(res);
+    const writeHead = vi.fn().mockReturnValue(res);
+    const end = vi.fn().mockReturnValue(res);
     Object.assign(res, {
       status,
       send,
       sendFile,
       redirect,
+      writeHead,
+      end,
       headersSent: false,
     });
     return res as Response & {
@@ -75,6 +79,8 @@ describe("server/cloudRoutes", () => {
       send: ReturnType<typeof vi.fn>;
       sendFile: ReturnType<typeof vi.fn>;
       redirect: ReturnType<typeof vi.fn>;
+      writeHead: ReturnType<typeof vi.fn>;
+      end: ReturnType<typeof vi.fn>;
     };
   };
 
@@ -216,10 +222,10 @@ describe("server/cloudRoutes", () => {
     handlers["/cloud/videos/:filename"](req, res);
     await flushAsync();
 
-    expect(res.redirect).toHaveBeenCalledWith(
-      302,
-      "https://cdn.example/file.mp4?sign=ok"
-    );
+    expect(res.writeHead).toHaveBeenCalledWith(302, {
+      Location: "https://cdn.example/file.mp4?sign=ok",
+    });
+    expect(res.end).toHaveBeenCalled();
   });
 
   it("should send 500 in outer catch when unexpected errors happen", async () => {

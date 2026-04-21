@@ -15,7 +15,7 @@ export const useKeyboardShortcuts = ({
   const DEBOUNCE_MS = 100; // Minimum time between seeks (100ms)
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyboardEvent = (e: KeyboardEvent) => {
       // Ignore if typing in an input or textarea
       if (
         document.activeElement instanceof HTMLInputElement ||
@@ -68,9 +68,9 @@ export const useKeyboardShortcuts = ({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyboardEvent);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleKeyboardEvent);
     };
   }, [onSeekLeft, onSeekRight, onPlayPause]);
 };

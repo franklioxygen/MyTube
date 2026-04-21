@@ -1,6 +1,10 @@
-import fs from "fs-extra";
-import path from "path";
+import { DATA_DIR } from "../../../config/paths";
 import { logger } from "../../../utils/logger";
+import {
+  pathExistsSafeSync,
+  readFileSafeSync,
+  resolveSafeChildPath,
+} from "../../../utils/security";
 
 /**
  * Get cookies from cookies.txt file (Netscape format)
@@ -8,12 +12,9 @@ import { logger } from "../../../utils/logger";
  */
 export function getCookieHeader(): string {
   try {
-    const { DATA_DIR } = require("../../../config/paths");
-    const cookiesPath = path.join(DATA_DIR, "cookies.txt");
-    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-    if (fs.existsSync(cookiesPath)) {
-      // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-      const content = fs.readFileSync(cookiesPath, "utf8");
+    const cookiesPath = resolveSafeChildPath(DATA_DIR, "cookies.txt");
+    if (pathExistsSafeSync(cookiesPath, DATA_DIR)) {
+      const content = readFileSafeSync(cookiesPath, DATA_DIR, "utf8");
       const lines = content.split("\n");
       const cookies = [];
       for (const line of lines) {

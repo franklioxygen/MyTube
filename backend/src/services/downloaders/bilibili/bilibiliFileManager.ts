@@ -234,7 +234,7 @@ export async function cleanupFilesOnCancellation(
       deleteSmallThumbnailMirrorSync(thumbnailPath);
       logger.info("Deleted partial thumbnail file:", thumbnailPath);
     }
-  } catch (cleanupError) {
-    logger.error("Error cleaning up files:", cleanupError);
+  } catch (error) {
+    logger.error("Error cleaning up files:", error);
   }
 }

@@ -39,6 +39,27 @@ describe('cloudStorage fileLister', () => {
             );
         });
 
+        it('should preserve local/LAN base paths when building list endpoint', async () => {
+            const mockFiles = [{ name: 'file1.txt', is_dir: false }];
+            vi.mocked(axios.post).mockResolvedValue({
+                data: {
+                    code: 200,
+                    data: { content: mockFiles }
+                }
+            });
+
+            await getFileList({
+                ...mockConfig,
+                apiUrl: 'http://192.168.1.20:5244/openlist/',
+            }, '/uploads');
+
+            expect(axios.post).toHaveBeenCalledWith(
+                'http://192.168.1.20:5244/openlist/api/fs/list',
+                expect.objectContaining({ path: '/uploads' }),
+                expect.any(Object)
+            );
+        });
+
         it('should return empty list on API error', async () => {
             vi.mocked(axios.post).mockRejectedValue(new Error('API Error'));
             

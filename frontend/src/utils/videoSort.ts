@@ -32,7 +32,10 @@ export const validateSortOption = (
 };
 
 export const getRandomSeed = (): number => {
-  if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.crypto.getRandomValues === "function"
+  ) {
     const array = new Uint32Array(1);
     window.crypto.getRandomValues(array);
     return array[0] % 1000000;
@@ -79,16 +82,6 @@ const compareVideoDateDesc: VideoComparator = (a, b) =>
 const compareVideoDateAsc: VideoComparator = (a, b) =>
   compareVideoDate(a, b, true);
 
-const SORT_COMPARATORS: Record<Exclude<SortOption, "random">, VideoComparator> = {
-  dateDesc: compareAddedAtDesc,
-  dateAsc: compareAddedAtAsc,
-  viewsDesc: compareViewsDesc,
-  viewsAsc: compareViewsAsc,
-  nameAsc: compareNameAsc,
-  videoDateDesc: compareVideoDateDesc,
-  videoDateAsc: compareVideoDateAsc,
-};
-
 const sortRandomVideos = (videos: Video[], shuffleSeed: number): Video[] =>
   videos
     .map((video) => ({ video, score: getSeededScore(video.id, shuffleSeed) }))
@@ -106,6 +99,23 @@ export const sortVideos = (
     return sortRandomVideos([...videos], shuffleSeed);
   }
 
-  const comparator = SORT_COMPARATORS[sortOption];
-  return comparator ? [...videos].sort(comparator) : [...videos];
+  switch (sortOption) {
+    case "dateDesc":
+      return [...videos].sort(compareAddedAtDesc);
+    case "dateAsc":
+      return [...videos].sort(compareAddedAtAsc);
+    case "viewsDesc":
+      return [...videos].sort(compareViewsDesc);
+    case "viewsAsc":
+      return [...videos].sort(compareViewsAsc);
+    case "nameAsc":
+      return [...videos].sort(compareNameAsc);
+    case "videoDateDesc":
+      return [...videos].sort(compareVideoDateDesc);
+    case "videoDateAsc":
+      return [...videos].sort(compareVideoDateAsc);
+    case "random":
+    default:
+      return [...videos];
+  }
 };

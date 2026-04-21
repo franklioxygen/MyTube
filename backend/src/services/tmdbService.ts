@@ -6,6 +6,7 @@ import { IMAGES_DIR } from "../config/paths";
 import { regenerateSmallThumbnailForThumbnailPath } from "./thumbnailMirrorService";
 import { logger } from "../utils/logger";
 import {
+  buildAllowlistedHttpUrl,
   resolveSafeChildPath,
   resolveSafePath,
   writeFileSafe,
@@ -13,19 +14,20 @@ import {
 import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
+const TMDB_API_ORIGIN = "https://api.themoviedb.org";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const TMDB_SEARCH_CACHE_MAX_ENTRIES = 500;
 const TMDB_SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
 const TMDB_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TMDB_REQUEST_TIMEOUT_MS = 10000;
-const TMDB_BEARER_TOKEN_PATTERN =
-  /^(?:Bearer\s+)?[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/;
+const ALLOWED_TMDB_API_HOSTS = ["api.themoviedb.org"];
+const tmdbHttpClient = axios.create({
+  baseURL: buildAllowlistedHttpUrl(TMDB_API_ORIGIN, ALLOWED_TMDB_API_HOSTS),
+  timeout: TMDB_REQUEST_TIMEOUT_MS,
+});
 
 // Whitelist of allowed hosts for image downloads to prevent SSRF
 const ALLOWED_IMAGE_HOSTS = ["image.tmdb.org"];
-
-// Whitelist of allowed base URLs to prevent SSRF (following OWASP pattern)
-const ALLOWED_IMAGE_URLS = ["https://image.tmdb.org/t/p/w500"];
 
 /**
  * Map frontend language codes to TMDB language codes
@@ -159,6 +161,51 @@ type CacheEntry<T> = {
 const tmdbSearchCache = new Map<string, CacheEntry<MultiStrategySearchResult>>();
 const tmdbSearchInFlight = new Map<string, Promise<MultiStrategySearchResult>>();
 
+function isAllowedTMDBTokenCharacter(character: string): boolean {
+  return /^[A-Za-z0-9_-]$/.test(character);
+}
+
+function stripBearerPrefix(credential: string): string {
+  const trimmedCredential = credential.trim();
+  const lowercaseCredential = trimmedCredential.toLowerCase();
+  return lowercaseCredential.startsWith("bearer ")
+    ? trimmedCredential.slice("bearer ".length).trimStart()
+    : trimmedCredential;
+}
+
+function isLikelyTMDBReadAccessToken(credential: string): boolean {
+  const token = stripBearerPrefix(credential);
+  const tokenParts = token.split(".");
+  if (tokenParts.length !== 3) {
+    return false;
+  }
+
+  return tokenParts.every(
+    (part) =>
+      part.length >= 10 &&
+      Array.from(part).every((character) =>
+        isAllowedTMDBTokenCharacter(character),
+      ),
+  );
+}
+
+function validateTMDBNumericId(id: number): string {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error(`Invalid TMDB id: ${id}`);
+  }
+
+  return id.toString();
+}
+
+function buildTMDBEndpointPath(endpointPath: string): string {
+  const validatedUrl = buildAllowlistedHttpUrl(
+    `${TMDB_API_BASE}${endpointPath}`,
+    ALLOWED_TMDB_API_HOSTS,
+  );
+  const parsedUrl = new URL(validatedUrl);
+  return `${parsedUrl.pathname}${parsedUrl.search}`;
+}
+
 function normalizeTMDBCredential(credential: string): string {
   return credential.trim();
 }
@@ -168,7 +215,7 @@ function getTMDBCredentialAuthType(
 ): TMDBCredentialAuthType {
   const normalizedCredential = normalizeTMDBCredential(credential);
   return normalizedCredential.toLowerCase().startsWith("bearer ") ||
-    TMDB_BEARER_TOKEN_PATTERN.test(normalizedCredential)
+    isLikelyTMDBReadAccessToken(normalizedCredential)
     ? "readAccessToken"
     : "apiKey";
 }
@@ -203,9 +250,8 @@ function buildTMDBRequestConfig(
   const authType = getTMDBCredentialAuthType(normalizedCredential);
 
   if (authType === "readAccessToken") {
-    requestHeaders.Authorization = `Bearer ${normalizedCredential.replace(
-      /^Bearer\s+/i,
-      ""
+    requestHeaders.Authorization = `Bearer ${stripBearerPrefix(
+      normalizedCredential,
     )}`;
   } else {
     requestParams.api_key = normalizedCredential;
@@ -236,8 +282,8 @@ export async function testTMDBCredential(
   const authType = getTMDBCredentialAuthType(normalizedCredential);
 
   try {
-    await axios.get(
-      `${TMDB_API_BASE}/configuration`,
+    await tmdbHttpClient.get(
+      buildTMDBEndpointPath("/configuration"),
       buildTMDBRequestConfig(normalizedCredential)
     );
 
@@ -394,8 +440,6 @@ const ENGLISH_TITLE_PATTERN = /^[a-zA-Z0-9\s]+$/;
 const CHANNEL_LAYOUT_PATTERN = /^\d(?:\.\d)?$/;
 const BRACKETED_METADATA_KEYWORD_PATTERN =
   /(简中|繁中|中字|双字|字幕|硬字|软字|内封|外挂|特效|压制|发布|转载|招募)/;
-const TRAILING_RELEASE_GROUP_PATTERN =
-  /[._-]([A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*)\s*$/;
 const METADATA_TERMS = new Set([
   "web",
   "dl",
@@ -464,13 +508,6 @@ const COMMON_RELEASE_GROUPS = new Set([
   "yts",
   "ytsmx",
 ]);
-const GENERIC_CAPTURE_FILENAME_PATTERNS = [
-  /^(?:IMG|VID|MOV)[._-]?\d{3,}$/i,
-  /^DSC[A-Z]?[._-]?\d{3,}$/i,
-  /^PXL[_-]\d{8}[_-]\d{6,}(?:\.[A-Z0-9_]+)?$/i,
-  /^SCREEN(?:SHOT|RECORDING)?[._-]?\d{3,}$/i,
-];
-
 type TVMetadata = {
   name: string;
   isTVShow: boolean;
@@ -558,7 +595,6 @@ function stripTechnicalMetadata(name: string): string {
     name
     .replace(/\b(H26[45]|HEVC|x26[45]|VP9|AV1|H\.26[45])\b/gi, "")
     .replace(/\b(AAC|AC3|DTS|FLAC|MP3|Vorbis|EAC3|TrueHD|Atmos)\b/gi, "")
-    .replace(/[-_]?[A-Z][a-zA-Z0-9]{2,}(?:\.[a-zA-Z0-9]+)*\s*$/, "")
     .replace(/\[[A-Z][a-zA-Z0-9]+\]\s*$/, "")
     .replace(/\b(Rip|Remux|Mux|Enc|Dec)\b/gi, "")
     .replace(/\[([^\]]+)\]/g, (_match, content: string) => {
@@ -601,22 +637,75 @@ function looksLikeReleaseGroupPart(part: string): boolean {
   return uppercaseCount >= 2 && normalized.length <= 12;
 }
 
+function isReleaseGroupSeparator(character: string): boolean {
+  return character === "." || character === "_" || character === "-";
+}
+
+function isReleaseGroupChainCharacter(character: string): boolean {
+  return (
+    (character >= "0" && character <= "9") ||
+    (character >= "A" && character <= "Z") ||
+    (character >= "a" && character <= "z") ||
+    isReleaseGroupSeparator(character)
+  );
+}
+
+function extractTrailingReleaseGroupMatch(
+  value: string,
+): { matchedText: string; group: string } | null {
+  const trimmedValue = value.trimEnd();
+  let chainStart = trimmedValue.length;
+
+  while (
+    chainStart > 0 &&
+    isReleaseGroupChainCharacter(trimmedValue[chainStart - 1])
+  ) {
+    chainStart -= 1;
+  }
+
+  const candidateChain = trimmedValue.slice(chainStart);
+  if (!candidateChain) {
+    return null;
+  }
+
+  const separatorMatches = Array.from(candidateChain.matchAll(/[._-]/g));
+  separatorMatches.reverse();
+
+  for (const separatorMatch of separatorMatches) {
+    const index = separatorMatch.index;
+
+    const group = candidateChain.slice(index + 1);
+    if (group.length === 0) {
+      continue;
+    }
+
+    return {
+      matchedText: candidateChain.slice(index),
+      group,
+    };
+  }
+
+  return null;
+}
+
 function stripTrailingReleaseGroup(name: string): string {
   let remaining = name.trim();
 
   while (remaining.length > 0) {
-    const match = remaining.match(TRAILING_RELEASE_GROUP_PATTERN);
-    if (!match) {
+    const trailingGroupMatch = extractTrailingReleaseGroupMatch(remaining);
+    if (!trailingGroupMatch) {
       break;
     }
 
-    const fullGroup = match[1];
+    const fullGroup = trailingGroupMatch.group;
     const parts = fullGroup.split(/[._-]/).filter(Boolean);
     if (parts.length === 0 || !parts.every(looksLikeReleaseGroupPart)) {
       break;
     }
 
-    remaining = remaining.slice(0, remaining.length - match[0].length).trim();
+    remaining = remaining
+      .slice(0, remaining.length - trailingGroupMatch.matchedText.length)
+      .trim();
   }
 
   return remaining;
@@ -879,9 +968,59 @@ function isLikelyGenericCaptureFilename(filename: string): boolean {
     return false;
   }
 
-  return GENERIC_CAPTURE_FILENAME_PATTERNS.some((pattern) =>
-    pattern.test(baseName)
-  );
+  const upperBaseName = baseName.toUpperCase();
+
+  if (
+    ["IMG", "VID", "MOV"].some((prefix) => {
+      if (!upperBaseName.startsWith(prefix)) {
+        return false;
+      }
+      const suffix = baseName.slice(prefix.length).replace(/^[._-]?/, "");
+      return /^\d{3,}$/i.test(suffix);
+    })
+  ) {
+    return true;
+  }
+
+  if (upperBaseName.startsWith("DSC")) {
+    const suffix = baseName.slice(3).replace(/^[A-Z]?[._-]?/i, "");
+    if (/^\d{3,}$/i.test(suffix)) {
+      return true;
+    }
+  }
+
+  if (upperBaseName.startsWith("PXL_") || upperBaseName.startsWith("PXL-")) {
+    const separator = upperBaseName[3];
+    const parts = baseName.split(separator);
+    if (parts.length >= 3) {
+      const datePart = parts[1] ?? "";
+      const timeAndSuffix = parts[2] ?? "";
+      const [timePart, ...suffixParts] = timeAndSuffix.split(".");
+      const suffix = suffixParts.join(".");
+      if (
+        /^\d{8}$/.test(datePart) &&
+        /^\d{6,}$/.test(timePart) &&
+        (suffix.length === 0 || /^[A-Z0-9_]+$/i.test(suffix))
+      ) {
+        return true;
+      }
+    }
+  }
+
+  if (
+    upperBaseName.startsWith("SCREENSHOT") ||
+    upperBaseName.startsWith("SCREENRECORDING") ||
+    upperBaseName.startsWith("SCREEN")
+  ) {
+    const suffix = baseName
+      .replace(/^SCREEN(?:SHOT|RECORDING)?/i, "")
+      .replace(/^[._-]?/, "");
+    if (/^\d{3,}$/i.test(suffix)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -980,7 +1119,7 @@ async function searchMovie(
       params.year = year.toString();
     }
 
-    const response = await axios.get(`${TMDB_API_BASE}/search/movie`, {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/movie"), {
       ...buildTMDBRequestConfig(credential, params),
     });
 
@@ -1037,14 +1176,15 @@ async function getMovieDetails(
   language: string
 ): Promise<{ movie: TMDBMovieResult; director?: string } | null> {
   try {
+    const safeMovieId = validateTMDBNumericId(movieId);
     // Fetch both movie details and credits in parallel
     const [movieResponse, creditsResponse] = await Promise.all([
-      axios.get(`${TMDB_API_BASE}/movie/${movieId}`, {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/movie/${safeMovieId}`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
       }),
-      axios.get(`${TMDB_API_BASE}/movie/${movieId}/credits`, {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/movie/${safeMovieId}/credits`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
@@ -1085,7 +1225,7 @@ async function searchTVShow(
 ): Promise<TMDBTVResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
-    const response = await axios.get(`${TMDB_API_BASE}/search/tv`, {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/tv"), {
       ...buildTMDBRequestConfig(credential, {
         query: title,
         language: tmdbLanguage,
@@ -1128,14 +1268,15 @@ async function getTVShowDetails(
   language: string
 ): Promise<{ tv: TMDBTVResult; director?: string } | null> {
   try {
+    const safeTvId = validateTMDBNumericId(tvId);
     // Fetch both TV show details and credits in parallel
     const [tvResponse, creditsResponse] = await Promise.all([
-      axios.get(`${TMDB_API_BASE}/tv/${tvId}`, {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/tv/${safeTvId}`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
       }),
-      axios.get(`${TMDB_API_BASE}/tv/${tvId}/credits`, {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/tv/${safeTvId}/credits`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
@@ -1446,7 +1587,7 @@ async function searchTMDBSingle(
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
     const params = buildMultiSearchParams(title, tmdbLanguage, year);
-    const response = await axios.get(`${TMDB_API_BASE}/search/multi`, {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/multi"), {
       ...buildTMDBRequestConfig(credential, params),
     });
 
@@ -1505,40 +1646,17 @@ function validateUrlAgainstWhitelist(posterPath: string): string | null {
     return null;
   }
 
-  // Verify hostname is in whitelist (SSRF prevention)
-  if (!ALLOWED_IMAGE_HOSTS.includes(parsedUrl.hostname)) {
-    logger.error(
-      `Invalid hostname (not in whitelist): ${
-        parsedUrl.hostname
-      }. Allowed: ${ALLOWED_IMAGE_HOSTS.join(", ")}`
-    );
-    return null;
-  }
-
   // Verify path matches expected TMDB image path pattern
   if (!parsedUrl.pathname.startsWith("/t/p/")) {
     logger.error(`Invalid path (not TMDB image path): ${parsedUrl.pathname}`);
     return null;
   }
 
-  // Verify URL matches allowed pattern using regex
-  const allowedUrlPattern = /^https:\/\/image\.tmdb\.org\/t\/p\/[^?#]+$/;
-  if (!allowedUrlPattern.test(imageUrl)) {
-    logger.error(`Invalid image URL pattern: ${imageUrl}`);
-    return null;
-  }
-
-  // Rebuild URL from validated components only
-  const validatedUrl = `https://${parsedUrl.hostname}${parsedUrl.pathname}`;
-
-  // Final whitelist check: verify URL starts with allowed base (SSRF prevention)
-  // Following OWASP SSRF prevention pattern: whitelist check before using URL
-  const urlMatchesWhitelist = ALLOWED_IMAGE_URLS.some((allowedBase) =>
-    validatedUrl.startsWith(allowedBase)
-  );
-
-  if (!urlMatchesWhitelist) {
-    logger.error(`URL does not match whitelist: ${validatedUrl}`);
+  let validatedUrl: string;
+  try {
+    validatedUrl = buildAllowlistedHttpUrl(imageUrl, ALLOWED_IMAGE_HOSTS);
+  } catch (error) {
+    logger.error(`Invalid image URL: ${imageUrl}`, error);
     return null;
   }
 
@@ -1563,18 +1681,6 @@ async function downloadPoster(
       return false;
     }
 
-    // Whitelist check: only proceed if URL matches whitelist pattern (SSRF prevention)
-    // Following OWASP example: check whitelist.includes(url) before request
-    // Since we can't have all URLs in whitelist, we check if URL matches allowed pattern
-    const urlMatchesWhitelistPattern = ALLOWED_IMAGE_URLS.some((allowedBase) =>
-      validatedUrl.startsWith(allowedBase)
-    );
-
-    if (!urlMatchesWhitelistPattern) {
-      logger.error(`URL does not match whitelist pattern: ${validatedUrl}`);
-      return false;
-    }
-
     // Final whitelist check: verify hostname is in whitelist (double-check SSRF protection)
     const urlObj = new URL(validatedUrl);
     if (!ALLOWED_IMAGE_HOSTS.includes(urlObj.hostname)) {
@@ -1582,9 +1688,6 @@ async function downloadPoster(
       return false;
     }
 
-    // Whitelist validation complete - safe to make request
-    // Following SSRF prevention pattern: only make request if URL passes all whitelist checks
-    // Using the validated URL that has passed all whitelist validation
     const response = await axios.get(validatedUrl, {
       responseType: "arraybuffer",
       timeout: 10000,

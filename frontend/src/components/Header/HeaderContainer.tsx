@@ -10,7 +10,7 @@ import {
     useMediaQuery,
     useTheme
 } from '@mui/material';
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -70,6 +70,12 @@ const HeaderContainer: React.FC<HeaderProps> = ({
     const isCollectionPage = location.pathname.startsWith('/collection/');
     const showTagsInMobileMenu = isHomePage || isAuthorPage || isCollectionPage;
     const isScrolled = useHeaderScrollState(isMobile, infiniteScroll, isHomePage);
+    const handleCloseMobileMenu = () => {
+        setMobileMenuOpen(false);
+    };
+    const handleToggleMobileMenu = () => {
+        setMobileMenuOpen((open) => !open);
+    };
 
     const {
         videoUrl,
@@ -82,7 +88,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
         isVisitor,
         navigate,
         t,
-        onCloseMobileMenu: () => setMobileMenuOpen(false)
+        onCloseMobileMenu: handleCloseMobileMenu
     });
 
     const handleDownloadsClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -99,6 +105,12 @@ const HeaderContainer: React.FC<HeaderProps> = ({
 
     const handleManageClose = () => {
         setManageAnchorEl(null);
+    };
+    const handleToolbarSubmit = (event: FormEvent) => {
+        void handleSubmit(event);
+    };
+    const handleScrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const headerBackgroundColor = themeMode === 'dark'
@@ -117,7 +129,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
 
     return (
         <>
-            <ClickAwayListener onClickAway={() => setMobileMenuOpen(false)}>
+            <ClickAwayListener onClickAway={handleCloseMobileMenu}>
                 <AppBar
                     position="fixed"
                     color="default"
@@ -167,15 +179,15 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                             hasActiveSubscriptions={hasActiveSubscriptions}
                             showThemeButton={showThemeButton}
                             mobileMenuOpen={mobileMenuOpen}
-                            onToggleMobileMenu={() => setMobileMenuOpen((open) => !open)}
-                            onCloseMobileMenu={() => setMobileMenuOpen(false)}
+                            onToggleMobileMenu={handleToggleMobileMenu}
+                            onCloseMobileMenu={handleCloseMobileMenu}
                             videoUrl={videoUrl}
                             setVideoUrl={setVideoUrl}
                             isSubmitting={isSubmitting}
                             error={error}
                             isSearchMode={isSearchMode}
                             searchTerm={searchTerm}
-                            onSubmit={handleSubmit}
+                            onSubmit={handleToolbarSubmit}
                             collections={collections}
                             videos={videos}
                             showTagsInMobileMenu={showTagsInMobileMenu}
@@ -198,7 +210,7 @@ const HeaderContainer: React.FC<HeaderProps> = ({
                     color="primary"
                     size="medium"
                     aria-label="scroll to top"
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    onClick={handleScrollToTop}
                     sx={{
                         position: 'fixed',
                         bottom: 16,

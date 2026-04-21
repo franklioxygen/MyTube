@@ -64,7 +64,7 @@ export async function extractPartMetadata(
       },
     });
 
-    if (response.data?.data) {
+    if (response.data.data) {
       // Extract channel URL
       if (response.data.data.owner?.mid) {
         const mid = response.data.data.owner.mid;

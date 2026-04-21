@@ -6,7 +6,10 @@ import axios from "axios";
 import path from "path";
 import { logger } from "../../utils/logger";
 import { CloudDriveConfig, CachedFileList, FileWithPath } from "./types";
-import { normalizeUploadPath } from "./pathUtils";
+import {
+  buildCloudApiEndpoint,
+  normalizeUploadPath,
+} from "./pathUtils";
 
 // Cache for file list: key is uploadPath, value is file list with timestamp
 const fileListCache = new Map<string, CachedFileList>();
@@ -37,8 +40,7 @@ export async function getFileList(
 
   // Cache miss or expired, fetch from OpenList
   try {
-    const apiBaseUrl = config.apiUrl.replace("/api/fs/put", "");
-    const listUrl = `${apiBaseUrl}/api/fs/list`;
+    const listUrl = buildCloudApiEndpoint(config.apiUrl, "/api/fs/list");
 
     const response = await axios.post(
       listUrl,
@@ -139,4 +141,3 @@ export function clearFileListCache(uploadPath?: string): void {
     logger.debug("[CloudStorage] Cleared all file list caches");
   }
 }
-

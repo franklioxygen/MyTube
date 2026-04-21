@@ -35,8 +35,11 @@ import {
   createReadStreamSafe,
   createWriteStreamSafe,
   pathExistsSafeSync,
+  pathExistsTrustedSync,
+  normalizeSafeAbsolutePath,
   resolveSafePath,
   sanitizePathSegment,
+  statTrustedSync,
   unlinkSafeSync,
   writeFileSafeSync,
 } from "../utils/security";
@@ -926,19 +929,16 @@ const validateRawMountFilePath = (rawFilePath: string): void => {
 
 const resolveMountFilePath = (rawFilePath: string): string => {
   validateRawMountFilePath(rawFilePath);
-  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-  const filePath = path.resolve(rawFilePath);
+  const filePath = normalizeSafeAbsolutePath(rawFilePath);
   validateRawMountFilePath(filePath);
   return filePath;
 };
 
 const assertMountFileExists = (filePath: string): void => {
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.existsSync(filePath)) {
+  if (!pathExistsTrustedSync(filePath)) {
     throw new NotFoundError("Video file", filePath);
   }
-  // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-  if (!fs.statSync(filePath).isFile()) {
+  if (!statTrustedSync(filePath).isFile()) {
     throw new ValidationError("Path is not a file", "videoPath");
   }
 };

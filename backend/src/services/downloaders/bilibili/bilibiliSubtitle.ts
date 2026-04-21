@@ -5,13 +5,15 @@ import { bccToVtt } from "../../../utils/bccToVtt";
 import { extractBilibiliVideoId } from "../../../utils/helpers";
 import { logger } from "../../../utils/logger";
 import {
+  buildAllowlistedHttpUrl,
   ensureDirSafeSync,
-  resolveSafePath,
+  resolveSafeChildPath,
   writeFileSafeSync,
 } from "../../../utils/security";
 import { getCookieHeader } from "./bilibiliCookie";
 
 type SubtitleDownloadConfig = Record<string, unknown>;
+const BILIBILI_ALLOWED_HOSTS = ["bilibili.com", "hdslb.com"];
 
 /**
  * Download subtitles for a Bilibili video
@@ -42,7 +44,10 @@ export async function downloadSubtitles(
     };
 
     // Get CID first
-    const viewApiUrl = `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`;
+    const viewApiUrl = buildAllowlistedHttpUrl(
+      `https://api.bilibili.com/x/web-interface/view?bvid=${videoId}`,
+      BILIBILI_ALLOWED_HOSTS
+    );
     let viewResponse;
     try {
       viewResponse = await axios.get(viewApiUrl, { headers, ...axiosConfig });
@@ -63,7 +68,10 @@ export async function downloadSubtitles(
     }
 
     // Get subtitles from player API first (player API has actual URLs)
-    const playerApiUrl = `https://api.bilibili.com/x/player/wbi/v2?bvid=${videoId}&cid=${cid}`;
+    const playerApiUrl = buildAllowlistedHttpUrl(
+      `https://api.bilibili.com/x/player/wbi/v2?bvid=${videoId}&cid=${cid}`,
+      BILIBILI_ALLOWED_HOSTS
+    );
     logger.info(`Fetching subtitles from: ${playerApiUrl}`);
     let playerResponse;
     try {
@@ -114,9 +122,7 @@ export async function downloadSubtitles(
     // Ensure subtitles directory exists
     const normalizedPrefix = subtitlePathPrefix.replace(/\\/g, "/");
     const useVideoRoot = normalizedPrefix.startsWith("/videos");
-    const resolvedSubtitleDir = useVideoRoot
-      ? path.resolve(VIDEOS_DIR)
-      : path.resolve(SUBTITLES_DIR);
+    const resolvedSubtitleDir = useVideoRoot ? VIDEOS_DIR : SUBTITLES_DIR;
     const safePathPrefix = useVideoRoot ? "/videos" : "/subtitles";
     ensureDirSafeSync(resolvedSubtitleDir, resolvedSubtitleDir);
 
@@ -129,9 +135,12 @@ export async function downloadSubtitles(
       if (!subUrl) continue;
 
       // Ensure URL is absolute (sometimes it starts with //)
-      const absoluteSubUrl = subUrl.startsWith("//")
-        ? `https:${subUrl}`
-        : subUrl;
+      const absoluteSubUrl = buildAllowlistedHttpUrl(
+        subUrl.startsWith("//")
+          ? `https:${subUrl}`
+          : subUrl,
+        BILIBILI_ALLOWED_HOSTS
+      );
 
       logger.info(`Downloading subtitle (${lang}): ${absoluteSubUrl}`);
 
@@ -151,10 +160,7 @@ export async function downloadSubtitles(
 
         if (vttContent) {
           const subFilename = `${baseFilename}.${lang}.vtt`;
-          const subPath = resolveSafePath(
-            path.join(resolvedSubtitleDir, subFilename),
-            resolvedSubtitleDir
-          );
+          const subPath = resolveSafeChildPath(resolvedSubtitleDir, subFilename);
 
           writeFileSafeSync(subPath, resolvedSubtitleDir, vttContent);
           logger.info(`Saved subtitle file: ${subPath}`);

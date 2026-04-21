@@ -1,7 +1,7 @@
 {
   "name": "file-type",
-  "version": "21.3.1",
-  "description": "Local compatibility build for MyTube",
+  "version": "21.3.2",
+  "description": "Local compatibility build for MyTube (image-only subset)",
   "main": "index.js",
   "types": "index.d.ts",
   "license": "MIT"

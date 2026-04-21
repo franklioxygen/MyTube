@@ -520,7 +520,7 @@ export const zh = {
   verifying: "验证中...",
   incorrectPassword: "密码错误",
   loginFailed: "验证密码失败",
-  defaultPasswordHint: "默认密码：123",
+  defaultPasswordHint: "请使用你在设置中配置的管理员密码。",
   checkingConnection: "正在检查连接...",
   connectionError: "连接错误",
   backendConnectionFailed:
@@ -868,7 +868,7 @@ export const zh = {
   instructionSection3Desc: "配置系统参数、维护数据及扩展功能。",
   instructionSection3Sub1: "安全设定：",
   instructionSection3Text1:
-    "设置系统登录密码（默认初始密码为 123，建议首次登录后修改）。",
+    "启用登录前请先设置系统登录密码。如丢失访问权限，可使用后端 reset-password 脚本重置。",
   instructionSection3Sub2: "标签管理：",
   instructionSection3Text2:
     "支持添加或删除视频分类标签。注意： 所有操作完成后，必须点击页面底端的“保存”按钮方可生效。",

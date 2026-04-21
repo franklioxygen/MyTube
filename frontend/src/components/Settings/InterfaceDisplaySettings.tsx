@@ -17,6 +17,18 @@ interface InterfaceDisplaySettingsProps {
 const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props) => {
     const { itemsPerPage, showYoutubeSearch, infiniteScroll, videoColumns, playSoundOnTaskComplete, onChange } = props;
     const { t } = useLanguage();
+    const playSelectedSoundPreview = (soundValue: string) => {
+        const previewSoundUrl = Object.entries(INFO_SOUNDS).find(
+            ([filename]) => filename === soundValue
+        )?.[1];
+
+        if (!previewSoundUrl) {
+            return;
+        }
+
+        const audio = new Audio(previewSoundUrl);
+        audio.play().catch(console.error);
+    };
 
     return (
         <Box>
@@ -71,12 +83,8 @@ const InterfaceDisplaySettings: React.FC<InterfaceDisplaySettingsProps> = (props
                                 onChange('playSoundOnTaskComplete', newValue);
 
                                 // Play the selected sound for preview
-                                if (newValue && SOUND_OPTIONS.find(opt => opt.value === newValue)) {
-                                    const soundFile = SOUND_OPTIONS.find(opt => opt.value === newValue)?.value;
-                                    if (soundFile && INFO_SOUNDS[soundFile]) {
-                                        const audio = new Audio(INFO_SOUNDS[soundFile]);
-                                        audio.play().catch(console.error);
-                                    }
+                                if (newValue && SOUND_OPTIONS.some((option) => option.value === newValue)) {
+                                    playSelectedSoundPreview(newValue);
                                 }
                             }}
                             displayEmpty

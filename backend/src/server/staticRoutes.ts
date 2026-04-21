@@ -13,7 +13,10 @@ import {
   ensureSmallThumbnailForRelativePath,
   getThumbnailRelativePath,
 } from "../services/thumbnailMirrorService";
-import { resolveSafeChildPath } from "../utils/security";
+import {
+  normalizeSafeAbsolutePath,
+  resolveSafeChildPath,
+} from "../utils/security";
 
 const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -92,6 +95,9 @@ export const registerStaticRoutes = (
   app: Express,
   frontendDist: string
 ): void => {
+  const safeFrontendDist = normalizeSafeAbsolutePath(frontendDist);
+  const safeFrontendAssetsDir = resolveSafeChildPath(safeFrontendDist, "assets");
+
   app.use(
     "/videos",
     express.static(VIDEOS_DIR, {
@@ -190,19 +196,19 @@ export const registerStaticRoutes = (
 
   app.use(
     "/assets",
-    express.static(path.join(frontendDist, "assets"), {
+    express.static(safeFrontendAssetsDir, {
       fallthrough: false,
     })
   );
 
-  app.use(express.static(frontendDist));
+  app.use(express.static(safeFrontendDist));
 };
 
 export const registerSpaFallback = (
   app: Express,
   frontendDist: string
 ): void => {
-  const safeFrontendDist = path.resolve(frontendDist);
+  const safeFrontendDist = normalizeSafeAbsolutePath(frontendDist);
 
   app.get("*", (req, res) => {
     if (isApiOrCloudPath(req.path)) {

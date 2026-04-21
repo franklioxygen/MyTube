@@ -559,7 +559,7 @@ export const es = {
   verifying: "Verificando...",
   incorrectPassword: "Contraseña incorrecta",
   loginFailed: "Error al verificar la contraseña",
-  defaultPasswordHint: "Contraseña predeterminada: 123",
+  defaultPasswordHint: "Usa la contraseña de administrador configurada en Ajustes.",
   checkingConnection: "Comprobando conexión...",
   connectionError: "Error de Conexión",
   backendConnectionFailed:
@@ -938,7 +938,7 @@ export const es = {
     "Configurar parámetros del sistema, mantener datos y extender funciones.",
   instructionSection3Sub1: "Configuración de Seguridad:",
   instructionSection3Text1:
-    "Establezca la contraseña de inicio de sesión del sistema (la contraseña inicial predeterminada es 123, se recomienda cambiar después del primer inicio de sesión).",
+    "Establece la contraseña de inicio de sesión del sistema antes de habilitar el acceso. Si pierdes el acceso, restablécela con el script reset-password del backend.",
   instructionSection3Sub2: "Gestión de Etiquetas:",
   instructionSection3Text2:
     'Admite agregar o eliminar etiquetas de clasificación de video. Nota: Debe hacer clic en el botón "Guardar" en la parte inferior de la página para que los cambios surtan efecto.',

@@ -9,6 +9,9 @@ import {
   resolveSafeChildPath,
 } from "../../utils/security";
 
+const CLOUD_API_PUT_PATH = "/api/fs/put";
+const CLOUD_API_PROTOCOLS = new Set(["http:", "https:"]);
+
 /**
  * Resolve absolute path from relative path
  * Handles multiple possible root directories for backward compatibility
@@ -114,4 +117,85 @@ export function sanitizeFilename(filename: string): string {
 export function normalizeUploadPath(uploadPath: string): string {
   const normalized = uploadPath.replace(/\\/g, "/");
   return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function pathHasTraversal(pathname: string): boolean {
+  return pathname.split("/").some((segment) => {
+    if (!segment) {
+      return false;
+    }
+
+    try {
+      return decodeURIComponent(segment) === "..";
+    } catch {
+      return segment === "..";
+    }
+  });
+}
+
+function stripTrailingSlashes(pathname: string): string {
+  const stripped = pathname.replace(/\/+$/, "");
+  return stripped || "/";
+}
+
+function normalizeCloudApiPutPath(pathname: string): string {
+  const normalizedPath = stripTrailingSlashes(pathname);
+  if (normalizedPath.endsWith(CLOUD_API_PUT_PATH)) {
+    return normalizedPath;
+  }
+
+  const basePath = normalizedPath === "/" ? "" : normalizedPath;
+  return `${basePath}${CLOUD_API_PUT_PATH}`;
+}
+
+function parseValidatedCloudApiUrl(apiUrl: string): URL {
+  const trimmedApiUrl = typeof apiUrl === "string" ? apiUrl.trim() : "";
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(trimmedApiUrl);
+  } catch {
+    throw new Error(`Invalid cloud API URL: ${apiUrl}`);
+  }
+
+  if (!CLOUD_API_PROTOCOLS.has(parsedUrl.protocol)) {
+    throw new Error("Cloud API URL must use http or https");
+  }
+
+  if (parsedUrl.username || parsedUrl.password) {
+    throw new Error("Cloud API URL must not contain credentials");
+  }
+
+  if (pathHasTraversal(parsedUrl.pathname)) {
+    throw new Error("Cloud API URL path must not contain traversal segments");
+  }
+
+  parsedUrl.pathname = normalizeCloudApiPutPath(parsedUrl.pathname);
+  parsedUrl.search = "";
+  parsedUrl.hash = "";
+
+  return parsedUrl;
+}
+
+export function validateCloudApiUrl(apiUrl: string): string {
+  return parseValidatedCloudApiUrl(apiUrl).toString();
+}
+
+export function buildCloudApiEndpoint(
+  apiUrl: string,
+  endpointPath: string,
+): string {
+  const parsedUrl = parseValidatedCloudApiUrl(apiUrl);
+  const normalizedEndpointPath = endpointPath.startsWith("/")
+    ? endpointPath
+    : `/${endpointPath}`;
+  const cloudApiBasePath = parsedUrl.pathname.slice(
+    0,
+    -CLOUD_API_PUT_PATH.length,
+  );
+  const endpointUrl = new URL(parsedUrl.origin);
+  endpointUrl.pathname = `${cloudApiBasePath}${normalizedEndpointPath}`;
+  endpointUrl.search = "";
+  endpointUrl.hash = "";
+
+  return endpointUrl.toString();
 }

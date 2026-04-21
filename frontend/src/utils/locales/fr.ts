@@ -556,7 +556,7 @@ export const fr = {
   verifying: "Vérification...",
   incorrectPassword: "Mot de passe incorrect",
   loginFailed: "Échec de la vérification du mot de passe",
-  defaultPasswordHint: "Mot de passe par défaut : 123",
+  defaultPasswordHint: "Utilisez le mot de passe administrateur configuré dans les paramètres.",
   checkingConnection: "Vérification de la connexion...",
   connectionError: "Erreur de Connexion",
   backendConnectionFailed:
@@ -939,7 +939,7 @@ export const fr = {
     "Configurer les paramètres du système, maintenir les données et étendre les fonctions.",
   instructionSection3Sub1: "Paramètres de Sécurité :",
   instructionSection3Text1:
-    "Définissez le mot de passe de connexion au système (le mot de passe initial par défaut est 123, il est recommandé de le changer après la première connexion).",
+    "Définissez le mot de passe de connexion du système avant d'activer l'accès. Si vous perdez l'accès, réinitialisez-le avec le script backend reset-password.",
   instructionSection3Sub2: "Gestion des Étiquettes :",
   instructionSection3Text2:
     "Prend en charge l'ajout ou la suppression d'étiquettes de classification vidéo. Remarque : Vous devez cliquer sur le bouton \"Enregistrer\" en bas de la page pour que les modifications prennent effet.",

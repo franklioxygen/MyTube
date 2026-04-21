@@ -1,7 +1,7 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 
 const RETRY_STORAGE_PREFIX = 'mytube:lazy-retry';
-const VITE_PRELOAD_RETRY_KEY = 'vite-preload';
+const VITE_PRELOAD_RETRY_MARKER = 'vite-preload';
 const DYNAMIC_IMPORT_ERROR_PATTERNS = [
     // Safari and some Chromium variants when an ESM chunk URL no longer exists.
     'Importing a module script failed',
@@ -96,7 +96,7 @@ export const retryDynamicImport = async <T>(
     try {
         const module = await loader();
         clearRetryMarker(storage, key);
-        clearRetryMarker(storage, VITE_PRELOAD_RETRY_KEY);
+        clearRetryMarker(storage, VITE_PRELOAD_RETRY_MARKER);
         return module;
     } catch (error) {
         if (!isDynamicImportFailure(error)) {
@@ -120,7 +120,7 @@ export const registerVitePreloadErrorRecovery = (
 
     const handler = (event: Event): void => {
         const handled = triggerSingleReload(
-            VITE_PRELOAD_RETRY_KEY,
+            VITE_PRELOAD_RETRY_MARKER,
             options.storage === undefined ? getSessionStorage() : options.storage,
             options.reload,
         );
@@ -138,7 +138,8 @@ export const registerVitePreloadErrorRecovery = (
     };
 };
 
-export const lazyWithRetry = <T extends ComponentType<any>>(
-    loader: ModuleLoader<T>,
+export const lazyWithRetry = <TProps extends object>(
+    loader: ModuleLoader<ComponentType<TProps>>,
     key: string,
-): LazyExoticComponent<T> => lazy(() => retryDynamicImport(loader, key));
+): LazyExoticComponent<ComponentType<TProps>> =>
+    lazy(() => retryDynamicImport(loader, key));

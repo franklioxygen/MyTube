@@ -1,5 +1,5 @@
 
-type ConsoleMethod = (...args: any[]) => void;
+type ConsoleMethod = (...args: unknown[]) => void;
 
 interface ConsoleMethods {
     log: ConsoleMethod;
@@ -12,7 +12,21 @@ interface ConsoleMethods {
 class ConsoleManager {
     private static originalConsole: ConsoleMethods | null = null;
     private static isDebugMode: boolean = false;
-    private static readonly STORAGE_KEY = 'mytube_debug_mode';
+    private static readonly LEGACY_DEBUG_MODE_STORAGE_ID = 'mytube_debug_mode';
+    private static readonly DEBUG_MODE_STORAGE_ID = 'mytube:debug-mode';
+
+    private static getStoredDebugMode(): string | null {
+        return (
+            localStorage.getItem(this.DEBUG_MODE_STORAGE_ID) ??
+            localStorage.getItem(this.LEGACY_DEBUG_MODE_STORAGE_ID)
+        );
+    }
+
+    private static persistDebugMode(enabled: boolean) {
+        const value = String(enabled);
+        localStorage.setItem(this.DEBUG_MODE_STORAGE_ID, value);
+        localStorage.setItem(this.LEGACY_DEBUG_MODE_STORAGE_ID, value);
+    }
 
     static init() {
         // Save original methods
@@ -25,7 +39,7 @@ class ConsoleManager {
         };
 
         // Load saved preference
-        const savedMode = localStorage.getItem(this.STORAGE_KEY);
+        const savedMode = this.getStoredDebugMode();
         // Default to true (showing logs) if not set, or parse the value
         // If the user wants to HIDE logs by default, they can toggle it.
         // But usually "Debug Mode" means SHOWING logs.
@@ -48,7 +62,7 @@ class ConsoleManager {
 
     static setDebugMode(enabled: boolean) {
         this.isDebugMode = enabled;
-        localStorage.setItem(this.STORAGE_KEY, String(enabled));
+        this.persistDebugMode(enabled);
 
         if (enabled) {
             this.restoreConsole();

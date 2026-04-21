@@ -25,11 +25,10 @@ export function useStickyButton(observerTarget: RefObject<HTMLDivElement | null>
 
         if (typeof window.IntersectionObserver === 'function') {
             observer = new window.IntersectionObserver((entries) => {
-                const entry = entries[0];
-                if (!entry) {
+                const [entry] = entries;
+                if (entry === undefined) {
                     return;
                 }
-
                 const viewportBottom = entry.rootBounds?.bottom ?? window.innerHeight;
                 setIsSticky(!entry.isIntersecting && entry.boundingClientRect.top >= viewportBottom);
             });

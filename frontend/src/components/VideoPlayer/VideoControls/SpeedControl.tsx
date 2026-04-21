@@ -9,7 +9,7 @@ interface SpeedControlProps {
     isFullscreen?: boolean;
 }
 
-const SpeedControl: React.FC<SpeedControlProps> = ({
+const SpeedControlView: React.FC<SpeedControlProps> = ({
     playbackRate,
     onPlaybackRateChange,
     isFullscreen = false
@@ -53,7 +53,9 @@ const SpeedControl: React.FC<SpeedControlProps> = ({
                 {SPEED_OPTIONS.map((rate) => (
                     <MenuItem
                         key={rate}
-                        onClick={() => handleSelectSpeed(rate)}
+                        onClick={() => {
+                            handleSelectSpeed(rate);
+                        }}
                         selected={rate === playbackRate}
                     >
                         {rate}x
@@ -64,4 +66,4 @@ const SpeedControl: React.FC<SpeedControlProps> = ({
     );
 };
 
-export default SpeedControl;
+export default SpeedControlView;

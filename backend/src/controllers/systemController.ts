@@ -44,14 +44,14 @@ const isNewerVersion = (latest: string, current: string): boolean => {
 
 const createVersionResponse = (
   latestVersion: string,
-  releaseUrl: string
+  releaseHref: string
 ): LatestVersionResponse => {
   const currentVersion = VERSION.number;
 
   return {
     currentVersion,
     latestVersion,
-    releaseUrl,
+    releaseUrl: releaseHref,
     hasUpdate: isNewerVersion(latestVersion, currentVersion),
   };
 };
@@ -74,9 +74,9 @@ export const getLatestVersion = async (req: Request, res: Response) => {
     );
 
     const latestVersion = response.data.tag_name.replace(/^v/, "");
-    const releaseUrl = response.data.html_url;
+    const releaseHref = response.data.html_url;
 
-    res.json(createVersionResponse(latestVersion, releaseUrl));
+    res.json(createVersionResponse(latestVersion, releaseHref));
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       // Fallback: Try to get tags if no release is published
@@ -95,9 +95,9 @@ export const getLatestVersion = async (req: Request, res: Response) => {
         if (tagsResponse.data.length > 0) {
           const latestTag = tagsResponse.data[0];
           const latestVersion = latestTag.name.replace(/^v/, "");
-          const releaseUrl = getTagReleaseUrl(latestTag);
+          const releaseHref = getTagReleaseUrl(latestTag);
 
-          return res.json(createVersionResponse(latestVersion, releaseUrl));
+          return res.json(createVersionResponse(latestVersion, releaseHref));
         }
       } catch (tagError) {
         logger.warn("Failed to fetch tags as fallback:", tagError);

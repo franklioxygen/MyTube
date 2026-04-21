@@ -12,6 +12,7 @@ import {
 } from "./security";
 
 const LOCAL_AVATAR_SOURCE_ALLOWED_DIRS = [AVATARS_DIR, os.tmpdir(), "/tmp"];
+type AvatarDownloadConfig = Record<string, unknown> | undefined;
 
 /**
  * Check if avatar exists for a given platform and author
@@ -77,8 +78,12 @@ export async function downloadAndProcessAvatar(
   avatarUrl: string,
   platform: string,
   author: string,
-  downloadFunction: (url: string, savePath: string, config?: any) => Promise<boolean>,
-  axiosConfig?: any
+  downloadFunction: (
+    url: string,
+    savePath: string,
+    config?: AvatarDownloadConfig
+  ) => Promise<boolean>,
+  axiosConfig?: AvatarDownloadConfig
 ): Promise<string | null> {
   // Check if avatar already exists
   const existingPath = getExistingAvatarPath(platform, author);

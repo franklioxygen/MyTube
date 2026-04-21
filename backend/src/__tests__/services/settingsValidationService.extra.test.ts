@@ -111,7 +111,7 @@ describe("settingsValidationService extra coverage", () => {
     expect(hashPassword).not.toHaveBeenCalled();
   });
 
-  it("prepareSettingsForSave seeds the default admin password when login is enabled without one", async () => {
+  it("prepareSettingsForSave seeds a default admin password when login is enabled without one", async () => {
     const existing = {
       loginEnabled: false,
       password: "",

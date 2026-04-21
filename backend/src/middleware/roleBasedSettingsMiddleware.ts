@@ -155,7 +155,7 @@ export const roleBasedSettingsMiddleware = (
   // For unauthenticated users, check if login is required
   if (!req.user) {
     // If login is required and this is not a public endpoint, reject the request
-    if (loginRequired && !isPublicEndpoint(req)) {
+    if (!isPublicEndpoint(req)) {
       res.status(401).json({
         success: false,
         error: "Authentication required. Please log in to access this resource.",

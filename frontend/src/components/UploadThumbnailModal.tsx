@@ -26,6 +26,22 @@ const UploadThumbnailModal: React.FC<UploadThumbnailModalProps> = ({ open, onClo
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const getUploadErrorMessage = (uploadError: unknown): string => {
+        if (
+            typeof uploadError === 'object' &&
+            uploadError !== null &&
+            'response' in uploadError
+        ) {
+            const response = (uploadError as { response?: { data?: { error?: unknown } } }).response;
+            if (typeof response?.data?.error === 'string' && response.data.error) {
+                return response.data.error;
+            }
+        }
+        if (uploadError instanceof Error && uploadError.message) {
+            return uploadError.message;
+        }
+        return 'Upload failed';
+    };
 
     useEffect(() => {
         return () => {
@@ -62,9 +78,8 @@ const UploadThumbnailModal: React.FC<UploadThumbnailModalProps> = ({ open, onClo
             setSelectedFile(null);
             setPreviewUrl(null);
             onClose();
-        } catch (err: any) {
-            const msg = err?.response?.data?.error || err?.message || 'Upload failed';
-            setError(msg);
+        } catch (uploadError: unknown) {
+            setError(getUploadErrorMessage(uploadError));
         } finally {
             setIsUploading(false);
         }

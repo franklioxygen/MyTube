@@ -1,8 +1,14 @@
-import fs from "fs-extra";
 import path from "path";
 import { FileError } from "../errors/DownloadErrors";
 import { SUBTITLES_DIR, VIDEOS_DIR } from "../config/paths";
 import * as storageService from "./storageService";
+import {
+  ensureDirSafeSync,
+  moveSafeSync,
+  pathExistsSafeSync,
+  resolveSafeChildPath,
+  sanitizePathSegment,
+} from "../utils/security";
 
 export const moveAllSubtitles = async (toVideoFolder: boolean) => {
     console.log(`Starting to move all subtitles. Target: ${toVideoFolder ? 'Video Folders' : 'Central Subtitles Folder'}`);
@@ -32,9 +38,9 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
             // e.g. /videos/MyCollection/video.mp4 or /videos/video.mp4
             if (video.videoPath) {
                 const cleanPath = video.videoPath.replace(/^\/videos\//, '');
-                const dirName = path.dirname(cleanPath);
+                const dirName = path.posix.dirname(cleanPath.replace(/\\/g, "/"));
                 if (dirName && dirName !== '.') {
-                    videoDir = path.join(VIDEOS_DIR, dirName);
+                    videoDir = resolveSafeChildPath(VIDEOS_DIR, dirName);
                     relativeVideoDir = dirName;
                 }
             } else {
@@ -44,8 +50,12 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
                     if (col.videos.includes(video.id)) {
                         const colName = col.name || col.title;
                         if (colName) {
-                            videoDir = path.join(VIDEOS_DIR, colName);
-                            relativeVideoDir = colName;
+                            const safeCollectionName = sanitizePathSegment(colName);
+                            if (!safeCollectionName) {
+                                continue;
+                            }
+                            videoDir = resolveSafeChildPath(VIDEOS_DIR, safeCollectionName);
+                            relativeVideoDir = safeCollectionName;
                             break;
                         }
                     }
@@ -62,26 +72,29 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
                 
                 let currentAbsPath = "";
                 if (sub.path.startsWith("/videos/")) {
-                    currentAbsPath = path.join(VIDEOS_DIR, sub.path.replace(/^\/videos\//, ""));
+                    currentAbsPath = resolveSafeChildPath(
+                        VIDEOS_DIR,
+                        sub.path.replace(/^\/videos\//, "")
+                    );
                 } else if (sub.path.startsWith("/subtitles/")) {
-                    currentAbsPath = path.join(SUBTITLES_DIR, sub.path.replace(/^\/subtitles\//, ""));
+                    currentAbsPath = resolveSafeChildPath(
+                        SUBTITLES_DIR,
+                        sub.path.replace(/^\/subtitles\//, "")
+                    );
                 } else {
                     // Fallback to filename search in both locations
-                    const centralPath = path.join(SUBTITLES_DIR, sub.filename);
-                    // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                    if (fs.existsSync(centralPath)) {
+                    const centralPath = resolveSafeChildPath(SUBTITLES_DIR, sub.filename);
+                    if (pathExistsSafeSync(centralPath, SUBTITLES_DIR)) {
                         currentAbsPath = centralPath;
                     } else {
-                        const localPath = path.join(videoDir, sub.filename);
-                        // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                        if (fs.existsSync(localPath)) {
+                        const localPath = resolveSafeChildPath(videoDir, sub.filename);
+                        if (pathExistsSafeSync(localPath, VIDEOS_DIR)) {
                             currentAbsPath = localPath;
                         }
                     }
                 }
 
-                // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename
-                if (!fs.existsSync(currentAbsPath)) {
+                if (!currentAbsPath || !pathExistsSafeSync(currentAbsPath, [SUBTITLES_DIR, VIDEOS_DIR])) {
                     console.warn(`Subtitle file not found: ${sub.path} or ${currentAbsPath}`);
                     newSubtitles.push(sub); // Keep the record even if file missing? Or maybe better to keep it to avoid data loss.
                     continue;
@@ -92,7 +105,7 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
 
                 if (toVideoFolder) {
                     // Move TO video folder
-                    targetAbsPath = path.join(videoDir, sub.filename);
+                    targetAbsPath = resolveSafeChildPath(videoDir, sub.filename);
                     if (relativeVideoDir) {
                         newWebPath = `/videos/${relativeVideoDir}/${sub.filename}`;
                     } else {
@@ -102,18 +115,24 @@ export const moveAllSubtitles = async (toVideoFolder: boolean) => {
                     // Move TO central subtitles folder
                     // Mirror the folder structure
                     if (relativeVideoDir) {
-                        const targetDir = path.join(SUBTITLES_DIR, relativeVideoDir);
-                        fs.ensureDirSync(targetDir);
-                        targetAbsPath = path.join(targetDir, sub.filename);
+                        const targetDir = resolveSafeChildPath(SUBTITLES_DIR, relativeVideoDir);
+                        ensureDirSafeSync(targetDir, SUBTITLES_DIR);
+                        targetAbsPath = resolveSafeChildPath(targetDir, sub.filename);
                         newWebPath = `/subtitles/${relativeVideoDir}/${sub.filename}`;
                     } else {
-                        targetAbsPath = path.join(SUBTITLES_DIR, sub.filename);
+                        targetAbsPath = resolveSafeChildPath(SUBTITLES_DIR, sub.filename);
                         newWebPath = `/subtitles/${sub.filename}`;
                     }
                 }
 
                 if (currentAbsPath !== targetAbsPath) {
-                    fs.moveSync(currentAbsPath, targetAbsPath, { overwrite: true });
+                    moveSafeSync(
+                        currentAbsPath,
+                        [SUBTITLES_DIR, VIDEOS_DIR],
+                        targetAbsPath,
+                        toVideoFolder ? VIDEOS_DIR : SUBTITLES_DIR,
+                        { overwrite: true }
+                    );
                     newSubtitles.push({
                         ...sub,
                         path: newWebPath
