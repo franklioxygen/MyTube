@@ -36,6 +36,12 @@ const VideoPlayer: React.FC = () => {
     const { userRole } = useAuth();
     const { data: settings } = useSettings();
     const isVisitor = userRole === 'visitor';
+    const useAppleNativeRoutePlayer = (() => {
+        const ua = navigator.userAgent;
+        return /iPhone|iPod|iPad/.test(ua) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    })();
+    const useAppleMinimalPlaybackLayout = useAppleNativeRoutePlayer;
 
     const [showComments, setShowComments] = useState<boolean>(false);
     const [autoPlayNext, setAutoPlayNext] = useState<boolean>(() => {
@@ -294,8 +300,6 @@ const VideoPlayer: React.FC = () => {
         );
     }
 
-
-
     const handleVideoEnded = () => {
         if (autoPlayNext && relatedVideos.length > 0) {
             navigate(`/video/${relatedVideos[0].id}`);
@@ -305,6 +309,8 @@ const VideoPlayer: React.FC = () => {
     // Determine start time based on saved progress only.
     // Playback-local time should not be fed back into startTime on unrelated rerenders.
     const startTimeResult = playFromBeginning ? 0 : (video.progress ?? 0);
+    const rawVideoSrc = (videoUrl || video?.sourceUrl) || null;
+    const rawPosterSrc = posterUrl || localPosterUrl || video?.thumbnailUrl;
 
     return (
         <Container maxWidth={false} disableGutters sx={{ py: { xs: 2, md: 4 }, px: { xs: 0, md: 2 } }}>
@@ -316,43 +322,74 @@ const VideoPlayer: React.FC = () => {
                     mt: isCinemaMode ? 0 : { xs: 0, md: 4 },
                     gridTemplateColumns: {
                         xs: 'minmax(0, 1fr)',
-                        lg: isCinemaMode ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)'
+                        lg: (isCinemaMode || useAppleMinimalPlaybackLayout)
+                            ? '1fr'
+                            : 'minmax(0, 1fr) minmax(280px, 360px)'
                     },
                     gridTemplateAreas: {
                         xs: '"main" "sidebar"',
-                        lg: isCinemaMode ? '"main" "sidebar"' : '"main sidebar"'
+                        lg: (isCinemaMode || useAppleMinimalPlaybackLayout)
+                            ? '"main" "sidebar"'
+                            : '"main sidebar"'
                     }
                 }}
             >
                 {/* Main Column: Video + Info + Comments */}
                 <Box sx={{ gridArea: 'main' }}>
-                    <VideoControls
-                        src={(videoUrl || video?.sourceUrl) || null}
-                        poster={posterUrl || localPosterUrl || video?.thumbnailUrl}
-                        autoPlay={autoPlay}
-                        autoLoop={autoLoop}
-                        pauseOnFocusLoss={pauseOnFocusLoss}
-                        onTimeUpdate={handleTimeUpdate}
-                        startTime={startTimeResult}
-                        subtitles={video.subtitles}
-                        subtitlesEnabled={subtitlesEnabled}
-                        onSubtitlesToggle={handleSubtitlesToggle}
-                        onLoopToggle={handleLoopToggle}
-                        onEnded={handleVideoEnded}
-                        isCinemaMode={isCinemaMode}
-                        onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
-                        onUploadSubtitle={async (file: File) => {
-                            if (!id) return;
-                            await uploadSubtitleMutation.mutateAsync({ file });
-                        }}
-                        onDeleteSubtitle={async (index: number) => {
-                            if (!video?.subtitles) return;
-                            await deleteSubtitleMutation.mutateAsync({
-                                index,
-                                currentSubtitles: video.subtitles
-                            });
-                        }}
-                    />
+                    {useAppleNativeRoutePlayer ? (
+                        <Box sx={{ px: { xs: 0, md: 0 } }}>
+                            <Box
+                                sx={{
+                                    width: '100%',
+                                    bgcolor: 'black',
+                                    borderRadius: { xs: 0, sm: 2 },
+                                    overflow: 'hidden',
+                                    boxShadow: 4
+                                }}
+                            >
+                                <video
+                                    controls
+                                    playsInline
+                                    src={rawVideoSrc || undefined}
+                                    preload="metadata"
+                                    style={{
+                                        width: '100%',
+                                        maxHeight: 'calc(100vh - 180px)',
+                                        display: 'block',
+                                        backgroundColor: 'black'
+                                    }}
+                                />
+                            </Box>
+                        </Box>
+                    ) : (
+                        <VideoControls
+                            src={rawVideoSrc}
+                            poster={rawPosterSrc}
+                            autoPlay={autoPlay}
+                            autoLoop={autoLoop}
+                            pauseOnFocusLoss={pauseOnFocusLoss}
+                            onTimeUpdate={handleTimeUpdate}
+                            startTime={startTimeResult}
+                            subtitles={video.subtitles}
+                            subtitlesEnabled={subtitlesEnabled}
+                            onSubtitlesToggle={handleSubtitlesToggle}
+                            onLoopToggle={handleLoopToggle}
+                            onEnded={handleVideoEnded}
+                            isCinemaMode={isCinemaMode}
+                            onToggleCinemaMode={() => setIsCinemaMode(!isCinemaMode)}
+                            onUploadSubtitle={async (file: File) => {
+                                if (!id) return;
+                                await uploadSubtitleMutation.mutateAsync({ file });
+                            }}
+                            onDeleteSubtitle={async (index: number) => {
+                                if (!video?.subtitles) return;
+                                await deleteSubtitleMutation.mutateAsync({
+                                    index,
+                                    currentSubtitles: video.subtitles
+                                });
+                            }}
+                        />
+                    )}
 
                     <Box sx={{
                         px: { xs: 2, md: 0 },
