@@ -14,6 +14,7 @@ import {
 import { getSettings } from "./storageService/settings";
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3";
+const TMDB_API_ORIGIN = "https://api.themoviedb.org";
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const TMDB_SEARCH_CACHE_MAX_ENTRIES = 500;
 const TMDB_SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -21,7 +22,7 @@ const TMDB_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TMDB_REQUEST_TIMEOUT_MS = 10000;
 const ALLOWED_TMDB_API_HOSTS = ["api.themoviedb.org"];
 const tmdbHttpClient = axios.create({
-  baseURL: buildAllowlistedHttpUrl(TMDB_API_BASE, ALLOWED_TMDB_API_HOSTS),
+  baseURL: buildAllowlistedHttpUrl(TMDB_API_ORIGIN, ALLOWED_TMDB_API_HOSTS),
   timeout: TMDB_REQUEST_TIMEOUT_MS,
 });
 

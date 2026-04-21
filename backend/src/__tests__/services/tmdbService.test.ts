@@ -13,9 +13,14 @@ import * as settingsService from "../../services/storageService/settings";
 
 const axiosMocks = vi.hoisted(() => {
   const get = vi.fn();
+  let lastCreateConfig: unknown;
   return {
     get,
-    create: vi.fn(() => ({ get })),
+    create: vi.fn((config: unknown) => {
+      lastCreateConfig = config;
+      return { get };
+    }),
+    getLastCreateConfig: () => lastCreateConfig,
   };
 });
 
@@ -157,6 +162,14 @@ describe("tmdbService", () => {
 
       expect(parsed.titles[0]).toBe("IMG 0999");
       expect(parsed.year).toBeUndefined();
+    });
+  });
+
+  describe("TMDB client", () => {
+    it("should use the API origin as baseURL so v3 endpoint paths are not duplicated", () => {
+      expect(axiosMocks.getLastCreateConfig()).toMatchObject({
+        baseURL: "https://api.themoviedb.org/",
+      });
     });
   });
 

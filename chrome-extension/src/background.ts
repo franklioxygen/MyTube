@@ -361,9 +361,9 @@ async function fetchDownloadStatus(): Promise<void> {
     return;
   }
 
-  const endpoints = buildAllowedServerEndpoints(serverUrl);
-
   try {
+    const endpoints = buildAllowedServerEndpoints(serverUrl);
+
     if (endpoints.allowedUrls.has(endpoints.downloadStatus)) {
       const response = await fetch(endpoints.downloadStatus, {
         method: 'GET',
