@@ -1,5 +1,4 @@
 import axios from "axios";
-import fs from "fs-extra";
 import path from "path";
 import { AVATARS_DIR, IMAGES_DIR, VIDEOS_DIR } from "../../config/paths";
 import { DownloadCancelledError } from "../../errors/DownloadErrors";
@@ -63,6 +62,7 @@ export abstract class BaseDownloader implements IDownloader {
   ): Promise<boolean> {
     try {
       const validatedThumbnailUrl = validateUrl(thumbnailUrl);
+      const parsedThumbnailUrl = new URL(validatedThumbnailUrl);
       const safeSavePath = resolveSafePathInDirectories(savePath, [
         VIDEOS_DIR,
         IMAGES_DIR,
@@ -80,13 +80,17 @@ export abstract class BaseDownloader implements IDownloader {
         AVATARS_DIR,
       ]);
 
-      const response = await axios({
-        method: "GET",
-        url: validatedThumbnailUrl,
-        responseType: "stream",
+      const thumbnailHttpClient = axios.create({
+        baseURL: parsedThumbnailUrl.origin,
         timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
-        ...axiosConfig,
       });
+      const response = await thumbnailHttpClient.get(
+        `${parsedThumbnailUrl.pathname}${parsedThumbnailUrl.search}`,
+        {
+          responseType: "stream",
+          ...axiosConfig,
+        },
+      );
 
       const writer = createWriteStreamSafe(safeSavePath, [
         VIDEOS_DIR,

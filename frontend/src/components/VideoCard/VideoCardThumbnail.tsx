@@ -74,21 +74,19 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                         zIndex: 1 // Ensure video is above thumbnail when playing
                     }}
                     onLoadedMetadata={(e) => {
-                        const videoNode = e.target as HTMLVideoElement;
                         const duration = parseDuration(video.duration);
                         if (duration > 5) {
-                            videoNode.currentTime = Math.max(0, (duration / 2) - 2.5);
+                            e.currentTarget.currentTime = Math.max(0, (duration / 2) - 2.5);
                         }
                     }}
                     onTimeUpdate={(e) => {
-                        const videoNode = e.target as HTMLVideoElement;
                         const duration = parseDuration(video.duration);
                         const startTime = Math.max(0, (duration / 2) - 2.5);
                         const endTime = startTime + 5;
 
-                        if (videoNode.currentTime >= endTime) {
-                            videoNode.currentTime = startTime;
-                            void videoNode.play();
+                        if (e.currentTarget.currentTime >= endTime) {
+                            e.currentTarget.currentTime = startTime;
+                            void e.currentTarget.play();
                         }
                     }}
                 />
@@ -142,13 +140,12 @@ const VideoCardThumbnailView: React.FC<VideoCardThumbnailProps> = ({
                     // If error, we can still show the placeholder or the fallback image
                     // For now, let's treat error as loaded so we see the fallback/alt text if any
                     setIsImageLoaded(true);
-                    const imageNode = e.target as HTMLImageElement;
-                    imageNode.onerror = null;
-                    imageNode.srcset = '';
-                    imageNode.sizes = '';
-                    imageNode.removeAttribute('srcset');
-                    imageNode.removeAttribute('sizes');
-                    imageNode.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.srcset = '';
+                    e.currentTarget.sizes = '';
+                    e.currentTarget.removeAttribute('srcset');
+                    e.currentTarget.removeAttribute('sizes');
+                    e.currentTarget.src = 'https://via.placeholder.com/480x360?text=No+Thumbnail';
                 }}
             />
 

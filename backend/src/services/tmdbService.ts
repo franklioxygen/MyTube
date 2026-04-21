@@ -20,6 +20,10 @@ const TMDB_SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
 const TMDB_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TMDB_REQUEST_TIMEOUT_MS = 10000;
 const ALLOWED_TMDB_API_HOSTS = ["api.themoviedb.org"];
+const tmdbHttpClient = axios.create({
+  baseURL: buildAllowlistedHttpUrl(TMDB_API_BASE, ALLOWED_TMDB_API_HOSTS),
+  timeout: TMDB_REQUEST_TIMEOUT_MS,
+});
 
 // Whitelist of allowed hosts for image downloads to prevent SSRF
 const ALLOWED_IMAGE_HOSTS = ["image.tmdb.org"];
@@ -184,11 +188,21 @@ function isLikelyTMDBReadAccessToken(credential: string): boolean {
   );
 }
 
-function buildTMDBApiUrl(endpointPath: string): string {
-  return buildAllowlistedHttpUrl(
+function validateTMDBNumericId(id: number): string {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error(`Invalid TMDB id: ${id}`);
+  }
+
+  return id.toString();
+}
+
+function buildTMDBEndpointPath(endpointPath: string): string {
+  const validatedUrl = buildAllowlistedHttpUrl(
     `${TMDB_API_BASE}${endpointPath}`,
     ALLOWED_TMDB_API_HOSTS,
   );
+  const parsedUrl = new URL(validatedUrl);
+  return `${parsedUrl.pathname}${parsedUrl.search}`;
 }
 
 function normalizeTMDBCredential(credential: string): string {
@@ -267,8 +281,8 @@ export async function testTMDBCredential(
   const authType = getTMDBCredentialAuthType(normalizedCredential);
 
   try {
-    await axios.get(
-      buildTMDBApiUrl("/configuration"),
+    await tmdbHttpClient.get(
+      buildTMDBEndpointPath("/configuration"),
       buildTMDBRequestConfig(normalizedCredential)
     );
 
@@ -653,10 +667,12 @@ function extractTrailingReleaseGroupMatch(
     return null;
   }
 
-  for (let index = 0; index < candidateChain.length; index += 1) {
-    if (!isReleaseGroupSeparator(candidateChain[index])) {
-      continue;
-    }
+  const separatorMatches = Array.from(candidateChain.matchAll(/[._-]/g));
+  separatorMatches.reverse();
+
+  for (const separatorMatch of separatorMatches) {
+    const index = separatorMatch.index;
+    if (index === undefined) continue;
 
     const group = candidateChain.slice(index + 1);
     if (group.length === 0) {
@@ -1103,7 +1119,7 @@ async function searchMovie(
       params.year = year.toString();
     }
 
-    const response = await axios.get(buildTMDBApiUrl("/search/movie"), {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/movie"), {
       ...buildTMDBRequestConfig(credential, params),
     });
 
@@ -1160,14 +1176,15 @@ async function getMovieDetails(
   language: string
 ): Promise<{ movie: TMDBMovieResult; director?: string } | null> {
   try {
+    const safeMovieId = validateTMDBNumericId(movieId);
     // Fetch both movie details and credits in parallel
     const [movieResponse, creditsResponse] = await Promise.all([
-      axios.get(buildTMDBApiUrl(`/movie/${movieId}`), {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/movie/${safeMovieId}`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
       }),
-      axios.get(buildTMDBApiUrl(`/movie/${movieId}/credits`), {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/movie/${safeMovieId}/credits`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
@@ -1208,7 +1225,7 @@ async function searchTVShow(
 ): Promise<TMDBTVResult | null> {
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
-    const response = await axios.get(buildTMDBApiUrl("/search/tv"), {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/tv"), {
       ...buildTMDBRequestConfig(credential, {
         query: title,
         language: tmdbLanguage,
@@ -1251,14 +1268,15 @@ async function getTVShowDetails(
   language: string
 ): Promise<{ tv: TMDBTVResult; director?: string } | null> {
   try {
+    const safeTvId = validateTMDBNumericId(tvId);
     // Fetch both TV show details and credits in parallel
     const [tvResponse, creditsResponse] = await Promise.all([
-      axios.get(buildTMDBApiUrl(`/tv/${tvId}`), {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/tv/${safeTvId}`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
       }),
-      axios.get(buildTMDBApiUrl(`/tv/${tvId}/credits`), {
+      tmdbHttpClient.get(buildTMDBEndpointPath(`/tv/${safeTvId}/credits`), {
         ...buildTMDBRequestConfig(credential, {
           language,
         }),
@@ -1569,7 +1587,7 @@ async function searchTMDBSingle(
   try {
     const tmdbLanguage = mapLanguageToTMDB(language);
     const params = buildMultiSearchParams(title, tmdbLanguage, year);
-    const response = await axios.get(buildTMDBApiUrl("/search/multi"), {
+    const response = await tmdbHttpClient.get(buildTMDBEndpointPath("/search/multi"), {
       ...buildTMDBRequestConfig(credential, params),
     });
 

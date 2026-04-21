@@ -8,15 +8,19 @@ const mocks = vi.hoisted(() => ({
   isPathWithinDirectories: vi.fn(
     (_filePath: string, _allowedDirs: string[]) => false,
   ),
-  axios: vi.fn(),
+  axiosGet: vi.fn(),
+  axiosCreate: vi.fn(),
   ensureDirSync: vi.fn(),
   createWriteStream: vi.fn(),
   pipe: vi.fn(),
 }));
 
 vi.mock("../../../utils/security", () => ({
+  validateUrl: (url: string) => url,
   resolveSafePathInDirectories: (filePath: string, allowedDirs: string[]) =>
     mocks.resolveSafePathInDirectories(filePath, allowedDirs),
+  ensureDirSafeSync: (...args: any[]) => mocks.ensureDirSync(...args),
+  createWriteStreamSafe: (...args: any[]) => mocks.createWriteStream(...args),
   isPathWithinDirectories: (filePath: string, allowedDirs: string[]) =>
     mocks.isPathWithinDirectories(filePath, allowedDirs),
 }));
@@ -32,7 +36,9 @@ vi.mock("../../../config/paths", async (importOriginal) => {
 });
 
 vi.mock("axios", () => ({
-  default: (...args: any[]) => mocks.axios(...args),
+  default: {
+    create: (...args: any[]) => mocks.axiosCreate(...args),
+  },
 }));
 
 vi.mock("fs-extra", () => ({
@@ -89,7 +95,10 @@ describe("BaseDownloader", () => {
     };
 
     mocks.createWriteStream.mockReturnValue(writer);
-    mocks.axios.mockResolvedValue({
+    mocks.axiosCreate.mockReturnValue({
+      get: mocks.axiosGet,
+    });
+    mocks.axiosGet.mockResolvedValue({
       data: {
         pipe: mocks.pipe,
       },

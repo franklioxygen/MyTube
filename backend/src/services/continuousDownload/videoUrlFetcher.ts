@@ -347,10 +347,14 @@ export class VideoUrlFetcher {
             `Detected Bilibili ${collectionInfo.type} from video URL, using collection API`
           );
 
-          const videosResult =
-            collectionInfo.type === "collection"
-              ? await getCollectionVideos(collectionInfo.mid, collectionInfo.id)
-              : await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+          let videosResult;
+          if (collectionInfo.type === "collection") {
+            videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
+          } else if (collectionInfo.type === "series") {
+            videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+          } else {
+            throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
+          }
 
           if (!videosResult.success || videosResult.videos.length === 0) {
             throw new Error(`Failed to get videos from ${collectionInfo.type}`);
@@ -628,8 +632,10 @@ export class VideoUrlFetcher {
           let videosResult;
           if (collectionInfo.type === "collection") {
             videosResult = await getCollectionVideos(collectionInfo.mid, collectionInfo.id);
-          } else {
+          } else if (collectionInfo.type === "series") {
             videosResult = await getSeriesVideos(collectionInfo.mid, collectionInfo.id);
+          } else {
+            throw new Error(`Unsupported Bilibili type: ${collectionInfo.type}`);
           }
 
           if (videosResult.success && videosResult.videos.length > 0) {

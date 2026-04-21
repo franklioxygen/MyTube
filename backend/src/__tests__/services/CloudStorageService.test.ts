@@ -65,7 +65,7 @@ describe("CloudStorageService", () => {
     it("should return early if token is missing", async () => {
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "",
       });
 
@@ -82,7 +82,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -130,7 +130,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -174,7 +174,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -212,7 +212,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -259,7 +259,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -309,7 +309,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -343,7 +343,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -387,7 +387,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -429,7 +429,7 @@ describe("CloudStorageService", () => {
 
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -468,7 +468,7 @@ describe("CloudStorageService", () => {
     it("should coalesce multiple requests for the same file", async () => {
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });
@@ -517,7 +517,7 @@ describe("CloudStorageService", () => {
     it("should cache results", async () => {
       (storageService.getSettings as any).mockReturnValue({
         cloudDriveEnabled: true,
-        openListApiUrl: "https://api.example.com",
+        openListApiUrl: "https://api.example.com/api/fs/put",
         openListToken: "test-token",
         cloudDrivePath: "/uploads",
       });

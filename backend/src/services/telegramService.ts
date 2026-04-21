@@ -64,7 +64,8 @@ async function parseTelegramErrorBody(
 ): Promise<{ description?: string }> {
   try {
     return (await response.json()) as { description?: string };
-  } catch {
+  } catch (error) {
+    void error;
     return {};
   }
 }

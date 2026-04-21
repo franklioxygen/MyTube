@@ -112,8 +112,8 @@ const redirectCloudFile = async (
       return;
     }
 
-    res.setHeader("Location", redirectUrl);
-    res.status(302).end();
+    res.writeHead(302, { Location: redirectUrl });
+    res.end();
   } catch (error) {
     logger.error(
       `Error redirecting cloud ${fileType}:`,

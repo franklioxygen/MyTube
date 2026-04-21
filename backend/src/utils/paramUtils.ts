@@ -6,7 +6,12 @@
 import { ParsedQs } from "qs";
 
 // Type representing what Express req.query can be
-type ExpressQueryValue = string | ParsedQs | (string | ParsedQs)[] | undefined;
+type ExpressQueryValue =
+  | string
+  | ParsedQs
+  | (string | ParsedQs)[]
+  | null
+  | undefined;
 
 const TRUTHY_BOOLEAN_VALUES = new Set(["true", "1", "yes"]);
 
@@ -31,7 +36,7 @@ export function getStringParam(
   value: ExpressQueryValue,
   defaultValue?: string
 ): string | undefined {
-  if (value === undefined) {
+  if (value === undefined || value === null) {
     return defaultValue;
   }
   if (Array.isArray(value)) {

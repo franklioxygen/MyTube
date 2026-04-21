@@ -163,7 +163,7 @@ async function testConnection(
 
   try {
     if (normalizedApiKey) {
-      const response = await fetch(buildServerEndpoint(serverUrl, 'api/download'), {
+      const downloadRequest = new Request(buildServerEndpoint(serverUrl, 'api/download'), {
         method: 'POST',
         headers: withApiKeyHeader(
           {
@@ -173,6 +173,7 @@ async function testConnection(
         ),
         body: JSON.stringify({}),
       });
+      const response = await fetch(downloadRequest);
 
       if (response.ok || response.status === 400) {
         return { connected: true, message: 'Connection successful' };
@@ -190,12 +191,13 @@ async function testConnection(
       );
     }
 
-    const response = await fetch(buildServerEndpoint(serverUrl, 'api/settings'), {
+    const settingsRequest = new Request(buildServerEndpoint(serverUrl, 'api/settings'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
+    const response = await fetch(settingsRequest);
 
     if (!response.ok) {
       throw new Error(`Server responded with status ${response.status}`);
@@ -249,9 +251,10 @@ async function handleDownload(
       const checkUrl = buildServerEndpoint(finalServerUrl, 'api/check-video-download');
       const checkUrlWithQuery = new URL(checkUrl);
       checkUrlWithQuery.searchParams.set('url', videoUrl);
-      const checkResponse = await fetch(checkUrlWithQuery.toString(), {
+      const checkRequest = new Request(checkUrlWithQuery.toString(), {
         method: 'GET',
       });
+      const checkResponse = await fetch(checkRequest);
 
       if (checkResponse.ok) {
         const data = await checkResponse.json();
@@ -267,7 +270,7 @@ async function handleDownload(
   }
 
   try {
-    const response = await fetch(downloadUrl, {
+    const downloadRequest = new Request(downloadUrl, {
       method: 'POST',
       headers: withApiKeyHeader(
         {
@@ -279,6 +282,7 @@ async function handleDownload(
         youtubeUrl: videoUrl,
       }),
     });
+    const response = await fetch(downloadRequest);
 
     if (!response.ok) {
       throw new Error(
@@ -318,9 +322,10 @@ async function fetchDownloadStatus(): Promise<void> {
   const statusUrl = buildServerEndpoint(serverUrl, 'api/download-status');
 
   try {
-    const response = await fetch(statusUrl, {
+    const statusRequest = new Request(statusUrl, {
       method: 'GET',
     });
+    const response = await fetch(statusRequest);
 
     if (response.ok) {
       const data = await response.json();

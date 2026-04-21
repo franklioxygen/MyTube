@@ -15,7 +15,12 @@ import {
     isTwitchChannelUrl,
     normalizeTwitchChannelUrlOrNull,
 } from '../utils/twitch';
+const LEGACY_DOWNLOAD_STATUS_STORAGE_ID = 'mytube_download_status';
 const DOWNLOAD_STATUS_STORAGE_ID = 'mytube:download-status';
+const DOWNLOAD_STATUS_STORAGE_IDS = [
+    LEGACY_DOWNLOAD_STATUS_STORAGE_ID,
+    DOWNLOAD_STATUS_STORAGE_ID,
+];
 const DOWNLOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
 const ACTIVE_POLL_INTERVAL_MS = 2000;
 const IDLE_POLL_INTERVAL_MS = 10000;
@@ -71,24 +76,27 @@ export const useDownload = () => {
 
 // Helper function to get download status from localStorage
 const getStoredDownloadStatus = () => {
-    try {
-        const savedStatus = localStorage.getItem(DOWNLOAD_STATUS_STORAGE_ID);
-        if (!savedStatus) return null;
+    for (const storageId of DOWNLOAD_STATUS_STORAGE_IDS) {
+        try {
+            const savedStatus = localStorage.getItem(storageId);
+            if (!savedStatus) continue;
 
-        const parsedStatus = JSON.parse(savedStatus);
+            const parsedStatus = JSON.parse(savedStatus);
 
-        // Check if the saved status is too old (stale)
-        if (parsedStatus.timestamp && Date.now() - parsedStatus.timestamp > DOWNLOAD_TIMEOUT) {
-            localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
-            return null;
+            // Check if the saved status is too old (stale)
+            if (parsedStatus.timestamp && Date.now() - parsedStatus.timestamp > DOWNLOAD_TIMEOUT) {
+                localStorage.removeItem(storageId);
+                continue;
+            }
+
+            return parsedStatus;
+        } catch (error) {
+            console.error('Error parsing download status from localStorage:', error);
+            localStorage.removeItem(storageId);
         }
-
-        return parsedStatus;
-    } catch (error) {
-        console.error('Error parsing download status from localStorage:', error);
-        localStorage.removeItem(DOWNLOAD_STATUS_STORAGE_ID);
-        return null;
     }
+
+    return null;
 };
 
 const isBilibiliUrl = (url: string): boolean => {

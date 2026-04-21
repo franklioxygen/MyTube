@@ -20,7 +20,9 @@ vi.mock('../../db', () => ({
 }));
 vi.mock('../../utils/security', () => ({
     validateVideoPath: vi.fn((p) => p),
-    execFileSafe: vi.fn().mockResolvedValue({ stdout: '100.5' }) // Default duration
+    execFileSafe: vi.fn().mockResolvedValue({ stdout: '100.5' }), // Default duration
+    pathExistsSafeSync: vi.fn(() => true),
+    resolveSafeChildPath: vi.fn((base: string, child: string) => `${base}/${child}`)
 }));
 
 describe('metadataService', () => {
@@ -29,6 +31,10 @@ describe('metadataService', () => {
         (fs.existsSync as any).mockReturnValue(true);
         (security.validateVideoPath as any).mockImplementation((p: string) => p);
         (security.execFileSafe as any).mockResolvedValue({ stdout: '100.5' });
+        (security.pathExistsSafeSync as any).mockReturnValue(true);
+        (security.resolveSafeChildPath as any).mockImplementation(
+            (base: string, child: string) => `${base}/${child}`
+        );
         (db.all as any).mockResolvedValue([]);
     });
 
@@ -39,7 +45,7 @@ describe('metadataService', () => {
         });
 
         it('should return null if file missing', async () => {
-            (fs.existsSync as any).mockReturnValue(false);
+            (security.pathExistsSafeSync as any).mockReturnValue(false);
             await expect(metadataService.getVideoDuration('/missing.mp4'))
                 .rejects.toThrow();
         });
@@ -99,7 +105,7 @@ describe('metadataService', () => {
                 { id: '3', title: 'Missing File', videoPath: '/videos/missing.mp4', duration: null }
             ];
             (db.all as any).mockResolvedValue(mockVideos);
-            (fs.existsSync as any).mockImplementation((p: string) => !p.endsWith('/missing.mp4'));
+            (security.pathExistsSafeSync as any).mockImplementation((p: string) => !p.endsWith('/missing.mp4'));
 
             await metadataService.backfillDurations();
 

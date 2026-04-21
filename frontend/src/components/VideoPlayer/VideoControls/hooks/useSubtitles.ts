@@ -41,15 +41,9 @@ export const useSubtitles = ({
         setSubtitlesEnabled(initialSubtitlesEnabled);
         setSelectedSubtitleIndices(newIndices);
 
-        Array.from(tracks).forEach((track) => {
-            track.mode = 'hidden';
+        Array.from(tracks).forEach((track, trackIndex) => {
+            track.mode = newIndices.includes(trackIndex) ? 'showing' : 'hidden';
         });
-        if (newIndices.length > 0) {
-            const [firstTrack] = Array.from(tracks);
-            if (firstTrack) {
-                firstTrack.mode = 'showing';
-            }
-        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [subtitles]); // intentionally omit initialSubtitlesEnabled — see comment above
 
@@ -97,17 +91,10 @@ export const useSubtitles = ({
         const tracks = e.currentTarget.textTracks;
         const shouldShow = initialSubtitlesEnabled && subtitles.length > 0;
 
-        Array.from(tracks).forEach((track) => {
-            track.mode = 'hidden';
-        });
-
         const newIndices = shouldShow && tracks.length > 0 ? [0] : [];
-        if (newIndices.length > 0) {
-            const [firstTrack] = Array.from(tracks);
-            if (firstTrack) {
-                firstTrack.mode = 'showing';
-            }
-        }
+        Array.from(tracks).forEach((track, trackIndex) => {
+            track.mode = newIndices.includes(trackIndex) ? 'showing' : 'hidden';
+        });
         setSelectedSubtitleIndices(newIndices);
     };
 
