@@ -1,5 +1,6 @@
 import { ValidationError } from "../errors/DownloadErrors";
 import {
+  DEFAULT_ADMIN_PASSWORD,
   Settings,
   defaultSettings,
 } from "../types/settings";
@@ -266,6 +267,12 @@ export async function prepareSettingsForSave(
     hasField("loginEnabled")
       ? newSettings.loginEnabled === true
       : existingSettings.loginEnabled === true;
+  const shouldSeedDefaultAdminPassword =
+    loginEnabled &&
+    passwordLoginAllowed &&
+    !existingSettings.password &&
+    (!hasField("password") || !newSettings.password);
+
   if (hasField("password")) {
     if (newSettings.password) {
       // If password login is not allowed, reject password updates
@@ -274,12 +281,16 @@ export async function prepareSettingsForSave(
       } else {
         prepared.password = await hashPassword(newSettings.password);
       }
+    } else if (shouldSeedDefaultAdminPassword) {
+      prepared.password = await hashPassword(DEFAULT_ADMIN_PASSWORD);
     } else {
       // Empty password means "unchanged" for current UI flows.
       if (preserveUnsetFields) {
         prepared.password = existingSettings.password;
       }
     }
+  } else if (shouldSeedDefaultAdminPassword) {
+    prepared.password = await hashPassword(DEFAULT_ADMIN_PASSWORD);
   } else if (preserveUnsetFields) {
     prepared.password = existingSettings.password;
   }

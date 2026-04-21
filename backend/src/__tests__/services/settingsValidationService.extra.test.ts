@@ -111,7 +111,7 @@ describe("settingsValidationService extra coverage", () => {
     expect(hashPassword).not.toHaveBeenCalled();
   });
 
-  it("prepareSettingsForSave does not seed a default admin password when login is enabled without one", async () => {
+  it("prepareSettingsForSave seeds a default admin password when login is enabled without one", async () => {
     const existing = {
       loginEnabled: false,
       password: "",
@@ -131,8 +131,8 @@ describe("settingsValidationService extra coverage", () => {
       { preserveUnsetFields: false }
     );
 
-    expect(hashPassword).not.toHaveBeenCalled();
-    expect(prepared.password).toBeUndefined();
+    expect(hashPassword).toHaveBeenCalledWith("123");
+    expect(prepared.password).toBe("hash:123");
   });
 
   it("prepareSettingsForSave hashes visitor password and preserves it when empty", async () => {

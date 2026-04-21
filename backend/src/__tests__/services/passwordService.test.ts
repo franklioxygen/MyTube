@@ -123,7 +123,7 @@ describe("passwordService", () => {
       expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
     });
 
-    it("rejects the default password when admin password is missing", async () => {
+    it("logs in as admin with the default password when admin password is missing", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -131,11 +131,17 @@ describe("passwordService", () => {
       const result = await passwordService.verifyPassword("123");
 
       expect(result).toEqual({
-        success: false,
-        message: "Incorrect password",
+        success: true,
+        role: "admin",
+        token: "token-admin",
       });
-      expect(storageService.saveSettings).not.toHaveBeenCalled();
-      expect(logger.warn).not.toHaveBeenCalled();
+      expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Accepted default admin password fallback. Persisted bcrypt hash for password."
+      );
     });
 
     it("rejects non-default admin passwords when admin password is missing", async () => {
@@ -271,7 +277,7 @@ describe("passwordService", () => {
       });
     });
 
-    it("rejects the default password when no admin password is set", async () => {
+    it("logs in admin with the default password when no admin password is set", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
@@ -279,10 +285,14 @@ describe("passwordService", () => {
       const result = await passwordService.verifyAdminPassword("123");
 
       expect(result).toEqual({
-        success: false,
-        message: "Incorrect admin password",
+        success: true,
+        role: "admin",
+        token: "token-admin",
       });
-      expect(storageService.saveSettings).not.toHaveBeenCalled();
+      expect(generateToken).toHaveBeenCalledWith({ role: "admin" });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
+      });
     });
 
     it("rejects non-default passwords when no admin password is set", async () => {
@@ -311,18 +321,17 @@ describe("passwordService", () => {
   });
 
   describe("confirmAdminPassword", () => {
-    it("rejects the default password when no admin password is configured", async () => {
+    it("confirms the default password when no admin password is configured", async () => {
       vi.mocked(storageService.getSettings).mockReturnValue(
         buildSettings({ password: "" }) as any
       );
 
       const result = await passwordService.confirmAdminPassword("123");
 
-      expect(result).toEqual({
-        success: false,
-        message: "Incorrect admin password",
+      expect(result).toEqual({ success: true });
+      expect(storageService.saveSettings).toHaveBeenCalledWith({
+        password: "hashed-password",
       });
-      expect(storageService.saveSettings).not.toHaveBeenCalled();
     });
 
     it("rejects non-default passwords when no admin password is configured", async () => {

@@ -7,10 +7,10 @@ import { logger } from "../../utils/logger";
 import {
   pathExistsSafeSync,
   resolveSafeChildPath,
-  validateUrlWithAllowlist,
 } from "../../utils/security";
 
 const CLOUD_API_PUT_PATH = "/api/fs/put";
+const CLOUD_API_PROTOCOLS = new Set(["http:", "https:"]);
 
 /**
  * Resolve absolute path from relative path
@@ -119,28 +119,61 @@ export function normalizeUploadPath(uploadPath: string): string {
   return normalized.startsWith("/") ? normalized : `/${normalized}`;
 }
 
+function pathHasTraversal(pathname: string): boolean {
+  return pathname.split("/").some((segment) => {
+    if (!segment) {
+      return false;
+    }
+
+    try {
+      return decodeURIComponent(segment) === "..";
+    } catch {
+      return segment === "..";
+    }
+  });
+}
+
+function stripTrailingSlashes(pathname: string): string {
+  const stripped = pathname.replace(/\/+$/, "");
+  return stripped || "/";
+}
+
+function normalizeCloudApiPutPath(pathname: string): string {
+  const normalizedPath = stripTrailingSlashes(pathname);
+  if (normalizedPath.endsWith(CLOUD_API_PUT_PATH)) {
+    return normalizedPath;
+  }
+
+  const basePath = normalizedPath === "/" ? "" : normalizedPath;
+  return `${basePath}${CLOUD_API_PUT_PATH}`;
+}
+
 function parseValidatedCloudApiUrl(apiUrl: string): URL {
+  const trimmedApiUrl = typeof apiUrl === "string" ? apiUrl.trim() : "";
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(apiUrl);
+    parsedUrl = new URL(trimmedApiUrl);
   } catch {
     throw new Error(`Invalid cloud API URL: ${apiUrl}`);
+  }
+
+  if (!CLOUD_API_PROTOCOLS.has(parsedUrl.protocol)) {
+    throw new Error("Cloud API URL must use http or https");
   }
 
   if (parsedUrl.username || parsedUrl.password) {
     throw new Error("Cloud API URL must not contain credentials");
   }
 
-  const validatedUrl = validateUrlWithAllowlist(apiUrl, [parsedUrl.hostname]);
-  const validatedParsedUrl = new URL(validatedUrl);
-
-  if (!validatedParsedUrl.pathname.endsWith(CLOUD_API_PUT_PATH)) {
-    throw new Error(
-      `Cloud API URL must end with ${CLOUD_API_PUT_PATH}: ${apiUrl}`,
-    );
+  if (pathHasTraversal(parsedUrl.pathname)) {
+    throw new Error("Cloud API URL path must not contain traversal segments");
   }
 
-  return validatedParsedUrl;
+  parsedUrl.pathname = normalizeCloudApiPutPath(parsedUrl.pathname);
+  parsedUrl.search = "";
+  parsedUrl.hash = "";
+
+  return parsedUrl;
 }
 
 export function validateCloudApiUrl(apiUrl: string): string {
@@ -164,5 +197,5 @@ export function buildCloudApiEndpoint(
   endpointUrl.search = "";
   endpointUrl.hash = "";
 
-  return validateUrlWithAllowlist(endpointUrl.toString(), [parsedUrl.hostname]);
+  return endpointUrl.toString();
 }

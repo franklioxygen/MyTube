@@ -195,7 +195,6 @@ async function testConnection(
       if (endpoints.allowedUrls.has(endpoints.download)) {
         const response = await fetch(endpoints.download, {
           method: 'POST',
-          redirect: 'error',
           headers: withApiKeyHeader(
             {
               'Content-Type': 'application/json',
@@ -227,7 +226,6 @@ async function testConnection(
     if (endpoints.allowedUrls.has(endpoints.settings)) {
       const response = await fetch(endpoints.settings, {
         method: 'GET',
-        redirect: 'error',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -292,7 +290,6 @@ async function handleDownload(
       if (allowedCheckUrls.has(checkUrlWithQueryText)) {
         const checkResponse = await fetch(checkUrlWithQueryText, {
           method: 'GET',
-          redirect: 'error',
         });
 
         if (checkResponse.ok) {
@@ -315,7 +312,6 @@ async function handleDownload(
     if (endpoints.allowedUrls.has(endpoints.download)) {
       const response = await fetch(endpoints.download, {
         method: 'POST',
-        redirect: 'error',
         headers: withApiKeyHeader(
           {
             'Content-Type': 'application/json',
@@ -371,7 +367,6 @@ async function fetchDownloadStatus(): Promise<void> {
     if (endpoints.allowedUrls.has(endpoints.downloadStatus)) {
       const response = await fetch(endpoints.downloadStatus, {
         method: 'GET',
-        redirect: 'error',
       });
 
       if (response.ok) {
