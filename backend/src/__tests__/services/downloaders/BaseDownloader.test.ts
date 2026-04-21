@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
     (_filePath: string, _allowedDirs: string[]) => false,
   ),
   axiosGet: vi.fn(),
-  axiosCreate: vi.fn(),
   ensureDirSync: vi.fn(),
   createWriteStream: vi.fn(),
   pipe: vi.fn(),
@@ -37,7 +36,7 @@ vi.mock("../../../config/paths", async (importOriginal) => {
 
 vi.mock("axios", () => ({
   default: {
-    create: (...args: any[]) => mocks.axiosCreate(...args),
+    get: (...args: any[]) => mocks.axiosGet(...args),
   },
 }));
 
@@ -95,9 +94,6 @@ describe("BaseDownloader", () => {
     };
 
     mocks.createWriteStream.mockReturnValue(writer);
-    mocks.axiosCreate.mockReturnValue({
-      get: mocks.axiosGet,
-    });
     mocks.axiosGet.mockResolvedValue({
       data: {
         pipe: mocks.pipe,

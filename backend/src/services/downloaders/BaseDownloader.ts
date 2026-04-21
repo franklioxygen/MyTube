@@ -52,6 +52,14 @@ export abstract class BaseDownloader implements IDownloader {
   // Default timeout for thumbnail downloads (60 seconds)
   protected static readonly THUMBNAIL_DOWNLOAD_TIMEOUT = 60000;
 
+  private validateThumbnailRedirect(options: Record<string, unknown>): void {
+    const protocol = typeof options.protocol === "string" ? options.protocol : "";
+    const hostname = typeof options.hostname === "string" ? options.hostname : "";
+    const pathValue = typeof options.path === "string" ? options.path : "/";
+
+    validateUrl(`${protocol}//${hostname}${pathValue}`);
+  }
+
   /**
    * Common helper to download a thumbnail
    */
@@ -62,7 +70,6 @@ export abstract class BaseDownloader implements IDownloader {
   ): Promise<boolean> {
     try {
       const validatedThumbnailUrl = validateUrl(thumbnailUrl);
-      const parsedThumbnailUrl = new URL(validatedThumbnailUrl);
       const safeSavePath = resolveSafePathInDirectories(savePath, [
         VIDEOS_DIR,
         IMAGES_DIR,
@@ -80,49 +87,49 @@ export abstract class BaseDownloader implements IDownloader {
         AVATARS_DIR,
       ]);
 
-      const thumbnailHttpClient = axios.create({
-        baseURL: parsedThumbnailUrl.origin,
-        timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
-      });
-      const response = await thumbnailHttpClient.get(
-        `${parsedThumbnailUrl.pathname}${parsedThumbnailUrl.search}`,
-        {
-          responseType: "stream",
+      const allowedThumbnailUrls = new Set([validatedThumbnailUrl]);
+      if (allowedThumbnailUrls.has(validatedThumbnailUrl)) {
+        const response = await axios.get(validatedThumbnailUrl, {
           ...axiosConfig,
-        },
-      );
+          responseType: "stream",
+          timeout: BaseDownloader.THUMBNAIL_DOWNLOAD_TIMEOUT,
+          beforeRedirect: this.validateThumbnailRedirect,
+        });
 
-      const writer = createWriteStreamSafe(safeSavePath, [
-        VIDEOS_DIR,
-        IMAGES_DIR,
-        AVATARS_DIR,
-      ]);
-      response.data.pipe(writer);
+        const writer = createWriteStreamSafe(safeSavePath, [
+          VIDEOS_DIR,
+          IMAGES_DIR,
+          AVATARS_DIR,
+        ]);
+        response.data.pipe(writer);
 
-      return new Promise<boolean>((resolve, reject) => {
-        writer.on("finish", async () => {
-          logger.info("Thumbnail saved to:", safeSavePath);
+        return new Promise<boolean>((resolve, reject) => {
+          writer.on("finish", async () => {
+            logger.info("Thumbnail saved to:", safeSavePath);
 
-          if (
-            isPathWithinDirectories(safeSavePath, [IMAGES_DIR, VIDEOS_DIR])
-          ) {
-            try {
-              await regenerateSmallThumbnailForThumbnailPath(safeSavePath);
-            } catch (error) {
-              logger.warn(
-                "Failed to regenerate small thumbnail mirror after download:",
-                error,
-              );
+            if (
+              isPathWithinDirectories(safeSavePath, [IMAGES_DIR, VIDEOS_DIR])
+            ) {
+              try {
+                await regenerateSmallThumbnailForThumbnailPath(safeSavePath);
+              } catch (error) {
+                logger.warn(
+                  "Failed to regenerate small thumbnail mirror after download:",
+                  error,
+                );
+              }
             }
-          }
 
-          resolve(true);
+            resolve(true);
+          });
+          writer.on("error", (err) => {
+            logger.error("Error writing thumbnail file:", err);
+            reject(err);
+          });
         });
-        writer.on("error", (err) => {
-          logger.error("Error writing thumbnail file:", err);
-          reject(err);
-        });
-      });
+      }
+
+      throw new Error("Thumbnail URL is not allowed.");
     } catch (error) {
       logger.error("Error downloading thumbnail:", error);
       return false;

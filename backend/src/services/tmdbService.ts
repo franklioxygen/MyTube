@@ -672,7 +672,6 @@ function extractTrailingReleaseGroupMatch(
 
   for (const separatorMatch of separatorMatches) {
     const index = separatorMatch.index;
-    if (index === undefined) continue;
 
     const group = candidateChain.slice(index + 1);
     if (group.length === 0) {
