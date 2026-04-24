@@ -1,5 +1,5 @@
 /* tsqllint-disable */
-CREATE TABLE "rss_tokens" (
+CREATE TABLE IF NOT EXISTS "rss_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"label" text DEFAULT '' NOT NULL,
 	"role" text DEFAULT 'visitor' NOT NULL,
@@ -12,6 +12,6 @@ CREATE TABLE "rss_tokens" (
 	CONSTRAINT "rss_tokens_role_check" CHECK("role" IN ('admin', 'visitor'))
 );
 --> statement-breakpoint
-CREATE INDEX "idx_rss_tokens_active" ON "rss_tokens" ("is_active");
+CREATE INDEX IF NOT EXISTS "idx_rss_tokens_active" ON "rss_tokens" ("is_active");
 --> statement-breakpoint
-CREATE INDEX "idx_rss_tokens_created_at" ON "rss_tokens" ("created_at");
+CREATE INDEX IF NOT EXISTS "idx_rss_tokens_created_at" ON "rss_tokens" ("created_at");
