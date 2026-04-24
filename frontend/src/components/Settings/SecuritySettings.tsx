@@ -24,6 +24,33 @@ const generateApiKey = (): string => {
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 };
 
+const copyTextToClipboard = async (text: string): Promise<boolean> => {
+    const clipboardWriteText =
+        typeof navigator.clipboard?.writeText === 'function'
+            ? navigator.clipboard.writeText.bind(navigator.clipboard)
+            : null;
+
+    if (clipboardWriteText) {
+        await clipboardWriteText(text);
+        return true;
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        return document.execCommand('copy');
+    } finally {
+        document.body.removeChild(textArea);
+    }
+};
+
 const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange }) => {
     const { t } = useLanguage();
     const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -173,8 +200,13 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ settings, onChange 
         }
 
         try {
-            await navigator.clipboard.writeText(settings.apiKey);
-            showAlert(t('success'), t('apiKeyCopied') || 'API key copied to clipboard');
+            const copied = await copyTextToClipboard(settings.apiKey);
+            if (copied) {
+                showAlert(t('success'), t('apiKeyCopied') || 'API key copied to clipboard');
+                return;
+            }
+
+            showAlert(t('error'), t('apiKeyCopyFailed') || 'Failed to copy API key. Please copy it manually.');
         } catch (error) {
             console.error('Error copying API key:', error);
             showAlert(t('error'), t('apiKeyCopyFailed') || 'Failed to copy API key. Please copy it manually.');

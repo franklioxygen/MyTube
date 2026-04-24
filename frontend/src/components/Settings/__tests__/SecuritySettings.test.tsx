@@ -229,6 +229,31 @@ describe('SecuritySettings', () => {
         expect(await screen.findByText('apiKeyCopied')).toBeInTheDocument();
     });
 
+    it('falls back when clipboard API is unavailable', async () => {
+        const user = userEvent.setup();
+        const execCommandSpy = vi.fn().mockReturnValue(true);
+        Object.defineProperty(document, 'execCommand', {
+            configurable: true,
+            value: execCommandSpy,
+        });
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: undefined,
+        });
+
+        render(
+            <SecuritySettings
+                settings={{ ...defaultSettings, loginEnabled: true, apiKeyEnabled: true, apiKey: 'abc123' }}
+                onChange={mockOnChange}
+            />
+        );
+
+        await user.click(screen.getByRole('button', { name: 'copyApiKey' }));
+
+        expect(await screen.findByText('apiKeyCopied')).toBeInTheDocument();
+        expect(execCommandSpy).toHaveBeenCalledWith('copy');
+    });
+
     it('shows an error alert when copying the api key fails', async () => {
         const user = userEvent.setup();
         const copyError = new Error('copy failed');
