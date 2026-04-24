@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosRequestConfig } from "axios";
 import api, {
   apiClient,
+  ensureCsrfToken,
   getApiErrorMessage,
   getErrorMessage,
   getWaitTime,
@@ -146,6 +147,17 @@ describe("apiClient helpers", () => {
 });
 
 describe("api wrappers", () => {
+  it("fetches password status when CSRF refresh is requested", async () => {
+    const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as any);
+
+    await ensureCsrfToken({ refresh: true });
+
+    expect(getSpy).toHaveBeenCalledWith("/settings/password-enabled", {
+      timeout: 5000,
+    });
+    getSpy.mockRestore();
+  });
+
   it("forwards GET calls with and without config", async () => {
     const getSpy = vi.spyOn(apiClient, "get").mockResolvedValue({ data: {} } as any);
     const config: AxiosRequestConfig = { params: { q: "x" } };
@@ -216,7 +228,13 @@ describe("api wrappers", () => {
 });
 
 describe("api interceptors", () => {
-  it("passes through request config and rejects request errors", async () => {
+  it("attaches the latest CSRF token to request config and rejects request errors", async () => {
+    const responseHandlers = (apiClient.interceptors.response as any).handlers;
+    const onResponseFulfilled = responseHandlers?.[0]?.fulfilled as
+      | ((response: any) => any)
+      | undefined;
+    onResponseFulfilled!({ headers: { "x-csrf-token": "csrf-123" } });
+
     const handlers = (apiClient.interceptors.request as any).handlers;
     const onFulfilled = handlers?.[0]?.fulfilled as
       | ((config: AxiosRequestConfig) => AxiosRequestConfig)
@@ -230,6 +248,7 @@ describe("api interceptors", () => {
 
     const config = { url: "/videos" } as AxiosRequestConfig;
     expect(onFulfilled!(config)).toBe(config);
+    expect(config.headers).toEqual({ "X-CSRF-Token": "csrf-123" });
 
     const error = new Error("request failed");
     await expect(onRejected!(error)).rejects.toBe(error);

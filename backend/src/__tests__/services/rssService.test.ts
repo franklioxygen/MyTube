@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "../../db";
 import { ValidationError } from "../../errors/DownloadErrors";
 import {
+  buildRssFeedUrl,
   buildRssXml,
+  getBaseUrl,
   getVideosForRss,
   resetRssToken,
   validateAndNormalizeFilters,
@@ -74,6 +76,8 @@ function mockSelectForVideos(rows: any[] = []) {
 describe("rssService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.MYTUBE_PUBLIC_URL;
+    delete process.env.BASE_URL;
   });
 
   describe("validateAndNormalizeFilters", () => {
@@ -117,13 +121,24 @@ describe("rssService", () => {
   });
 
   describe("buildRssXml", () => {
+    it("builds the public feed URL under the API path", () => {
+      expect(buildRssFeedUrl("https://mytube.example", baseToken.id)).toBe(
+        `https://mytube.example/api/rss/feed/${baseToken.id}`
+      );
+    });
+
     it("escapes XML text, escapes description HTML, maps language, and emits thumbnail metadata", () => {
       const xml = buildRssXml([mockVideo()], baseToken, "https://mytube.example", {
         language: "zh",
       });
 
       expect(xml).toContain("<title>MyTube · A &amp; B</title>");
+      expect(xml).toContain("<description>MyTube 视频订阅：A &amp; B</description>");
       expect(xml).toContain("<language>zh-cn</language>");
+      expect(xml).toContain("<ttl>15</ttl>");
+      expect(xml).toContain(
+        `href="https://mytube.example/api/rss/feed/${baseToken.id}"`
+      );
       expect(xml).toContain("<title>Title &lt;tag&gt; &amp; more</title>");
       expect(xml).toContain("<dc:creator>Author &lt;script&gt;</dc:creator>");
       expect(xml).toContain("<category>alpha &amp; beta</category>");
@@ -131,6 +146,20 @@ describe("rssService", () => {
       expect(xml).toContain('type="image/webp"');
       expect(xml).toContain("Author &lt;script&gt;");
       expect(xml).not.toContain("<script>");
+    });
+
+    it("localizes RSS description labels for English feeds", () => {
+      const xml = buildRssXml([mockVideo()], baseToken, "https://mytube.example", {
+        language: "en",
+      });
+
+      expect(xml).toContain("<description>MyTube video feed: A &amp; B</description>");
+      expect(xml).toContain("<p>Author: Author &lt;script&gt;</p>");
+      expect(xml).toContain("<p>Source: youtube</p>");
+      expect(xml).toContain("<p>Duration: 01:23</p>");
+      expect(xml).not.toContain("作者：");
+      expect(xml).not.toContain("来源：");
+      expect(xml).not.toContain("时长：");
     });
 
     it("splits CDATA terminators so descriptions stay valid XML", () => {
@@ -147,6 +176,58 @@ describe("rssService", () => {
       expect(xml).not.toContain("<media:thumbnail");
       expect(xml).not.toContain("<media:content");
       expect(xml).not.toContain("<img ");
+    });
+  });
+
+  describe("getBaseUrl", () => {
+    const request = (
+      headers: Record<string, string | undefined> = {},
+      protocol = "http"
+    ) => ({
+      protocol,
+      get: (key: string) => headers[key.toLowerCase()],
+    });
+
+    it("uses the configured public URL when present", () => {
+      process.env.MYTUBE_PUBLIC_URL = "https://feeds.example/";
+
+      expect(getBaseUrl(request({ host: "internal:5551" }))).toBe(
+        "https://feeds.example"
+      );
+    });
+
+    it("uses forwarded proto before the local request protocol", () => {
+      expect(
+        getBaseUrl(
+          request({
+            host: "mytube.example",
+            "x-forwarded-proto": "https,http",
+          })
+        )
+      ).toBe("https://mytube.example");
+    });
+
+    it("uses the Cloudflare visitor scheme when forwarded proto is absent", () => {
+      expect(
+        getBaseUrl(
+          request({
+            host: "mytube.example",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+          })
+        )
+      ).toBe("https://mytube.example");
+    });
+
+    it("defaults public hosts to https when proxy headers are absent", () => {
+      expect(getBaseUrl(request({ host: "mytube.example" }, "http"))).toBe(
+        "https://mytube.example"
+      );
+    });
+
+    it("allows http for local hosts", () => {
+      expect(getBaseUrl(request({ host: "localhost:5551" }, "http"))).toBe(
+        "http://localhost:5551"
+      );
     });
   });
 

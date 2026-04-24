@@ -1153,7 +1153,7 @@ export const es = {
   // Errores del middleware de configuración basado en roles
   // RSS Feed Settings
   rssFeedSettings: "RSS Feeds",
-  rssFeedSettingsDescription: "Manage private RSS feed links for external readers.",
+  rssFeedSettingsDescription: "Manage private RSS feed links for external readers. RSS links must be accessed over HTTPS.",
   rssCreateToken: "Create RSS link",
   rssEditToken: "Edit RSS link",
   rssCopyLink: "Copy link",

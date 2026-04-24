@@ -68,12 +68,7 @@
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {
-        "rss_tokens_role_check": {
-          "name": "rss_tokens_role_check",
-          "value": "\"rss_tokens\".\"role\" IN ('admin', 'visitor')"
-        }
-      }
+      "checkConstraints": {}
     },
     "collections": {
       "name": "collections",
@@ -542,7 +537,12 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "rss_tokens_role_check": {
+          "name": "rss_tokens_role_check",
+          "value": "\"rss_tokens\".\"role\" IN ('admin', 'visitor')"
+        }
+      }
     },
     "settings": {
       "name": "settings",

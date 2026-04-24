@@ -23,8 +23,10 @@ const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 };
 
-const isApiOrCloudPath = (requestPath: string): boolean =>
-  requestPath.startsWith("/api") || requestPath.startsWith("/cloud");
+const isReservedBackendPath = (requestPath: string): boolean =>
+  requestPath.startsWith("/api") ||
+  requestPath.startsWith("/cloud") ||
+  requestPath.startsWith("/feed");
 
 const isSingleSegmentRootFileRequest = (requestPath: string): boolean => {
   const segments = requestPath.split("/").filter(Boolean);
@@ -211,7 +213,7 @@ export const registerSpaFallback = (
   const safeFrontendDist = normalizeSafeAbsolutePath(frontendDist);
 
   app.get("*", (req, res) => {
-    if (isApiOrCloudPath(req.path)) {
+    if (isReservedBackendPath(req.path)) {
       res.status(404).json({ error: "Not Found" });
       return;
     }

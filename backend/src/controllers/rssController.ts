@@ -14,7 +14,7 @@ function getLanguage(): string | undefined {
 }
 
 function buildFeedUrl(req: Request, tokenId: string): string {
-  return `${rssService.getBaseUrl(req)}/feed/${tokenId}`;
+  return rssService.buildRssFeedUrl(rssService.getBaseUrl(req), tokenId);
 }
 
 function formatToken(token: rssService.RssToken, req: Request) {

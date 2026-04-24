@@ -1068,7 +1068,7 @@ export const zh = {
 
   // RSS 订阅设置
   rssFeedSettings: "RSS 订阅",
-  rssFeedSettingsDescription: "管理供外部阅读器使用的私密 RSS 订阅链接。",
+  rssFeedSettingsDescription: "管理供外部阅读器使用的私密 RSS 订阅链接。RSS 链接必须通过 HTTPS 访问。",
   rssCreateToken: "创建 RSS 链接",
   rssEditToken: "编辑 RSS 链接",
   rssCopyLink: "复制链接",

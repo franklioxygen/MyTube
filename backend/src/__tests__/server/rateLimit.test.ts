@@ -86,8 +86,9 @@ describe("configureRateLimiting", () => {
     middleware({ path: "/api/check-playlist" }, {}, next);
     middleware({ path: "/api/settings/password-enabled" }, {}, next);
     middleware({ path: "/feed/token" }, {}, next);
+    middleware({ path: "/api/rss/feed/token" }, {}, next);
 
-    expect(next).toHaveBeenCalledTimes(5);
+    expect(next).toHaveBeenCalledTimes(6);
     expect(generalLimiter).not.toHaveBeenCalled();
   });
 

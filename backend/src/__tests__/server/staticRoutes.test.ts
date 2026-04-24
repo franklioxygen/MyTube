@@ -264,6 +264,17 @@ describe("server/staticRoutes", () => {
     expect(cloudRes.status).toHaveBeenCalledWith(404);
     expect(cloudRes.json).toHaveBeenCalledWith({ error: "Not Found" });
 
+    const feedRes = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      json: vi.fn(),
+      sendFile: vi.fn(),
+    };
+    handler({ path: "/feed/not-a-real-token" } as any, feedRes);
+    expect(feedRes.status).toHaveBeenCalledWith(404);
+    expect(feedRes.json).toHaveBeenCalledWith({ error: "Not Found" });
+    expect(feedRes.sendFile).not.toHaveBeenCalled();
+
     const faviconRes = {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),

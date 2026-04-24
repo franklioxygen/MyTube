@@ -4,6 +4,7 @@ import { db } from "../db";
 import { rssTokens, videos } from "../db/schema";
 import { ValidationError } from "../errors/DownloadErrors";
 import { logger } from "../utils/logger";
+import { getRssTextLabels } from "./rssLocales";
 
 export interface RssFilters {
   authors?: string[];
@@ -40,8 +41,10 @@ export interface UpdateTokenInput {
 
 const VALID_ROLES = ["admin", "visitor"] as const;
 const VALID_SOURCES = ["youtube", "bilibili", "twitch", "local", "missav", "cloud"] as const;
+export const RSS_FEED_PATH_PREFIX = "/api/rss/feed";
 const MAX_FILTER_ARRAY_ITEMS = 100;
 const MAX_DAY_RANGE = 3650;
+const RSS_TTL_MINUTES = 15;
 const IMAGE_MIME_TYPES = new Map([
   ["jpg", "image/jpeg"],
   ["jpeg", "image/jpeg"],
@@ -432,6 +435,10 @@ function buildAbsoluteUrl(baseUrl: string, webPath: string): string {
   return `${baseUrl}${webPath.startsWith("/") ? webPath : `/${webPath}`}`;
 }
 
+export function buildRssFeedUrl(baseUrl: string, tokenId: string): string {
+  return `${baseUrl}${RSS_FEED_PATH_PREFIX}/${tokenId}`;
+}
+
 function buildThumbnailUrl(
   video: typeof videos.$inferSelect,
   baseUrl: string
@@ -476,8 +483,9 @@ export function buildRssXml(
   baseUrl: string,
   options?: { language?: string }
 ): string {
-  const feedUrl = `${baseUrl}/feed/${token.id}`;
+  const feedUrl = buildRssFeedUrl(baseUrl, token.id);
   const language = mapLanguage(options?.language);
+  const textLabels = getRssTextLabels(language);
   const now = new Date();
 
   const lastBuildDateSource =
@@ -486,7 +494,11 @@ export function buildRssXml(
       : token.updatedAt;
   const lastBuildDate = formatRssDate(lastBuildDateSource, now);
 
-  const labelEscaped = escapeXmlText(token.label || "My Feed");
+  const label = token.label || "My Feed";
+  const labelEscaped = escapeXmlText(label);
+  const channelDescriptionEscaped = escapeXmlText(
+    `${textLabels.channelDescriptionPrefix}${label}`
+  );
   const feedUrlEscaped = escapeXmlText(feedUrl);
   const baseUrlEscaped = escapeXmlText(baseUrl);
 
@@ -520,9 +532,21 @@ export function buildRssXml(
     if (thumbnailUrl) {
       descParts.push(`<img src="${escapeHtml(thumbnailUrl)}" alt="${escapeHtml(video.title)}"/>`);
     }
-    if (video.author) descParts.push(`<p>作者：${escapeHtml(video.author)}</p>`);
-    if (video.source) descParts.push(`<p>来源：${escapeHtml(video.source)}</p>`);
-    if (video.duration) descParts.push(`<p>时长：${escapeHtml(video.duration)}</p>`);
+    if (video.author) {
+      descParts.push(
+        `<p>${escapeHtml(textLabels.author)}${textLabels.separator}${escapeHtml(video.author)}</p>`
+      );
+    }
+    if (video.source) {
+      descParts.push(
+        `<p>${escapeHtml(textLabels.source)}${textLabels.separator}${escapeHtml(video.source)}</p>`
+      );
+    }
+    if (video.duration) {
+      descParts.push(
+        `<p>${escapeHtml(textLabels.duration)}${textLabels.separator}${escapeHtml(video.duration)}</p>`
+      );
+    }
     // eslint-disable-next-line xss/no-mixed-html -- all dynamic fields in descParts are HTML-escaped before join.
     const descHtml = descParts.join("\n    ");
     // eslint-disable-next-line xss/no-mixed-html -- sanitized description HTML is isolated inside RSS CDATA.
@@ -563,10 +587,10 @@ ${mediaContent}
   <channel>
     <title>MyTube · ${labelEscaped}</title>
     <link>${baseUrlEscaped}</link>
-    <description>MyTube 视频订阅：${labelEscaped}</description>
+    <description>${channelDescriptionEscaped}</description>
     <language>${escapeXmlText(language)}</language>
     <lastBuildDate>${lastBuildDate}</lastBuildDate>
-    <ttl>5</ttl>
+    <ttl>${RSS_TTL_MINUTES}</ttl>
     <atom:link href="${feedUrlEscaped}" rel="self" type="application/rss+xml"/>
 ${items.join("\n")}
   </channel>
@@ -589,9 +613,73 @@ export function buildErrorRssXml(opts: {
 </rss>`;
 }
 
-export function getBaseUrl(req: { protocol: string; get: (key: string) => string | undefined }): string {
+type BaseUrlRequest = {
+  protocol: string;
+  get: (key: string) => string | undefined;
+};
+
+function getHostName(host: string | undefined): string {
+  if (!host) {
+    return "";
+  }
+
+  if (host.startsWith("[")) {
+    return host.slice(1, host.indexOf("]")).toLowerCase();
+  }
+
+  return host.split(":")[0]?.toLowerCase() ?? "";
+}
+
+function isLocalHost(host: string | undefined): boolean {
+  const hostname = getHostName(host);
+  return (
+    hostname === "localhost" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::1" ||
+    hostname.startsWith("127.") ||
+    hostname.endsWith(".localhost")
+  );
+}
+
+function normalizeProxyProtocol(value: string | undefined): string | null {
+  const protocol = value?.split(",")[0]?.trim().toLowerCase();
+  return protocol === "http" || protocol === "https" ? protocol : null;
+}
+
+function getCloudflareVisitorScheme(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as { scheme?: unknown };
+    return typeof parsed.scheme === "string"
+      ? normalizeProxyProtocol(parsed.scheme)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function getRequestProtocol(req: BaseUrlRequest): string {
+  const proxyProtocol =
+    normalizeProxyProtocol(req.get("x-forwarded-proto")) ??
+    getCloudflareVisitorScheme(req.get("cf-visitor"));
+
+  if (proxyProtocol) {
+    return proxyProtocol;
+  }
+
+  if (req.protocol === "http" && !isLocalHost(req.get("host"))) {
+    return "https";
+  }
+
+  return req.protocol;
+}
+
+export function getBaseUrl(req: BaseUrlRequest): string {
   const configured = process.env.MYTUBE_PUBLIC_URL || process.env.BASE_URL;
-  const raw = configured || `${req.protocol}://${req.get("host")}`;
+  const raw = configured || `${getRequestProtocol(req)}://${req.get("host")}`;
   return raw.replace(/\/+$/, "");
 }
 

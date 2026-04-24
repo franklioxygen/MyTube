@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerApiRoutes } from "../../server/apiRoutes";
+import { registerApiRoutes, registerFeedRoute } from "../../server/apiRoutes";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import { roleBasedAuthMiddleware } from "../../middleware/roleBasedAuthMiddleware";
 import { roleBasedSettingsMiddleware } from "../../middleware/roleBasedSettingsMiddleware";
@@ -55,6 +55,11 @@ describe("registerApiRoutes", () => {
       authLimiters.feedLimiter,
       expect.any(Function)
     );
+    expect(app.get).toHaveBeenCalledWith(
+      "/api/rss/feed/:token",
+      authLimiters.feedLimiter,
+      expect.any(Function)
+    );
 
     expect(app.post).toHaveBeenCalledWith(
       "/api/settings/verify-password",
@@ -105,7 +110,44 @@ describe("registerApiRoutes", () => {
     );
 
     expect(app.post).toHaveBeenCalledTimes(8);
-    expect(app.get).toHaveBeenCalledTimes(1);
+    expect(app.get).toHaveBeenCalledTimes(2);
     expect(app.use).toHaveBeenCalledTimes(4);
+  });
+
+  it("can skip feed registration when it is registered before static routes", () => {
+    const app = { get: vi.fn(), use: vi.fn(), post: vi.fn() } as any;
+    const authLimiters = {
+      adminPasswordLimiter: vi.fn(),
+      visitorPasswordLimiter: vi.fn(),
+      adminReauthLimiter: vi.fn(),
+      passkeyAuthLimiter: vi.fn(),
+      passkeyRegistrationLimiter: vi.fn(),
+      feedLimiter: vi.fn(),
+    };
+
+    registerApiRoutes(app, authLimiters as any, { includeFeedRoute: false });
+
+    expect(app.get).not.toHaveBeenCalled();
+    expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.use).toHaveBeenCalledTimes(4);
+  });
+
+  it("registers the public feed route independently", () => {
+    const app = { get: vi.fn() } as any;
+    const authLimiters = { feedLimiter: vi.fn() };
+
+    registerFeedRoute(app, authLimiters as any);
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/feed/:token",
+      authLimiters.feedLimiter,
+      expect.any(Function)
+    );
+    expect(app.get).toHaveBeenCalledWith(
+      "/api/rss/feed/:token",
+      authLimiters.feedLimiter,
+      expect.any(Function)
+    );
+    expect(app.get).toHaveBeenCalledTimes(2);
   });
 });
