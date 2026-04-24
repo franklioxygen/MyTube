@@ -1,3 +1,4 @@
+/* tsqllint-disable */
 CREATE TABLE "rss_tokens" (
 	"id" text PRIMARY KEY NOT NULL,
 	"label" text DEFAULT '' NOT NULL,

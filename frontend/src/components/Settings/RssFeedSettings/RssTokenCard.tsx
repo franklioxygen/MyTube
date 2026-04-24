@@ -28,11 +28,8 @@ interface RssTokenCardProps {
 
 const copyToClipboard = async (text: string): Promise<boolean> => {
     try {
-        const clipboard = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
-        if (clipboard && typeof clipboard.writeText === 'function') {
-            await clipboard.writeText(text);
-            return true;
-        }
+        await navigator.clipboard.writeText(text);
+        return true;
     } catch {
         // fall through
     }
