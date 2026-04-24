@@ -16,6 +16,7 @@ mytube/
 │   │   │   ├── hookController.ts
 │   │   │   ├── passkeyController.ts
 │   │   │   ├── passwordController.ts
+│   │   │   ├── rssController.ts
 │   │   │   ├── scanController.ts
 │   │   │   ├── settingsController.ts
 │   │   │   ├── subscriptionController.ts
@@ -34,6 +35,7 @@ mytube/
 │   │   │   ├── downloaders/           # 提供商下载实现
 │   │   │   │   ├── bilibili/
 │   │   │   │   └── ytdlp/
+│   │   │   ├── rssService.ts          # RSS token 管理和 XML feed 生成
 │   │   │   ├── storageService/        # 文件/数据库存储模块
 │   │   │   └── *.ts                   # 认证、订阅、元数据等其他服务
 │   │   ├── types/                     # 共享 TS 类型声明
@@ -101,7 +103,7 @@ mytube/
 
 1. **Routes** (`backend/src/routes/`): 定义端点并映射到控制器。
 2. **Controllers** (`backend/src/controllers/`): 验证请求输入并构造 HTTP 响应。
-3. **Services** (`backend/src/services/`): 核心业务逻辑，用于下载、订阅、云同步、存储、认证和元数据处理。
+3. **Services** (`backend/src/services/`): 核心业务逻辑，用于下载、订阅、RSS 输出、云同步、存储、认证和元数据处理。
 4. **Storage Layer**:
    - **Database** (`backend/src/db/`, `backend/drizzle/`) over Drizzle + SQLite.
    - **Filesystem** (`backend/uploads/`, `backend/data/`) 用于媒体和运行时状态。
@@ -128,5 +130,6 @@ mytube/
 - `downloads`: 活动/排队下载状态。
 - `download_history`: 历史下载记录。
 - `subscriptions`: 频道/播放列表订阅定义。
+- `rss_tokens`: 私密 RSS 订阅链接、过滤条件、状态和访问统计。
 - `video_downloads`: 源代码级去重跟踪。
 - `continuous_download_tasks`: 长期运行的后台下载任务记录。

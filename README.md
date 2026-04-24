@@ -1,6 +1,6 @@
 # MyTube
 
-Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). Features channel subscriptions, auto-downloads, and local storage for media. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
+Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt-dlp sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). Features channel subscriptions, auto-downloads, local media storage, and private RSS feed links for external readers. Organize your library into collections with a sleek UI. Includes built-in Cloudflare Tunnel support for secure remote access without port forwarding. Docker-ready deployment.
 
 🚀 100% Prompt-Engineered. 0 Lines of Manual Code.
 
@@ -34,6 +34,7 @@ Self-hosted downloader and player for YouTube, Bilibili, Twitch, MissAV, and [yt
 - **Auto Subtitles**: Automatically download YouTube / Bilibili default language subtitles.
 - **Collections**: Organize videos into custom collections for easy access.
 - **Subscriptions**: Manage YouTube, Bilibili and Twitch channel subscriptions to automatically download new content.
+- **RSS Feeds**: Create private RSS links for external feed readers with per-link filters for channels, authors, tags, sources, recent videos, and item limits.
 - **Login Protection**: Secure your application with password login and optional passkeys (WebAuthn).
 - **Visitor User**: Enable a read-only role for safe sharing without modification capabilities.
 - **Internationalization**: Support for multiple languages including English, Chinese, Spanish, French, German, Japanese, Korean, Arabic, Portuguese, and Russian.
@@ -136,6 +137,7 @@ Key database tables:
 - `videos`: Video metadata and file paths
 - `collections`: Video collections/playlists
 - `subscriptions`: Channel/creator subscriptions
+- `rss_tokens`: Private RSS feed links, filters, access status, and access counters
 - `downloads`: Active download queue
 - `download_history`: Completed download history
 - `video_downloads`: Tracks downloaded videos to prevent duplicates

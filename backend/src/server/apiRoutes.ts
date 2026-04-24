@@ -1,7 +1,9 @@
 import { Express } from "express";
+import { asyncHandler } from "../middleware/errorHandler";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { roleBasedAuthMiddleware } from "../middleware/roleBasedAuthMiddleware";
 import { roleBasedSettingsMiddleware } from "../middleware/roleBasedSettingsMiddleware";
+import { serveFeed } from "../controllers/rssController";
 import apiRoutes, { apiKeyRoutes } from "../routes/api";
 import settingsRoutes from "../routes/settingsRoutes";
 import { AuthLimiters } from "./rateLimit";
@@ -10,6 +12,9 @@ export const registerApiRoutes = (
   app: Express,
   authLimiters: AuthLimiters
 ): void => {
+  // RSS Feed: public endpoint, token is the credential, no session/auth required
+  app.get("/feed/:token", authLimiters.feedLimiter, asyncHandler(serveFeed));
+
   app.post(
     "/api/settings/verify-password",
     authLimiters.adminPasswordLimiter

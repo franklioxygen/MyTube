@@ -125,6 +125,23 @@ All API routes are mounted under `/api` unless noted otherwise.
 - `DELETE /api/subscriptions/tasks/:id/delete` - Delete task record
 - `DELETE /api/subscriptions/tasks/clear-finished` - Clear finished tasks
 
+## RSS Feeds
+
+- RSS management endpoints require an admin session. API key authentication is rejected for these endpoints.
+- Management responses return `Cache-Control: no-store` because token IDs and `feedUrl` values are bearer secrets.
+- `GET /api/rss/tokens` - List RSS feed tokens
+  - Response includes `feedUrl` for each token
+- `POST /api/rss/tokens` - Create an RSS feed token
+  - Body: `{ label: string, role: "admin" | "visitor", filters?: RssFilters }`
+- `PUT /api/rss/tokens/:id` - Update token label, filters, or active state
+  - Body: `{ label?: string, filters?: RssFilters, isActive?: boolean }`
+- `DELETE /api/rss/tokens/:id` - Delete an RSS feed token
+- `POST /api/rss/tokens/:id/reset` - Rotate the feed URL while preserving label, role, filters, and active state
+- `RssFilters`: `{ authors?: string[], channelUrls?: string[], tags?: string[], sources?: string[], dayRange?: number, maxItems?: number }`
+  - Supported `sources`: `youtube`, `bilibili`, `twitch`, `local`, `missav`, `cloud`
+  - Empty or missing `sources` means all sources, including future or unknown source values
+  - `maxItems` accepts `1` through `200`; the settings UI exposes a friendlier `10` through `200` slider
+
 ## Settings
 
 - `GET /api/settings` - Get app settings (password hashes are excluded)
@@ -225,6 +242,9 @@ All API routes are mounted under `/api` unless noted otherwise.
 
 ## Non-API Routes (Not Under `/api`)
 
+- `GET /feed/:token` - Public RSS 2.0 feed endpoint; the path token is the bearer credential
+  - No session cookie or API key is required
+  - Invalid or disabled tokens return RSS XML with a 404 status
 - `GET /cloud/videos/:filename` - Redirect to signed cloud video URL
 - `GET /cloud/images/:filename` - Serve cached cloud image or redirect to signed image URL
 - `GET /videos/*` - Static local videos

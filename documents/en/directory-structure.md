@@ -16,6 +16,7 @@ mytube/
 │   │   │   ├── hookController.ts
 │   │   │   ├── passkeyController.ts
 │   │   │   ├── passwordController.ts
+│   │   │   ├── rssController.ts
 │   │   │   ├── scanController.ts
 │   │   │   ├── settingsController.ts
 │   │   │   ├── subscriptionController.ts
@@ -34,6 +35,7 @@ mytube/
 │   │   │   ├── downloaders/           # Provider download implementations
 │   │   │   │   ├── bilibili/
 │   │   │   │   └── ytdlp/
+│   │   │   ├── rssService.ts          # RSS token management and XML feed generation
 │   │   │   ├── storageService/        # File/DB storage modules
 │   │   │   └── *.ts                   # Auth, subscription, metadata, etc.
 │   │   ├── types/                     # Shared TS type declarations
@@ -101,7 +103,7 @@ The backend uses a layered design:
 
 1. **Routes** (`backend/src/routes/`): Define endpoints and map to controllers.
 2. **Controllers** (`backend/src/controllers/`): Validate request input and shape HTTP responses.
-3. **Services** (`backend/src/services/`): Core business logic for downloading, subscriptions, cloud sync, storage, auth, and metadata.
+3. **Services** (`backend/src/services/`): Core business logic for downloading, subscriptions, RSS feeds, cloud sync, storage, auth, and metadata.
 4. **Storage Layer**:
    - **Database** (`backend/src/db/`, `backend/drizzle/`) via Drizzle + SQLite.
    - **Filesystem** (`backend/uploads/`, `backend/data/`) for media and runtime state.
@@ -128,5 +130,6 @@ Defined in `backend/src/db/schema.ts`:
 - `downloads`: Active/queued download status.
 - `download_history`: Historical download records.
 - `subscriptions`: Author/playlist subscription definitions.
+- `rss_tokens`: Private RSS feed links, filters, status, and access counters.
 - `video_downloads`: Source-level de-duplication tracking.
 - `continuous_download_tasks`: Long-running background download task records.

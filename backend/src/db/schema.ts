@@ -1,5 +1,6 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
+    check,
     foreignKey,
     integer,
     primaryKey,
@@ -173,6 +174,24 @@ export const videoDownloads = sqliteTable(
       "video_downloads_source_video_id_platform_uidx"
     ).on(table.sourceVideoId, table.platform),
   })
+);
+
+export const rssTokens = sqliteTable(
+  "rss_tokens",
+  {
+    id:             text("id").primaryKey(),
+    label:          text("label").notNull().default(""),
+    role:           text("role").notNull().default("visitor"),
+    filters:        text("filters").notNull().default("{}"),
+    isActive:       integer("is_active").notNull().default(1),
+    accessCount:    integer("access_count").notNull().default(0),
+    lastAccessedAt: integer("last_accessed_at"),
+    createdAt:      integer("created_at").notNull(),
+    updatedAt:      integer("updated_at").notNull(),
+  },
+  (table) => [
+    check("rss_tokens_role_check", sql`${table.role} IN ('admin', 'visitor')`),
+  ]
 );
 
 // Track continuous download tasks for downloading all previous videos from an author

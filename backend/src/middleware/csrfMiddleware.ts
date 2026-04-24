@@ -27,6 +27,20 @@ type CsrfTokenOptions = {
   overwrite?: boolean;
 };
 
+const RSS_MANAGEMENT_PATH = "/api/rss/tokens";
+
+const isRssManagementRequest = (req: Request): boolean => {
+  const requestPaths = [req.path, req.originalUrl?.split("?")[0]].filter(
+    (path): path is string => typeof path === "string" && path.length > 0
+  );
+
+  return requestPaths.some(
+    (requestPath) =>
+      requestPath === RSS_MANAGEMENT_PATH ||
+      requestPath.startsWith(`${RSS_MANAGEMENT_PATH}/`)
+  );
+};
+
 const setCsrfTokenHeader = (
   req: Request,
   res: Response,
@@ -94,7 +108,12 @@ export const csrfProtection = (
   next: NextFunction,
 ): void => {
   // API key requests are not cookie-based — CSRF does not apply.
-  if (req.headers["x-api-key"] || req.headers.authorization?.startsWith("ApiKey ")) {
+  // RSS token management explicitly rejects API keys and must never let an API-key
+  // header bypass the CSRF requirement for cookie/session admin requests.
+  if (
+    !isRssManagementRequest(req) &&
+    (req.headers["x-api-key"] || req.headers.authorization?.startsWith("ApiKey "))
+  ) {
     next();
     return;
   }

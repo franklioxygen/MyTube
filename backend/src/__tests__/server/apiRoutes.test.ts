@@ -28,22 +28,33 @@ vi.mock("../../routes/settingsRoutes", () => ({
   default: { __router: "settings" },
 }));
 
+vi.mock("../../controllers/rssController", () => ({
+  serveFeed: vi.fn(),
+}));
+
 describe("registerApiRoutes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("registers limiter-protected auth endpoints and API middlewares", () => {
-    const app = { use: vi.fn(), post: vi.fn() } as any;
+    const app = { get: vi.fn(), use: vi.fn(), post: vi.fn() } as any;
     const authLimiters = {
       adminPasswordLimiter: vi.fn(),
       visitorPasswordLimiter: vi.fn(),
       adminReauthLimiter: vi.fn(),
       passkeyAuthLimiter: vi.fn(),
       passkeyRegistrationLimiter: vi.fn(),
+      feedLimiter: vi.fn(),
     };
 
     registerApiRoutes(app, authLimiters as any);
+
+    expect(app.get).toHaveBeenCalledWith(
+      "/feed/:token",
+      authLimiters.feedLimiter,
+      expect.any(Function)
+    );
 
     expect(app.post).toHaveBeenCalledWith(
       "/api/settings/verify-password",
@@ -94,6 +105,7 @@ describe("registerApiRoutes", () => {
     );
 
     expect(app.post).toHaveBeenCalledTimes(8);
+    expect(app.get).toHaveBeenCalledTimes(1);
     expect(app.use).toHaveBeenCalledTimes(4);
   });
 });

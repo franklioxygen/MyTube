@@ -1,5 +1,6 @@
 import { Express, Request, RequestHandler, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { buildErrorRssXml, getBaseUrl, setRssNoStoreHeaders } from "../services/rssService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
 
@@ -9,6 +10,7 @@ export interface AuthLimiters {
   adminReauthLimiter: RequestHandler;
   passkeyAuthLimiter: RequestHandler;
   passkeyRegistrationLimiter: RequestHandler;
+  feedLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -62,6 +64,30 @@ function sendRateLimitResponse(
   });
 }
 
+const createFeedLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getClientIp(req),
+    validate: { trustProxy: false },
+    handler: (req, res) => {
+      const baseUrl = getBaseUrl(req);
+      setRssNoStoreHeaders(res);
+      res
+        .status(429)
+        .type("application/rss+xml; charset=utf-8")
+        .send(
+          buildErrorRssXml({
+            title: "Rate limit exceeded",
+            link: baseUrl,
+            description: "Too many feed requests. Please retry later.",
+          })
+        );
+    },
+  });
+
 const createGeneralLimiter = (): RequestHandler => {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -102,10 +128,12 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     adminReauthLimiter: createScopedAuthLimiter("admin-reauth"),
     passkeyAuthLimiter: createScopedAuthLimiter("passkey-auth"),
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
+    feedLimiter: createFeedLimiter(),
   };
 
   app.use((req, res, next) => {
     const shouldBypassLimiter =
+      req.path.startsWith("/feed/") ||
       req.path.startsWith("/videos/") ||
       req.path.startsWith("/api/mount-video/") ||
       req.path.startsWith("/images/") ||

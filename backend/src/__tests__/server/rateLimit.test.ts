@@ -29,9 +29,16 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
+vi.mock("../../services/rssService", () => ({
+  buildErrorRssXml: vi.fn(() => "<rss><channel><title>Rate limit exceeded</title></channel></rss>"),
+  getBaseUrl: vi.fn(() => "https://mytube.example"),
+  setRssNoStoreHeaders: vi.fn(),
+}));
+
 import { configureRateLimiting } from "../../server/rateLimit";
 import { getClientIp } from "../../utils/security";
 import { logger } from "../../utils/logger";
+import { buildErrorRssXml, getBaseUrl, setRssNoStoreHeaders } from "../../services/rssService";
 
 describe("configureRateLimiting", () => {
   beforeEach(() => {
@@ -44,12 +51,13 @@ describe("configureRateLimiting", () => {
 
     const authLimiters = configureRateLimiting(app);
 
-    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(6);
+    expect(mocked.rateLimitFactory).toHaveBeenCalledTimes(7);
     expect(mocked.createdLimiters[1]).toBe(authLimiters.adminPasswordLimiter);
     expect(mocked.createdLimiters[2]).toBe(authLimiters.visitorPasswordLimiter);
     expect(mocked.createdLimiters[3]).toBe(authLimiters.adminReauthLimiter);
     expect(mocked.createdLimiters[4]).toBe(authLimiters.passkeyAuthLimiter);
     expect(mocked.createdLimiters[5]).toBe(authLimiters.passkeyRegistrationLimiter);
+    expect(mocked.createdLimiters[6]).toBe(authLimiters.feedLimiter);
     expect(app.use).toHaveBeenCalledTimes(1);
 
     const generalOptions = (mocked.createdLimiters[0] as any).__options;
@@ -77,8 +85,9 @@ describe("configureRateLimiting", () => {
     middleware({ path: "/api/download" }, {}, next);
     middleware({ path: "/api/check-playlist" }, {}, next);
     middleware({ path: "/api/settings/password-enabled" }, {}, next);
+    middleware({ path: "/feed/token" }, {}, next);
 
-    expect(next).toHaveBeenCalledTimes(4);
+    expect(next).toHaveBeenCalledTimes(5);
     expect(generalLimiter).not.toHaveBeenCalled();
   });
 
@@ -132,5 +141,36 @@ describe("configureRateLimiting", () => {
         statusCode: 429,
       })
     );
+  });
+
+  it("returns RSS XML from the feed-specific rate limit handler", () => {
+    const app = { use: vi.fn() } as any;
+    const authLimiters = configureRateLimiting(app);
+    const feedOptions = (authLimiters.feedLimiter as any).__options;
+    const send = vi.fn();
+    const type = vi.fn(() => ({ send }));
+    const status = vi.fn(() => ({ type }));
+    const res = {
+      set: vi.fn(),
+      status,
+    } as any;
+    const req = {
+      protocol: "https",
+      get: vi.fn(() => "mytube.example"),
+      path: "/feed/token",
+    } as any;
+
+    feedOptions.handler(req, res);
+
+    expect(getBaseUrl).toHaveBeenCalledWith(req);
+    expect(setRssNoStoreHeaders).toHaveBeenCalledWith(res);
+    expect(buildErrorRssXml).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Rate limit exceeded",
+      })
+    );
+    expect(status).toHaveBeenCalledWith(429);
+    expect(type).toHaveBeenCalledWith("application/rss+xml; charset=utf-8");
+    expect(send).toHaveBeenCalledWith(expect.stringContaining("<rss>"));
   });
 });
