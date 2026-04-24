@@ -10,22 +10,22 @@ import ru from "./ru";
 import zh from "./zh";
 import type { RssTextLabels } from "./types";
 
-const RSS_TEXT_LABELS: Record<string, RssTextLabels> = {
-  ar,
-  de,
-  en,
-  es,
-  fr,
-  ja,
-  ko,
-  pt,
-  ru,
-  zh,
-};
+const RSS_TEXT_LABELS = new Map<string, RssTextLabels>([
+  ["ar", ar],
+  ["de", de],
+  ["en", en],
+  ["es", es],
+  ["fr", fr],
+  ["ja", ja],
+  ["ko", ko],
+  ["pt", pt],
+  ["ru", ru],
+  ["zh", zh],
+]);
 
 export function getRssTextLabels(language: string): RssTextLabels {
   const baseLanguage = language.toLowerCase().split("-")[0] ?? "en";
-  return RSS_TEXT_LABELS[baseLanguage] ?? en;
+  return RSS_TEXT_LABELS.get(baseLanguage) ?? en;
 }
 
 export type { RssTextLabels };

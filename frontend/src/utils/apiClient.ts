@@ -45,7 +45,6 @@ if (apiClient?.interceptors?.request?.use) {
     (config) => {
       // Attach CSRF token to state-changing requests
       if (csrfToken) {
-        config.headers = config.headers ?? {};
         config.headers["X-CSRF-Token"] = csrfToken;
       }
       return config;

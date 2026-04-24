@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi } from "vitest";
 import { AxiosError, AxiosRequestConfig } from "axios";
 import api, {
@@ -246,7 +245,7 @@ describe("api interceptors", () => {
     expect(onFulfilled).toBeTypeOf("function");
     expect(onRejected).toBeTypeOf("function");
 
-    const config = { url: "/videos" } as AxiosRequestConfig;
+    const config = { url: "/videos", headers: {} } as AxiosRequestConfig;
     expect(onFulfilled!(config)).toBe(config);
     expect(config.headers).toEqual({ "X-CSRF-Token": "csrf-123" });
 
