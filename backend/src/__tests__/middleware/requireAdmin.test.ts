@@ -20,7 +20,7 @@ describe("requireAdmin", () => {
     vi.mocked(isLoginRequired).mockReturnValue(true);
     json = vi.fn();
     status = vi.fn().mockReturnValue({ json });
-    req = {};
+    req = { headers: {} };
     res = { status, json };
     next = vi.fn();
   });

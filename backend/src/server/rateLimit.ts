@@ -64,6 +64,10 @@ function sendRateLimitResponse(
   });
 }
 
+function sendFeedRateLimitResponse(res: Response, xml: string): void {
+  res.status(429).type("application/rss+xml; charset=utf-8").send(xml);
+}
+
 const createFeedLimiter = (): RequestHandler =>
   rateLimit({
     windowMs: 60_000,
@@ -75,16 +79,14 @@ const createFeedLimiter = (): RequestHandler =>
     handler: (req, res) => {
       const baseUrl = getBaseUrl(req);
       setRssNoStoreHeaders(res);
-      res
-        .status(429)
-        .type("application/rss+xml; charset=utf-8")
-        .send(
-          buildErrorRssXml({
-            title: "Rate limit exceeded",
-            link: baseUrl,
-            description: "Too many feed requests. Please retry later.",
-          })
-        );
+      sendFeedRateLimitResponse(
+        res,
+        buildErrorRssXml({
+          title: "Rate limit exceeded",
+          link: baseUrl,
+          description: "Too many feed requests. Please retry later.",
+        })
+      );
     },
   });
 

@@ -85,7 +85,9 @@ const RssTokenList: React.FC = () => {
         return [...seen].sort();
     }, [videos]);
 
-    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['rss-tokens'] });
+    const invalidate = () => {
+        void queryClient.invalidateQueries({ queryKey: ['rss-tokens'] });
+    };
 
     const createMutation = useMutation({
         mutationFn: (input: CreateTokenInput) => rssApi.createToken(input),
@@ -98,17 +100,23 @@ const RssTokenList: React.FC = () => {
     const updateMutation = useMutation({
         mutationFn: ({ id, patch }: { id: string; patch: UpdateTokenInput }) =>
             rssApi.updateToken(id, patch),
-        onSuccess: () => invalidate(),
+        onSuccess: () => {
+            invalidate();
+        },
     });
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => rssApi.deleteToken(id),
-        onSuccess: () => invalidate(),
+        onSuccess: () => {
+            invalidate();
+        },
     });
 
     const resetMutation = useMutation({
         mutationFn: (id: string) => rssApi.resetToken(id),
-        onSuccess: () => invalidate(),
+        onSuccess: () => {
+            invalidate();
+        },
     });
 
     if (isLoading) {
@@ -131,7 +139,9 @@ const RssTokenList: React.FC = () => {
                 <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
-                    onClick={() => setShowCreateDialog(true)}
+                    onClick={() => {
+                        setShowCreateDialog(true);
+                    }}
                 >
                     {t('rssCreateToken')}
                 </Button>
@@ -150,9 +160,15 @@ const RssTokenList: React.FC = () => {
                     channelOptions={channelOptions}
                     authorOptions={authorOptions}
                     tagOptions={tagOptions}
-                    onUpdate={(id, patch) => updateMutation.mutate({ id, patch })}
-                    onDelete={(id) => deleteMutation.mutate(id)}
-                    onReset={(id) => resetMutation.mutate(id)}
+                    onUpdate={(id, patch) => {
+                        updateMutation.mutate({ id, patch });
+                    }}
+                    onDelete={(id) => {
+                        deleteMutation.mutate(id);
+                    }}
+                    onReset={(id) => {
+                        resetMutation.mutate(id);
+                    }}
                     isUpdating={updateMutation.isPending}
                 />
             ))}
@@ -163,8 +179,12 @@ const RssTokenList: React.FC = () => {
                 channelOptions={channelOptions}
                 authorOptions={authorOptions}
                 tagOptions={tagOptions}
-                onClose={() => setShowCreateDialog(false)}
-                onCreate={(input) => createMutation.mutate(input)}
+                onClose={() => {
+                    setShowCreateDialog(false);
+                }}
+                onCreate={(input) => {
+                    createMutation.mutate(input);
+                }}
                 isLoading={createMutation.isPending}
             />
         </Box>

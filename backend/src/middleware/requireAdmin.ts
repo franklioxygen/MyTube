@@ -2,8 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { isLoginRequired } from "../services/passwordService";
 
 const hasApiKeyCredential = (req: Request): boolean =>
-  Boolean(req.headers?.["x-api-key"]) ||
-  req.headers?.authorization?.startsWith("ApiKey ") === true;
+  Boolean(req.headers["x-api-key"]) ||
+  req.headers.authorization?.startsWith("ApiKey ") === true;
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (req.apiKeyAuthenticated === true || hasApiKeyCredential(req)) {

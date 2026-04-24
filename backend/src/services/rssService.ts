@@ -42,6 +42,13 @@ const VALID_ROLES = ["admin", "visitor"] as const;
 const VALID_SOURCES = ["youtube", "bilibili", "twitch", "local", "missav", "cloud"] as const;
 const MAX_FILTER_ARRAY_ITEMS = 100;
 const MAX_DAY_RANGE = 3650;
+const IMAGE_MIME_TYPES = new Map([
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["png", "image/png"],
+  ["webp", "image/webp"],
+  ["gif", "image/gif"],
+]);
 
 export function redactRssToken(token: string): string {
   return token.length <= 12 ? "[redacted]" : `${token.slice(0, 8)}...${token.slice(-4)}`;
@@ -293,7 +300,7 @@ export async function resetRssToken(
   id: string
 ): Promise<{ oldId: string; token: RssToken } | null> {
   // Use SQLite transaction for atomic reset
-  const result = (db as any).transaction(() => {
+  const result = db.transaction(() => {
     const old = db.select().from(rssTokens).where(eq(rssTokens.id, id)).get();
     if (!old) return null;
 
@@ -318,7 +325,7 @@ export async function resetRssToken(
     if (!newRow) return null;
 
     return { oldId: id, token: rowToToken(newRow) };
-  })();
+  });
 
   return result ?? null;
 }
@@ -452,14 +459,7 @@ function buildThumbnailUrl(
 function inferThumbnailMimeType(url: string): string | null {
   const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
   if (!ext) return null;
-  const map: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    gif: "image/gif",
-  };
-  return map[ext] ?? null;
+  return IMAGE_MIME_TYPES.get(ext) ?? null;
 }
 
 function mapLanguage(lang?: string): string {
@@ -523,7 +523,10 @@ export function buildRssXml(
     if (video.author) descParts.push(`<p>作者：${escapeHtml(video.author)}</p>`);
     if (video.source) descParts.push(`<p>来源：${escapeHtml(video.source)}</p>`);
     if (video.duration) descParts.push(`<p>时长：${escapeHtml(video.duration)}</p>`);
+    // eslint-disable-next-line xss/no-mixed-html -- all dynamic fields in descParts are HTML-escaped before join.
     const descHtml = descParts.join("\n    ");
+    // eslint-disable-next-line xss/no-mixed-html -- sanitized description HTML is isolated inside RSS CDATA.
+    const descriptionCdata = wrapCdata(`\n    ${descHtml}\n  `);
 
     const categoryTags = parsedTags
       .map((tag) => `    <category>${escapeXmlText(tag)}</category>`)
@@ -546,7 +549,7 @@ export function buildRssXml(
     <link>${escapeXmlText(videoLink)}</link>
     <guid isPermaLink="false">${escapeXmlText(video.id)}</guid>
     <pubDate>${pubDate}</pubDate>
-    <description>${wrapCdata(`\n    ${descHtml}\n  `)}</description>${video.author ? `\n    <dc:creator>${escapeXmlText(video.author)}</dc:creator>` : ""}
+    <description>${descriptionCdata}</description>${video.author ? `\n    <dc:creator>${escapeXmlText(video.author)}</dc:creator>` : ""}
 ${categoryTags}
 ${mediaThumbnail}
 ${mediaContent}

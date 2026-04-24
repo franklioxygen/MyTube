@@ -186,7 +186,7 @@ describe("rssService", () => {
         updatedAt: 1700000000000,
       };
 
-      vi.mocked(db.transaction).mockImplementation(((fn: () => unknown) => () => fn()) as any);
+      vi.mocked(db.transaction).mockImplementation(((fn: () => unknown) => fn()) as any);
       vi.mocked(db.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({

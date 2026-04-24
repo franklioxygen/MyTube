@@ -31,6 +31,14 @@ function formatToken(token: rssService.RssToken, req: Request) {
   };
 }
 
+function sendRssXmlResponse(
+  res: Response,
+  status: number,
+  xml: string
+): void {
+  res.status(status).type("application/rss+xml; charset=utf-8").send(xml);
+}
+
 export async function listTokens(req: Request, res: Response): Promise<void> {
   const tokens = await rssService.listRssTokens();
   res.json({ tokens: tokens.map((t) => formatToken(t, req)) });
@@ -112,10 +120,11 @@ export async function serveFeed(req: Request, res: Response): Promise<void> {
 
   const sendError = (status: number, title: string, description: string) => {
     rssService.setRssNoStoreHeaders(res);
-    res
-      .status(status)
-      .type("application/rss+xml; charset=utf-8")
-      .send(rssService.buildErrorRssXml({ title, link: baseUrl, description }));
+    sendRssXmlResponse(
+      res,
+      status,
+      rssService.buildErrorRssXml({ title, link: baseUrl, description })
+    );
   };
 
   if (!tokenId || typeof tokenId !== "string" || tokenId.length < 10) {
@@ -142,5 +151,5 @@ export async function serveFeed(req: Request, res: Response): Promise<void> {
   });
 
   rssService.setRssNoStoreHeaders(res);
-  res.type("application/rss+xml; charset=utf-8").send(xml);
+  sendRssXmlResponse(res, 200, xml);
 }

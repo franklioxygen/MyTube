@@ -11,6 +11,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { CreateTokenInput, RssFilters, RssToken, UpdateTokenInput } from '../../../utils/rssApi';
@@ -77,6 +78,14 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
         }
     };
 
+    const handleLabelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setLabel(event.target.value);
+    };
+
+    const handleRoleChange = (event: SelectChangeEvent<'admin' | 'visitor'>) => {
+        setRole(event.target.value as 'admin' | 'visitor');
+    };
+
     const title = mode === 'create' ? t('rssCreateToken') : t('rssEditToken');
 
     return (
@@ -84,11 +93,10 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
             <DialogTitle>{title}</DialogTitle>
             <DialogContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                    {/* Label */}
                     <TextField
                         label={t('rssLabel')}
                         value={label}
-                        onChange={(e) => setLabel(e.target.value)}
+                        onChange={handleLabelChange}
                         size="small"
                         fullWidth
                         placeholder={t('rssLabelPlaceholder')}
@@ -103,7 +111,7 @@ const RssTokenDialog: React.FC<RssTokenDialogProps> = ({
                             <Select
                                 size="small"
                                 value={role}
-                                onChange={(e) => setRole(e.target.value as 'admin' | 'visitor')}
+                                onChange={handleRoleChange}
                                 fullWidth
                             >
                                 <MenuItem value="visitor">visitor</MenuItem>

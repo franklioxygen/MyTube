@@ -28,8 +28,9 @@ interface RssTokenCardProps {
 
 const copyToClipboard = async (text: string): Promise<boolean> => {
     try {
-        if (typeof navigator.clipboard?.writeText === 'function') {
-            await navigator.clipboard.writeText(text);
+        const clipboard = (navigator as Navigator & { clipboard?: Clipboard }).clipboard;
+        if (clipboard && typeof clipboard.writeText === 'function') {
+            await clipboard.writeText(text);
             return true;
         }
     } catch {
@@ -148,21 +149,27 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
                 <Button
                     startIcon={<ContentCopyIcon />}
-                    onClick={handleCopy}
+                    onClick={() => {
+                        void handleCopy();
+                    }}
                     variant="outlined"
                 >
                     {t('rssCopyLink')}
                 </Button>
                 <Button
                     startIcon={<EditIcon />}
-                    onClick={() => setShowEditDialog(true)}
+                    onClick={() => {
+                        setShowEditDialog(true);
+                    }}
                     variant="outlined"
                 >
                     {t('rssEditAction')}
                 </Button>
                 <Button
                     startIcon={<RefreshIcon />}
-                    onClick={() => setShowResetConfirm(true)}
+                    onClick={() => {
+                        setShowResetConfirm(true);
+                    }}
                     variant="outlined"
                     color="warning"
                 >
@@ -178,7 +185,9 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                 </Button>
                 <Button
                     startIcon={<DeleteIcon />}
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => {
+                        setShowDeleteConfirm(true);
+                    }}
                     variant="outlined"
                     color="error"
                 >
@@ -194,7 +203,9 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                 channelOptions={channelOptions}
                 authorOptions={authorOptions}
                 tagOptions={tagOptions}
-                onClose={() => setShowEditDialog(false)}
+                onClose={() => {
+                    setShowEditDialog(false);
+                }}
                 onUpdate={(id, patch) => {
                     onUpdate(id, patch);
                     setShowEditDialog(false);
@@ -213,7 +224,9 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                     setShowDeleteConfirm(false);
                     onDelete(token.id);
                 }}
-                onClose={() => setShowDeleteConfirm(false)}
+                onClose={() => {
+                    setShowDeleteConfirm(false);
+                }}
                 isDanger
             />
 
@@ -228,7 +241,9 @@ const RssTokenCard: React.FC<RssTokenCardProps> = ({
                     setShowResetConfirm(false);
                     onReset(token.id);
                 }}
-                onClose={() => setShowResetConfirm(false)}
+                onClose={() => {
+                    setShowResetConfirm(false);
+                }}
                 isDanger
             />
         </Box>

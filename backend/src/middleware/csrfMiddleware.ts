@@ -30,11 +30,9 @@ type CsrfTokenOptions = {
 const RSS_MANAGEMENT_PATH = "/api/rss/tokens";
 
 const isRssManagementRequest = (req: Request): boolean => {
-  const requestPaths = [req.path, req.originalUrl?.split("?")[0]].filter(
-    (path): path is string => typeof path === "string" && path.length > 0
-  );
+  const originalPath = req.originalUrl.split("?")[0];
 
-  return requestPaths.some(
+  return [req.path, originalPath].some(
     (requestPath) =>
       requestPath === RSS_MANAGEMENT_PATH ||
       requestPath.startsWith(`${RSS_MANAGEMENT_PATH}/`)

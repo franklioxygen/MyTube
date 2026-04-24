@@ -10,6 +10,7 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import React from 'react';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { RssFilters } from '../../../utils/rssApi';
@@ -78,8 +79,8 @@ const RssFilterEditor: React.FC<RssFilterEditorProps> = ({
         onChange(omitSources(filters));
     };
 
-    const handleDayRangeChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-        const val = e.target.value as number | '';
+    const handleDayRangeChange = (event: SelectChangeEvent<number | ''>) => {
+        const val = event.target.value;
         onChange({ ...filters, dayRange: val === '' ? undefined : Number(val) });
     };
 
@@ -180,7 +181,9 @@ const RssFilterEditor: React.FC<RssFilterEditorProps> = ({
                                 <Checkbox
                                     size="small"
                                     checked={selectedSources.includes(source)}
-                                    onChange={() => handleSourceToggle(source)}
+                                    onChange={() => {
+                                        handleSourceToggle(source);
+                                    }}
                                 />
                             }
                             label={source}
@@ -197,7 +200,7 @@ const RssFilterEditor: React.FC<RssFilterEditorProps> = ({
                 <Select
                     size="small"
                     value={filters.dayRange ?? ''}
-                    onChange={handleDayRangeChange as any}
+                    onChange={handleDayRangeChange}
                     displayEmpty
                     sx={{ minWidth: 140 }}
                 >
