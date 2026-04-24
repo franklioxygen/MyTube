@@ -23,6 +23,17 @@ const setCommonImageHeaders = (res: Response): void => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 };
 
+const IMAGE_MIME_TYPES = new Map([
+  [".gif", "image/gif"],
+  [".jpeg", "image/jpeg"],
+  [".jpg", "image/jpeg"],
+  [".png", "image/png"],
+  [".webp", "image/webp"],
+]);
+
+const getImageMimeType = (filePath: string): string | null =>
+  IMAGE_MIME_TYPES.get(path.extname(filePath).toLowerCase()) ?? null;
+
 const isReservedBackendPath = (requestPath: string): boolean =>
   requestPath.startsWith("/api") ||
   requestPath.startsWith("/cloud") ||
@@ -112,7 +123,10 @@ export const registerStaticRoutes = (
         );
 
         const lowerPath = filePath.toLowerCase();
-        if (lowerPath.endsWith(".mp4")) {
+        const imageMimeType = getImageMimeType(lowerPath);
+        if (imageMimeType) {
+          res.setHeader("Content-Type", imageMimeType);
+        } else if (lowerPath.endsWith(".mp4")) {
           res.setHeader("Content-Type", "video/mp4");
         } else if (lowerPath.endsWith(".webm")) {
           res.setHeader("Content-Type", "video/webm");

@@ -91,6 +91,10 @@ describe("server/staticRoutes", () => {
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/vtt");
 
     res.setHeader.mockClear();
+    setHeaders(res, "/tmp/thumb.webp");
+    expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "image/webp");
+
+    res.setHeader.mockClear();
     setHeaders(res, "/tmp/unknown.bin");
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "video/mp4");
   });

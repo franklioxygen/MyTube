@@ -45,6 +45,14 @@ export const RSS_FEED_PATH_PREFIX = "/api/rss/feed";
 const MAX_FILTER_ARRAY_ITEMS = 100;
 const MAX_DAY_RANGE = 3650;
 const RSS_TTL_MINUTES = 15;
+const SOURCE_DISPLAY_NAMES = new Map<string, string>([
+  ["bilibili", "Bilibili"],
+  ["cloud", "Cloud"],
+  ["local", "Local"],
+  ["missav", "MissAV"],
+  ["twitch", "Twitch"],
+  ["youtube", "YouTube"],
+]);
 const IMAGE_MIME_TYPES = new Map([
   ["jpg", "image/jpeg"],
   ["jpeg", "image/jpeg"],
@@ -469,6 +477,35 @@ function inferThumbnailMimeType(url: string): string | null {
   return IMAGE_MIME_TYPES.get(ext) ?? null;
 }
 
+function formatRssDuration(duration: string | null | undefined): string | null {
+  if (!duration) return null;
+  const trimmed = duration.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes(":")) return trimmed;
+
+  const seconds = Number(trimmed);
+  if (!Number.isFinite(seconds) || seconds <= 0) return trimmed;
+
+  const totalSeconds = Math.round(seconds);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  }
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function formatRssSource(source: string | null | undefined): string | null {
+  if (!source) return null;
+  const trimmed = source.trim();
+  if (!trimmed) return null;
+  return SOURCE_DISPLAY_NAMES.get(trimmed.toLowerCase()) ?? trimmed;
+}
+
 function mapLanguage(lang?: string): string {
   if (!lang) return "en-us";
   const lower = lang.toLowerCase();
@@ -529,22 +566,21 @@ export function buildRssXml(
     }
 
     const descParts: string[] = [];
-    if (thumbnailUrl) {
-      descParts.push(`<img src="${escapeHtml(thumbnailUrl)}" alt="${escapeHtml(video.title)}"/>`);
-    }
     if (video.author) {
       descParts.push(
         `<p>${escapeHtml(textLabels.author)}${textLabels.separator}${escapeHtml(video.author)}</p>`
       );
     }
-    if (video.source) {
+    const sourceLabel = formatRssSource(video.source);
+    if (sourceLabel) {
       descParts.push(
-        `<p>${escapeHtml(textLabels.source)}${textLabels.separator}${escapeHtml(video.source)}</p>`
+        `<p>${escapeHtml(textLabels.source)}${textLabels.separator}${escapeHtml(sourceLabel)}</p>`
       );
     }
-    if (video.duration) {
+    const durationLabel = formatRssDuration(video.duration);
+    if (durationLabel) {
       descParts.push(
-        `<p>${escapeHtml(textLabels.duration)}${textLabels.separator}${escapeHtml(video.duration)}</p>`
+        `<p>${escapeHtml(textLabels.duration)}${textLabels.separator}${escapeHtml(durationLabel)}</p>`
       );
     }
     // eslint-disable-next-line xss/no-mixed-html -- all dynamic fields in descParts are HTML-escaped before join.

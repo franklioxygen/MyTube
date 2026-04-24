@@ -142,9 +142,11 @@ describe("rssService", () => {
       expect(xml).toContain("<title>Title &lt;tag&gt; &amp; more</title>");
       expect(xml).toContain("<dc:creator>Author &lt;script&gt;</dc:creator>");
       expect(xml).toContain("<category>alpha &amp; beta</category>");
-      expect(xml).toContain('src="https://mytube.example/images/thumb.webp"');
+      expect(xml).toContain('url="https://mytube.example/images/thumb.webp"');
       expect(xml).toContain('type="image/webp"');
       expect(xml).toContain("Author &lt;script&gt;");
+      expect(xml).toContain("<p>来源：YouTube</p>");
+      expect(xml).not.toContain("<img ");
       expect(xml).not.toContain("<script>");
     });
 
@@ -155,11 +157,23 @@ describe("rssService", () => {
 
       expect(xml).toContain("<description>MyTube video feed: A &amp; B</description>");
       expect(xml).toContain("<p>Author: Author &lt;script&gt;</p>");
-      expect(xml).toContain("<p>Source: youtube</p>");
+      expect(xml).toContain("<p>Source: YouTube</p>");
       expect(xml).toContain("<p>Duration: 01:23</p>");
       expect(xml).not.toContain("作者：");
       expect(xml).not.toContain("来源：");
       expect(xml).not.toContain("时长：");
+    });
+
+    it("formats numeric durations and friendly source names in descriptions", () => {
+      const xml = buildRssXml(
+        [mockVideo({ duration: "598", source: "missav" })],
+        baseToken,
+        "https://mytube.example",
+        { language: "zh" }
+      );
+
+      expect(xml).toContain("<p>来源：MissAV</p>");
+      expect(xml).toContain("<p>时长：9:58</p>");
     });
 
     it("splits CDATA terminators so descriptions stay valid XML", () => {

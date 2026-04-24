@@ -2,10 +2,26 @@
 
 ## Unreleased
 
+### Feat
+
+- Add RSS feed subscriptions with token management, per-feed filters, localized feed metadata, and public feed URLs (5c6bd214)
+
 ### Fix
 
+- Harden RSS feed access for login-protected deployments, HTTPS feed URLs, feed-specific rate limiting, and static route handling (2e28c503)
+- Improve RSS item descriptions with reader-friendly source names, formatted durations, and thumbnail handling
+- Ensure the RSS token table exists during startup initialization (2df17f3f)
+- Resolve RSS-related Codacy findings in SQL migrations, locale lookup, and API client headers (0fe47a6f, b0b915c5, 0fcfcf53)
 - Restrict API key library endpoints (3e000568)
 - Harden asset delivery and yt-dlp compatibility (ae2badf0)
+
+### Docs
+
+- Document RSS setup, API endpoints, and HTTPS requirements in README and project docs (2e28c503)
+
+### Test
+
+- Add coverage for RSS feed generation, token management, filter behavior, feed route limiting, and login CSRF handling (5c6bd214)
 
 ### Chore
 
