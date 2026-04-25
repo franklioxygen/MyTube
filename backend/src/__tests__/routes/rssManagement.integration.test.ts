@@ -1,5 +1,5 @@
-import cookieParser from "cookie-parser";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { csrfProtection, csrfTokenProvider } from "../../middleware/csrfMiddleware";
@@ -14,9 +14,40 @@ vi.mock("../../utils/logger", () => ({
   },
 }));
 
+const parseCookieHeader = (cookieHeader: string | undefined): Record<string, string> => {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+
+  for (const part of cookieHeader.split(";")) {
+    const separatorIndex = part.indexOf("=");
+    if (separatorIndex <= 0) continue;
+
+    const name = part.slice(0, separatorIndex).trim();
+    if (!name) continue;
+
+    cookies[name] = decodeURIComponent(part.slice(separatorIndex + 1).trim());
+  }
+
+  return cookies;
+};
+
 const buildApp = () => {
   const app = express();
-  app.use(cookieParser());
+  const rssManagementLimiter = rateLimit({
+    windowMs: 60_000,
+    limit: 1000,
+    standardHeaders: false,
+    legacyHeaders: false,
+    validate: { trustProxy: false },
+  });
+
+  app.use((req, _res, next) => {
+    const cookieHeader = req.headers.cookie;
+    req.cookies = parseCookieHeader(
+      Array.isArray(cookieHeader) ? cookieHeader.join(";") : cookieHeader
+    );
+    next();
+  });
   app.use(rssManagementNoStoreHeaders);
   app.use(express.json());
   app.use(csrfTokenProvider);
@@ -29,10 +60,10 @@ const buildApp = () => {
   app.get("/api/csrf", (_req, res) => {
     res.json({ ok: true });
   });
-  app.get("/api/rss/tokens", requireAdmin, (_req, res) => {
+  app.get("/api/rss/tokens", rssManagementLimiter, requireAdmin, (_req, res) => {
     res.json({ tokens: [] });
   });
-  app.post("/api/rss/tokens", requireAdmin, (_req, res) => {
+  app.post("/api/rss/tokens", rssManagementLimiter, requireAdmin, (_req, res) => {
     res.status(201).json({ token: { id: "token-id" } });
   });
   app.use(errorHandler);

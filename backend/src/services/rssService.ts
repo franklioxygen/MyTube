@@ -716,7 +716,11 @@ function getRequestProtocol(req: BaseUrlRequest): string {
 export function getBaseUrl(req: BaseUrlRequest): string {
   const configured = process.env.MYTUBE_PUBLIC_URL || process.env.BASE_URL;
   const raw = configured || `${getRequestProtocol(req)}://${req.get("host")}`;
-  return raw.replace(/\/+$/, "");
+  let end = raw.length;
+  while (end > 0 && raw.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return raw.slice(0, end);
 }
 
 export function setRssNoStoreHeaders(res: { set: (key: string, value: string) => void }): void {
