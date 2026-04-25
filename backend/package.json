@@ -40,7 +40,7 @@
     "puppeteer": "^24.34.0",
     "sanitize-filename": "^1.6.3",
     "socks-proxy-agent": "^8.0.5",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
