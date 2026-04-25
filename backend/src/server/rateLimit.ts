@@ -1,5 +1,6 @@
 import { Express, Request, RequestHandler, Response } from "express";
 import rateLimit from "express-rate-limit";
+import { buildErrorRssXml, getBaseUrl, setRssNoStoreHeaders } from "../services/rssService";
 import { getClientIp } from "../utils/security";
 import { logger } from "../utils/logger";
 
@@ -9,6 +10,7 @@ export interface AuthLimiters {
   adminReauthLimiter: RequestHandler;
   passkeyAuthLimiter: RequestHandler;
   passkeyRegistrationLimiter: RequestHandler;
+  feedLimiter: RequestHandler;
 }
 
 type RateLimitedRequest = Request & {
@@ -19,6 +21,12 @@ type RateLimitedRequest = Request & {
 
 const AUTH_WINDOW_MS = 15 * 60 * 1000;
 const AUTH_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_VALIDATE_OPTIONS = {
+  // server.ts intentionally enables trust proxy for deployed reverse proxies.
+  // getClientIp() is the single source for limiter keys, so disable only the
+  // express-rate-limit trustProxy validation warning.
+  trustProxy: false,
+};
 
 function getRateLimitWaitTimeMs(
   req: RateLimitedRequest,
@@ -62,6 +70,32 @@ function sendRateLimitResponse(
   });
 }
 
+function sendFeedRateLimitResponse(res: Response, xml: string): void {
+  res.status(429).type("application/rss+xml; charset=utf-8").send(xml);
+}
+
+const createFeedLimiter = (): RequestHandler =>
+  rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getClientIp(req),
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
+    handler: (req, res) => {
+      const baseUrl = getBaseUrl(req);
+      setRssNoStoreHeaders(res);
+      sendFeedRateLimitResponse(
+        res,
+        buildErrorRssXml({
+          title: "Rate limit exceeded",
+          link: baseUrl,
+          description: "Too many feed requests. Please retry later.",
+        })
+      );
+    },
+  });
+
 const createGeneralLimiter = (): RequestHandler => {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -70,9 +104,7 @@ const createGeneralLimiter = (): RequestHandler => {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => getClientIp(req),
-    validate: {
-      trustProxy: false,
-    },
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
   });
 };
 
@@ -88,9 +120,7 @@ const createScopedAuthLimiter = (scope: string): RequestHandler => {
     handler: (req, res) => {
       sendRateLimitResponse(req, res, AUTH_WINDOW_MS, scope);
     },
-    validate: {
-      trustProxy: false,
-    },
+    validate: RATE_LIMIT_VALIDATE_OPTIONS,
   });
 };
 
@@ -102,10 +132,13 @@ export const configureRateLimiting = (app: Express): AuthLimiters => {
     adminReauthLimiter: createScopedAuthLimiter("admin-reauth"),
     passkeyAuthLimiter: createScopedAuthLimiter("passkey-auth"),
     passkeyRegistrationLimiter: createScopedAuthLimiter("passkey-registration"),
+    feedLimiter: createFeedLimiter(),
   };
 
   app.use((req, res, next) => {
     const shouldBypassLimiter =
+      req.path.startsWith("/feed/") ||
+      req.path.startsWith("/api/rss/feed/") ||
       req.path.startsWith("/videos/") ||
       req.path.startsWith("/api/mount-video/") ||
       req.path.startsWith("/images/") ||

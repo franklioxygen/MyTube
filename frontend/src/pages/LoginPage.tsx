@@ -22,7 +22,7 @@ import AlertModal from '../components/AlertModal';
 import VersionInfo from '../components/VersionInfo';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { api, getErrorMessage, getWaitTime, isAuthError, isRateLimitError } from '../utils/apiClient';
+import { api, ensureCsrfToken, getErrorMessage, getWaitTime, isAuthError, isRateLimitError } from '../utils/apiClient';
 import { createTranslateOrFallback } from '../utils/translateOrFallback';
 import { getWebAuthnErrorTranslationKey } from '../utils/translations';
 
@@ -226,6 +226,7 @@ const LoginPage: React.FC = () => {
 
     const adminLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
+            await ensureCsrfToken({ refresh: true });
             const response = await api.post('/settings/verify-admin-password', { password: passwordToVerify });
             return response.data;
         },
@@ -240,6 +241,7 @@ const LoginPage: React.FC = () => {
 
     const visitorLoginMutation = useMutation({
         mutationFn: async (passwordToVerify: string) => {
+            await ensureCsrfToken({ refresh: true });
             const response = await api.post('/settings/verify-visitor-password', { password: passwordToVerify });
             return response.data;
         },

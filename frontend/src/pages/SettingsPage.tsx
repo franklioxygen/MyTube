@@ -32,6 +32,7 @@ import DeploymentSecurityDetailsModal from '../components/Settings/DeploymentSec
 import DownloadSettings from '../components/Settings/DownloadSettings';
 import HookSettings from '../components/Settings/HookSettings';
 import InterfaceDisplaySettings from '../components/Settings/InterfaceDisplaySettings';
+import RssFeedSettings from '../components/Settings/RssFeedSettings';
 import SecuritySettings from '../components/Settings/SecuritySettings';
 import TagsSettings from '../components/Settings/TagsSettings';
 import TwitchSettings from '../components/Settings/TwitchSettings';
@@ -510,6 +511,7 @@ const SettingsPage: React.FC = () => {
                 allowedHosts={settings.allowedHosts}
                 onChange={(field, value) => handleChange(field as keyof Settings, value)}
             />
+            <RssFeedSettings />
         </Box>
     );
 

@@ -5,7 +5,7 @@ import SettingsPage from '../SettingsPage';
 
 let mockIsDesktop = false;
 let mockIsSticky = false;
-let mockUserRole = 'admin';
+let mockUserRole: string | undefined = 'admin';
 let mockSettingsData: any = {};
 let saveIsPending = false;
 let saveShouldError = false;
@@ -205,6 +205,10 @@ vi.mock('../../components/Settings/CloudflareSettings', () => ({
   ),
 }));
 
+vi.mock('../../components/Settings/RssFeedSettings', () => ({
+  default: () => <div data-testid="rss-feed-settings">rssFeedSettings</div>,
+}));
+
 vi.mock('../../components/Settings/VideoDefaultSettings', () => ({
   default: ({ onChange }: any) => (
     <div data-testid="video-default-settings">
@@ -374,6 +378,28 @@ describe('SettingsPage', () => {
     expect(tabs[0]).toHaveTextContent('basicSettings');
     expect(screen.queryByTestId('interface-display-settings')).not.toBeInTheDocument();
     expect(screen.queryByTestId('security-settings')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rss-feed-settings')).not.toBeInTheDocument();
+  });
+
+  it('renders RSS settings for admin and login-disabled access models', () => {
+    mockIsDesktop = true;
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={['/settings?tab=2']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
+
+    mockUserRole = undefined;
+    rerender(
+      <MemoryRouter initialEntries={['/settings?tab=2']}>
+        <SettingsPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('rss-feed-settings')).toBeInTheDocument();
   });
 
   it('applies tab query and hash scrolling/highlight behavior', async () => {

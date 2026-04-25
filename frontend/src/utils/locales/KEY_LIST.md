@@ -4,7 +4,7 @@ Canonical locale key order derived from `frontend/src/utils/locales/en.ts`.
 
 This list is intentionally unnumbered. When new keys are inserted, only the local section order changes.
 
-Total keys: 839
+Total keys: 902
 
 ## Summary
 
@@ -13,14 +13,14 @@ Total keys: 839
 | Header | 11 | `myTube` | `instruction` |
 | Home | 19 | `pasteUrl` | `views` |
 | Settings | 4 | `general` | `downloadSettings` |
-| Settings Categories | 123 | `basicSettings` | `enterNewTagName` |
+| Settings Categories | 142 | `basicSettings` | `enterNewTagName` |
 | Database | 40 | `database` | `cleanupTempFilesConfirmMessage` |
-| Task Hooks | 68 | `taskHooks` | `cleanupTempFilesFailed` |
+| Task Hooks | 69 | `taskHooks` | `cleanupTempFilesFailed` |
 | Cookie Settings | 12 | `cookieSettings` | `cookiesDeleteFailed` |
 | Cloud Drive | 38 | `cloudDriveSettings` | `clearThumbnailCacheConfirmMessage` |
 | Manage | 33 | `manageContent` | `confirmBulkDelete` |
 | Video Player | 62 | `playing` | `deletingVideos` |
-| Login | 21 | `signIn` | `tooManyAttempts` |
+| Login | 23 | `signIn` | `tooManyAttempts` |
 | Passkeys | 19 | `createPasskey` | `copyUrl` |
 | Collection Page | 4 | `loadingCollection` | `back` |
 | Author Videos | 18 | `loadVideosError` | `addVideosToExistingCollectionConfirmationWithMove` |
@@ -32,7 +32,7 @@ Total keys: 839
 | Downloads | 20 | `downloads` | `failed` |
 | Snackbar Messages | 19 | `videoDownloading` | `subtitleDeleted` |
 | Batch Download | 6 | `batchDownload` | `addBatchTasks` |
-| Subscriptions | 53 | `subscribeToAuthor` | `clear` |
+| Subscriptions | 54 | `subscribeToAuthor` | `clear` |
 | Subscription Pause/Resume | 12 | `pause` | `viaContinuousDownload` |
 | Playlist Subscription | 5 | `subscribeToPlaylist` | `playlistSubscription` |
 | Instruction Page | 39 | `instructionSection1Title` | `instructionSection3Item3Text` |
@@ -43,7 +43,8 @@ Total keys: 839
 | Cloudflare Tunnel | 16 | `cloudflaredTunnel` | `managedInDashboard` |
 | Database Export/Import | 38 | `exportImportDatabase` | `backupDatabasesCleanedUp` |
 | History Filter | 33 | `filterAll` | `browserVideoFormatNotSupported` |
-| Role-Based Settings Errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
+| RSS Feed Settings | 40 | `rssFeedSettings` | `rssDays` |
+| Role-based settings middleware errors | 5 | `settingsApiKeyForbidden` | `settingsAuthRequired` |
 
 ## Details
 
@@ -203,6 +204,24 @@ Total keys: 839
 | `telegramChatIdHelper` |
 | `telegramNotifyOnSuccess` |
 | `telegramNotifyOnFail` |
+| `twitchSubscriptions` |
+| `twitchClientId` |
+| `twitchClientSecret` |
+| `twitchSubscriptionCredentialsHelper` |
+| `twitchSubscriptionDescription` |
+| `twitchSubscriptionCredentialsMissing` |
+| `twitchSubscriptionVodsOnly` |
+| `twitchClientHelpLink` |
+| `twitchClientHelpTitle` |
+| `twitchClientHelpIntro` |
+| `twitchClientHelpStep1` |
+| `twitchClientHelpStep2` |
+| `twitchClientHelpStep3` |
+| `twitchClientHelpStep4` |
+| `twitchClientHelpStep5` |
+| `twitchClientHelpSecurity` |
+| `twitchDeveloperConsole` |
+| `twitchDeveloperDocs` |
 | `telegramTestButton` |
 | `telegramTestSuccess` |
 | `telegramTestFailed` |
@@ -930,6 +949,7 @@ Total keys: 839
 | `ytDlpConfigurationDocs` |
 | `ytDlpConfigurationDescriptionEnd` |
 | `ytDlpConfigurationPolicyNotice` |
+| `mountDirectoriesPolicyNotice` |
 | `customize` |
 | `hide` |
 | `reset` |
@@ -943,7 +963,6 @@ Total keys: 839
 | `moveThumbnailsToVideoFolderOn` |
 | `moveThumbnailsToVideoFolderOff` |
 | `moveThumbnailsToVideoFolderDescription` |
-| `mountDirectoriesPolicyNotice` |
 | `saveAuthorFilesToCollection` |
 | `saveAuthorFilesToCollectionOn` |
 | `saveAuthorFilesToCollectionOff` |
@@ -1051,7 +1070,54 @@ Total keys: 839
 | `safariVideoFormatNotSupported` |
 | `browserVideoFormatNotSupported` |
 
-### Role-Based Settings Errors
+### RSS Feed Settings
+
+| Key |
+| --- |
+| `rssFeedSettings` |
+| `rssFeedSettingsDescription` |
+| `rssCreateToken` |
+| `rssEditToken` |
+| `rssCopyLink` |
+| `rssLinkCopied` |
+| `rssResetLink` |
+| `rssResetLinkConfirm` |
+| `rssDisableLink` |
+| `rssEnableLink` |
+| `rssDeleteLink` |
+| `rssDeleteLinkConfirm` |
+| `rssAdminRoleWarning` |
+| `rssPublicAggregatorWarning` |
+| `rssFilterAllVideos` |
+| `rssFilterAllSources` |
+| `rssFilterChannels` |
+| `rssFilterAuthors` |
+| `rssFilterTags` |
+| `rssFilterSources` |
+| `rssFilterRecentDays` |
+| `rssFilterMaxItems` |
+| `rssLoadTokensError` |
+| `rssNoFeeds` |
+| `rssNoLabel` |
+| `rssActive` |
+| `rssDisabled` |
+| `rssAccessCount` |
+| `rssFiltersSummary` |
+| `rssAuthorsSummary` |
+| `rssChannelsSummary` |
+| `rssTagsSummary` |
+| `rssRecentDaysSummary` |
+| `rssEditAction` |
+| `rssLabel` |
+| `rssLabelPlaceholder` |
+| `rssRole` |
+| `rssRoleCannotChange` |
+| `rssRoleDescription` |
+| `rssFilters` |
+| `rssChannelsSelectedAuthorDisabled` |
+| `rssDays` |
+
+### Role-based settings middleware errors
 
 | Key |
 | --- |

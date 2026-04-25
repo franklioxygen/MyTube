@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { api, ensureCsrfToken } from '../../utils/apiClient';
 import { getWebAuthnErrorTranslationKey } from '../../utils/translations';
 import LoginPage from '../LoginPage';
 
@@ -22,6 +23,7 @@ vi.mock('../../utils/apiClient', () => ({
         get: vi.fn(),
         post: vi.fn(),
     },
+    ensureCsrfToken: vi.fn(() => Promise.resolve()),
     getErrorMessage: vi.fn((error: any) =>
         error?.response?.data?.error ||
         error?.response?.data?.message ||
@@ -70,6 +72,7 @@ let queryResults: Record<string, Record<string, unknown>> = {};
 
 // Store mutation callbacks so tests can invoke onSuccess/onError
 let mutationCallbacks: Record<string, { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }> = {};
+let mutationFns: Record<string, (...args: any[]) => Promise<any>> = {};
 
 // Store mutation mocks so tests can invoke onSuccess/onError and check mutate calls
 let mutationMocks: Record<string, Record<string, unknown>> = {};
@@ -108,9 +111,12 @@ vi.mock('@tanstack/react-query', () => ({
             refetch: vi.fn(),
         };
     }),
-    useMutation: vi.fn(({ onSuccess, onError }: { onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }) => {
+    useMutation: vi.fn(({ mutationFn, onSuccess, onError }: { mutationFn?: (...args: any[]) => Promise<any>; onSuccess?: (...args: unknown[]) => void; onError?: (...args: unknown[]) => void }) => {
         const key = mutationKeyOrder[mutationCallIndex % mutationKeyOrder.length];
         mutationCallIndex++;
+        if (mutationFn) {
+            mutationFns[key] = mutationFn;
+        }
         return getOrCreateMutationMock(key, { onSuccess, onError });
     }),
     useQueryClient: vi.fn(() => ({
@@ -193,6 +199,7 @@ describe('LoginPage', () => {
         mutationCallIndex = 0;
         mutationMocks = {};
         mutationCallbacks = {};
+        mutationFns = {};
         queryResults = {};
     });
 
@@ -276,6 +283,18 @@ describe('LoginPage', () => {
             expect(mutationMocks['adminLogin'].mutate).toHaveBeenCalledWith('mySecret');
         });
 
+        it('refreshes CSRF before posting the admin password', async () => {
+            setNormalState();
+            vi.mocked(api.post).mockResolvedValue({ data: { success: true, role: 'admin' } } as any);
+            render(<LoginPage />);
+
+            const result = await mutationFns['adminLogin']('mySecret');
+
+            expect(ensureCsrfToken).toHaveBeenCalledWith({ refresh: true });
+            expect(api.post).toHaveBeenCalledWith('/settings/verify-admin-password', { password: 'mySecret' });
+            expect(result).toEqual({ success: true, role: 'admin' });
+        });
+
         it('does not submit when waitTime > 0', () => {
             setNormalState();
             const { container } = render(<LoginPage />);
@@ -339,6 +358,21 @@ describe('LoginPage', () => {
             fireEvent.submit(form);
 
             expect(mutationMocks['visitorLogin'].mutate).toHaveBeenCalledWith('visitorPass');
+        });
+
+        it('refreshes CSRF before posting the visitor password', async () => {
+            setNormalState({
+                visitorUserEnabled: true,
+                isVisitorPasswordSet: true,
+            });
+            vi.mocked(api.post).mockResolvedValue({ data: { success: true, role: 'visitor' } } as any);
+            render(<LoginPage />);
+
+            const result = await mutationFns['visitorLogin']('visitorPass');
+
+            expect(ensureCsrfToken).toHaveBeenCalledWith({ refresh: true });
+            expect(api.post).toHaveBeenCalledWith('/settings/verify-visitor-password', { password: 'visitorPass' });
+            expect(result).toEqual({ success: true, role: 'visitor' });
         });
 
         it('does not submit visitor form when waitTime > 0', () => {

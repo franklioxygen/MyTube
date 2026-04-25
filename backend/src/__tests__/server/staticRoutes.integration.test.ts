@@ -50,6 +50,10 @@ describe("server/staticRoutes integration", () => {
     expect(apiRes.status).toBe(404);
     expect(apiRes.body).toEqual({ error: "Not Found" });
 
+    const feedRes = await request(app).get("/feed/not-a-real-token");
+    expect(feedRes.status).toBe(404);
+    expect(feedRes.text).not.toBe("SPA");
+
     const spaRes = await request(app).get("/home");
     expect(spaRes.status).toBe(200);
     expect(spaRes.text).toBe("SPA");

@@ -10,12 +10,13 @@ import path from "path";
 import { DATA_DIR } from "./config/paths";
 import { runMigrations } from "./db/migrate";
 import { errorHandler } from "./middleware/errorHandler";
+import { rssManagementNoStoreHeaders } from "./middleware/rssManagementNoStoreHeaders";
 import downloadManager from "./services/downloadManager";
 import * as storageService from "./services/storageService";
 import { logger } from "./utils/logger";
 import { VERSION } from "./version";
 import { csrfTokenProvider, csrfProtection } from "./middleware/csrfMiddleware";
-import { registerApiRoutes } from "./server/apiRoutes";
+import { registerApiRoutes, registerFeedRoute } from "./server/apiRoutes";
 import { buildCorsOptionsDelegate } from "./server/cors";
 import { registerCloudRoutes } from "./server/cloudRoutes";
 import { configureRateLimiting } from "./server/rateLimit";
@@ -33,6 +34,7 @@ app.disable("x-powered-by");
 const authLimiters = configureRateLimiting(app);
 app.use(cors(buildCorsOptionsDelegate()));
 app.use(cookieParser());
+app.use(rssManagementNoStoreHeaders);
 app.use(express.json({ limit: "100gb" }));
 app.use(express.urlencoded({ extended: true, limit: "100gb" }));
 app.use(csrfTokenProvider);
@@ -69,9 +71,10 @@ const startServer = async (): Promise<void> => {
 
     const frontendDist = path.join(__dirname, "../../frontend/dist");
 
+    registerFeedRoute(app, authLimiters);
     registerStaticRoutes(app, frontendDist);
     registerCloudRoutes(app);
-    registerApiRoutes(app, authLimiters);
+    registerApiRoutes(app, authLimiters, { includeFeedRoute: false });
     registerSpaFallback(app, frontendDist);
 
     // Global error middleware (must be registered after routes)

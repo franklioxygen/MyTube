@@ -684,6 +684,37 @@ export function initializeStorage(): void {
       );
     }
 
+    // Ensure RSS tokens table exists even if older self-healing migrations stopped
+    // Drizzle before the RSS migration was applied.
+    sqlite
+      .prepare(
+        `
+      CREATE TABLE IF NOT EXISTS rss_tokens (
+        id TEXT PRIMARY KEY NOT NULL,
+        label TEXT DEFAULT '' NOT NULL,
+        role TEXT DEFAULT 'visitor' NOT NULL,
+        filters TEXT DEFAULT '{}' NOT NULL,
+        is_active INTEGER DEFAULT 1 NOT NULL,
+        access_count INTEGER DEFAULT 0 NOT NULL,
+        last_accessed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        CONSTRAINT rss_tokens_role_check CHECK(role IN ('admin', 'visitor'))
+      )
+    `
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_rss_tokens_active ON rss_tokens (is_active)"
+      )
+      .run();
+    sqlite
+      .prepare(
+        "CREATE INDEX IF NOT EXISTS idx_rss_tokens_created_at ON rss_tokens (created_at)"
+      )
+      .run();
+
     // Check download_history table for video_id, downloaded_at, deleted_at columns
     const downloadHistoryTableInfo = sqlite
       .prepare("PRAGMA table_info(download_history)")

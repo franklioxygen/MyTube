@@ -37,6 +37,10 @@ describe("csrfMiddleware", () => {
       res.json({ ok: true });
     });
 
+    app.post("/api/rss/tokens", (_req, res) => {
+      res.json({ ok: true });
+    });
+
     return app;
   };
 
@@ -118,5 +122,23 @@ describe("csrfMiddleware", () => {
       .send({});
 
     expect(loginAgainResponse.status).toBe(200);
+  });
+
+  it("lets non-RSS API-key requests bypass CSRF but still protects RSS management", async () => {
+    const agent = request.agent(buildApp());
+
+    const protectedResponse = await agent
+      .post("/api/protected")
+      .set("X-API-Key", "automation-key")
+      .send({});
+
+    expect(protectedResponse.status).toBe(200);
+
+    const rssManagementResponse = await agent
+      .post("/api/rss/tokens")
+      .set("X-API-Key", "automation-key")
+      .send({});
+
+    expect(rssManagementResponse.status).toBe(403);
   });
 });

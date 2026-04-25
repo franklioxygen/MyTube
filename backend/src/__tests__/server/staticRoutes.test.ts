@@ -91,6 +91,10 @@ describe("server/staticRoutes", () => {
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/vtt");
 
     res.setHeader.mockClear();
+    setHeaders(res, "/tmp/thumb.webp");
+    expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "image/webp");
+
+    res.setHeader.mockClear();
     setHeaders(res, "/tmp/unknown.bin");
     expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "video/mp4");
   });
@@ -263,6 +267,17 @@ describe("server/staticRoutes", () => {
     handler({ path: "/cloud/file" } as any, cloudRes);
     expect(cloudRes.status).toHaveBeenCalledWith(404);
     expect(cloudRes.json).toHaveBeenCalledWith({ error: "Not Found" });
+
+    const feedRes = {
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      json: vi.fn(),
+      sendFile: vi.fn(),
+    };
+    handler({ path: "/feed/not-a-real-token" } as any, feedRes);
+    expect(feedRes.status).toHaveBeenCalledWith(404);
+    expect(feedRes.json).toHaveBeenCalledWith({ error: "Not Found" });
+    expect(feedRes.sendFile).not.toHaveBeenCalled();
 
     const faviconRes = {
       status: vi.fn().mockReturnThis(),

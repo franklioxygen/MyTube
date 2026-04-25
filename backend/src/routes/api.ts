@@ -3,6 +3,7 @@ import * as cleanupController from "../controllers/cleanupController";
 import * as cloudStorageController from "../controllers/cloudStorageController";
 import * as collectionController from "../controllers/collectionController";
 import * as downloadController from "../controllers/downloadController";
+import * as rssController from "../controllers/rssController";
 import * as scanController from "../controllers/scanController";
 import * as subscriptionController from "../controllers/subscriptionController";
 import * as systemController from "../controllers/systemController";
@@ -10,6 +11,7 @@ import * as videoController from "../controllers/videoController";
 import * as videoDownloadController from "../controllers/videoDownloadController";
 import * as videoMetadataController from "../controllers/videoMetadataController";
 import { asyncHandler } from "../middleware/errorHandler";
+import { requireAdmin } from "../middleware/requireAdmin";
 
 type ApiRouteMethod = "delete" | "get" | "post" | "put";
 
@@ -331,6 +333,33 @@ const apiRouteDefinitions: ApiRouteDefinition[] = [
     method: "get",
     path: "/system/version",
     handlers: [asyncHandler(systemController.getLatestVersion)],
+  },
+
+  // RSS token management (admin only)
+  {
+    method: "get",
+    path: "/rss/tokens",
+    handlers: [requireAdmin, asyncHandler(rssController.listTokens)],
+  },
+  {
+    method: "post",
+    path: "/rss/tokens",
+    handlers: [requireAdmin, asyncHandler(rssController.createToken)],
+  },
+  {
+    method: "put",
+    path: "/rss/tokens/:id",
+    handlers: [requireAdmin, asyncHandler(rssController.updateToken)],
+  },
+  {
+    method: "delete",
+    path: "/rss/tokens/:id",
+    handlers: [requireAdmin, asyncHandler(rssController.deleteToken)],
+  },
+  {
+    method: "post",
+    path: "/rss/tokens/:id/reset",
+    handlers: [requireAdmin, asyncHandler(rssController.resetToken)],
   },
 ];
 

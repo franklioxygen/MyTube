@@ -108,6 +108,20 @@ if (apiClient?.interceptors?.response?.use) {
   );
 }
 
+type EnsureCsrfTokenOptions = {
+  refresh?: boolean;
+};
+
+export const ensureCsrfToken = async (
+  options: EnsureCsrfTokenOptions = {}
+): Promise<void> => {
+  if (csrfToken && options.refresh !== true) {
+    return;
+  }
+
+  await apiClient.get("/settings/password-enabled", { timeout: 5000 });
+};
+
 /**
  * Type-safe API response wrapper
  */

@@ -223,7 +223,14 @@ npm run test:coverage # Run tests with coverage report
    - Enable "Visitor User" to allow read-only access
    - Set a visitor password for the read-only role
 
-8. **Start Downloading**:
+8. **Create RSS Feed Links** (Optional):
+
+   - Go to Settings → Security & Access
+   - Create private RSS links for external feed readers
+   - Filter each link by channel, author, tag, source, recent days, and item limit
+   - Treat RSS feed URLs like passwords; anyone with the URL can read that feed
+
+9. **Start Downloading**:
    - Enter a video URL in the download input
    - Supported platforms: YouTube, Bilibili, Twitch VODs, MissAV, and all yt-dlp supported sites
 
@@ -250,6 +257,7 @@ npm run test:coverage # Run tests with coverage report
 - **Download Queue Management**: Concurrent downloads with queue support
 - **Video Download Tracking**: Prevents duplicate downloads
 - **Subscription System**: Automatic downloads from subscribed channels
+- **RSS Feed Links**: Private filtered RSS feeds for external readers
 - **Database Migrations**: Automatic schema updates on startup
 
 ## Troubleshooting

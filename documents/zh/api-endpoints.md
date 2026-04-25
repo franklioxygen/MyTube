@@ -125,6 +125,23 @@
 - `DELETE /api/subscriptions/tasks/:id/delete` - 删除任务记录
 - `DELETE /api/subscriptions/tasks/clear-finished` - 清除已完成的任务
 
+## RSS 订阅
+
+- RSS 管理端点要求管理员会话。API Key 认证访问这些端点会被拒绝。
+- 管理端点响应会返回 `Cache-Control: no-store`，因为 token ID 和 `feedUrl` 都是 bearer secret。
+- `GET /api/rss/tokens` - 获取 RSS 订阅 token 列表
+  - 响应中每个 token 都包含 `feedUrl`
+- `POST /api/rss/tokens` - 创建 RSS 订阅 token
+  - 请求体: `{ label: string, role: "admin" | "visitor", filters?: RssFilters }`
+- `PUT /api/rss/tokens/:id` - 更新 token 备注名、过滤条件或启停状态
+  - 请求体: `{ label?: string, filters?: RssFilters, isActive?: boolean }`
+- `DELETE /api/rss/tokens/:id` - 删除 RSS 订阅 token
+- `POST /api/rss/tokens/:id/reset` - 轮换订阅链接，同时保留备注名、角色、过滤条件和启停状态
+- `RssFilters`: `{ authors?: string[], channelUrls?: string[], tags?: string[], sources?: string[], dayRange?: number, maxItems?: number }`
+  - 支持的 `sources`: `youtube`, `bilibili`, `twitch`, `local`, `missav`, `cloud`
+  - `sources` 为空或缺失表示不限制来源，也会包含未来新增或未知的来源值
+  - `maxItems` 接受 `1` 到 `200`；设置页 UI 使用更适合常规操作的 `10` 到 `200` 滑块
+
 ## 设置
 
 - `GET /api/settings` - 获取应用设置 (不包含密码哈希)
@@ -225,6 +242,9 @@
 
 ## 非 API 路由 (不在 `/api` 下)
 
+- `GET /feed/:token` - 公开 RSS 2.0 输出端点；路径中的 token 即 bearer 凭据
+  - 不需要会话 Cookie 或 API Key
+  - 无效或已停用的 token 会返回 404 状态的 RSS XML
 - `GET /cloud/videos/:filename` - 重定向到签名云视频 URL
 - `GET /cloud/images/:filename` - 提供缓存的云图像或重定向到签名图像 URL
 - `GET /videos/*` - 静态本地视频

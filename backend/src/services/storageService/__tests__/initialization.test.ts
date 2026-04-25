@@ -157,6 +157,15 @@ describe("storageService initialization", () => {
 
     initializeStorage();
 
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE TABLE IF NOT EXISTS rss_tokens")
+    );
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      "CREATE INDEX IF NOT EXISTS idx_rss_tokens_active ON rss_tokens (is_active)"
+    );
+    expect(sqlite.prepare).toHaveBeenCalledWith(
+      "CREATE INDEX IF NOT EXISTS idx_rss_tokens_created_at ON rss_tokens (created_at)"
+    );
     expect(dedupeDeleteRun).toHaveBeenCalledWith("src-1", "youtube", "keep-1");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining("duplicated video_downloads groups")
