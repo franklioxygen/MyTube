@@ -525,8 +525,8 @@ describe('LoginPage', () => {
             expect(dialog).toBeInTheDocument();
             expect(within(dialog).getByText('resetPassword')).toBeInTheDocument();
             expect(within(dialog).getByText(/backend environment/)).toBeInTheDocument();
-            expect(within(dialog).getByText(/node dist\/scripts\/reset-password\.js <new-password>/)).toBeInTheDocument();
-            expect(within(dialog).getByText(/docker exec -it mytube-backend node \/app\/dist\/scripts\/reset-password\.js <new-password>/)).toBeInTheDocument();
+            expect(within(dialog).getByText(/node dist\/scripts\/reset-password\.js NEW_PASSWORD/)).toBeInTheDocument();
+            expect(within(dialog).getByText(/docker exec -it mytube-backend node \/app\/dist\/scripts\/reset-password\.js NEW_PASSWORD/)).toBeInTheDocument();
         });
 
         it('closes reset guidance modal when confirm is clicked', async () => {

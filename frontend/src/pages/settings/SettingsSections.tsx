@@ -139,7 +139,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             theme={settings.theme}
             showThemeButton={settings.showThemeButton}
             websiteName={settings.websiteName}
-            onChange={(field, value) => onSettingsChange(field as keyof Settings, value)}
+            onChange={(field, value) => {
+                onSettingsChange(field as keyof Settings, value);
+            }}
         />
     );
 
@@ -152,7 +154,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             playSoundOnTaskComplete={settings.playSoundOnTaskComplete}
             defaultSort={settings.defaultSort}
             showTagsOnThumbnail={settings.showTagsOnThumbnail}
-            onChange={(field, value) => onSettingsChange(field as keyof Settings, value)}
+            onChange={(field, value) => {
+                onSettingsChange(field as keyof Settings, value);
+            }}
         />
     );
 
@@ -176,24 +180,34 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             );
         }
 
-        const levelLabels: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback('adminTrustLevelApplication', 'Application'),
-            container: translateOrFallback('adminTrustLevelContainer', 'Container'),
-            host: translateOrFallback('adminTrustLevelHost', 'Host'),
+        const getAdminTrustLevelLabel = (level: AdminTrustLevel): string => {
+            switch (level) {
+                case 'application':
+                    return translateOrFallback('adminTrustLevelApplication', 'Application');
+                case 'container':
+                    return translateOrFallback('adminTrustLevelContainer', 'Container');
+                case 'host':
+                    return translateOrFallback('adminTrustLevelHost', 'Host');
+            }
         };
-        const levelDescriptions: Record<AdminTrustLevel, string> = {
-            application: translateOrFallback(
-                'adminTrustLevelApplicationDescription',
-                'Admin is trusted at the application layer only.'
-            ),
-            container: translateOrFallback(
-                'adminTrustLevelContainerDescription',
-                'Admin is trusted with backend/container-process-level actions.'
-            ),
-            host: translateOrFallback(
-                'adminTrustLevelHostDescription',
-                'Admin is trusted with host-scoped administrative actions.'
-            ),
+        const getAdminTrustLevelDescription = (level: AdminTrustLevel): string => {
+            switch (level) {
+                case 'application':
+                    return translateOrFallback(
+                        'adminTrustLevelApplicationDescription',
+                        'Admin is trusted at the application layer only.'
+                    );
+                case 'container':
+                    return translateOrFallback(
+                        'adminTrustLevelContainerDescription',
+                        'Admin is trusted with backend/container-process-level actions.'
+                    );
+                case 'host':
+                    return translateOrFallback(
+                        'adminTrustLevelHostDescription',
+                        'Admin is trusted with host-scoped administrative actions.'
+                    );
+            }
         };
 
         return (
@@ -202,10 +216,10 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
                     {translateOrFallback('deploymentSecurityTitle', 'Deployment Security Model')}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    {translateOrFallback('adminTrustLevelLabel', 'Admin Trust Level')}: {levelLabels[adminTrustLevel]}
+                    {translateOrFallback('adminTrustLevelLabel', 'Admin Trust Level')}: {getAdminTrustLevelLabel(adminTrustLevel)}
                 </Typography>
                 <Typography variant="body2">
-                    {levelDescriptions[adminTrustLevel]}
+                    {getAdminTrustLevelDescription(adminTrustLevel)}
                     {renderDetailsLink()}
                 </Typography>
             </Alert>
@@ -217,14 +231,20 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             {renderDeploymentSecuritySummary()}
             <SecuritySettings settings={settings} onChange={onSettingsChange} />
             <CookieSettings
-                onSuccess={(msg) => setMessage({ text: msg, type: 'success' })}
-                onError={(msg) => setMessage({ text: msg, type: 'error' })}
+                onSuccess={(msg) => {
+                    setMessage({ text: msg, type: 'success' });
+                }}
+                onError={(msg) => {
+                    setMessage({ text: msg, type: 'error' });
+                }}
             />
             <CloudflareSettings
                 enabled={settings.cloudflaredTunnelEnabled}
                 token={settings.cloudflaredToken}
                 allowedHosts={settings.allowedHosts}
-                onChange={(field, value) => onSettingsChange(field as keyof Settings, value)}
+                onChange={(field, value) => {
+                    onSettingsChange(field as keyof Settings, value);
+                }}
             />
             <RssFeedSettings />
         </Box>
@@ -262,8 +282,12 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
                     <YtDlpSettings
                         config={settings.ytDlpConfig || ''}
                         proxyOnlyYoutube={settings.proxyOnlyYoutube || false}
-                        onChange={(config) => onSettingsChange('ytDlpConfig', config)}
-                        onProxyOnlyYoutubeChange={(checked) => onSettingsChange('proxyOnlyYoutube', checked)}
+                        onChange={(config) => {
+                            onSettingsChange('ytDlpConfig', config);
+                        }}
+                        onProxyOnlyYoutubeChange={(checked) => {
+                            onSettingsChange('proxyOnlyYoutube', checked);
+                        }}
                     />
                 ) : (
                     <Alert severity="info">
@@ -284,7 +308,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
                 <TwitchSettings
                     twitchClientId={settings.twitchClientId}
                     twitchClientSecret={settings.twitchClientSecret}
-                    onChange={(field, value) => onSettingsChange(field as keyof Settings, value)}
+                    onChange={(field, value) => {
+                        onSettingsChange(field as keyof Settings, value);
+                    }}
                 />
             </Box>
         </Box>
@@ -302,7 +328,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
                         multiline
                         rows={4}
                         value={settings.mountDirectories || ''}
-                        onChange={(e) => onSettingsChange('mountDirectories' as keyof Settings, e.target.value)}
+                        onChange={(e) => {
+                            onSettingsChange('mountDirectories' as keyof Settings, e.target.value);
+                        }}
                         placeholder={t('mountDirectoriesPlaceholder')}
                         helperText={t('mountDirectoriesHelper')}
                     />
@@ -339,7 +367,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             <TextField
                 fullWidth
                 value={settings.tmdbApiKey || ''}
-                onChange={(e) => onSettingsChange('tmdbApiKey' as keyof Settings, e.target.value)}
+                onChange={(e) => {
+                    onSettingsChange('tmdbApiKey' as keyof Settings, e.target.value);
+                }}
                 type="password"
                 helperText={t('tmdbApiKeyHelper')}
                 placeholder="Enter your TMDB API key"
@@ -359,7 +389,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             {tmdbCredentialTestResult && (
                 <Alert
                     severity={tmdbCredentialTestResult.type === 'success' ? 'success' : 'error'}
-                    onClose={() => setTmdbCredentialTestResult(null)}
+                    onClose={() => {
+                        setTmdbCredentialTestResult(null);
+                    }}
                     sx={{ mt: 2 }}
                 >
                     {tmdbCredentialTestResult.message}
@@ -396,11 +428,17 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             isSaving={isSaving}
             lastBackupInfo={lastBackupInfo}
             moveSubtitlesToVideoFolder={settings.moveSubtitlesToVideoFolder || false}
-            onMoveSubtitlesToVideoFolderChange={(checked) => onSettingsChange('moveSubtitlesToVideoFolder', checked)}
+            onMoveSubtitlesToVideoFolderChange={(checked) => {
+                onSettingsChange('moveSubtitlesToVideoFolder', checked);
+            }}
             moveThumbnailsToVideoFolder={settings.moveThumbnailsToVideoFolder || false}
-            onMoveThumbnailsToVideoFolderChange={(checked) => onSettingsChange('moveThumbnailsToVideoFolder', checked)}
+            onMoveThumbnailsToVideoFolderChange={(checked) => {
+                onSettingsChange('moveThumbnailsToVideoFolder', checked);
+            }}
             saveAuthorFilesToCollection={settings.saveAuthorFilesToCollection || false}
-            onSaveAuthorFilesToCollectionChange={(checked) => onSettingsChange('saveAuthorFilesToCollection', checked)}
+            onSaveAuthorFilesToCollectionChange={(checked) => {
+                onSettingsChange('saveAuthorFilesToCollection', checked);
+            }}
         />
     );
 
@@ -545,7 +583,9 @@ export const SettingsSections: React.FC<SettingsSectionsProps> = ({
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, px: 3 }}>
                 <Tabs
                     value={currentTab}
-                    onChange={(_, newValue) => setCurrentTab(newValue)}
+                    onChange={(_, newValue) => {
+                        setCurrentTab(newValue);
+                    }}
                     variant="scrollable"
                     scrollButtons="auto"
                     aria-label="settings tabs"

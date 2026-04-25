@@ -7,6 +7,12 @@ const YT_DLP_JS_RUNTIME_ENV = "YT_DLP_JS_RUNTIME";
 let ytDlpAvailablePromise: Promise<void> | null = null;
 let denoAvailablePromise: Promise<boolean> | null = null;
 type YouTubeJsRuntimeFlag = "--js-runtime" | "--js-runtimes";
+type ProcessExecutionError = Error & {
+  code?: string | number;
+  exitCode?: number | null;
+  kind?: "close" | "spawn";
+  stderr?: string;
+};
 
 let jsRuntimeFlagPromise: Promise<YouTubeJsRuntimeFlag | null> | null = null;
 const runtimeWarningCache = new Set<string>();
@@ -51,25 +57,28 @@ async function installYtDlp(): Promise<void> {
         const proc = spawn(cmd, args, {
           stdio: ["ignore", "ignore", "pipe"],
         });
-        proc.stderr?.on("data", (data: Buffer) => {
+        proc.stderr.on("data", (data: Buffer) => {
           stderr += data.toString();
         });
-        proc.on("close", (code) =>
-          code === 0
-            ? resolve()
-            : reject(
-                Object.assign(new Error(`${cmd} exited with code ${code}`), {
-                  code,
-                  stderr,
-                })
-              )
-        );
+        proc.on("close", (code) => {
+          if (code === 0) {
+            resolve();
+            return;
+          }
+          reject(
+            Object.assign(new Error(`${cmd} exited with code ${code}`), {
+              code,
+              stderr,
+            })
+          );
+        });
         proc.on("error", reject);
       });
       console.log("[yt-dlp] Successfully installed yt-dlp.");
       return;
-    } catch (error: any) {
-      const stderr = String(error?.stderr || "").trim();
+    } catch (error: unknown) {
+      const executionError = error as ProcessExecutionError;
+      const stderr = String(executionError.stderr || "").trim();
       if (stderr) {
         console.warn(`[yt-dlp] ${cmd} failed: ${stderr.split("\n").pop()}`);
       }
@@ -77,6 +86,7 @@ async function installYtDlp(): Promise<void> {
     }
   }
 
+  // eslint-disable-next-line security-node/detect-unhandled-async-errors
   throw new Error(
     "yt-dlp is not installed and could not be automatically installed. " +
       "Please install it manually: https://github.com/yt-dlp/yt-dlp#installation"
@@ -112,20 +122,21 @@ export async function ensureYtDlpAvailable(): Promise<void> {
           reject(Object.assign(error, { kind: "spawn" }));
         });
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const executionError = err as ProcessExecutionError;
       // Non-zero exit from --version means binary executed; continue.
-      if (err.kind === "close") {
+      if (executionError.kind === "close") {
         return;
       }
 
-      if (err.code === "EACCES" || err.code === "EPERM") {
+      if (executionError.code === "EACCES" || executionError.code === "EPERM") {
         throw new Error(
           `yt-dlp exists but is not executable at: ${YT_DLP_PATH}. ` +
             "Please fix file permissions or install yt-dlp manually."
         );
       }
 
-      if (err.code === "ENOENT") {
+      if (executionError.code === "ENOENT") {
         // Only auto-install when using the default path (not a user-configured path).
         if (process.env.YT_DLP_PATH) {
           throw new Error(
@@ -144,11 +155,11 @@ export async function ensureYtDlpAvailable(): Promise<void> {
       if (process.env.YT_DLP_PATH) {
         throw new Error(
           `Failed to execute configured yt-dlp at ${YT_DLP_PATH} ` +
-            `(${err.code || "unknown"}): ${err.message}`
+            `(${executionError.code || "unknown"}): ${executionError.message}`
         );
       }
       throw new Error(
-        `Failed to execute yt-dlp (${err.code || "unknown"}): ${err.message}`
+        `Failed to execute yt-dlp (${executionError.code || "unknown"}): ${executionError.message}`
       );
     }
   })().catch((err) => {
@@ -201,11 +212,11 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    proc.stdout?.on("data", (data: Buffer) => {
+    proc.stdout.on("data", (data: Buffer) => {
       helpText += data.toString();
     });
 
-    proc.stderr?.on("data", (data: Buffer) => {
+    proc.stderr.on("data", (data: Buffer) => {
       helpText += data.toString();
     });
 
@@ -240,7 +251,7 @@ async function getYouTubeJsRuntimeFlag(): Promise<YouTubeJsRuntimeFlag | null> {
 }
 
 async function getYouTubeJsRuntime(): Promise<"node" | "deno"> {
-  const rawRuntime = process.env[YT_DLP_JS_RUNTIME_ENV]?.trim();
+  const rawRuntime = process.env.YT_DLP_JS_RUNTIME?.trim();
   const runtime = rawRuntime?.toLowerCase();
   const hasRuntimeOverride = Boolean(rawRuntime);
 

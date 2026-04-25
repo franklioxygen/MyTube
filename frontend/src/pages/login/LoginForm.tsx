@@ -76,7 +76,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
                     <Tabs
                         value={activeTab}
-                        onChange={(_, newValue: number) => onTabChange(newValue)}
+                        onChange={(_, newValue: number) => {
+                            onTabChange(newValue);
+                        }}
                         aria-label="login tabs"
                         variant="fullWidth"
                     >
@@ -93,7 +95,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 onPasswordChange={onPasswordChange}
                 onPasswordSubmit={onAdminPasswordSubmit}
                 onResetPassword={onResetPassword}
-                onTogglePasswordVisibility={() => onShowPasswordChange(!showPassword)}
+                onTogglePasswordVisibility={() => {
+                    onShowPasswordChange(!showPassword);
+                }}
                 passkeyLoginPending={passkeyLoginPending}
                 passkeysExist={passkeysExist}
                 password={password}
@@ -109,7 +113,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                     activeTab={activeTab}
                     onPasswordChange={onVisitorPasswordChange}
                     onPasswordSubmit={onVisitorPasswordSubmit}
-                    onTogglePasswordVisibility={() => onShowVisitorPasswordChange(!showVisitorPassword)}
+                    onTogglePasswordVisibility={() => {
+                        onShowVisitorPasswordChange(!showVisitorPassword);
+                    }}
                     showPassword={showVisitorPassword}
                     t={t}
                     visitorLoginPending={visitorLoginPending}

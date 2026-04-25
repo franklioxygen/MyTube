@@ -7,7 +7,11 @@ import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useSnackbar } from './SnackbarContext';
 import { useVideoMutations } from './video/useVideoMutations';
-import { useVideoSearch } from './video/useVideoSearch';
+import { useVideoSearch, type RemoteSearchResult, type SearchActionResult } from './video/useVideoSearch';
+
+const isUnauthorizedError = (error: unknown): boolean => (
+    (error as { response?: { status?: number } }).response?.status === 401
+);
 
 interface VideoContextType {
     videos: Video[];
@@ -20,13 +24,13 @@ interface VideoContextType {
     refreshThumbnail: (id: string) => Promise<{ success: boolean; error?: string }>;
     uploadThumbnail: (id: string, file: File) => Promise<void>;
     searchLocalVideos: (query: string) => Video[];
-    searchResults: any[];
+    searchResults: RemoteSearchResult[];
     localSearchResults: Video[];
     isSearchMode: boolean;
     searchTerm: string;
     incrementView: (id: string) => Promise<{ success: boolean; error?: string }>;
     youtubeLoading: boolean;
-    handleSearch: (query: string) => Promise<any>;
+    handleSearch: (query: string) => Promise<SearchActionResult>;
     resetSearch: () => void;
     setVideos: React.Dispatch<React.SetStateAction<Video[]>>;
     setIsSearchMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -70,9 +74,9 @@ export const VideoProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
         // Only query when authenticated to avoid 401 errors on login page
         enabled: isAuthenticated,
-        retry: (failureCount, error: any) => {
+        retry: (failureCount, error: unknown) => {
             // Don't retry on 401 errors (unauthorized) - user is not authenticated
-            if (error?.response?.status === 401) {
+            if (isUnauthorizedError(error)) {
                 return false;
             }
             // Retry other errors up to 3 times

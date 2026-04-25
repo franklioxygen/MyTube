@@ -55,10 +55,10 @@ export const useLoginActions = ({
                 'Choose the command that matches your environment:',
                 '',
                 'Backend shell',
-                '  node dist/scripts/reset-password.js <new-password>',
+                '  node dist/scripts/reset-password.js NEW_PASSWORD',
                 '',
                 'Docker host',
-                '  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js <new-password>',
+                '  docker exec -it mytube-backend node /app/dist/scripts/reset-password.js NEW_PASSWORD',
                 '',
                 'Use the backend directory/container that has access to the persistent app data.',
             ].join('\n')

@@ -5,6 +5,27 @@ import type { TranslateFn } from '../../utils/translateOrFallback';
 
 const MAX_SEARCH_RESULTS = 200; // Maximum number of search results to keep in memory
 
+export interface RemoteSearchResult {
+    id: string;
+    title?: string;
+    author?: string;
+    source?: string;
+    sourceUrl: string;
+    thumbnailUrl?: string;
+    duration?: number | string;
+    viewCount?: number;
+    [key: string]: unknown;
+}
+
+export interface SearchActionResult {
+    success: boolean;
+    error?: string;
+}
+
+interface SearchResponse {
+    results?: RemoteSearchResult[];
+}
+
 interface UseVideoSearchArgs {
     showSnackbar: (message: string) => void;
     showYoutubeSearch: boolean;
@@ -17,13 +38,17 @@ const isAbortLikeError = (error: unknown): boolean => {
     return name === 'CanceledError' || name === 'AbortError';
 };
 
+const getSearchResults = (data: SearchResponse | undefined): RemoteSearchResult[] => (
+    Array.isArray(data?.results) ? data.results : []
+);
+
 export const useVideoSearch = ({
     showSnackbar,
     showYoutubeSearch,
     t,
     videos,
 }: UseVideoSearchArgs) => {
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<RemoteSearchResult[]>([]);
     const [localSearchResults, setLocalSearchResults] = useState<Video[]>([]);
     const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -82,7 +107,7 @@ export const useVideoSearch = ({
             });
 
             if (!signal.aborted) {
-                const results = response.data.results || [];
+                const results = getSearchResults(response.data);
                 setSearchResults(results.slice(0, MAX_SEARCH_RESULTS));
             }
         } catch (youtubeErr: unknown) {
@@ -96,7 +121,7 @@ export const useVideoSearch = ({
         }
     };
 
-    const handleSearch = async (query: string): Promise<any> => {
+    const handleSearch = async (query: string): Promise<SearchActionResult> => {
         if (!query || query.trim() === '') {
             resetSearch();
             return { success: false, error: t('pleaseEnterSearchTerm') };
@@ -155,10 +180,11 @@ export const useVideoSearch = ({
                 },
             });
 
-            if (response.data.results && response.data.results.length > 0) {
+            const results = getSearchResults(response.data);
+            if (results.length > 0) {
                 setSearchResults(prev => {
                     const existingIds = new Set(prev.map(result => result.id));
-                    const newResults = response.data.results.filter((result: any) => !existingIds.has(result.id));
+                    const newResults = results.filter((result) => !existingIds.has(result.id));
                     return [...prev, ...newResults].slice(0, MAX_SEARCH_RESULTS);
                 });
             }

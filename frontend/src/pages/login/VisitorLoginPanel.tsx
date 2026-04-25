@@ -50,8 +50,10 @@ export const VisitorLoginPanel: React.FC<VisitorLoginPanelProps> = ({
                         label={t('visitorPassword') || 'Visitor Password'}
                         id="visitorPassword"
                         value={visitorPassword}
-                        onChange={(event) => onPasswordChange(event.target.value)}
-                        autoFocus={activeTab === 1}
+                        onChange={(event) => {
+                            onPasswordChange(event.target.value);
+                        }}
+                        autoFocus
                         disabled={passwordDisabled}
                         showPassword={showPassword}
                         onToggleVisibility={onTogglePasswordVisibility}

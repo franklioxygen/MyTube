@@ -5,6 +5,14 @@ const DEFAULT_YOUTUBE_PLAYER_CLIENT_EXTRACTOR_ARG =
   "youtube:player_client=default,mweb";
 const YOUTUBE_PLAYER_CLIENT_ARG_PREFIX = "youtube:player_client=";
 const PROVIDER_SCRIPT_ARG_PREFIX = "youtubepot-bgutilscript:script_path=";
+export type YtDlpFlagValue =
+  | string
+  | number
+  | boolean
+  | readonly (string | number)[]
+  | null
+  | undefined;
+export type YtDlpFlags = Record<string, YtDlpFlagValue>;
 
 function parseExtractorArgParts(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -28,8 +36,8 @@ function joinExtractorArgParts(parts: string[]): string | undefined {
 
 export function withDefaultYouTubeExtractorArgs(
   url: string,
-  flags: Record<string, any>
-): Record<string, any> {
+  flags: YtDlpFlags
+): YtDlpFlags {
   if (!isYouTubeUrl(url)) {
     return flags;
   }
@@ -68,25 +76,25 @@ export function convertFlagToArg(flag: string): string {
 }
 
 // Map of short options to their long equivalents
-const SHORT_TO_LONG: Record<string, string> = {
-  f: "format",
-  S: "format-sort",
-  o: "output",
-  r: "limit-rate",
-  R: "retries",
-  N: "concurrent-fragments",
-  x: "extract-audio",
-  k: "keep-video",
-  j: "dump-json",
-  J: "dump-single-json",
-  "4": "force-ipv4",
-  "6": "force-ipv6",
-};
+const SHORT_TO_LONG = new Map<string, string>([
+  ["f", "format"],
+  ["S", "format-sort"],
+  ["o", "output"],
+  ["r", "limit-rate"],
+  ["R", "retries"],
+  ["N", "concurrent-fragments"],
+  ["x", "extract-audio"],
+  ["k", "keep-video"],
+  ["j", "dump-json"],
+  ["J", "dump-single-json"],
+  ["4", "force-ipv4"],
+  ["6", "force-ipv6"],
+]);
 
 /**
  * Convert flags object to yt-dlp CLI arguments array
  */
-export function flagsToArgs(flags: Record<string, any>): string[] {
+export function flagsToArgs(flags: YtDlpFlags): string[] {
   const args: string[] = [];
 
   for (const [key, value] of Object.entries(flags)) {
@@ -112,23 +120,17 @@ export function flagsToArgs(flags: Record<string, any>): string[] {
       // addHeader is an array of "key:value" strings
       if (Array.isArray(value)) {
         for (const header of value) {
-          args.push("--add-header", header);
+          args.push("--add-header", String(header));
         }
       } else {
-        args.push("--add-header", value);
+        args.push("--add-header", String(value));
       }
       continue;
     }
 
     // Handle short options (single letter flags)
-    let argName: string;
-    if (SHORT_TO_LONG[key]) {
-      // Convert short option to long form
-      argName = `--${SHORT_TO_LONG[key]}`;
-    } else {
-      // Convert camelCase to kebab-case
-      argName = convertFlagToArg(key);
-    }
+    const longFlag = SHORT_TO_LONG.get(key);
+    const argName = longFlag ? `--${longFlag}` : convertFlagToArg(key);
 
     if (typeof value === "boolean") {
       if (value) {

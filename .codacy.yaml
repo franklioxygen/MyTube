@@ -24,5 +24,6 @@ engines:
   opengrep:
     exclude_paths:
       - "backend/src/utils/security.ts"
+      - "backend/src/utils/security/**"
       - "scripts/codacy/generate-issues-report.mjs"
       - "scripts/lighthouse/generate-badge.mjs"

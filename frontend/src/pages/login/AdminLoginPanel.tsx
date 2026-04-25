@@ -71,7 +71,9 @@ export const AdminLoginPanel: React.FC<AdminLoginPanelProps> = ({
                                 id="password"
                                 autoComplete="current-password"
                                 value={password}
-                                onChange={(event) => onPasswordChange(event.target.value)}
+                                onChange={(event) => {
+                                    onPasswordChange(event.target.value);
+                                }}
                                 autoFocus={!showVisitorTab || activeTab === 0}
                                 disabled={passwordDisabled}
                                 helperText={t('defaultPasswordHint') || 'Use the admin password configured in Settings.'}

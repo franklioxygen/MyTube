@@ -1,3 +1,4 @@
+import { execFile, type ExecFileOptions } from "child_process";
 import crypto from "crypto";
 import { Request, Response } from "express";
 import multer from "multer";
@@ -21,6 +22,7 @@ import {
 } from "../../utils/videoUpload";
 import {
   pathExistsSafeSync,
+  resolveSafeChildPath,
   resolveSafePath,
   unlinkSafeSync,
 } from "../../utils/security";
@@ -63,9 +65,8 @@ export const uploadBatch = multer(videoBatchUploadOptions);
 const execFileSafe = async (
   file: string,
   args: string[],
-  options: any = {}
+  options: ExecFileOptions = {}
 ): Promise<void> => {
-  const { execFile } = await import("child_process");
   return new Promise((resolve, reject) => {
     execFile(file, args, options, (error, _stdout, stderr) => {
       if (error) {
@@ -334,8 +335,7 @@ const getUploadVideoPayload = async (
     return buildUploadFailureResult(file, "No video file uploaded");
   }
 
-  const rawVideoPath = path.join(VIDEOS_DIR, storedVideoFilename);
-  const validatedVideoPath = validateVideoPath(rawVideoPath);
+  const validatedVideoPath = resolveSafeChildPath(VIDEOS_DIR, storedVideoFilename);
   const contentHash = file.contentHash;
   const videoId =
     typeof contentHash === "string" && contentHash.length > 0
